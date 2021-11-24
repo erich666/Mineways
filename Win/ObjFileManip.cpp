@@ -746,6 +746,7 @@ static int schematicWriteShortValue(gzFile gz, short shortValue);
 static int schematicWriteIntValue(gzFile gz, int intValue);
 static int schematicWriteStringValue(gzFile gz, char* stringValue);
 
+static int writeEmissiveScaledTile(wchar_t* filename, int index);
 static int writeTileFromCategoryInput(wchar_t* filename, int index, int category);
 static boolean isTileValue(int category, int swatchLoc, boolean checkAllPixels, unsigned char value);
 static int tileAlphaStatus(int swatchLoc);
@@ -1670,12 +1671,12 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
                                 int category = (isOBJ && j == CATEGORY_ROUGHNESS) ? CATEGORY_SPECULAR : j;
                                 concatFileName4(materialTile, gTextureDirectoryPath, gTilesTable[i].filename, gCatSuffixes[category], L".png");
 // Define in order to make separate emission grayscale textures for each light.
-// Really, USD looks better with RGB textures for emissive. Hmmm. TODOUSD.
+// To make these look better, we multiply by the hue of the diffuse texture (i.e., scale the diffuse texture texel to the max and multiply).
 #define GENERATE_EMISSION_TILES
 #ifdef GENERATE_EMISSION_TILES
                                 // if we're doing emissions, and the emitter doesn't have an emissive texture so we need to have a texture synthesized for them
                                 if (j == CATEGORY_EMISSION && gModel.tileEmissionNeeded[i]) {
-                                    int clampLevel = 0;
+                                    int clampLevel = 1; // used as a sign that this is an emitter of some sort - if black, it won't emit at that pixel anyway
                                     // For some textures we want a special emissive texture, not just a grayscale of the original RGB. We want to clamp:
                                     // if a value is lower than the clamp value, it is set to black so that no light emits from its texel.
                                     switch (i) {    // TODOUSD need to add burning furnace, glowing redstone ore, jack o lantern, portal, brewing stand, dragon egg, redstone lamp,
@@ -1728,12 +1729,20 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
                                     default:
                                         break;
                                     }
-                                    rc = writeTileFromMasterOutput(materialTile, gModel.pPNGtexture, i, gModel.swatchSize, gModel.swatchesPerRow, true, clampLevel);
+                                    // color output - to go back to grayscale, simply change next-to-last arg from false to true
+                                    rc = writeTileFromMasterOutput(materialTile, gModel.pPNGtexture, i, gModel.swatchSize, gModel.swatchesPerRow, false, clampLevel);
                                 }
                                 else
 #endif
                                 {
-                                    rc = writeTileFromCategoryInput(materialTile, i, j);
+                                    // special case: if there's an emissive texture, it's grayscale (just the way Minecraft RTX defines it).
+                                    // But, these look bad in some DCC apps. So, we do this crazy thing: hue of diffuse times grayscale.
+                                    if (j == CATEGORY_EMISSION) {
+                                        rc = writeEmissiveScaledTile(materialTile, i);
+                                    }
+                                    else {
+                                        rc = writeTileFromCategoryInput(materialTile, i, j);
+                                    }
                                 }
                                 assert(rc == 0);
                                 retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
@@ -26024,8 +26033,6 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 }
                 
                 // emitter?
-                // TODOUSD: headache case is jack o lantern. Pumpkins are not emitters. Jack o' lanterns are. We would need a special,
-                // separate shader for jack o' lantern sides, bottom, top that is an emitter.
                 if (tileIsAnEmitter(pFace->materialType, swatchLoc)) {
                     emission = getEmitterLevel(pFace->materialType, pFace->materialDataVal, true, 1.0f);
 
@@ -26033,6 +26040,15 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     if (emission == 0.0f && gModel.tileList[CATEGORY_EMISSION][swatchLoc]) {
                         // could instead analyze the mask and get a value? TODO
                         emission = 1.0f;
+                    }
+
+                    // Special case: only jack o' lantern faces actually emit.
+                    // The headache: pumpkin sides and top could otherwise be emitters (jack o' lantern)
+                    // or not (normal pumpkin).
+                    if (swatchLoc == 6 * 16 + 6 ||
+                        swatchLoc == 7 * 16 + 6 ||
+                        swatchLoc == 7 * 16 + 7 ) {
+                        emission = 0.0f;
                     }
 
                     if (emission > 0.0f) {
@@ -26776,8 +26792,11 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     // pack system, where the emissive texture is expected to be a grayscale image. We could take corrective actions, e.g.,
                     // offer the option to multiply the emissive texture by the hue (not intensity) of the diffuse texture. TODO - that's not a terrible idea.
                     // TODOTODOUSD - don't use rgb color and don't divide by 255 here - should just use emission value for all three, once emitter texture is fixed.
-                    float escale = gModel.options->pEFD->scaleEmittersVal * emission / 255.0f;
-                    sprintf_s(outputString, 256, "            float4 inputs:scale = (%g, %g, %g, 1.0)\n", (float)r * escale, (float)g * escale, (float)b * escale);
+                    float escale = gModel.options->pEFD->scaleEmittersVal * emission;
+                    sprintf_s(outputString, 256, "            float4 inputs:scale = (%g, %g, %g, 1.0)\n", escale, escale, escale);
+                    // for when emitter textures are grayscale:
+                    //float escale = gModel.options->pEFD->scaleEmittersVal * emission / 255.0f;
+                    //sprintf_s(outputString, 256, "            float4 inputs:scale = (%g, %g, %g, 1.0)\n", (float)r* escale, (float)g* escale, (float)b* escale);
                     // not this:
                     //float escale = 1000.0f * emission;
                     //sprintf_s(outputString, 256, "            float4 inputs:scale = (%g, %g, %g, 1.0)\n", escale, escale, escale);
@@ -27574,6 +27593,94 @@ static int schematicWriteStringValue(gzFile gz, char* stringValue)
     return totWrite;
 }
 
+static int writeEmissiveScaledTile(wchar_t* filename, int index)
+{
+    int rc = MW_NO_ERROR;
+
+    // set up output
+    int numChannels = 3;
+    unsigned char* imageDst, * imageDiffuseSrc, * imageEmitSrc;  // cppcheck-suppress 398
+    progimage_info dst;
+    dst.height = dst.width = gModel.tileSize;
+    dst.image_data.resize(dst.height * dst.width * numChannels);
+
+    imageDst = &dst.image_data[0];
+
+    int perRowDiffuse = gModel.pInputTerrainImage[CATEGORY_RGBA]->width * gCatChannels[CATEGORY_RGBA];
+    int tileStartDiffuse = ((index / 16) * perRowDiffuse * gModel.tileSize) +
+        ((index % 16) * gModel.tileSize * gCatChannels[CATEGORY_RGBA]);
+
+    int perRowEmit = gModel.pInputTerrainImage[CATEGORY_EMISSION]->width * gCatChannels[CATEGORY_EMISSION];
+    int tileStartEmit = ((index / 16) * perRowEmit * gModel.tileSize) +
+        ((index % 16) * gModel.tileSize * gCatChannels[CATEGORY_EMISSION]);
+
+    for (int row = 0; row < dst.height; row++)
+    {
+        imageDiffuseSrc = &(gModel.pInputTerrainImage[CATEGORY_RGBA]->image_data[tileStartDiffuse + row * perRowDiffuse]);
+        imageEmitSrc = &(gModel.pInputTerrainImage[CATEGORY_EMISSION]->image_data[tileStartEmit + row * perRowEmit]);
+        for (int col = 0; col < dst.width; col++)
+        {
+            // if alpha == 0, skip pixel
+            if (imageDiffuseSrc[3] == 0) {
+                // will black in alpha pixels cause "emitter creep" along the edges? We're not going to worry about it for now... TODOUSD
+                *imageDst++ = 0;
+                *imageDst++ = 0;
+                *imageDst++ = 0;
+                imageDiffuseSrc += 4;
+                imageEmitSrc++;
+            }
+            else {
+                // Take the grayscale level of the colored diffuse texture. If this is the same value as the
+                // grayscale emitter, we're done
+                int diffuseGray = (int)((0.30f * imageDiffuseSrc[0]) + (0.59f * imageDiffuseSrc[1]) + (0.11f * imageDiffuseSrc[2]) + 0.5f);
+                int emitterGray = (int)*imageEmitSrc++;
+
+                if (fabs(diffuseGray - emitterGray) <= 1.0f) {
+                    *imageDst++ = *imageDiffuseSrc++;
+                    *imageDst++ = *imageDiffuseSrc++;
+                    *imageDst++ = *imageDiffuseSrc++;
+                }
+                else {
+                    // else do this: scale diffuse up or down, clamping
+                    float scale = (float)emitterGray / (float)diffuseGray;
+                    float r = scale * (float)*imageDiffuseSrc++;
+                    float g = scale * (float)*imageDiffuseSrc++;
+                    float b = scale * (float)*imageDiffuseSrc++;
+                    float max = r;
+                    if (g > max)
+                        max = g;
+                    if (b > max)
+                        max = b;
+                    if (max >= 256.0f) {
+                        // scale color down - rounding logic here is a bit off, but good enough
+                        scale = 255.999f / max;
+                        r *= scale;
+                        g *= scale;
+                        b *= scale;
+                    }
+                    // just drop fraction - all values are now < 256
+                    *imageDst++ = (unsigned char)r;
+                    *imageDst++ = (unsigned char)g;
+                    *imageDst++ = (unsigned char)b;
+
+                    // pure clamp:
+                    //*imageDst++ = (unsigned char)((r > 255) ? 255 : r);
+                    //*imageDst++ = (unsigned char)((g > 255) ? 255 : g);
+                    //*imageDst++ = (unsigned char)((b > 255) ? 255 : b);
+                }
+                // skip alpha
+                imageDiffuseSrc++;
+            }
+        }
+    }
+
+    rc |= writepng(&dst, numChannels, filename);
+    addOutputFilenameToList(filename);
+
+    writepng_cleanup(&dst);
+
+    return rc;
+}
 
 static int writeTileFromCategoryInput(wchar_t *filename, int index, int category)
 {
@@ -29392,10 +29499,11 @@ static void convertAlphaToGrayscale(progimage_info* dst)
 }
 
 // for output of tiles
-
+// For emitters, clampToBlack tells what gray level is considered black
 static bool writeTileFromMasterOutput(wchar_t* filename, progimage_info* src, int swatchLoc, int swatchSize, int swatchesPerRow, bool makeGrayscale, int clampToBlack)
 {
     int rc = MW_NO_ERROR;
+    // does the output need to have an alpha? Emitters don't
     bool usesAlpha = doesTileHaveAlpha(src, swatchLoc, swatchSize, swatchesPerRow);
     // TODO OK, this is a kludge
     if ((wcsstr(filename, L"MWO_") != 0) && (wcsstr(filename, L"_chest_") != 0)) {
@@ -29406,9 +29514,15 @@ static bool writeTileFromMasterOutput(wchar_t* filename, progimage_info* src, in
     int srow = swatchLoc / swatchesPerRow;
 
     int col, row;
+    // for whether the OUTPUT image uses alpha; grayscale emitters don't
     int numChannels = usesAlpha ? 4 : 3;
     if (makeGrayscale) {
         numChannels = 1;
+    }
+    else if (clampToBlack > 0) {
+        // color emitter, doesn't need an alpha
+        numChannels = 3;
+        usesAlpha = false;
     }
     unsigned char* imageDst;
     unsigned char* imageSrc;
@@ -29427,10 +29541,10 @@ GenerateEmitter:
         for (col = 0; col < dst.width; col++)
         {
             if (makeGrayscale) {
-                // if surfaces is there (alpha>0) AND if any channel value is >= clamp value, output grayscale, else output black (the surface does not emit)
+                // if surface is there (alpha>0) AND if any channel value is >= clamp value, output grayscale, else output black (the surface does not emit)
                 if (imageSrc[3] > 0 && (imageSrc[0] >= clampToBlack || imageSrc[1] >= clampToBlack || imageSrc[2] >= clampToBlack) ) {
                     // crappy, non-gamma luminance, but good enough
-                    *imageDst++ = (unsigned char)((0.30f * imageSrc[0]) + (0.59f * imageSrc[1]) + (0.11f * imageSrc[2]) + 0.5);
+                    *imageDst++ = (unsigned char)((0.30f * imageSrc[0]) + (0.59f * imageSrc[1]) + (0.11f * imageSrc[2]) + 0.5f);
                 }
                 else {
                     // pixel is a cutout or not considered an emitter, so set it to black
@@ -29439,29 +29553,63 @@ GenerateEmitter:
                 imageSrc += 4;
             }
             else {
-                // copy RGB only
-                *imageDst++ = *imageSrc++;
-                *imageDst++ = *imageSrc++;
-                *imageDst++ = *imageSrc++;
-                if (usesAlpha)
+                // If clampToBlack is 1, it's a color emitter but can simply be copied over - there's no real clamping going on.
+                if (clampToBlack > 1) {
+                    // if surface is there (alpha > 0) AND if any channel value is >= clamp value, output color, else output black (the surface does not emit)
+                    if (imageSrc[3] > 0 && (imageSrc[0] >= clampToBlack || imageSrc[1] >= clampToBlack || imageSrc[2] >= clampToBlack)) {
+                        // copy
+                        *imageDst++ = *imageSrc++;
+                        *imageDst++ = *imageSrc++;
+                        *imageDst++ = *imageSrc++;
+                        imageSrc++;
+                    }
+                    else {
+                        // pixel is a cutout or not considered an emitter, so set it to black
+                        *imageDst++ = 0;
+                        *imageDst++ = 0;
+                        *imageDst++ = 0;
+                        imageSrc += 4;
+                    }
+                }
+                else {
+                    // copy RGB and possibly A - the normal non-emitter path
                     *imageDst++ = *imageSrc++;
-                else
-                    imageSrc++;
+                    *imageDst++ = *imageSrc++;
+                    *imageDst++ = *imageSrc++;
+                    if (usesAlpha)
+                        *imageDst++ = *imageSrc++;
+                    else
+                        imageSrc++;
+                }
             }
         }
     }
 
     // For some resource packs the map comes back entirely black, since they use different colors.
-    // If we get all black back, then redo and turn clamping off! TODOUSD - is there a better way?
+    // If we get all black back, then redo and turn clamping off!
     if (clampToBlack > 0) {
-        assert(makeGrayscale);
+        //assert(makeGrayscale);
         imageDst = &dst.image_data[0];
         for (row = 0; row < dst.height; row++)
         {
             for (col = 0; col < dst.width; col++)
             {
-                if ( *imageDst++ > 0 ) {
-                    goto WriteEmitter;
+                if (makeGrayscale) {
+                    if (*imageDst++ > 0) {
+                        goto WriteEmitter;
+                    }
+                }
+                else {
+                    // rgb
+                    if (*imageDst++ > 0) {
+                        goto WriteEmitter;
+                    }
+                    if (*imageDst++ > 0) {
+                        goto WriteEmitter;
+                    }
+                    if (*imageDst++ > 0) {
+                        goto WriteEmitter;
+                    }
                 }
             }
         }
