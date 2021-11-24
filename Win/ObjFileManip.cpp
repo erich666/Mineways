@@ -26969,9 +26969,23 @@ static void setMetallicRoughnessByName(char *mtlName, float *metallic, float *ro
     else if (strstr(blockName, "stripped") != NULL) {
         *roughness = 0.50f;
     }
-    else if (strstr(blockName, "copper") != NULL && strstr(blockName, "block") != NULL) {
-        *metallic = 0.90f;   // rusty-ish?
-        *roughness = 0.50f;
+    else if (strstr(blockName, "copper") != NULL && strstr(blockName, "_ore") == NULL) {
+        if (strstr(blockName, "exposed") != NULL) {
+            *metallic = 0.80f;   // quite "rusty"
+            *roughness = 0.30f; // more than this and it's pretty non-reflective-looking
+        }
+        else if (strstr(blockName, "weathered") != NULL) {
+            *metallic = 0.30f;   // quite "rusty"
+            *roughness = 0.60f;
+        }
+        else if (strstr(blockName, "oxidized") != NULL) {
+            *metallic = 0.0f;   // can't tell it's metal
+            *roughness = 0.80f;
+        }
+        else {
+            *metallic = 1.00f;
+            *roughness = 0.20f;
+        }
     }
     // note: copper is complicated enough (weathered, etc.) that we don't touch most.
     // Block of Copper is about the only one I'll try.
