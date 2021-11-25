@@ -109,6 +109,7 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
    <LI><a href="#obj_export_options">Wavefront OBJ File Export Options</a>
    <LI><a href="#full_material">Custom Material</a>
    <LI><a href="#composite">Create Composite Overlay Faces</a>
+   <LI><a href="#usd_export_options">Pixar USD File Export Options</a>
    <LI><a href="#center_model">Center Model Around the Origin</a>
    <LI><a href="#leaves_solid">Tree Leaves Solid</a>
  </UL>
@@ -443,7 +444,7 @@ If you find you want your model data to be arranged a bit differently for your r
 <P>Any number of polygons can be in an object or group. There is also a set of materials (defined in the .mtl file). One and only one material is applied to each polygon.
 <UL>
 <LI>Export separate types: on by default, this option says each type of block - stone, logs, fences, and so on - are put in a separate group. Turning this option off means no groups are created, which can be useful for simplifying import into rendering packages but can make editing more difficult. This option does not affect how many materials are generated.
-<LI id="individual" class="ib">Export individual blocks: This option is mutually exclusive with the previous option, "Export separate types." Normally Mineways exports only those faces that are visible. By checking this box, <i>all</i> of <i>every</i> block's faces are output, allowing you to animate such operations as mining or explosions. This considerably increases file size and render time, so use it only if you need it. You may also want to check the <a href="#make_groups_objects">Make groups objects</a> option, e.g., for Blender export, as each group will then be a separate object you can manipulate. For Blender you'll also want to make sure "Material per family" is checked. Note that the individual blocks option will change the appearance of some blocks, such as water and glass blocks, as all faces now have sides, which are visible. Normally Minecraft removes these interior sides (e.g., where two glass blocks share a face), but this option makes them visible. This option works for OBJ and USD export. With USD export, two additional USD files are produced, "*_BlockLibrary.usda" and "*_MaterialLibrary.usda".
+<LI id="individual" class="ib">Export individual blocks: This option is mutually exclusive with the previous option, "Export separate types." Normally Mineways exports only those faces that are visible. By checking this box, <i>all</i> of <i>every</i> block's faces are output, allowing you to animate such operations as mining or explosions. This considerably increases file size and render time, so use it only if you need it. You may also want to check the <a href="#make_groups_objects">Make groups objects</a> option, e.g., for Blender export, as each group will then be a separate object you can manipulate. For Blender you'll also want to make sure "Material per family" is checked. Note that the individual blocks option will change the appearance of some blocks, such as water and glass blocks, as all faces now have sides, which are visible. Normally Minecraft removes these interior sides (e.g., where two glass blocks share a face), but this option makes them visible. This option works for OBJ and USD export.
 <LI>Material per family: on by default; blocks in a family (or type; see next option) have their own material. If turned off, a single material is used for all objects. When exporting individual blocks, this checkbox affects whether each block is in its own group (making it easier to edit: move, delete, etc.) or whether individual blocks are grouped by material.
 <LI><a id="material_subtypes">Split by block type</a>: Blocks have a family and a type. When checked (the default), the individual types are used for grouping and materials. If you find you are editing too many materials, turn it off and materials will be exported per family. You can see many of the families <a href="https://minecraft-ids.grahamedgecombe.com/">on this page</a>, e.g., Stone, Granite, Polished Granite..., through Polished Andesite are a family. New materials are limited to those where there's a physical difference in the material itself, not just geometric changes. For example, a cake being sliced will not give it a separate material and group. Crops are given separate materials for each growth level, and farmland for each wetness level. Redstone wire is given separate materials for its 16 levels of power, even though Mineways itself differentiates only between off and on states. Campfires, sea pickles, and respawn anchors will be given <a href="https://minecraft.gamepedia.com/Light">separate emission levels</a> when this box is checked; else the maximum light level is assumed.
 </UL>
@@ -697,8 +698,6 @@ If you want to use the custom material description for OBJ export but do not wan
 
 <P>
 Special note: in terrain files, the one ending in "_r.png" is a roughness texture. When exported for OBJ, this texture is inverted and the exported files are named "_s.png", for "specular". This is all a bit confusing, I know, but my advice is to export using terrainExt_JGRTX64.png, for example, and see what gets created for you, with "Custom material" set or not. If you want the "r" version, you can either manually invert the _s.png images (ugh), or just do a separate USDA export, which will produce the _r.png versions.
-<P>
-For USDA export, the Custom material setting mainly has the effects of making the texture's texels appear blocky, in Minecraft fashion, and present stripped down materials in <a href="#ovcreate">Omniverse Create</a>. This is almost always a good idea, even with high resolution textures. If you turn this option off, you can get texture wrapping problems, where the bottom of a fire cutout, for example, will get interpolated along the top edge of the fire, giving a narrow line of fire at the top of the cutout.
 
 <P>
 <b>Make Z the up direction instead of Y:</b> some graphics applications consider the Y direction to be "up", some Z. If your model imports sideways into your application, check (or uncheck) this box.
@@ -723,6 +722,33 @@ This option was on by default for rendering up to version 5.00 of Mineways (in t
     </div>
   </div>
 </div>
+
+
+<a id="usd_export_options">
+<H4>Pixar USD File Export Options</H4></a>
+
+<a href="https://graphics.pixar.com/usd/release/index.html">Pixar's USD format</a> is getting uptake in many popular digital content creation (DCC) applications, including Cinema 4D, Houdini, Unreal Editor, and (soon) Blender. It is more full-featured than the ancient Wavefront OBJ format, including direct support for physically based materials, emitters, and more. If your package of choice supports it, consider using it!
+
+<P>
+There are a few changes to how the export dialog works. Many options are not supported at this point, as the focus has been the highest-quality and more flexible export option: Export individual textures. This form lets you replace and edit individual texture files. USD export works particularly nicely with the JG-RTX terrain files.
+
+<P>
+What follows are how various options apply to USD export. Also, Mineways' "View | Light" can be toggled on to give nighttime lighting. Turning "View | Elevation shading" on will give a light fog to the USD scene exported.
+
+<P>
+<B>Export individual blocks:</B> With USD export, two additional USD files are produced, "*_BlockLibrary.usda" and "*_MaterialLibrary.usda". USD structures its data in different forms. These additional files contain the individual blocks and materials, in case these are of use as-is.
+
+<P>
+<B>Export MDL:</B> Applies only to USD export. <a href="https://www.nvidia.com/en-us/design-visualization/technologies/material-definition-language/">MDL material descriptions</a> are exported. These generally give higher-quality looks to glass objects, for example. Omniverse is the main user of MDL at this point, with other applications coming up to speed. Turning this off will export only <a href="https://graphics.pixar.com/usd/release/wp_usdpreviewsurface.html">UsdPreviewSurface material descriptions</a>. Note that UsdPreviewSurface descriptions are always exported.
+
+<P>
+<B>Custom material:</B> This option is ignored if Export MDL is off. For USDA export, the Custom material setting mainly has the effects of making the texture's texels appear blocky, in Minecraft fashion, and present stripped down materials in <a href="#ovcreate">Omniverse Create</a>. This is almost always a good idea, even with high resolution textures. If you turn this option off, you can get texture wrapping problems, where the bottom of a fire cutout, for example, will get interpolated along the top edge of the fire, giving a narrow line of fire at the top of the cutout.
+
+<P>
+<B>Light scale:</B> Used only by USD. This has a value of 30 by default. You can change the intensity of the lights exported to USD - the sun and dome light - by changing this value. The sun is normally at 30, the surrounding dome light is 6. Nighttime lighting of 2 and 2 respectively, is used if you toggle on the View | Lighting option before export. If you set the light scale to 0, the two lights will not be exported to the USD file.
+
+<P>
+<B>Surface emit scale:</B> Used only by USD. This has a value of 1000 by default. It's more or less a <a href="https://en.wikipedia.org/wiki/Candela_per_square_metre">nit</a> value for emitting surfaces. Omniverse Create looks good with the default, though realistically the emitters are then quite bright (but look good for interior scenes or when the sun is turned off). Adjusting the camera exposure is another way to deal with this situation.
 
 
 <a id="center_model">
@@ -2589,7 +2615,7 @@ The textures and rules used in Minecraft for how blocks appear and connect have 
 From newest to oldest. The very newest is work in progress, with "*" meaning "to do" and "**" meaning "stretch goal."
 <UL>
 
-<LI>Version 9.06, */*/*
+<LI>Version 9.06, 11/24/2021 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV906.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
   <UL>
 	<LI>Improved map chunk caching, giving smoother pans and faster response. Empty chunks now noted and cached; a resized cache doesn't empty it; other improvements and cleanups. You might still run out of memory - don't make the screen so large.
@@ -2602,12 +2628,11 @@ From newest to oldest. The very newest is work in progress, with "*" meaning "to
 	<LI>USDA: Added Light scale for scaling the sun and dome light. Default value is 30. Setting this value to 0 turns off light export entirely.
 	<LI>USDA: Scaled the emissive texture up properly (by about 1000) for the UsdPreviewSurface representation, and exposed this in the export dialog as Surface emit scale. Emission from surfaces is not well-defined for UsdPreviewSurface, so you may need to fiddle with this scale factor depending on your application and needs.
 	<LI>USDA: Added "Export MDL" checkbox, on by default. If you know you don't need MDL material descriptions, turn this off; only the UsdPreviewSurface material representation will be exported.
-	***********[TODO: add this and the above to the docs, and to scripting, and make a new USD area in the docs. Note light export and atmospheric export.]Update Omniverse USD docs about samples per pixel and how to adjust it to be above 100
-
 	<LI>Emission textures: these are now exported as colored textures. They are generated by multiplying the chroma of the diffuse texture (i.e., the "maximum" color for the pixel) by the emission grayscale texture, if any. This is generally a better look for blocks such as lava than the grayscale emissive texture, which various DCC apps interpret in different ways.
 	<LI>USDA: Better default sun and dome light Euler angle ordering. X rotation is now altitude, Y is azimuth, Z does nothing. Change fog to be mild, not pure gloom.
 	<LI>USDA (only): For roughness and metalness and emission textures, test if all values in the texture are the same value. If so, export the value instead of exporting the texture.
-	<LI>*Updated JG-RTX.
+	<LI><a href="#usd_export_options">USD documentation</a> added.
+	<LI>Updated JG-RTX terrain files.
   </UL>
 
 <LI>Version 9.05, 11/2/2021 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV905.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
@@ -3567,7 +3592,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>
-		<br id="lastUpdate">Last updated 11/4/2021</p>
+		<br id="lastUpdate">Last updated 11/24/2021</p>
 	</div>
 </div>
 

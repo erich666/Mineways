@@ -27674,15 +27674,26 @@ static int writeEmissiveScaledTile(wchar_t* filename, int index)
                 // Take the grayscale level of the colored diffuse texture. If this is the same value as the
                 // grayscale emitter, we're done
                 int diffuseGray = (int)((0.30f * imageDiffuseSrc[0]) + (0.59f * imageDiffuseSrc[1]) + (0.11f * imageDiffuseSrc[2]) + 0.5f);
-                int emitterGray = (int)*imageEmitSrc++;
+                int emitterGray = (int)*imageEmitSrc++; // always do this, to get past emitter level
 
-                if (fabs(diffuseGray - emitterGray) <= 1.0f) {
-                    *imageDst++ = *imageDiffuseSrc++;
-                    *imageDst++ = *imageDiffuseSrc++;
-                    *imageDst++ = *imageDiffuseSrc++;
+                // not particularly useful optimization, and could cause banding
+                //if (fabs(diffuseGray - emitterGray) <= 1.0f) {
+                //    *imageDst++ = *imageDiffuseSrc++;
+                //    *imageDst++ = *imageDiffuseSrc++;
+                //    *imageDst++ = *imageDiffuseSrc++;
+                //}
+                //else 
+                if (diffuseGray == 0.0f || emitterGray == 0.0f) {
+                    // avoid division by 0, and optimize on black case
+                    *imageDst++ =
+                    *imageDst++ =
+                    *imageDst++ = 0;
+                    imageDiffuseSrc += 3;
                 }
                 else {
-                    // else do this: scale diffuse up or down, clamping
+                    // Else do this: scale diffuse up or down, preserving color.
+                    // A bit tricky, in that what if a diffuse texel is black but the emitter says it should
+                    // emit light? We decide in favor of the result being black.
                     float scale = (float)emitterGray / (float)diffuseGray;
                     float r = scale * (float)*imageDiffuseSrc++;
                     float g = scale * (float)*imageDiffuseSrc++;
