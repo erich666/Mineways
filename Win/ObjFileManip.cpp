@@ -2449,10 +2449,10 @@ static void findChunkBounds(WorldGuide* pWorldGuide, int bx, int bz, IBox* world
 
         block = LoadBlock(pWorldGuide, bx, bz, mcVersion, versionID, gBlockRetCode);
         Cache_Add(bx, bz, block);
-
-        if ((block == NULL) || (block->blockType == NBT_NO_SECTIONS)) //blank tile, nothing to do
-            return;
     }
+
+    if ((block == NULL) || (block->blockType == NBT_NO_SECTIONS)) //blank tile, nothing to do
+        return;
 
     // set version for later use by textures, etc.
     // yes, this gets set multiple times - so be it.
@@ -2557,10 +2557,10 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
 
         block = LoadBlock(pWorldGuide, bx, bz, mcVersion, versionID, gBlockRetCode);
         Cache_Add(bx, bz, block);
-
-        if ((block == NULL) || (block->blockType == NBT_NO_SECTIONS)) //blank tile, nothing to do
-            return;
     }
+
+    if ((block == NULL) || (block->blockType == NBT_NO_SECTIONS)) //blank tile, nothing to do
+        return;
 
     // loop through area of box that overlaps with this chunk
     chunkX = bx * 16;
@@ -30053,10 +30053,10 @@ static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int 
 
         block = LoadBlock(pWorldGuide, bx, bz, mcVersion, versionID, gBlockRetCode);
         Cache_Add(bx, bz, block);
-
-        if ((block == NULL) || (block->blockType == NBT_NO_SECTIONS)) //blank tile, nothing to do
-            return minHeight + mapMinHeight;
     }
+
+    if ((block == NULL) || (block->blockType == NBT_NO_SECTIONS)) //blank tile, nothing to do
+        return minHeight + mapMinHeight;
 
     // loop through area of box that overlaps with this chunk
     chunkX = bx * 16;

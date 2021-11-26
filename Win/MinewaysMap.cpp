@@ -506,7 +506,7 @@ const char* IDBlock(int bx, int by, double cx, double cz, int w, int h, int yOff
     block = (WorldBlock*)data;
 
     // this is assumed OK, that we don't need to actually go retrieve the block if empty, as it should be visible and loaded already
-    if (block == NULL)
+    if (block == NULL || block->blockType == NBT_NO_SECTIONS)
     {
         *oy = EMPTY_HEIGHT;
         *type = BLOCK_UNKNOWN;
@@ -4015,7 +4015,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
             }
             return gBlankTransitionTile;
         }
-    } else if (block == NULL || block->blockType == 2) {
+    } else if (block == NULL || block->blockType == NBT_NO_SECTIONS) {
         // should really call a "draw blank" subroutine, but here goes...
         goto DrawBlank;
     }
@@ -4066,7 +4066,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
     (WorldBlock*)Cache_Find(bx - 1, bz, &data);
     prevblock = (WorldBlock*)data;
 
-    if (prevblock == NULL)
+    if (prevblock == NULL || prevblock->blockType == NBT_NO_SECTIONS)
         block->rendermissing = 1; //note no loaded block to west
     else if (prevblock->rendery != maxHeight || prevblock->renderopts != pOpts->worldType) {
         block->rendermissing = 1; //note improperly rendered block to west

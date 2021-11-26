@@ -1487,10 +1487,14 @@ Mineways works on only Minecraft <a href="https://minecraft.gamepedia.com/Java_E
 <P>
 The options I know of are:
 <UL>
+  <LI><a href=""https://www.amuletmc.com/>Amulet</a>, which works on Windows, Mac, and Linux. The documentation is <a href="https://github.com/Amulet-Team/Amulet-Map-Editor/blob/master/amulet_map_editor/programs/convert/readme.md">here</a>. Upside: converts 1.17+ worlds. Downside: a bit slow and looks like it locks up at times.
   <LI><a href="https://web.archive.org/web/20210513191001/http://www.mcctoolchest.com/Download">MCC ToolChest PE</a> - a little quirky, but free. Sadly, it seems to have disappeared in June 2021; we link to the archived site where you can still download it (should work for Minecraft 1.16 and earlier).</LI>
   <LI><a href="https://www.universalminecraftconverter.com/">Universal Minecraft Converter</a> - evidently more reliable than the MCC ToolChest, but is a (rather pricey) subscription service.</LI>
 </UL>
-<P>What follows are instructions for the free <a href="https://web.archive.org/web/20210513191001/http://www.mcctoolchest.com/Download">MCC ToolChest PE</a>. Download it, install, and run. If you get an error about some missing DLL, you may also need to install the <a href="https://web.archive.org/web/20210513191001/http://www.mcctoolchest.com/Download">VS 2015 C++ Runtime</a>. Once running, do the following in MCC ToolChest - PE:
+
+<P><b>Amulet instructions:</b> Amulet converts, but need to have a world to save into. Make an empty world in Java (Classic) Minecraft, easiest is to make a superflat world. Start Amulet and make the window much larger (this is important for usability - in general, resize all windows in Amulet to be larger, so you can see all the controls). Pick "Open World". Pick "Bedrock" and select the world you want to convert (a large world can take a fair bit of time to load). Click the "Convert" tab along the left edge. "Select Output World" and choose the empty superflat world you made at the start. Click the "Convert" tab at the bottom. If you don't see the "Convert" tab, you need to resize the Amulet window to make it visible.
+
+<P><b>MCC ToolChest PE instructions:</b> Download it, install, and run. If you get an error about some missing DLL, you may also need to install the <a href="https://web.archive.org/web/20210513191001/http://www.mcctoolchest.com/Download">VS 2015 C++ Runtime</a>. Once running, do the following in MCC ToolChest - PE:
 <OL>
 <LI>Select "File | Open" and choose the Bedrock world you want to convert. It should read in, and you'll see "level.dat", "players", etc. listed on the left. If you don't see the world you want to convert, you'll need to (somehow) get it to your PC and find its path via "File | Open" and "Select Folder."
 <LI>Select "Tools | Convert -> To Java." A large dialog box appears.
@@ -1505,6 +1509,7 @@ If you did get some error, try the "Help" button, it might actually help. I foun
 If you need more help, <a href="https://web.archive.org/web/20200625020835/https://mcctoolchest.weebly.com/tutorial.html">this older site</a> <i>might</i> help.
 <P>
 Note that this tool can also convert from Java to Bedrock, if that's of interest. <a href="https://youtu.be/LcqD1FPcF5o?t=61">This video</a> goes through most of the steps for that process. There's also <a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-world-conversion-guide/">this detailed guide</a>, which filters out bad data.
+
 <P>
 There are other, lesser converters out there. <a href="http://www.mcedit-unified.net/">MCEdit</a> has worked in the past, but it comes and goes. Another possibility is to find some way to convert your model to the <a href="https://minecraft.gamepedia.com/Schematic_file_format">Schematic file format</a>, which Mineways also reads. For consoles, there is also <a href="https://www.microsoft.com/en-us/p/andromeda-converter-for-minecraft/9nrrvm1vrnjr">this poorly-rated one</a> that looks unlikely to work.
 
@@ -2615,6 +2620,13 @@ The textures and rules used in Minecraft for how blocks appear and connect have 
 From newest to oldest. The very newest is work in progress, with "*" meaning "to do" and "**" meaning "stretch goal."
 <UL>
 
+<LI>Version 9.07, 11/26/2021 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV907.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+  <BR>
+  <UL>
+	<LI>D'oh! For certain worlds, the new caching scheme (which now caches empty chunks, too) can cause a crash! I think I've plugged all the holes with this new version.
+	<LI>Added <a href="#mcpe">instructions</a> for how to convert Bedrock to Java worlds using the free Amulet program.
+  </UL>
+
 <LI>Version 9.06, 11/24/2021 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV906.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
   <UL>
@@ -3592,7 +3604,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>
-		<br id="lastUpdate">Last updated 11/24/2021</p>
+		<br id="lastUpdate">Last updated 11/26/2021</p>
 	</div>
 </div>
 
