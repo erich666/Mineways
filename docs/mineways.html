@@ -256,11 +256,10 @@ The big difference between rendering and printing is that 3D print models <i>mus
 To make your model immediately viewable on the web in 3D, choose the third option "Publish to Sketchfab." Mineways directly uploads your model to the Sketchfab site and makes it displayable to everyone. It's fun and easy, honestly. <a href="#sketchfab">Go here</a> for detailed instructions.
 <P>
 <a id="schematic">
-The next option is "Export Schematic",</a> which allows you to then import your model to another world by using <a href="https://minecraft.curseforge.com/projects/worldedit">WorldEdit</a> or
-<a href="http://www.mcedit-unified.net/">MCEdit</a>. Note that Mineways can read any old-style schematic file by using <a href="#openworld">"File | Open..."</a>.
+The next option is "Export Schematic",</a> which allows you to then import your model to another world by using <a href="https://www.amuletmc.com/">Amulet</a> or <a href="https://minecraft.curseforge.com/projects/worldedit">WorldEdit</a>. Note that Mineways can read any old-style schematic file by using <a href="#openworld">"File | Open..."</a>.
 <P>
-Schematic files are commonly used to share constructions among builders. Tools such as <a href="https://minecraft.curseforge.com/projects/worldedit">WorldEdit</a> or
-<a href="http://www.mcedit-unified.net/">MCEdit</a> can be used to import them into other worlds, make duplicates, and many other operations. You can also upload and share these files on sites such as <a href="http://planetminecraft.com">Planet Minecraft</a>. Signs will not have text, chests will lose their contents, objects such as <a href="http://minecraft.gamepedia.com/Paintings">paintings</a> are not exported, and <a href="http://minecraft.gamepedia.com/Head">heads</a> are turned into pumpkins. Currently no export options beyond the dimensions and the rotation angle affect schematic export in Mineways, and the rotation angle only partially works, mostly for full blocks that do not have any orientation. In other words, the orientation angle will rotate the model as a whole, but each individual block will not be rotated: stair steps and signs will still go the old direction, rails get "interesting," and so on. I'd avoid it... Also, 1.13 and newer elements will export as grass blocks and a warning is issued, since the standard schematic format does not support these.
+Schematic files are commonly used to share constructions among builders. Tools such as <a href="https://www.amuletmc.com/">Amulet</a> or <a href="https://minecraft.curseforge.com/projects/worldedit">WorldEdit</a>
+can be used to import them into other worlds, make duplicates, and many other operations. You can also upload and share these files on sites such as <a href="http://planetminecraft.com">Planet Minecraft</a>. Signs will not have text, chests will lose their contents, objects such as <a href="http://minecraft.gamepedia.com/Paintings">paintings</a> are not exported, and <a href="http://minecraft.gamepedia.com/Head">heads</a> are turned into pumpkins. Currently no export options beyond the dimensions and the rotation angle affect schematic export in Mineways, and the rotation angle only partially works, mostly for full blocks that do not have any orientation. In other words, the orientation angle will rotate the model as a whole, but each individual block will not be rotated: stair steps and signs will still go the old direction, rails get "interesting," and so on. I'd avoid it... Also, 1.13 and newer elements will export as grass blocks and a warning is issued, since the standard schematic format does not support these.
 <P>
 <a id="exportmap">
 "Export Map" is simple: whatever area you have selected is exported to a PNG-format image file, named as you wish. The zoom level affects the result, though will differ slightly from what you see on the screen for boring reasons. While you can manually export any portion of the map manually, the real power is from using <a href="scripting.html#sic">scripting</a>. You can make a simple text file to specify more than one map. Each map can be set to display a different part of your world, or even a different layer, by adjusting the maximum Y height. See (and run) the sample file "scripting/make_map_tiles.mwscript" for an example that creates four adjacent 1000x1000 maps centered around location 0,0. If you want to edit these maps, consider using <a href="https://imagemagick.org">ImageMagick</a>, which lets you perform <a href="https://imagemagick.org/script/command-line-processing.php">all sorts of annotations</a> and much more.
@@ -1040,19 +1039,21 @@ You should now see a textured view of your model.
 <P>
 Once you like the view, click Control-Alt-"Numpad 0" to set the render camera to your view (or at least the center of it). If you move your view of the world, you can go back to this saved view by hitting "Numpad 0" again, or Control-Alt-"Numpad 0" to set the render camera again.
 <P>
-<b>7) Rendering:</b> You are now ready to do a first render of your model. Just press "F12" or select "Render | Render Image" from the menu and have a look. It probably looked pretty dark, because the default light is some local light instead of something like the sun.
+<b>7) Rendering:</b> You are now ready to do a first render of your model. Just press "F12" or select "Render | Render Image" from the menu and have a look. It probably looked pretty dark. See the next step for one way to modify the light in the scene.
 <P>
-Also, the distant part of the model might not appear, as the Clip End distance is too small. Adjust this by selecting the camera object in the Scene Collection in the upper right of the screen, select the camera icon, then click on the "End" value box and type in a new value or simply drag your mouse:
+Also, the distant part of the model might not appear, as the Clip End distance of the camera is too small. Adjust this by selecting the camera object in the Scene Collection in the upper right of the screen, select the camera icon, then click on the "End" value box and type in a new value such as 1000 m or simply drag your mouse:
 <p class="center">
 <img src="images/b28_camera.jpg">
 </p>
 <P>
-<b>8) Lighting:</b> Select that light in the Scene Collection in the upper right of the screen, then click the lightbulb icon near the bottom of the set of icons below. Click on the Sun setting, then I'd also crank the Strength down to 8.0 or so, as shown:
+<b>8) Lighting:</b> Select that light in the Scene Collection in the upper right of the screen, then click the lightbulb icon near the bottom of the vertical set of icons below. Click on the Sun setting, then I'd also crank the Strength down to 8.0 or so, as shown:
 <p class="center">
 <img src="images/b28_sunlight.jpg">
 </p>
-To adjust this now-a-sun light, go to the "render preview" mode by clicking the rightmost of the four sphere icons in the upper right of the viewport (see step 5 - it's the sphere next over).
+To adjust this now-a-sun light, go to the "render preview" mode by clicking the rightmost of the four sphere icons in the upper right of the viewport (see step 5 - it's the sphere next over). This should show you shadows from the sun.
 Now press Shift-"t" and move your mouse around in the viewport. Hey, the sun's moving. When you left-click with the mouse, you lock down the direction of the sun. It's a bit non-intuitive, and you may need to rotate the view, Shift-T, rotate again, etc. to get the angle you want. Try F12 again to render the scene.
+<P>
+Frankly, an easier way to control the light's direction is to choose the orange box icon ("Object Properties") a few up from the lightbulb icon in the vertical strip of icons. Then play with the Rotation angles: if you set these to 0,0,0 for XYZ you'll have a light directly overhead. Go from there (and there's probably some good "Mode" to set the light to, but I haven't figured one out yet...).
 <P>
 <B>9) Material Conversion:</B> Transparency can be a bit strange with imported OBJ models in Blender, as its importer makes some (IMO) poor decisions currently. Cutout objects have poor blending modes assigned, and anything with transparency will not cast shadows properly. Low resolution textures are fuzzy, not blocky like in Minecraft.
 The fastest way to fix these problems (by far) is to use the Prep Materials button in <a href="https://theduckcow.com/dev/blender/mcprep/">the free MCprep addon</a>. <a href="https://youtu.be/XndRsS6KWkw">Here's my short video</a> on how to install and use it.
@@ -1080,6 +1081,8 @@ That said, setting the sampling to "Closest" can give noisy renders. You may wan
 <b>12) Upload</b> pictures of your creation to the <a href="http://www.flickr.com/groups/mineways/pool/">Mineways Flickr group</a>! (Optional, but I hope you do - I like seeing what people make.)
 <P>
 I'll again note that you should probably be using <a href="https://theduckcow.com/dev/blender/mcprep/">MCprep</a> to convert your materials. <a href="https://youtu.be/XndRsS6KWkw">Here's my short video</a> on how to install and use it. They also have a <a href="https://discord.gg/mb8hBUC">MCprep Blender Discord server</a> for asking questions.
+<P>
+There are tons of other Blender+Minecraft things out there. For example, <a href="https://www.replaymod.com/">the Replay Mod</a> lets you create an animation path in Minecraft and export the camera moves. You can then import the .GLB animation file into Blender.
 
 <HR>
 <H4 id="ovcreate">Omniverse Create</H4><p>
@@ -1393,8 +1396,8 @@ Here are some related (free) tools that are handy, collected in one spot:
 <LI><a href="http://meshlab.sourceforge.net/">MeshLab</a> for viewing exported models for 3D printing.
 <LI>The <a href="#g3d">G3D viewer</a> is excellent for previewing 3D OBJ files for rendering (sorry, not VRML or STL), as its support for cutouts is superior to the <a href="http://meshlab.sourceforge.net/">MeshLab</a> viewer. It also includes real-time shadows and reflection-mapped water, as well as built-in screen and movie capture (only the viewer32.exe version has video capture). Models also load faster. Downside: on weaker GPUs it can be slow, and it doesn't work when <a href="#fcst">exporting individual textures</a>. Some examples <a href="http://imgur.com/a/B8DuU">here</a>.
 <LI><a href="http://meshlab.sourceforge.net/">MeshLab</a> helps you convert, simplify, and smooth meshes, among a huge number of other operations. It's not the best for displaying textures.
-<LI><a href="http://www.mcedit-unified.net/">MCEdit Unified</a> lets you make large-scale changes on your world; <a href="http://www.mcedit.net/">documentation here</a>. For example, you could trim away objects near your model to make a cleaner export. You can also read in model schematic files you've downloaded. To use a schematic with Mineways, import the schematic into an empty world and save the world, then use Mineways on that world. 
-<LI><a href="https://minecraft.curseforge.com/projects/worldedit">WorldEdit</a> is another mod that lets you make large edits to your world. It can load and save .schematic files, allowing you to export a model from Mineways and move it to a separate world. It also allows a huge number of modeling operations, including <a href="http://www.reddit.com/r/Minecraft/comments/12lzmb/my_first_hour_with_worldedit/">procedurally-generated models</a>. It differs from MCEdit in that it is a plug-in to Minecraft, while MCEdit is standalone.
+<LI><a href="https://www.amuletmc.com/">Amulet</a> lets you convert from and to Bedrock and Java worlds, and lets you edit them. Also, open source, and actively maintained. For example, you could trim away objects near your model to make a cleaner export. You can also read in model schematic files you've downloaded. To use a schematic with Mineways, import the schematic into an empty world and save the world, then use Mineways on that world. (Supercedes <a href="http://www.mcedit-unified.net/">MCEdit Unified</a>.)
+<LI><a href="https://minecraft.curseforge.com/projects/worldedit">WorldEdit</a> is another mod that lets you make large edits to your world. It can load and save .schematic files, allowing you to export a model from Mineways and move it to a separate world. It also allows a huge number of modeling operations, including <a href="http://www.reddit.com/r/Minecraft/comments/12lzmb/my_first_hour_with_worldedit/">procedurally-generated models</a>. It differs from Amulet in that it is a plug-in to Minecraft, while Amulet is standalone.
 <LI><a href="https://voxelsniper.fandom.com/wiki/VoxelSniper_Wiki">VoxelSniper</a> is another Bukkit addon for servers, providing a wide range of editing abilities.
 <LI><a href="https://www.mineimator.com/">Mine-imator</a> is a self-contained Minecraft video animation system. It can read in and view schematic files, among much else.
 <LI><a href="https://www.autosaved.org/Spritecraft">Spritecraft</a> converts an image to a schematic file, allowing you to easily create pixel art.
@@ -1492,7 +1495,7 @@ The options I know of are:
   <LI><a href="https://www.universalminecraftconverter.com/">Universal Minecraft Converter</a> - evidently more reliable than the MCC ToolChest, but is a (rather pricey) subscription service.</LI>
 </UL>
 
-<P><b>Amulet instructions:</b> Amulet converts, but need to have a world to save into. Make an empty world in Java (Classic) Minecraft, easiest is to make a superflat world. Start Amulet and make the window much larger (this is important for usability - in general, resize all windows in Amulet to be larger, so you can see all the controls). Pick "Open World". Pick "Bedrock" and select the world you want to convert (a large world can take a fair bit of time to load). Click the "Convert" tab along the left edge. "Select Output World" and choose the empty superflat world you made at the start. Click the "Convert" tab at the bottom. If you don't see the "Convert" tab, you need to resize the Amulet window to make it visible.
+<P><b>Amulet instructions:</b> <a href=""https://www.amuletmc.com/>Amulet</a> converts, but need to have a world to save into. Make an empty world in Java (Classic) Minecraft, easiest is to make a superflat world. Start Amulet and make the window much larger (this is important for usability - in general, resize all windows in Amulet to be larger, so you can see all the controls). Pick "Open World". Pick "Bedrock" and select the world you want to convert. Click the "Convert" tab along the left edge. "Select Output World" and choose the empty superflat world you made at the start. Click the "Convert" tab at the bottom (a large world can take a fair bit of time to convert - patience). If you don't see the "Convert" tab, you need to resize the Amulet window to make it visible.
 
 <P><b>MCC ToolChest PE instructions:</b> Download it, install, and run. If you get an error about some missing DLL, you may also need to install the <a href="https://web.archive.org/web/20210513191001/http://www.mcctoolchest.com/Download">VS 2015 C++ Runtime</a>. Once running, do the following in MCC ToolChest - PE:
 <OL>
@@ -1511,7 +1514,7 @@ If you need more help, <a href="https://web.archive.org/web/20200625020835/https
 Note that this tool can also convert from Java to Bedrock, if that's of interest. <a href="https://youtu.be/LcqD1FPcF5o?t=61">This video</a> goes through most of the steps for that process. There's also <a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-world-conversion-guide/">this detailed guide</a>, which filters out bad data.
 
 <P>
-There are other, lesser converters out there. <a href="http://www.mcedit-unified.net/">MCEdit</a> has worked in the past, but it comes and goes. Another possibility is to find some way to convert your model to the <a href="https://minecraft.gamepedia.com/Schematic_file_format">Schematic file format</a>, which Mineways also reads. For consoles, there is also <a href="https://www.microsoft.com/en-us/p/andromeda-converter-for-minecraft/9nrrvm1vrnjr">this poorly-rated one</a> that looks unlikely to work.
+There are other, lesser converters out there. Another possibility is to find some way to convert your model to the <a href="https://minecraft.gamepedia.com/Schematic_file_format">Schematic file format</a>, which Mineways also reads. For consoles, there is also <a href="https://www.microsoft.com/en-us/p/andromeda-converter-for-minecraft/9nrrvm1vrnjr">this poorly-rated one</a> that looks unlikely to work.
 
 
 <h3 id="structure_block">Structure Block Export</h3>
@@ -3522,7 +3525,7 @@ This is the wish list, in rough order of personal interest and bang for the buck
 <LI>Zoom further out, allowing a wider view of the world. The main problems with this idea are that Mineways does not read blocks quickly and that selection becomes a bit imprecise.
 <LI>Export all exported model elements to a Mineways script file as text commands, so that they can be modified by scripts or text editors and reloaded.
 <LI>Use an installer for Mineways, such as INNO, so that vcredist.exe is properly installed. One more level of complication, though.
-<LI>Add Bedrock/Pocket Edition/Education Edition support. Right now <a href="#mcpe">MCC ToolChest PE</a> and MCEdit properly reads such files. This addition turns out to be a large bit of work, as the file format (Google's LevelDB) is entirely different than the NBT format used in the Java version of Minecraft, not to mention that Bedrock differs from Classic Minecraft in a huge number of ways. See <a href="http://minecraft.gamepedia.com/Pocket_Edition_level_format">this page</a> for details. Note that <a href="https://github.com/mcedit/pymclevel">pymclevel</a>, though it's in Python, may help in decoding the Pocket Edition format.
+<LI>Add Bedrock/Pocket Edition/Education Edition support. Right now <a href="#mcpe">MCC ToolChest PE</a> and (maybe?) <a href="https://www.amuletmc.com/">Amulet</a> properly reads such files. This addition turns out to be a large bit of work, as the file format (Google's LevelDB) is entirely different than the NBT format used in the Java version of Minecraft, not to mention that Bedrock differs from Classic Minecraft in a huge number of ways. See <a href="http://minecraft.gamepedia.com/Pocket_Edition_level_format">this page</a> for details. Note that <a href="https://github.com/mcedit/pymclevel">pymclevel</a>, though it's in Python, may help in decoding the Pocket Edition format.
 <LI>Add a "Go to location" dialog, where you give a location and the view is centered on it.
 <LI>Almost out of space for composites. I've patched this by quadrupling the size of the texture output. Better would be to go to an "on demand" system, noting which tiles are used and outputting only these. That said, composites are used only for 3D printing, so we could aim to trim down that system.
 <LI>TileMaker should handle non-power-of-two tiles. Warn the user, as before, but it should give it a go and resize.
@@ -3603,7 +3606,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	</div> <!-- /content -->
 	<div id="footer">
 		<hr>
-		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>
+		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org
 		<br id="lastUpdate">Last updated 11/26/2021</p>
 	</div>
 </div>
