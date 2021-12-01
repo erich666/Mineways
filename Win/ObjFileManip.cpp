@@ -24655,26 +24655,26 @@ static int finishCommentsUSD()
     }
     strcpy_s(outputString, 256, "        dictionary renderSettings = {\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "            float \"rtx:ambientOcclusion:rayLength\" = 1\n");
+    strcpy_s(outputString, 256, "            double \"rtx:ambientOcclusion:rayLength\" = 1\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            bool \"rtx:indirectDiffuse:enabled\" = 1\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     // no longer used
     //strcpy_s(outputString, 256, "            bool \"rtx:pathtracing:cached:enabled\" = 1\n");
     //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "            float \"rtx:pathtracing:fireflyFilter:maxIntensityPerSample\" = 50000\n");
+    strcpy_s(outputString, 256, "            double \"rtx:pathtracing:fireflyFilter:maxIntensityPerSample\" = 50000\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            bool \"rtx:pathtracing:lightcache:cached:enabled\" = 0\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "            float \"rtx:pathtracing:maxBounces\" = 10\n");
+    strcpy_s(outputString, 256, "            double \"rtx:pathtracing:maxBounces\" = 10\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "            float \"rtx:pathtracing:maxSpecularAndTransmissionBounces\" = 10\n");
+    strcpy_s(outputString, 256, "            double \"rtx:pathtracing:maxSpecularAndTransmissionBounces\" = 10\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     // fog, if depth shading is on
     if (gModel.options->worldType & DEPTHSHADING) {
-        strcpy_s(outputString, 256, "            float \"rtx:pathtracing:ptfog:asymmetry\" = -0.0828634\n");
+        strcpy_s(outputString, 256, "            double \"rtx:pathtracing:ptfog:asymmetry\" = -0.0828634\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-        strcpy_s(outputString, 256, "            float \"rtx:pathtracing:ptfog:density\" = 0.52\n");
+        strcpy_s(outputString, 256, "            double \"rtx:pathtracing:ptfog:density\" = 0.52\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         strcpy_s(outputString, 256, "            bool \"rtx:pathtracing:ptfog:enabled\" = 1\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -24683,33 +24683,33 @@ static int finishCommentsUSD()
     strcpy_s(outputString, 256, "            int \"rtx:pathtracing:totalSpp\" = 1000\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     // no longer used
-    //strcpy_s(outputString, 256, "            float \"rtx:post:aa:op\" = 3\n");
+    //strcpy_s(outputString, 256, "            double \"rtx:post:aa:op\" = 3\n");
     //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "            float \"rtx:post:dlss:execMode\" = 1\n");
+    strcpy_s(outputString, 256, "            double \"rtx:post:dlss:execMode\" = 1\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "            float \"rtx:post:lensFlares:cutoffFuzziness\" = 0.506608\n");
+    strcpy_s(outputString, 256, "            double \"rtx:post:lensFlares:cutoffFuzziness\" = 0.506608\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            bool \"rtx:post:lensFlares:enabled\" = 1\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "            float \"rtx:post:lensFlares:flareScale\" = 0.1\n");
+    strcpy_s(outputString, 256, "            double \"rtx:post:lensFlares:flareScale\" = 0.1\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "            float \"rtx:post:lensFlares:focalLength\" = 161\n");
+    strcpy_s(outputString, 256, "            double \"rtx:post:lensFlares:focalLength\" = 161\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "            float \"rtx:post:tonemap:cameraShutter\" = 2\n");
+    strcpy_s(outputString, 256, "            double \"rtx:post:tonemap:cameraShutter\" = 2\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "            float \"rtx:post:tonemap:filmIso\" = 200\n");
+    strcpy_s(outputString, 256, "            double \"rtx:post:tonemap:filmIso\" = 200\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     // slows performance down massively in real-time rendering mode (like 3X), but slightly more precise for tree leaves
     //strcpy_s(outputString, 256, "            bool \"rtx:raytracing:fractionalCutoutOpacity\" = 1\n");
     //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     // Reinhard gives a different look to HDR, sometimes better
-    //strcpy_s(outputString, 256, "            float \"rtx:post:tonemap:op\" = 2\n");
+    //strcpy_s(outputString, 256, "            double \"rtx:post:tonemap:op\" = 2\n");
     //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     strcpy_s(outputString, 256, "            token \"rtx:rendermode\" = \"PathTracing\"\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "            float \"rtx:sceneDb:ambientLightIntensity\" = 0.01\n");
+    strcpy_s(outputString, 256, "            double \"rtx:sceneDb:ambientLightIntensity\" = 0.01\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "        }\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -25925,7 +25925,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
 
                 // don't output the water texture, as it becomes way too blue
                 if (!isWater) {
-                    sprintf_s(outputString, 256, "            asset inputs:glass_color_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (gTilesTable[swatchLoc].flags & SBIT_SYNTHESIZED)) ? "_y" : "");
+                    sprintf_s(outputString, 256, "            asset inputs:glass_color_texture = @./%s/%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (gTilesTable[swatchLoc].flags & SBIT_SYNTHESIZED)) ? "_y" : "");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "                colorSpace = \"sRGB\"\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -25962,7 +25962,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "            )\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                    sprintf_s(outputString, 256, "            asset inputs:cutout_opacity_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (gTilesTable[swatchLoc].flags & SBIT_SYNTHESIZED)) ? "_y" : "");
+                    sprintf_s(outputString, 256, "            asset inputs:cutout_opacity_texture = @./%s/%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (gTilesTable[swatchLoc].flags & SBIT_SYNTHESIZED)) ? "_y" : "");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "                colorSpace = \"auto\"\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -26012,7 +26012,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 // Not water, glass, slime, etc.
 
                 // add the "_y" if synthesized - material name differs from tile file name in this case
-                sprintf_s(outputString, 256, "            asset inputs:diffuse_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (gTilesTable[swatchLoc].flags& SBIT_SYNTHESIZED)) ? "_y" : "");
+                sprintf_s(outputString, 256, "            asset inputs:diffuse_texture = @./%s/%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (gTilesTable[swatchLoc].flags& SBIT_SYNTHESIZED)) ? "_y" : "");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "                colorSpace = \"sRGB\"\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -26131,7 +26131,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
 
                         // same as the diffuse texture
-                        sprintf_s(outputString, 256, "            asset inputs:emissive_color_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (gTilesTable[swatchLoc].flags & SBIT_SYNTHESIZED)) ? "_y" : "");
+                        sprintf_s(outputString, 256, "            asset inputs:emissive_color_texture = @./%s/%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (gTilesTable[swatchLoc].flags & SBIT_SYNTHESIZED)) ? "_y" : "");
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                         strcpy_s(outputString, 256, "                colorSpace = \"sRGB\"\n");
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -26177,12 +26177,12 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
 
                         // if there's a specific emitter texture available, use it, adding the "_e" suffix.
 #ifdef GENERATE_EMISSION_TILES
-                        sprintf_s(outputString, 256, "            asset inputs:emissive_mask_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_EMISSION]);
+                        sprintf_s(outputString, 256, "            asset inputs:emissive_mask_texture = @./%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_EMISSION]);
 #else
-                        sprintf_s(outputString, 256, "            asset inputs:emissive_mask_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_RGBA]);
+                        sprintf_s(outputString, 256, "            asset inputs:emissive_mask_texture = @./%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_RGBA]);
 #endif
                         // Here's more convoluted logic, with the color texture getting used as the emitter mask, which is usually A Bad Idea.
-                        //sprintf_s(outputString, 256, "            asset inputs:emissive_mask_texture = @%s/%s%s.png@ (\n", texturePath, mtlName,
+                        //sprintf_s(outputString, 256, "            asset inputs:emissive_mask_texture = @./%s/%s%s.png@ (\n", texturePath, mtlName,
                         //    gModel.tileList[CATEGORY_EMISSION][swatchLoc] ? "_e" : 
                         //        (gModel.exportTiles && (gTilesTable[swatchLoc].flags & SBIT_SYNTHESIZED)) ? "_y" : "");
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -26269,7 +26269,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
 
                 // metallic?
                 if (gModel.tileList[CATEGORY_METALLIC][swatchLoc]) {
-                    sprintf_s(outputString, 256, "            asset inputs:metallic_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_METALLIC]);
+                    sprintf_s(outputString, 256, "            asset inputs:metallic_texture = @./%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_METALLIC]);
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "                colorSpace = \"raw\"\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -26337,7 +26337,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             // we always output the normals, so that the "raw" texture space is properly chosen instead of auto (workaround for a bug in Create)
             if (isSemitransparent) {
                 // slightly different naming - good times!
-                sprintf_s(outputString, 256, "            asset inputs:normal_map_texture = @%s@ (\n", textureString);
+                sprintf_s(outputString, 256, "            asset inputs:normal_map_texture = @./%s@ (\n", textureString);
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "                colorSpace = \"raw\"\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -26357,7 +26357,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             }
             else {
-                sprintf_s(outputString, 256, "            asset inputs:normalmap_texture = @%s@ (\n", textureString);
+                sprintf_s(outputString, 256, "            asset inputs:normalmap_texture = @./%s@ (\n", textureString);
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "                colorSpace = \"raw\"\n"); // must be raw. "auto" gives the bad result of patterning, see Absolution grass blocks for example.
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -26409,7 +26409,8 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     strcpy_s(outputString, 256, "            )\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 }
-                sprintf_s(outputString, 256, "            asset inputs:opacity_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (gTilesTable[swatchLoc].flags& SBIT_SYNTHESIZED)) ? "_y" : "");
+
+                sprintf_s(outputString, 256, "            asset inputs:opacity_texture = @./%s/%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (gTilesTable[swatchLoc].flags& SBIT_SYNTHESIZED)) ? "_y" : "");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "                colorSpace = \"raw\"\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -26428,13 +26429,43 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "            )\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+
+                // opacity threshold is 0.5 for cutouts, 0.0 otherwise (the default, so we don't have to show this for glass)
+                strcpy_s(outputString, 256, "            float inputs:opacity_threshold = 0.5 (\n");
+                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                if (outputCustomData) {
+                    strcpy_s(outputString, 256, "                customData = {\n");
+                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    float default = 0\n");
+                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    dictionary range = {\n");
+                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                        float max = 1\n");
+                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                        float min = 0\n");
+                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                    }\n");
+                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                }\n");
+                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                }
+                strcpy_s(outputString, 256, "                displayGroup = \"Opacity\"\n");
+                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                displayName = \"Opacity Threshold\"\n");
+                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                doc = \"If negative, disable cutout_opacity; if 0, use fractional opacity values 'as is'; if > 0, remap opacity values to 1 when >= threshold and to 0 otherwise\"\n");
+                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "                hidden = false\n");
+                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                strcpy_s(outputString, 256, "            )\n");
+                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             }
 
             // roughness
             if (gModel.tileList[CATEGORY_ROUGHNESS][swatchLoc]) {
                 if (isSemitransparent) {
                     // slightly different naming - good times!
-                    sprintf_s(outputString, 256, "            asset inputs:roughness_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_ROUGHNESS]);
+                    sprintf_s(outputString, 256, "            asset inputs:roughness_texture = @./%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_ROUGHNESS]);
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "                colorSpace = \"raw\"\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -26478,7 +26509,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "            )\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                    sprintf_s(outputString, 256, "            asset inputs:reflectionroughness_texture = @%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_ROUGHNESS]);
+                    sprintf_s(outputString, 256, "            asset inputs:reflectionroughness_texture = @./%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_ROUGHNESS]);
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "                colorSpace = \"raw\"\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
