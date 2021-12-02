@@ -26431,34 +26431,37 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
 
                 // opacity threshold is 0.5 for cutouts, 0.0 otherwise (the default, so we don't have to show this for glass)
-                strcpy_s(outputString, 256, "            float inputs:opacity_threshold = 0.5 (\n");
-                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                if (outputCustomData) {
-                    strcpy_s(outputString, 256, "                customData = {\n");
+                // only available in generic OmniPBR_Opacity.mdl, not in Minecraft.mdl currently - TODOUSD
+                if (!gModel.customMaterial) {
+                    strcpy_s(outputString, 256, "            float inputs:opacity_threshold = 0.5 (\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                    strcpy_s(outputString, 256, "                    float default = 0\n");
+                    if (outputCustomData) {
+                        strcpy_s(outputString, 256, "                customData = {\n");
+                        WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                        strcpy_s(outputString, 256, "                    float default = 0\n");
+                        WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                        strcpy_s(outputString, 256, "                    dictionary range = {\n");
+                        WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                        strcpy_s(outputString, 256, "                        float max = 1\n");
+                        WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                        strcpy_s(outputString, 256, "                        float min = 0\n");
+                        WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                        strcpy_s(outputString, 256, "                    }\n");
+                        WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                        strcpy_s(outputString, 256, "                }\n");
+                        WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                    }
+                    strcpy_s(outputString, 256, "                displayGroup = \"Opacity\"\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                    strcpy_s(outputString, 256, "                    dictionary range = {\n");
+                    strcpy_s(outputString, 256, "                displayName = \"Opacity Threshold\"\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                    strcpy_s(outputString, 256, "                        float max = 1\n");
+                    strcpy_s(outputString, 256, "                doc = \"If negative, disable cutout_opacity; if 0, use fractional opacity values 'as is'; if > 0, remap opacity values to 1 when >= threshold and to 0 otherwise\"\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                    strcpy_s(outputString, 256, "                        float min = 0\n");
+                    strcpy_s(outputString, 256, "                hidden = false\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                    strcpy_s(outputString, 256, "                    }\n");
-                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                    strcpy_s(outputString, 256, "                }\n");
+                    strcpy_s(outputString, 256, "            )\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 }
-                strcpy_s(outputString, 256, "                displayGroup = \"Opacity\"\n");
-                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256, "                displayName = \"Opacity Threshold\"\n");
-                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256, "                doc = \"If negative, disable cutout_opacity; if 0, use fractional opacity values 'as is'; if > 0, remap opacity values to 1 when >= threshold and to 0 otherwise\"\n");
-                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256, "                hidden = false\n");
-                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256, "            )\n");
-                WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             }
 
             // roughness
