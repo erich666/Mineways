@@ -24158,7 +24158,6 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
         strcat_s(fullTexturePath, MAX_PATH_AND_FILE, "/");
         strcat_s(fullTexturePath, MAX_PATH_AND_FILE, texturePath);
     }
-    // Omniverse likes a leading "./" now, for some reason - we don't bother adding this
 
     // if not instancing, need to point to the texture directory using the full path
     if (!gModel.instancing) {
@@ -26334,10 +26333,10 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             else {
                 strcpy_s(textureString, 256, "");
             }
-            // we always output the normals, so that the "raw" texture space is properly chosen instead of auto (workaround for a bug in Create)
+            // We always output the normals, so that the "raw" texture space is properly chosen instead of auto (workaround for a bug in Create)
             if (isSemitransparent) {
-                // slightly different naming - good times!
-                sprintf_s(outputString, 256, "            asset inputs:normal_map_texture = @./%s@ (\n", textureString);
+                // slightly different naming - good times! Add "./" if the texture actually exists, else "@@"
+                sprintf_s(outputString, 256, "            asset inputs:normal_map_texture = @%s%s@ (\n", strlen(textureString) > 0 ? "./" : "", textureString);
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "                colorSpace = \"raw\"\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -26357,7 +26356,8 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             }
             else {
-                sprintf_s(outputString, 256, "            asset inputs:normalmap_texture = @./%s@ (\n", textureString);
+                // note how spelling is different, which is annoying: normal_map_texture above, normalmap_texture here
+                sprintf_s(outputString, 256, "            asset inputs:normalmap_texture = @%s%s@ (\n", strlen(textureString) > 0 ? "./" : "", textureString);
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "                colorSpace = \"raw\"\n"); // must be raw. "auto" gives the bad result of patterning, see Absolution grass blocks for example.
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -26430,9 +26430,10 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 strcpy_s(outputString, 256, "            )\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
 
-                // opacity threshold is 0.5 for cutouts, 0.0 otherwise (the default, so we don't have to show this for glass)
+                // opacity threshold is 0.5 for cutouts (not used when glass?) TODOTODOUSD
                 // only available in generic OmniPBR_Opacity.mdl, not in Minecraft.mdl currently - TODOUSD
-                if (!gModel.customMaterial) {
+                //if (!gModel.customMaterial) {
+                if (!gModel.customMaterial && isCutout) {
                     strcpy_s(outputString, 256, "            float inputs:opacity_threshold = 0.5 (\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     if (outputCustomData) {
@@ -26534,17 +26535,18 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 }
             }
             else {
-                // default roughness should be 1.0, not the 0.5 favored by OmniPBR
-                if (roughness != 1.0f) {
-                    sprintf_s(outputString, 256, "            float inputs:reflection_roughness_constant = %g (\n", roughness);
-                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                    strcpy_s(outputString, 256, "                displayGroup = \"Reflectivity\"\n");
-                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                    strcpy_s(outputString, 256, "                displayName = \"Roughness Amount\"\n");
-                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                    strcpy_s(outputString, 256, "            )\n");
-                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                }
+                // no longer a property!
+                //// default roughness should be 1.0, not the 0.5 favored by OmniPBR
+                //if (roughness != 1.0f) {
+                //    sprintf_s(outputString, 256, "            float inputs:reflection_roughness_constant = %g (\n", roughness);
+                //    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                //    strcpy_s(outputString, 256, "                displayGroup = \"Reflectivity\"\n");
+                //    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                //    strcpy_s(outputString, 256, "                displayName = \"Roughness Amount\"\n");
+                //    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                //    strcpy_s(outputString, 256, "            )\n");
+                //    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                //}
             }
 
             // Special case: polygons emit on just one side. For the custom material, we can make polygons emit double-sided if
