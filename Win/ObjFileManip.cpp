@@ -26356,7 +26356,8 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             }
             else {
-                // note how spelling is different, which is annoying: normal_map_texture above, normalmap_texture here
+                // Note how spelling is different, which is annoying: normal_map_texture above, normalmap_texture here.
+                // Yes, I've verified it: if you change the spelling, the load fails and gives a console warning.
                 sprintf_s(outputString, 256, "            asset inputs:normalmap_texture = @%s%s@ (\n", strlen(textureString) > 0 ? "./" : "", textureString);
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "                colorSpace = \"raw\"\n"); // must be raw. "auto" gives the bad result of patterning, see Absolution grass blocks for example.
