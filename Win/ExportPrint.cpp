@@ -113,6 +113,9 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
         CheckDlgButton(hDlg, IDC_CREATE_ZIP, epd.chkCreateZip[epd.fileType]);
         CheckDlgButton(hDlg, IDC_CREATE_FILES, epd.chkCreateModelFiles[epd.fileType]);
 
+        strcpy_s(epd.scaleLightsString, EP_FIELD_LENGTH, "n/a");
+        strcpy_s(epd.scaleEmittersString, EP_FIELD_LENGTH, "n/a");
+
         if (epd.fileType == FILE_TYPE_USD) {
             // only allow separate texture tiles or full textures - TODO could add others,
             // just need to mess with textures then
@@ -128,8 +131,6 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
 
             sprintf_s(epd.scaleLightsString, EP_FIELD_LENGTH, "%g", epd.scaleLightsVal);
             sprintf_s(epd.scaleEmittersString, EP_FIELD_LENGTH, "%g", epd.scaleEmittersVal);
-            SetDlgItemTextA(hDlg, IDC_SCALE_LIGHTS, epd.scaleLightsString);
-            SetDlgItemTextA(hDlg, IDC_SCALE_EMITTERS, epd.scaleEmittersString);
         }
         else if (epd.fileType == FILE_TYPE_VRML2) {
             // only allow mosaic textures at best
@@ -156,6 +157,10 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 epd.radioExportNoMaterials[epd.fileType] = 1;
             }
         }
+        // is there a way to make a dialog item inactive? That would be better. TODO
+        SetDlgItemTextA(hDlg, IDC_SCALE_LIGHTS, epd.scaleLightsString);
+        SetDlgItemTextA(hDlg, IDC_SCALE_EMITTERS, epd.scaleEmittersString);
+
         CheckDlgButton(hDlg, IDC_RADIO_EXPORT_NO_MATERIALS, epd.radioExportNoMaterials[epd.fileType]);
         CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MTL_COLORS_ONLY, epd.radioExportMtlColors[epd.fileType]);
         CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SOLID_TEXTURES, epd.radioExportSolidTexture[epd.fileType]);
