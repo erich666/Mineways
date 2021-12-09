@@ -1762,6 +1762,9 @@ unsigned char mod16(int val)
     return (unsigned char)(val & 0xf);
 }
 
+#define FORMAT_UP_THROUGH_1_12      0
+#define FORMAT_1_13_THROUGH_1_17    1
+#define FORMAT_1_18_AND_NEWER       2
 // return negative value on error, 1 on read OK, 2 on read and it's empty, and higher bits than 1 or 2 are warnings
 int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int versionID, int maxHeight, int & mfsHeight)
 {
@@ -1769,7 +1772,11 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
     int biome_save;
     int returnCode = NBT_VALID_BLOCK;	// means "fine"
     int sectionHeight;
+    int formatClass = FORMAT_UP_THROUGH_1_12;
     //int found;
+
+    int minHeight = ZERO_WORLD_HEIGHT(versionID, mcVersion);
+    signed char minHeight16 = (signed char)(minHeight / 16);
 
     //Level/Blocks
     if (bfseek(pbf, 1, SEEK_CUR) < 0)
@@ -1777,8 +1784,57 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
     len = readWord(pbf); //name length
     if (bfseek(pbf, len, SEEK_CUR) < 0)
         return -2; //skip name ()
-    if (nbtFindElement(pbf, "Level") != 10)
-        return -3;
+
+    int level_save = *pbf->offset;
+    if (nbtFindElement(pbf, "Level") != 10) {
+        // is this 1.18 release or later?
+        // TODO: could be made faster? Could compare to Level or "sections" in one command.
+        if (versionID >= 2860) {
+            formatClass = FORMAT_1_18_AND_NEWER;
+
+            // Chunk
+            //   sections 24 entries               <-- different than 1.17 Level->Sections
+            //     3 entries or 4 entries
+            //       biomes                        <-- different than 1.17 Biomes
+            //       block_states                  <-- different name than 1.17 Sections
+            //         palette: 11 entries         <-- different name than 1.17 Palette
+            //           1 entry
+            //             Name: minecraft.stone
+            //           data: 256 long integers   <-- different name than 1.17 BlockStates
+            // OR
+            //           2 entries
+            //             Properties: 7 entries
+            //               down: false
+            //               east: false    <-- etc., 7 properties for block
+            //             Name: minecraft.glow_lichen
+            //           data: 256 long integers
+            // OR
+            //         palette: 1 entry
+            //           1 entry
+            //             Name: minecraft.air <-- no data, since it's all the same
+            //       Y: -4 (some integer)
+            //       BlockLight: 2048 bytes (I guess same as SkyLight)
+
+            // TODOTODO biomes
+
+            // if not a 1.17 or earlier "Level" see if it's a newly-converted "sections" type
+            //if (bfseek(pbf, 1, SEEK_CUR) < 0)
+            //    return -1; //skip type
+            //len = readWord(pbf); //name length
+            //if (bfseek(pbf, len, SEEK_CUR) < 0)
+            //    return -2; //skip name ()
+            if (bfseek(pbf, level_save, SEEK_SET) < 0)
+                return -14; //rewind to start of section
+            if (nbtFindElement(pbf, "sections") != 9)
+                return -9;
+
+            goto SectionsCode;
+        }
+        else {
+            // old, no chance
+            return -3;
+        }
+    }
 
     // For some reason, on most maps the biome info is before the Sections;
     // on others they're after. So, read biome data, then rewind to find Sections.
@@ -1786,7 +1842,6 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
     biome_save = *pbf->offset;
     memset(biome, 0, 16 * 16);
     int inttype = nbtFindElement(pbf, "Biomes");
-    bool newFormat = false;
     if (inttype != 7) {
         // Could be new format 1.13
         // Bizarrely, in the new format the Biome data may be missing for some chunks.
@@ -1796,30 +1851,25 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
         //if (inttype != 11)
         //    return -4;
         //else {
-        newFormat = true;
-        if (!hashMade) {
-            makeHashTable();
-            hashMade = true;
-        }
+        formatClass = FORMAT_1_13_THROUGH_1_17;
         //}
     }
 
     // note if Y value needs to be adjusted by +4
     //signed char y_offset = ZERO_WORLD_HEIGHT(versionID) / 16;
-    int minHeight = ZERO_WORLD_HEIGHT(versionID, mcVersion);
-    signed char minHeight16 = (signed char)(minHeight / 16);
     // 1.17 has a height of 384
     //int max_height = MAX_HEIGHT(versionID); - would need to expose MAX_HEIGHT here for this to work
     //int maxSlice = (maxHeight / 16) - 1;
 
     len = readDword(pbf); //array length
-    if (!newFormat) {
+    if (formatClass == FORMAT_UP_THROUGH_1_12) {
         // old, 1.12 or earlier direct format - done
         if (bfread(pbf, biome, len) < 0)
             return -5;
     }
     else {
         // new format 1.13+See: https://minecraft.fandom.com/wiki/Chunk_format
+        // 1.18: https://minecraft.fandom.com/wiki/Java_Edition_1.18
 
         // See: https://minecraft.fandom.com/wiki/Chunk_format
         // 
@@ -1843,7 +1893,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
         //           SkyLight: some other lighting data, which we ignore.
         //     DataVersion: what format is the data in https://minecraft.fandom.com/wiki/Data_version#List_of_data_versions
         // 
-        // How data is structured in 1.18+:
+        // How data is structured in 1.18 BETAS (only!) of various sorts:
+        // TODOTODO: figure out when this changed yet again
         // /region: a directory of "regular" world region files
         // r.0.0.mca: a typical region file of 32x32 chunks, each 16x16
         //   Chunk [0, 0]: chunks go up to [31,31]
@@ -1864,6 +1915,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
         //             data: this is the compressed block_states data.
         //     DataVersion: what format is the data in https://minecraft.fandom.com/wiki/Data_version#List_of_data_versions
 
+        // Read Biomes 1.13 through 1.17-ish
         if (len == 256) {
             // 1.13 and 1.14
             // convert to bytes
@@ -1915,10 +1967,17 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
     if (nbtFindElement(pbf, "Sections") != 9)
         return -9;
 
+SectionsCode:
+
+    if (formatClass != FORMAT_UP_THROUGH_1_12 && !hashMade) {
+        makeHashTable();
+        hashMade = true;
+    }
+
     // does Sections have anything inside of it?
     bool empty = false;
     {
-        // get rid of "\n" after "Sections".
+        // get rid of "\n" after "Sections" / "sections".
         unsigned char uctype = 0;
         if (bfread(pbf, &uctype, 1) < 0) return -10;
         // did we find the "\n"? If not, it means the section is empty, so we
@@ -1986,7 +2045,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
         if (bfseek(pbf, save, SEEK_SET) < 0)
             return -14; //rewind to start of section
 
-        if (!newFormat) {
+        if (formatClass == FORMAT_UP_THROUGH_1_12) {
             // old 1.12 and earlier format
             // read all the arrays in this section
             for (;;)
@@ -2167,8 +2226,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                     bool uncompressed = (bigbufflen > 64 * bitlength);
                     unsigned long int bitmask = (1 << bitlength) - 1;
 
-                    unsigned char* bout = buff + 16 * 16 * 16 * (y - minHeight16);
-                    unsigned char* dout = data + 16 * 16 * 16 * (y - minHeight16);
+                    unsigned char* bout = buff + 16 * 16 * 16 * (int)(y - minHeight16);
+                    unsigned char* dout = data + 16 * 16 * 16 * (int)(y - minHeight16);
                     sectionHeight = 16 * (y - minHeight16) + 15;
                     // and update the maxFilledSectionHeight
                     if (sectionHeight > mfsHeight) {
@@ -2241,13 +2300,23 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
                     assert(0);
                 }
             }
+            else if ((bigbufflen == 0) && (entryIndex > 0) && (paletteBlockEntry[0] != 0)) {
+                // if the buffer (data) is empty, but there's an entry in the palette,
+                // check the single palette entry. 99.9% of the time it's air, in which case
+                // we're done - the chunk is already filled with 0's. If not air, then
+                // we need to fill the 16x16x16 volume with the item's value.
+                unsigned char* bout = buff + 16 * 16 * 16 * (int)(y - minHeight16);
+                unsigned char* dout = data + 16 * 16 * 16 * (int)(y - minHeight16);
+                memset(bout, paletteBlockEntry[0], 16 * 16 * 16);
+                memset(dout, paletteDataEntry[0], 16 * 16 * 16);
+            }
         }
     }
     if (mfsHeight <= EMPTY_MAX_HEIGHT) {
         // no real data found in the block - this can happen with modded worlds, etc.
         return NBT_NO_SECTIONS;   // means it's empty
     }
-    if (!newFormat) {
+    if (formatClass == FORMAT_UP_THROUGH_1_12) {
         // 1.12 and earlier format - get TileEntities for data about heads, flower pots, standing banners
         if (nbtFindElement(pbf, "TileEntities") != 9)
             // all done, no TileEntities found

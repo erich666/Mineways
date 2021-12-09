@@ -26536,7 +26536,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 }
             }
             else {
-                // no longer a property!
+                // only in Minecraft.mdl, not in OmniGlass.mdl
                 //// default roughness should be 1.0, not the 0.5 favored by OmniPBR
                 //if (roughness != 1.0f) {
                 //    sprintf_s(outputString, 256, "            float inputs:reflection_roughness_constant = %g (\n", roughness);
