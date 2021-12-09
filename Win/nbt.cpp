@@ -39,6 +39,7 @@ static int skipType(bfFile* pbf, int type);
 static int skipList(bfFile* pbf);
 static int skipCompound(bfFile* pbf);
 
+// TODOTODOTODO static int readBiomePalette(bfFile* pbf, unsigned char* paletteBiomeEntry, int& entryIndex);
 static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned char* paletteBlockEntry, unsigned char* paletteDataEntry, int& entryIndex);
 static int readBlockData(bfFile* pbf, int& bigbufflen, unsigned char* bigbuff);
 
@@ -50,10 +51,17 @@ typedef struct BlockTranslator {
     unsigned long translateFlags;
 } BlockTranslator;
 
+typedef struct BiomeTranslator {
+    int hashSum;
+    unsigned char biomeID;
+    char* name;
+} BiomeTranslator;
+
 // our bit shift code reader can read only up to 2^9 entries right now. TODO
 #define MAX_PALETTE	512
 
 static bool hashMade = false;
+// TODOTODOTODO static bool biomeHashMade = false;
 static int worldVersion = 0;
 
 // if defined, only those data values that have an effect on graphics display (vs. sound or
@@ -1299,6 +1307,46 @@ int computeHash(char* name)
     return hashVal;
 }
 
+/* TODOTODOTODO
+void makeBiomeHashTable()
+{
+    // go through entries and convert to hashes, note how many hashes per array spot
+    int hashPerIndex[BIOME_HASH_SIZE];
+    memset(hashPerIndex, 0, 4 * BIOME_HASH_SIZE);
+    int hashStart[BIOME_HASH_SIZE];
+    int i;
+    // If we really wanted to super-optimize, we could take the "air" entry out of the hash table,
+    // since we special-case that in findIndexFromName. Let's not...
+    for (i = 0; i < MAX_VALID_BIOME_ID; i++) {
+        if (strcmp(gBiomes[i].name, "Unknown Biome") != 0) {
+            convertToLowercaseUnderline(gBiomes[i].name);
+            gBiomes[i].hashSum = computeHash(gBiomes[i].name);
+            hashPerIndex[gBiomes[i].hashSum & HASH_MASK]++;
+        }
+    }
+    // OK, have how many per index, so offset appropriately
+    int offset = 0;
+    for (i = 0; i < BIOME_HASH_SIZE; i++) {
+        hashStart[i] = offset;
+        BiomeHashArray[i] = &BiomeHashLists[offset];
+        offset += hashPerIndex[i] + 1;
+    }
+    if (offset != BIOME_HASH_SIZE + MAX_VALID_BIOME_ID) {
+        // this is an error
+        assert(0);
+        return;
+    }
+    // now populate the hashLists, ending with -1; first just set all to -1
+    for (i = 0; i < BIOME_HASH_SIZE + MAX_VALID_BIOME_ID; i++) {
+        BiomeHashLists[i] = -1;
+    }
+    for (i = 0; i < MAX_VALID_BIOME_ID; i++) {
+        int index = BlockTranslations[i].hashSum & HASH_MASK;
+        BiomeHashLists[hashStart[index]++] = i;
+    }
+}
+*/
+
 void makeHashTable()
 {
     // go through entries and convert to hashes, note how many hashes per array spot
@@ -1789,7 +1837,10 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
     if (nbtFindElement(pbf, "Level") != 10) {
         // is this 1.18 release or later?
         // TODO: could be made faster? Could compare to Level or "sections" in one command.
-        if (versionID >= 2860) {
+        // 21w43 for 1.18 seems to be the one where we no longer go Level -> Sections but
+        // rather just go to sections. See https://minecraft.fandom.com/wiki/Java_Edition_21w43a#General_2
+        // We could test here; rather, just let it fail if "sections" is not found (who knows what error message will be generated... GIGO).
+        //if (versionID >= 2844) {
             formatClass = FORMAT_1_18_AND_NEWER;
 
             // Chunk
@@ -1828,12 +1879,15 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
             if (nbtFindElement(pbf, "sections") != 9)
                 return -9;
 
+            // clear biomes for now TODOTODOTODO - really, if at end and needBiome is still true, then do this
+            memset(biome, 0, 256);
+
             goto SectionsCode;
-        }
-        else {
-            // old, no chance
-            return -3;
-        }
+        //}
+        //else {
+        //    // old, no chance
+        //    return -3;
+        //}
     }
 
     // For some reason, on most maps the biome info is before the Sections;
@@ -2108,6 +2162,7 @@ SectionsCode:
             // 1.13 and newer "flattened" format
             // read all the arrays in this section
             // walk through all elements of each Palette array element
+            // TODOTODOTODO bool needBiome = true;
 
             int bigbufflen = 0;
             int entryIndex = 0;
@@ -2202,6 +2257,56 @@ SectionsCode:
                                 return -39;
                     }
                 }
+                /* TODOTODOTODO
+                else if (needBiome && strcmp(thisName, "biomes") == 0)
+                {
+                    // welcome to 1.18+ biomes; we grab the first real layer found
+                    ret = 1;
+
+                    // folder of two things: palette and data
+                    for (;;)
+                    {
+                        int subret = 0;
+                        type = 0;
+                        if (bfread(pbf, &type, 1) < 0)
+                            return -21;
+                        if (type == 0)
+                            break;
+                        len = readWord(pbf);
+                        if (bfread(pbf, thisName, len) < 0)
+                            return -22;
+                        thisName[len] = 0;
+                        if (strcmp(thisName, "palette") == 0)
+                        {
+                            subret = 1;
+                            int retVal = readBiomePalette(pbf, paletteBiomeEntry, biomeEntryIndex);
+                            // did we hit an error?
+                            if (retVal != 0) {
+                                return retVal;
+                            }
+                        }
+                        // TODOTODOTODO - decode; make decoding a subroutine?
+                        else if (strcmp(thisName, "data") == 0)
+                        {
+                            subret = 1;
+
+                            int dataret = readBlockData(pbf, biomebufflen, biomebuff);
+                            if (dataret != 0) {
+                                return dataret;
+                            }
+                        }
+                        if (!subret)
+                            if (skipType(pbf, type) < 0)
+                                return -39;
+                    }
+
+                    // got the data, now interpret it; biomes are now 4x4
+                    // For now, we're not going to decode the data, just use the first entry.
+                    // GIANT TODOTODOTODO
+
+                    needBiome = false;
+                }
+                */
                 if (!ret)
                     if (skipType(pbf, type) < 0)
                         return -39;
@@ -2301,14 +2406,25 @@ SectionsCode:
                 }
             }
             else if ((bigbufflen == 0) && (entryIndex > 0) && (paletteBlockEntry[0] != 0)) {
-                // if the buffer (data) is empty, but there's an entry in the palette,
-                // check the single palette entry. 99.9% of the time it's air, in which case
-                // we're done - the chunk is already filled with 0's. If not air, then
-                // we need to fill the 16x16x16 volume with the item's value.
-                unsigned char* bout = buff + 16 * 16 * 16 * (int)(y - minHeight16);
-                unsigned char* dout = data + 16 * 16 * 16 * (int)(y - minHeight16);
-                memset(bout, paletteBlockEntry[0], 16 * 16 * 16);
-                memset(dout, paletteDataEntry[0], 16 * 16 * 16);
+                // play it safe - let's not set memory that doesn't exist, OK?
+                if (y < maxHeight16 && y >= minHeight16) {
+
+                    sectionHeight = 16 * (y - minHeight16) + 15;
+                    // if the buffer (data) is empty, but there's an entry in the palette,
+                    // check the single palette entry. 99.9% of the time it's air, in which case
+                    // we're done - the chunk is already filled with 0's. If not air, then
+                    // we need to fill the 16x16x16 volume with the item's value.
+                    unsigned char* bout = buff + 16 * 16 * 16 * (int)(y - minHeight16);
+                    unsigned char* dout = data + 16 * 16 * 16 * (int)(y - minHeight16);
+                    memset(bout, paletteBlockEntry[0], 16 * 16 * 16);
+                    memset(dout, paletteDataEntry[0], 16 * 16 * 16);
+
+                    // and update the maxFilledSectionHeight
+                    if (sectionHeight > mfsHeight) {
+                        assert(maxHeight >= sectionHeight);
+                        mfsHeight = sectionHeight;
+                    }
+                }
             }
         }
     }
@@ -2533,6 +2649,47 @@ static int readBlockData(bfFile* pbf, int& bigbufflen, unsigned char *bigbuff)
     // all's well
     return 0;
 }
+
+/* TODOTODOTODO
+static int readBiomePalette(bfFile* pbf, unsigned char* paletteBiomeEntry, int& entryIndex)
+{
+    int len;
+
+    {
+        // get rid of "\n" after "Palette".
+        unsigned char uctype = 0;
+        if (bfread(pbf, &uctype, 1) < 0)
+            return -27;
+        // array of strings
+        if (uctype != 8)
+            return -28;
+    }
+
+    // walk through entries' names and convert to their biome ID
+    int nentries = readDword(pbf);
+    if (nentries <= 0)
+        return -29;	// TODO someday need to clean up these error codes and treat them right
+    if (nentries > MAX_PALETTE)
+        return -30;
+
+    char thisBiomeName[MAX_NAME_LENGTH];
+
+    // go through entries in Palette
+    while (nentries--) {
+        len = readWord(pbf);
+        if (len <= 1)
+            return -31;  // really, should not reach here if the data's OK
+        if (bfread(pbf, thisBiomeName, len) < 0)
+            return -32;
+        thisBiomeName[len] = 0;
+        // convert biome name TODOTODOTODO - prolly a hash table, like for blocks below
+
+        paletteBiomeEntry[entryIndex++] = 0;
+    }
+    // all's well
+    return 0;
+}
+*/
 
 static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned char *paletteBlockEntry, unsigned char *paletteDataEntry, int& entryIndex)
 {

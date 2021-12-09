@@ -2612,7 +2612,8 @@ Find the latest Mac port on the <a href="downloads.html#mac">downloads/quick sta
 <P>
 The textures and rules used in Minecraft for how blocks appear and connect have changed over time, such as how stairs and chests are formed. If you want the closest fidelity, for a given version of Minecraft use the following version of Mineways. That said, older versions may have bugs fixed in newer versions. So, for texture consistency, you could also go the route of using the Minecraft textures of your world's version and make a special terrainExt file for Mineways, as explained on <a href="textures.html">the textures page</a>.
 <UL>
-<LI>Minecraft 1.17: Mineways version 9.00 or newer
+<LI>Minecraft 1.18: Mineways version 9.08 or newer
+<LI>Minecraft 1.17: Mineways version 9.00
 <LI>Minecraft 1.16: Mineways version 8.08
 <LI>Minecraft 1.15: Mineways version 7.12
 <LI>Minecraft 1.14: Mineways version 7.07
@@ -2623,13 +2624,13 @@ The textures and rules used in Minecraft for how blocks appear and connect have 
 From newest to oldest. The very newest is work in progress, with "*" meaning "to do" and "**" meaning "stretch goal."
 <UL>
 
-<LI><B>Version 10.00</B>, */*/2021 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1000.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI><B>Version 9.08</B>, 12/10/2021 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1000.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
   <UL>
-    <LI>*Minecraft 1.18 support. This version of Mineways will read in older worlds, but uses the latest naming for biomes.
-	<LI>Added opacity_threshold export for cutout surfaces.
+    <LI>Minecraft 1.18 support. This new version of Mineways will read in older worlds, but uses the latest naming for biomes. That said, biome reading is not yet implemented (it's complicated...).
+	<LI>Fixed bug: if a 16x16x16 chunk slide is all one block type, it was getting turned into air.
+	<LI>USD: Added MDL opacity_threshold export for cutout surfaces.
 	<LI>Other USD export cleanups: floats to doubles for renderSettings, start at "./" directory for textures.
-	<LI>*Fix Mineways.mdl etc. for custom materials to support opacity_threshold, and to add blockiness for glass objects.
   </UL>
 
 <LI>Version 9.07, 11/26/2021 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV907.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.

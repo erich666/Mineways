@@ -45,6 +45,8 @@ int BiomeSwampRiverColor(int color);
 #define MESA_PLATEAU_F_BIOME		38
 #define MESA_PLATEAU_BIOME			39
 
+// higher values theoretically possible if Bedrock conversion went bad, but this is the realistic value
+#define MAX_VALID_BIOME_ID          182
 
 typedef struct Biome {
     const char* name;
