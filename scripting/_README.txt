@@ -13,6 +13,8 @@ _README.txt - This file
 
 annotate_map.py - Annotate a map with coordinates and regions. Read the top of this file for how to set up to use it.
 
+blender_blocky.txt - a script for Blender to make the textures on blocks look blocky. See the top of the file for instructions.
+
 close.mwscript - A trivial little script to close Mineways
 
 custom_printer_defaults.mwscript - For custom 3D printing; shows how to set various 3D printing values.
