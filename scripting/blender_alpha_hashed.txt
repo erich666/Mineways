@@ -1,0 +1,13 @@
+# Blender script to make textures use Alpha Hashed for their blend mode.
+# Authors: Ohanno_Forgotten-Knight and Eric Haines
+#
+# See instructions, end of step #9, for how to run this script:
+# http://www.realtimerendering.com/erich/minecraft/public/mineways/mineways.html#blender
+#
+# Blender documentation is here: https://docs.blender.org/api/current/bpy.types.Material.html
+
+import bpy
+
+for item in bpy.data.materials:
+    item.blend_method = 'HASHED'
+    item.shadow_method = 'HASHED'
