@@ -1,4 +1,5 @@
-# Blender script to make textures use Alpha Hashed for their blend mode.
+# Blender script to make textures use Alpha Hashed for their blend and shadow modes.
+# Currently does this to all materials - those that are opaque don't need it, but shouldn't be harmed by doing so.
 # Authors: Ohanno_Forgotten-Knight and Eric Haines
 #
 # See instructions, end of step #9, for how to run this script:
