@@ -22339,7 +22339,9 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
             //if (gModel.pInputTerrainImage[i] && !isTileBlack(i, swatchLoc, i != CATEGORY_NORMALS)) {
             if (gModel.pInputTerrainImage[i] && !isTileValue(i, swatchLoc, true, (i != CATEGORY_ROUGHNESS) ? 0 : 255)) {
                 gModel.tileList[i][swatchLoc] = true;  // means has a texture
+                // a bit lazy: normals have alternate names, so we go through twice to get both names
                 for (int alt = 0; alt < 2; alt++) {
+                    // This line could be done once, actually, and reused. Slightly inefficient as done here.
                     formCategoryFileName(pbrFile, (i == CATEGORY_ROUGHNESS) ? CATEGORY_SPECULAR : i, textureRoot);
                     // from http://exocortex.com/blog/extending_wavefront_mtl_to_support_pbr and
                     // https://en.wikipedia.org/wiki/Wavefront_.obj_file#Physically-based_Rendering
@@ -22350,6 +22352,8 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
                     case CATEGORY_NORMALS:
                         // seen somewhere as valid. Omniverse uses it, for example. NOT the same as a bump map,
                         // which has "norm" as an alternate name. See https://github.com/assimp/assimp/issues/3726
+                        // I have also seem "bump" and "map_bump" be used here (in InstaLOD), but have not used these,
+                        // as normal maps are not really bump maps. TODO: could also add these alternate names, ugh.
                         if (alt==0) {
                             // ASSIMP name
                             strcat_s(pbrString, MAX_PATH*6 + 100, "map_Kn ");
