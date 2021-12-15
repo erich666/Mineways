@@ -1057,7 +1057,7 @@ Frankly, an easier way to control the light's direction is to choose the orange 
 <P>
 <a id="blender_blocky"><B>9) Material Conversion:</B></a> Low resolution textures are fuzzy, not blocky like in Minecraft. Transparent objects such as water and glass may not look quite right. Cutout objects have poor blending modes assigned, and anything with transparency will not cast shadows properly. The fastest way to fix these problems (by far) is to use the Prep Materials button in <a href="https://theduckcow.com/dev/blender/mcprep/">the free MCprep addon</a>. <a href="https://youtu.be/XndRsS6KWkw">Here's my short video</a> on how to install and use it.
 <P>
-Another automated method that fixes just the blockiness, from 4NIZIO, is to paste this text into a text file (or use the one Mineways provides in scripting/blender_blocky.txt):
+Another automated method that fixes just the blockiness is to use a script. The advantage of this method over MCprep is that you are in control, making minimal changes to the materials. First paste this text into a text file (or use the one Mineways provides in <a href="https://github.com/erich666/Mineways/blob/master/scripting/blender_blocky.txt">scripting/blender_blocky.txt</a>):
 <P>
 <PRE>
 import bpy
@@ -1069,11 +1069,11 @@ for mat in bpy.data.materials:
         if node.type == 'TEX_IMAGE':
             node.interpolation = 'Closest'
 </PRE>
-In Blender, click on the little clock icon in the strip at the bottom of the program and select "Text Editor" under the Scripting header. You will now see a little text icon in the upper left corner. Make this window larger (pulling up its upper border), then use Text | Open to open your saved text file, then do Text | Run Script (or hit Alt-P) to run the script:
+Then, in Blender, click on the little clock icon in the strip at the bottom of the program and select "Text Editor" under the Scripting header. You will now see a little text icon in the upper left corner. Make this window larger (pulling up its upper border), then use Text | Open to open your saved text file, then do Text | Run Script (or hit Alt-P) to run the script:
 <p class="center">
 <img src="images/b29_closest_script.jpg">
 </p>
-Doing so will change all materials to look blocky. One advantage of this method is that you are in control, making minimal changes to the materials.
+Doing so will change all materials to look blocky.
 <P>
 If instead you want to do this conversion manually, it's a tedious process of selecting each object type in the model. You still might want to do this once, just to understand the material properties better. Select a material and, under the Surface parameter window below, click the small "right arrow" icon to the left of "Base Color", about five lines down. Two more lines down it will say "Linear"; change this to "Closest". Scroll down considerably further to "Alpha" and click on the small right arrow again and also set to "Closest". Here's the Base Color sequence:
 <p class="center">
@@ -1086,7 +1086,24 @@ You might also notice that objects underwater kind of pop out, like they're not 
 <p class="center">
 <img src="images/b28_transparency.jpg">
 </p>
-There are plenty of other material properties you can modify, these are just a start. Have fun!
+Here is the automated script for this, called <a href="https://github.com/erich666/Mineways/blob/master/scripting/blender_alpha_hashed.txt">scripting/blender_alpha_hashed.txt</a>:
+<P>
+<PRE>
+import bpy
+
+for mat in bpy.data.materials:
+    """If material has nodetree"""
+    if mat.node_tree:
+        for node in mat.node_tree.nodes:
+            if node.type == 'BSDF_PRINCIPLED':
+                alphasocket = node.inputs["Alpha"]
+                if alphasocket.is_linked:
+                    mat.blend_method = 'HASHED'
+                    mat.shadow_method = 'HASHED'
+</PRE>
+These two scripts above could be combined into one text file: just paste one after the other (removing the "import bpy" line, which is needed only once).
+<P>
+There are plenty of other material properties you can modify, these are just a start. You can read documentation on the Blender site about <a href="https://docs.blender.org/api/current/bpy.types.ShaderNodeTexImage.html">texture</a> and <a href="https://docs.blender.org/api/current/bpy.types.Material.html">material</a> modification. Have fun!
 
 <P>
 <b>10) Render Size:</b> You can also set several parameters of the Renderer by selecting the Camera in the Scene Collection in the upper right, then clicking on the Context.Output icon in the vertical list of icons - it's the third one down, it looks like a printer spitting out an image. In the section "Dimensions", you can set the Resolution of the image, add a border, and so on. To export Full HD, you can set the Resolution to X:1920 and Y:1080, and set 100% in the bar below these settings.
@@ -2638,15 +2655,22 @@ The textures and rules used in Minecraft for how blocks appear and connect have 
 <P>
 From newest to oldest. The very newest is work in progress, with "*" meaning "to do" and "**" meaning "stretch goal."
 <UL>
+<LI>Version 9.09, */*/202*
+  <BR>
+  <UL>
+    <LI>*Read biomes for 1.18 worlds. As biomes are 3D in 1.18, for simplicity the lowest level biome is used.
+	<LI>Added "blender_alpha_hashed.txt" script to set Alpha Hashed for all materials in Blender and updated <a href="#blender_blocky">the Blender documentation for step #9</a> <i>(thanks, Ohanno_Forgotten-Knight)</i>.
+	<LI>*Updated JG-RTX terrain images.
+  </UL>
 
-<LI><B>Version 9.08</B>, 12/10/2021 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV908.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 9.08, 12/10/2021 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV908.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
   <UL>
     <LI>Minecraft 1.18 support. This new version of Mineways will read in older worlds, but uses the latest naming for biomes. That said, biome reading is not yet implemented (it's complicated...).
 	<LI>Fixed bug: if a 16x16x16 chunk slide is all one block type, it was getting turned into air.
 	<LI>USD: Added MDL opacity_threshold export for cutout surfaces.
 	<LI>Other USD export cleanups: floats to doubles for renderSettings, start at "./" directory for textures.
-	<LI>Updated some texture files: CoterieCraft, Doku Light, JG-RTX
+	<LI>Updated some texture files: CoterieCraft, Doku Light, JG-RTX.
 	<LI>Added "blender_blocky.txt" script to make textures look blocky in Blender and updated <a href="#blender_blocky">the Blender documentation for step #9</a> <i>(thanks, 4NIZIO)</i>.
   </UL>
 
@@ -3634,7 +3658,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 12/10/2021</p>
+		<br id="lastUpdate">Last updated 12/12/2021</p>
 	</div>
 </div>
 

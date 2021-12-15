@@ -13,6 +13,8 @@ _README.txt - This file
 
 annotate_map.py - Annotate a map with coordinates and regions. Read the top of this file for how to set up to use it.
 
+blender_alpha_hashed.txt - a script for Blender to make materials have the more useful Alpha Hashed property for the blend and shadow modes. See the top of the file for instructions.
+
 blender_blocky.txt - a script for Blender to make the textures on blocks look blocky. See the top of the file for instructions.
 
 close.mwscript - A trivial little script to close Mineways

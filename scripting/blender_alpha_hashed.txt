@@ -1,0 +1,22 @@
+# Blender script to make textures use Alpha Hashed for their blend and shadow modes.
+# Currently does this to all materials - those that are opaque don't need it, but shouldn't be harmed by doing so.
+# Author: StandingPad
+#
+# See instructions, end of step #9, for how to run this script:
+# http://www.realtimerendering.com/erich/minecraft/public/mineways/mineways.html#blender
+#
+# Some relevant Blender API documentation is here, in case you want to fiddle with it:
+# https://docs.blender.org/api/current/bpy.types.ShaderNodeTexImage.html
+# https://docs.blender.org/api/current/bpy.types.Material.html
+
+import bpy
+
+for mat in bpy.data.materials:
+    """If material has nodetree"""
+    if mat.node_tree:
+        for node in mat.node_tree.nodes:
+            if node.type == 'BSDF_PRINCIPLED':
+                alphasocket = node.inputs["Alpha"]
+                if alphasocket.is_linked:
+                    mat.blend_method = 'HASHED'
+                    mat.shadow_method = 'HASHED'
