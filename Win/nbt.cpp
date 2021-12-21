@@ -2808,6 +2808,15 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         if (bfread(pbf, token, len) < 0)
                             return -36;
                         token[len] = 0;
+                        // some something: if __version__, skip value
+                        // we only want property names, like facing: south
+                        if (type != 8) { // strcmp(token, "__version__") == 0) {
+                            // some something: skip value
+                            if (skipType(pbf, type) < 0)
+                                return -38;
+                            continue;
+                        }
+
                         len = readWord(pbf);
                         if (bfread(pbf, value, len) < 0)
                             return -37;
