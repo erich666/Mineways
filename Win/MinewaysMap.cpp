@@ -77,6 +77,7 @@ static int gHighlightID = 0;
 // was an unknown block read in?
 static int gUnknownBlock = 0;
 static int gPerformUnknownBlockCheck = 1;
+static char gUnknownBlockName[100];
 
 static wchar_t gSeparator[3];
 
@@ -6560,7 +6561,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
 
             // Given coordinates, check if the file for that location exists, data for the chunk exists, and populate the block.
             // Return 
-            retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion, block->versionID, block->maxHeight, block->maxFilledSectionHeight);
+            retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion, block->versionID, block->maxHeight, block->maxFilledSectionHeight, gUnknownBlockName);
 
             // values 1 and 2 are valid; 3's not used - higher bits are warnings; see nbt.h
             if (retCode >= NBT_VALID_BUT_EMPTY) {
@@ -6984,4 +6985,9 @@ static void initColors()
             gBlankHighlitTile[off + 3] = (unsigned char)255;
         }
     }
+}
+
+char* MapUnknownBlockName()
+{
+    return gUnknownBlockName;
 }

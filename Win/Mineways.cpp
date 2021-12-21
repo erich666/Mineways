@@ -9010,7 +9010,7 @@ static void checkMapDrawErrorCode(int retCode)
     else if (gOneTimeDrawWarning & retCode) {
         // NBT_WARNING_NAME_NOT_FOUND is the only one now
         // currently the only warning - we will someday look at bits, I guess, in retCode
-        wsprintf(fullbuf, _T("Warning: unknown block type encountered and ignored. If you are not running a Minecraft mod or beta, make sure you have downloaded the latest version of Mineways from mineways.com."));
+        wsprintf(fullbuf, _T("Warning: at least one unknown block type '%S' was encountered and ignored (turned into air).\n\nIf you are not running a Minecraft beta, mod, or conversion, please download the latest version of Mineways from mineways.com. If you think Mineways has a bug, please report it (see the Help menu)."), MapUnknownBlockName());
         MessageBox(NULL, fullbuf,
             _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
         gOneTimeDrawWarning &= ~NBT_WARNING_NAME_NOT_FOUND;

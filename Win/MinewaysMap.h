@@ -103,3 +103,4 @@ int GetSchematicBlocksAndData(const wchar_t* schematic, int numBlocks, unsigned 
 // palette should be in RGBA format, num colors in the palette
 void SetMapPremultipliedColors(int start);
 void SetMapPalette(unsigned int* palette, int num);
+char* MapUnknownBlockName();

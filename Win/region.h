@@ -28,4 +28,4 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-int regionGetBlocks(wchar_t* directory, int cx, int cz, unsigned char* block, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int versionID, int maxHeight, int& mfsHeight);
+int regionGetBlocks(wchar_t* directory, int cx, int cz, unsigned char* block, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int versionID, int maxHeight, int& mfsHeight, char* unknownBlock);

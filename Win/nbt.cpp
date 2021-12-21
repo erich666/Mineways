@@ -40,7 +40,7 @@ static int skipList(bfFile* pbf);
 static int skipCompound(bfFile* pbf);
 
 // TODOTODOTODO static int readBiomePalette(bfFile* pbf, unsigned char* paletteBiomeEntry, int& entryIndex);
-static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned char* paletteBlockEntry, unsigned char* paletteDataEntry, int& entryIndex);
+static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned char* paletteBlockEntry, unsigned char* paletteDataEntry, int& entryIndex, char* unknownBlock);
 static int readBlockData(bfFile* pbf, int& bigbufflen, unsigned char* bigbuff);
 
 typedef struct BlockTranslator {
@@ -1814,7 +1814,7 @@ unsigned char mod16(int val)
 #define FORMAT_1_13_THROUGH_1_17    1
 #define FORMAT_1_18_AND_NEWER       2
 // return negative value on error, 1 on read OK, 2 on read and it's empty, and higher bits than 1 or 2 are warnings
-int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int versionID, int maxHeight, int & mfsHeight)
+int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int versionID, int maxHeight, int & mfsHeight, char* unknownBlock)
 {
     int len, nsections;
     int biome_save;
@@ -2210,7 +2210,7 @@ SectionsCode:
                 {
                     ret = 1;
                     
-                    int retVal = readPalette(returnCode, pbf, mcVersion, paletteBlockEntry, paletteDataEntry, entryIndex);
+                    int retVal = readPalette(returnCode, pbf, mcVersion, paletteBlockEntry, paletteDataEntry, entryIndex, unknownBlock);
                     // did we hit an error?
                     if (retVal != 0) {
                         return retVal;
@@ -2237,7 +2237,7 @@ SectionsCode:
                         if (strcmp(thisName, "palette") == 0)
                         {
                             subret = 1;
-                            int retVal = readPalette(returnCode, pbf, mcVersion, paletteBlockEntry, paletteDataEntry, entryIndex);
+                            int retVal = readPalette(returnCode, pbf, mcVersion, paletteBlockEntry, paletteDataEntry, entryIndex, unknownBlock);
                             // did we hit an error?
                             if (retVal != 0) {
                                 return retVal;
@@ -2400,7 +2400,11 @@ SectionsCode:
                     }
                 }
                 else {
-                    // should just be (probably) empty air, nothing here
+                    // should just be (probably) empty air, nothing here.
+                    // NOTE: some bad converters (looking at you, Chunker.app from Hive Games)
+                    // will say they're converting to 1.17.1 yet have chunks that are at y==-4.
+                    // So it's possible to get here with these bad converters - in Release these
+                    // chunks will get ignored.
                     assert(entryIndex <= 1);
                     assert(0);
                 }
@@ -2691,7 +2695,7 @@ static int readBiomePalette(bfFile* pbf, unsigned char* paletteBiomeEntry, int& 
 }
 */
 
-static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned char *paletteBlockEntry, unsigned char *paletteDataEntry, int& entryIndex)
+static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned char *paletteBlockEntry, unsigned char *paletteDataEntry, int& entryIndex, char* unknownBlock)
 {
     int dataVal, len;
     unsigned char type;
@@ -2782,6 +2786,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 else {
                     // unknown type
                     //  THIS IS WHERE TO PUT A DEBUG BREAK TO SEE WHAT NAME IS UNKNOWN: see thisBlockName
+                    strcpy_s(unknownBlock, 100, thisBlockName + 10);
 #ifdef _DEBUG
                                     // Make it bedrock, so we see it's not translated
                     paletteBlockEntry[entryIndex] = 7;
@@ -2813,7 +2818,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         if (type != 8) { // strcmp(token, "__version__") == 0) {
                             // some something: skip value
                             if (skipType(pbf, type) < 0)
-                                return -38;
+                                return -48;
                             continue;
                         }
 
