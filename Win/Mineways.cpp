@@ -867,7 +867,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             if (loadWorldList(GetMenu(hWnd)))
             {
                 LOG_INFO(gExecutionLogfile, "   world not converted\n");
-                MessageBox(NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format. These worlds will be shown as disabled in the Open World menu. To convert a world, run Minecraft 1.9 or later and play it, then quit."),
+                MessageBox(NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format. These worlds will be shown as disabled in the Open World menu. To make a world readable by Mineways, install Minecraft 1.9 and open the world in it, then quit. Doing so will convert your world to a format Mineways understands."),
                     _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
             }
         }
@@ -8977,7 +8977,7 @@ static void showLoadWorldError(int loadErr)
             _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
         break;
     case 2:
-        wsprintf(fullbuf, _T("Error: world has not been converted to the Anvil format. To convert a world, run Minecraft 1.2 or later and play it, then quit.\nAlternately, download Version 1.15 of Mineways from the http://mineways.com site, but I don't recommend this route."));
+        wsprintf(fullbuf, _T("Error: world has not been converted to the Anvil format. To convert a world, run Minecraft 1.9 and open the world in it to convert the world, then quit.\nAlternately, download Version 1.15 of Mineways from the http://mineways.com site, but I don't recommend this route."));
         MessageBox(NULL, fullbuf,
             _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
         break;
