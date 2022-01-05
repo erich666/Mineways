@@ -32,6 +32,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "zlib.h"
 #include <stdio.h>
 
+// versionID: what format is the data in https://minecraft.fandom.com/wiki/Data_version#List_of_data_versions
 // This 2685 version of 1.17 beta, 21w06a, went to a height of 384; went back to normal with 2709, 21w15a.
 // Almost future proof for 1.18, which will increase height again. Really, when 1.18 is out, DATA_VERSION_TO_RELEASE_NUMBER macro needs to be updated
 #define MAX_ARRAY_HEIGHT(versionID, mcVersion)   (((versionID >= 2685 && versionID < 2709)||mcVersion>=18) ? 384 : 256)

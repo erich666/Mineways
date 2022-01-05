@@ -39,7 +39,7 @@ static int skipType(bfFile* pbf, int type);
 static int skipList(bfFile* pbf);
 static int skipCompound(bfFile* pbf);
 
-// TODOTODOTODO static int readBiomePalette(bfFile* pbf, unsigned char* paletteBiomeEntry, int& entryIndex);
+static int readBiomePalette(bfFile* pbf, unsigned char* paletteBiomeEntry, int& entryIndex);
 static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned char* paletteBlockEntry, unsigned char* paletteDataEntry, int& entryIndex, char* unknownBlock);
 static int readBlockData(bfFile* pbf, int& bigbufflen, unsigned char* bigbuff);
 
@@ -60,9 +60,8 @@ typedef struct BiomeTranslator {
 // our bit shift code reader can read only up to 2^9 entries right now. TODO
 #define MAX_PALETTE	512
 
-static bool hashMade = false;
-// TODOTODOTODO static bool biomeHashMade = false;
-static int worldVersion = 0;
+static bool makeHash = true;
+static bool makeBiomeHash = true;
 
 // if defined, only those data values that have an effect on graphics display (vs. sound or
 // simulation) are actually filled in. This is a good thing for instancing, but allows the
@@ -1297,8 +1296,14 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 int HashLists[HASH_SIZE + NUM_TRANS];
 int* HashArray[HASH_SIZE];
 
+#define BIOME_HASH_SIZE 256
+#define BIOME_HASH_MASK 0x0ff
 
-int computeHash(char* name)
+int BiomeHashLists[BIOME_HASH_SIZE + MAX_VALID_BIOME_ID];
+int* BiomeHashArray[BIOME_HASH_SIZE];
+
+
+int computeHash(const char* name)
 {
     int hashVal = 0;
     while (*name) {
@@ -1306,46 +1311,6 @@ int computeHash(char* name)
     }
     return hashVal;
 }
-
-/* TODOTODOTODO
-void makeBiomeHashTable()
-{
-    // go through entries and convert to hashes, note how many hashes per array spot
-    int hashPerIndex[BIOME_HASH_SIZE];
-    memset(hashPerIndex, 0, 4 * BIOME_HASH_SIZE);
-    int hashStart[BIOME_HASH_SIZE];
-    int i;
-    // If we really wanted to super-optimize, we could take the "air" entry out of the hash table,
-    // since we special-case that in findIndexFromName. Let's not...
-    for (i = 0; i < MAX_VALID_BIOME_ID; i++) {
-        if (strcmp(gBiomes[i].name, "Unknown Biome") != 0) {
-            convertToLowercaseUnderline(gBiomes[i].name);
-            gBiomes[i].hashSum = computeHash(gBiomes[i].name);
-            hashPerIndex[gBiomes[i].hashSum & HASH_MASK]++;
-        }
-    }
-    // OK, have how many per index, so offset appropriately
-    int offset = 0;
-    for (i = 0; i < BIOME_HASH_SIZE; i++) {
-        hashStart[i] = offset;
-        BiomeHashArray[i] = &BiomeHashLists[offset];
-        offset += hashPerIndex[i] + 1;
-    }
-    if (offset != BIOME_HASH_SIZE + MAX_VALID_BIOME_ID) {
-        // this is an error
-        assert(0);
-        return;
-    }
-    // now populate the hashLists, ending with -1; first just set all to -1
-    for (i = 0; i < BIOME_HASH_SIZE + MAX_VALID_BIOME_ID; i++) {
-        BiomeHashLists[i] = -1;
-    }
-    for (i = 0; i < MAX_VALID_BIOME_ID; i++) {
-        int index = BlockTranslations[i].hashSum & HASH_MASK;
-        BiomeHashLists[hashStart[index]++] = i;
-    }
-}
-*/
 
 void makeHashTable()
 {
@@ -1557,6 +1522,111 @@ int findIndexFromName(char* name)
     // fail!
     return -1;
 }
+
+void convertToLowercaseUnderline(char* dest, const char* name)
+{
+    const char* srcStrPtr = name;
+    char* destStrPtr = dest;
+    //int length = 0;
+
+    while (*srcStrPtr) {
+        if (*srcStrPtr == ' ') {
+            // space to underscore
+            *destStrPtr++ = '_';
+            srcStrPtr++;
+        }
+        else if (*srcStrPtr >= 'A' && *srcStrPtr <= 'Z') {
+            // lowercase
+            //*destStrPtr++ = ('a' * *srcStrPtr++) - 'A';
+            // just use fact that lowercase is uppercase + 32 in ASCII:
+            *destStrPtr++ = 32 + *srcStrPtr++;
+        }
+        else {
+            // simple copy of lowercase
+            *destStrPtr++ = *srcStrPtr++;
+        }
+        //length++;
+    }
+    *destStrPtr = (char)0;
+    //return length;
+}
+
+// like above: given a biome name, return its index.
+// Here we set up that ability: hash each name into an index.
+void makeBiomeHashTable()
+{
+    // go through entries and convert to hashes
+    int hashPerIndex[BIOME_HASH_SIZE];
+    memset(hashPerIndex, 0, 4 * BIOME_HASH_SIZE);
+    int hashStart[BIOME_HASH_SIZE];
+    int i;
+    for (i = 0; i < MAX_VALID_BIOME_ID; i++) {
+        // don't add Unknown Biome, since no world's biome will ever set that
+        if ( strcmp(gBiomes[i].name, "Unknown Biome") != 0) {
+            char lcname[100];
+            convertToLowercaseUnderline(lcname, gBiomes[i].name);
+            gBiomes[i].hashSum = computeHash(lcname);
+            gBiomes[i].lcName = _strdup(lcname);
+            hashPerIndex[gBiomes[i].hashSum & BIOME_HASH_MASK]++;
+        }
+        else {
+            // unused Unknown Biome
+            gBiomes[i].hashSum = -1;
+            gBiomes[i].lcName = NULL;
+        }
+    }
+    // OK, have how many per index, so offset appropriately
+    int offset = 0;
+    for (i = 0; i < BIOME_HASH_SIZE; i++) {
+        hashStart[i] = offset;
+        BiomeHashArray[i] = &BiomeHashLists[offset];
+        offset += hashPerIndex[i] + 1;
+    }
+    if (offset > BIOME_HASH_SIZE + MAX_VALID_BIOME_ID) {
+        // this is an error - offset shouldn't be larger than the above
+        assert(0);
+        return;
+    }
+    // "offset" at this point is the number of biome hash list entries needed.
+    // 
+    // now populate the hashLists, ending with -1; first, just set all to -1
+    for (i = 0; i < offset; i++) {
+        BiomeHashLists[i] = -1;
+    }
+    for (i = 0; i < MAX_VALID_BIOME_ID; i++) {
+        // valid biome? -1 is Unknown Biome and is ignored
+        if (gBiomes[i].hashSum > 0) {
+            int index = gBiomes[i].hashSum & BIOME_HASH_MASK;
+            BiomeHashLists[hashStart[index]++] = i;
+        }
+    }
+}
+
+int findIndexFromBiomeName(char* name)
+{
+    // to break on a specific named biome
+#ifdef _DEBUG
+    //if (strcmp("swamp", name) == 0) {
+    //	name[0] = name[0];
+    //}
+#endif
+    int hashNum = computeHash(name);
+    int* hl = BiomeHashArray[hashNum & BIOME_HASH_MASK];
+
+    // now compare entries one by one in hash table list until a match is found
+    while (*hl > -1) {
+        if (hashNum == gBiomes[*hl].hashSum) {
+            // OK, do full string compare
+            if (strcmp(name, gBiomes[*hl].lcName) == 0) {
+                return *hl;
+            }
+        }
+        hl++;
+    }
+    // fail!
+    return -1;
+}
+
 
 // return -1 if error (corrupt file)
 int bfread(bfFile* pbf, void* target, int len)
@@ -1959,7 +2029,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
         //       Sections: series of folders, each folder is a 16-voxel high chunk, go from bottom to top
         //         folders with entries: has a few things. One folder per 16x16x16 chunk
         //           Y: -4 to 19 or whatever
-        //           (CHANGE: Palette gone! moved to pallette below)
+        //           (CHANGE: Palette gone! moved to palette below)
         //           BlockLight: light data, which Mineways uses
         //           (CHANGE BlockStates changed! moved to block_states directory)
         //           SkyLight: some other lighting data, which we ignore.
@@ -2023,9 +2093,13 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
 
 SectionsCode:
 
-    if (formatClass != FORMAT_UP_THROUGH_1_12 && !hashMade) {
+    if (makeHash && (formatClass != FORMAT_UP_THROUGH_1_12)) {
         makeHashTable();
-        hashMade = true;
+        makeHash = false;
+    }
+    if (makeBiomeHash && (mcVersion >= 18)) {
+        makeBiomeHashTable();
+        makeBiomeHash = false;
     }
 
     // does Sections have anything inside of it?
@@ -2162,10 +2236,11 @@ SectionsCode:
             // 1.13 and newer "flattened" format
             // read all the arrays in this section
             // walk through all elements of each Palette array element
-            // TODOTODOTODO bool needBiome = true;
+            bool needBiome = mcVersion >= 18;
+            bool gotBiome = !needBiome; // start false only if needed.
 
             int bigbufflen = 0;
-            int entryIndex = 0;
+            int paletteLength = 0;
             // could theoretically get higher...
             unsigned char paletteBlockEntry[MAX_PALETTE];
             unsigned char paletteDataEntry[MAX_PALETTE];
@@ -2210,7 +2285,7 @@ SectionsCode:
                 {
                     ret = 1;
                     
-                    int retVal = readPalette(returnCode, pbf, mcVersion, paletteBlockEntry, paletteDataEntry, entryIndex, unknownBlock);
+                    int retVal = readPalette(returnCode, pbf, mcVersion, paletteBlockEntry, paletteDataEntry, paletteLength, unknownBlock);
                     // did we hit an error?
                     if (retVal != 0) {
                         return retVal;
@@ -2237,7 +2312,7 @@ SectionsCode:
                         if (strcmp(thisName, "palette") == 0)
                         {
                             subret = 1;
-                            int retVal = readPalette(returnCode, pbf, mcVersion, paletteBlockEntry, paletteDataEntry, entryIndex, unknownBlock);
+                            int retVal = readPalette(returnCode, pbf, mcVersion, paletteBlockEntry, paletteDataEntry, paletteLength, unknownBlock);
                             // did we hit an error?
                             if (retVal != 0) {
                                 return retVal;
@@ -2257,10 +2332,15 @@ SectionsCode:
                                 return -39;
                     }
                 }
-                /* TODOTODOTODO
-                else if (needBiome && strcmp(thisName, "biomes") == 0)
+                else if (!gotBiome && strcmp(thisName, "biomes") == 0)
                 {
-                    // welcome to 1.18+ biomes; we grab the first real layer found
+                    // welcome to 1.18+ biomes; for now we grab the first real layer found TODOTODOTODO
+                    unsigned char paletteBiomeEntry[4 * 4 * 4];
+                    int biomePaletteLength = 0;
+                    unsigned char biomebuff[MAX_BLOCK_STATES_ARRAY];
+                    int biomebufflen = 0;
+
+                    gotBiome = true;
                     ret = 1;
 
                     // folder of two things: palette and data
@@ -2279,7 +2359,7 @@ SectionsCode:
                         if (strcmp(thisName, "palette") == 0)
                         {
                             subret = 1;
-                            int retVal = readBiomePalette(pbf, paletteBiomeEntry, biomeEntryIndex);
+                            int retVal = readBiomePalette(pbf, paletteBiomeEntry, biomePaletteLength);
                             // did we hit an error?
                             if (retVal != 0) {
                                 return retVal;
@@ -2303,10 +2383,9 @@ SectionsCode:
                     // got the data, now interpret it; biomes are now 4x4
                     // For now, we're not going to decode the data, just use the first entry.
                     // GIANT TODOTODOTODO
-
-                    needBiome = false;
                 }
-                */
+
+                // Did we not read through the object by some code above? If so, then skip it
                 if (!ret)
                     if (skipType(pbf, type) < 0)
                         return -39;
@@ -2322,7 +2401,7 @@ SectionsCode:
             // 1234512345123451234512345123451234512345123451234512345123451234 | 512345 - at the 64 - bit mark the bits just continue
             // New format (which we call "uncompressed"):
             // 123451234512345123451234512345123451234512345123451234512345.... | 1234512345 - at the 60 - bit mark the 5 bits won't fit, so they start again.
-            if (bigbufflen > 0 && entryIndex > 0) {
+            if (bigbufflen > 0 && paletteLength > 0) {
                 // future proof: don't store data if the memory doesn't exist
                 if (y < maxHeight16 && y >= minHeight16) {
                     // compute number of bits for each palette entry. For example, 21 entries is 5 bits, which can access 17-32 entries.
@@ -2385,12 +2464,12 @@ SectionsCode:
                         }
 
                         // sanity check
-                        if (bits >= entryIndex) {
+                        if (bits >= paletteLength) {
                             // Should never reach here; means that a stored index value is greater than any value in the palette.
                             assert(0);
 #ifdef _DEBUG
                             // maximum value is entryIndex - 1; which is useful for debugging - see things go bad
-                            bits = entryIndex - 1;
+                            bits = paletteLength - 1;
 #else
                             bits = 0; // which is likely air
 #endif
@@ -2405,11 +2484,11 @@ SectionsCode:
                     // will say they're converting to 1.17.1 yet have chunks that are at y==-4.
                     // So it's possible to get here with these bad converters - in Release these
                     // chunks will get ignored.
-                    assert(entryIndex <= 1);
+                    assert(paletteLength <= 1);
                     assert(0);
                 }
             }
-            else if ((bigbufflen == 0) && (entryIndex > 0) && (paletteBlockEntry[0] != 0)) {
+            else if ((bigbufflen == 0) && (paletteLength > 0) && (paletteBlockEntry[0] != 0)) {
                 // play it safe - let's not set memory that doesn't exist, OK?
                 if (y < maxHeight16 && y >= minHeight16) {
 
@@ -2654,10 +2733,10 @@ static int readBlockData(bfFile* pbf, int& bigbufflen, unsigned char *bigbuff)
     return 0;
 }
 
-/* TODOTODOTODO
 static int readBiomePalette(bfFile* pbf, unsigned char* paletteBiomeEntry, int& entryIndex)
 {
     int len;
+    entryIndex = 0; // not strictly necessary, should be 0 coming into this function, but just to be safe
 
     {
         // get rid of "\n" after "Palette".
@@ -2686,19 +2765,31 @@ static int readBiomePalette(bfFile* pbf, unsigned char* paletteBiomeEntry, int& 
         if (bfread(pbf, thisBiomeName, len) < 0)
             return -32;
         thisBiomeName[len] = 0;
-        // convert biome name TODOTODOTODO - prolly a hash table, like for blocks below
+        // convert biome name to the proper index
+        // The +10 goes past the "minecraft:" part of the name in the palette
+        int index = findIndexFromBiomeName(thisBiomeName+10);
+        if (index < 0) {
+            // Name not found - fail!
+            assert(0);
+            index = 0;
+        }
+        else if (index > MAX_VALID_BIOME_ID) {
+            // possibly hit if some weirdness happens with Bedrock -> Classic conversion?
+            assert(0);
+            index = 0;
+        }
 
-        paletteBiomeEntry[entryIndex++] = 0;
+        paletteBiomeEntry[entryIndex++] = (unsigned char)index;
     }
     // all's well
     return 0;
 }
-*/
 
 static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned char *paletteBlockEntry, unsigned char *paletteDataEntry, int& entryIndex, char* unknownBlock)
 {
     int dataVal, len;
     unsigned char type;
+    entryIndex = 0; // not strictly necessary, should be 0 coming into this function, but just to be safe
 
     {
         // get rid of "\n" after "Palette".

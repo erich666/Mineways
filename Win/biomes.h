@@ -54,6 +54,8 @@ typedef struct Biome {
     float rainfall;
     unsigned int grass;	// r,g,b, NOT multiplied by alpha
     unsigned int foliage;	// r,g,b, NOT multiplied by alpha
+    int hashSum;    // for lowercase name found in world, what's its hash sum?
+    char* lcName;  // lowercase, with "_" for space
 } Biome;
 
 extern Biome gBiomes[];
