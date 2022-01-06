@@ -1181,6 +1181,8 @@ Bonus feature: I've included a water_normal.png normals map (from the open sourc
 <P>
 For more about physical materials and how to add them into Mineways, see the <a href="textures.html">texture tutorial page</a>.
 <P>
+By default the RTX Path-Traced renderer is used, as shown in the upper left corner of the Omniverse Create viewport. Changing this to "RTX Real-Time" will give faster, lower quality renders. If you want even faster interactivity - useful for large scenes - click on the Render Settings tab in the upper right, select "Real-Time" for the Renderer if not already selected, choose the "Ray Tracing" option just below, then under Translucency uncheck the box "Enable Fractional Cutout Opacity." Having this box checked can be up to 3x slower than unchecked.
+<P>
 This is as far as I'm going, as explaining <a href="https://docs.omniverse.nvidia.com/app_create/app_create/materials.html">materials</a>, <a href="https://docs.omniverse.nvidia.com/app_create/prod_extensions/ext_animation.html">animation</a>, and <a href="https://docs.omniverse.nvidia.com/app_create/app_create/overview.html">many other features</a> is definitely beyond the scope. But, notice that last sentence has links to documentation for these topics. Some people <a href="https://www.youtube.com/embed/fCLE_9SNL8M">know <i>way</i> more</a> than I do about Omniverse.
 <P>
 Since you got this far, I'll note one option you <i>can</i> choose at Mineways export: the "Custom material" checkbox on the export dialog. By default it is checked. This exports a custom Minecraft.mdl material that gives textures the classic blocky look. However, if you are using a high resolution texture you likely won't care about this look. Unchecking the box means to use the default materials, no MDL files written out. A minor thing, but you may prefer it.
@@ -2662,6 +2664,7 @@ From newest to oldest. The very newest is work in progress, with "*" meaning "to
 	<LI>Identify in the error message the first unknown block encountered, as a hint to the user (and me).
     <LI>*Read biomes for 1.18 worlds. As biomes are 3D in 1.18, for simplicity the lowest level biome is used.
 	<LI>Added "blender_alpha_hashed.txt" script to set Alpha Hashed for all materials in Blender and updated <a href="#blender_blocky">the Blender documentation for step #9</a> <i>(thanks, Ohanno_Forgotten-Knight)</i>.
+	<LI>Enabled fractional cutout opacity for the Omniverse Create's RTX Real-Time renderer, so that semi-transparent objects look reasonable by default. Explained how to turn this option off for faster preview rendering. Here I would rather favor quality over speed by default, as otherwise it looks like a bug.
 	<LI>*Updated JG-RTX terrain images.
   </UL>
 

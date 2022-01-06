@@ -29,7 +29,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "biomes.h"
 
-// IDs here: https://minecraft.fandom.com/wiki/Biome/ID and https://minecraft.fandom.com/wiki/Biome#Temperature
+// IDs here: https://minecraft.fandom.com/wiki/Biome/ID (ignore the ID numbers there) and https://minecraft.fandom.com/wiki/Biome#Temperature
 // Note new biomes and new biome names here in 1.18: https://minecraft.fandom.com/wiki/Java_Edition_1.18
 
 Biome gBiomes[256] = {	// IMPORTANT: do not change 256 size here.
@@ -86,8 +86,8 @@ Biome gBiomes[256] = {	// IMPORTANT: do not change 256 size here.
     { /*  48 */ "Deep Lukewarm Ocean",		0.5f, 0.5f, 0x92BD59, 0x77AB2F },
     { /*  49 */ "Deep Cold Ocean",			0.5f, 0.5f, 0x92BD59, 0x77AB2F },
     { /*  50 */ "Deep Frozen Ocean",		0.5f, 0.5f, 0x92BD59, 0x77AB2F },
-    { /*  51 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
-    { /*  52 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
+    { /*  51 */ "Stony Peaks",				1.0f, 0.3f, 0x92BD59, 0x77AB2F },  // not actually this number, added in 1.18, have to put it somewhere
+    { /*  52 */ "Wooded Badlands",			2.0f, 0.0f, 0x92BD59, 0x77AB2F },  // not actually this number, added in 1.18, have to put it somewhere
     { /*  53 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /*  54 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /*  55 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },

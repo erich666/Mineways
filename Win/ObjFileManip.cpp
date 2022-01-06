@@ -24702,9 +24702,10 @@ static int finishCommentsUSD()
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            double \"rtx:post:tonemap:filmIso\" = 200\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    // slows performance down massively in real-time rendering mode (like 3X), but slightly more precise for tree leaves
-    //strcpy_s(outputString, 256, "            bool \"rtx:raytracing:fractionalCutoutOpacity\" = 1\n");
-    //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    // Slows performance down massively in real-time rendering mode (like 3X), but without it, semitransparent objects
+    // do not display correctly. This is documented in Mineways' docs about OV Create.
+    strcpy_s(outputString, 256, "            bool \"rtx:raytracing:fractionalCutoutOpacity\" = 1\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     // Reinhard gives a different look to HDR, sometimes better
     //strcpy_s(outputString, 256, "            double \"rtx:post:tonemap:op\" = 2\n");

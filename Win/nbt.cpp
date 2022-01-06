@@ -1886,7 +1886,7 @@ unsigned char mod16(int val)
 // return negative value on error, 1 on read OK, 2 on read and it's empty, and higher bits than 1 or 2 are warnings
 int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int versionID, int maxHeight, int & mfsHeight, char* unknownBlock)
 {
-    int len, nsections;
+    int len, nsections, i;
     int biome_save;
     int returnCode = NBT_VALID_BLOCK;	// means "fine"
     int sectionHeight;
@@ -2047,7 +2047,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
             memset(biomeint, 0, 4 * len);
             if (bfread(pbf, biomeint, 4 * len) < 0)
                 return -6;
-            for (int i = 0; i < 256; i++) {
+            for (i = 0; i < 256; i++) {
                 // wild guess as to the biome - looks like the topmost byte right now.
                 int grab = 4 * i + 3;
                 biome[i] = (biomeint[grab] > 255) ? 255 : (unsigned char)biomeint[grab];
@@ -2139,7 +2139,8 @@ SectionsCode:
     }
 
     nsections = readDword(pbf);
-    if (nsections < 0) return -11;
+    if (nsections < 0)
+        return -11;
 
     char thisName[MAX_NAME_LENGTH];
 
@@ -2156,6 +2157,10 @@ SectionsCode:
 #define MAX_BLOCK_STATES_ARRAY	6144
     unsigned char bigbuff[MAX_BLOCK_STATES_ARRAY];
     //memset(bigbuff, 0, 256 * 8);
+
+    // for 1.18+ biomes. 
+    bool needBiome = mcVersion >= 18;
+    bool gotBiome = !needBiome; // start false only if needed.
 
     int ret;
     unsigned char type;
@@ -2236,8 +2241,6 @@ SectionsCode:
             // 1.13 and newer "flattened" format
             // read all the arrays in this section
             // walk through all elements of each Palette array element
-            bool needBiome = mcVersion >= 18;
-            bool gotBiome = !needBiome; // start false only if needed.
 
             int bigbufflen = 0;
             int paletteLength = 0;
@@ -2332,15 +2335,20 @@ SectionsCode:
                                 return -39;
                     }
                 }
-                else if (!gotBiome && strcmp(thisName, "biomes") == 0)
+                // Read biome data only if at sea level (Y==4) or higher and haven't got biome yet
+                // On second thought, let's take the highest biome, Y==19 and use that.
+                // Hmmm, that doesn't work well with the 1.18 Biome Testing World; it's the fault
+                // of the world, anything above Y==15 is plains, but let's use that level, in
+                // case some other converter is doing this
+                else if (y >= 15 && !gotBiome && strcmp(thisName, "biomes") == 0)
                 {
-                    // welcome to 1.18+ biomes; for now we grab the first real layer found TODOTODOTODO
+                    gotBiome = true;
+                    // welcome to 1.18+ biomes
                     unsigned char paletteBiomeEntry[4 * 4 * 4];
                     int biomePaletteLength = 0;
                     unsigned char biomebuff[MAX_BLOCK_STATES_ARRAY];
                     int biomebufflen = 0;
 
-                    gotBiome = true;
                     ret = 1;
 
                     // folder of two things: palette and data
@@ -2365,7 +2373,7 @@ SectionsCode:
                                 return retVal;
                             }
                         }
-                        // TODOTODOTODO - decode; make decoding a subroutine?
+                        // grab biome data to decode after done reading this section (may not have palette yet)
                         else if (strcmp(thisName, "data") == 0)
                         {
                             subret = 1;
@@ -2375,14 +2383,146 @@ SectionsCode:
                                 return dataret;
                             }
                         }
+
+                        // skip field if we don't care about field
                         if (!subret)
                             if (skipType(pbf, type) < 0)
                                 return -39;
                     }
 
-                    // got the data, now interpret it; biomes are now 4x4
-                    // For now, we're not going to decode the data, just use the first entry.
-                    // GIANT TODOTODOTODO
+                    int ix, iz, isx, isz, niz, offset;
+                    unsigned char bval;
+
+                    // if there's just one entry, we're done (no data), assign whole biome that value
+                    if (biomePaletteLength == 1) {
+                        memset(biome, paletteBiomeEntry[0], 256 * sizeof(unsigned char));
+                    }
+                    // got the data, now interpret it; biomes are now 4x4x4, take the topmost 4x4
+                    else if (biomePaletteLength == 2) {
+                        // easy, common case: take top 16 bits and use as palette indices, 0 or 1
+                        for (iz = 0; iz < 4; iz++) {
+                            for (ix = 0; ix < 4; ix++) {
+                                niz = 3 - iz;
+                                bval = paletteBiomeEntry[(biomebuff[iz >> 1] >> ((((niz << 2) + ix)) & 0x7)) & 0x1];
+                                offset = niz * 64 + ix * 4;
+                                for (isz = 0; isz < 4; isz++) {
+                                    for (isx = 0; isx < 4; isx++) {
+                                        biome[offset + isz * 16 + isx] = bval;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else if (biomePaletteLength <= 4) {
+                        // uncommon case: palette indices are 2 bits
+                        for (iz = 0; iz < 4; iz++) {
+                            for (ix = 0; ix < 4; ix++) {
+                                niz = 3 - iz;
+                                bval = paletteBiomeEntry[(biomebuff[iz] >> 2*ix) & 0x3];
+                                offset = niz * 64 + ix * 4;
+                                for (isz = 0; isz < 4; isz++) {
+                                    for (isx = 0; isx < 4; isx++) {
+                                        biome[offset + isz * 16 + isx] = bval;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else if (biomePaletteLength > 4) {
+                        // Cheat for now - not sure how 3 bit data is packed into 8 bits
+                        // - see general decoder (commented out, untested, clone of one for chunk data) below, may need to use that.
+                        // Never have run into a 5+ biome section,
+                        // at least not at sea level.
+                        memset(biome, paletteBiomeEntry[0], 256 * sizeof(unsigned char));
+                        assert(0);
+                    }
+                    else {
+                        // somehow there are zero biome palette entries!
+                        assert(0);
+                    }
+                    /*
+                    // compute number of bits for each palette entry. For example, 21 entries is 5 bits, which can access 17-32 entries.
+                    int biomebitlength = biomebufflen;
+
+                    // Not so sure about this... uncompressed? or not? Need to find an example TODOTODOTODO
+                    bool uncompressed = (biomebufflen > 64 * biomebitlength);
+                    unsigned long int biomebitmask = (1 << biomebitlength) - 1;
+
+                    unsigned char biome4x4x4[64];
+                    unsigned char* biomeout = biome4x4x4;
+
+                    int biomebitpull = 0;
+                    for (i = 0; i < 64; i++, biomebitpull += biomebitlength) {
+                        // Pull out bits. Here is the lowest bit's index, if the array is thought of as one long string of bits.
+                        // That is, if you see "5" here, the bits in the 64-bit long long are in order
+                        // which bb should we access for these bits? Divide by 8
+                    RestartBiome:
+                        int bbbindex = biomebitpull >> 3;
+                        // Have to count from top to bottom 8 bytes of each long long. I suspect if I read the long longs as bytes the order might be right.
+                        // But, this works.
+                        bbbindex = (bbbindex & 0xfff8) + 7 - (bbbindex & 0x7);
+                        int bbbshift = biomebitpull & 0x7;
+                        // get the top bits out of the topmost byte, on down the row
+                        int biomebits = (biomebuff[bbbindex] >> bbbshift) & biomebitmask;
+                        // Check if we got enough bits. If we had only a few bits retrieved, need to get more from the next byte.
+                        // 'While' is needed only when remainingBitLength > 0, as 3 bytes may be needed
+                        int remainingBitLength = biomebitlength - (8 - bbbshift);
+                        while (remainingBitLength > 0) {
+                            if (bbbindex & 0x7) {
+                                // one of the middle bytes, not the bottommost one
+                                biomebits |= (biomebuff[bbbindex - 1] << (8 - bbbshift)) & biomebitmask;
+                            }
+                            else {
+                                // Bottommost byte, and not enough bits left: need to jump to topmost byte of next long long and restart.
+                                // If this is the new format and the length of biomebufflen is greater than expected,
+                                // e.g., 5*64 is 320, but might be 342, then we have to add to bitpull (need to make that number
+                                // incremental up above) and pull entirely from the next +15 index, as shown here.
+                                if (uncompressed) {
+                                    // start on next long long
+                                    //biomebits = biomebuff[bbbindex + 15] & biomebitmask;
+                                    biomebitpull += (8 - bbbshift);
+                                    goto RestartBiome;
+                                    //next iteration it will be: bbshift = 0;
+                                }
+                                else {
+                                    biomebits |= (biomebuff[bbbindex + 15] << (8 - bbbshift)) & biomebitmask;
+                                }
+                            }
+                            // a waste 99% of the time - any faster way? TODO - could unwind loops, could properly track bbindex and bbshift without
+                            // recomputing them each time. Maybe try some timing tests one day to see if it matters.
+                            remainingBitLength -= 8;
+                            bbbindex--;
+                            bbbshift = 0;
+                        }
+
+                        // sanity check
+                        if (biomebits >= biomePaletteLength) {
+                            // Should never reach here; means that a stored index value is greater than any value in the palette.
+                            assert(0);
+#ifdef _DEBUG
+                                    // maximum value is entryIndex - 1; which is useful for debugging - see things go bad
+                                    biomebits = biomePaletteLength - 1;
+#else
+                                    bits = 0; // which is likely air
+#endif
+                                }
+                                *biomeout++ = paletteBiomeEntry[biomebits];
+                            }
+                            // OK, got the biome, stretch and paste the top 4x4 into the 16x16 final storage
+                            biomeout = biome4x4x4 + 48 * sizeof(unsigned char);
+                            for (int ix = 0; ix < 4; ix++) {
+                                for (int iz = 0; iz < 4; iz++) {
+                                    unsigned char bval = *biomeout++;
+                                    int offset = ix * 16 + iz * 4;
+                                    for (int isx = 0; isx < 4; isx++) {
+                                        for (int isz = 0; isz < 4; isz++) {
+                                            biome[offset + isx + isz] = bval;
+                                        }
+                                    }
+                                }
+                            }
+                            */
+
                 }
 
                 // Did we not read through the object by some code above? If so, then skip it
@@ -2420,7 +2560,7 @@ SectionsCode:
                     }
 
                     int bitpull = 0;
-                    for (int i = 0; i < 16 * 256; i++, bitpull += bitlength) {
+                    for (i = 0; i < 16 * 256; i++, bitpull += bitlength) {
                         // Pull out bits. Here is the lowest bit's index, if the array is thought of as one long string of bits.
                         // That is, if you see "5" here, the bits in the 64-bit long long are in order 
                         // which bb should we access for these bits? Divide by 8
@@ -2511,6 +2651,9 @@ SectionsCode:
             }
         }
     }
+    // if we somehow didn't get a biome for this 1.18 chunk, go figure out why
+    assert(gotBiome);
+
     if (mfsHeight <= EMPTY_MAX_HEIGHT) {
         // no real data found in the block - this can happen with modded worlds, etc.
         return NBT_NO_SECTIONS;   // means it's empty
