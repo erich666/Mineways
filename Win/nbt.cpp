@@ -1299,7 +1299,7 @@ int* HashArray[HASH_SIZE];
 #define BIOME_HASH_SIZE 256
 #define BIOME_HASH_MASK 0x0ff
 
-int BiomeHashLists[BIOME_HASH_SIZE + MAX_VALID_BIOME_ID];
+int BiomeHashLists[BIOME_HASH_SIZE + MAX_VALID_BIOME_ID + 1];
 int* BiomeHashArray[BIOME_HASH_SIZE];
 
 
@@ -1560,7 +1560,7 @@ void makeBiomeHashTable()
     memset(hashPerIndex, 0, 4 * BIOME_HASH_SIZE);
     int hashStart[BIOME_HASH_SIZE];
     int i;
-    for (i = 0; i < MAX_VALID_BIOME_ID; i++) {
+    for (i = 0; i <= MAX_VALID_BIOME_ID; i++) {
         // don't add Unknown Biome, since no world's biome will ever set that
         if ( strcmp(gBiomes[i].name, "Unknown Biome") != 0) {
             char lcname[100];
@@ -1582,7 +1582,7 @@ void makeBiomeHashTable()
         BiomeHashArray[i] = &BiomeHashLists[offset];
         offset += hashPerIndex[i] + 1;
     }
-    if (offset > BIOME_HASH_SIZE + MAX_VALID_BIOME_ID) {
+    if (offset > BIOME_HASH_SIZE + MAX_VALID_BIOME_ID + 1) {
         // this is an error - offset shouldn't be larger than the above
         assert(0);
         return;
@@ -1593,7 +1593,7 @@ void makeBiomeHashTable()
     for (i = 0; i < offset; i++) {
         BiomeHashLists[i] = -1;
     }
-    for (i = 0; i < MAX_VALID_BIOME_ID; i++) {
+    for (i = 0; i <= MAX_VALID_BIOME_ID; i++) {
         // valid biome? -1 is Unknown Biome and is ignored
         if (gBiomes[i].hashSum > 0) {
             int index = gBiomes[i].hashSum & BIOME_HASH_MASK;
