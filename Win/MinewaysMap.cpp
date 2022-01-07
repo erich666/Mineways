@@ -36,6 +36,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <assert.h>
 #include <string.h>
 
+static void clearUndoHighlight();
+static void copyHighlightState(HighlightBox& destBox, HighlightBox& srcBox);
 static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int topy, int mapMaxY, Options* pOpts,
     ProgressCallback callback, float percent, int* hitsFound, int mcVersion, int versionID, int& retCode);
 static void blit(unsigned char* block, unsigned char* bits, int px, int py, double zoom, int w, int h);
@@ -54,13 +56,9 @@ static unsigned char gBlankTransitionTile[16 * 16 * 4];
 static unsigned short gColormap = 0;
 static long long gMapSeed;
 
-static int gBoxHighlightUsed = 0;
-static int gBoxMinX;
-static int gBoxMinY;
-static int gBoxMinZ;
-static int gBoxMaxX;
-static int gBoxMaxY;
-static int gBoxMaxZ;
+static HighlightBox gBox = { 0,0,0,0,0,0,0 };
+static HighlightBox gPreviousBox = { 0,0,0,0,0,0,0 };
+
 static int gDirtyBoxMinX = INT_MAX;
 static int gDirtyBoxMinZ = INT_MAX;
 static int gDirtyBoxMaxX = INT_MIN;
@@ -73,6 +71,7 @@ static int gHred = 205;
 static int gHgreen = 50;
 static int gHblue = 255;
 static int gHighlightID = 0;
+static bool gUndoAvailable = false;
 
 // was an unknown block read in?
 static int gUnknownBlock = 0;
@@ -86,8 +85,17 @@ void SetSeparatorMap(const wchar_t* separator)
     wcscpy_s(gSeparator, 3, separator);
 }
 
-void SetHighlightState(int on, int minx, int miny, int minz, int maxx, int maxy, int maxz, int mapMinHeight, int mapMaxHeight)
+// push - if true, save the previous selection away, for undo
+void SetHighlightState(int on, int minx, int miny, int minz, int maxx, int maxy, int maxz, int mapMinHeight, int mapMaxHeight, int push)
 {
+    if (push == HIGHLIGHT_UNDO_CLEAR) {
+        clearUndoHighlight();
+    }
+    // we want to save the current highlight state as one to undo to, assuming it's different
+    else if (push == HIGHLIGHT_UNDO_PUSH) {
+        SaveHighlightState();
+    }
+
     // we don't really require one to be min or max, we take the range
     if (minx > maxx) swapint(minx, maxx);
     if (miny > maxy) swapint(miny, maxy);
@@ -103,23 +111,23 @@ void SetHighlightState(int on, int minx, int miny, int minz, int maxx, int maxy,
     maxy -= mapMinHeight;
 
     // has highlight state changed?
-    if (gBoxHighlightUsed != on ||
-        gBoxMinX != minx ||
-        gBoxMinY != miny ||
-        gBoxMinZ != minz ||
-        gBoxMaxX != maxx ||
-        gBoxMaxY != maxy ||
-        gBoxMaxZ != maxz)
+    if (gBox.highlightUsed != on ||
+        gBox.minX != minx ||
+        gBox.minY != miny ||
+        gBox.minZ != minz ||
+        gBox.maxX != maxx ||
+        gBox.maxY != maxy ||
+        gBox.maxZ != maxz)
     {
         // state has changed, so invalidate rendering caches by changing highlight ID
         gHighlightID++;
-        gBoxHighlightUsed = on;
-        gBoxMinX = minx;
-        gBoxMinY = miny;
-        gBoxMinZ = minz;
-        gBoxMaxX = maxx;
-        gBoxMaxY = maxy;
-        gBoxMaxZ = maxz;
+        gBox.highlightUsed = on;
+        gBox.minX = minx;
+        gBox.minY = miny;
+        gBox.minZ = minz;
+        gBox.maxX = maxx;
+        gBox.maxY = maxy;
+        gBox.maxZ = maxz;
         if (on)
         {
             // increase dirty rectangle by new bounds
@@ -135,6 +143,54 @@ void SetHighlightState(int on, int minx, int miny, int minz, int maxx, int maxy,
     }
 }
 
+static void clearUndoHighlight()
+{
+    gPreviousBox.highlightUsed = HIGHLIGHT_UNDO_CLEAR;
+}
+
+static void copyHighlightState(HighlightBox& destBox, HighlightBox& srcBox)
+{
+    destBox = srcBox;
+}
+
+// call when we're in a state where we actually want to checkpoint-save the current selection, such as just before starting to set a new
+// selection (such as on right-mouse-down and dragging).
+void SaveHighlightState()
+{
+    copyHighlightState(gPreviousBox, gBox);
+    gUndoAvailable = true;
+}
+
+// is there an undo available? Useful for knowing whether to gray out the undo item in the menu
+bool UndoHighlightExists()
+{
+    return ((gPreviousBox.highlightUsed != HIGHLIGHT_UNDO_CLEAR) && gUndoAvailable);
+}
+
+void UndoHighlight()
+{
+    // undo if there's something to undo
+    if (UndoHighlightExists()) {
+        // state has changed, so invalidate rendering caches by changing highlight ID - forces update of selection on screen
+        gHighlightID++;
+
+        copyHighlightState(gBox, gPreviousBox);
+        if (gBox.highlightUsed) {
+            // increase dirty rectangle by new bounds
+            if (gDirtyBoxMinX > gBox.minX)
+                gDirtyBoxMinX = gBox.minX;
+            if (gDirtyBoxMinZ > gBox.minZ)
+                gDirtyBoxMinZ = gBox.minZ;
+            if (gDirtyBoxMaxX < gBox.maxX)
+                gDirtyBoxMaxX = gBox.maxX;
+            if (gDirtyBoxMaxZ < gBox.maxZ)
+                gDirtyBoxMaxZ = gBox.maxZ;
+        }
+
+        // we used up the undo:
+        gUndoAvailable = false;
+    }
+}
 
 //static long long randomSeed;
 //static void javaRandomSetSeed(long long seed){
@@ -171,13 +227,13 @@ void SetHighlightState(int on, int minx, int miny, int minz, int maxx, int maxy,
 void GetHighlightState(int* on, int* minx, int* miny, int* minz, int* maxx, int* maxy, int* maxz, int mapMinHeight)
 {
     // inside MinewaysMap, we go from 0 to 383, not -64 to 319. Conversion is done here.
-    *on = gBoxHighlightUsed;
-    *minx = gBoxMinX;
-    *miny = gBoxMinY + mapMinHeight;
-    *minz = gBoxMinZ;
-    *maxx = gBoxMaxX;
-    *maxy = gBoxMaxY + mapMinHeight;
-    *maxz = gBoxMaxZ;
+    *on = gBox.highlightUsed;
+    *minx = gBox.minX;
+    *miny = gBox.minY + mapMinHeight;
+    *minz = gBox.minZ;
+    *maxx = gBox.maxX;
+    *maxy = gBox.maxY + mapMinHeight;
+    *maxz = gBox.maxZ;
 }
 
 //world = path to world saves
@@ -267,15 +323,15 @@ int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int mapMaxY
         }
     }
     // clear dirty rectangle, if any
-    if (gBoxHighlightUsed)
+    if (gBox.highlightUsed)
     {
         // box is set to current rectangle
         // TODO: this isn't quite right, as if you select a large rect, scroll it offscreen
         // then select new and scroll back, you'll see the highlight.
-        gDirtyBoxMinX = gBoxMinX;
-        gDirtyBoxMinZ = gBoxMinZ;
-        gDirtyBoxMaxX = gBoxMaxX;
-        gDirtyBoxMaxZ = gBoxMaxZ;
+        gDirtyBoxMinX = gBox.minX;
+        gDirtyBoxMinZ = gBox.minZ;
+        gDirtyBoxMaxX = gBox.maxX;
+        gDirtyBoxMaxZ = gBox.maxZ;
     }
     else
     {
@@ -3976,15 +4032,15 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
         DrawBlank:
 
             // highlighting off, or fully outside real area? Use blank tile.
-            if (!gBoxHighlightUsed ||
-                (bx * 16 + 15 < gBoxMinX) || (bx * 16 > gBoxMaxX) ||
-                (bz * 16 + 15 < gBoxMinZ) || (bz * 16 > gBoxMaxZ))
+            if (!gBox.highlightUsed ||
+                (bx * 16 + 15 < gBox.minX) || (bx * 16 > gBox.maxX) ||
+                (bz * 16 + 15 < gBox.minZ) || (bz * 16 > gBox.maxZ))
                 return gBlankTile;
 
             // fully inside? Use precomputed highlit area
             static int flux = 0;
-            if ((bx * 16 > gBoxMinX) && (bx * 16 + 15 < gBoxMaxX) &&
-                (bz * 16 > gBoxMinZ) && (bz * 16 + 15 < gBoxMaxZ))
+            if ((bx * 16 > gBox.minX) && (bx * 16 + 15 < gBox.maxX) &&
+                (bz * 16 > gBox.minZ) && (bz * 16 + 15 < gBox.maxZ))
                 return gBlankHighlitTile;
 
             // draw the highlighted area
@@ -3997,14 +4053,14 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
                 {
                     int offset = (z * 16 + x) * 4;
                     // make selected area slightly red
-                    if (bx * 16 + x >= gBoxMinX && bx * 16 + x <= gBoxMaxX &&
-                        bz * 16 + z >= gBoxMinZ && bz * 16 + z <= gBoxMaxZ)
+                    if (bx * 16 + x >= gBox.minX && bx * 16 + x <= gBox.maxX &&
+                        bz * 16 + z >= gBox.minZ && bz * 16 + z <= gBox.maxZ)
                     {
                         // blend in highlight color
                         blend = gHalpha;
                         // are we on a border? If so, change blend factor
-                        if (bx * 16 + x == gBoxMinX || bx * 16 + x == gBoxMaxX ||
-                            bz * 16 + z == gBoxMinZ || bz * 16 + z == gBoxMaxZ)
+                        if (bx * 16 + x == gBox.minX || bx * 16 + x == gBox.maxX ||
+                            bz * 16 + z == gBox.minZ || bz * 16 + z == gBox.maxZ)
                         {
                             blend = gHalphaBorder;
                         }
@@ -4282,10 +4338,10 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
                 hitGrid = true;
             }
 
-            if (gBoxHighlightUsed) {
+            if (gBox.highlightUsed) {
                 // make selected area slightly red, if at right heightmap range
-                if (bx * 16 + x >= gBoxMinX && bx * 16 + x <= gBoxMaxX &&
-                    bz * 16 + z >= gBoxMinZ && bz * 16 + z <= gBoxMaxZ)
+                if (bx * 16 + x >= gBox.minX && bx * 16 + x <= gBox.maxX &&
+                    bz * 16 + z >= gBox.minZ && bz * 16 + z <= gBox.maxZ)
                 {
                     // test and save minimum height found
                     if (prevSely >= 0 && prevSely < hitsFound[3])
@@ -4297,15 +4353,15 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
                     // in bounds, is the height good?
                     // First case is for if we hit nothing, all void, so it's black:
                     // always highlight that area, just for readability.
-                    if ((prevSely == -1) || (prevSely >= gBoxMinY && prevSely <= gBoxMaxY))
+                    if ((prevSely == -1) || (prevSely >= gBox.minY && prevSely <= gBox.maxY))
                     {
                         hitsFound[1] = 1;
                         // blend in highlight color
                         blend = gHalpha;
                         // are we on a border? If so, change blend factor
-                        if (prevSely == gBoxMinY || prevSely == gBoxMaxY ||
-                            bx * 16 + x == gBoxMinX || bx * 16 + x == gBoxMaxX ||
-                            bz * 16 + z == gBoxMinZ || bz * 16 + z == gBoxMaxZ)
+                        if (prevSely == gBox.minY || prevSely == gBox.maxY ||
+                            bx * 16 + x == gBox.minX || bx * 16 + x == gBox.maxX ||
+                            bz * 16 + z == gBox.minZ || bz * 16 + z == gBox.maxZ)
                         {
                             blend = gHalphaBorder;
                         }
@@ -4313,12 +4369,12 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
                         g = (unsigned char)((double)g * (1.0 - blend) + blend * (double)gHgreen);
                         b = (unsigned char)((double)b * (1.0 - blend) + blend * (double)gHblue);
                     }
-                    else if (prevSely < gBoxMinY)
+                    else if (prevSely < gBox.minY)
                     {
                         hitsFound[0] = 1;
                         // lower than selection box, so if exactly on border, dim
-                        if (bx * 16 + x == gBoxMinX || bx * 16 + x == gBoxMaxX ||
-                            bz * 16 + z == gBoxMinZ || bz * 16 + z == gBoxMaxZ)
+                        if (bx * 16 + x == gBox.minX || bx * 16 + x == gBox.maxX ||
+                            bz * 16 + z == gBox.minZ || bz * 16 + z == gBox.maxZ)
                         {
                             double dim = 0.5;
                             r = (unsigned char)((double)r * dim);
@@ -4333,8 +4389,8 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
                         // - I don't think it's actually possible to hit this condition,
                         // as the area above the selection box should never be seen (the
                         // slider sets the maximum), but just in case things change...
-                        if (bx * 16 + x == gBoxMinX || bx * 16 + x == gBoxMaxX ||
-                            bz * 16 + z == gBoxMinZ || bz * 16 + z == gBoxMaxZ)
+                        if (bx * 16 + x == gBox.minX || bx * 16 + x == gBox.maxX ||
+                            bz * 16 + z == gBox.minZ || bz * 16 + z == gBox.maxZ)
                         {
                             double brighten = 0.5;
                             r = (unsigned char)((double)r * (1.0 - brighten) + brighten);
@@ -4353,15 +4409,15 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
                 b = *clr; // ++ if you add alpha
                 // highlight the block if in selected area, as otherwise it looks like it's missing with schematics.
                 // Make selected area slightly red
-                if (gBoxHighlightUsed &&
-                    bx * 16 + x >= gBoxMinX && bx * 16 + x <= gBoxMaxX &&
-                    bz * 16 + z >= gBoxMinZ && bz * 16 + z <= gBoxMaxZ)
+                if (gBox.highlightUsed &&
+                    bx * 16 + x >= gBox.minX && bx * 16 + x <= gBox.maxX &&
+                    bz * 16 + z >= gBox.minZ && bz * 16 + z <= gBox.maxZ)
                 {
                     // blend in highlight color
                     blend = gHalpha;
                     // are we on a border? If so, change blend factor
-                    if (bx * 16 + x == gBoxMinX || bx * 16 + x == gBoxMaxX ||
-                        bz * 16 + z == gBoxMinZ || bz * 16 + z == gBoxMaxZ)
+                    if (bx * 16 + x == gBox.minX || bx * 16 + x == gBox.maxX ||
+                        bz * 16 + z == gBox.minZ || bz * 16 + z == gBox.maxZ)
                     {
                         blend = gHalphaBorder;
                     }

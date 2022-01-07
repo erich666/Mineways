@@ -1118,9 +1118,9 @@ There are tons of other Blender+Minecraft things out there. For example, <a href
 
 <HR>
 <H4 id="ovcreate">Omniverse Create</H4><p>
-<a href="https://www.nvidia.com/en-us/design-visualization/omniverse/"><img id="productLogo" src="images/ov_create_icon.jpg" alt="Omniverse Create icon"></a>
+<a href="https://www.nvidia.com/en-us/omniverse"><img id="productLogo" src="images/ov_create_icon.jpg" alt="Omniverse Create icon"></a>
 <P>
-Here is how to import a model into the free Omniverse Create program. First, download the <a href="https://www.nvidia.com/en-us/design-visualization/omniverse/">Omniverse Launcher (Beta)</a>, install and run it, then from the launcher install and launch Omniverse Create.
+Here is how to import a model into the free Omniverse Create program. First, download the <a href="https://www.nvidia.com/en-us/omniverse">Omniverse Launcher</a>, install and run it, then from the launcher install and launch Omniverse Create.
 <P>
 See <a href="https://youtu.be/tBDGH5v40x8">the tutorial video</a>. It runs through a lot of the common operations for Omniverse Create: moving the camera, modifying the lighting and materials, etc. There's a lot of documentation on <a href="https://docs.omniverse.nvidia.com/">Omniverse</a> and <a href="https://docs.omniverse.nvidia.com/app_create/app_create/overview.html">Create</a>, but the video will get you started. I also show Omniverse in action <a href="https://youtu.be/EH8NhyusZBU">here</a>. What follows are the steps in the video.
 <P>
@@ -2657,15 +2657,16 @@ The textures and rules used in Minecraft for how blocks appear and connect have 
 <P>
 From newest to oldest. The very newest is work in progress, with "*" meaning "to do" and "**" meaning "stretch goal."
 <UL>
-<LI>Version 9.09, */*/202*
+<LI>Version 9.09, 1/7/2022 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV909.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
   <UL>
 	<LI>Properly read and ignore extra "__version__" data in Properties from Amulet-converted worlds - don't crash.
 	<LI>Identify in the error message the first unknown block encountered, as a hint to the user (and me).
-    <LI>*Read biomes for 1.18 worlds. As biomes are 3D in 1.18, for simplicity the lowest level biome is used.
+    <LI>Read biomes for 1.18 worlds. As biomes are 3D in 1.18, the biome at level 240 is used for display. This height is "above it all" most of the time, so can give the "from above" biome view, while also avoiding any conversion to 1.18 height problems.
+	<LI>One level of selection undo. If you want to restore the previous selection (e.g., you goofed and accidentally deleted it or messed up a resize), hit Control-Z or select "Undo selection" from the View menu. This feature will not undo height slider changes but undoes just about everything other selection modification.
 	<LI>Added "blender_alpha_hashed.txt" script to set Alpha Hashed for all materials in Blender and updated <a href="#blender_blocky">the Blender documentation for step #9</a> <i>(thanks, Ohanno_Forgotten-Knight)</i>.
 	<LI>Enabled fractional cutout opacity for the Omniverse Create's RTX Real-Time renderer, so that semi-transparent objects look reasonable by default. Explained how to turn this option off for faster preview rendering. Here I would rather favor quality over speed by default, as otherwise it looks like a bug.
-	<LI>*Updated JG-RTX terrain images.
+	<LI>Updated JG-RTX terrain images.
   </UL>
 
 <LI>Version 9.08, 12/10/2021 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV908.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
@@ -3663,7 +3664,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 12/21/2021</p>
+		<br id="lastUpdate">Last updated 1/7/2022</p>
 	</div>
 </div>
 
