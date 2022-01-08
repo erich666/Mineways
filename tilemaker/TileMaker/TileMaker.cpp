@@ -16,7 +16,7 @@
 #include "tiles.h"
 #include "tilegrid.h"
 
-#define	VERSION_STRING	L"3.11"
+#define	VERSION_STRING	L"3.12"
 
 //#define TILE_PATH	L".\\blocks\\"
 #define BASE_INPUT_FILENAME			L"terrainBase.png"
@@ -528,6 +528,14 @@ int wmain(int argc, wchar_t* argv[])
 	// however, if there's a forced tile size, use that:
 	if (forcedTileSize > 0)
 	{
+		// quit if tile size is not a power of two
+		if (fmod(log2((float)(outputTileSize)), 1.0f) != 0.0f) {
+			wprintf(L"***** ERROR: The tile size %d specified with the '-t %d' option must be a power of two, e.g., 16, 32, 64, 128, 256.\n",
+				outputTileSize, outputTileSize);
+			// quit!
+			return 1;
+		}
+
 		outputTileSize = forcedTileSize;
 
 		if (verbose)
@@ -535,6 +543,14 @@ int wmain(int argc, wchar_t* argv[])
 	}
 	else {
 		wprintf(L"Output texture '%s' will have tiles that are each %d pixels wide.\n", terrainExtOutputTemplate, outputTileSize);
+	}
+
+	// quit if tile size is not a power of two
+	if (fmod(log2((float)(outputTileSize)), 1.0f) != 0.0f) {
+		wprintf(L"***** ERROR: The tile size %d is not a power of two. Aborting. Please report this error and try the '-t n' option, where 'n' is a power-of-two tile size.\n",
+			outputTileSize);
+		// quit!
+		return 1;
 	}
 
 	// warn user of large tiles
