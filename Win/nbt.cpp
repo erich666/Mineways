@@ -1896,6 +1896,10 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
     int minHeight = ZERO_WORLD_HEIGHT(versionID, mcVersion);
     signed char minHeight16 = (signed char)(minHeight / 16);
 
+    // for 1.18+ biomes. 
+    bool needBiome = mcVersion >= 18;
+    bool gotBiome = !needBiome; // start false only if needed.
+
     //Level/Blocks
     if (bfseek(pbf, 1, SEEK_CUR) < 0)
         return -1; //skip type
@@ -2084,6 +2088,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
             memset(biome, 0, 256);
         }
     }
+    gotBiome = true;
 
     if (bfseek(pbf, biome_save, SEEK_SET) < 0)
         return -8; //rewind to start of section
@@ -2157,10 +2162,6 @@ SectionsCode:
 #define MAX_BLOCK_STATES_ARRAY	6144
     unsigned char bigbuff[MAX_BLOCK_STATES_ARRAY];
     //memset(bigbuff, 0, 256 * 8);
-
-    // for 1.18+ biomes. 
-    bool needBiome = mcVersion >= 18;
-    bool gotBiome = !needBiome; // start false only if needed.
 
     int ret;
     unsigned char type;
@@ -2624,8 +2625,8 @@ SectionsCode:
                     // will say they're converting to 1.17.1 yet have chunks that are at y==-4.
                     // So it's possible to get here with these bad converters - in Release these
                     // chunks will get ignored.
-                    assert(paletteLength <= 1);
-                    assert(0);
+                    //assert(paletteLength <= 1);
+                    //assert(0);
                 }
             }
             else if ((bigbufflen == 0) && (paletteLength > 0) && (paletteBlockEntry[0] != 0)) {
