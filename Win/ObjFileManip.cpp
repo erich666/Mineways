@@ -159,8 +159,8 @@ static float gXformScale = 1.0f;
 
 static int gExportBillboards = 0;
 
-static int gMajorVersion = 0;
-static int gMinorVersion = 0;
+static int gMinewaysMajorVersion = 0;
+static int gMinewaysMinorVersion = 0;
 // used to be used for flowerpots, before we read in Block Entities. Now not really needed, but left in for the future.
 // 0 means version 1.8 and earlier
 // Find these numbers in world data in region > r.0.0.mca > Chunk > DataVersion and in level.dat > Data > Version. See https://minecraft.gamepedia.com/Data_version
@@ -869,8 +869,8 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     // show "progress" (not much, really), just so the progress bar shows something, so that the user knows that something is happening.
     UPDATE_PROGRESS(0.05 / 1.05); // 1.05 is used in determineProgressValues to kick past this point
 
-    gMajorVersion = majorVersion;
-    gMinorVersion = minorVersion;
+    gMinewaysMajorVersion = majorVersion;
+    gMinewaysMinorVersion = minorVersion;
     gMinecraftWorldVersion = worldVersion;
     gMcVersion = DATA_VERSION_TO_RELEASE_NUMBER(worldVersion);
     gIs13orNewer = (gMcVersion >= 13);
@@ -21464,7 +21464,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
     if (gModelFile == INVALID_HANDLE_VALUE)
         return retCode | MW_CANNOT_CREATE_FILE;
 
-    sprintf_s(outputString, 256, "# Wavefront OBJ file made by Mineways version %d.%02d, http://mineways.com\n", gMajorVersion, gMinorVersion);
+    sprintf_s(outputString, 256, "# Wavefront OBJ file made by Mineways version %d.%02d, http://mineways.com\n", gMinewaysMajorVersion, gMinewaysMinorVersion);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     retCode |= writeStatistics(gModelFile, NULL, pWorldGuide, worldBox, tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
@@ -23725,7 +23725,7 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
     WcharToChar(pWorldGuide->world, worldChar, MAX_PATH_AND_FILE);
     justWorldFileName = removePathChar(worldChar);
 
-    sprintf_s(outputString, 256, "#VRML V2.0 utf8\n\n# VRML 97 (VRML2) file made by Mineways version %d.%02d, http://mineways.com\n", gMajorVersion, gMinorVersion);
+    sprintf_s(outputString, 256, "#VRML V2.0 utf8\n\n# VRML 97 (VRML2) file made by Mineways version %d.%02d, http://mineways.com\n", gMinewaysMajorVersion, gMinewaysMinorVersion);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     retCode |= writeStatistics(gModelFile, NULL, pWorldGuide, worldBox, tightenedWorldBox, curDir, terrainFileName, schemeSelected, pCBC);
@@ -24174,7 +24174,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
     }
 
     // write comments for Import Settings and write globals
-    sprintf_s(outputString, 256, "    \"\"\"\n# USDA 1.0 file made by Mineways version %d.%02d, http://mineways.com\n", gMajorVersion, gMinorVersion);
+    sprintf_s(outputString, 256, "    \"\"\"\n# USDA 1.0 file made by Mineways version %d.%02d, http://mineways.com\n", gMinewaysMajorVersion, gMinewaysMinorVersion);
     if (retCode |= writeCommentUSD(outputString)) {
         // failed to write
         goto Exit;

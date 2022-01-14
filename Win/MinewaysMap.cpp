@@ -4448,6 +4448,26 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
     return bits;
 }
 
+// if it fails, that's OK, it just does nothing
+void GetSpawnHeights(WorldGuide* pWorldGuide, int& minHeight, int& maxHeight, int mcVersion, int mx, int mz)
+{
+    wcsncpy_s(pWorldGuide->directory, MAX_PATH_AND_FILE, pWorldGuide->world, MAX_PATH_AND_FILE - 1);
+    wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
+
+    // if it's not a level type world, return
+    if (pWorldGuide->type != WORLD_LEVEL_TYPE) {
+        assert(0);
+        return;
+    }
+
+    // given positions, get chunk location
+    int cx = mx / 16;
+    int cz = mz / 16;
+
+    // ignore failure - means nothing happened
+    (void)regionTestHeights(pWorldGuide->directory, minHeight, maxHeight, mcVersion, cx, cz);
+}
+
 #define BLOCK_INDEX(x,topy,z) (  ((topy)*256)+ \
     ((z)*16) + \
     (x)  )

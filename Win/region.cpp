@@ -67,14 +67,7 @@ deflated data is the chunk length - 1.
 
 #define RERROR(x) if(x) { PortaClose(regionFile); return 0; }
 
-
-// directory: the base world directory, e.g. "/home/ryan/.minecraft/saves/World1/" - note the trailing "/" is in place
-// cx, cz: the chunk's x and z offset
-// block: a 32KB buffer to write block data into
-// blockLight: a 16KB buffer to write block light into (not skylight)
-//
-// returns 1 on success, 0 on error or nothing found
-int regionGetBlocks(wchar_t* directory, int cx, int cz, unsigned char* block, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int versionID, int maxHeight, int & mfsHeight, char* unknownBlock)
+static int regionPrepareBuffer(bfFile & bf, wchar_t* directory, int cx, int cz)
 {
     wchar_t filename[256];
     PORTAFILE regionFile;
@@ -87,7 +80,6 @@ int regionGetBlocks(wchar_t* directory, int cx, int cz, unsigned char* block, un
     int sectorNumber, offset, chunkLength;
 
     int status;
-    bfFile bf;
 
     static z_stream strm;
     static int strm_initialized = 0;
@@ -158,5 +150,37 @@ int regionGetBlocks(wchar_t* directory, int cx, int cz, unsigned char* block, un
     bf._offset = 0;
     bf.offset = &bf._offset;
 
+    // all's fine
+    return 1;
+}
+
+// directory: the base world directory, e.g. "/home/ryan/.minecraft/saves/World1/" - note the trailing "/" is in place
+// cx, cz: the chunk's x and z offset
+// block: a 32KB buffer to write block data into
+// blockLight: a 16KB buffer to write block light into (not skylight)
+//
+// returns 1 on success, 0 on error or nothing found
+int regionGetBlocks(wchar_t* directory, int cx, int cz, unsigned char* block, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int versionID, int maxHeight, int & mfsHeight, char* unknownBlock)
+{
+    bfFile bf;
+
+    if (regionPrepareBuffer(bf, directory, cx, cz) == 0) {
+        // failed
+        return 0;
+    }
+
     return nbtGetBlocks(&bf, block, data, blockLight, biome, entities, numEntities, mcVersion, versionID, maxHeight, mfsHeight, unknownBlock);
 }
+
+int regionTestHeights(wchar_t* directory, int& minHeight, int& maxHeight, int mcVersion, int cx, int cz)
+{
+    bfFile bf;
+
+    if (regionPrepareBuffer(bf, directory, cx, cz) == 0) {
+        // failed
+        return 0;
+    }
+
+    return nbtGetHeights(&bf, minHeight, maxHeight, mcVersion);
+}
+

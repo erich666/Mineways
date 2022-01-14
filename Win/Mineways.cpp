@@ -191,8 +191,8 @@ static int gPrintModel = RENDERING_EXPORT;
 static BOOL gExported = 0;
 static TCHAR gExportPath[MAX_PATH_AND_FILE] = _T("");
 
-static WORD gMajorVersion = 0;
-static WORD gMinorVersion = 0;
+static WORD gMinewaysMajorVersion = 0;
+static WORD gMinewaysMinorVersion = 0;
 static WORD gBuildNumber = 0;
 static WORD gRevisionNumber = 0;
 
@@ -379,6 +379,7 @@ static bool processCreateArguments(WindowSet& ws, const char** pBlockLabel, LPAR
 static void runImportOrScript(wchar_t* importFile, WindowSet& ws, const char** pBlockLabel, LPARAM holdlParam, bool dialogOnSuccess);
 static int loadSchematic(wchar_t* pathAndFile);
 static void setHeightsFromVersionID();
+static void testWorldHeight(int& minHeight, int& maxHeight, int mcVersion, int spawnX, int spawnZ);
 static int loadWorld(HWND hWnd);
 static void strcpyLimited(char* dst, int len, const char* src);
 static int setWorldPath(TCHAR* path);
@@ -480,8 +481,8 @@ int APIENTRY _tWinMain(
 #endif
 
     // get version info
-    gMajorVersion = MINEWAYS_MAJOR_VERSION;
-    gMinorVersion = MINEWAYS_MINOR_VERSION;
+    gMinewaysMajorVersion = MINEWAYS_MAJOR_VERSION;
+    gMinewaysMinorVersion = MINEWAYS_MINOR_VERSION;
 
     // get location of executable,
     // see https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getmodulefilenamew
@@ -2643,7 +2644,7 @@ static bool startExecutionLogFile(const LPWSTR* argList, int argCount)
                 if (!errNum)
                 {
                     char outputString[256];
-                    sprintf_s(outputString, 256, "Mineways version %d.%02d execution log begun %s\n", gMajorVersion, gMinorVersion, timeString);
+                    sprintf_s(outputString, 256, "Mineways version %d.%02d execution log begun %s\n", gMinewaysMajorVersion, gMinewaysMinorVersion, timeString);
                     LOG_INFO(gExecutionLogfile, outputString);
                 }
                 return true;
@@ -3134,7 +3135,7 @@ static void updateStatus(int mx, int mz, int my, const char* blockLabel, int typ
     }
     else {
         // (((mx>>4) % 32) + 32) % 32) ensures the value is non-negative - there's probably a better way
-        sprintf_s(sbufmap, 100, "; r.%d.%d.mca, chunk [%d, %d] {%d, %d}", mx >> 9, mz >> 9, (((mx>>4) % 32) + 32) % 32, (((mz>>4) % 32 + 32) % 32), mx>>4, mz>>4);
+        sprintf_s(sbufmap, 100, "; r.%d.%d.mca, chunk [%d, %d] {%d, %d}", mx >> 9, mz >> 9, (((mx>>4) % 32) + 32) % 32, (((mz>>4) % 32) + 32) % 32, mx>>4, mz>>4);
     }
 
 
@@ -3316,6 +3317,16 @@ static void setHeightsFromVersionID()
     gMinHeight = ZERO_WORLD_HEIGHT(gVersionID, gMinecraftVersion);
 }
 
+static void testWorldHeight(int& minHeight, int& maxHeight, int mcVersion, int spawnX, int spawnZ)
+{
+    // proceed currently only if version >= 1.17 (1.18 isn't possible yet, but let's future proof it anyway)
+    if (mcVersion >= 17) {
+        // Read where the spawn location is and see heights there.
+        // I figure the spawn location has been created.
+        GetSpawnHeights(&gWorldGuide, minHeight, maxHeight, mcVersion, spawnX, spawnZ);
+    }
+}
+
 // return 1 or 2 or higher if world could not be loaded
 static int loadWorld(HWND hWnd)
 {
@@ -3381,6 +3392,7 @@ static int loadWorld(HWND hWnd)
         GetFileVersionId(gWorldGuide.world, &gVersionID);
         gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
         setHeightsFromVersionID();
+        testWorldHeight(gMinHeight, gMaxHeight, gMinecraftVersion, gSpawnX, gSpawnZ);
         break;
 
     case WORLD_SCHEMATIC_TYPE:
@@ -4246,7 +4258,7 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileNa
 
     int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gExeDirectory,
         gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gMinHeight, gMaxHeight,
-        updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionID, gChangeBlockCommands,
+        updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMinewaysMajorVersion, (int)gMinewaysMinorVersion, gVersionID, gChangeBlockCommands,
         gInstanceChunkSize, gBiomeSelected, gGroupCount, gGroupCountSize, gGroupCountArray);
 
     deleteCommandBlockSet(gChangeBlockCommands);
@@ -4786,7 +4798,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
 
         int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gExeDirectory,
             gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gMinHeight, gMaxHeight,
-            updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMajorVersion, (int)gMinorVersion, gVersionID, gChangeBlockCommands,
+            updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMinewaysMajorVersion, (int)gMinewaysMinorVersion, gVersionID, gChangeBlockCommands,
             gInstanceChunkSize, gBiomeSelected, gGroupCount, gGroupCountSize, gGroupCountArray);
         deleteCommandBlockSet(gChangeBlockCommands);
         gChangeBlockCommands = NULL;

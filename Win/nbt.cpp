@@ -3021,7 +3021,10 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 else {
                     // unknown type
                     //  THIS IS WHERE TO PUT A DEBUG BREAK TO SEE WHAT NAME IS UNKNOWN: see thisBlockName
-                    strcpy_s(unknownBlock, 100, thisBlockName + 10);
+                    if (unknownBlock) {
+                        // return unknown block's name to output
+                        strcpy_s(unknownBlock, 100, thisBlockName + 10);
+                    }
 #ifdef _DEBUG
                                     // Make it bedrock, so we see it's not translated
                     paletteBlockEntry[entryIndex] = 7;
@@ -4082,6 +4085,168 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
     // things are fine - continue
     return 0;
 }
+
+int nbtGetHeights(bfFile* pbf, int& minHeight, int& maxHeight, int mcVersion)
+{
+    int len, nsections;
+
+    int returnCode = NBT_VALID_BLOCK;	// means "fine"
+
+    //Level/Blocks
+    if (bfseek(pbf, 1, SEEK_CUR) < 0)
+        return -1; //skip type
+    len = readWord(pbf); //name length
+    if (bfseek(pbf, len, SEEK_CUR) < 0)
+        return -2; //skip name ()
+
+    int level_save = *pbf->offset;
+    if (nbtFindElement(pbf, "Level") != 10) {
+        // is this 1.18 release or later?
+
+        // if not a 1.17 or earlier "Level" see if it's a newly-converted "sections" type
+        //if (bfseek(pbf, 1, SEEK_CUR) < 0)
+        //    return -1; //skip type
+        //len = readWord(pbf); //name length
+        //if (bfseek(pbf, len, SEEK_CUR) < 0)
+        //    return -2; //skip name ()
+        if (bfseek(pbf, level_save, SEEK_SET) < 0)
+            return -14; //rewind to start of section
+        if (nbtFindElement(pbf, "sections") != 9)
+            return -9;
+
+        goto SectionsCode;
+    }
+
+    if (nbtFindElement(pbf, "Sections") != 9)
+        return -9;
+
+SectionsCode:
+
+    // TODO: it'd be nicer to avoid this code duplication from above, but we
+    // need to read the palette fully currently. We really should just read the number
+    // of palette entries - it's all we need. But, that's trickier and more code.
+    if (makeHash) {
+        makeHashTable();
+        makeHash = false;
+    }
+
+    // does Sections have anything inside of it?
+    {
+        // get rid of "\n" after "Sections" / "sections".
+        unsigned char uctype = 0;
+        if (bfread(pbf, &uctype, 1) < 0) return -10;
+        // did we find the "\n"? If not, it means the section is empty, so we
+        /// can simply clear memory below and return - all done.
+        if (uctype != 10) {
+            return NBT_NO_SECTIONS;
+        }
+    }
+
+    nsections = readDword(pbf);
+    if (nsections < 0)
+        return -11;
+
+    char thisName[MAX_NAME_LENGTH];
+
+    int ret;
+    unsigned char type;
+    // read all slices that exist for this vertical block and process each
+    while (nsections--)
+    {
+        // y is the *world* height divided by 16.
+        // in 1.17, specifically 20w49a through 21w14a, we can now go from -5 (really, -4 is where data starts) to 19 for "y"; was -1 to 15 previously
+        signed char y;
+        int save = *pbf->offset;
+        if (nbtFindElement(pbf, "Y") != 1) //which section of the block stack is this?
+            return -12;
+        if (bfread(pbf, &y, 1) < 0)
+            return -13;
+        if (bfseek(pbf, save, SEEK_SET) < 0)
+            return -14; //rewind to start of section
+
+
+        // read all the arrays in this section
+        // walk through all elements of each Palette array element
+
+        int paletteLength = 0;
+        // could theoretically get higher...
+        unsigned char paletteBlockEntry[MAX_PALETTE];
+        unsigned char paletteDataEntry[MAX_PALETTE];
+        for (;;)
+        {
+            ret = 0;
+            type = 0;
+            if (bfread(pbf, &type, 1) < 0)
+                return -21;
+            if (type == 0)
+                break;
+            len = readWord(pbf);
+            if (bfread(pbf, thisName, len) < 0)
+                return -22;
+            thisName[len] = 0;
+            if (strcmp(thisName, "Palette") == 0)
+            {
+                ret = 1;
+
+                int retVal = readPalette(returnCode, pbf, mcVersion, paletteBlockEntry, paletteDataEntry, paletteLength, NULL);
+                // did we hit an error?
+                if (retVal != 0) {
+                    return retVal;
+                }
+            }
+            // for 1.18:
+            else if (strcmp(thisName, "block_states") == 0)
+            {
+                // welcome to 1.18+ data
+                ret = 1;
+
+                // folder of two things: palette and data
+                for (;;)
+                {
+                    int subret = 0;
+                    type = 0;
+                    if (bfread(pbf, &type, 1) < 0)
+                        return -21;
+                    if (type == 0)
+                        break;
+                    len = readWord(pbf);
+                    if (bfread(pbf, thisName, len) < 0)
+                        return -22;
+                    thisName[len] = 0;
+                    if (strcmp(thisName, "palette") == 0)
+                    {
+                        subret = 1;
+                        int retVal = readPalette(returnCode, pbf, mcVersion, paletteBlockEntry, paletteDataEntry, paletteLength, NULL);
+                        // did we hit an error?
+                        if (retVal != 0) {
+                            return retVal;
+                        }
+                    }
+                    if (!subret)
+                        if (skipType(pbf, type) < 0)
+                            return -39;
+                }
+            }
+
+            // Did we not read through the object by some code above? If so, then skip it
+            if (!ret)
+                if (skipType(pbf, type) < 0)
+                    return -39;
+        }
+
+        // if palette length is 1 or more, then this is a valid section - note its Y value
+        if (paletteLength > 0) {
+            if (minHeight > y*16) {
+                minHeight = y * 16;
+            }
+            if (maxHeight < y * 16 + 15) {
+                maxHeight = y * 16 + 15;
+            }
+        }
+    }
+    return returnCode;
+}
+
 
 int nbtGetSpawn(bfFile* pbf, int* x, int* y, int* z)
 {
