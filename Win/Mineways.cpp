@@ -379,7 +379,7 @@ static bool processCreateArguments(WindowSet& ws, const char** pBlockLabel, LPAR
 static void runImportOrScript(wchar_t* importFile, WindowSet& ws, const char** pBlockLabel, LPARAM holdlParam, bool dialogOnSuccess);
 static int loadSchematic(wchar_t* pathAndFile);
 static void setHeightsFromVersionID();
-static void testWorldHeight(int& minHeight, int& maxHeight, int mcVersion, int spawnX, int spawnZ);
+static void testWorldHeight(int& minHeight, int& maxHeight, int mcVersion, int spawnX, int spawnZ, int playerX, int playerZ);
 static int loadWorld(HWND hWnd);
 static void strcpyLimited(char* dst, int len, const char* src);
 static int setWorldPath(TCHAR* path);
@@ -3317,13 +3317,15 @@ static void setHeightsFromVersionID()
     gMinHeight = ZERO_WORLD_HEIGHT(gVersionID, gMinecraftVersion);
 }
 
-static void testWorldHeight(int& minHeight, int& maxHeight, int mcVersion, int spawnX, int spawnZ)
+static void testWorldHeight(int& minHeight, int& maxHeight, int mcVersion, int spawnX, int spawnZ, int playerX, int playerZ)
 {
     // proceed currently only if version >= 1.17 (1.18 isn't possible yet, but let's future proof it anyway)
     if (mcVersion >= 17) {
-        // Read where the spawn location is and see heights there.
-        // I figure the spawn location has been created.
-        GetSpawnHeights(&gWorldGuide, minHeight, maxHeight, mcVersion, spawnX, spawnZ);
+        // Read where the spawn and player location is and see heights there.
+        // I figure the player and spawn locations have been created, hopefully one of them with the mod.
+        // The mod appears to do things where the player is, not the spawn.
+        GetChunkHeights(&gWorldGuide, minHeight, maxHeight, mcVersion, spawnX, spawnZ);
+        GetChunkHeights(&gWorldGuide, minHeight, maxHeight, mcVersion, playerX, playerZ);
     }
 }
 
@@ -3392,7 +3394,7 @@ static int loadWorld(HWND hWnd)
         GetFileVersionId(gWorldGuide.world, &gVersionID);
         gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
         setHeightsFromVersionID();
-        testWorldHeight(gMinHeight, gMaxHeight, gMinecraftVersion, gSpawnX, gSpawnZ);
+        testWorldHeight(gMinHeight, gMaxHeight, gMinecraftVersion, gSpawnX, gSpawnZ, gPlayerX, gPlayerZ);
         break;
 
     case WORLD_SCHEMATIC_TYPE:

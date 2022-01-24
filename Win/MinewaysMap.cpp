@@ -4449,7 +4449,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
 }
 
 // if it fails, that's OK, it just does nothing
-void GetSpawnHeights(WorldGuide* pWorldGuide, int& minHeight, int& maxHeight, int mcVersion, int mx, int mz)
+void GetChunkHeights(WorldGuide* pWorldGuide, int& minHeight, int& maxHeight, int mcVersion, int mx, int mz)
 {
     wcsncpy_s(pWorldGuide->directory, MAX_PATH_AND_FILE, pWorldGuide->world, MAX_PATH_AND_FILE - 1);
     wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
@@ -4466,6 +4466,12 @@ void GetSpawnHeights(WorldGuide* pWorldGuide, int& minHeight, int& maxHeight, in
 
     // ignore failure - means nothing happened
     (void)regionTestHeights(pWorldGuide->directory, minHeight, maxHeight, mcVersion, cx, cz);
+
+    // Unfortunately, the 1.17 regionTestHeights doesn't work so great. It will detect the minHeight just fine (normally), but not the maxHeight, necessarily.
+    // So, we assume that, if the minHeight got kicked down to below -64, assume a data pack is in use and set maxHeight to 511.
+    if (minHeight < -64) {
+        maxHeight = 511;
+    }
 }
 
 #define BLOCK_INDEX(x,topy,z) (  ((topy)*256)+ \

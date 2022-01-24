@@ -106,7 +106,7 @@ const char* IDBlock(int bx, int by, double cx, double cz, int w, int h, int yOff
 const char* RetrieveBlockSubname(int type, int dataVal); //, WorldBlock* block = NULL, int xoff = 0, int y = 0, int zoff = 0);
 void CloseAll();
 WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int bx, int bz, int mcVersion, int versionID, int& retCode);
-void GetSpawnHeights(WorldGuide* pWorldGuide, int& minHeight, int& maxHeight, int mcVersion, int mx, int mz);
+void GetChunkHeights(WorldGuide* pWorldGuide, int& minHeight, int& maxHeight, int mcVersion, int mx, int mz);
 void ClearBlockReadCheck();
 int UnknownBlockRead();
 void CheckUnknownBlock(int check);
