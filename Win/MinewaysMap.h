@@ -77,6 +77,8 @@ typedef struct WorldGuide {
     Schematic sch;
     int nbtVersion;
     bool isServerWorld;
+    int minHeight;
+    int maxHeight;
 } WorldGuide;
 
 typedef struct HighlightBox {

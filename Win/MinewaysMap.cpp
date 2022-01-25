@@ -596,7 +596,7 @@ const char* IDBlock(int bx, int by, double cx, double cz, int w, int h, int yOff
     // TODO - can this still happen?
     //assert( y+(zoff+xoff*16)*128 >= 0 );
     // 65536 = 256 * 16 * 16
-    if (y * 256 + zoff * 16 + xoff < 0 || y * 256 + zoff * 16 + xoff >= 256 * block->maxHeight) {
+    if (y * 256 + zoff * 16 + xoff < 0 || y * 256 + zoff * 16 + xoff >= 256 * block->heightAlloc) {
         *type = BLOCK_AIR;
         *biome = -1;
         return "(off map)";
@@ -2754,7 +2754,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             break;
         case 3:
         case BIT_16: // (infested) deepslate
-            color = 0x59595B;
+            color = 0x5e5e5e;   // was 0x59595B, but make it a bit brighter, to contrast more with bedrock
             break;
         }
         break;
@@ -2774,7 +2774,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
                 // the stored value is used to affect only the output color, not the map color.
                 // This oak leaf color (and jungle, below) makes the trees easier to pick out.
 
-                // jungle and oak
+                // jungle and oak   
                 color = dataVal ? 0x46AD19 : 0x3A7F1B;
             }
             else
@@ -3966,7 +3966,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
 // opts is a bitmask representing render options (see MinewaysMap.h)
 // returns 16x16 set of block colors to use to render map.
 // colors are adjusted by height, transparency, etc.
-static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeight, int mapMaxY, Options* pOpts, ProgressCallback callback, float percent, int* hitsFound, int mcVersion, int versionID, int& retCode)
+static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAlloc, int mapMaxY, Options* pOpts, ProgressCallback callback, float percent, int* hitsFound, int mcVersion, int versionID, int& retCode)
 {
     WorldBlock* block, * prevblock;
     int ofs = 0, prevy, prevSely, blockSolid, saveHeight;
@@ -4085,7 +4085,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
         bz * 16 + 15 >= gDirtyBoxMinZ && bz * 16 <= gDirtyBoxMaxZ);
 
     // already rendered?
-    if (block->rendery == maxHeight && block->renderopts == pOpts->worldType && block->colormap == gColormap)
+    if (block->rendery == heightAlloc && block->renderopts == pOpts->worldType && block->colormap == gColormap)
     {
         void* dummy;
         if (block->rendermissing // wait, the last render was incomplete
@@ -4108,7 +4108,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
         }
     }
 
-    block->rendery = maxHeight;
+    block->rendery = heightAlloc;
     block->renderopts = pOpts->worldType;
     // if the block to be drawn is inside, note the ID, else note it's "clean" of highlighting;
     // when we come back next time, the code above will note the rendering is OK.
@@ -4125,13 +4125,13 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
 
     if (prevblock == NULL || prevblock->blockType == NBT_NO_SECTIONS)
         block->rendermissing = 1; //note no loaded block to west
-    else if (prevblock->rendery != maxHeight || prevblock->renderopts != pOpts->worldType) {
+    else if (prevblock->rendery != heightAlloc || prevblock->renderopts != pOpts->worldType) {
         block->rendermissing = 1; //note improperly rendered block to west
         prevblock = NULL; //block was rendered at a different y level, ignore
     }
 
     // what height can we (must we, if we reduce the grid storage) start at?
-    int clippedMaxHeight = maxHeight;
+    int clippedMaxHeight = heightAlloc;
     assert(block->maxFilledHeight > EMPTY_MAX_HEIGHT);
     if (block->maxFilledHeight < clippedMaxHeight && block->maxFilledHeight > EMPTY_MAX_HEIGHT) {
         clippedMaxHeight = block->maxFilledHeight;
@@ -4162,7 +4162,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
             // blocks at the topmost layer as empty, until a truly empty block is hit, at which point
             // the next solid block is then shown. If it's solid all the way down, the block will be
             // drawn as "empty". Note we truly want to test maxHeight here, not clippedMaxHeight.
-            seenempty = (maxHeight == mapMaxY ? 1 : 0);
+            seenempty = (heightAlloc == mapMaxY ? 1 : 0);
             alpha = 0.0;
             // go from top down through all voxels, looking for the first one visible.
             for (i = clippedMaxHeight; i >= 0; i--, voxel -= 16 * 16)
@@ -4262,8 +4262,8 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int maxHeigh
             {
                 // 50 kicks up the minimum darkness returned, so that it's not black.
                 // Note that setting the upper height of the selection box affects this view.
-                int num = prevy + 50 - (256 - maxHeight) / 5;
-                int denom = maxHeight + 50 - (256 - maxHeight) / 5;
+                int num = prevy + 50 - (256 - heightAlloc) / 5;
+                int denom = heightAlloc + 50 - (256 - heightAlloc) / 5;
 
                 r = (unsigned char)(r * num / denom);
                 g = (unsigned char)(g * num / denom);
@@ -4457,6 +4457,8 @@ void GetChunkHeights(WorldGuide* pWorldGuide, int& minHeight, int& maxHeight, in
     // if it's not a level type world, return
     if (pWorldGuide->type != WORLD_LEVEL_TYPE) {
         assert(0);
+        pWorldGuide->minHeight = minHeight;
+        pWorldGuide->maxHeight = maxHeight;
         return;
     }
 
@@ -4472,6 +4474,8 @@ void GetChunkHeights(WorldGuide* pWorldGuide, int& minHeight, int& maxHeight, in
     if (minHeight < -64) {
         maxHeight = 511;
     }
+    pWorldGuide->minHeight = minHeight;
+    pWorldGuide->maxHeight = maxHeight;
 }
 
 #define BLOCK_INDEX(x,topy,z) (  ((topy)*256)+ \
@@ -6500,13 +6504,15 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
         }
     }
 
-    WorldBlock* block = block_alloc(MAX_ARRAY_HEIGHT(versionID, mcVersion));
+    // WorldBlock* block = block_alloc(MAX_ARRAY_HEIGHT(versionID, mcVersion));
+    WorldBlock* block = block_alloc(pWorldGuide->minHeight, pWorldGuide->maxHeight);
 
     // out of memory? If so, clear cache and cross fingers
     if (block == NULL)
     {
         Cache_Empty();
-        block = block_alloc(MAX_ARRAY_HEIGHT(versionID, mcVersion));
+        //block = block_alloc(MAX_ARRAY_HEIGHT(versionID, mcVersion));
+        block = block_alloc(pWorldGuide->minHeight, pWorldGuide->maxHeight);
         if (block == NULL) {
             // oh well, out of luck
             return NULL;
@@ -6526,7 +6532,8 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
         // if directory starts with /, this is [Block Test World], a synthetic test world
         // made by the testBlock() method.
         int x, z;
-        int yoff = -ZERO_WORLD_HEIGHT(versionID, mcVersion);
+        //int yoff = -ZERO_WORLD_HEIGHT(versionID, mcVersion);
+        int yoff = block->minHeight;
         int bedrockHeight = 60 + yoff;      // cppcheck-suppress 398
         int grassHeight = 62 + yoff;
         int blockHeight = 63 + yoff;
@@ -6643,7 +6650,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
 
             // Given coordinates, check if the file for that location exists, data for the chunk exists, and populate the block.
             // Return 
-            retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion, block->versionID, block->maxHeight, block->maxFilledSectionHeight, gUnknownBlockName);
+            retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion, block->minHeight, block->maxHeight, block->maxFilledSectionHeight, gUnknownBlockName);
 
             // values 1 and 2 are valid; 3's not used - higher bits are warnings; see nbt.h
             if (retCode >= NBT_VALID_BUT_EMPTY) {
@@ -6712,7 +6719,7 @@ static WorldBlock* determineMaxFilledHeight(WorldBlock* block)
     if (block->maxFilledSectionHeight <= EMPTY_MAX_HEIGHT) {
         // the maxFilledSectionHeight should have been set before calling this method!
         assert(0);
-        block->maxFilledSectionHeight = block->maxHeight - 1;
+        block->maxFilledSectionHeight = block->heightAlloc - 1;
     }
     unsigned char* pBlockID = block->grid + 16 * 16 * (block->maxFilledSectionHeight+1) - 1;
     for (i = 16 * 16 * (block->maxFilledSectionHeight + 1) - 1; i >= 0 && searchMaxHeight; i--, pBlockID--)
@@ -6750,11 +6757,11 @@ int createBlockFromSchematic(WorldGuide* pWorldGuide, int cx, int cz, WorldBlock
     // no biome, so that's easy
     memset(block->biome, 0, 16 * 16);
     // no light, so that's also easy
-    memset(block->light, 0, 16 * 16 * block->maxHeight/2);
+    memset(block->light, 0, 16 * 16 * block->heightAlloc/2);
 
     // clear the rest, so we fill these in as found
-    memset(block->grid, 0, 16 * 16 * block->maxHeight);
-    memset(block->data, 0, 16 * 16 * block->maxHeight);
+    memset(block->grid, 0, 16 * 16 * block->heightAlloc);
+    memset(block->data, 0, 16 * 16 * block->heightAlloc);
 
     block->maxFilledSectionHeight = block->maxFilledHeight = pWorldGuide->sch.height - 1;
 

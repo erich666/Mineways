@@ -1884,7 +1884,7 @@ unsigned char mod16(int val)
 #define FORMAT_1_13_THROUGH_1_17    1
 #define FORMAT_1_18_AND_NEWER       2
 // return negative value on error, 1 on read OK, 2 on read and it's empty, and higher bits than 1 or 2 are warnings
-int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int versionID, int maxHeight, int & mfsHeight, char* unknownBlock)
+int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int minHeight, int maxHeight, int & mfsHeight, char* unknownBlock)
 {
     int len, nsections, i;
     int biome_save;
@@ -1893,8 +1893,9 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
     int formatClass = FORMAT_UP_THROUGH_1_12;
     //int found;
 
-    int minHeight = ZERO_WORLD_HEIGHT(versionID, mcVersion);
+    //int minHeight = ZERO_WORLD_HEIGHT(versionID, mcVersion);
     signed char minHeight16 = (signed char)(minHeight / 16);
+    int heightAlloc = maxHeight - minHeight + 1;
 
     // for 1.18+ biomes. 
     bool needBiome = mcVersion >= 18;
@@ -2128,11 +2129,11 @@ SectionsCode:
         // was:    return -9;
     }
 
-    memset(buff, 0, 16 * 16 * maxHeight);
-    memset(data, 0, 16 * 16 * maxHeight);
-    memset(blockLight, 0, 16 * 16 * maxHeight / 2);
+    memset(buff, 0, 16 * 16 * heightAlloc);
+    memset(data, 0, 16 * 16 * heightAlloc);
+    memset(blockLight, 0, 16 * 16 * heightAlloc / 2);
 
-    int maxHeight16 = maxHeight / 16;
+    int maxHeight16 = heightAlloc / 16;
 
     // TODO: we could maybe someday have a special "this block is empty" format for empty blocks.
     // Right now we waste memory space with blocks (chunks) that are entirely empty.
@@ -2212,7 +2213,7 @@ SectionsCode:
                     // and update the maxFilledSectionHeight
                     sectionHeight = 16 * y + 15;
                     if (sectionHeight > mfsHeight) {
-                        assert(maxHeight >= sectionHeight);
+                        assert(heightAlloc >= sectionHeight);
                         mfsHeight = sectionHeight;
                     }
                 }
@@ -2556,7 +2557,7 @@ SectionsCode:
                     sectionHeight = 16 * (y - minHeight16) + 15;
                     // and update the maxFilledSectionHeight
                     if (sectionHeight > mfsHeight) {
-                        assert(maxHeight >= sectionHeight);
+                        assert(heightAlloc >= sectionHeight);
                         mfsHeight = sectionHeight;
                     }
 
@@ -2645,7 +2646,7 @@ SectionsCode:
 
                     // and update the maxFilledSectionHeight
                     if (sectionHeight > mfsHeight) {
-                        assert(maxHeight >= sectionHeight);
+                        assert(heightAlloc >= sectionHeight);
                         mfsHeight = sectionHeight;
                     }
                 }
@@ -4086,7 +4087,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
     return 0;
 }
 
-int nbtGetHeights(bfFile* pbf, int& minHeight, int& maxHeight, int mcVersion)
+int nbtGetHeights(bfFile* pbf, int& minHeight, int& heightAlloc, int mcVersion)
 {
     int len, nsections;
 
@@ -4239,8 +4240,8 @@ SectionsCode:
             if (minHeight > y*16) {
                 minHeight = y * 16;
             }
-            if (maxHeight < y * 16 + 15) {
-                maxHeight = y * 16 + 15;
+            if (heightAlloc < y * 16 + 15) {
+                heightAlloc = y * 16 + 15;
             }
         }
     }

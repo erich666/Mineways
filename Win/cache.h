@@ -44,7 +44,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define EMPTY_MAX_HEIGHT -1
 
 typedef struct WorldBlock {
-    int maxHeight;      // 256 for worlds < 1.17, 384 for 1.17 and beyond
+    int minHeight;      // 0 for world < 1.17, -64 for some beta 1.17 and for 1.18
+    int maxHeight;      // 255 for world < 1.17, 319 for some beta 1.17 and for 1.18
+    int heightAlloc;      // 256 for worlds < 1.17, 384 for 1.17 and beyond - basically, maxHeight - minHeight + 1, the total number of levels we store
     // NOTE: maxFilled*Height values will always (once set) be lower than maxHeight, even if chunk is filled. These values are the maximum level of the grid with stuff in it,
     // e.g., if maxHeight is 384, maxFilledHeight is 383 for a filled chunk, as the levels are 0-383. This is important for reallocing and for testing ranges
     int maxFilledSectionHeight;    // set to EMPTY_MAX_HEIGHT if not yet determined. Gives the height for the first non-zero content found, by 16-height sections. The value could be lower, so use:
@@ -92,7 +94,7 @@ void MinimizeCacheBlocks(bool min);
 * prevents expensive reallocations.
 */
 
-WorldBlock* block_alloc( int height );           // allocate memory for a block
+WorldBlock* block_alloc(int minHeight, int maxHeight);           // allocate memory for a block
 void block_free(WorldBlock* block); // release memory for a block
 void block_force_free(WorldBlock* block); // no single block cache test - clears the cache, too
 void block_realloc(WorldBlock* block);   // realloc and copy over

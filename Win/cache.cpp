@@ -257,11 +257,12 @@ void Cache_Empty()
 
 static WorldBlock* last_block = NULL;
 
-WorldBlock* block_alloc(int height)
+WorldBlock* block_alloc(int minHeight, int maxHeight)
 {
+    int height = maxHeight - minHeight + 1;
     WorldBlock* ret = NULL;
     // is a cached block available and is it the right size?
-    if (last_block != NULL && last_block->maxHeight == height)
+    if (last_block != NULL && last_block->heightAlloc == height)
     {
         // use this cached block (clearing out just the optional entity storage first)
         ret = last_block;
@@ -295,7 +296,9 @@ WorldBlock* block_alloc(int height)
 	        return NULL;
 	    ret->entities = NULL;
 	    ret->numEntities = 0;
-	    ret->maxHeight = height;    // for some betas of 1.17 it is 384 - change by checking versionID
+	    ret->heightAlloc = height;    // for some betas of 1.17 it is 384 - change by checking versionID
+        ret->minHeight = minHeight;
+        ret->maxHeight = maxHeight;
 	    ret->maxFilledSectionHeight = ret->maxFilledHeight = EMPTY_MAX_HEIGHT;  // not yet determined
 	    return ret;
 	}
@@ -357,23 +360,23 @@ void block_realloc(WorldBlock* block)
         return;
 
     if (gMinimizeBlockSize) {
-        if (block->maxHeight > block->maxFilledHeight + 1) {
+        if (block->heightAlloc > block->maxFilledHeight + 1) {
             // we can make it smaller
-            int maxHeight = block->maxFilledHeight + 1;
+            int heightAlloc = block->maxFilledHeight + 1;
 
-            unsigned char* grid = (unsigned char*)realloc(block->grid, 256 * maxHeight);
-            unsigned char* data = (unsigned char*)realloc(block->data, 256 * maxHeight);
-            unsigned char* light = (unsigned char*)realloc(block->light, 128 * maxHeight);
+            unsigned char* grid = (unsigned char*)realloc(block->grid, 256 * heightAlloc);
+            unsigned char* data = (unsigned char*)realloc(block->data, 256 * heightAlloc);
+            unsigned char* light = (unsigned char*)realloc(block->light, 128 * heightAlloc);
             if (grid && data && light) {
                 block->grid = grid;
                 block->data = data;
                 block->light = light;
-                block->maxHeight = maxHeight;
+                block->heightAlloc = heightAlloc;
             }
             else {
                 // we failed, but at least stop trying to realloc if we're really unable to do so.
                 // By setting the maxHeight here, we signal that we at least tried
-                block->maxHeight = maxHeight;
+                block->heightAlloc = heightAlloc;
                 //assert(0);
             }
         }
