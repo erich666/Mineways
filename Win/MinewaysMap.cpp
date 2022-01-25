@@ -4471,7 +4471,8 @@ void GetChunkHeights(WorldGuide* pWorldGuide, int& minHeight, int& maxHeight, in
 
     // Unfortunately, the 1.17 regionTestHeights doesn't work so great. It will detect the minHeight just fine (normally), but not the maxHeight, necessarily.
     // So, we assume that, if the minHeight got kicked down to below -64, assume a data pack is in use and set maxHeight to 511.
-    if (minHeight < -64) {
+    if (minHeight < -64 && maxHeight < 511) {
+        // what https://www.curseforge.com/minecraft/customization/deeper-world-and-expanded-build-height supports: 511 height
         maxHeight = 511;
     }
     pWorldGuide->minHeight = minHeight;

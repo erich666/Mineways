@@ -2657,6 +2657,14 @@ The textures and rules used in Minecraft for how blocks appear and connect have 
 <P>
 From newest to oldest. The very newest is work in progress, with "*" meaning "to do" and "**" meaning "stretch goal."
 <UL>
+<LI>Version 9.10, 1/25/2022 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV910.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+  <BR>
+  <UL>
+	<LI>Support <a href="https://www.curseforge.com/minecraft/customization/deeper-world-and-expanded-build-height">the "Deeper World And Expanded Build Height" data pack</a>, which allows 1.17 worlds with heights -128 to 511. This is a partial fix for <a href="https://github.com/erich666/Mineways/issues/88">issue #88</a>, data packs in general. Now when a world is first opened, Mineways looks at the minimum height of the spawn location's and the player location's chunks. If this is -128, the maximum height is set to 511 (if not found to be this high already).
+	<LI>More helpful error message when a new .schem file is encountered (basically says "read the .schem into a world, then use Mineways on the world").
+	<LI>Update JG-RTX terrain images.
+  </UL>
+
 <LI>Version 9.09, 1/7/2022 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV909.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
   <UL>
@@ -3565,10 +3573,11 @@ Here's the list of blocks which now have correct geometry: slabs, stairs, fences
 <h2 id="wishlist">Wish List</h2>
 This is the wish list, in rough order of personal interest and bang for the buck. If you have a good idea, <a href="contact.html">let me know</a>. Most of these are frankly a ton of work to do for minor benefits, but I might as well keep track. If you want a feature and I can't or won't do it, consider adding it yourself! The code is <a href="https://github.com/erich666/Mineways">open source on github</a>. I'm happy to give advice and take pull requests. That said, the code's something that has grown over time and is obtuse in some areas.
 <UL>
-<LI>There are "phantom" blocks with no sections. Handling the memory for these better would be to the good. A bit tricky, as we need to carefully think out how this affects caching and reuse of "freed" blocks.
+<LI>Cutouts with individual textures do not display correctly in G3D.
 <LI>Individual block export does not currently work with individual textures. It should; the logic's involved... <I>(thanks to vktec for reporting this bug)</I>
 <LI>USD: Glass (and water?) does not use a custom Minecraft.mdl type of exporter, which means edges of low-resolution textures are not sharp.
 <LI>Add a script-only epsilon control for redstone wire and glow lichen for how far they're offset from the surface below.
+<LI>Add a script-only "change the random shift of grass, etc." scale factor, 1 by default, 0 means don't jitter.
 <LI>Process beds the same as chests, at least adding the red bed in this way. Careful of 1.15 vs. 1.13 differences.
 <LI>Head, sign, and banner support (among others). Realistically, probably just head support, since the others would be a huge amount of work to emulate and could soak up a lot of texture memory.
 <LI>TileMaker could "bleed" real pixels' colors into areas where alpha == 0, i.e., <href="https://asawicki.info/articles/alpha_test.php5">dilation</a>. This is done to a limited extent in Mineways itself; it could be done in TileMaker more thoroughly, and done only once, which would speed up export itself (which does this bleeding every single export). Problem with doing this is backwards compatibility.
@@ -3614,7 +3623,7 @@ Just a joke name, but ideas I've pretty much ruled out at this point, and why. L
 Some links I commonly use.
 <UL>
 <LI><b><a href="https://groups.google.com/forum/#!forum/mineways">Subscribe to Mineways Google Group</a></b> for new version announcements; no spam.
-<LI><b><a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV909.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Choose Terrain File"), by permission of their creators (thanks!) - go <a href="#texture_output">here</a> to see previews:
+<LI><b><a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV910.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Choose Terrain File"), by permission of their creators (thanks!) - go <a href="#texture_output">here</a> to see previews:
 <UL>
 <LI> <a href="http://coteriecraft.net/">Coterie Craft</a> by Cpt. Corn
 <LI> <a href="https://dokucraft.co.uk/">DokuCraft</a> by Hickerydickery
@@ -3665,7 +3674,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 1/7/2022</p>
+		<br id="lastUpdate">Last updated 1/25/2022</p>
 	</div>
 </div>
 

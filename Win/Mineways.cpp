@@ -2735,7 +2735,7 @@ static int loadWorldFromFilename(wchar_t* pathAndFile, HWND hWnd)
                 // schematic world not loaded properly
             gWorldGuide.type = WORLD_UNLOADED_TYPE;
             if (error == 100 + 5) {
-                MessageBox(NULL, _T("Error: cannot read newfangled Minecraft schematic. Schematics from FAWE/WorldEdit for 1.13 (and newer) are not supported; this is a known issue (and is a lot of work to support, so don't hold your breath)."),
+                MessageBox(NULL, _T("Error: cannot read newfangled Minecraft schematic. Schematics from FAWE/WorldEdit for 1.13 (and newer) are not supported - it's a lot of boring work for me to add this. I suggest you read the schematic file into a world and have Mineways read that world."),
                     _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
             }
             else {
