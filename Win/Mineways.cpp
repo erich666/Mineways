@@ -68,6 +68,8 @@ static bool gAlwaysFail = false;
 
 #define MAX_LOADSTRING 100
 
+#define NUM_STR_SIZE 10
+
 // window margins - there should be a lot more defines here...
 #define MAIN_WINDOW_TOP (30+30)
 #define SLIDER_LEFT  55
@@ -777,7 +779,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     static int moving = 0;
     INITCOMMONCONTROLSEX ice;
     DWORD pos;
-    wchar_t text[8];
+    wchar_t text[NUM_STR_SIZE];
     RECT rect;
     TCHAR path[MAX_PATH_AND_FILE];
     TCHAR pathAndFile[MAX_PATH_AND_FILE];
@@ -906,7 +908,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             WS_CHILD | WS_VISIBLE | ES_RIGHT,
             rect.right - SLIDER_RIGHT, 5, SLIDER_RIGHT - 10, 20,
             hWnd, (HMENU)ID_LAYERLABEL, NULL, NULL);
-        _itow_s(gMaxHeight, text, 10);
+        _itow_s(gMaxHeight, text, NUM_STR_SIZE);
         SetWindowText(hwndLabel, text);
         EnableWindow(hwndLabel, FALSE);
 
@@ -927,7 +929,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // location X, Y, width, height
             rect.right - SLIDER_RIGHT, 35, SLIDER_RIGHT - 10, 20,
             hWnd, (HMENU)ID_LAYERBOTTOMLABEL, NULL, NULL);
-        _itow_s(gTargetDepth, text, 10);
+        _itow_s(gTargetDepth, text, NUM_STR_SIZE);
         SetWindowText(hwndBottomLabel, text);
         EnableWindow(hwndBottomLabel, FALSE);
         // need to set this one (the top slider doesn't need this call, as "all the way to the left" is the default)
@@ -1705,12 +1707,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_HSCROLL:
         pos = (DWORD)SendMessage(hwndSlider, TBM_GETPOS, 0, 0);
         gCurDepth = gMaxHeight - pos;
-        _itow_s(gCurDepth, text, 10);
+        _itow_s(gCurDepth, text, NUM_STR_SIZE);
         SetWindowText(hwndLabel, text);
 
         pos = (DWORD)SendMessage(hwndBottomSlider, TBM_GETPOS, 0, 0);
         gTargetDepth = gMaxHeight - pos;
-        _itow_s(gTargetDepth, text, 10);
+        _itow_s(gTargetDepth, text, NUM_STR_SIZE);
         SetWindowText(hwndBottomLabel, text);
 
         syncCurrentHighlightDepth();
@@ -2975,8 +2977,8 @@ static void setUIOnLoadWorld(HWND hWnd, HWND hwndSlider, HWND hwndLabel, HWND hw
     // we want to set to 383 for new worlds, 255 for old
     SendMessage(hwndSlider, TBM_SETRANGE, TRUE, MAKELONG(0, gMaxHeight - gMinHeight));
     setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
-    wchar_t text[8];
-    _itow_s(gCurDepth, text, 10);
+    wchar_t text[NUM_STR_SIZE];
+    _itow_s(gCurDepth, text, NUM_STR_SIZE);
     SetWindowText(hwndLabel, text);
 
     SendMessage(hwndBottomSlider, TBM_SETRANGE, TRUE, MAKELONG(0, gMaxHeight - gMinHeight));
@@ -3971,9 +3973,9 @@ static void setSlider(HWND hWnd, HWND hwndSlider, HWND hwndLabel, int depth, boo
 {
     syncCurrentHighlightDepth();
 
-    wchar_t text[8];
+    wchar_t text[NUM_STR_SIZE];
     SendMessage(hwndSlider, TBM_SETPOS, 1, gMaxHeight - depth);
-    _itow_s(depth, text, 10);
+    _itow_s(depth, text, NUM_STR_SIZE);
     SetWindowText(hwndLabel, text);
     if (update)
     {
