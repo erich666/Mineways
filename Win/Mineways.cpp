@@ -70,7 +70,8 @@ static bool gAlwaysFail = false;
 
 // window margins - there should be a lot more defines here...
 #define MAIN_WINDOW_TOP (30+30)
-#define SLIDER_LEFT	60
+#define SLIDER_LEFT  55
+#define SLIDER_RIGHT 45
 
 // should probably be a subroutine, but too many variables...
 #define REDRAW_ALL  drawTheMap();\
@@ -887,45 +888,52 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         ice.dwICC = ICC_BAR_CLASSES;
         InitCommonControlsEx(&ice);
         GetClientRect(hWnd, &rect);
+
+        // upper slider itself
         hwndSlider = CreateWindowEx(
             0, TRACKBAR_CLASS, L"Trackbar Control",
             WS_CHILD | WS_VISIBLE | TBS_NOTICKS,
             SLIDER_LEFT, 0, 
-            rect.right - rect.left - 40 - SLIDER_LEFT, 30,  // initial width and height of trackbar - make it 383 wide, for the min slider
+            rect.right - rect.left - SLIDER_RIGHT - SLIDER_LEFT, 30,  // initial width and height of trackbar - make it 383 wide, for the min slider
             hWnd, (HMENU)ID_LAYERSLIDER, NULL, NULL);
         SendMessage(hwndSlider, TBM_SETRANGE, TRUE, MAKELONG(0, gMaxHeight - gMinHeight));
         SendMessage(hwndSlider, TBM_SETPAGESIZE, 0, 10);
         EnableWindow(hwndSlider, FALSE);
 
+        // upper slider number
         hwndLabel = CreateWindowEx(
             0, L"STATIC", NULL,
             WS_CHILD | WS_VISIBLE | ES_RIGHT,
-            rect.right - 40, 5, 30, 20,
+            rect.right - SLIDER_RIGHT, 5, SLIDER_RIGHT - 10, 20,
             hWnd, (HMENU)ID_LAYERLABEL, NULL, NULL);
         _itow_s(gMaxHeight, text, 10);
         SetWindowText(hwndLabel, text);
         EnableWindow(hwndLabel, FALSE);
 
+        // lower slider itself
         hwndBottomSlider = CreateWindowEx(
             0, TRACKBAR_CLASS, L"Trackbar Control",
             WS_CHILD | WS_VISIBLE | TBS_NOTICKS,
-            SLIDER_LEFT, 30, rect.right - rect.left - 40 - SLIDER_LEFT, 30,
+            SLIDER_LEFT, 30, rect.right - rect.left - SLIDER_RIGHT - SLIDER_LEFT, 30,
             hWnd, (HMENU)ID_LAYERBOTTOMSLIDER, NULL, NULL);
         SendMessage(hwndBottomSlider, TBM_SETRANGE, TRUE, MAKELONG(0, gMaxHeight - gMinHeight));
         SendMessage(hwndBottomSlider, TBM_SETPAGESIZE, 0, 10);
         EnableWindow(hwndBottomSlider, FALSE);
 
+        // lower slider number
         hwndBottomLabel = CreateWindowEx(
             0, L"STATIC", NULL,
             WS_CHILD | WS_VISIBLE | ES_RIGHT,
-            rect.right - 40, 35, 30, 20,
+            // location X, Y, width, height
+            rect.right - SLIDER_RIGHT, 35, SLIDER_RIGHT - 10, 20,
             hWnd, (HMENU)ID_LAYERBOTTOMLABEL, NULL, NULL);
-        SetWindowText(hwndBottomLabel, SEA_LEVEL_STRING);
+        _itow_s(gTargetDepth, text, 10);
+        SetWindowText(hwndBottomLabel, text);
         EnableWindow(hwndBottomLabel, FALSE);
-
+        // need to set this one (the top slider doesn't need this call, as "all the way to the left" is the default)
         setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth + gMinHeight, true);
 
-        // label to left
+        // upper label to left: Height
         hwndInfoLabel = CreateWindowEx(
             0, L"STATIC", NULL,
             WS_CHILD | WS_VISIBLE | ES_LEFT,
@@ -934,6 +942,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         SetWindowText(hwndInfoLabel, L"Height");
         EnableWindow(hwndInfoLabel, FALSE);
 
+        // lower label to left: Depth
         hwndInfoBottomLabel = CreateWindowEx(
             0, L"STATIC", NULL,
             WS_CHILD | WS_VISIBLE | ES_LEFT,
@@ -2419,13 +2428,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_SIZING: //window resizing
         GetClientRect(hWnd, &rect);
         SetWindowPos(hwndSlider, NULL, 0, 0,
-            rect.right - rect.left - 40 - SLIDER_LEFT, 30, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+            rect.right - rect.left - SLIDER_RIGHT - SLIDER_LEFT, 30, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
         SetWindowPos(hwndBottomSlider, NULL, 0, 30,
-            rect.right - rect.left - 40 - SLIDER_LEFT, 30, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
-        SetWindowPos(hwndLabel, NULL, rect.right - 40, 5,
-            30, 20, SWP_NOACTIVATE);
-        SetWindowPos(hwndBottomLabel, NULL, rect.right - 40, 35,
-            30, 20, SWP_NOACTIVATE);
+            rect.right - rect.left - SLIDER_RIGHT - SLIDER_LEFT, 30, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+        SetWindowPos(hwndLabel, NULL, rect.right - SLIDER_RIGHT, 5,
+            SLIDER_RIGHT - 10, 20, SWP_NOACTIVATE);
+        SetWindowPos(hwndBottomLabel, NULL, rect.right - SLIDER_RIGHT, 35,
+            SLIDER_RIGHT - 10, 20, SWP_NOACTIVATE);
 
         break;
     case WM_SIZE: //resize window
@@ -2435,13 +2444,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         GetClientRect(hWnd, &rect);
         SetWindowPos(hwndSlider, NULL, 0, 0,
-            rect.right - rect.left - 40 - SLIDER_LEFT, 30, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+            rect.right - rect.left - SLIDER_RIGHT - SLIDER_LEFT, 30, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
         SetWindowPos(hwndBottomSlider, NULL, 0, 30,
-            rect.right - rect.left - 40 - SLIDER_LEFT, 30, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
-        SetWindowPos(hwndLabel, NULL, rect.right - 40, 5,
-            30, 20, SWP_NOACTIVATE);
-        SetWindowPos(hwndBottomLabel, NULL, rect.right - 40, 35,
-            30, 20, SWP_NOACTIVATE);
+            rect.right - rect.left - SLIDER_RIGHT - SLIDER_LEFT, 30, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+        SetWindowPos(hwndLabel, NULL, rect.right - SLIDER_RIGHT, 5,
+            SLIDER_RIGHT - 10, 20, SWP_NOACTIVATE);
+        SetWindowPos(hwndBottomLabel, NULL, rect.right - SLIDER_RIGHT, 35,
+            SLIDER_RIGHT - 10, 20, SWP_NOACTIVATE);
         rect.top += MAIN_WINDOW_TOP;
         rect.bottom -= 23;
         bitWidth = rect.right - rect.left;
