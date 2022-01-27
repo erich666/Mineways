@@ -776,7 +776,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     static int moving = 0;
     INITCOMMONCONTROLSEX ice;
     DWORD pos;
-    wchar_t text[5];
+    wchar_t text[8];
     RECT rect;
     TCHAR path[MAX_PATH_AND_FILE];
     TCHAR pathAndFile[MAX_PATH_AND_FILE];
@@ -2966,7 +2966,7 @@ static void setUIOnLoadWorld(HWND hWnd, HWND hwndSlider, HWND hwndLabel, HWND hw
     // we want to set to 383 for new worlds, 255 for old
     SendMessage(hwndSlider, TBM_SETRANGE, TRUE, MAKELONG(0, gMaxHeight - gMinHeight));
     setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
-    wchar_t text[5];
+    wchar_t text[8];
     _itow_s(gCurDepth, text, 10);
     SetWindowText(hwndLabel, text);
 
@@ -3962,7 +3962,7 @@ static void setSlider(HWND hWnd, HWND hwndSlider, HWND hwndLabel, int depth, boo
 {
     syncCurrentHighlightDepth();
 
-    wchar_t text[5];
+    wchar_t text[8];
     SendMessage(hwndSlider, TBM_SETPOS, 1, gMaxHeight - depth);
     _itow_s(depth, text, 10);
     SetWindowText(hwndLabel, text);
