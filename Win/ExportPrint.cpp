@@ -820,14 +820,14 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                     if (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ)
                         // Sculpteo
                         MessageBox(NULL, _T("Warning: this checkbox allows tiny features to be exported for 3D printing. Some of these small bits - fences, free-standing signs - may snap off during manufacture. Fattened versions of these objects are used by default, but even these can break. Also, the edge connection and floater checkboxes have been unchecked, since these options can cause problems. Finally, the meshes for some objects have elements that can cause Sculpteo's slicer problems - either visually check the uploaded file carefully, or if you're lucky enough to have access, use netfabb to clean up the mesh."),
-                            _T("Informational"), MB_OK | MB_ICONINFORMATION);
+                            _T("Warning"), MB_OK | MB_ICONWARNING);
                     else if (epd.fileType == FILE_TYPE_VRML2)
                         // Shapeways
                         MessageBox(NULL, _T("Warning: this checkbox allows tiny features to be exported for 3D printing. Some of these small bits - fences, free-standing signs - may snap off during manufacture. Fattened versions of these objects are used by default, but even these can break, so Shapeways may refuse to print the model. Also, the edge connection and floater checkboxes have been unchecked, since these options can cause problems. The one bit of good news is that Shapeways' software will clean up the mesh for you, so at least any geometric inconsistencies will not cause you problems."),
-                            _T("Informational"), MB_OK | MB_ICONINFORMATION);
+                            _T("Warning"), MB_OK | MB_ICONWARNING);
                     else
                         MessageBox(NULL, _T("Warning: this checkbox allows tiny features to be exported for 3D printing. Some of these small bits - fences, free-standing signs - may snap off during manufacture. Fattened versions of these objects are used by default, but even these can break. Also, the edge connection and floater checkboxes have been unchecked, since these options can cause problems. Finally, the meshes for some objects have elements that can cause some 3D printer slicers problems; you might want to clean up the mesh with software such as netfabb basic on desktop or free at http://cloud.netfabb.com."),
-                            _T("Informational"), MB_OK | MB_ICONINFORMATION);
+                            _T("Warning"), MB_OK | MB_ICONWARNING);
                     CheckDlgButton(hDlg, IDC_FATTEN, BST_CHECKED);
                     CheckDlgButton(hDlg, IDC_DELETE_FLOATERS, BST_UNCHECKED);
                     CheckDlgButton(hDlg, IDC_CONNECT_PARTS, BST_UNCHECKED);

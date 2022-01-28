@@ -93,7 +93,7 @@
 <UL>
 <LI><a href="#sketchfabe">Example</a>
 </UL>
-<LI><a href="#soc">Script-only Commands</a>
+<LI><a href="#soc">Script-Only Commands</a>
 <UL>
 <LI><a href="#cbce">Change blocks command examples</a>
 </UL>
@@ -655,6 +655,17 @@ You can specify a series of commands, which are applied in the order given. Each
 
 <tr>
 <td>
+Show informational: <i>true</i><br>
+Show warning: <i>YES</i><br>
+Show error: <i>no</i><br>
+</td>
+<td>
+You can suppress informational, warning, and error pop-up dialog messages by setting the corresponding property to false. By default, all these are set to true. Note that it's usually wise to set these all back to true at the end of any script that turns them off, as these settings are permanent for the session. That is, turn off errors in a script, and all export errors are suppressed from then on, which can be confusing. If suppressed, these messages will instead show up (usually briefly!) in the status line in the lower left of Mineways when exporting. Note that other warnings, such as when you manually turn on some experimental feature, are always displayed and cannot be suppressed.
+</td>
+</tr>
+
+<tr>
+<td>
 Set mouse order: [left|middle|right] [left|middle|right] [left|middle|right]
 </td>
 <td>
@@ -1018,7 +1029,7 @@ Running the script to set up the scene, then exporting (manually) to Sketchfab, 
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 11/24/2021</p>	</div>
+		<br id="lastUpdate">Last updated 11/28/2021</p>	</div>
 </div>
 
 </body>

@@ -53,7 +53,7 @@ static bool gAlwaysFail = false;
 #define MY_ASSERT(val) if ((val) == 0) { \
     wchar_t assertbuf[1024]; \
     wsprintf(assertbuf, L"Serious error in file %S on line %d. Please write me at erich@acm.org and, as best you can, tell me the steps that caused it.", __FILENAME__, __LINE__); \
-    MessageBox(NULL, assertbuf, L"Error", MB_OK | MB_SYSTEMMODAL); \
+    FilterMessageBox(NULL, assertbuf, L"Error", MB_OK | MB_SYSTEMMODAL); \
 } \
 
 // zoomed all the way in. We could allow this to be larger...
@@ -88,7 +88,7 @@ static bool gAlwaysFail = false;
 if (FH) { \
     DWORD br; \
     if ( PortaWrite(FH, OUTPUTSTRING, strlen(OUTPUTSTRING))) { \
-        MessageBox(NULL, _T("log file opened but cannot write to it."), _T("Log error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL); \
+        FilterMessageBox(NULL, _T("log file opened but cannot write to it."), _T("Log error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL); \
         PortaClose(FH); \
         (FH) = 0x0; \
     } \
@@ -239,6 +239,12 @@ static int gGroupCount = 0;
 static int gGroupCountSize = 10;
 static int gGroupCountArray[10];
 
+// for whether various info/warning/error messages pop up
+// - can be suppressed when scripts are running
+static bool gShowInformational = true;
+static bool gShowWarning = true;
+static bool gShowError = true;
+
 // left mouse button maps to left by default, etc.
 // The left mouse button pans the view, middle selects height of the bottom, right sets or adjusts the selection rectangle
 // If, say, gRemapMouse[LEFT_MOUSE_BUTTON_INDEX] is set to 1, that remaps
@@ -331,18 +337,18 @@ static struct {
     unsigned int type;
 } gPopupInfo[] = {
     {_T("No error"), _T("No error"), MB_OK},	//00
-    {_T("Warning: thin walls possible.\n\nThe thickness of a single block is smaller than the recommended wall thickness. Print only if you know what you're doing."), _T("Informational"), MB_OK | MB_ICONINFORMATION},	// 1
-    {_T("Warning: sum of dimensions low.\n\nThe sum of the dimensions of the model is less than 65 mm. This is officially too small for a Shapeways color sandstone model, but they will probably print it anyway."), _T("Informational"), MB_OK | MB_ICONINFORMATION},	// <<1
-    {_T("Warning: too many polygons.\n\nThere are more than one million polygons in file. This is usually too many for Shapeways."), _T("Informational"), MB_OK | MB_ICONINFORMATION},	// <<2
-    {_T("Warning: multiple separate parts found after processing.\n\nThis may not be what you want to print. Increase the value for 'Delete floating parts' to delete these. Try the 'Debug: show separate parts' export option to see if the model is what you expected."), _T("Informational"), MB_OK | MB_ICONINFORMATION},	// <<3
-    {_T("Warning: at least one dimension of the model is too long.\n\nCheck the dimensions for this printer's material: look in the top of the model file itself, using a text editor."), _T("Informational"), MB_OK | MB_ICONINFORMATION},	// <<4
-    {_T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock or, for 1.13+ blocks, to grass. Mineways does not understand blocks added by mods, and uses the older (simpler) schematic format so does not support blocks added in 1.13 or newer versions. If you are not using mods nor exporting 1.13 or newer blocks, your version of Mineways may be out of date. Check http://mineways.com for a newer version."), _T("Informational"), MB_OK | MB_ICONINFORMATION},	// <<5
-    {_T("Warning: too few rows of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt*.png with 55 rows."), _T("Informational"), MB_OK | MB_ICONINFORMATION },	// <<6 VERTICAL_TILES
-    {_T("Warning: one or more Change Block commands specified location(s) that were outside the selected volume."), _T("Informational"), MB_OK | MB_ICONINFORMATION },	// <<6
-    {_T("Warning: with the large Terrain File you're using, the output texture is extremely large. Other programs make have problems using it. We recommend that you use the 'Export tiles' option instead, or reduce the size of your Terrain File by using the '-t 256' (or smaller) option in TileMaker.\n\nThis warning will not be repeated this session."), _T("Informational"), MB_OK | MB_ICONINFORMATION },	// <<6
+    {_T("Warning: thin walls possible.\n\nThe thickness of a single block is smaller than the recommended wall thickness. Print only if you know what you're doing."), _T("Warning"), MB_OK | MB_ICONWARNING},	// 1
+    {_T("Warning: sum of dimensions low.\n\nThe sum of the dimensions of the model is less than 65 mm. This is officially too small for a Shapeways color sandstone model, but they will probably print it anyway."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<1
+    {_T("Warning: too many polygons.\n\nThere are more than one million polygons in file. This is usually too many for Shapeways."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<2
+    {_T("Warning: multiple separate parts found after processing.\n\nThis may not be what you want to print. Increase the value for 'Delete floating parts' to delete these. Try the 'Debug: show separate parts' export option to see if the model is what you expected."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<3
+    {_T("Warning: at least one dimension of the model is too long.\n\nCheck the dimensions for this printer's material: look in the top of the model file itself, using a text editor."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<4
+    {_T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock or, for 1.13+ blocks, to grass. Mineways does not understand blocks added by mods, and uses the older (simpler) schematic format so does not support blocks added in 1.13 or newer versions. If you are not using mods nor exporting 1.13 or newer blocks, your version of Mineways may be out of date. Check http://mineways.com for a newer version."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<5
+    {_T("Warning: too few rows of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt*.png with 55 rows."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<6 VERTICAL_TILES
+    {_T("Warning: one or more Change Block commands specified location(s) that were outside the selected volume."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<6
+    {_T("Warning: with the large Terrain File you're using, the output texture is extremely large. Other programs make have problems using it. We recommend that you use the 'Export tiles' option instead, or reduce the size of your Terrain File by using the '-t 256' (or smaller) option in TileMaker.\n\nThis warning will not be repeated this session."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<6
 
-    {_T("Error: no solid blocks found; no file output. If you see something on the map, you likely need to set the Depth slider at the top to 0, or tap the space bar for a reasonable guess."), _T("Export warning"), MB_OK | MB_ICONWARNING},	// <<7
-    {_T("Error: all solid blocks were deleted; no file output"), _T("Export warning"), MB_OK | MB_ICONWARNING},	// <<8
+    {_T("Error: no solid blocks found; no file output. If you see something on the map, you likely need to set the Depth slider at the top to 0, or tap the space bar for a reasonable guess."), _T("Export warning"), MB_OK | MB_ICONERROR},	// <<7
+    {_T("Error: all solid blocks were deleted; no file output"), _T("Export warning"), MB_OK | MB_ICONERROR},	// <<8
     {_T("Error creating export file; no file output"), _T("Export error"), MB_OK | MB_ICONERROR},	// <<9
     {_T("Error: cannot write to export file"), _T("Export error"), MB_OK | MB_ICONERROR},	// <<10
     {_T("Error: the incoming terrainExt*.png file resolution must be divisible by 16 horizontally and at least 16 pixels wide."), _T("Export error"), MB_OK | MB_ICONERROR},	// <<11
@@ -472,6 +478,8 @@ static bool openLogFile(ImportedSet& is);
 static void showLoadWorldError(int loadErr);
 static void checkMapDrawErrorCode(int retCode);
 static bool saveMapFile(int xmin, int zmin, int xmax, int ymax, int zmax, wchar_t* mapFileName);
+static int FilterMessageBox(HWND hWnd, LPCTSTR lpText, LPCTSTR lpCaption, UINT uType);
+
 
 int APIENTRY _tWinMain(
     _In_ HINSTANCE hInstance,
@@ -518,12 +526,12 @@ int APIENTRY _tWinMain(
     gArgList = CommandLineToArgvW(GetCommandLine(), &gArgCount);
     if (gArgList == NULL)
     {
-        MessageBox(NULL, L"Unable to parse command line", L"Error", MB_OK | MB_SYSTEMMODAL);
+        FilterMessageBox(NULL, L"Unable to parse command line", L"Error", MB_OK | MB_SYSTEMMODAL);
     }
 
     //for (int i = 0; i < gArgCount; i++)
     //{
-    //	MessageBox(NULL, gArgList[i], L"Arglist contents", MB_OK);
+    //	FilterMessageBox(NULL, gArgList[i], L"Arglist contents", MB_OK);
     //}
 
     // to force logging, no command line options needed, uncomment this line
@@ -638,7 +646,7 @@ int APIENTRY _tWinMain(
             }
             wchar_t wString[1024];
             swprintf_s(wString, 1024, L"Unexpected termination: failed with error code %d. Please report this problem to erich@acm.org\n", (int)dw);
-            MessageBox(NULL, wString, _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            FilterMessageBox(NULL, wString, _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
         }
         else
         {
@@ -860,8 +868,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             {
                 LOG_INFO(gExecutionLogfile, "   couldn't find world saves directory\n");
                 // this message will get popped up by loadWorldList
-                //MessageBox(NULL, _T("Couldn't find your Minecraft world saves directory. You'll need to guide Mineways to where you save your worlds. Use the 'File -> Open...' option and find your level.dat file for the world. If you're on Windows, go to 'C:\\Users\\Eric\\AppData\\Roaming\\.minecraft\\saves' and find it in your world save directory. For Mac, worlds are usually located at /users/<your name>/Library/Application Support/minecraft/saves. Visit http://mineways.com or email me if you are still stuck."),
-                //	_T("Informational"), MB_OK | MB_ICONINFORMATION | MB_SYSTEMMODAL);
+                //FilterMessageBox(NULL, _T("Couldn't find your Minecraft world saves directory. You'll need to guide Mineways to where you save your worlds. Use the 'File -> Open...' option and find your level.dat file for the world. If you're on Windows, go to 'C:\\Users\\Eric\\AppData\\Roaming\\.minecraft\\saves' and find it in your world save directory. For Mac, worlds are usually located at /users/<your name>/Library/Application Support/minecraft/saves. Visit http://mineways.com or email me if you are still stuck."),
+                //	_T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
             }
         }
 
@@ -871,7 +879,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             if (loadWorldList(GetMenu(hWnd)))
             {
                 LOG_INFO(gExecutionLogfile, "   world not converted\n");
-                MessageBox(NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format. These worlds will be shown as disabled in the Open World menu. To make a world readable by Mineways, install Minecraft 1.9 and open the world in it, then quit. Doing so will convert your world to a format Mineways understands."),
+                FilterMessageBox(NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format. These worlds will be shown as disabled in the Open World menu. To make a world readable by Mineways, install Minecraft 1.9 and open the world in it, then quit. Doing so will convert your world to a format Mineways understands."),
                     _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
             }
         }
@@ -1319,7 +1327,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         swprintf_s(msgString, 1024, L"All blocks in your selection are below the current depth of %d.\n\nThe depth will be reset to %d to include all visible blocks.",
                             gTargetDepth, minHeightFound);
                     }
-                    MessageBox(NULL, msgString,
+                    FilterMessageBox(NULL, msgString,
                         _T("Informational"), MB_OK | MB_ICONINFORMATION);
                     //gTargetDepth = gHitsFound[3]; - no longer used.
                     gTargetDepth = minHeightFound;
@@ -1377,7 +1385,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 }
                 // System modal puts it topmost, and task modal stops things from continuing without an answer. Unfortunately, task modal does not force the dialog on top.
                 // We force it here, as it's OK if it gets ignored, but we want people to see it.
-                retval = MessageBox(NULL, msgString,
+                retval = FilterMessageBox(NULL, msgString,
                     _T("Informational"), MB_YESNOCANCEL | MB_ICONINFORMATION | MB_DEFBUTTON1 | MB_SYSTEMMODAL);
                 if (retval == IDYES)
                 {
@@ -1865,7 +1873,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     break;
                 }
 
-                MessageBox(
+                FilterMessageBox(
                     NULL,
                     infoString,
                     _T("World information"),
@@ -2044,7 +2052,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 if (!gHighlightOn)
                 {
                     // we keep the export options ungrayed now so that they're selectable when the world is loaded
-                    MessageBox(NULL, _T("Click and drag with your right mouse button to select an area to export."),
+                    FilterMessageBox(NULL, _T("Click and drag with your right mouse button to select an area to export."),
                         _T("Informational"), MB_OK | MB_ICONINFORMATION);
                     break;
                 }
@@ -2175,7 +2183,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 if (!gHighlightOn)
                 {
                     // we keep the export options ungrayed now so that they're selectable when the world is loaded
-                    MessageBox(NULL, _T("Click and drag with your right mouse button to select an area to export."),
+                    FilterMessageBox(NULL, _T("Click and drag with your right mouse button to select an area to export."),
                         _T("Informational"), MB_OK | MB_ICONINFORMATION);
                     break;
                 }
@@ -2185,7 +2193,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     publishToSketchfab(hWnd, filepath, gSelectTerrainPathAndName, gSchemeSelected);
                 }
 #else
-                MessageBox(NULL, _T("This version of Mineways does not have Sketchfab export enabled - sorry! Try version 5.10."),
+                FilterMessageBox(NULL, _T("This version of Mineways does not have Sketchfab export enabled - sorry! Try version 5.10."),
                     _T("Informational"), MB_OK | MB_ICONINFORMATION);
 
 #endif
@@ -2225,7 +2233,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 if (!gHighlightOn)
                 {
                     // we keep the jump option ungrayed now so that it's selectable when the world is loaded
-                    MessageBox(NULL, _T("No model selected. To select a model, click and drag with the right mouse button."),
+                    FilterMessageBox(NULL, _T("No model selected. To select a model, click and drag with the right mouse button."),
                         _T("Informational"), MB_OK | MB_ICONINFORMATION);
                     break;
                 }
@@ -2293,7 +2301,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     if (loadWorld(hWnd))
                     {
                         // world not loaded properly
-                        MessageBox(NULL, _T("Error: cannot reload world."),
+                        FilterMessageBox(NULL, _T("Error: cannot reload world."),
                             _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
 
                         return 0;
@@ -2306,7 +2314,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
                 }
                 else {
-                    MessageBox(NULL, _T("You need to load a world first. Use 'Open World' or 'Open...' and find your level.dat file in %appdata%/.minecraft/saves."), _T("Informational"), MB_OK | MB_ICONINFORMATION);
+                    FilterMessageBox(NULL, _T("You need to load a world first. Use 'Open World' or 'Open...' and find your level.dat file in %appdata%/.minecraft/saves."), _T("Informational"), MB_OK | MB_ICONINFORMATION);
                 }
                 break;
             case IDM_HELL:
@@ -2572,7 +2580,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         ClearBlockReadCheck();
 
         // note how this is different that the write schematic message, which notes 1.13 export problems
-        MessageBox(NULL, _T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock. Mineways does not understand blocks added by mods. If you are not using mods, your version of Mineways may be out of date. Check http://mineways.com for a newer version of Mineways."),
+        FilterMessageBox(NULL, _T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock. Mineways does not understand blocks added by mods. If you are not using mods, your version of Mineways may be out of date. Check http://mineways.com for a newer version of Mineways."),
             _T("Read error"), MB_OK | MB_ICONERROR);
     }
 
@@ -2637,7 +2645,7 @@ static bool startExecutionLogFile(const LPWSTR* argList, int argCount)
                     //wcscat_s(longFileName, MAX_PATH_AND_FILE - wcslen(longFileName), argList[argIndex]);
                     //gExecutionLogfile = PortaCreate(argList[argIndex]);
                     //if (gExecutionLogfile == INVALID_HANDLE_VALUE) {
-                    MessageBox(NULL, _T("Cannot open script log file, execution log file is specified by '-l log-file-name'."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+                    FilterMessageBox(NULL, _T("Cannot open script log file, execution log file is specified by '-l log-file-name'."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
                     return false;
                     //}
                 }
@@ -2661,7 +2669,7 @@ static bool startExecutionLogFile(const LPWSTR* argList, int argCount)
                 return true;
             }
             // if we got here, parsing didn't work
-            MessageBox(NULL, _T("Command line startup error, execution log file is specified by '-l log-file-name'."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            FilterMessageBox(NULL, _T("Command line startup error, execution log file is specified by '-l log-file-name'."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
             return false;
         }
         else {
@@ -2706,7 +2714,7 @@ static int modifyWindowSizeFromCommandLine(int* x, int* y, const LPWSTR* argList
                 }
             }
             // if we got here, parsing didn't work
-            MessageBox(NULL, _T("Command line startup error, window size should be set by \"-w 480 582\" or two other positive integers. Window command ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            FilterMessageBox(NULL, _T("Command line startup error, window size should be set by \"-w 480 582\" or two other positive integers. Window command ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
             return 0;
         }
         else if (wcscmp(argList[argIndex], L"-m") == 0) {
@@ -2746,11 +2754,11 @@ static int loadWorldFromFilename(wchar_t* pathAndFile, HWND hWnd)
                 // schematic world not loaded properly
             gWorldGuide.type = WORLD_UNLOADED_TYPE;
             if (error == 100 + 5) {
-                MessageBox(NULL, _T("Error: cannot read newfangled Minecraft schematic. Schematics from FAWE/WorldEdit for 1.13 (and newer) are not supported - it's a lot of boring work for me to add this. I suggest you read the schematic file into a world and have Mineways read that world."),
+                FilterMessageBox(NULL, _T("Error: cannot read newfangled Minecraft schematic. Schematics from FAWE/WorldEdit for 1.13 (and newer) are not supported - it's a lot of boring work for me to add this. I suggest you read the schematic file into a world and have Mineways read that world."),
                     _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
             }
             else {
-                MessageBox(NULL, _T("Error: cannot read Minecraft schematic for some unknown reason. Feel free to send it to me for analysis."),
+                FilterMessageBox(NULL, _T("Error: cannot read Minecraft schematic for some unknown reason. Feel free to send it to me for analysis."),
                     _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
             }
             return 0;
@@ -2812,7 +2820,7 @@ static int getWorldSaveDirectoryFromCommandLine(wchar_t* saveWorldDirectory, con
                     LOG_INFO(gExecutionLogfile, " getWorldSaveDirectoryFromCommandLine path does not exist\n");
                     wchar_t message[1024];
                     wsprintf(message, _T("Warning:\nThe path \"%s\" you specified on the command line for your saved worlds location does not exist, so default worlds directory will be used. Use \"-s none\" to load no worlds."), saveWorldDirectory);
-                    MessageBox(NULL, message,
+                    FilterMessageBox(NULL, message,
                         _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
                     return 0;
                 }
@@ -2823,7 +2831,7 @@ static int getWorldSaveDirectoryFromCommandLine(wchar_t* saveWorldDirectory, con
             }
             // if we got here, parsing didn't work
             LOG_INFO(gExecutionLogfile, " getWorldSaveDirectoryFromCommandLine directory not given with -s option\n");
-            MessageBox(NULL, _T("Command line startup error, directory is missing. Your save world directory should be set by \"-s <directory>\". Use \"-s none\" to load no worlds. Setting ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            FilterMessageBox(NULL, _T("Command line startup error, directory is missing. Your save world directory should be set by \"-s <directory>\". Use \"-s none\" to load no worlds. Setting ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
             return 0;
         }
         else {
@@ -2853,7 +2861,7 @@ static int getZoomLevelFromCommandLine(float *minZoom, const LPWSTR* argList, in
                 }
             }
             // if we got here, parsing didn't work
-            MessageBox(NULL, _T("Command line startup error. For \"-zl #\", minimum zoom level, the value # must be between 0.0625 and 1. Zoom level command ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            FilterMessageBox(NULL, _T("Command line startup error. For \"-zl #\", minimum zoom level, the value # must be between 0.0625 and 1. Zoom level command ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
             return 0;
         }
         else {
@@ -2883,7 +2891,7 @@ static int getTerrainFileFromCommandLine(wchar_t* terrainFile, const LPWSTR* arg
                     LOG_INFO(gExecutionLogfile, " getTerrainFileFromCommandLine path does not exist\n");
                     wchar_t message[1024];
                     wsprintf(message, _T("Warning:\nThe path \"%s\" you specified on the command line for your terrain file does not exist, so the default terrain is used."), terrainFile);
-                    MessageBox(NULL, message,
+                    FilterMessageBox(NULL, message,
                         _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
                     return 0;
                 }
@@ -2894,7 +2902,7 @@ static int getTerrainFileFromCommandLine(wchar_t* terrainFile, const LPWSTR* arg
             }
             // if we got here, parsing didn't work
             LOG_INFO(gExecutionLogfile, " getWorldSaveDirectoryFromCommandLine directory not given with -s option\n");
-            MessageBox(NULL, _T("Command line startup error, file is missing. Your terrain file should be set by \"-t <filename>\". Setting ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            FilterMessageBox(NULL, _T("Command line startup error, file is missing. Your terrain file should be set by \"-t <filename>\". Setting ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
             return 0;
         }
         else {
@@ -2947,7 +2955,7 @@ static bool processCreateArguments(WindowSet& ws, const char** pBlockLabel, LPAR
         }
         else if (*argList[argIndex] == '-') {
             // unknown argument, so list out arguments
-            MessageBox(NULL, L"Warning:\nUnknown argument on command line.\nUsage: mineways.exe [-w X Y] [-m] [-s UserSaveDirectory|none] [-t terrainExtYourfile.png] [-l mineways_exec.log] [file1.mwscript [file2.mwscript [...]]]", _T("Warning"), MB_OK | MB_ICONWARNING);
+            FilterMessageBox(NULL, L"Warning:\nUnknown argument on command line.\nUsage: mineways.exe [-w X Y] [-m] [-s UserSaveDirectory|none] [-t terrainExtYourfile.png] [-l mineways_exec.log] [file1.mwscript [file2.mwscript [...]]]", _T("Warning"), MB_OK | MB_ICONWARNING);
             // abort
             return true;
         }
@@ -3520,7 +3528,7 @@ static int setWorldPath(TCHAR* path)
         if (gDebug)
         {
             swprintf_s(msgString, 1024, L"Try path %s", path);
-            MessageBox(NULL, msgString, _T("Informational"), MB_OK | MB_ICONINFORMATION);
+            FilterMessageBox(NULL, msgString, _T("Informational"), MB_OK | MB_ICONINFORMATION);
         }
 
         if (PathFileExists(path))
@@ -3531,7 +3539,7 @@ static int setWorldPath(TCHAR* path)
             if (gDebug)
             {
                 swprintf_s(msgString, 1024, L"Found! Ret code %s, Converted path to %s", (ret_code ? L"OK" : L"NULL"), path);
-                MessageBox(NULL, msgString, _T("Informational"), MB_OK | MB_ICONINFORMATION);
+                FilterMessageBox(NULL, msgString, _T("Informational"), MB_OK | MB_ICONINFORMATION);
             }
             return i + 2;
         }
@@ -3544,7 +3552,7 @@ static int setWorldPath(TCHAR* path)
     // failed
     if (gDebug)
     {
-        MessageBox(NULL, L"Failed to find path", _T("Informational"), MB_OK | MB_ICONINFORMATION | MB_SYSTEMMODAL);
+        FilterMessageBox(NULL, L"Failed to find path", _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
     }
     return 0;
 }
@@ -3585,12 +3593,12 @@ void flagUnreadableWorld(wchar_t* wcWorld, char* charWorld, int errCode)
     if (errCode < 0) {
         wchar_t msgString[1024];
         swprintf_s(msgString, 1024, L"Warning: The level.dat of world file %s appears to be missing important information; it might be corrupt. World ignored, error code %d.", wcWorld, errCode);
-        MessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
+        FilterMessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
     }
     //else {
         // most likely it's a directory where there is no level.dat, i.e., just some other random directory, so leave off this message.
         //swprintf_s(msgString, 1024, L"Warning: The level.dat of world file %s could not be read, error code %d. World ignored. Please report this problem to erich@acm.org if you think it is in error.", wcWorld, errCode);
-        //MessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
+        //FilterMessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
     //}
 }
 
@@ -3630,8 +3638,8 @@ static int loadWorldList(HMENU menu)
     if (hFind == INVALID_HANDLE_VALUE)
     {
         LOG_INFO(gExecutionLogfile, "    invalid handle value - return 0. This means Mineways couldn't find your Minecraft world saves directory.\n");
-        MessageBox(NULL, _T("Mineways couldn't find your Minecraft world saves directory. This likely means that you're using Minecraft Bedrock edition on Windows 10. Mineways supports only Minecraft Classic (Java) world files. But, there is a free utility to convert from one to the other Minecraft world format. See http://mineways.com for more information.\n\nIf you are using Minecraft Classic (Java) and have stored your worlds elsewhere, use the 'File -> Open...' option and find your level.dat file for the world. Save files are normally at 'C:\\Users\\<your name>\\AppData\\Roaming\\.minecraft\\saves'. For Mac, worlds are usually located at '/users/<your name>/Library/Application Support/minecraft/saves'."),
-            _T("Informational"), MB_OK | MB_ICONINFORMATION);
+        FilterMessageBox(NULL, _T("Mineways couldn't find your Minecraft world saves directory. This likely means that you're using Minecraft Bedrock edition on Windows 10. Mineways supports only Minecraft Classic (Java) world files. But, there is a free utility to convert from one to the other Minecraft world format. See http://mineways.com for more information.\n\nIf you are using Minecraft Classic (Java) and have stored your worlds elsewhere, use the 'File -> Open...' option and find your level.dat file for the world. Save files are normally at 'C:\\Users\\<your name>\\AppData\\Roaming\\.minecraft\\saves'. For Mac, worlds are usually located at '/users/<your name>/Library/Application Support/minecraft/saves'."),
+            _T("Warning"), MB_OK | MB_ICONWARNING);
         return 0;
     }
 
@@ -3655,7 +3663,7 @@ static int loadWorldList(HMENU menu)
                 if (gDebug)
                 {
                     swprintf_s(msgString, 1024, L"Found potential world save directory %s", ffd.cFileName);
-                    MessageBox(NULL, msgString, _T("Informational"), MB_OK | MB_ICONINFORMATION);
+                    FilterMessageBox(NULL, msgString, _T("Informational"), MB_OK | MB_ICONINFORMATION);
                 }
 
                 if (ffd.cFileName[0] != '.')
@@ -3676,7 +3684,7 @@ static int loadWorldList(HMENU menu)
                     if (gDebug)
                     {
                         swprintf_s(msgString, 1024, L"Trying file %s", testAnvil);
-                        MessageBox(NULL, msgString, _T("Informational"), MB_OK | MB_ICONINFORMATION);
+                        FilterMessageBox(NULL, msgString, _T("Informational"), MB_OK | MB_ICONINFORMATION);
                     }
 
                 LOG_INFO(gExecutionLogfile, "        try to get file version\n");
@@ -3731,7 +3739,7 @@ static int loadWorldList(HMENU menu)
                 {
                     // 0 version ID means earlier than 1.9
                     swprintf_s(msgString, 1024, L"Succeeded with file %s, which has folder level name %S", testAnvil, levelName);
-                    MessageBox(NULL, msgString, _T("Informational"), MB_OK | MB_ICONINFORMATION);
+                    FilterMessageBox(NULL, msgString, _T("Informational"), MB_OK | MB_ICONINFORMATION);
                 }
 
                 info.wID = IDM_WORLD + gNumWorlds;
@@ -3789,14 +3797,14 @@ static int loadWorldList(HMENU menu)
         sprintf_s(charMsgString, 1024, "Warning: more that %d files detected. Not all worlds have been added to the Open World list.\n", MAX_WORLDS);
         LOG_INFO(gExecutionLogfile, charMsgString);
         swprintf_s(msgString, 1024, L"Warning: more that %d files detected in %s. Not all worlds have been added to the Open World list.", MAX_WORLDS, saveFilesPath);
-        MessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
+        FilterMessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
         gNumWorlds = MAX_WORLDS - 1;
     }
     else if (gNumWorlds <= 1) {
         sprintf_s(charMsgString, 1024, "Warning: Mineways found your save directory, but no Minecraft Classic (Java) saved worlds were found. Perhaps you are using Minecraft Windows 10 Bedrock edition instead of Minecraft Classic (Java)? You can convert your worlds from Bedrock to Classic format. See http://mineways.com for instructions on how to convert.\n");
         LOG_INFO(gExecutionLogfile, charMsgString);
         swprintf_s(msgString, 1024, L"Warning: Mineways found your save directory, but no Minecraft Classic (Java) saved worlds were found. Perhaps you are using Minecraft Windows 10 Bedrock edition instead of Minecraft Classic (Java)? You can convert your worlds from from Bedrock to Classic format. See http://mineways.com for instructions on how to convert.\n");
-        MessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
+        FilterMessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
     }
 
     return oldVersionDetected;
@@ -3853,7 +3861,7 @@ static int loadTerrainList(HMENU menu)
 			if (gDebug)
 			{
 				swprintf_s(msgString, 1024, L"Found potential terrain file %s", ffd.cFileName);
-				MessageBox(NULL, msgString, _T("Informational"), MB_OK | MB_ICONINFORMATION);
+				FilterMessageBox(NULL, msgString, _T("Informational"), MB_OK | MB_ICONINFORMATION);
 			}
 
             length = wcslen(ffd.cFileName);
@@ -3897,7 +3905,7 @@ static int loadTerrainList(HMENU menu)
         sprintf_s(charMsgString, 1024, "Warning: more that %d terrain files detected. Not all terrain files have been added to the list.\n", MAX_TERRAIN_FILES);
         LOG_INFO(gExecutionLogfile, charMsgString);
         swprintf_s(msgString, 1024, L"Warning: more that %d terrain files detected. Not all terrain files have been added to the list.", MAX_TERRAIN_FILES);
-        MessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
+        FilterMessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
         gNumTerrainFiles = MAX_TERRAIN_FILES - 1;
     }
 
@@ -4333,7 +4341,7 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileNa
             // abort - conversion did not work
             wchar_t errbuf[1024];
             wsprintf(errbuf, L"ERROR: I am afraid you have a path name \"%s\" that cannot be converted to a multi-byte character path that Sketchfab can use. If you want to upload to Sketchfab, you will have to do it manually: Export for Rendering, check the \"Create a ZIP file\" box, and then upload the resulting zip file.", wcZip);
-            MessageBox(NULL, errbuf, _T("File Path Error"), MB_OK | MB_ICONERROR);
+            FilterMessageBox(NULL, errbuf, _T("File Path Error"), MB_OK | MB_ICONERROR);
 
             // clean up - sloppy code, I admit
             freeOutputFileList(outputFileList);
@@ -4732,7 +4740,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
             EXPT_DEBUG_SHOW_GROUPS | EXPT_DEBUG_SHOW_WELDS);
         if (gOptions.exportFlags & unsupportedCodes)
         {
-            MessageBox(NULL, _T("Note: color output is not supported for ASCII text STL.\nFile will contain no colors."),
+            FilterMessageBox(NULL, _T("Note: color output is not supported for ASCII text STL.\nFile will contain no colors."),
                 _T("Informational"), MB_OK | MB_ICONINFORMATION);
         }
         // ASCII STL in particular cannot export any materials at all.
@@ -4748,12 +4756,12 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         {
             if (gpEFD->fileType == FILE_TYPE_BINARY_VISCAM_STL)
             {
-                MessageBox(NULL, _T("Note: texture output is not supported for binary STL.\nFile will contain VisCAM colors instead."),
+                FilterMessageBox(NULL, _T("Note: texture output is not supported for binary STL.\nFile will contain VisCAM colors instead."),
                     _T("Informational"), MB_OK | MB_ICONINFORMATION);
             }
             else
             {
-                MessageBox(NULL, _T("Note: texture output is not supported for binary STL.\nFile will contain Materialise Magics colors instead."),
+                FilterMessageBox(NULL, _T("Note: texture output is not supported for binary STL.\nFile will contain Materialise Magics colors instead."),
                     _T("Informational"), MB_OK | MB_ICONINFORMATION);
             }
         }
@@ -4856,7 +4864,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                         // if we need to get really fancy, include code at https://docs.microsoft.com/en-us/windows/win32/debug/retrieving-the-last-error-code
                         wchar_t errbuf[1024];
                         wsprintf(errbuf, L"Warning: Not all files were saved to the ZIP file! Error code: %d. Please report this problem to me at erich@acm.org.", (int)errorCode); \
-                        MessageBox(NULL, errbuf, _T("Internal ZIP error"), MB_OK | MB_ICONERROR);
+                        FilterMessageBox(NULL, errbuf, _T("Internal ZIP error"), MB_OK | MB_ICONERROR);
                         break;
                     }
 
@@ -4898,8 +4906,8 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         // check if world is 1.12 or earlier, USD export, and instancing - warn once per world
         if (gModel.instancing && (gMinecraftVersion <= 12) && gInstanceError) {
             gInstanceError = false;
-            MessageBox(NULL, _T("Warning: Exporting individual blocks from this older world may not work well, due to incomplete data. For a better conversion, consider first reading your world into a recent version of Minecraft so that it is saved into a newer file format."),
-                _T("Export limitation"), MB_OK | MB_ICONERROR);
+            FilterMessageBox(NULL, _T("Warning: Exporting individual blocks from this older world may not work well, due to incomplete data. For a better conversion, consider first reading your world into a recent version of Minecraft so that it is saved into a newer file format."),
+                _T("Export limitation"), MB_OK | MB_ICONWARNING);
         }
 
         // show errors first
@@ -4930,7 +4938,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                             gOptions.dim_inches[0], gOptions.dim_inches[2], gOptions.dim_inches[1],
                             gOptions.dim_cm[0], gOptions.dim_cm[2], gOptions.dim_cm[1],
                             gOptions.totalBlocks, gOptions.totalBlocks * gOptions.block_mm * gOptions.block_mm * gOptions.block_mm / 1000.0f);
-                        retval = MessageBox(NULL, msgString,
+                        retval = FilterMessageBox(NULL, msgString,
                             _T("Informational"), MB_YESNO | MB_ICONINFORMATION | MB_DEFBUTTON1 | MB_SYSTEMMODAL);
                         if (retval != IDYES)
                         {
@@ -4961,7 +4969,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                             formatWithCommas(gModel.vertexCount, gCommaString5)
                         );
                     }
-                    retval = MessageBox(NULL, msgString,
+                    retval = FilterMessageBox(NULL, msgString,
                         _T("Informational"), MB_YESNO | MB_ICONINFORMATION | MB_DEFBUTTON1 | MB_SYSTEMMODAL);
                     if (retval != IDYES)
                     {
@@ -4998,7 +5006,7 @@ static void PopupErrorDialogs(int errCode)
                 size_t convertedChars = 0;
                 mbstowcs_s(&convertedChars, wcString, newsize, lodepng_error_text(pngError), _TRUNCATE);
                 wsprintf(errString, gPopupInfo[errNo + 1].text, wcString);
-                MessageBox(
+                FilterMessageBox(
                     NULL,
                     errString,
                     gPopupInfo[errNo + 1].caption,
@@ -5045,7 +5053,7 @@ static void PopupErrorDialogs(int errCode)
                     }
                 }
 
-                MessageBox(
+                FilterMessageBox(
                     NULL,
                     errString,
                     gPopupInfo[errNo + 1].caption,
@@ -5055,7 +5063,7 @@ static void PopupErrorDialogs(int errCode)
             else
             {
                 //int msgboxID = 
-                MessageBox(
+                FilterMessageBox(
                     NULL,
                     gPopupInfo[errNo + 1].text,
                     gPopupInfo[errNo + 1].caption,
@@ -5363,7 +5371,7 @@ static void runImportOrScript(wchar_t* importFile, WindowSet& ws, const char** p
         if (strlen(is.world) > 0)
         {
             if (!commandLoadWorld(is, msgString)) {
-                MessageBox(NULL, msgString, _T("Import error"), MB_OK | MB_ICONWARNING);
+                FilterMessageBox(NULL, msgString, _T("Import error"), MB_OK | MB_ICONWARNING);
                 // quit; since we can't load new world, anything else is pointless.
                 return;
             }
@@ -5372,13 +5380,13 @@ static void runImportOrScript(wchar_t* importFile, WindowSet& ws, const char** p
         // if world viewed is nether or The End, load here.
         if (is.nether) {
             if (switchToNether(is)) {
-                MessageBox(NULL, L"Attempt to switch to the Nether failed", _T("Import warning"), MB_OK | MB_ICONWARNING);
+                FilterMessageBox(NULL, L"Attempt to switch to the Nether failed", _T("Import warning"), MB_OK | MB_ICONWARNING);
             }
         }
         else if (is.theEnd) {
             assert(is.nether == false);
             if (switchToTheEnd(is)) {
-                MessageBox(NULL, L"Attempt to switch to The End failed", _T("Import warning"), MB_OK | MB_ICONWARNING);
+                FilterMessageBox(NULL, L"Attempt to switch to The End failed", _T("Import warning"), MB_OK | MB_ICONWARNING);
             }
         }
 
@@ -5386,7 +5394,7 @@ static void runImportOrScript(wchar_t* importFile, WindowSet& ws, const char** p
         if (strlen(is.terrainFile) > 0)
         {
             if (!commandLoadTerrainFile(is, msgString)) {
-                MessageBox(NULL, msgString, _T("Import warning"), MB_OK | MB_ICONWARNING);
+                FilterMessageBox(NULL, msgString, _T("Import warning"), MB_OK | MB_ICONWARNING);
             }
         }
 
@@ -5395,7 +5403,7 @@ static void runImportOrScript(wchar_t* importFile, WindowSet& ws, const char** p
         {
             // don't invalidate on load, as we know we'll do it later
             if (!commandLoadColorScheme(is, msgString, false)) {
-                MessageBox(NULL, msgString, _T("Import warning"), MB_OK | MB_ICONWARNING);
+                FilterMessageBox(NULL, msgString, _T("Import warning"), MB_OK | MB_ICONWARNING);
             }
         }
 
@@ -5448,7 +5456,7 @@ static void runImportOrScript(wchar_t* importFile, WindowSet& ws, const char** p
         // and note which import was done
         if (dialogOnSuccess)
         {
-            MessageBox(
+            FilterMessageBox(
                 NULL,
                 (gpEFD->flags & EXPT_3DPRINT) ?
                 _T("Previous settings for 3D printing imported.") :
@@ -5497,7 +5505,7 @@ static int importSettings(wchar_t* importFile, ImportedSet& is, bool dialogOnSuc
     if (err != 0) {
         wchar_t buf[MAX_PATH_AND_FILE];
         wsprintf(buf, L"Error: could not read file %s", importFile);
-        MessageBox(NULL, buf, _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+        FilterMessageBox(NULL, buf, _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
         retCode = IMPORT_FAILED;
         goto Exit;
     }
@@ -5572,12 +5580,12 @@ Exit:
                 if (is.errorsFound > 0) {
                     swprintf_s(msgString, 1024, L"Errors found in script file - processing aborted. Check log file %S",
                         is.logFileName);
-                    MessageBox(NULL, msgString, _T("Script error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+                    FilterMessageBox(NULL, msgString, _T("Script error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
                 }
                 else {
                     swprintf_s(msgString, 1024, L"Processing finished. Warnings found in script file. Check log file %S",
                         is.logFileName);
-                    MessageBox(NULL, msgString, _T("Script error"), MB_OK | MB_ICONERROR);
+                    FilterMessageBox(NULL, msgString, _T("Script error"), MB_OK | MB_ICONWARNING);
                 }
             }
         }
@@ -5590,17 +5598,17 @@ Exit:
         // Are there errors, or just warnings?
         if (is.errorsFound) {
             // run-time error!
-            MessageBox(NULL, is.errorMessages, is.readingModel ? _T("Import error") : _T("Script error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            FilterMessageBox(NULL, is.errorMessages, is.readingModel ? _T("Import error") : _T("Script error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
             deleteCommandBlockSet(is.pCBChead);
             is.pCBChead = is.pCBClast = NULL;
             retCode = IMPORT_FAILED;
         }
         else if (is.errorMessages && (is.errorMessages[0] != (wchar_t)0)) {
-            MessageBox(NULL, is.errorMessages, is.readingModel ? _T("Import warning") : _T("Script warning"), MB_OK | MB_ICONWARNING);
+            FilterMessageBox(NULL, is.errorMessages, is.readingModel ? _T("Import warning") : _T("Script warning"), MB_OK | MB_ICONWARNING);
         }
         else {
             if (!is.readingModel && dialogOnSuccess)
-                MessageBox(NULL, _T("Script successfully finished running."), _T("Informational"), MB_OK | MB_ICONINFORMATION);
+                FilterMessageBox(NULL, _T("Script successfully finished running."), _T("Informational"), MB_OK | MB_ICONINFORMATION);
         }
     }
     if (is.errorMessages != NULL)
@@ -6627,7 +6635,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
         // this next chunk could almost be a subroutine, but there's so much passed in and out, not worth it.
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            saveErrorMessage(is, L"could not find boolean value for Texture output RGB command."); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not find boolean value for 'Texture output RGB' command."); return INTERPRETER_FOUND_ERROR;
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
@@ -6640,7 +6648,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            saveErrorMessage(is, L"could not find boolean value for Texture output A command."); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not find boolean value for 'Texture output A' command."); return INTERPRETER_FOUND_ERROR;
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
@@ -6653,7 +6661,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            saveErrorMessage(is, L"could not find boolean value for Texture output RGBA command."); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not find boolean value for 'Texture output RGBA' command."); return INTERPRETER_FOUND_ERROR;
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
@@ -6666,7 +6674,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            saveErrorMessage(is, L"could not find boolean value for Make groups objects command."); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not find boolean value for 'Make groups objects' command."); return INTERPRETER_FOUND_ERROR;
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
@@ -6679,7 +6687,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            saveErrorMessage(is, L"could not find boolean value for Export separate objects command."); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not find boolean value for 'Export separate objects' command."); return INTERPRETER_FOUND_ERROR;
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
@@ -6692,7 +6700,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            saveErrorMessage(is, L"could not find boolean value for Individual blocks command."); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not find boolean value for 'Individual blocks' command."); return INTERPRETER_FOUND_ERROR;
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
@@ -6709,7 +6717,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            saveErrorMessage(is, L"could not find boolean value for Material per family command."); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not find boolean value for 'Material per family' command."); return INTERPRETER_FOUND_ERROR;
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
@@ -6726,7 +6734,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            saveErrorMessage(is, L"could not find boolean value for Split by block type command."); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not find boolean value for 'Split by block type' command."); return INTERPRETER_FOUND_ERROR;
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
@@ -6739,7 +6747,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            saveErrorMessage(is, L"could not find boolean value for G3D full material command."); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not find boolean value for 'G3D full material' command."); return INTERPRETER_FOUND_ERROR;
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
@@ -6752,7 +6760,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            saveErrorMessage(is, L"could not find boolean value for Export MDL command."); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not find boolean value for 'Export MDL' command."); return INTERPRETER_FOUND_ERROR;
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
@@ -6801,7 +6809,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            saveErrorMessage(is, L"could not find boolean value for Make Z command."); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not find boolean value for 'Make Z' command."); return INTERPRETER_FOUND_ERROR;
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
@@ -6814,7 +6822,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            saveErrorMessage(is, L"could not find boolean value for Create composite overlay faces command."); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not find boolean value for 'Create composite overlay faces' command."); return INTERPRETER_FOUND_ERROR;
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
@@ -6827,7 +6835,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            saveErrorMessage(is, L"could not find boolean value for Center model command."); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not find boolean value for 'Center model' command."); return INTERPRETER_FOUND_ERROR;
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
@@ -6841,7 +6849,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            saveErrorMessage(is, L"could not find boolean value for Export lesser blocks command."); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not find boolean value for 'Export lesser blocks' command."); return INTERPRETER_FOUND_ERROR;
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
@@ -6854,7 +6862,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            saveErrorMessage(is, L"could not find boolean value for Fatten lesser blocks command."); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not find boolean value for 'Fatten lesser blocks' command."); return INTERPRETER_FOUND_ERROR;
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
@@ -6867,7 +6875,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            saveErrorMessage(is, L"could not find boolean value for Create block faces at the borders command."); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not find boolean value for 'Create block faces at the borders' command."); return INTERPRETER_FOUND_ERROR;
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
@@ -6880,7 +6888,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            saveErrorMessage(is, L"could not find boolean value for Make tree leaves solid command."); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not find boolean value for 'Make tree leaves solid' command."); return INTERPRETER_FOUND_ERROR;
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
@@ -6893,7 +6901,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            saveErrorMessage(is, L"could not find boolean value for Use biomes command."); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not find boolean value for 'Use biomes' command."); return INTERPRETER_FOUND_ERROR;
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
@@ -7200,7 +7208,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            saveErrorMessage(is, L"could not find boolean value for Melt snow blocks command."); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not find boolean value for 'Melt snow blocks' command."); return INTERPRETER_FOUND_ERROR;
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
@@ -7214,7 +7222,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            saveErrorMessage(is, L"could not find boolean value for Debug parts command."); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not find boolean value for 'Debug parts' command."); return INTERPRETER_FOUND_ERROR;
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
@@ -7228,7 +7236,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            saveErrorMessage(is, L"could not find boolean value for Debug weld blocks command."); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not find boolean value for 'Debug weld blocks' command."); return INTERPRETER_FOUND_ERROR;
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
@@ -7566,7 +7574,7 @@ JumpToSpawn:
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            saveErrorMessage(is, L"could not find boolean value for Give more export memory command.");
+            saveErrorMessage(is, L"could not find boolean value for 'Give more export memory' command.");
             return INTERPRETER_FOUND_ERROR;
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
@@ -7666,7 +7674,7 @@ JumpToSpawn:
         int maxHeight;
         if (1 != sscanf_s(strPtr, "%d", &maxHeight))
         {
-            saveErrorMessage(is, L"could not find boolean value for Select maximum height command."); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not find boolean value for 'Select maximum height' command."); return INTERPRETER_FOUND_ERROR;
         }
         if (maxHeight < gMinHeight || maxHeight > gMaxHeight) {
             wsprintf(error, L"value must be between %d and %d, inclusive, for Select maximum height command.", gMinHeight, gMaxHeight);
@@ -7753,6 +7761,51 @@ JumpToSpawn:
             gRemapMouse[LEFT_MOUSE_BUTTON_INDEX] = LEFT_MOUSE_BUTTON_INDEX;
             gRemapMouse[MIDDLE_MOUSE_BUTTON_INDEX] = MIDDLE_MOUSE_BUTTON_INDEX;
             gRemapMouse[RIGHT_MOUSE_BUTTON_INDEX] = RIGHT_MOUSE_BUTTON_INDEX;
+        }
+        return INTERPRETER_FOUND_VALID_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Show informational:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for 'Show informational' command.");
+            return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+        if (is.processData)
+        {
+            gShowInformational = interpretBoolean(string1);
+        }
+        return INTERPRETER_FOUND_VALID_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Show warning:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for 'Show warning' command.");
+            return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+        if (is.processData)
+        {
+            gShowWarning = interpretBoolean(string1);
+        }
+        return INTERPRETER_FOUND_VALID_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Show error:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for 'Show error' command.");
+            return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+        if (is.processData)
+        {
+            gShowError = interpretBoolean(string1);
         }
         return INTERPRETER_FOUND_VALID_LINE;
     }
@@ -7869,7 +7922,7 @@ static bool findBitToggle(char* line, ImportedSet& is, char* type, unsigned int 
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
             wchar_t error[1024];
-            wsprintf(error, L"could not find boolean value for %S command.", type);
+            wsprintf(error, L"could not find boolean value for '%S' command.", type);
             saveErrorMessage(is, error);
             *pRetCode = INTERPRETER_FOUND_ERROR;
             return true;
@@ -8651,7 +8704,7 @@ static void rationalizeFilePath(wchar_t* fileName)
                         wchar_t msgString[1024];
                         swprintf_s( msgString, 1024, L"You currently use version %d.%02d of this program. A newer version %d.%02d is available at http://mineways.com.",
                                 (int)gMajorVersion, (int)gMinorVersion, major, minor );
-                        MessageBox( NULL, msgString,
+                        FilterMessageBox( NULL, msgString,
                             _T("Informational"), MB_OK|MB_ICONINFORMATION);
                         // Note: we could send the user to http://mineways.com, but then the program could be binary modified to send them to another site.
                         // Keep it simple, just warn them.
@@ -9030,7 +9083,7 @@ static void showLoadWorldError(int loadErr)
         }
         else if (gSubError == -3) {
             wsprintf(fullbuf, _T("Error: cannot read world's file version. You might be trying to read a world from Minecraft for Windows 10. Mineways cannot read this type of world, as it is in a different ('Bedrock') format. Click 'OK' to go to http://bit.ly/mcbedrock and follow the instructions there to convert your world to the 'Classic' Java format, which Mineways can read."));
-            int retcode = MessageBox(NULL, fullbuf,
+            int retcode = FilterMessageBox(NULL, fullbuf,
                 _T("Read error"), MB_OKCANCEL | MB_ICONERROR | MB_SYSTEMMODAL);
             if (retcode == IDOK)
             {
@@ -9044,22 +9097,22 @@ static void showLoadWorldError(int loadErr)
         else {
             wsprintf(fullbuf, _T("Error: cannot read world's file version, which may mean that Mineways cannot read or find your world for some reason. Path attempted: \"%s\". Try copying your world save directory to some simple location such as C:\\temp and use File | Open...\n\n%s"), gFileOpened, extrabuf);
         }
-        MessageBox(NULL, fullbuf,
+        FilterMessageBox(NULL, fullbuf,
             _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
         break;
     case 2:
         wsprintf(fullbuf, _T("Error: world has not been converted to the Anvil format. To convert a world, run Minecraft 1.9 and open the world in it to convert the world, then quit.\nAlternately, download Version 1.15 of Mineways from the http://mineways.com site, but I don't recommend this route."));
-        MessageBox(NULL, fullbuf,
+        FilterMessageBox(NULL, fullbuf,
             _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
         break;
     case 3:
         wsprintf(fullbuf, _T("Error: cannot read world's spawn location - every world should have one.\n\n%s"), extrabuf);
-        MessageBox(NULL, fullbuf,
+        FilterMessageBox(NULL, fullbuf,
             _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
         break;
     default:
         wsprintf(fullbuf, _T("Error: cannot read world. Unknown error code, which is very strange... Please send me the level.dat file.\n\n%s"), extrabuf);
-        MessageBox(NULL, fullbuf,
+        FilterMessageBox(NULL, fullbuf,
             _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
         break;
     }
@@ -9074,7 +9127,7 @@ static void checkMapDrawErrorCode(int retCode)
         if (gOneTimeDrawError) {
             gOneTimeDrawError = false;
             wsprintf(fullbuf, _T("Error: chunk read error %d. Mineways does not support betas or mods. Also, make sure you have downloaded the latest version of Mineways from mineways.com."), retCode);
-            MessageBox(NULL, fullbuf,
+            FilterMessageBox(NULL, fullbuf,
                 _T("Warning"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
         }
     }
@@ -9082,7 +9135,7 @@ static void checkMapDrawErrorCode(int retCode)
         // NBT_WARNING_NAME_NOT_FOUND is the only one now
         // currently the only warning - we will someday look at bits, I guess, in retCode
         wsprintf(fullbuf, _T("Warning: at least one unknown block type '%S' was encountered and ignored (turned into air).\n\nIf you are not running a Minecraft beta, mod, or conversion, please download the latest version of Mineways from mineways.com. If you think Mineways has a bug, please report it (see the Help menu)."), MapUnknownBlockName());
-        MessageBox(NULL, fullbuf,
+        FilterMessageBox(NULL, fullbuf,
             _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
         gOneTimeDrawWarning &= ~NBT_WARNING_NAME_NOT_FOUND;
     }
@@ -9138,4 +9191,26 @@ static bool saveMapFile(int xmin, int zmin, int xmax, int ymax, int zmax, wchar_
     // turn highlight back on, now that we're done
     SetHighlightState(gHighlightOn, xmin, gTargetDepth, zmin, xmax, gCurDepth, zmax, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_IGNORE);
     return (retCode == 0);
+}
+
+static int FilterMessageBox(HWND hWnd, LPCTSTR lpText, LPCTSTR lpCaption, UINT uType)
+{
+    wchar_t statusbuf[1024];
+    if (!gShowInformational && (uType & MB_ICONINFORMATION)) {
+        swprintf_s(statusbuf, 1024, L"Informational: %s", lpText);
+        sendStatusMessage(gWS.hwndStatus, statusbuf);
+        return 1;
+    }
+    if (!gShowWarning && (uType & MB_ICONWARNING)) {
+        swprintf_s(statusbuf, 1024, L"Warning: %s", lpText);
+        sendStatusMessage(gWS.hwndStatus, statusbuf);
+        return 1;
+    }
+    if (!gShowError && (uType & MB_ICONERROR)) {
+        swprintf_s(statusbuf, 1024, L"ERROR: %s", lpText);
+        sendStatusMessage(gWS.hwndStatus, statusbuf);
+        return 1;
+    }
+    // note: we make all these message boxes system modal - they should always be in the user's face until dismissed.
+    return MessageBox(hWnd, lpText, lpCaption, uType | MB_SYSTEMMODAL);
 }
