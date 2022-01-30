@@ -727,7 +727,7 @@ The custom printer material that is used by the STL exporter can have its attrib
 Save log file: <i>filename</i>
 </td>
 <td>
-Instead of displaying script errors, warnings, and completion messages to the screen in a pop-up dialog, append this information to the specified log file. Typically call this at the beginning of a script. The log file is closed when the script is processed. This is handy if you have errors and want to look at them later. That said, I added it mostly for testing errors, as the popup dialog is limited to showing the first 20 errors, while the log file has no limit.
+Instead of displaying script syntax errors, warnings, and completion messages to the screen in a pop-up dialog, append this information to the specified log file. Typically call this at the beginning of a script. The log file is closed when the script is processed. This is handy if you have errors and want to look at them later. That said, I added it mostly for testing errors, as the popup dialog is limited to showing the first 20 errors, while the log file has no limit. Note: only syntax errors in the script commands are saved to the log. Actual execution errors are still popped up. You can hide errors by using the <a href="#soc">"Show error: false"</a> command (but, sorry, these don't get saved to the log - they should, but there you have it, a hole in Mineways' error handling).
 </td>
 </tr>
 

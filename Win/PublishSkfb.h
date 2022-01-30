@@ -219,7 +219,7 @@ INT_PTR CALLBACK managePublishWindow(HWND hDlg,UINT message,WPARAM wParam,LPARAM
                 if(std::string(lepd.skfbApiToken).size() != 32)
                 {
                     MessageBox(NULL,
-                        _T("Please check your API token"), _T("Invalid API token"), MB_OK|MB_ICONERROR);
+                        _T("Please check your API token"), _T("Invalid API token"), MB_OK | MB_ICONERROR | MB_TOPMOST);
                     return (INT_PTR)FALSE;
                 }
                 lepd.skfbDraft = (IsDlgButtonChecked(hDlg, IDC_SKFB_DRAFT) == 0);

@@ -820,14 +820,14 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                     if (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ)
                         // Sculpteo
                         MessageBox(NULL, _T("Warning: this checkbox allows tiny features to be exported for 3D printing. Some of these small bits - fences, free-standing signs - may snap off during manufacture. Fattened versions of these objects are used by default, but even these can break. Also, the edge connection and floater checkboxes have been unchecked, since these options can cause problems. Finally, the meshes for some objects have elements that can cause Sculpteo's slicer problems - either visually check the uploaded file carefully, or if you're lucky enough to have access, use netfabb to clean up the mesh."),
-                            _T("Warning"), MB_OK | MB_ICONWARNING);
+                            _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
                     else if (epd.fileType == FILE_TYPE_VRML2)
                         // Shapeways
                         MessageBox(NULL, _T("Warning: this checkbox allows tiny features to be exported for 3D printing. Some of these small bits - fences, free-standing signs - may snap off during manufacture. Fattened versions of these objects are used by default, but even these can break, so Shapeways may refuse to print the model. Also, the edge connection and floater checkboxes have been unchecked, since these options can cause problems. The one bit of good news is that Shapeways' software will clean up the mesh for you, so at least any geometric inconsistencies will not cause you problems."),
-                            _T("Warning"), MB_OK | MB_ICONWARNING);
+                            _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
                     else
                         MessageBox(NULL, _T("Warning: this checkbox allows tiny features to be exported for 3D printing. Some of these small bits - fences, free-standing signs - may snap off during manufacture. Fattened versions of these objects are used by default, but even these can break. Also, the edge connection and floater checkboxes have been unchecked, since these options can cause problems. Finally, the meshes for some objects have elements that can cause some 3D printer slicers problems; you might want to clean up the mesh with software such as netfabb basic on desktop or free at http://cloud.netfabb.com."),
-                            _T("Warning"), MB_OK | MB_ICONWARNING);
+                            _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
                     CheckDlgButton(hDlg, IDC_FATTEN, BST_CHECKED);
                     CheckDlgButton(hDlg, IDC_DELETE_FLOATERS, BST_UNCHECKED);
                     CheckDlgButton(hDlg, IDC_CONNECT_PARTS, BST_UNCHECKED);
@@ -1155,7 +1155,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             }
             if (badcharFound) {
                 MessageBox(NULL,
-                    _T("Illegal character <>|?*:/\\ detected in output tile directory name; this name cannot be a path, but just a simple folder name.\nYou must fix this, then hit OK again."), _T("Folder name character error"), MB_OK | MB_ICONERROR);
+                    _T("Illegal character <>|?*:/\\ detected in output tile directory name; this name cannot be a path, but just a simple folder name.\nYou must fix this, then hit OK again."), _T("Folder name character error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
                 return (INT_PTR)FALSE;
             }
 
@@ -1184,34 +1184,34 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             if (nc == 0)
             {
                 MessageBox(NULL,
-                    _T("Bad (non-numeric) value detected in options dialog;\nYou need to clean up, then hit OK again."), _T("Non-numeric value error"), MB_OK | MB_ICONERROR);
+                    _T("Bad (non-numeric) value detected in options dialog;\nYou need to clean up, then hit OK again."), _T("Non-numeric value error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
                 return (INT_PTR)FALSE;
             }
 
             if (lepd.radioScaleToHeight && lepd.modelHeightVal <= 0.0f)
             {
                 MessageBox(NULL,
-                    _T("Model height must be a positive number;\nYou need to fix this, then hit OK again."), _T("Value error"), MB_OK | MB_ICONERROR);
+                    _T("Model height must be a positive number;\nYou need to fix this, then hit OK again."), _T("Value error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
                 return (INT_PTR)FALSE;
             }
 
             if (lepd.radioScaleByBlock && lepd.blockSizeVal[lepd.fileType] <= 0.0f)
             {
                 MessageBox(NULL,
-                    _T("Block size must be a positive number;\nYou need to fix this, then hit OK again."), _T("Value error"), MB_OK | MB_ICONERROR);
+                    _T("Block size must be a positive number;\nYou need to fix this, then hit OK again."), _T("Value error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
                 return (INT_PTR)FALSE;
             }
 
             if (lepd.fileType == FILE_TYPE_USD && lepd.scaleLightsVal <= 0.0f)
             {
                 MessageBox(NULL,
-                    _T("Light scale must be a non-negative number;\nYou need to fix this, then hit OK again."), _T("Value error"), MB_OK | MB_ICONERROR);
+                    _T("Light scale must be a non-negative number;\nYou need to fix this, then hit OK again."), _T("Value error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
                 return (INT_PTR)FALSE;
             }
             if (lepd.fileType == FILE_TYPE_USD && lepd.scaleEmittersVal <= 0.0f)
             {
                 MessageBox(NULL,
-                    _T("Surface emit scale must be a non-negative number;\nYou need to fix this, then hit OK again."), _T("Value error"), MB_OK | MB_ICONERROR);
+                    _T("Surface emit scale must be a non-negative number;\nYou need to fix this, then hit OK again."), _T("Value error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
                 return (INT_PTR)FALSE;
             }
 
@@ -1225,7 +1225,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 if (lepd.costVal <= (gMtlCostTable[curPhysMaterial].costHandling + gMtlCostTable[curPhysMaterial].costMinimum))
                 {
                     MessageBox(NULL,
-                        _T("The cost must be > $1.55 for colorless, > $3.40 for color;\nYou need to fix this, then hit OK again."), _T("Value error"), MB_OK | MB_ICONERROR);
+                        _T("The cost must be > $1.55 for colorless, > $3.40 for color;\nYou need to fix this, then hit OK again."), _T("Value error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
                     return (INT_PTR)FALSE;
                 }
             }
@@ -1233,14 +1233,14 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             if (lepd.chkDeleteFloaters && lepd.floaterCountVal < 0)
             {
                 MessageBox(NULL,
-                    _T("Floating objects deletion value cannot be negative;\nYou need to fix this, then hit OK again."), _T("Value error"), MB_OK | MB_ICONERROR);
+                    _T("Floating objects deletion value cannot be negative;\nYou need to fix this, then hit OK again."), _T("Value error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
                 return (INT_PTR)FALSE;
             }
 
             if (lepd.chkHollow[epd.fileType] && lepd.hollowThicknessVal[epd.fileType] < 0.0)
             {
                 MessageBox(NULL,
-                    _T("Hollow thickness value cannot be negative;\nYou need to fix this, then hit OK again."), _T("Value error"), MB_OK | MB_ICONERROR);
+                    _T("Hollow thickness value cannot be negative;\nYou need to fix this, then hit OK again."), _T("Value error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
                 return (INT_PTR)FALSE;
             }
 

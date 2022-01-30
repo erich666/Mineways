@@ -103,7 +103,7 @@ INT_PTR CALLBACK Location(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
                 if (nc == 0)
                 {
                     MessageBox(NULL,
-                        _T("Bad (non-numeric) value detected in dialog;\nYou need to clean up, then hit OK again."), _T("Non-numeric value error"), MB_OK | MB_ICONERROR);
+                        _T("Bad (non-numeric) value detected in dialog;\nYou need to clean up, then hit OK again."), _T("Non-numeric value error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
                     return (INT_PTR)FALSE;
                 }
 

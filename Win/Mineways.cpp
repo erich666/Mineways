@@ -53,7 +53,7 @@ static bool gAlwaysFail = false;
 #define MY_ASSERT(val) if ((val) == 0) { \
     wchar_t assertbuf[1024]; \
     wsprintf(assertbuf, L"Serious error in file %S on line %d. Please write me at erich@acm.org and, as best you can, tell me the steps that caused it.", __FILENAME__, __LINE__); \
-    FilterMessageBox(NULL, assertbuf, L"Error", MB_OK | MB_SYSTEMMODAL); \
+    FilterMessageBox(NULL, assertbuf, L"Error", MB_OK | MB_TOPMOST); \
 } \
 
 // zoomed all the way in. We could allow this to be larger...
@@ -88,7 +88,7 @@ static bool gAlwaysFail = false;
 if (FH) { \
     DWORD br; \
     if ( PortaWrite(FH, OUTPUTSTRING, strlen(OUTPUTSTRING))) { \
-        FilterMessageBox(NULL, _T("log file opened but cannot write to it."), _T("Log error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL); \
+        FilterMessageBox(NULL, _T("log file opened but cannot write to it."), _T("Log error"), MB_OK | MB_ICONERROR | MB_TOPMOST); \
         PortaClose(FH); \
         (FH) = 0x0; \
     } \
@@ -526,7 +526,7 @@ int APIENTRY _tWinMain(
     gArgList = CommandLineToArgvW(GetCommandLine(), &gArgCount);
     if (gArgList == NULL)
     {
-        FilterMessageBox(NULL, L"Unable to parse command line", L"Error", MB_OK | MB_SYSTEMMODAL);
+        FilterMessageBox(NULL, L"Unable to parse command line", L"Error", MB_OK | MB_TOPMOST);
     }
 
     //for (int i = 0; i < gArgCount; i++)
@@ -646,7 +646,7 @@ int APIENTRY _tWinMain(
             }
             wchar_t wString[1024];
             swprintf_s(wString, 1024, L"Unexpected termination: failed with error code %d. Please report this problem to erich@acm.org\n", (int)dw);
-            FilterMessageBox(NULL, wString, _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            FilterMessageBox(NULL, wString, _T("Read error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
         }
         else
         {
@@ -869,7 +869,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 LOG_INFO(gExecutionLogfile, "   couldn't find world saves directory\n");
                 // this message will get popped up by loadWorldList
                 //FilterMessageBox(NULL, _T("Couldn't find your Minecraft world saves directory. You'll need to guide Mineways to where you save your worlds. Use the 'File -> Open...' option and find your level.dat file for the world. If you're on Windows, go to 'C:\\Users\\Eric\\AppData\\Roaming\\.minecraft\\saves' and find it in your world save directory. For Mac, worlds are usually located at /users/<your name>/Library/Application Support/minecraft/saves. Visit http://mineways.com or email me if you are still stuck."),
-                //	_T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
+                //	_T("Warning"), MB_OK | MB_ICONWARNING | MB_TOPMOST);
             }
         }
 
@@ -880,7 +880,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             {
                 LOG_INFO(gExecutionLogfile, "   world not converted\n");
                 FilterMessageBox(NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format. These worlds will be shown as disabled in the Open World menu. To make a world readable by Mineways, install Minecraft 1.9 and open the world in it, then quit. Doing so will convert your world to a format Mineways understands."),
-                    _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
+                    _T("Warning"), MB_OK | MB_ICONWARNING | MB_TOPMOST);
             }
         }
         wcscpy_s(gWorldPathCurrent, MAX_PATH_AND_FILE, gWorldPathDefault);
@@ -1386,7 +1386,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 // System modal puts it topmost, and task modal stops things from continuing without an answer. Unfortunately, task modal does not force the dialog on top.
                 // We force it here, as it's OK if it gets ignored, but we want people to see it.
                 retval = FilterMessageBox(NULL, msgString,
-                    _T("Informational"), MB_YESNOCANCEL | MB_ICONINFORMATION | MB_DEFBUTTON1 | MB_SYSTEMMODAL);
+                    _T("Informational"), MB_YESNOCANCEL | MB_ICONINFORMATION | MB_DEFBUTTON1 | MB_TOPMOST);
                 if (retval == IDYES)
                 {
                     gTargetDepth = minHeightFound;
@@ -2302,7 +2302,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     {
                         // world not loaded properly
                         FilterMessageBox(NULL, _T("Error: cannot reload world."),
-                            _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+                            _T("Read error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
 
                         return 0;
                     }
@@ -2645,7 +2645,7 @@ static bool startExecutionLogFile(const LPWSTR* argList, int argCount)
                     //wcscat_s(longFileName, MAX_PATH_AND_FILE - wcslen(longFileName), argList[argIndex]);
                     //gExecutionLogfile = PortaCreate(argList[argIndex]);
                     //if (gExecutionLogfile == INVALID_HANDLE_VALUE) {
-                    FilterMessageBox(NULL, _T("Cannot open script log file, execution log file is specified by '-l log-file-name'."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+                    FilterMessageBox(NULL, _T("Cannot open script log file, execution log file is specified by '-l log-file-name'."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
                     return false;
                     //}
                 }
@@ -2669,7 +2669,7 @@ static bool startExecutionLogFile(const LPWSTR* argList, int argCount)
                 return true;
             }
             // if we got here, parsing didn't work
-            FilterMessageBox(NULL, _T("Command line startup error, execution log file is specified by '-l log-file-name'."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            FilterMessageBox(NULL, _T("Command line startup error, execution log file is specified by '-l log-file-name'."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
             return false;
         }
         else {
@@ -2714,7 +2714,7 @@ static int modifyWindowSizeFromCommandLine(int* x, int* y, const LPWSTR* argList
                 }
             }
             // if we got here, parsing didn't work
-            FilterMessageBox(NULL, _T("Command line startup error, window size should be set by \"-w 480 582\" or two other positive integers. Window command ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            FilterMessageBox(NULL, _T("Command line startup error, window size should be set by \"-w 480 582\" or two other positive integers. Window command ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
             return 0;
         }
         else if (wcscmp(argList[argIndex], L"-m") == 0) {
@@ -2755,11 +2755,11 @@ static int loadWorldFromFilename(wchar_t* pathAndFile, HWND hWnd)
             gWorldGuide.type = WORLD_UNLOADED_TYPE;
             if (error == 100 + 5) {
                 FilterMessageBox(NULL, _T("Error: cannot read newfangled Minecraft schematic. Schematics from FAWE/WorldEdit for 1.13 (and newer) are not supported - it's a lot of boring work for me to add this. I suggest you read the schematic file into a world and have Mineways read that world."),
-                    _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+                    _T("Read error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
             }
             else {
                 FilterMessageBox(NULL, _T("Error: cannot read Minecraft schematic for some unknown reason. Feel free to send it to me for analysis."),
-                    _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+                    _T("Read error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
             }
             return 0;
         }
@@ -2821,7 +2821,7 @@ static int getWorldSaveDirectoryFromCommandLine(wchar_t* saveWorldDirectory, con
                     wchar_t message[1024];
                     wsprintf(message, _T("Warning:\nThe path \"%s\" you specified on the command line for your saved worlds location does not exist, so default worlds directory will be used. Use \"-s none\" to load no worlds."), saveWorldDirectory);
                     FilterMessageBox(NULL, message,
-                        _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
+                        _T("Warning"), MB_OK | MB_ICONWARNING | MB_TOPMOST);
                     return 0;
                 }
                 else {
@@ -2831,7 +2831,7 @@ static int getWorldSaveDirectoryFromCommandLine(wchar_t* saveWorldDirectory, con
             }
             // if we got here, parsing didn't work
             LOG_INFO(gExecutionLogfile, " getWorldSaveDirectoryFromCommandLine directory not given with -s option\n");
-            FilterMessageBox(NULL, _T("Command line startup error, directory is missing. Your save world directory should be set by \"-s <directory>\". Use \"-s none\" to load no worlds. Setting ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            FilterMessageBox(NULL, _T("Command line startup error, directory is missing. Your save world directory should be set by \"-s <directory>\". Use \"-s none\" to load no worlds. Setting ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
             return 0;
         }
         else {
@@ -2861,7 +2861,7 @@ static int getZoomLevelFromCommandLine(float *minZoom, const LPWSTR* argList, in
                 }
             }
             // if we got here, parsing didn't work
-            FilterMessageBox(NULL, _T("Command line startup error. For \"-zl #\", minimum zoom level, the value # must be between 0.0625 and 1. Zoom level command ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            FilterMessageBox(NULL, _T("Command line startup error. For \"-zl #\", minimum zoom level, the value # must be between 0.0625 and 1. Zoom level command ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
             return 0;
         }
         else {
@@ -2892,7 +2892,7 @@ static int getTerrainFileFromCommandLine(wchar_t* terrainFile, const LPWSTR* arg
                     wchar_t message[1024];
                     wsprintf(message, _T("Warning:\nThe path \"%s\" you specified on the command line for your terrain file does not exist, so the default terrain is used."), terrainFile);
                     FilterMessageBox(NULL, message,
-                        _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
+                        _T("Warning"), MB_OK | MB_ICONWARNING | MB_TOPMOST);
                     return 0;
                 }
                 else {
@@ -2902,7 +2902,7 @@ static int getTerrainFileFromCommandLine(wchar_t* terrainFile, const LPWSTR* arg
             }
             // if we got here, parsing didn't work
             LOG_INFO(gExecutionLogfile, " getWorldSaveDirectoryFromCommandLine directory not given with -s option\n");
-            FilterMessageBox(NULL, _T("Command line startup error, file is missing. Your terrain file should be set by \"-t <filename>\". Setting ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            FilterMessageBox(NULL, _T("Command line startup error, file is missing. Your terrain file should be set by \"-t <filename>\". Setting ignored."), _T("Command line startup error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
             return 0;
         }
         else {
@@ -3552,7 +3552,7 @@ static int setWorldPath(TCHAR* path)
     // failed
     if (gDebug)
     {
-        FilterMessageBox(NULL, L"Failed to find path", _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
+        FilterMessageBox(NULL, L"Failed to find path", _T("Warning"), MB_OK | MB_ICONWARNING | MB_TOPMOST);
     }
     return 0;
 }
@@ -4913,6 +4913,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         // show errors first
         if (errCode != MW_NO_ERROR)
         {
+            // TODO: really, for scripting, if we're logging errors, these should all actually go into the .log file
             PopupErrorDialogs(errCode);
         }
 
@@ -4939,7 +4940,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                             gOptions.dim_cm[0], gOptions.dim_cm[2], gOptions.dim_cm[1],
                             gOptions.totalBlocks, gOptions.totalBlocks * gOptions.block_mm * gOptions.block_mm * gOptions.block_mm / 1000.0f);
                         retval = FilterMessageBox(NULL, msgString,
-                            _T("Informational"), MB_YESNO | MB_ICONINFORMATION | MB_DEFBUTTON1 | MB_SYSTEMMODAL);
+                            _T("Informational"), MB_YESNO | MB_ICONINFORMATION | MB_DEFBUTTON1 | MB_TOPMOST);
                         if (retval != IDYES)
                         {
                             gShowPrintStats = false;
@@ -4970,7 +4971,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                         );
                     }
                     retval = FilterMessageBox(NULL, msgString,
-                        _T("Informational"), MB_YESNO | MB_ICONINFORMATION | MB_DEFBUTTON1 | MB_SYSTEMMODAL);
+                        _T("Informational"), MB_YESNO | MB_ICONINFORMATION | MB_DEFBUTTON1 | MB_TOPMOST);
                     if (retval != IDYES)
                     {
                         gShowRenderStats = false;
@@ -5505,7 +5506,7 @@ static int importSettings(wchar_t* importFile, ImportedSet& is, bool dialogOnSuc
     if (err != 0) {
         wchar_t buf[MAX_PATH_AND_FILE];
         wsprintf(buf, L"Error: could not read file %s", importFile);
-        FilterMessageBox(NULL, buf, _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+        FilterMessageBox(NULL, buf, _T("Read error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
         retCode = IMPORT_FAILED;
         goto Exit;
     }
@@ -5548,7 +5549,7 @@ Exit:
 #endif
             char outputString[256];
             char* pConverted = NULL;
-            size_t length = wcslen(is.errorMessages);
+            size_t length = (is.errorMessages == NULL) ? 0 : wcslen(is.errorMessages);
             if (length == 0) {
                 sprintf_s(outputString, 256, "No errors or warnings");
                 if (PortaWrite(is.logfile, outputString, strlen(outputString))) goto OnDone;
@@ -5574,13 +5575,16 @@ Exit:
             }
             PortaClose(is.logfile);
             is.logfile = NULL;
+            free(is.errorMessages);
+            is.errorMessages = NULL;
+            is.errorMessagesStringSize = 0;
 
             if (length > 0) {
                 wchar_t msgString[1024];
                 if (is.errorsFound > 0) {
                     swprintf_s(msgString, 1024, L"Errors found in script file - processing aborted. Check log file %S",
                         is.logFileName);
-                    FilterMessageBox(NULL, msgString, _T("Script error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+                    FilterMessageBox(NULL, msgString, _T("Script error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
                 }
                 else {
                     swprintf_s(msgString, 1024, L"Processing finished. Warnings found in script file. Check log file %S",
@@ -5598,7 +5602,7 @@ Exit:
         // Are there errors, or just warnings?
         if (is.errorsFound) {
             // run-time error!
-            FilterMessageBox(NULL, is.errorMessages, is.readingModel ? _T("Import error") : _T("Script error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            FilterMessageBox(NULL, is.errorMessages, is.readingModel ? _T("Import error") : _T("Script error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
             deleteCommandBlockSet(is.pCBChead);
             is.pCBChead = is.pCBClast = NULL;
             retCode = IMPORT_FAILED;
@@ -5790,10 +5794,12 @@ static bool readAndExecuteScript(wchar_t* importFile, ImportedSet& is)
 
     // OK, script looks good, read it for real and process it.
     fclose(fh);
-    // clear out errors, ready for more
-    free(is.errorMessages);
-    is.errorMessages = NULL;
-    is.errorMessagesStringSize = 0;
+    if (!is.logging) {
+        // clear out errors, ready for more
+        free(is.errorMessages);
+        is.errorMessages = NULL;
+        is.errorMessagesStringSize = 0;
+    }
 
     // set up real data to change, directly!
     ExportFileData* pEFD = &gExportPrintData;
@@ -5801,7 +5807,23 @@ static bool readAndExecuteScript(wchar_t* importFile, ImportedSet& is)
     {
         pEFD = &gExportViewData;
     }
-    initializeImportedSet(is, pEFD, importFile);
+    // initialize wipes these out, but we need the log file to be around,
+    // to write to at end.
+    if (is.logging) {
+        bool saveLoggingStatus = is.logging;
+        HANDLE saveLoggingFileHandle = is.logfile;
+        wchar_t* saveErrorMessages = is.errorMessages;
+        size_t saveErrorMessagesStringSize = is.errorMessagesStringSize;
+        initializeImportedSet(is, pEFD, importFile);
+        is.logging = saveLoggingStatus;
+        is.logfile = saveLoggingFileHandle;
+        is.errorMessages = saveErrorMessages;
+        is.errorMessagesStringSize = saveErrorMessagesStringSize;
+    }
+    else {
+        initializeImportedSet(is, pEFD, importFile);
+    }
+
     is.readingModel = false;
     is.processData = true;
 
@@ -7705,7 +7727,7 @@ JumpToSpawn:
             saveErrorMessage(is, L"no log file given.");
             return INTERPRETER_FOUND_ERROR;
         }
-        if (is.logging) {
+        if (is.logging && !is.processData) {
             saveWarningMessage(is, L"ignored: log file was opened earlier.");
             return INTERPRETER_FOUND_VALID_LINE;
         }
@@ -9084,7 +9106,7 @@ static void showLoadWorldError(int loadErr)
         else if (gSubError == -3) {
             wsprintf(fullbuf, _T("Error: cannot read world's file version. You might be trying to read a world from Minecraft for Windows 10. Mineways cannot read this type of world, as it is in a different ('Bedrock') format. Click 'OK' to go to http://bit.ly/mcbedrock and follow the instructions there to convert your world to the 'Classic' Java format, which Mineways can read."));
             int retcode = FilterMessageBox(NULL, fullbuf,
-                _T("Read error"), MB_OKCANCEL | MB_ICONERROR | MB_SYSTEMMODAL);
+                _T("Read error"), MB_OKCANCEL | MB_ICONERROR | MB_TOPMOST);
             if (retcode == IDOK)
             {
                 std::string bedrockUrl = "http://bit.ly/mcbedrock";
@@ -9098,22 +9120,22 @@ static void showLoadWorldError(int loadErr)
             wsprintf(fullbuf, _T("Error: cannot read world's file version, which may mean that Mineways cannot read or find your world for some reason. Path attempted: \"%s\". Try copying your world save directory to some simple location such as C:\\temp and use File | Open...\n\n%s"), gFileOpened, extrabuf);
         }
         FilterMessageBox(NULL, fullbuf,
-            _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            _T("Read error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
         break;
     case 2:
         wsprintf(fullbuf, _T("Error: world has not been converted to the Anvil format. To convert a world, run Minecraft 1.9 and open the world in it to convert the world, then quit.\nAlternately, download Version 1.15 of Mineways from the http://mineways.com site, but I don't recommend this route."));
         FilterMessageBox(NULL, fullbuf,
-            _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            _T("Read error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
         break;
     case 3:
         wsprintf(fullbuf, _T("Error: cannot read world's spawn location - every world should have one.\n\n%s"), extrabuf);
         FilterMessageBox(NULL, fullbuf,
-            _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            _T("Read error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
         break;
     default:
         wsprintf(fullbuf, _T("Error: cannot read world. Unknown error code, which is very strange... Please send me the level.dat file.\n\n%s"), extrabuf);
         FilterMessageBox(NULL, fullbuf,
-            _T("Read error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+            _T("Read error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
         break;
     }
 }
@@ -9128,7 +9150,7 @@ static void checkMapDrawErrorCode(int retCode)
             gOneTimeDrawError = false;
             wsprintf(fullbuf, _T("Error: chunk read error %d. Mineways does not support betas or mods. Also, make sure you have downloaded the latest version of Mineways from mineways.com."), retCode);
             FilterMessageBox(NULL, fullbuf,
-                _T("Warning"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+                _T("Warning"), MB_OK | MB_ICONERROR | MB_TOPMOST);
         }
     }
     else if (gOneTimeDrawWarning & retCode) {
@@ -9136,7 +9158,7 @@ static void checkMapDrawErrorCode(int retCode)
         // currently the only warning - we will someday look at bits, I guess, in retCode
         wsprintf(fullbuf, _T("Warning: at least one unknown block type '%S' was encountered and ignored (turned into air).\n\nIf you are not running a Minecraft beta, mod, or conversion, please download the latest version of Mineways from mineways.com. If you think Mineways has a bug, please report it (see the Help menu)."), MapUnknownBlockName());
         FilterMessageBox(NULL, fullbuf,
-            _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
+            _T("Warning"), MB_OK | MB_ICONWARNING | MB_TOPMOST);
         gOneTimeDrawWarning &= ~NBT_WARNING_NAME_NOT_FOUND;
     }
 }
@@ -9212,5 +9234,5 @@ static int FilterMessageBox(HWND hWnd, LPCTSTR lpText, LPCTSTR lpCaption, UINT u
         return 1;
     }
     // note: we make all these message boxes system modal - they should always be in the user's face until dismissed.
-    return MessageBox(hWnd, lpText, lpCaption, uType | MB_SYSTEMMODAL);
+    return MessageBox(hWnd, lpText, lpCaption, uType | MB_TOPMOST);
 }
