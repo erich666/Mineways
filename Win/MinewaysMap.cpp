@@ -4017,6 +4017,10 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
             wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM1/");
         }
 
+        //char debugString[256];
+        //sprintf_s(debugString, 256, "DEBUG: loading %d %d\n", bx, bz);
+        //OutputDebugStringA(debugString);
+
         block = LoadBlock(pWorldGuide, bx, bz, mcVersion, versionID, retCode);
 
         // always add the block, even if empty, so that we don't have to look it up as
@@ -6498,7 +6502,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
     if (pWorldGuide->type == WORLD_UNLOADED_TYPE)
         return NULL;
 
-    // don't get a block for the sythetic world if it's not going to be populated
+    // don't get a block for the synthetic world if it's not going to be populated
     if (pWorldGuide->type == WORLD_TEST_BLOCK_TYPE) {
         if (!(cx >= 0 && cx * 2 < NUM_BLOCKS_DEFINED && cz >= -3 && cz <= 8)) {
             return NULL;
@@ -6647,11 +6651,13 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
         // it's a real world or schematic or no world is loaded
         if (pWorldGuide->type == WORLD_LEVEL_TYPE) {
             // absolute insanely high maximum, just in case - 384 is fine here, just to be safe, since it's temporary storage
+            // Well, I guess this could go bad if the heights are way larger, due to a data pack?
             BlockEntity blockEntities[16 * 16 * 384];
 
             // Given coordinates, check if the file for that location exists, data for the chunk exists, and populate the block.
             // Return 
             retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion, block->minHeight, block->maxHeight, block->maxFilledSectionHeight, gUnknownBlockName);
+            assert(block->numEntities <= 384);  // if higher, the allocation above needs to change!
 
             // values 1 and 2 are valid; 3's not used - higher bits are warnings; see nbt.h
             if (retCode >= NBT_VALID_BUT_EMPTY) {

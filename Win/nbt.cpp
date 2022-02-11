@@ -2133,7 +2133,9 @@ SectionsCode:
     memset(data, 0, 16 * 16 * heightAlloc);
     memset(blockLight, 0, 16 * 16 * heightAlloc / 2);
 
-    int maxHeight16 = heightAlloc / 16;
+    // the maximum relative height compared to Y, i.e., divided by 16 (not the allocation size, heightAlloc). For 1.18, for example, it should be 20,
+    // with minHeight16 being -4
+    int maxHeight16 = minHeight16 + heightAlloc / 16;
 
     // TODO: we could maybe someday have a special "this block is empty" format for empty blocks.
     // Right now we waste memory space with blocks (chunks) that are entirely empty.
