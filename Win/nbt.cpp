@@ -2722,7 +2722,10 @@ SectionsCode:
                                 // should flag an error!
                                 break;
                             }
-                            numSaved++;
+                            // crummy artificial limit, but it beats writing over memory that isn't allocated
+                            // TODO - should assert here, somehow
+                            if ( numSaved < NUM_BLOCK_ENTITIES - 1 )
+                                numSaved++;
                         }
                         break;
                     }

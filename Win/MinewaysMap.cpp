@@ -6652,7 +6652,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
         if (pWorldGuide->type == WORLD_LEVEL_TYPE) {
             // absolute insanely high maximum, just in case - 384 is fine here, just to be safe, since it's temporary storage
             // Well, I guess this could go bad if the heights are way larger, due to a data pack?
-            BlockEntity blockEntities[16 * 16 * 384];
+            BlockEntity blockEntities[NUM_BLOCK_ENTITIES];
 
             // Given coordinates, check if the file for that location exists, data for the chunk exists, and populate the block.
             // Return 
