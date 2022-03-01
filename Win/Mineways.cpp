@@ -9148,7 +9148,7 @@ static void checkMapDrawErrorCode(int retCode)
         // error - show an error reading?
         if (gOneTimeDrawError) {
             gOneTimeDrawError = false;
-            wsprintf(fullbuf, _T("Error: chunk read error %d. Mineways does not support betas or mods. Also, make sure you have downloaded the latest version of Mineways from mineways.com."), retCode);
+            wsprintf(fullbuf, _T("Error: chunk read error at nbt.cpp line %d. Mineways does not support betas or mods. Also, make sure you have downloaded the latest version of Mineways from mineways.com. If it's neither of these, please report it as a bug (see the Help menu)."), -retCode);
             FilterMessageBox(NULL, fullbuf,
                 _T("Warning"), MB_OK | MB_ICONERROR | MB_TOPMOST);
         }

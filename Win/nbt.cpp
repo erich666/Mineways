@@ -34,6 +34,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 // safe, but was also allocating strings all the time - seems slow.
 #define MAX_NAME_LENGTH 100
 
+// return a negative number, giving the line of the code where it returned
+#define LINE_ERROR (-(__LINE__))
 
 static int skipType(bfFile* pbf, int type);
 static int skipList(bfFile* pbf);
@@ -1903,13 +1905,16 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
 
     //Level/Blocks
     if (bfseek(pbf, 1, SEEK_CUR) < 0)
-        return -1; //skip type
+        return LINE_ERROR; //skip type
     len = readWord(pbf); //name length
     if (bfseek(pbf, len, SEEK_CUR) < 0)
-        return -2; //skip name ()
+        return LINE_ERROR; //skip name ()
 
     int level_save = *pbf->offset;
-    if (nbtFindElement(pbf, "Level") != 10) {
+    //if (nbtFindElement(pbf, "Level") != 10) {
+        // "Level" NOT found, so probably 1.18. However, the Amulet converter keeps Level in the data - ugh.
+    // if "sections" (lowercase) is found, then it's 1.18+ format
+    if (nbtFindElement(pbf, "sections") == 9) {
         // is this 1.18 release or later?
         // TODO: could be made faster? Could compare to Level or "sections" in one command.
         // 21w43 for 1.18 seems to be the one where we no longer go Level -> Sections but
@@ -1945,14 +1950,17 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
 
             // if not a 1.17 or earlier "Level" see if it's a newly-converted "sections" type
             //if (bfseek(pbf, 1, SEEK_CUR) < 0)
-            //    return -1; //skip type
+            //    return LINE_ERROR; //skip type
             //len = readWord(pbf); //name length
             //if (bfseek(pbf, len, SEEK_CUR) < 0)
-            //    return -2; //skip name ()
-            if (bfseek(pbf, level_save, SEEK_SET) < 0)
-                return -14; //rewind to start of section
-            if (nbtFindElement(pbf, "sections") != 9)
-                return -9;
+            //    return LINE_ERROR; //skip name ()
+
+            // when we searched for "Level" we needed to then go find "sections" - now we're actually there and ready,
+            // so can comment out these four lines
+            //if (bfseek(pbf, level_save, SEEK_SET) < 0)
+            //    return LINE_ERROR; //rewind to start of section
+            //if (nbtFindElement(pbf, "sections") != 9)
+            //    return LINE_ERROR;
 
             // clear biomes for now TODOTODOTODO - really, if at end and needBiome is still true, then do this
             memset(biome, 0, 256);
@@ -1961,8 +1969,15 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
         //}
         //else {
         //    // old, no chance
-        //    return -3;
+        //    return LINE_ERROR;
         //}
+    }
+
+    // 1.17 or earlier - seek to Level
+    if (bfseek(pbf, level_save, SEEK_SET) < 0)
+        return LINE_ERROR; //rewind to start of section
+    if (nbtFindElement(pbf, "Level") != 10) {
+        return LINE_ERROR;
     }
 
     // For some reason, on most maps the biome info is before the Sections;
@@ -1978,7 +1993,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
         // Why this chunk even exists in this funny way, I don't know.
         // What we do is let the code proceed - it *should* zero the biome and read in an empty chunk.
         //if (inttype != 11)
-        //    return -4;
+        //    return LINE_ERROR;
         //else {
         formatClass = FORMAT_1_13_THROUGH_1_17;
         //}
@@ -1994,7 +2009,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
     if (formatClass == FORMAT_UP_THROUGH_1_12) {
         // old, 1.12 or earlier direct format - done
         if (bfread(pbf, biome, len) < 0)
-            return -5;
+            return LINE_ERROR;
     }
     else {
         // new format 1.13+See: https://minecraft.fandom.com/wiki/Chunk_format
@@ -2051,7 +2066,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
             unsigned char biomeint[4 * 256];    // 16 x 16 grid of biomes
             memset(biomeint, 0, 4 * len);
             if (bfread(pbf, biomeint, 4 * len) < 0)
-                return -6;
+                return LINE_ERROR;
             for (i = 0; i < 256; i++) {
                 // wild guess as to the biome - looks like the topmost byte right now.
                 int grab = 4 * i + 3;
@@ -2068,7 +2083,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
             unsigned char biomeint[4 * 1024];
             memset(biomeint, 0, 4 * len);
             if (bfread(pbf, biomeint, 4 * len) < 0)
-                return -7;
+                return LINE_ERROR;
             for (int loc = 0; loc < 16; loc++) {
                 // biomes are now 4x4, 64 levels, so take sea level at 16, which is at location 16 per level * 16 levels up * 4 bytes/int = 1024
                 unsigned char biomeVal = biomeint[1024 + 3 + (loc >> 2) * 16 + (loc & 0x3) * 4];
@@ -2092,10 +2107,10 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
     gotBiome = true;
 
     if (bfseek(pbf, biome_save, SEEK_SET) < 0)
-        return -8; //rewind to start of section
+        return LINE_ERROR; //rewind to start of section
 
     if (nbtFindElement(pbf, "Sections") != 9)
-        return -9;
+        return LINE_ERROR;
 
 SectionsCode:
 
@@ -2113,12 +2128,12 @@ SectionsCode:
     {
         // get rid of "\n" after "Sections" / "sections".
         unsigned char uctype = 0;
-        if (bfread(pbf, &uctype, 1) < 0) return -10;
+        if (bfread(pbf, &uctype, 1) < 0) return LINE_ERROR;
         // did we find the "\n"? If not, it means the section is empty, so we
         /// can simply clear memory below and return - all done.
         if (uctype != 10) {
             empty = true;
-            //return -9;
+            //return LINE_ERROR;
         }
         // returning -9 here for some reason crashes things later on.
         // The path taken is then "nothing read" and there's a quick out, but for some reason
@@ -2126,7 +2141,7 @@ SectionsCode:
         // It turns out to have to do with the Stack Reserve Size: changing this to 1500000 (1.5 Mb; it's 1 Mb to start)
         // fixes the problem. See https://miztakenjoshi.wordpress.com/2010/01/27/unhandled-exception-0xc00000fd-stack-overflow/
         // But, it's better to read in an empty chunk and cache it anyway, so this new code's better.
-        // was:    return -9;
+        // was:    return LINE_ERROR;
     }
 
     memset(buff, 0, 16 * 16 * heightAlloc);
@@ -2148,7 +2163,7 @@ SectionsCode:
 
     nsections = readDword(pbf);
     if (nsections < 0)
-        return -11;
+        return LINE_ERROR;
 
     char thisName[MAX_NAME_LENGTH];
 
@@ -2176,11 +2191,11 @@ SectionsCode:
         signed char y;
         int save = *pbf->offset;
         if (nbtFindElement(pbf, "Y") != 1) //which section of the block stack is this?
-            return -12;
+            return LINE_ERROR;
         if (bfread(pbf, &y, 1) < 0)
-            return -13;
+            return LINE_ERROR;
         if (bfseek(pbf, save, SEEK_SET) < 0)
-            return -14; //rewind to start of section
+            return LINE_ERROR; //rewind to start of section
 
         if (formatClass == FORMAT_UP_THROUGH_1_12) {
             // old 1.12 and earlier format
@@ -2190,12 +2205,12 @@ SectionsCode:
                 ret = 0;
                 type = 0;
                 if (bfread(pbf, &type, 1) < 0)
-                    return -15;
+                    return LINE_ERROR;
                 if (type == 0)
                     break;
                 len = readWord(pbf);
                 if (bfread(pbf, thisName, len) < 0)
-                    return -16;
+                    return LINE_ERROR;
                 thisName[len] = 0;
                 if (strcmp(thisName, "BlockLight") == 0)
                 {
@@ -2203,7 +2218,7 @@ SectionsCode:
                     ret = 1;
                     len = readDword(pbf); //array length
                     if (bfread(pbf, blockLight + 16 * 16 * 8 * y, len) < 0)
-                        return -17;
+                        return LINE_ERROR;
                 }
                 else if (strcmp(thisName, "Blocks") == 0)
                 {
@@ -2211,7 +2226,7 @@ SectionsCode:
                     ret = 1;
                     len = readDword(pbf); //array length
                     if (bfread(pbf, buff + 16 * 16 * 16 * y, len) < 0)
-                        return -18;
+                        return LINE_ERROR;
                     // and update the maxFilledSectionHeight
                     sectionHeight = 16 * y + 15;
                     if (sectionHeight > mfsHeight) {
@@ -2227,7 +2242,7 @@ SectionsCode:
                     // transfer the data from 4-bits to 8-bits; needed for 1.13
                     unsigned char data4buff[16 * 16 * 8];
                     if (bfread(pbf, data4buff, len) < 0)
-                        return -19;
+                        return LINE_ERROR;
                     unsigned char* din = data4buff;
                     unsigned char* dret = &data[16 * 16 * 16 * y];
                     for (int id = 0; id < 16 * 16 * 8; id++) {
@@ -2238,7 +2253,7 @@ SectionsCode:
                 }
                 if (!ret)
                     if (skipType(pbf, type) < 0)
-                        return -20;
+                        return LINE_ERROR;
             }
         }
         else {
@@ -2256,12 +2271,12 @@ SectionsCode:
                 ret = 0;
                 type = 0;
                 if (bfread(pbf, &type, 1) < 0)
-                    return -21;
+                    return LINE_ERROR;
                 if (type == 0)
                     break;
                 len = readWord(pbf);
                 if (bfread(pbf, thisName, len) < 0)
-                    return -22;
+                    return LINE_ERROR;
                 thisName[len] = 0;
                 if (strcmp(thisName, "BlockLight") == 0)
                 {
@@ -2270,14 +2285,14 @@ SectionsCode:
                     // really need just y < 16 at this point, level y = -1 doesn't have much on it, but let's future proof it here
                     if (y >= minHeight16 && y < maxHeight16) {
                         if (bfread(pbf, blockLight + 16 * 16 * 8 * (y - minHeight16), len) < 0)
-                            return -23;
+                            return LINE_ERROR;
                     }
                     else {
                         // dummy read - the 1.14 format has blocks at Y = -1 and Y = 16 that have no data
                         // except for BlockLight and SkyLight
                         unsigned char dummyBlockLight[16 * 16 * 128];
                         if (bfread(pbf, dummyBlockLight, len) < 0)
-                            return -24;
+                            return LINE_ERROR;
                     }
                 }
                 else if (strcmp(thisName, "BlockStates") == 0)
@@ -2309,12 +2324,12 @@ SectionsCode:
                         int subret = 0;
                         type = 0;
                         if (bfread(pbf, &type, 1) < 0)
-                            return -21;
+                            return LINE_ERROR;
                         if (type == 0)
                             break;
                         len = readWord(pbf);
                         if (bfread(pbf, thisName, len) < 0)
-                            return -22;
+                            return LINE_ERROR;
                         thisName[len] = 0;
                         if (strcmp(thisName, "palette") == 0)
                         {
@@ -2336,7 +2351,7 @@ SectionsCode:
                         }
                         if (!subret)
                             if (skipType(pbf, type) < 0)
-                                return -39;
+                                return LINE_ERROR;
                     }
                 }
                 // Read biome data only if at sea level (Y==4) or higher and haven't got biome yet
@@ -2361,12 +2376,12 @@ SectionsCode:
                         int subret = 0;
                         type = 0;
                         if (bfread(pbf, &type, 1) < 0)
-                            return -21;
+                            return LINE_ERROR;
                         if (type == 0)
                             break;
                         len = readWord(pbf);
                         if (bfread(pbf, thisName, len) < 0)
-                            return -22;
+                            return LINE_ERROR;
                         thisName[len] = 0;
                         if (strcmp(thisName, "palette") == 0)
                         {
@@ -2391,7 +2406,7 @@ SectionsCode:
                         // skip field if we don't care about field
                         if (!subret)
                             if (skipType(pbf, type) < 0)
-                                return -39;
+                                return LINE_ERROR;
                     }
 
                     int ix, iz, isx, isz, niz, offset;
@@ -2532,7 +2547,7 @@ SectionsCode:
                 // Did we not read through the object by some code above? If so, then skip it
                 if (!ret)
                     if (skipType(pbf, type) < 0)
-                        return -39;
+                        return LINE_ERROR;
             }
             // Now that we have all the data, convert bigbuff layer into buff and data values
             // DEBUG: set a condition of entryIndex > 2 - shows just the chunk slices that are not just a single block type & air
@@ -2655,7 +2670,8 @@ SectionsCode:
             }
         }
     }
-    // if we somehow didn't get a biome for this 1.18 chunk, go figure out why
+    // if we somehow didn't get a biome for this 1.18 chunk, go figure out why;
+    // This can definitely happen with 1.18 worlds converted by Amulet
     assert(gotBiome);
 
     if (mfsHeight <= EMPTY_MAX_HEIGHT) {
@@ -2671,7 +2687,7 @@ SectionsCode:
         {
             type = 0;
             if (bfread(pbf, &type, 1) < 0)
-                return -40;
+                return LINE_ERROR;
             if (type != 10)
                 return returnCode;	// all done, no tile entities found
 
@@ -2697,7 +2713,7 @@ SectionsCode:
                 {
                     type = 0;
                     if (bfread(pbf, &type, 1) < 0)
-                        return -41;
+                        return LINE_ERROR;
                     if (type == 0) {
                         // end of list, so process data, if any valid data found
                         if (!skipSection) {
@@ -2733,12 +2749,12 @@ SectionsCode:
                     // always read name of field
                     len = readWord(pbf);
                     if (bfread(pbf, thisName, len) < 0)
-                        return -42;
+                        return LINE_ERROR;
 
                     // if the id is one we don't care about, skip the rest of the data
                     if (skipSection) {
                         if (skipType(pbf, type) < 0)
-                            return -43;
+                            return LINE_ERROR;
                     }
                     else {
                         thisName[len] = 0;
@@ -2759,7 +2775,7 @@ SectionsCode:
                             len = readWord(pbf);
                             char idName[MAX_NAME_LENGTH];
                             if (bfread(pbf, idName, len) < 0)
-                                return -44;
+                                return LINE_ERROR;
                             idName[len] = 0;
 
                             // is it a skull or a flowerpot?
@@ -2785,7 +2801,7 @@ SectionsCode:
                             len = readWord(pbf);
                             char idName[MAX_NAME_LENGTH];
                             if (bfread(pbf, idName, len) < 0)
-                                return -45;
+                                return LINE_ERROR;
                             idName[len] = 0;
                             /*
                             Flower Pot Contents
@@ -2830,12 +2846,12 @@ SectionsCode:
                         else if (strcmp(thisName, "Rot") == 0 && type == 1)
                         {
                             if (bfread(pbf, &dataRot, 1) < 0)
-                                return -46;
+                                return LINE_ERROR;
                         }
                         else if (strcmp(thisName, "SkullType") == 0 && type == 1)
                         {
                             if (bfread(pbf, &dataSkullType, 1) < 0)
-                                return -47;
+                                return LINE_ERROR;
                         }
                         else if (strcmp(thisName, "Data") == 0 && type == 3)
                         {
@@ -2849,7 +2865,7 @@ SectionsCode:
                         {
                             // skip past the patterns when reading banners
                             if (skipType(pbf, type) < 0)
-                                return -43;
+                                return LINE_ERROR;
                         }
                         else {
                             // unused type, skip it, and skip all rest of object, since it's something we don't care about
@@ -2874,10 +2890,10 @@ static int readBlockData(bfFile* pbf, int& bigbufflen, unsigned char *bigbuff)
 {
     bigbufflen = readDword(pbf); //array length
     if (bigbufflen > MAX_BLOCK_STATES_ARRAY)
-        return -25;	// TODO make better unique return codes, with names
+        return LINE_ERROR;	// TODO make better unique return codes, with names
     // read 8 byte records, so note len is adjusted here from longs (which are 8 bytes long) to the number of bytes to read.
     if (bfread(pbf, bigbuff, bigbufflen * 8) < 0)
-        return -26;
+        return LINE_ERROR;
 
     // all's well
     return 0;
@@ -2892,18 +2908,18 @@ static int readBiomePalette(bfFile* pbf, unsigned char* paletteBiomeEntry, int& 
         // get rid of "\n" after "Palette".
         unsigned char uctype = 0;
         if (bfread(pbf, &uctype, 1) < 0)
-            return -27;
+            return LINE_ERROR;
         // array of strings
         if (uctype != 8)
-            return -28;
+            return LINE_ERROR;
     }
 
     // walk through entries' names and convert to their biome ID
     int nentries = readDword(pbf);
     if (nentries <= 0)
-        return -29;	// TODO someday need to clean up these error codes and treat them right
+        return LINE_ERROR;	// TODO someday need to clean up these error codes and treat them right
     if (nentries > MAX_PALETTE)
-        return -30;
+        return LINE_ERROR;
 
     char thisBiomeName[MAX_NAME_LENGTH];
 
@@ -2911,9 +2927,9 @@ static int readBiomePalette(bfFile* pbf, unsigned char* paletteBiomeEntry, int& 
     while (nentries--) {
         len = readWord(pbf);
         if (len <= 1)
-            return -31;  // really, should not reach here if the data's OK
+            return LINE_ERROR;  // really, should not reach here if the data's OK
         if (bfread(pbf, thisBiomeName, len) < 0)
-            return -32;
+            return LINE_ERROR;
         thisBiomeName[len] = 0;
         // convert biome name to the proper index
         // The +10 goes past the "minecraft:" part of the name in the palette
@@ -2945,9 +2961,9 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
         // get rid of "\n" after "Palette".
         unsigned char uctype = 0;
         if (bfread(pbf, &uctype, 1) < 0)
-            return -27;
+            return LINE_ERROR;
         if (uctype != 10)
-            return -28;
+            return LINE_ERROR;
     }
 
     // for doors
@@ -2967,9 +2983,9 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
     // walk through entries' names and convert to their block ID
     int nentries = readDword(pbf);
     if (nentries <= 0)
-        return -29;	// TODO someday need to clean up these error codes and treat them right
+        return LINE_ERROR;	// TODO someday need to clean up these error codes and treat them right
     if (nentries > MAX_PALETTE)
-        return -30;
+        return LINE_ERROR;
 
     char thisBlockName[MAX_NAME_LENGTH];
 
@@ -2984,13 +3000,13 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
         {
             type = 0;
             if (bfread(pbf, &type, 1) < 0)
-                return -31;
+                return LINE_ERROR;
             // done walking through subarray?
             if (type == 0)
                 break;
             len = readWord(pbf);
             if (bfread(pbf, thisBlockName, len) < 0)
-                return -32;
+                return LINE_ERROR;
             thisBlockName[len] = 0;
 
             if ((type == 8) && (strcmp(thisBlockName, "Name") == 0)) {
@@ -2998,10 +3014,10 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 len = readWord(pbf);
                 if (len < MAX_NAME_LENGTH) {
                     if (bfread(pbf, thisBlockName, len) < 0)
-                        return -33;
+                        return LINE_ERROR;
                 }
                 else {
-                    return -34;
+                    return LINE_ERROR;
                 }
                 // have to add end of string
                 thisBlockName[len] = 0x0;
@@ -3047,7 +3063,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             else if ((type == 10) && (strcmp(thisBlockName, "Properties") == 0)) {
                 do {
                     if (bfread(pbf, &type, 1) < 0)
-                        return -35;
+                        return LINE_ERROR;
                     if (type)
                     {
                         // read token value
@@ -3055,20 +3071,20 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         char value[100];
                         len = readWord(pbf);
                         if (bfread(pbf, token, len) < 0)
-                            return -36;
+                            return LINE_ERROR;
                         token[len] = 0;
                         // some something: if __version__, skip value
                         // we only want property names, like facing: south
                         if (type != 8) { // strcmp(token, "__version__") == 0) {
                             // some something: skip value
                             if (skipType(pbf, type) < 0)
-                                return -48;
+                                return LINE_ERROR;
                             continue;
                         }
 
                         len = readWord(pbf);
                         if (bfread(pbf, value, len) < 0)
-                            return -37;
+                            return LINE_ERROR;
                         value[len] = 0;
 
                         // TODO: I'm guessing that these zillion strcmps that follow are costing a lot of time.
@@ -3630,7 +3646,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 } while (type);
             }
             else if (skipType(pbf, type) < 0)
-                return -38;
+                return LINE_ERROR;
         }
         // done, so determine and fold in dataVal
         int tf = BlockTranslations[typeIndex].translateFlags;
@@ -4100,10 +4116,10 @@ int nbtGetHeights(bfFile* pbf, int& minHeight, int& heightAlloc, int mcVersion)
 
     //Level/Blocks
     if (bfseek(pbf, 1, SEEK_CUR) < 0)
-        return -1; //skip type
+        return LINE_ERROR; //skip type
     len = readWord(pbf); //name length
     if (bfseek(pbf, len, SEEK_CUR) < 0)
-        return -2; //skip name ()
+        return LINE_ERROR; //skip name ()
 
     int level_save = *pbf->offset;
     if (nbtFindElement(pbf, "Level") != 10) {
@@ -4111,20 +4127,20 @@ int nbtGetHeights(bfFile* pbf, int& minHeight, int& heightAlloc, int mcVersion)
 
         // if not a 1.17 or earlier "Level" see if it's a newly-converted "sections" type
         //if (bfseek(pbf, 1, SEEK_CUR) < 0)
-        //    return -1; //skip type
+        //    return LINE_ERROR; //skip type
         //len = readWord(pbf); //name length
         //if (bfseek(pbf, len, SEEK_CUR) < 0)
-        //    return -2; //skip name ()
+        //    return LINE_ERROR; //skip name ()
         if (bfseek(pbf, level_save, SEEK_SET) < 0)
-            return -14; //rewind to start of section
+            return LINE_ERROR; //rewind to start of section
         if (nbtFindElement(pbf, "sections") != 9)
-            return -9;
+            return LINE_ERROR;
 
         goto SectionsCode;
     }
 
     if (nbtFindElement(pbf, "Sections") != 9)
-        return -9;
+        return LINE_ERROR;
 
 SectionsCode:
 
@@ -4140,7 +4156,7 @@ SectionsCode:
     {
         // get rid of "\n" after "Sections" / "sections".
         unsigned char uctype = 0;
-        if (bfread(pbf, &uctype, 1) < 0) return -10;
+        if (bfread(pbf, &uctype, 1) < 0) return LINE_ERROR;
         // did we find the "\n"? If not, it means the section is empty, so we
         /// can simply clear memory below and return - all done.
         if (uctype != 10) {
@@ -4150,7 +4166,7 @@ SectionsCode:
 
     nsections = readDword(pbf);
     if (nsections < 0)
-        return -11;
+        return LINE_ERROR;
 
     char thisName[MAX_NAME_LENGTH];
 
@@ -4164,11 +4180,11 @@ SectionsCode:
         signed char y;
         int save = *pbf->offset;
         if (nbtFindElement(pbf, "Y") != 1) //which section of the block stack is this?
-            return -12;
+            return LINE_ERROR;
         if (bfread(pbf, &y, 1) < 0)
-            return -13;
+            return LINE_ERROR;
         if (bfseek(pbf, save, SEEK_SET) < 0)
-            return -14; //rewind to start of section
+            return LINE_ERROR; //rewind to start of section
 
 
         // read all the arrays in this section
@@ -4183,12 +4199,12 @@ SectionsCode:
             ret = 0;
             type = 0;
             if (bfread(pbf, &type, 1) < 0)
-                return -21;
+                return LINE_ERROR;
             if (type == 0)
                 break;
             len = readWord(pbf);
             if (bfread(pbf, thisName, len) < 0)
-                return -22;
+                return LINE_ERROR;
             thisName[len] = 0;
             if (strcmp(thisName, "Palette") == 0)
             {
@@ -4212,12 +4228,12 @@ SectionsCode:
                     int subret = 0;
                     type = 0;
                     if (bfread(pbf, &type, 1) < 0)
-                        return -21;
+                        return LINE_ERROR;
                     if (type == 0)
                         break;
                     len = readWord(pbf);
                     if (bfread(pbf, thisName, len) < 0)
-                        return -22;
+                        return LINE_ERROR;
                     thisName[len] = 0;
                     if (strcmp(thisName, "palette") == 0)
                     {
@@ -4230,14 +4246,14 @@ SectionsCode:
                     }
                     if (!subret)
                         if (skipType(pbf, type) < 0)
-                            return -39;
+                            return LINE_ERROR;
                 }
             }
 
             // Did we not read through the object by some code above? If so, then skip it
             if (!ret)
                 if (skipType(pbf, type) < 0)
-                    return -39;
+                    return LINE_ERROR;
         }
 
         // if palette length is 1 or more, then this is a valid section - note its Y value
@@ -4262,44 +4278,44 @@ int nbtGetSpawn(bfFile* pbf, int* x, int* y, int* z)
     // don't really need this first seek to beginning of file
     //bfseek(pbf,0,SEEK_SET);
     if (bfseek(pbf, 1, SEEK_CUR) < 0)
-        return -1; //skip type
+        return LINE_ERROR; //skip type
     len = readWord(pbf); //name length
     if (bfseek(pbf, len, SEEK_CUR) < 0)
-        return -2; //skip name ()
+        return LINE_ERROR; //skip name ()
     if (nbtFindElement(pbf, "Data") != 10)
-        return -3;
+        return LINE_ERROR;
     if (nbtFindElement(pbf, "SpawnX") != 3)
-        return -4;
+        return LINE_ERROR;
     *x = readDword(pbf);
 
     // Annoyingly, SpawnY can come before SpawnX, so we need to re-find each time.
     // For some reason, seeking to a stored offset does not work.
     // So we seek to beginning of file and find "Data" again.
     if (bfseek(pbf, 0, SEEK_SET) < 0)
-        return -5;
+        return LINE_ERROR;
     if (bfseek(pbf, 1, SEEK_CUR) < 0)
-        return -6; //skip type
+        return LINE_ERROR; //skip type
     len = readWord(pbf); //name length
     if (bfseek(pbf, len, SEEK_CUR) < 0)
-        return -7; //skip name ()
+        return LINE_ERROR; //skip name ()
     if (nbtFindElement(pbf, "Data") != 10)
-        return -8;
+        return LINE_ERROR;
     if (nbtFindElement(pbf, "SpawnY") != 3)
-        return -9;
+        return LINE_ERROR;
     *y = readDword(pbf);
 
     // We seek to beginning of file and find "Data" again.
     if (bfseek(pbf, 0, SEEK_SET) < 0)
-        return -10;
+        return LINE_ERROR;
     if (bfseek(pbf, 1, SEEK_CUR) < 0)
-        return -11; //skip type
+        return LINE_ERROR; //skip type
     len = readWord(pbf); //name length
     if (bfseek(pbf, len, SEEK_CUR) < 0)
-        return -12; //skip name ()
+        return LINE_ERROR; //skip name ()
     if (nbtFindElement(pbf, "Data") != 10)
-        return -13;
+        return LINE_ERROR;
     if (nbtFindElement(pbf, "SpawnZ") != 3)
-        return -14;
+        return LINE_ERROR;
     *z = readDword(pbf);
     return 0;
 }
@@ -4311,14 +4327,14 @@ int nbtGetFileVersion(bfFile* pbf, int* version)
     int len;
     //Data/version
     if (bfseek(pbf, 1, SEEK_CUR) < 0)
-        return -1; //skip type
+        return LINE_ERROR; //skip type
     len = readWord(pbf); //name length
     if (bfseek(pbf, len, SEEK_CUR) < 0)
-        return -2; //skip name ()
+        return LINE_ERROR; //skip name ()
     if (nbtFindElement(pbf, "Data") != 10)
-        return -3;
+        return LINE_ERROR;
     if (nbtFindElement(pbf, "version") != 3)
-        return -4;
+        return LINE_ERROR;
     *version = readDword(pbf);
     return 0;
 }
@@ -4333,16 +4349,16 @@ int nbtGetFileVersionId(bfFile* pbf, int* versionId)
     int len;
     //Data/version
     if (bfseek(pbf, 1, SEEK_CUR) < 0)
-        return -1; //skip type
+        return LINE_ERROR; //skip type
     len = readWord(pbf); //name length
     if (bfseek(pbf, len, SEEK_CUR) < 0)
-        return -2; //skip name ()
+        return LINE_ERROR; //skip name ()
     if (nbtFindElement(pbf, "Data") != 10)
-        return -3;
+        return LINE_ERROR;
     if (nbtFindElement(pbf, "Version") != 10)
-        return -4;
+        return LINE_ERROR;
     if (nbtFindElement(pbf, "Id") != 3)
-        return -5;
+        return LINE_ERROR;
     *versionId = readDword(pbf);
     return 0;
 }
@@ -4353,20 +4369,20 @@ int nbtGetFileVersionName(bfFile* pbf, char* versionName, int stringLength)
     *versionName = '\0'; // initialize to empty string
     int len;
     //Data/version
-    if (bfseek(pbf, 1, SEEK_CUR) < 0) return -1; //skip type
+    if (bfseek(pbf, 1, SEEK_CUR) < 0) return LINE_ERROR; //skip type
     len = readWord(pbf); //name length
-    if (bfseek(pbf, len, SEEK_CUR) < 0) return -2; //skip name ()
-    if (nbtFindElement(pbf, "Data") != 10) return -3;
-    if (nbtFindElement(pbf, "Version") != 10) return -4;
-    if (nbtFindElement(pbf, "Name") != 8) return -5;
+    if (bfseek(pbf, len, SEEK_CUR) < 0) return LINE_ERROR; //skip name ()
+    if (nbtFindElement(pbf, "Data") != 10) return LINE_ERROR;
+    if (nbtFindElement(pbf, "Version") != 10) return LINE_ERROR;
+    if (nbtFindElement(pbf, "Name") != 8) return LINE_ERROR;
     len = readWord(pbf);
     if (len < stringLength) {
-        if (bfread(pbf, versionName, len) < 0) return -6;
+        if (bfread(pbf, versionName, len) < 0) return LINE_ERROR;
     }
     else {
         // string too long; read some, discard the rest
-        if (bfread(pbf, versionName, stringLength - 1) < 0) return -7;	// save last position for string terminator
-        if (bfseek(pbf, len - stringLength + 1, SEEK_CUR) < 0) return -8;
+        if (bfread(pbf, versionName, stringLength - 1) < 0) return LINE_ERROR;	// save last position for string terminator
+        if (bfseek(pbf, len - stringLength + 1, SEEK_CUR) < 0) return LINE_ERROR;
         len = stringLength - 1;
     }
     versionName[len] = 0;
@@ -4380,26 +4396,26 @@ int nbtGetLevelName(bfFile* pbf, char* levelName, int stringLength)
     int len;
     //Data/levelName
     if (bfseek(pbf, 1, SEEK_CUR) < 0)
-        return -1; //skip type
+        return LINE_ERROR; //skip type
     len = readWord(pbf); //name length
     if (bfseek(pbf, len, SEEK_CUR) < 0)
-        return -2; //skip name ()
+        return LINE_ERROR; //skip name ()
     if (nbtFindElement(pbf, "Data") != 10)
-        return -3;
+        return LINE_ERROR;
     // 8 means a string
     if (nbtFindElement(pbf, "LevelName") != 8)
-        return -4;
+        return LINE_ERROR;
     len = readWord(pbf);
     if (len < stringLength) {
         if (bfread(pbf, levelName, len) < 0)
-            return -5;
+            return LINE_ERROR;
     }
     else {
         // string too long; read some, discard the rest
         if (bfread(pbf, levelName, stringLength - 1) < 0)
-            return -6;	// save last position for string terminator
+            return LINE_ERROR;	// save last position for string terminator
         if (bfseek(pbf, len - stringLength + 1, SEEK_CUR) < 0)
-            return -7;
+            return LINE_ERROR;
         len = stringLength - 1;
     }
     levelName[len] = 0;
@@ -4424,18 +4440,18 @@ int nbtGetPlayer(bfFile* pbf, int* px, int* py, int* pz)
     *px = *py = *pz = 0;
     //Data/Player/Pos
     if (bfseek(pbf, 1, SEEK_CUR) < 0)
-        return -1; //skip type
+        return LINE_ERROR; //skip type
     len = readWord(pbf); //name length
     if (bfseek(pbf, len, SEEK_CUR) < 0)
-        return -2; //skip name ()
+        return LINE_ERROR; //skip name ()
     if (nbtFindElement(pbf, "Data") != 10)
-        return -3;
+        return LINE_ERROR;
     if (nbtFindElement(pbf, "Player") != 10)
-        return -4;
+        return LINE_ERROR;
     if (nbtFindElement(pbf, "Pos") != 9)
-        return -5;
+        return LINE_ERROR;
     if (bfseek(pbf, 5, SEEK_CUR) < 0)
-        return -6; //skip subtype and num items
+        return LINE_ERROR; //skip subtype and num items
     *px = (int)readDouble(pbf);
     *py = (int)readDouble(pbf);
     *pz = (int)readDouble(pbf);
@@ -4451,12 +4467,12 @@ int nbtGetSchematicWord(bfFile* pbf, char* field, int* value)
     int len;
     //Data/version
     if (bfseek(pbf, 1, SEEK_CUR) < 0)
-        return -1; //skip type
+        return LINE_ERROR; //skip type
     len = readWord(pbf); //name length
     if (bfseek(pbf, len, SEEK_CUR) < 0)
-        return -2; //skip name ()
+        return LINE_ERROR; //skip name ()
     if (nbtFindElement(pbf, field) != 2)
-        return -3;
+        return LINE_ERROR;
     *value = readWord(pbf);
     return 1;
 }
@@ -4467,10 +4483,10 @@ int nbtGetSchematicBlocksAndData(bfFile* pbf, int numBlocks, unsigned char* sche
     int len;
     //Data/version
     if (bfseek(pbf, 1, SEEK_CUR) < 0)
-        return -1; //skip type
+        return LINE_ERROR; //skip type
     len = readWord(pbf); //name length
     if (bfseek(pbf, len, SEEK_CUR) < 0)
-        return -2; //skip name ()
+        return LINE_ERROR; //skip name ()
 
     int found = 0;
     while (found < 2)
@@ -4478,13 +4494,13 @@ int nbtGetSchematicBlocksAndData(bfFile* pbf, int numBlocks, unsigned char* sche
         int ret = 0;
         unsigned char type = 0;
         if (bfread(pbf, &type, 1) < 0)
-            return -3;
+            return LINE_ERROR;
         if (type == 0)
             break;
         len = readWord(pbf);
         char thisName[MAX_NAME_LENGTH];
         if (bfread(pbf, thisName, len) < 0)
-            return -4;
+            return LINE_ERROR;
         thisName[len] = 0;
         if (strcmp(thisName, "Blocks") == 0)
         {
@@ -4495,7 +4511,7 @@ int nbtGetSchematicBlocksAndData(bfFile* pbf, int numBlocks, unsigned char* sche
             if (len != numBlocks)
                 return 0;
             if (bfread(pbf, schematicBlocks, len) < 0)
-                return -5;
+                return LINE_ERROR;
             found++;
         }
         else if (strcmp(thisName, "Data") == 0)
@@ -4507,12 +4523,12 @@ int nbtGetSchematicBlocksAndData(bfFile* pbf, int numBlocks, unsigned char* sche
             if (len != numBlocks)
                 return 0;
             if (bfread(pbf, schematicBlockData, len) < 0)
-                return -6;
+                return LINE_ERROR;
             found++;
         }
         if (!ret)
             if (skipType(pbf, type) < 0)
-                return -7;
+                return LINE_ERROR;
     }
     // Did we find two things? If so, return 1, success
     return ((found == 2) ? 1 : -8);
