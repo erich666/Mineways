@@ -1198,37 +1198,37 @@ Here's <a href="https://github.com/jasonjgardner/jg-rtx">JG RTX</a> in action (a
 <H4 id="c4d">Cinema 4D</H4><p>
 <a href="https://www.maxon.net/en-us/products/cinema-4d/overview/"><img id="productLogo" src="images/cinema4d_icon.jpg" alt="Cinema 4D icon"></a>
 <P>
-Here is how to import a model and set the textures for Cinema 4D S22 or newer; the instructions are similar for older versions, though. The steps are mostly from <a href="http://www.youtube.com/watch?v=xx4WNvV6k4E&list=PL3AE7AB94E9114715&index=7&feature=plpp_video">this excellent (though a little dated) video</a> from <a href="https://www.minecraftforum.net/forums/show-your-creation/videos/1637913-making-amazing-minecraft-scenes-in-cinema-4d">this forum post</a>, which includes a number of other useful Cinema 4D animation tutorials and resource links. Here's <a href="https://www.minecraftforum.net/forums/show-your-creation/videos/1624794-minecraft-3d-essentials-cinema-4d">one more useful post</a>.
+These instructions explain how to import a model and set the textures are mostly for Cinema 4D R25 or newer; the instructions are similar for older versions, though USD support is unlikely. Really, I should redo this section, but I hope you'll be able to figure things out. Most steps are mostly from <a href="http://www.youtube.com/watch?v=xx4WNvV6k4E&list=PL3AE7AB94E9114715&index=7&feature=plpp_video">this excellent (though now-dated) video</a> from <a href="https://www.minecraftforum.net/forums/show-your-creation/videos/1637913-making-amazing-minecraft-scenes-in-cinema-4d">this forum post</a>, which includes a number of other useful Cinema 4D animation tutorials and resource links. Here's <a href="https://www.minecraftforum.net/forums/show-your-creation/videos/1624794-minecraft-3d-essentials-cinema-4d">one more useful post</a>.
 <P>
-That said, you may want to use <a href="http://www.jmc2obj.net/">jmc2obj</a>, another exporter. I won't be insulted - use what works best for you!
+That said, you may instead want to use <a href="http://www.jmc2obj.net/">jmc2obj</a>, another exporter. I won't be insulted - use what works best for you!
 <P>
 <b>Step 1:</b> In Mineways, select your world and region for export in Mineways, then from the menu choose File | Export Rendering.
 </P>
 <P>
-<b>Step 2:</b> Save as the file type 'OBJ'. Use Absolute OBJ, not Relative, as older versions of Cinema 4D do not read relative OBJs well. Alternately, Version R25 of C4D does a nice job of reading USD files, which means that you can use physically based rendering resource packs such as JG-RTX (that comes with Mineways) which add attributes such as normal maps, specular textures, and more.
+<b>Step 2:</b> You have two choices here, USD (Pixar's Universal Scene Description) or OBJ export. USD is particularly useful for physically based rendering resource packs, such as JG-RTX that comes with Mineways. Beyond color and transparency, these packs include normal maps, specular textures, and more. Alternately, save as the file type 'OBJ'. Use Absolute OBJ, not Relative, as older versions of Cinema 4D do not read relative OBJs well.
 </P>
 <P>
-<b>Step 3:</b> Adjust the export options as you wish. Nothing is required here; by default, blocks will come in at a size of 1/10th meter each. You can adjust this by changing "Make each block 100 mm high"; for example, 1000 mm is 1 meter. You may also wish to use the <a href="#fcst">"Export individual textures"</a> option, as this allows mipmapping and similar filtering in Cinema 4D to work better. Also, for physically base rendering terrain sets such as JG-RTX (which comes with Mineways), individual texture export means you also get normals maps and other attributes automatically exported, which Cinema 4D can make use of (well, by default just the normal maps, but you can attach the others manually).
+<b>Step 3:</b> For USD export, make sure to set "Light scale" to 1, else the sun will be too bright (you can always fix this in C4D itself by turning the sun from 3000% to 100%). Otherwise, adjust the export options as you wish. By default, blocks will come in at a size of 1/10th meter each. You can adjust this by changing "Make each block 100 mm high"; for example, 1000 mm is 1 meter. You may also wish to use the <a href="#fcst">"Export individual textures"</a> option, as this allows mipmapping and similar filtering in Cinema 4D to work better.
 </P>
 <P>
-<b>Step 4:</b> Once the model is exported, open Cinema4D and drag the .obj file generated into the main window. <B>Make sure the "Presets" at the top of the OBJ Import dialog is set to Default.</b> (If you don't, your grass blocks will import upside-down.) Hit "OK".
+<b>Step 4:</b> Once the model is exported, open Cinema4D and drag the .usda or .obj file generated into the main window. <B>For OBJ, make sure the "Presets" at the top of the OBJ Import dialog is set to Default.</b> (If you don't, your grass blocks will import upside-down.) Hit "OK".
 </P>
 <P>
-Here is what the defaults are, just in case:
+Here is what the OBJ defaults are, just in case:
 </P>
 <P>
 <img src="images/c4d_export.jpg" alt="Cinema 4D object load"></a>
 </P>
 <P>
-To move around the scene, hold down Alt and use the three mouse buttons and scroll wheel.
+To move around the scene, hold down Alt and use the three mouse buttons and scroll wheel. For USD you may wish to rotate and turn down the brightness of the DomeLight. First, choose it in the upper-right Objects dialog's list (opening the world's list first). Pick "Coordinates" and then change "R.P" to -90. Then, pick "Tag" below and then under "Color" set "Brightness" to 50% or as desired.
 
 <P>
-<b>Step 5:</b> At this point you can render by clicking Ctrl-R. It won't be the most exciting render, as there are no lights (if you used USD, the sun light will be too bright - turn its Intensity down from 3000% to 100%). Try "Create -> Light -> Light" and move the light up a bit to illuminate your scene. Select the light and in the material editor in the lower right, select "Shadow" and then, a few lines down, change "Shadow" from "None" to "Raytraced (Hard)." Now Ctrl-R will give shadows to your scene.
+<b>Step 5:</b> At this point you can render by clicking Ctrl-R. It won't be the most exciting render, as there are no lights. Try "Create -> Light -> Light" and move the light up a bit to illuminate your scene. Select the light and in the material editor in the lower right, select "Shadow" and then, a few lines down, change "Shadow" from "None" to "Raytraced (Hard)." Now Ctrl-R will give shadows to your scene.
 <P>
 <b>Step 6:</b> Select all the materials in the material manager, the row of spheres at the lower left (or alongside the right edge of the viewport). Do this by clicking one sphere and then hitting Control-A. All spheres should now be selected. If the material manager is not visible, open it with Window -> Material Manager, or the shortcut Shift+F2.
 </P>
 <P>
-<b>Step 7:</b> If you want to make textures look blocky, like they do in Minecraft, first click on the "Color" box next to the "Basic" box at the top of the material editor. In this area you will see a section below labeled "Color." In this section you will see "Color," "Brightness," "Texture," and just below that and to the right, "Sampling," which will say "&lt;&lt;Multi." In the menu list for this option choose "None." When you are done selecting, it will still say "&lt;&lt;Multi", but don't worry, you have changed it. See the figure below.
+<b>Step 7:</b> If you want to make textures look blocky, like they do in Minecraft, do the following. In R25 or newer, you select the material, then pick "Tag", then "Material", then "Color" in that area. For older versions, first click on the "Color" box next to the "Basic" box at the top of the material editor, then in this area you will see a section below labeled "Color." In this section you will see "Color," "Brightness," "Texture." Just below "Texture" and to the right, "Sampling," which will say "MIP" or "&lt;&lt;Multi." In the menu list for this option choose "None." When you are done selecting, it may still say "&lt;&lt;Multi", but don't worry, you have changed it. See the figure below for how things looked in R22.
 </P>
 <P>
 <img src="images/c4d_texture.jpg" alt="Cinema 4D color material"></a>
@@ -3702,7 +3702,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 3/1/2022</p>
+		<br id="lastUpdate">Last updated 3/7/2022</p>
 	</div>
 </div>
 
