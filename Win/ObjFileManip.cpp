@@ -12196,8 +12196,11 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         dataVal = 0x0;
         distanceOffset = 0.25f * ONE_PIXEL;
         // to avoid Blender Cycles problem, https://github.com/erich666/Mineways/issues/93, don't duplicate redstone,
-        // which you cannot see from below anyway. singleSided should always be made true here, regardless of previous setting above.
-        singleSided = true;
+        // which you cannot see from below anyway. singleSided should always be made false here, regardless of previous setting.
+        // Yes, that's confusing. What singleSided means here is that the renderer performs backface culling, so both sides normally
+        // need to be exported to look correct. By setting it false here, that means "just output one rectangle" (the upward-facing one),
+        // which is always the setting we want for redstone wire, to always act like it's double-sided and only put out one square polygon per wire.
+        singleSided = false;
 
         // go through the six directions to the neighbors. For example, if direction is down, check if
         // the neighbor below has its "above" flat flag set.
@@ -13076,7 +13079,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         totalVertexCount = gModel.vertexCount;
         gUsingTransform = 1;
         // if dataVal is 0, no sides were output and this is actually the first face
-        saveBoxTileGeometry(boxIndex, type, redstoneOrigDataVal, swatchLoc, (dataVal > 0) ? 0 : 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | (singleSided ? DIR_BOTTOM_BIT : 0x0), 0, 16, 0, 0, 0, 16);
+        saveBoxTileGeometry(boxIndex, type, redstoneOrigDataVal, swatchLoc, (dataVal > 0) ? 0 : 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | (singleSided ? 0x0 : DIR_BOTTOM_BIT), 0, 16, 0, 0, 0, 16);
 
         gUsingTransform = 0;
         totalVertexCount = gModel.vertexCount - totalVertexCount;
