@@ -3100,14 +3100,15 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         // masking just in case it's a top half (and probably bogus)
         switch (dataVal & 0x7)
         {
-        default:
-            assert(0);
         case 0:	// sunflower
             color = 0xEAD31F;
             break;
         case 1:	// lilac
             color = 0xB79ABB;
             break;
+        default:
+            // I have seen this happen with tall grass in villages, where the top is something else and bottom was tall grass
+            assert(0);
         case 2:	// tall grass
             // we use color as the grass multiplier color
             affectedByBiome = 1;
