@@ -19454,87 +19454,99 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             inside = SWATCH_INDEX(14, 8);	// pores
             outside = SWATCH_INDEX((type == BLOCK_HUGE_BROWN_MUSHROOM) ? 14 : 13, 7);
             swatchLoc = inside;
-            switch (dataVal & 0xf)
-            {
-            case 0: //0	 Fleshy piece	 Pores on all sides
-                // done above, it's the default: swatchLoc = inside;
-                break;
-            case 1: //1	 Corner piece	 Cap texture on top, West and North
-                if ((faceDirection == DIRECTION_BLOCK_TOP) ||
-                    (faceDirection == DIRECTION_BLOCK_SIDE_LO_X) ||
-                    (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z))
+            // now we split depending on whether using 1.12, old, values or more
+            // flexible 1.13+ bits
+            if (gIs13orNewer) {
+                // is outside bit set for this direction?
+                if (dataVal & (1 << faceDirection))
                 {
-                    swatchLoc = outside;
+                    // if it's a stem outside, use that texture instead of the normal outside
+                    swatchLoc = (dataVal & 0x40) ? SWATCH_INDEX(13, 8) : outside;
                 }
-                break;
-            case 2: //2	 Side piece	 Cap texture on top and North
-                if ((faceDirection == DIRECTION_BLOCK_TOP) ||
-                    (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z))
+            }
+            else {
+                switch (dataVal & 0xf)
                 {
+                case 0: //0	 Fleshy piece	 Pores on all sides
+                    // done above, it's the default: swatchLoc = inside;
+                    break;
+                case 1: //1	 Corner piece	 Cap texture on top, West and North,
+                    if ((faceDirection == DIRECTION_BLOCK_TOP) ||
+                        (faceDirection == DIRECTION_BLOCK_SIDE_LO_X) ||
+                        (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z))
+                    {
+                        swatchLoc = outside;
+                    }
+                    break;
+                case 2: //2	 Side piece	 Cap texture on top and North
+                    if ((faceDirection == DIRECTION_BLOCK_TOP) ||
+                        (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z))
+                    {
+                        swatchLoc = outside;
+                    }
+                    break;
+                case 3: //3	 Corner piece	 Cap texture on top, North and East
+                    if ((faceDirection == DIRECTION_BLOCK_TOP) ||
+                        (faceDirection == DIRECTION_BLOCK_SIDE_HI_X) ||
+                        (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z))
+                    {
+                        swatchLoc = outside;
+                    }
+                    break;
+                case 4: //4	 Side piece	 Cap texture on top and West
+                    if ((faceDirection == DIRECTION_BLOCK_TOP) ||
+                        (faceDirection == DIRECTION_BLOCK_SIDE_LO_X))
+                    {
+                        swatchLoc = outside;
+                    }
+                    break;
+                case 5: //5	 Top piece	 Cap texture on top
+                    if (faceDirection == DIRECTION_BLOCK_TOP)
+                    {
+                        swatchLoc = outside;
+                    }
+                    break;
+                case 6: //6	 Side piece	 Cap texture on top and East
+                    if ((faceDirection == DIRECTION_BLOCK_TOP) ||
+                        (faceDirection == DIRECTION_BLOCK_SIDE_HI_X))
+                    {
+                        swatchLoc = outside;
+                    }
+                    break;
+                case 7: //7	 Corner piece	 Cap texture on top, South and West
+                    if ((faceDirection == DIRECTION_BLOCK_TOP) ||
+                        (faceDirection == DIRECTION_BLOCK_SIDE_LO_X) ||
+                        (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z))
+                    {
+                        swatchLoc = outside;
+                    }
+                    break;
+                case 8: //8	 Side piece	 Cap texture on top and South
+                    if ((faceDirection == DIRECTION_BLOCK_TOP) ||
+                        (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z))
+                    {
+                        swatchLoc = outside;
+                    }
+                    break;
+                case 9: //9	 Corner piece	 Cap texture on top, East and South
+                    if ((faceDirection == DIRECTION_BLOCK_TOP) ||
+                        (faceDirection == DIRECTION_BLOCK_SIDE_HI_X) ||
+                        (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z))
+                    {
+                        swatchLoc = outside;
+                    }
+                    break;
+                case 10: //10	 Stem piece	 Stem texture on all four sides, pores on top and bottom
+                    swatchLoc = inside;
+                    SWATCH_SWITCH_SIDE(faceDirection, 13, 8);	// stem texture
+                    break;
+                case 14: //14	 Cap texture on all six sides
                     swatchLoc = outside;
+                    break;
+                case 15: //15	 Stem texture on all six sides
+                    swatchLoc = SWATCH_INDEX(13, 8);
+                    break;
                 }
-                break;
-            case 3: //3	 Corner piece	 Cap texture on top, North and East
-                if ((faceDirection == DIRECTION_BLOCK_TOP) ||
-                    (faceDirection == DIRECTION_BLOCK_SIDE_HI_X) ||
-                    (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z))
-                {
-                    swatchLoc = outside;
-                }
-                break;
-            case 4: //4	 Side piece	 Cap texture on top and West
-                if ((faceDirection == DIRECTION_BLOCK_TOP) ||
-                    (faceDirection == DIRECTION_BLOCK_SIDE_LO_X))
-                {
-                    swatchLoc = outside;
-                }
-                break;
-            case 5: //5	 Top piece	 Cap texture on top
-                if (faceDirection == DIRECTION_BLOCK_TOP)
-                {
-                    swatchLoc = outside;
-                }
-                break;
-            case 6: //6	 Side piece	 Cap texture on top and East
-                if ((faceDirection == DIRECTION_BLOCK_TOP) ||
-                    (faceDirection == DIRECTION_BLOCK_SIDE_HI_X))
-                {
-                    swatchLoc = outside;
-                }
-                break;
-            case 7: //7	 Corner piece	 Cap texture on top, South and West
-                if ((faceDirection == DIRECTION_BLOCK_TOP) ||
-                    (faceDirection == DIRECTION_BLOCK_SIDE_LO_X) ||
-                    (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z))
-                {
-                    swatchLoc = outside;
-                }
-                break;
-            case 8: //8	 Side piece	 Cap texture on top and South
-                if ((faceDirection == DIRECTION_BLOCK_TOP) ||
-                    (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z))
-                {
-                    swatchLoc = outside;
-                }
-                break;
-            case 9: //9	 Corner piece	 Cap texture on top, East and South
-                if ((faceDirection == DIRECTION_BLOCK_TOP) ||
-                    (faceDirection == DIRECTION_BLOCK_SIDE_HI_X) ||
-                    (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z))
-                {
-                    swatchLoc = outside;
-                }
-                break;
-            case 10: //10	 Stem piece	 Stem texture on all four sides, pores on top and bottom
-                swatchLoc = inside;
-                SWATCH_SWITCH_SIDE(faceDirection, 13, 8);	// stem texture
-                break;
-            case 14: //14	 Cap texture on all six sides
-                swatchLoc = outside;
-                break;
-            case 15: //15	 Stem texture on all six sides
-                swatchLoc = SWATCH_INDEX(13, 8);
-                break;
             }
             break;
         case BLOCK_MELON:						// getSwatch
@@ -27535,6 +27547,88 @@ static int writeSchematicBox()
                 if (gBoxData[boxIndex].type < 256) {
                     type = (unsigned char)gBoxData[boxIndex].type;
                     data = gBoxData[boxIndex].data;
+
+                    // for 1.13+ we properly use all the bits (separate faces) for huge mushrooms, instead of the old 0-15
+                    // system in 1.12 and earlier. To keep it simple here, if a 1.13+ huge mushroom is found, we convert as possible
+                    // here. May not work - we're crunching 64 possibilities down to 16.
+                    if (gIs13orNewer && (gBoxData[boxIndex].type == BLOCK_HUGE_BROWN_MUSHROOM || (gBoxData[boxIndex].type == BLOCK_HUGE_RED_MUSHROOM))) {
+                        // stem?
+                        if (data & 0x40) {
+                            // top or not?
+                            data = (data & DIR_TOP_BIT) ? 15 : 10;
+                        }
+                        else {
+                            if (data & DIR_LO_Z_BIT) {   // north
+                                // 1,2,3,14
+                                if (data & DIR_HI_Z_BIT) {    // south
+                                    // 14 - all sides
+                                    data = 14;
+                                }
+                                else if (data & DIR_LO_X_BIT) {    // west
+                                    // top, west, and north - if east, too, then all sides after all
+                                    if (data & DIR_HI_X_BIT) {
+                                        data = 14;
+                                    }
+                                    else {
+                                        data = 1;
+                                    }
+                                }
+                                else if (data & DIR_HI_X_BIT) {     // east
+                                    // top, north, and east:
+                                    data = 3;
+                                }
+                                else
+                                    // top and north
+                                    data= 2;
+                            }
+                            else {
+                                // 0,4,5,6,7,8,9 (stem is separate with 10 and 15, above)
+                                if (data & DIR_HI_Z_BIT) {    // south
+                                    // 7,8,9
+                                    if (data & DIR_LO_X_BIT) {    // west
+                                        // top, south, west - if east, too, then all sides after all
+                                        if (data & DIR_HI_X_BIT) {
+                                            data = 14;
+                                        }
+                                        else {
+                                            data = 7;
+                                        }
+                                    }
+                                    else if (data & DIR_HI_X_BIT) {     // east
+                                        // top, south, east
+                                        data = 9;
+                                    }
+                                    else
+                                        // top, south
+                                        data = 8;
+                                }
+                                else {
+                                    // 0,4,5,6
+                                    if (data & DIR_LO_X_BIT) {    // west
+                                        // top, west - if east, too, then all sides after all
+                                        if (data & DIR_HI_X_BIT) {
+                                            data = 14;
+                                        }
+                                        else {
+                                            data = 4;
+                                        }
+                                    }
+                                    else if (data & DIR_HI_X_BIT) {     // east
+                                        // top, east
+                                        data = 6;
+                                    }
+                                    else if (data & DIR_TOP_BIT) {
+                                        // top, only
+                                        data = 5;
+                                    }
+                                    else
+                                        // nothing: pores on all sides
+                                        data = 0;
+                                }
+                            }
+
+                        }
+                    }
                 }
                 else {
                     type = BLOCK_GRASS_BLOCK;

@@ -3951,10 +3951,17 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             dataVal = ((door_facing + 3) % 4) | (mode ? 4 : 0) | (powered ? 8 : 0);
             break;
         case MUSHROOM_STEM_PROP:
-            dataVal = up ? 15 : 10;
-            break;
+            // Old code, where we try to stuff the new, flexible settings into the limited old version numbers;
+            //dataVal = up ? 15 : 10;
+            //break;
         case MUSHROOM_PROP:
             // https://minecraft.gamepedia.com/Java_Edition_data_values#Brown_and_red_mushroom_blocks
+            // set w/b/n/e/t/s from low to high bits
+            dataVal = (west ? 0x1 : 0x0) | (down ? 0x2 : 0x0) | (north ? 0x4 : 0x0) | (east ? 0x8 : 0x0) | (up ? 0x10 : 0x0) | (south ? 0x20 : 0x0) |
+                (tf == MUSHROOM_STEM_PROP ? 0x40 : 0x0);    // steal the waterlog bit
+            // Old code, where we try to stuff the new, flexible settings into the limited old version numbers;
+            // useful for the old schematics
+            /*
             if (north) {
                 // 1,2,3,14
                 if (south) {
@@ -4008,6 +4015,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         dataVal = 0;
                 }
             }
+            */
             break;
         case ANVIL_PROP:
             dataVal = (door_facing + 3) % 4;
