@@ -3403,7 +3403,12 @@ static void computeRedstoneConnectivity(int boxIndex)
     // Really, "isCross" means "is potentially a cross" - if it has no neighbors,
     // then it becomes a cross, or is left a dot if this flag is not set.
     //bool isCross = false; TODO - this doesn't work; really need to interpret the sides parameter in nbt.cpp properly
-    // version isn't quite right, but basically 1.16 20w21a is the time
+    // and, real problem is that we use all 8 bits for redstone, FLAT_FACE_LO_X and FLAT_FACE_LO_X<<4, etc.
+    // These flags note the status of the *neighbors* of the redstone, so it is impossible to record whether the
+    // redstone in this particular block is fully connected or not. That is: it's a cross or a dot in Minecraft.
+    // Say its four neighbors are not redstone. We now can't tell from any data whether it's a cross or dot.
+    //
+    // Version test here isn't quite right, but basically 1.16 20w21a is the time
     //if (gMinecraftWorldVersion >= 2532) {
     //    isCross = (gBoxData[boxIndex].data == BIT_16);
     //    gBoxData[boxIndex].data &= ~BIT_16;
@@ -13075,7 +13080,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
             swatchLoc = redstoneOn ? REDSTONE_WIRE_4 : REDSTONE_WIRE_4_OFF;
             break;
         }
-        // note that if culling is off, the front face is likely to hide the back.
+        // note that if culling is off, the front face is likely to hide the back. This is hopefully fixed with https://github.com/erich666/Mineways/issues/93
         totalVertexCount = gModel.vertexCount;
         gUsingTransform = 1;
         // if dataVal is 0, no sides were output and this is actually the first face

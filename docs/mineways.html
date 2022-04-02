@@ -416,7 +416,7 @@ To make terrainExt.png files yourself, see <a href="textures.html#own_terrain">C
 Blurry Textures
 </H4>
 
-If your rendering software doesn't show the distinctive blocky style of Minecraft, you can fix this in two ways. The first is to set texture sampling in your renderer to be "closest" or "nearest neighbor." This is the best solution. See the instructions for the <a href="#rendering">various renderers</a> for more information. The other option is to use higher-resolution textures, which will simulate turning bilinear interpolation off.
+If your rendering software doesn't show the distinctive blocky style of Minecraft, you can fix this in two ways. The first is to set texture sampling in your renderer to be "closest" or "nearest neighbor." This is the easiest solution, though can make mipmapping unavailable. See the instructions for the <a href="#rendering">various renderers</a> for more information. The other option is to use higher-resolution textures, which will simulate turning bilinear interpolation off.
 <p>
 On the left, the basic 256 x 544 terrainExt.png file is used; on the right, the input terrainExt.png image is resized (without filtering) to 1024 texels wide. You can download high-resolution versions of terrainExt.png: <a href="https://erich.realtimerendering.com/minecraft/public/mineways/downloads/terrainExt1024.png">1024 wide</a> and <a href="https://erich.realtimerendering.com/minecraft/public/mineways/downloads/terrainExt8192.png">8192 wide</a>. In Mineways do "File | Choose Terrain File" and select either; the higher-resolution version gives sharper results, at the cost of memory.</p>
 <div id="terrainExtImgs">
@@ -991,7 +991,7 @@ Rendering Tips
   and <a href="#houdini">Houdini</a>.
   If you want better geometry for some blocks, you might also consider using <a href="https://www.jmc2obj.net/">jmc2obj</a>. Honestly, they have a lot of features Mineways doesn't, so you should give it a try.
   <P>
-  While I have your ear (eye?), you should also check out <a href="https://www.minecraftforum.net/forums/mapping-and-modding-java-edition/minecraft-mods/1272953-optifine-hd-fps-boost-dynamic-lights-shaders-and">OptiFine</a> and <a href="https://www.sonicether.com/seus/">Sonic Ether's Unbelievable Shaders</a> (<a href="https://www.minecraftforum.net/forums/mapping-and-modding-java-edition/minecraft-mods/1280299-sonic-ethers-unbelievable-shaders-compatible-with">SEUS forum</a>) for in-game play or viewing. They have lots of cool rendering options. What makes these systems shine (literally) is using a high-quality texture pack that support specular textures, bump maps, etc. (which Mineways does not - sorry - though you should be able to jigger TileMaker to make such sets of textures for you). Some nice texture packs: <a href="https://umsoea.com/">UMSOEA</a> and <a href="https://sildurs-shaders.github.io/downloads/">Sildur's Shaders</a>.
+  While I have your ear (eye?), you should also check out the shader mods <a href="https://bitslablab.com/bslshaders/">BSL</a>, <a href="https://rre36.com/kappa-shader">Kappa</a>, <a href="https://www.minecraftforum.net/forums/mapping-and-modding-java-edition/minecraft-mods/1272953-optifine-hd-fps-boost-dynamic-lights-shaders-and">OptiFine</a>, and <a href="https://www.sonicether.com/seus/">Sonic Ether's Unbelievable Shaders</a> (<a href="https://www.minecraftforum.net/forums/mapping-and-modding-java-edition/minecraft-mods/1280299-sonic-ethers-unbelievable-shaders-compatible-with">SEUS forum</a>) for in-game play or viewing. They have lots of cool rendering options. What makes these systems shine (literally) is using a high-quality texture pack that support specular textures, bump maps, etc. Some nice texture packs: <a href="https://github.com/jasonjgardner/jg-rtx">JG-RTX</a>, <a href="https://umsoea.com/">UMSOEA</a> and <a href="https://sildurs-shaders.github.io/downloads/">Sildur's Shaders</a>, among many others (<a href="https://www.planetminecraft.com/texture-packs/tag/bsl/">BSL search</a>).
   <P>
   Also worth a shout-out, the <a href="https://www.nvidia.com/en-us/geforce/news/minecraft-with-rtx-beta-out-now-download-play/">Minecraft RTX beta</a>. If you have an RTX card, this system accelerates ray tracing effects on the Bedrock Edition (sorry, no Java Edition version). However, conversion of a Java Edition world is fairly straightforward; they give <a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-world-conversion-guide/">a long guide</a>, but really, just follow the <a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-world-conversion-guide/#textcomponentenhance_16365283995c6722f5_46dd_4cdd_ba02_77ef3ae0242d">MCC Tool Chest Conversion</a> steps - it's all I needed (note that MCC Tool Chest has, sadly, disappeared, but can be found archived <a href="https://web.archive.org/web/20210513191001/http://www.mcctoolchest.com/Download">here</a>). If you're really feeling frisky, you can <a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-texturing-guide/#resource-pack-setup">design a texture pack</a> (though be warned, <a href="https://help.minecraft.net/hc/en-us/articles/360042255511">the format will change</a>).
   <P>
@@ -1028,7 +1028,11 @@ You'll also want to consider using <a href="https://theduckcow.com/dev/blender/m
 <b>3) Open Blender 2.93</b> (or newer) and click anywhere on the screen to make the splash screen disappear. Then press the "Delete" key to remove the default cube model.
 </P>
 <P>
-<b>4) Import the model:</b> select "File | Import | Wavefront (.obj)" from the menu. Put the directory name of your Mineways export file (the .obj file) on the first line and hit "Enter". You can then double-click the .obj file name itself in the listing below. Alternately, you can type the file name itself on the line below the directory name and then click the blue "Import OBJ" button to the far right. Once imported, hit the "Home" key to reposition the camera to be well outside the model.
+<b>4) Import the model:</b> select "File | Import | Wavefront (.obj)" from the menu. Put the directory name of your Mineways export file (the .obj file) on the first line and hit "Enter". You can then double-click the .obj file name itself in the listing below. Alternately, you can type the file name itself on the line below the directory name and then click the blue "Import OBJ" button to the far right.
+<P>
+On the right side of the import dialog you may see import options (depends on the version of Blender). You <i>may</i> wish to select "Split by Group" (off by default) - experiment and see.
+<P>
+Once imported, you can hit the "Home" key to reposition the camera to be well outside the model.
 <P>
 <b>5) Display in Look Dev mode:</b> in the upper right of the viewport are a series of icons. Rightmost are four sphere icons. Click on the second from the right (though the rightmost is also nice):
 <p class="left">
@@ -1070,13 +1074,13 @@ for mat in bpy.data.materials:
         if node.type == 'TEX_IMAGE':
             node.interpolation = 'Closest'
 </PRE>
-Then, in Blender, click on the little clock icon in the strip at the bottom of the program and select "Text Editor" under the Scripting header. You will now see a little text icon in the upper left corner. Make this window larger (pulling up its upper border), then use Text | Open to open your saved text file, then do Text | Run Script (or hit Alt-P) to run the script:
+Then, in Blender, click on the little clock icon ("Timeline") at the bottom left of the program in the strip and select "Text Editor" under the Scripting header, third over. You will now see a little text icon replacing the clock. Use Text | Open to open your saved text file, then do Text | Run Script (or hit Alt-P) to run the script:
 <p class="center">
 <img src="images/b29_closest_script.jpg">
 </p>
 Doing so will change all materials to look blocky.
 <P>
-If instead you want to do this conversion manually, it's a tedious process of selecting each object type in the model. You still might want to do this once, just to understand the material properties better. Select a material and, under the Surface parameter window below, click the small "right arrow" icon to the left of "Base Color", about five lines down. Two more lines down it will say "Linear"; change this to "Closest". Scroll down considerably further to "Alpha" and click on the small right arrow again and also set to "Closest". Here's the Base Color sequence:
+If instead you want to do this conversion manually, it's a tedious process of selecting each object type in the model (and, in fact, trying it out manually on Blender 3.1.0, I could not get this process to work properly - not sure why). You still might want to do this once, just to understand the material properties better. Select a material and, under the Surface parameter window below, click the small "right arrow" icon to the left of "Base Color", about five lines down. Two more lines down it will say "Linear"; change this to "Closest". Scroll down considerably further to "Alpha" and click on the small right arrow again and also set to "Closest". Here's the Base Color sequence:
 <p class="center">
 <img src="images/b28_blocky.jpg">
 </p>
@@ -1565,7 +1569,7 @@ Most operations in Mineways can be done with the mouse: left button drag and mou
 <h2 id="blocks">Block Types Supported</h2>
 There are two main modes of export: for rendering and for 3D printing. These mainly differ in that some blocks, such as flowers, are not things that can be printed as is. For 3D printing, the <a href="#lesser">"Export lesser blocks"</a> option has a major effect on what gets exported. Note that this option is on by default for rendering; turning it off will turn a number of blocks into "full blocks" instead of true geometry, for a more abstract look (but, no one ever turns it off). Finally, for the "lesser blocks" option there's a <a href="#lesser">"fatten" suboption</a>, which makes fences, fence gates, doors, free-standing sign posts, and pressure plates thicker, so they're more likely to print without snapping off.
 <P>
-If you want to test particular blocks to see what they look like, use the <a href="#blocktestworld">"[Block Test World]"</a> and the block IDs to select and export whatever block types in whatever mode you want. For 1.16 or earlier, you can also <a href="https://www.reddit.com/r/Minecraft/comments/ej2kay/hold_shift_when_creating_a_world_and_switching/">create a Debug block world</a> in Minecraft itself (short version: "Create New World", "More World Options...", hold Shift and keep clicking on "World Type:" until "Debug Mode" comes up) - note Mineways <a href="#blocks">doesn't support everything</a>. Alternately, you could <a href="https://www.planetminecraft.com/resources/projects/?keywords=texture+test+world">find a texture test world</a> you like, such as <a href="https://www.planetminecraft.com/project/texture-test-world-3122931/">this one</a>.
+If you want to test particular blocks to see what they look like, use the <a href="#blocktestworld">"[Block Test World]"</a> and the block IDs to select and export whatever block types in whatever mode you want. Alternately, you could <a href="https://www.planetminecraft.com/resources/projects/?keywords=texture+test+world">find a texture test world</a> you like, such as <a href="https://www.planetminecraft.com/project/texture-test-world-3122931/">this one</a>. For 1.16 or earlier, you can also <a href="https://www.reddit.com/r/Minecraft/comments/ej2kay/hold_shift_when_creating_a_world_and_switching/">create a Debug block world</a> in Minecraft itself (short version: "Create New World", "More World Options...", hold Shift and keep clicking on "World Type:" until "Debug Mode" comes up) - note Mineways doesn't support everything, as noted below. If you are using <a href="https://minecraft.fandom.com/wiki/Debug_Stick">the debug stick</a> or commands to set a state for a block that is not valid in a normal world, don't expect it to work. Desperate? Try <a href="https://www.jmc2obj.net/">jmc2obj</a> - they do some fancy stuff, like create banner textures.
 <P>
 Here's what Mineways exports as of version 5.01:
 <div>
@@ -1954,6 +1958,7 @@ Fences (#85, #113)<br>Fence Gate (#81)<br>Cobblestone Wall (#139)
 <center>Proper geometry</center>
 </td>
 <td>
+For 1.13 and newer versions, only "normal" wall types seen in game (without the debug stick) are supported, due to a limitation in the number of bits available in Mineways for data storage.
 </td>
 </tr>
 
@@ -2318,6 +2323,7 @@ Standing Banners (#176)
 <center>Removed, too thin</center>
 </td>
 <td>
+Try <a href="https://www.jmc2obj.net/">jmc2obj</a>, which generates custom banner textures.
 </td>
 </tr>
 
@@ -2335,6 +2341,7 @@ Wall Banners (#177)
 <center>Made thicker, no banner pattern</center>
 </td>
 <td>
+Try <a href="https://www.jmc2obj.net/">jmc2obj</a>, which generates custom banner textures.
 </td>
 </tr>
 
@@ -2659,6 +2666,17 @@ The textures and rules used in Minecraft for how blocks appear and connect have 
 <P>
 From newest to oldest. The very newest is work in progress, with "*" meaning "to do" and "**" meaning "stretch goal."
 <UL>
+
+<LI>Version 9.14, 4/2/2022 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV914.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+  <BR>
+  <UL>
+    <LI>Always turn off redstone face duplication, since we really can't see the side facing the block. Fixes <a href="https://github.com/erich666/Mineways/issues/93">issue 93</a> <I>(thanks to Lê Duy Quang for reporting it).</I>
+	<LI>Fully support huge mushroom configurations, all 64 possibilities, instead of forcing these into the 16 configurations allowed by 1.12 and earlier <I>(thanks to MassiveSpeck for reporting it).</I>
+	<LI>Recognize JG-RTX's non-standard "seagrass_doubletall_*" naming of "tall_seagrass_*" textures. ChannelMixer is now at version 1.08, TileMaker at version 3.13.
+	<LI>Update C4D documentation, with a stress on using USD instead of OBJ. Update Blender documentation for "nearest".
+	<LI>Explain limitations to block conversion a bit better and point people to <a href="https://www.jmc2obj.net/">jmc2obj</a> as an option.
+	<LI>Update JG-RTX terrain images, including sea grass.
+  </UL>
 
 <LI>Version 9.13, 3/1/2022 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV913.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
@@ -3651,7 +3669,7 @@ Just a joke name, but ideas I've pretty much ruled out at this point, and why. L
 Some links I commonly use.
 <UL>
 <LI><b><a href="https://groups.google.com/forum/#!forum/mineways">Subscribe to Mineways Google Group</a></b> for new version announcements; no spam.
-<LI><b><a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV913.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Choose Terrain File"), by permission of their creators (thanks!) - go <a href="#texture_output">here</a> to see previews:
+<LI><b><a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV914.zip">Download the latest Windows version of Mineways</a></b>. The following texture pack terrain PNG files are included for use with Mineways ("File | Choose Terrain File"), by permission of their creators (thanks!) - go <a href="#texture_output">here</a> to see previews:
 <UL>
 <LI> <a href="http://coteriecraft.net/">Coterie Craft</a> by Cpt. Corn
 <LI> <a href="https://dokucraft.co.uk/">DokuCraft</a> by Hickerydickery
@@ -3702,7 +3720,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 3/7/2022</p>
+		<br id="lastUpdate">Last updated 4/2/2022</p>
 	</div>
 </div>
 
