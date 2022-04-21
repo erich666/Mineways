@@ -7919,7 +7919,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // side of piston body:
         swatchLoc = SWATCH_INDEX(12, 6);
         // form the piston shaft sideways, just the small bit, then we rotate upwards
-        saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1, (((neighborType == BLOCK_PISTON) || (neighborType == BLOCK_STICKY_PISTON)) ? DIR_LO_X_BIT : 0x0) || (gModel.print3D ? 0x0 : DIR_HI_X_BIT), 4, 16, 12, 16, 0, 4);
+        saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1,
+            (((neighborType == BLOCK_PISTON) || (neighborType == BLOCK_STICKY_PISTON)) ? DIR_LO_X_BIT : 0x0)
+            | (gModel.print3D ? 0x0 : DIR_HI_X_BIT),
+            4, 16, 12, 16, 0, 4);
         littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
 
         identityMtx(mtx);
@@ -23437,7 +23440,7 @@ static int writeBinarySTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tigh
     unsigned short outColor = 0;
     unsigned char r, g, b;
     // export color if file format mode set that way
-    int writeColor = (gModel.options->exportFlags & (EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE));
+    bool writeColor = (gModel.options->exportFlags & (EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE)) ? true : false;
 
     wchar_t statsFileName[MAX_PATH_AND_FILE];
 
@@ -23711,7 +23714,8 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
     char textureDefOutputString[256];
     //char textureUseOutputString[256];
 
-    int currentFace, j, firstShape, exportSingleMaterial, exportSolidColors;
+    int currentFace, j, firstShape;
+    bool exportSingleMaterial, exportSolidColors;
 
     int retCode = MW_NO_ERROR;
 
@@ -23740,10 +23744,10 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
     if (gModelFile == INVALID_HANDLE_VALUE)
         return retCode | MW_CANNOT_CREATE_FILE;
 
-    exportSolidColors = (gModel.options->exportFlags & EXPT_OUTPUT_MATERIALS) && !gModel.exportTexture;
+    exportSolidColors = ((gModel.options->exportFlags & EXPT_OUTPUT_MATERIALS) && !gModel.exportTexture) ? true : false;
 
     // if you want each separate textured object to be its own shape, do this line instead:
-    exportSingleMaterial = !(gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MTL_PER_TYPE);
+    exportSingleMaterial = (!(gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MTL_PER_TYPE)) ? true : false;
 
     WcharToChar(pWorldGuide->world, worldChar, MAX_PATH_AND_FILE);
     justWorldFileName = removePathChar(worldChar);

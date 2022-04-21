@@ -24,7 +24,9 @@ Source files are here:
 Compiling
 --------------
 
-* Windows - You can compile this with Visual Studio
+* Windows - You can compile this with Visual Studio Community 2022
+You will need to install the "Desktop development with C++" workload. You will also need to go to "Individual components", search on "MFC", and choose "C++ MFC for latest v142 build tools (x86 & x64)".
+
 Open Mineways.sln in Visual C++, switch the target to Release and x64, compile the solution to
 		`generate Mineways.exe`
 

@@ -771,6 +771,7 @@ static int bitWidth = 0;
 static int bitHeight = 0;
 static HWND progressBar = NULL;
 static HBRUSH ctlBrush = NULL;
+// TODO: Warning	C6262	Function uses '16576' bytes of stack.Consider moving some data to heap.
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     int wmId; // set but not used, wmEvent;
@@ -3511,7 +3512,7 @@ static int setWorldPath(TCHAR* path)
     // Workaround for OSX minecraft worlds path
     // Get the username and check in user's Library directory
     wchar_t user[1024];
-    DWORD username_len = 1025;
+    DWORD username_len = 1024;
     GetUserName(user, &username_len);
     swprintf_s(path, MAX_PATH_AND_FILE, L"Z:\\Users\\%s\\Library\\Application Support\\minecraft\\saves", user);
 
@@ -4303,7 +4304,7 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileNa
         {
             const wchar_t* nameOnly = removePath(outputFileList.name[i]);
 
-            if (*updateProgress)
+            if (updateProgress != NULL)
             {
                 (*updateProgress)(0.90f + 0.10f * (float)i / (float)outputFileList.count);
             }
@@ -4319,7 +4320,7 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileNa
         CloseZip(hz);
     }
 
-    if (*updateProgress)
+    if (updateProgress != NULL)
         (*updateProgress)(1.0f);
 
     if (errCode != MW_NO_ERROR)
@@ -4417,14 +4418,14 @@ static int publishToSketchfab(HWND hWnd, wchar_t* objFileName, wchar_t* terrainF
             }
             else {
                 // finish progress meter early
-                if (*updateProgress)
+                if (updateProgress != NULL)
                     (*updateProgress)(0.0f);
                 return retCode;
             }
         }
 
         uploadToSketchfab(hInst, hWnd);
-        if (*updateProgress)
+        if (updateProgress != NULL)
             (*updateProgress)(0.0f);
     }
 
@@ -4490,6 +4491,7 @@ static wchar_t* formatWithCommas(int value, wchar_t *str)
 
 // returns number of files written on successful export, 0 files otherwise.
 // showDialog says whether to show the export options dialog or not.
+// TODO: Warning	C6262	Function uses '56760' bytes of stack.Consider moving some data to heap.
 static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t* terrainFileName, wchar_t* schemeSelected, bool showDialog, bool showStatistics)
 {
     int on;
@@ -4873,7 +4875,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                     {
                         DeleteFile(outputFileList.name[i]);
                     }
-                    if (*updateProgress)
+                    if (updateProgress != NULL)
                     {
                         (*updateProgress)(0.90f + 0.10f * (float)i / (float)outputFileList.count);
                     }
@@ -4898,7 +4900,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                 }
             }
         }
-        if (*updateProgress)
+        if (updateProgress != NULL)
         {
             (*updateProgress)(1.0f);
         }
@@ -4981,7 +4983,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         }
 
         // clear progress bar
-        if (*updateProgress)
+        if (updateProgress != NULL)
             (*updateProgress)(0.0f);
     }
     freeOutputFileList(outputFileList);
