@@ -85,7 +85,7 @@ int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* orig
 int testIfChestFile(ChestGrid* pcg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose);
 boolean removeFileType(wchar_t* name);
 int isImageFile(wchar_t* name);
-int stripTypeSuffix(wchar_t* tileName, const wchar_t** suffixes, int numSuffixes);
+int stripTypeSuffix(wchar_t* tileName, const wchar_t** suffixes, int numSuffixes, FileGrid* pfg);
 int findTileIndex(const wchar_t* tileName, int alternate);
 void clearFileRecordStorage(FileRecord* pfr);
 void copyFileRecord(FileGrid* pfg, int category, int destFullIndex, FileRecord* srcFR);

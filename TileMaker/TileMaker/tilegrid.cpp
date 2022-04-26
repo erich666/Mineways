@@ -155,7 +155,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 						wchar_t tileName[MAX_PATH];
 						wcscpy_s(tileName, MAX_PATH, ffd.cFileName);
 						if (imageFileType == JPG_EXTENSION_FOUND || imageFileType == BMP_EXTENSION_FOUND) {
-							int category = stripTypeSuffix(tileName, gCatSuffixes, TOTAL_CATEGORIES);
+							int category = stripTypeSuffix(tileName, gCatSuffixes, TOTAL_CATEGORIES, pfg);
 							assert(category >= 0);
 							int index = findTileIndex(tileName, alternate);
 							if (index >= 0) {
@@ -255,7 +255,7 @@ int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* orig
 	if (imageFileType == PNG_EXTENSION_FOUND || imageFileType == TGA_EXTENSION_FOUND) {
 		removeFileType(tileName);
 		// has a PNG or TGA file type, now removed, so test if it's a file name type we understand.
-		int category = stripTypeSuffix(tileName, gCatSuffixes, TOTAL_CATEGORIES);
+		int category = stripTypeSuffix(tileName, gCatSuffixes, TOTAL_CATEGORIES, pfg);
 		assert(category >= 0);
 		// return a negative value from findTileIndex if tile is not found in any way
 		int index = findTileIndex(tileName, alternate);
@@ -330,7 +330,7 @@ int testIfChestFile(ChestGrid* pcg, const wchar_t* tilePath, const wchar_t* orig
 	if (imageFileType == PNG_EXTENSION_FOUND || imageFileType == TGA_EXTENSION_FOUND) {
 		removeFileType(tileName);
 		// has a suffix, now removed, so test if it's a file name type we understand.
-		int type = stripTypeSuffix(tileName, gCatSuffixes, TOTAL_CATEGORIES);
+		int type = stripTypeSuffix(tileName, gCatSuffixes, TOTAL_CATEGORIES, NULL);
 
 		// the four PNG/TGA files we care about
 		boolean found = false;
@@ -414,7 +414,7 @@ int isImageFile(wchar_t* name)
 }
 
 // return -1 if no suffix matches
-int stripTypeSuffix(wchar_t* tileName, const wchar_t** suffixes, int numSuffixes)
+int stripTypeSuffix(wchar_t* tileName, const wchar_t** suffixes, int numSuffixes, FileGrid* pfg)
 {
 	int type = 0;
 	// ignore first suffix, which is "", which anything will match.
@@ -435,8 +435,17 @@ int stripTypeSuffix(wchar_t* tileName, const wchar_t** suffixes, int numSuffixes
 				if (wcscmp(suffixes[i], gCatSuffixes[CATEGORY_NORMALS_LONG]) == 0) {
 					// check if name "as-is" is in the table of tile names; if so, don't strip it.
 					// done for chests, too, but those should not be found, so it's OK.
-					if (findTileIndex(tileName, 1)>=0 || wcscmp(tileName,L"double_normal") == 0) {
-						stripSuffix = false;
+					int tileIndex = findTileIndex(tileName, 1);
+					if (tileIndex >= 0 || wcscmp(tileName,L"double_normal") == 0) {
+						// final test: did we already find the "usual" name, the first name listed?
+						// For example, if we already found "piston_top", then "piston_top_normal" truly is the normal map.
+						// No full indexing needed - if it matches, it'll always be to the RGBA (set 0) name
+						// for chest testing, pass in pfg == NULL.
+						// This fix depends on "piston_top_normal" being encountered *after* "piston_top", for example, so could fail.
+						// If it fails, the good news is that the duplication will be noted in the output.
+						if (pfg == NULL || !pfg->fr[tileIndex].exists) {
+							stripSuffix = false;
+						}
 					}
 				}
 				if (stripSuffix) {

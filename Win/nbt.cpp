@@ -1825,6 +1825,7 @@ static int skipCompound(bfFile* pbf)
     int len;
     int retcode = 0;
     unsigned char type = 0;
+    int loopCount = 0;
     do {
         if (bfread(pbf, &type, 1) < 0) return -1;
         if (type)
@@ -1833,7 +1834,11 @@ static int skipCompound(bfFile* pbf)
             if (bfseek(pbf, len, SEEK_CUR) < 0) return -1;	//skip name
             retcode = skipType(pbf, type);
         }
-    } while (type && (retcode >= 0));
+        loopCount++;
+    } while (type && (retcode >= 0) && loopCount < 100);
+    // some corruption happening (Saffron City test), get out of here
+    if (loopCount >= 100)
+        return -1;
     return retcode;
 }
 
