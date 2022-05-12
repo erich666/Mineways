@@ -63,7 +63,8 @@ deflated data is the chunk length - 1.
 #include "stdafx.h"
 
 #define CHUNK_DEFLATE_MAX (1024 * 1024)  // 1MB limit for compressed chunks
-#define CHUNK_INFLATE_MAX (1024 * 2048) // 2MB limit for inflated chunks
+// had to kick this up due to F Seaworld 1.18 world test
+#define CHUNK_INFLATE_MAX (16 * 1024 * 1024) // 8MB limit for inflated chunks
 
 #define RERROR(x) if(x) { PortaClose(regionFile); return 0; }
 
