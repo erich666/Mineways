@@ -6660,6 +6660,10 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
             retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion, block->minHeight, block->maxHeight, block->maxFilledSectionHeight, gUnknownBlockName);
             assert(block->numEntities <= 384);  // if higher, the allocation above needs to change!
 
+            if (retCode == ERROR_INFLATE) {
+                return NULL;
+            }
+
             // values 1 and 2 are valid; 3's not used - higher bits are warnings; see nbt.h
             if (retCode >= NBT_VALID_BUT_EMPTY) {
                 block->blockType = retCode & 0x3;
