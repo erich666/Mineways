@@ -6485,23 +6485,25 @@ static int interpretImportLine(char* line, ImportedSet& is)
         }
         // if we process the data in this run, do it
         if (is.processData) {
-            // two cases: scripting and model loading. Model loading defers loading the world, so process the data.
+            // two cases: reading in a model's header or scripting. Model header reading defers loading the world, so process the data.
             if (is.readingModel || gLoaded) {
+                // is nothing selected? i.e., "Selection location: none"?
                 if (noSelection) {
                     // for scripting we could test that there's no world loaded, but it's fine to call this then anyway.
                     gHighlightOn = FALSE;
                     SetHighlightState(gHighlightOn, 0, gTargetDepth, 0, 0, gCurDepth, 0, gMinHeight, gMaxHeight, gLoaded ? HIGHLIGHT_UNDO_PUSH : HIGHLIGHT_UNDO_CLEAR);
                 }
                 else {
-                    // yes, a selection
+                    // yes, a real selection is being made
                     is.minxVal = v[0];
                     is.minyVal = v[1];
                     is.minzVal = v[2];
                     is.maxxVal = v[3];
                     is.maxyVal = v[4];
                     is.maxzVal = v[5];
+                    // are we using scripting?
                     if (!is.readingModel) {
-                        // is a world loaded? If not, then don't set the selection
+                        // Scripting; is a world loaded? If not, then don't set the selection
                         if (gLoaded) {
                             gCurX = (is.minxVal + is.maxxVal) / 2;
                             gCurZ = (is.minzVal + is.maxzVal) / 2;
@@ -6520,12 +6522,19 @@ static int interpretImportLine(char* line, ImportedSet& is)
                             setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
                             setSlider(is.ws.hWnd, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, gTargetDepth, false);
                         }
-                        else {
-                            saveErrorMessage(is, L"selection set but no world is loaded.");
-                            return INTERPRETER_FOUND_ERROR;
-                        }
+                        //else {
+                        //    // shouldn't really be able to reach this line, as is.readingModel is false and gLoaded is false.
+                        //    // Moved this message further down.
+                        //    saveErrorMessage(is, L"selection set but no world is loaded.");
+                        //    return INTERPRETER_FOUND_ERROR;
+                        //}
                     }
                 }
+            }
+            else {
+                // we are not reading in a model's header (where a deferred selection is fine), i.e., we're scripting and a world is not loaded.
+                saveErrorMessage(is, L"selection set but no world is loaded. For scripting, you must load a world manually before using a script or must include the 'Minecraft world: your world directory' command in your script.");
+                return INTERPRETER_FOUND_ERROR;
             }
         }
         return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
