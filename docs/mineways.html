@@ -2671,8 +2671,9 @@ From newest to oldest. The very newest is work in progress, with "*" meaning "to
 <LI>Version 9.16, 5/19/2022 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV916.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
   <UL>
-	<LI>For some "optimized" chunks, Mineways runs out of memory when inflating. Increased CHUNK_INFLATE_MAX from 2 MB to 20 MB to fix it.
+	<LI>For some "optimized" chunks made by the <a href="https://www.curseforge.com/minecraft/mc-mods/lithium">Lithium</a> mod, Mineways runs out of memory when inflating. Increased CHUNK_INFLATE_MAX from 2 MB to 20 MB to fix it.
 	<LI>Some optimized chunks use an integer for the "Y" level value instead of a signed byte. Interpret this non-standard field correctly.
+	<LI>In the NBT error message, give the chunk location of the last chunk that was read that threw an error.
 	<LI>When processing a script that makes a selection, but no world is open, give a better error message.
 	<LI>Update JG-RTX terrain images, including new corals.
   </UL>
@@ -3739,7 +3740,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 4/29/2022</p>
+		<br id="lastUpdate">Last updated 5/19/2022</p>
 	</div>
 </div>
 
