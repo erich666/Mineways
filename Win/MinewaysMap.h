@@ -125,3 +125,4 @@ int GetSchematicBlocksAndData(const wchar_t* schematic, int numBlocks, unsigned 
 void SetMapPremultipliedColors(int start);
 void SetMapPalette(unsigned int* palette, int num);
 char* MapUnknownBlockName();
+void GetBadChunkLocation(int* bx, int* bz);
