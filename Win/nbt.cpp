@@ -2193,12 +2193,34 @@ SectionsCode:
     {
         // y is the *world* height divided by 16.
         // in 1.17, specifically 20w49a through 21w14a, we can now go from -5 (really, -4 is where data starts) to 19 for "y"; was -1 to 15 previously
+        // May someday have to allow y to be a signed int or similar, as right now range is (16*) -128 to 128
         signed char y;
         int save = *pbf->offset;
-        if (nbtFindElement(pbf, "Y") != 1) //which section of the block stack is this?
+        unsigned char buf[4];
+        // Amazingly, this is the only place we seem to extract an integer from the Minecraft data (other than "type").
+        switch (nbtFindElement(pbf, "Y")) {//which section of the block stack is this?
+            // the normal case:
+        case 1:
+            if (bfread(pbf, &y, 1) < 0)
+                return LINE_ERROR;
+            break;
+        // weirdo mods might do this (never seen, but still...):
+        case 2:
+            if (bfread(pbf, buf, 2) < 0)
+                return LINE_ERROR;
+            // note "y" is a signed char, so the sign bits (hopefully all 0 or 255 for negative) are folded in and then cast
+            y = (buf[0] << 8) | buf[1];
+            break;
+        // or this (FSeaworld):
+        case 3:
+            if (bfread(pbf, buf, 4) < 0)
+                return LINE_ERROR;
+            // note "y" is a signed char, so the sign bits (hopefully all 0 or 255 for negative) are folded in and then cast
+            y = (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
+            break;
+        default:
             return LINE_ERROR;
-        if (bfread(pbf, &y, 1) < 0)
-            return LINE_ERROR;
+        }
         if (bfseek(pbf, save, SEEK_SET) < 0)
             return LINE_ERROR; //rewind to start of section
 
