@@ -9163,7 +9163,9 @@ static void checkMapDrawErrorCode(int retCode)
                 wsprintf(fullbuf, _T("Error: status != Z_STREAM_END error. Tell Eric to increase the size of CHUNK_INFLATE_MAX again and cross his fingers."));
             }
             else {
-                wsprintf(fullbuf, _T("Error: chunk read error at nbt.cpp line %d. Mineways does not support betas or mods. Also, make sure you have downloaded the latest version of Mineways from mineways.com. If it's neither of these, please report it as a bug (see the Help menu)."), -retCode);
+                int bx, bz;
+                GetBadChunkLocation(&bx, &bz);
+                wsprintf(fullbuf, _T("Error: chunk (%d, %d) read error at nbt.cpp line %d. Mineways does not support betas or mods. Also, make sure you have downloaded the latest version of Mineways from mineways.com. If it's neither of these, please report it as a bug (see the Help menu)."), bx, bz, -retCode);
             }
             FilterMessageBox(NULL, fullbuf,
                 _T("Warning"), MB_OK | MB_ICONERROR | MB_TOPMOST);

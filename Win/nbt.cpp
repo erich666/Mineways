@@ -2327,6 +2327,7 @@ SectionsCode:
                     ret = 1;
                     int dataret = readBlockData(pbf, bigbufflen, bigbuff);
                     if (dataret != 0) {
+                        // don't worry, the value is a line error
                         return dataret;
                     }
                 }
@@ -2337,6 +2338,7 @@ SectionsCode:
                     int retVal = readPalette(returnCode, pbf, mcVersion, paletteBlockEntry, paletteDataEntry, paletteLength, unknownBlock);
                     // did we hit an error?
                     if (retVal != 0) {
+                        // don't worry, the value is a line error
                         return retVal;
                     }
                 }
@@ -2364,6 +2366,7 @@ SectionsCode:
                             int retVal = readPalette(returnCode, pbf, mcVersion, paletteBlockEntry, paletteDataEntry, paletteLength, unknownBlock);
                             // did we hit an error?
                             if (retVal != 0) {
+                                // don't worry, the value is a line error
                                 return retVal;
                             }
                         }
@@ -2373,6 +2376,7 @@ SectionsCode:
 
                             int dataret = readBlockData(pbf, bigbufflen, bigbuff);
                             if (dataret != 0) {
+                                // don't worry, the value is a line error
                                 return dataret;
                             }
                         }
@@ -2416,6 +2420,7 @@ SectionsCode:
                             int retVal = readBiomePalette(pbf, paletteBiomeEntry, biomePaletteLength);
                             // did we hit an error?
                             if (retVal != 0) {
+                                // don't worry, the value is a line error
                                 return retVal;
                             }
                         }
@@ -2426,6 +2431,7 @@ SectionsCode:
 
                             int dataret = readBlockData(pbf, biomebufflen, biomebuff);
                             if (dataret != 0) {
+                                // don't worry, the value is a line error
                                 return dataret;
                             }
                         }

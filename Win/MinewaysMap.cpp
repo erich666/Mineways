@@ -44,6 +44,7 @@ static void blit(unsigned char* block, unsigned char* bits, int px, int py, doub
 static WorldBlock* determineMaxFilledHeight(WorldBlock* block);
 static int createBlockFromSchematic(WorldGuide* pWorldGuide, int cx, int cz, WorldBlock* block);
 static void initColors();
+static void saveBadChunkLocation(int bx, int bz);
 
 
 static int gColorsInited = 0;
@@ -79,6 +80,11 @@ static int gPerformUnknownBlockCheck = 1;
 static char gUnknownBlockName[100];
 
 static wchar_t gSeparator[3];
+
+// for which chunk was drawn badly (likely the last bad chunk)
+static int gBx = 0;
+static int gBz = 0;
+
 
 void SetSeparatorMap(const wchar_t* separator)
 {
@@ -4024,6 +4030,11 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
 
         block = LoadBlock(pWorldGuide, bx, bz, mcVersion, versionID, retCode);
 
+        if (retCode < 0) {
+            // save bx and bz for error message later
+            saveBadChunkLocation(bx, bz);
+        }
+
         // always add the block, even if empty, so that we don't have to look it up as
         // being empty in the future
         Cache_Add(bx, bz, block);
@@ -6661,6 +6672,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
             assert(block->numEntities <= 384);  // if higher, the allocation above needs to change!
 
             if (retCode == ERROR_INFLATE) {
+                block->blockType = retCode;
                 return NULL;
             }
 
@@ -7092,3 +7104,15 @@ char* MapUnknownBlockName()
 {
     return gUnknownBlockName;
 }
+
+static void saveBadChunkLocation(int bx, int bz) {
+    gBx = bx;
+    gBz = bz;
+}
+
+void GetBadChunkLocation(int* bx, int* bz)
+{
+    *bx = gBx;
+    *bz = gBz;
+}
+
