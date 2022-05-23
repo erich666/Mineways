@@ -1,6 +1,6 @@
 // simple_export.mwscript - A simple rendering model export script
 //
-// version 1.00
+// version 1.01
 //
 // Use File | Import Settings... in Mineways (http://mineways.com) to read in and apply this script.
 // Read more about each command at http://mineways.com/scripting.html
@@ -13,6 +13,7 @@
 // actual name of the directory. You can see your saves here (paste into File Explorer): %appdata%\.minecraft\saves
 
 Set render type: Wavefront OBJ absolute indices
+// This command removes faces from the sides of your model. For a walkthrough animation these may not be needed.
 Create block faces at the borders: NO
 
 // If you want, you could set the selection in the script. If not set, the current selection in the program is used.
