@@ -2487,8 +2487,90 @@ SectionsCode:
                         // at least not at sea level.
                         memset(biome, paletteBiomeEntry[0], 256 * sizeof(unsigned char));
                         assert(0);
-                    }
-                    else {
+
+                        /* doesn't work, but code to at least think about the problem...
+                        // compute number of bits for each palette entry. For example, 21 entries is 5 bits, which can access 17-32 entries.
+                        int biomebitlength = biomebufflen;
+
+                        // Not so sure about this... uncompressed? or not? Need to find an example TODOTODOTODO
+                        bool uncompressed = (biomebufflen > 64 * biomebitlength);
+                        unsigned long int biomebitmask = (1 << biomebitlength) - 1;
+
+                        unsigned char biome4x4x4[64];
+                        unsigned char* biomeout = biome4x4x4;
+
+                        int biomebitpull = 0;
+                        for (i = 0; i < 64; i++, biomebitpull += biomebitlength) {
+                            // Pull out bits. Here is the lowest bit's index, if the array is thought of as one long string of bits.
+                            // That is, if you see "5" here, the bits in the 64-bit long long are in order
+                            // which bb should we access for these bits? Divide by 8
+                        RestartBiome:
+                            int bbbindex = biomebitpull >> 3;
+                            // Have to count from top to bottom 8 bytes of each long long. I suspect if I read the long longs as bytes the order might be right.
+                            // But, this works.
+                            bbbindex = (bbbindex & 0xfff8) + 7 - (bbbindex & 0x7);
+                            int bbbshift = biomebitpull & 0x7;
+                            // get the top bits out of the topmost byte, on down the row
+                            int biomebits = (biomebuff[bbbindex] >> bbbshift) & biomebitmask;
+                            // Check if we got enough bits. If we had only a few bits retrieved, need to get more from the next byte.
+                            // 'While' is needed only when remainingBitLength > 0, as 3 bytes may be needed
+                            int remainingBitLength = biomebitlength - (8 - bbbshift);
+                            while (remainingBitLength > 0) {
+                                if (bbbindex & 0x7) {
+                                    // one of the middle bytes, not the bottommost one
+                                    biomebits |= (biomebuff[bbbindex - 1] << (8 - bbbshift)) & biomebitmask;
+                                }
+                                else {
+                                    // Bottommost byte, and not enough bits left: need to jump to topmost byte of next long long and restart.
+                                    // If this is the new format and the length of biomebufflen is greater than expected,
+                                    // e.g., 5*64 is 320, but might be 342, then we have to add to bitpull (need to make that number
+                                    // incremental up above) and pull entirely from the next +15 index, as shown here.
+                                    if (uncompressed) {
+                                        // start on next long long
+                                        //biomebits = biomebuff[bbbindex + 15] & biomebitmask;
+                                        biomebitpull += (8 - bbbshift);
+                                        goto RestartBiome;
+                                        //next iteration it will be: bbshift = 0;
+                                    }
+                                    else {
+                                        biomebits |= (biomebuff[bbbindex + 15] << (8 - bbbshift)) & biomebitmask;
+                                    }
+                                }
+                                // a waste 99% of the time - any faster way? TODO - could unwind loops, could properly track bbindex and bbshift without
+                                // recomputing them each time. Maybe try some timing tests one day to see if it matters.
+                                remainingBitLength -= 8;
+                                bbbindex--;
+                                bbbshift = 0;
+                            }
+
+                            // sanity check
+                            if (biomebits >= biomePaletteLength) {
+                                // Should never reach here; means that a stored index value is greater than any value in the palette.
+                                assert(0);
+#ifdef _DEBUG
+                                // maximum value is entryIndex - 1; which is useful for debugging - see things go bad
+                                biomebits = biomePaletteLength - 1;
+#else
+                                bits = 0; // which is likely air
+#endif
+                            }
+                            *biomeout++ = paletteBiomeEntry[biomebits];
+                        }
+                        // OK, got the biome, stretch and paste the top 4x4 into the 16x16 final storage
+                        biomeout = biome4x4x4 + 48 * sizeof(unsigned char);
+                        for (ix = 0; ix < 4; ix++) {
+                            for (iz = 0; iz < 4; iz++) {
+                                bval = *biomeout++;
+                                offset = ix * 16 + iz * 4;
+                                for (isx = 0; isx < 4; isx++) {
+                                    for (isz = 0; isz < 4; isz++) {
+                                        biome[offset + isx + isz] = bval;
+                                    }
+                                }
+                            }
+                        }
+                        */
+                    } else {
                         // somehow there are zero biome palette entries!
                         assert(0);
                     }
