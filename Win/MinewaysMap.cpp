@@ -3909,7 +3909,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             break;
         case 3:
             // water, in swamp
-            if ((biome & 0x7f) == SWAMPLAND_BIOME)
+            if ((biome & 0x7f) == SWAMPLAND_BIOME || (biome & 0x7f) == MANGROVE_SWAMP_BIOME)
             {
                 // We'll have to compute the effect of light, alpha, etc.
                 // so turn on this flag.

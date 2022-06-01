@@ -88,8 +88,8 @@ Biome gBiomes[256] = {	// IMPORTANT: do not change 256 size here.
     { /*  50 */ "Deep Frozen Ocean",		0.5f, 0.5f, 0x92BD59, 0x77AB2F },
     { /*  51 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /*  52 */ "Wooded Badlands",			2.0f, 0.0f, 0x92BD59, 0x77AB2F },  // not actually this number, added in 1.18, have to put it somewhere
-    { /*  53 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
-    { /*  54 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
+    { /*  53 */ "Mangrove Swamp",				0.8f, 0.9f, 0x92BD59, 0x77AB2F },  // not actually this number, added in 1.19, have to put it somewhere - rainfall is a guess
+    { /*  54 */ "Deep Dark",    				0.8f, 0.5f, 0x92BD59, 0x77AB2F },  // not actually this number, added in 1.19, have to put it somewhere - matches Plains
     { /*  55 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /*  56 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /*  57 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
@@ -373,6 +373,7 @@ int ComputeBiomeColor(int biome, int elevation, int isGrass)
     switch (biome)
     {
     case SWAMPLAND_BIOME:
+    case MANGROVE_SWAMP_BIOME:
         // the fefefe makes it so that carries are copied to the low bit,
         // then their magic "go to green" color offset is added in, then
         // divide by two gives a carry that will nicely go away.

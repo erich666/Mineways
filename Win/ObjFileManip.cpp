@@ -23003,7 +23003,7 @@ static int createBaseMaterialTexture()
             // note we don't use location height at this point to adjust temperature
             grassColor = ComputeBiomeColor(biome, 0, 1);
             leafColor = ComputeBiomeColor(biome, 0, 0);
-            waterColor = (biome == SWAMPLAND_BIOME) ? BiomeSwampRiverColor(0xffffff) : 0xffffff;
+            waterColor = (biome == SWAMPLAND_BIOME || biome == MANGROVE_SWAMP_BIOME) ? BiomeSwampRiverColor(0xffffff) : 0xffffff;
         }
 
         for (i = 0; i < MULT_TABLE_SIZE; i++)
