@@ -666,7 +666,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
     switch (type)
     {
     case BLOCK_LEAVES:
-        switch (dataVal & 0x3)
+        switch (dataVal & 0x7)
         {
         default:
             assert(0);
@@ -679,6 +679,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Birch Leaves";
         case 3:	// jungle
             return "Jungle Leaves";
+        case 4:	// mangrove
+            return "Mangrove Leaves";
         }
         break;
 
@@ -821,6 +823,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         case SAPLING_FIELD | 5:
         case 13:
             return "Potted Dark Oak Sapling";
+        case SAPLING_FIELD | 6:
+            return "Potted Mangrove Propagule";
         case RED_MUSHROOM_FIELD | 0:
         case 7:
             return "Potted Red Mushroom";
@@ -1075,6 +1079,10 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Crimson Nylium";
         case 4:
             return "Warped Nylium";
+        case 5:
+            return "Reinforced Deepslate";
+        case 6:
+            return "Sculk Catalyst";
         }
         break;
 
@@ -1224,13 +1232,13 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             assert(0);
             break;
         case 0:
-            return "Oak Standing Sign";
+            return "Oak Sign";
         case BIT_16:	// spruce
-            return "Spruce Standing Sign";
+            return "Spruce Sign";
         case BIT_32:	// birch
-            return "Birch Standing Sign";
+            return "Birch Sign";
         case BIT_32 | BIT_16:	// jungle
-            return "Jungle Standing Sign";
+            return "Jungle Sign";
         }
         break;
     case BLOCK_ACACIA_SIGN_POST:
@@ -1240,13 +1248,13 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             assert(0);
             break;
         case 0:
-            return "Acacia Standing Sign";
+            return "Acacia Sign";
         case BIT_16:	// dark oak
-            return "Dark Oak Standing Sign";
+            return "Dark Oak Sign";
         case BIT_32:	// dark oak
-            return "Crimson Standing Sign";
+            return "Crimson Sign";
         case BIT_32 | BIT_16:	// dark oak
-            return "Warped Standing Sign";
+            return "Warped Sign";
         }
         break;
     case BLOCK_WALL_SIGN:
@@ -1353,6 +1361,12 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             break;
         case 5:
             strcat_s(gConcatString, 100, "Stone Slab");
+            break;
+        case 6: // mangrove
+            strcat_s(gConcatString, 100, "Mangrove Slab");
+            break;
+        case 7: // mud brick
+            strcat_s(gConcatString, 100, "Mud Brick Slab");
             break;
         }
         return gConcatString;
@@ -1583,6 +1597,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Deepslate Brick Wall";
         case 20:
             return "Deepslate Tile Wall";
+        case 21:
+            return "Mud Brick Wall";
         }
         break;
 
@@ -1782,6 +1798,11 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
                 return "Warped Stem";
             }
         }
+        break;
+    case BLOCK_MANGROVE_LOG:
+        if (dataVal & BIT_16) {
+            return "Mangrove Wood";
+        } // else name is fine as is, Mangrove Log
         break;
     case BLOCK_STATIONARY_WATER:
         if (dataVal & BIT_16)
@@ -2050,6 +2071,14 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Deepslate Lapis Lazuli Ore";
         case 43:
             return "Deepslate Diamond Ore";
+        case 44:
+            return "Mud";
+        case 45:
+            return "Mud Bricks";
+        case 46:
+            return "Packed Mud";
+        case 47:
+            return "Sculk";
         }
         break;
 
@@ -2079,6 +2108,21 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         case 1:
             // goofy, but they call it out as a separate block type with a name
             return "Big Dripleaf Stem";
+        }
+        break;
+
+    case BLOCK_FROGLIGHT:
+        switch (dataVal & 0x3)
+        {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case 1:
+            return "Verdant Froglight";
+        case 2:
+            return "Pearlescent Froglight";
         }
         break;
 
@@ -2632,6 +2676,12 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case 4:	// warped nylium
             color = 0x347568;
             break;
+        case 5: // reinforced deepslate
+            color = 0x5B6057;
+            break;
+        case 6: // Sculk Catalyst
+            color = 0x143036;
+            break;
         }
         break;
 
@@ -2767,12 +2817,13 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
 
     case BLOCK_LEAVES:
         dataVal = block->data[voxel];
-        switch (dataVal & 0x3)
+        switch (dataVal & 0x7)
         {
         default:
             assert(0);
         case 0:	// oak
         case 3:	// jungle
+        case 4:	// mangrove
             // if the default color is in use, use something more visible
             if (gBlockDefinitions[BLOCK_LEAVES].read_color == gBlockDefinitions[BLOCK_LEAVES].color)
             {
@@ -2780,7 +2831,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
                 // the stored value is used to affect only the output color, not the map color.
                 // This oak leaf color (and jungle, below) makes the trees easier to pick out.
 
-                // jungle and oak   
+                // jungle/mangrove and oak - this is pretty arbitrary on my part, should all be same: https://minecraft.fandom.com/wiki/Leaves#Color
                 color = dataVal ? 0x46AD19 : 0x3A7F1B;
             }
             else
@@ -2790,6 +2841,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             }
             affectedByBiome = 2;
             break;
+        // Not affected by biome. Color from https://minecraft.fandom.com/wiki/Leaves#Color
         case 1:	// spruce
             color = 0x3D623D;
             break;
@@ -3001,6 +3053,12 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             break;
         case 5:	// stone slab
             color = gBlockDefinitions[BLOCK_STONE].pcolor;
+            break;
+        case 6: // mangrove
+            color = 0x773932;
+            break;
+        case 7: // mud brick
+            color = 0x8B6950;
             break;
         }
         break;
@@ -3444,7 +3502,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
 
     case BLOCK_COBBLESTONE_WALL:
         dataVal = block->data[voxel];
-        switch (dataVal & 0xf) {
+        switch (dataVal & 0x1f) {
         default:
             assert(0);
         case 0:
@@ -3510,6 +3568,9 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             break;
         case 20: // Deepslate Tiles
             color = 0x39393A;
+            break;
+        case 21: // Mud brick wall
+            color = 0x8B6950;
             break;
         }
         break;
@@ -3832,9 +3893,22 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case 43: // Deepslate Diamond Ore
             color = 0x5B7876;
             break;
+        case 44: // Mud
+            color = 0x3D3A3D;
+            break;
+        case 45: // Mud Bricks
+            color = 0x8B6950;
+            break;
+        case 46: // Packed Mud
+            color = 0x8F6B50;
+            break;
+        case 47: // Sculk
+            color = 0x0E2025;
+            break;
         }
         break;
 
+    // didn't bother with flowering azalea, as blend color is gray - blah
     case BLOCK_AZALEA:
         dataVal = block->data[voxel];
         switch (dataVal & 0x1)
@@ -3851,8 +3925,25 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         }
         break;
 
-    // didn't bother with flowering azalea, as blend color is gray - blah
-
+    case BLOCK_FROGLIGHT:
+        dataVal = block->data[voxel];
+        switch (dataVal & 0x3)
+        {
+        default:
+            assert(0);
+        case 0:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 1:	// Verdant Froglight
+            color = 0xF6F1F0;
+            break;
+        case 2:	// Pearlescent Froglight
+            color = 0xE7F5E6;
+            break;
+        }
+        break;
+        
     default:
         // Everything else
         lightComputed = true;
@@ -4314,9 +4405,9 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
                 seenempty = 0;
                 type = retrieveType(block, voxel);
 
-                if (type == BLOCK_LEAVES || type == BLOCK_LOG || type == BLOCK_AD_LEAVES || type == BLOCK_AD_LOG) //special case surface trees
+                if (type == BLOCK_LEAVES || type == BLOCK_LOG || type == BLOCK_AD_LEAVES || type == BLOCK_AD_LOG || type == BLOCK_MANGROVE_LOG) //special case surface trees
                     for (; i >= 1; i--, voxel -= 16 * 16, type = retrieveType(block, voxel))
-                        if (!(type == BLOCK_LOG || type == BLOCK_LEAVES || type == BLOCK_AD_LEAVES || type == BLOCK_AD_LOG || type == BLOCK_AIR))
+                        if (!(type == BLOCK_LOG || type == BLOCK_LEAVES || type == BLOCK_AD_LEAVES || type == BLOCK_AD_LOG || type == BLOCK_MANGROVE_LOG || type == BLOCK_AIR))
                             break; // skip leaves, wood, air
 
                 for (; i >= 1; i--, voxel -= 16 * 16)
@@ -4526,6 +4617,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     switch (origType)
     {
     default:
+        // uses just 0 (first block) - no data field
         if (dataVal == 0)
         {
             //block->grid[BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8)] = (unsigned char)type;
@@ -4546,6 +4638,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_CRIMSON_PRESSURE_PLATE:
     case BLOCK_WARPED_PRESSURE_PLATE:
     case BLOCK_POLISHED_BLACKSTONE_PRESSURE_PLATE:
+    case BLOCK_MANGROVE_PRESSURE_PLATE:
     case BLOCK_SPONGE:
     case BLOCK_SOUL_SAND:
     case BLOCK_GLOWSTONE:
@@ -4599,7 +4692,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             addBlock = 1;
         }
         break;
-    case BLOCK_LEAVES:
     case BLOCK_NETHER_WART:
     case BLOCK_STONE_BRICKS:
     case BLOCK_FROSTED_ICE:
@@ -4647,6 +4739,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             addBlock = 1;
         }
         break;
+    case BLOCK_LEAVES:
     case BLOCK_CRAFTING_TABLE:
     case BLOCK_PUMPKIN:
     case BLOCK_JACK_O_LANTERN:
@@ -4674,8 +4767,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
     case BLOCK_DIRT:
-        // uses 0-4, 10 for podzol with snow
-        if (dataVal < 5 || dataVal == 10)
+        // uses 0-5, 10 for podzol with snow
+        if (dataVal < 6 || dataVal == 10)
         {
             addBlock = 1;
         }
@@ -4724,8 +4817,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         // TODO: could add vertical versions, joined and unjoined, in my copious free time
         break;
-    case BLOCK_WOODEN_SLAB:
-    case BLOCK_ANDESITE_SLAB:
     case BLOCK_LIGHTNING_ROD:
         // uses 0-5 and 8-13 for different slab types + lower or upper
         // or for lightning rod, powered is top bit
@@ -4775,6 +4866,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_ACACIA_FENCE_GATE:
     case BLOCK_CRIMSON_FENCE_GATE:
     case BLOCK_WARPED_FENCE_GATE:
+    case BLOCK_MANGROVE_FENCE_GATE:
     case BLOCK_FARMLAND:
     case BLOCK_BREWING_STAND:
     case BLOCK_ACACIA_WOOD_STAIRS:
@@ -4822,6 +4914,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_POLISHED_DEEPSLATE_STAIRS:
     case BLOCK_DEEPSLATE_BRICKS_STAIRS:
     case BLOCK_DEEPSLATE_TILES_STAIRS:
+    case BLOCK_MANGROVE_STAIRS:
+    case BLOCK_MUD_BRICK_STAIRS:
     case BLOCK_WOODEN_DOUBLE_SLAB:
     case BLOCK_CUT_COPPER_DOUBLE_SLAB:
         // uses 0-7 - TODO we could someday add more blocks to neighbor the others, in order to show the stairs' "step block trim" feature of week 39
@@ -5002,7 +5096,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         block->grid[neighborIndex] = (unsigned char)type;
         block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16 | HIGH_BIT;
 
-        if (dataVal < 12) { // 12+32 == 44
+        if (dataVal < 15) { // 15+32 == 47, 0-46 blocks
             neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
             block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | HIGH_BIT;
@@ -5060,12 +5154,27 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         // uses all bits, 0-15
         addBlock = 1;
         break;
+    case BLOCK_MANGROVE_LOG:
+        // uses high bits for directions
+        if ((dataVal & 0x03) == 0) {    // only mangrove
+            addBlock = 1;
+            // add new style diagonally SE of original
+            if (dataVal < ((type == BLOCK_LOG) ? 4 : 2)) {
+                // add "wood" variant to map
+                neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
+                block->grid[neighborIndex] = (unsigned char)type;
+                block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16;
+            }
+        }
+        break;
     case BLOCK_STONE:
     case BLOCK_STRIPPED_OAK:
     case BLOCK_STRIPPED_OAK_WOOD:
     case BLOCK_STRIPPED_ACACIA:
     case BLOCK_STRIPPED_ACACIA_WOOD:
     case BLOCK_STONE_SLAB:
+    case BLOCK_WOODEN_SLAB:
+    case BLOCK_ANDESITE_SLAB:
     case BLOCK_REDSTONE_REPEATER_OFF:
     case BLOCK_REDSTONE_REPEATER_ON:
     case BLOCK_REDSTONE_COMPARATOR:
@@ -5094,6 +5203,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_RED_SANDSTONE_SLAB:
     case BLOCK_PURPUR_SLAB:
     case BLOCK_CAMPFIRE:
+    case BLOCK_MANGROVE_SIGN_POST:
         // uses all bits, 0-15
         addBlock = 1;
         break;
@@ -5367,6 +5477,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
     case BLOCK_GLOW_LICHEN:
+    case BLOCK_SCULK_VEIN:
         // show with and without waterlogging
         // note we don't try all permutations (6 bits)
         if ((dataVal & 0x7) <= 5)
@@ -5445,12 +5556,17 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
 
     case BLOCK_WALL_SIGN:
-        // there are now 6 materials for wall signs. Rather than going absolutely nuts, we change the dataVal for each
+    case BLOCK_MANGROVE_WALL_SIGN:
+        // there are now 6 materials for wall signs. Rather than going absolutely nuts, we change the dataVal for each.
         if ((dataVal & 0x7) >= 2 && (dataVal & 0x7) <= 5)
         {
             addBlock = 1;
             // set higher bits BIT_8 and BIT_16
-            finalDataVal = ((dataVal % 6) << 3) | (dataVal & 0x7);
+            if (type == BLOCK_WALL_SIGN)
+                finalDataVal = ((dataVal % 6) << 3) | (dataVal & 0x7);
+            else
+                finalDataVal = dataVal & 0x7;   // just mangrove type
+
             switch (dataVal & 0x7)
             {
                 // do all the wood types
@@ -5559,6 +5675,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_ACACIA_DOOR:
     case BLOCK_CRIMSON_DOOR:
     case BLOCK_WARPED_DOOR:
+    case BLOCK_MANGROVE_DOOR:
         bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
         block->grid[bi] = (unsigned char)type;
         block->data[bi] = (unsigned char)((dataVal & 0x7) | (finalDataVal & HIGH_BIT));
@@ -5619,6 +5736,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_CRIMSON_BUTTON:
     case BLOCK_WARPED_BUTTON:
     case BLOCK_POLISHED_BLACKSTONE_BUTTON:
+    case BLOCK_MANGROVE_BUTTON:
         trimVal = dataVal & 0x7;
         if (trimVal <= 5)
         {
@@ -5660,6 +5778,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_DARK_OAK_TRAPDOOR:
     case BLOCK_CRIMSON_TRAPDOOR:
     case BLOCK_WARPED_TRAPDOOR:
+    case BLOCK_MANGROVE_TRAPDOOR:
         // use all 0-15
         addBlock = 1;
 
@@ -5781,6 +5900,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_NETHER_BRICK_FENCE:
     case BLOCK_CRIMSON_FENCE:
     case BLOCK_WARPED_FENCE:
+    case BLOCK_MANGROVE_FENCE:
     case BLOCK_IRON_BARS:
     case BLOCK_GLASS_PANE:
     case BLOCK_CHORUS_PLANT:
@@ -6018,6 +6138,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
     case BLOCK_LILY_PAD:
+    case BLOCK_FROGSPAWN:
         if (dataVal == 0)
         {
             int wrow, wcol;
@@ -6311,6 +6432,14 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         // don't add anything for these "high_bit" reserved spots
     case BLOCK_RESERVED_FLOWER_POT:
     case BLOCK_RESERVED_MOB_HEAD:
+        break;
+
+    case BLOCK_FROGLIGHT:
+        // uses 0-11, but without 0x3 versions (which is nothing)
+        if (dataVal < 12 && (dataVal % 4) != 3)
+        {
+            addBlock = 1;
+        }
         break;
 
         // don't show special blocks to users

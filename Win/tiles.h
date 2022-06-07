@@ -59,7 +59,7 @@
 
 
 // If this number changes, also change warning #7 in gPopupInfo (see TerrainExt.png in that message) in Mineways.cpp
-#define VERTICAL_TILES 55
+#define VERTICAL_TILES 57
 #define TOTAL_TILES (VERTICAL_TILES*16)
 static struct {
     int txrX;   // column and row, from upper left, of 16x16+ tiles in terrain.png, for top view of block
@@ -955,14 +955,46 @@ static struct {
     {  5, 54,  15, 0, L"raw_iron_block", L"", SWATCH_REPEAT_ALL },
     {  6, 54,  14, 0, L"raw_copper_block", L"", SWATCH_REPEAT_ALL },
     {  7, 54,  14, 0, L"raw_gold_block", L"", SWATCH_REPEAT_ALL },
-    {  8, 54,   6, 0, L"", L"", SWATCH_REPEAT_ALL },
-    {  9, 54,   6, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 10, 54,   6, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 11, 54,   6, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 12, 54,   6, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 13, 54,   6, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 14, 54,   6, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 15, 54,   6, 0, L"", L"", SWATCH_REPEAT_ALL },
+    {  8, 54, 435, 0, L"frogspawn", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },    // start 1.19
+    {  9, 54, 418, 0, L"mangrove_door_bottom", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
+    { 10, 54, 418, 0, L"mangrove_door_top", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
+    { 11, 54,  18, 0, L"mangrove_leaves", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYNTHESIZED },
+    { 12, 54, 416, 0, L"mangrove_log_top", L"", SWATCH_REPEAT_ALL },
+    { 13, 54, 416, 0, L"mangrove_log", L"", SWATCH_REPEAT_ALL },
+    { 14, 54, 423, 0, L"stripped_mangrove_log_top", L"", SWATCH_REPEAT_ALL },
+    { 15, 54, 423, 0, L"stripped_mangrove_log", L"", SWATCH_REPEAT_ALL },
+    {  0, 55, 417, 0, L"mangrove_planks", L"", SWATCH_REPEAT_ALL },
+    {  1, 55, 420, 0, L"mangrove_propagule", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  2, 55, 420, 0, L"mangrove_propagule_hanging", L"", SBIT_CLAMP_TOP | SBIT_DECAL },
+    {  3, 55, 421, 0, L"mangrove_roots_top", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
+    {  4, 55, 421, 0, L"mangrove_roots_side", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
+    {  5, 55, 419, 0, L"mangrove_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
+    {  6, 55,   1, 0, L"mud", L"", SWATCH_REPEAT_ALL },
+    {  7, 55,  45, 0, L"mud_bricks", L"", SWATCH_REPEAT_ALL },
+    {  8, 55, 422, 0, L"muddy_mangrove_roots_top", L"", SWATCH_REPEAT_ALL },
+    {  9, 55, 422, 0, L"muddy_mangrove_roots_side", L"", SWATCH_REPEAT_ALL },
+    { 10, 55,   1, 0, L"packed_mud", L"", SWATCH_REPEAT_ALL },
+    { 11, 55, 436, 0, L"ochre_froglight_top", L"", SWATCH_REPEAT_ALL },
+    { 12, 55, 436, 0, L"ochre_froglight_side", L"", SWATCH_REPEAT_ALL },
+    { 13, 55, 436, 0, L"pearlescent_froglight_top", L"", SWATCH_REPEAT_ALL },
+    { 14, 55, 436, 0, L"pearlescent_froglight_side", L"", SWATCH_REPEAT_ALL },
+    { 15, 55, 436, 0, L"verdant_froglight_top", L"", SWATCH_REPEAT_ALL },
+    {  0, 56, 436, 0, L"verdant_froglight_side", L"", SWATCH_REPEAT_ALL },
+    {  1, 56, 388, 0, L"sculk", L"", SWATCH_REPEAT_ALL },
+    {  2, 56,   3, 0, L"sculk_catalyst_top", L"", SWATCH_REPEAT_ALL },
+    {  3, 56,   3, 0, L"sculk_catalyst_side", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
+    {  4, 56,   3, 0, L"sculk_catalyst_bottom", L"", SWATCH_REPEAT_ALL },
+    {  5, 56,   3, 0, L"sculk_catalyst_top_bloom", L"", SWATCH_REPEAT_ALL },
+    {  6, 56,   3, 0, L"sculk_catalyst_side_bloom", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
+    {  7, 56, 433, 0, L"sculk_shrieker_top", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    {  8, 56, 433, 0, L"sculk_shrieker_side", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_CUTOUT_GEOMETRY },
+    {  9, 56, 433, 0, L"sculk_shrieker_bottom", L"", SWATCH_REPEAT_ALL },
+    { 10, 56, 433, 0, L"sculk_shrieker_can_summon_inner_top", L"", SWATCH_REPEAT_ALL },
+    { 11, 56, 433, 0, L"sculk_shrieker_inner_top", L"", SWATCH_REPEAT_ALL },
+    { 12, 56, 434, 0, L"sculk_vein", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 13, 56, 388, 0, L"reinforced_deepslate_top", L"", SWATCH_REPEAT_ALL },
+    { 14, 56, 388, 0, L"reinforced_deepslate_side", L"", SWATCH_REPEAT_ALL },
+    { 15, 56, 388, 0, L"reinforced_deepslate_bottom", L"", SWATCH_REPEAT_ALL },
 };
 
 // There is more than one alternate name, so test more of them

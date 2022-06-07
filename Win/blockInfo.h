@@ -423,8 +423,8 @@ typedef struct Options {
     float block_inch;
 } Options;
 
-// number of blocks with entries in block info table - now that 255 is used, we need this
-#define NUM_BLOCKS_DEFINED 416
+// number of blocks with entries in block info table (max number at bottom + 1) - now that 255 is used, we need this
+#define NUM_BLOCKS_DEFINED 437
 // number of official Minecraft blocks (no longer needed - we used to have the block after everything be special)
 #define NUM_BLOCKS_STANDARD NUM_BLOCKS_DEFINED
 // number of blocks we want to show on the map (no longer needed - includes the unknown one)
@@ -959,4 +959,25 @@ enum block_types {
     BLOCK_DEEPSLATE_TILES_STAIRS = 415,
     //BLOCK_LIGHT = 416,
 
+    BLOCK_MANGROVE_LOG = 416,
+    BLOCK_MANGROVE_PLANKS = 417,
+    BLOCK_MANGROVE_DOOR = 418,
+    BLOCK_MANGROVE_TRAPDOOR = 419,
+    BLOCK_MANGROVE_PROPAGULE = 420,
+    BLOCK_MANGROVE_ROOTS = 421,
+    BLOCK_MUDDY_MANGROVE_ROOTS = 422,
+    BLOCK_STRIPPED_MANGROVE = 423,
+    BLOCK_STRIPPED_MANGROVE_WOOD = 424,
+    BLOCK_MANGROVE_STAIRS = 425,
+    BLOCK_MUD_BRICK_STAIRS = 426,
+    BLOCK_MANGROVE_SIGN_POST = 427,
+    BLOCK_MANGROVE_WALL_SIGN = 428,
+    BLOCK_MANGROVE_PRESSURE_PLATE = 429,
+    BLOCK_MANGROVE_BUTTON = 430,
+    BLOCK_MANGROVE_FENCE = 431,
+    BLOCK_MANGROVE_FENCE_GATE = 432,
+    BLOCK_SCULK_SHRIEKER = 433,
+    BLOCK_SCULK_VEIN = 434,
+    BLOCK_FROGSPAWN = 435,
+    BLOCK_FROGLIGHT = 436,
 };

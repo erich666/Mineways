@@ -356,8 +356,10 @@ static bool makeBiomeHash = true;
 // age: 0-7 or 0-15, (0-3 for frosted ice)
 // property is treated as NO_PROP; if something has just an age, it simply gets the value in dataVal - search on "age" (with quotes) to see code
 #define AGE_PROP			60
+// age and stage will eventually be ignored, hanging will not
+#define PROPAGULE_PROP      61
 
-#define NUM_TRANS 906
+#define NUM_TRANS 941
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1286,7 +1288,44 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 118,            0x4, "lava_cauldron", NO_PROP }, // level directly translates to dataVal, bottom two bits
     { 0, 118,            0x8, "powder_snow_cauldron", NO_PROP }, // level directly translates to dataVal, bottom two bits
     { 0, 0,                0, "light", NO_PROP },   // for now, just make it air, since it normally doesn't appear
-    //{ 0, 160,       HIGH_BIT, "light", NO_PROP },   // has just the level property, and waterlogged; normally invisible, https://minecraft.fandom.com/wiki/Light_Block
+
+    // 1.19
+    { 0, 160,       HIGH_BIT, "mangrove_log", AXIS_PROP },
+    { 0, 160, HIGH_BIT | BIT_16, "mangrove_wood", AXIS_PROP },	// same as log, but with a high bit set to mean that it's "wood" texture on the endcaps. 
+    { 0, 161,       HIGH_BIT, "mangrove_planks", NO_PROP },
+    { 0, 162,       HIGH_BIT, "mangrove_door", DOOR_PROP },
+    { 0, 163,       HIGH_BIT, "mangrove_trapdoor", TRAPDOOR_PROP },
+    { 0, 164,       HIGH_BIT, "mangrove_propagule", PROPAGULE_PROP },   // also has hanging property, waterlogged prop
+    { 0, BLOCK_FLOWER_POT,        SAPLING_FIELD | 6, "potted_mangrove_propagule", NO_PROP },
+    { 0, 165,       HIGH_BIT, "mangrove_roots", NO_PROP },
+    { 0, 166,       HIGH_BIT, "muddy_mangrove_roots", AXIS_PROP },
+    { 0, 167,   HIGH_BIT | 1, "stripped_mangrove_log", AXIS_PROP },
+    { 0, 168,   HIGH_BIT | 0, "stripped_mangrove_wood", AXIS_PROP },
+    { 0,  18,              4, "mangrove_leaves", LEAF_PROP },
+    { 0,  74,	HIGH_BIT | 6, "mangrove_slab", SLAB_PROP },
+    { 0,  74,	HIGH_BIT | 7, "mud_brick_slab", SLAB_PROP },
+    { 0, 169,	    HIGH_BIT, "mangrove_stairs", STAIRS_PROP },
+    { 0, 170,	    HIGH_BIT, "mud_brick_stairs", STAIRS_PROP },
+    { 0, 171,       HIGH_BIT, "mangrove_sign", STANDING_SIGN_PROP },
+    { 0, 172,       HIGH_BIT, "mangrove_wall_sign", WALL_SIGN_PROP },
+    { 0, 173,       HIGH_BIT, "mangrove_pressure_plate", PRESSURE_PROP },
+    { 0, 174,       HIGH_BIT, "mangrove_button", BUTTON_PROP },
+    { 0, 175,       HIGH_BIT, "mangrove_fence", FENCE_AND_VINE_PROP },
+    { 0, 176,       HIGH_BIT, "mangrove_fence_gate", FENCE_GATE_PROP },
+    { 0, 132,  HIGH_BIT | 44, "mud", NO_PROP },
+    { 0, 132,  HIGH_BIT | 45, "mud_bricks", NO_PROP },
+    { 0, 132,  HIGH_BIT | 46, "packed_mud", NO_PROP },
+    { 0, 139,             21, "mud_brick_wall", WALL_PROP },	// no data values used for walls, it's all implied in Mineways
+    { 0,   3,              5, "reinforced_deepslate", NO_PROP },
+    { 0, 132,  HIGH_BIT | 47, "sculk", NO_PROP },
+    { 0,   3,              6, "sculk_catalyst", NO_PROP },
+    { 0, 177,       HIGH_BIT, "sculk_shrieker", NO_PROP },
+    { 0, 178,       HIGH_BIT, "sculk_vein", FENCE_AND_VINE_PROP },
+    { 0, 179,       HIGH_BIT, "frogspawn", NO_PROP },
+    { 0, 180,       HIGH_BIT, "ochre_froglight", AXIS_PROP },
+    { 0, 180,   HIGH_BIT | 1, "verdant_froglight", AXIS_PROP },
+    { 0, 180,   HIGH_BIT | 2, "pearlescent_froglight", AXIS_PROP },
+        //{ 0, 160,       HIGH_BIT, "light", NO_PROP },   // has just the level property, and waterlogged; normally invisible, https://minecraft.fandom.com/wiki/Light_Block
     // last used was 160 | HIGH_BIT
 
  // Note: 140, 144 are reserved for the extra bit needed for BLOCK_FLOWER_POT and BLOCK_HEAD, so don't use these HIGH_BIT values
@@ -3083,14 +3122,14 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
 
     // for doors
     bool half, north, south, east, west, down, lit, powered, triggered, extended, attached, disarmed,
-        conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall, signal_fire, has_book, up;
+        conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall, signal_fire, has_book, up, hanging;
     int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age,
         delay, locked, sticky, hatch, leaves, single, attachment, honey_level, stairs, bites, tilt,
         thickness, vertical_direction, berries;
     // to avoid Release build warning, but should always be set by code in practice
     int typeIndex = 0;
     half = north = south = east = west = down = lit = powered = triggered = extended = attached = disarmed
-        = conditional = inverted = enabled = doubleSlab = mode = in_wall = signal_fire = has_book = up = false; // waterlogged is always set false in loop
+        = conditional = inverted = enabled = doubleSlab = mode = in_wall = signal_fire = has_book = up = hanging = false; // waterlogged is always set false in loop
     axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
         delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt =
         thickness = vertical_direction = berries = 0;
@@ -3299,7 +3338,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             if (dataVal > 7 || dataVal < 0)
                                 dataVal = 1;
                         }
-                        // frosted ice, crops, cocoa (which needs age separate), fire (useless, and ignored), cave vines plant (also ignored, but there)
+                        // frosted ice, crops, cocoa (which needs age separate), fire (useless, and ignored), cave vines plant (also ignored, but there),
+                        // mangrove propagule (NOT ignored)
                         else if (strcmp(token, "age") == 0) {
                             // AGE_PROP
                             // 0-3 or 0-7 or 0-25 (for cave vines plant)
@@ -3606,9 +3646,10 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         else if (strcmp(token, "has_book") == 0) {
                             has_book = (strcmp(value, "true") == 0);
                         }
-                        // for lantern LANTERN_PROP
+                        // for lantern LANTERN_PROP and PROPAGULE_PROP
                         else if (strcmp(token, "hanging") == 0) {
                             dataVal = (strcmp(value, "true") == 0) ? 1 : 0;
+                            hanging = true;
                         }
                         // for scaffolding
                         else if (strcmp(token, "bottom") == 0) {
@@ -3739,7 +3780,10 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                                 assert(0);
                             }
                         }
-
+                        // for sculk shrieker
+                        else if (strcmp(token, "can_summon") == 0) {
+                            dataVal = (strcmp(value, "true") == 0) ? 1 : 0;
+                        }
 
 #ifdef _DEBUG
                         else {
@@ -3751,6 +3795,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             else if (strcmp(token, "drag") == 0) {}
                             else if (strcmp(token, "has_record") == 0) {}	// jukebox
                             else if (strcmp(token, "unstable") == 0) {}	// does TNT blow up when punched? I don't care
+                            else if (strcmp(token, "shrieking") == 0) {}	// non-visual sculk shrieker prop
+                            else if (strcmp(token, "bloom") == 0) {}	// for sculk catalyst
                             else {
                                 // unknown property - look at token and value
                                 assert(0);
@@ -4213,6 +4259,10 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             if (berries) {
                 paletteBlockEntry[entryIndex]++;
             }
+            break;
+        case PROPAGULE_PROP:
+            // use the age only if hanging. Age otherwise appears irrelevant?
+            dataVal = (hanging ? (0x8 | age) : 0);
             break;
         }
         // make sure upper bits are not set - they should not be! Well, except for heads. So, comment out this test
