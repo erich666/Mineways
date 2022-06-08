@@ -3425,7 +3425,7 @@ static void computeRedstoneConnectivity(int boxIndex)
     // If so, then wires can run up the sides; whole blocks that are not glass (or pistons or glowstone) cut redstone wires.
     // Said another way, partial blocks, glass, glowstone, and pistons above redstone do not block that redstone from traveling up adjacent blocks.
     // In other words: you have a redstone wire on the ground, you have some random block (say grass) next to it with redstone on top.
-    // These two will normally connect. However, if just above the redstone on the ground is a full block that is not glass/glowstone/piston,
+    // These two will normally connect. However, if just above the redstone on the ground is a full block that is not glass/glowstone/piston/observer,
     // it will chop the redstone on the ground from connecting with the neighboring redstone a level up. Whew.
     if (!(gBlockDefinitions[gBoxData[boxIndex + 1].origType].flags & BLF_WHOLE) ||
         (gBoxData[boxIndex + 1].origType == BLOCK_PISTON) ||
@@ -3435,6 +3435,7 @@ static void computeRedstoneConnectivity(int boxIndex)
         (gBoxData[boxIndex + 1].origType == BLOCK_TNT && !(gBoxData[boxIndex + 1].data & 0x1)) ||
         (gBoxData[boxIndex + 1].origType == BLOCK_REDSTONE_BLOCK) ||
         (gBoxData[boxIndex + 1].origType == BLOCK_SEA_LANTERN) ||
+        (gBoxData[boxIndex + 1].origType == BLOCK_OBSERVER) ||
         (gBoxData[boxIndex + 1].origType == BLOCK_STAINED_GLASS))
     {
         // first hurdle passed - now check each in turn: is block above wire. If so,
