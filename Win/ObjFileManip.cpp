@@ -533,6 +533,9 @@ typedef struct TouchRecord {
 // raise light emission by this power, for OBJ files, as an approximation of Minecraft's actual effect
 #define OBJ_EMITTER_POWER 1.5f
 
+// is type a leaf
+#define TYPE_IS_LEAF(x)  ((x) == BLOCK_LEAVES || (x) == BLOCK_AD_LEAVES || (x) == BLOCK_MANGROVE_LEAVES)
+
 // for USD
 typedef struct OutDataArrays
 {
@@ -1433,10 +1436,12 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
     if (gModel.pPNGtexture != NULL)
     {
         int col, row;
+        // For 3D printing detailed blocks, we specify the textures where we want to composite over something special, like black or stone.
+        // Otherwise, all alphas are set to the average color of the tile, to avoid bleeding black along the edges.
         // if we're rendering all blocks, don't fill in cauldrons, beds, etc. as we want these cutouts for rendering; else use offset:
 #define FA_TABLE__RENDER_BLOCK_START 7
 #define FA_TABLE__VIEW_SIZE (1+FA_TABLE__RENDER_BLOCK_START)
-#define FA_TABLE_SIZE 59
+#define FA_TABLE_SIZE 61
         static FillAlpha faTable[FA_TABLE_SIZE] =
         {
             // Stuff filled only if lesser (i.e. all blocks) is off for rendering, so that the cauldron is rendered as a solid block.
@@ -1513,6 +1518,8 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
             { SWATCH_INDEX(14,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
             { SWATCH_INDEX(15,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
             { SWATCH_INDEX(15, 1), -BLOCK_TRIPWIRE }, // fire over air (black)
+            { SWATCH_INDEX(7, 56), -BLOCK_TRIPWIRE }, // sculk shrieker top over air (black)
+            { SWATCH_INDEX(8, 56), -BLOCK_TRIPWIRE }, // sculk shrieker side over air (black)
             // TODO: really, should add all the other cutouts that get flattened since then, but cross fingers that we don't run out of composite swatch room
         };
 
@@ -3890,7 +3897,7 @@ static int computeFlatFlags(int boxIndex)
                 // really the place to do it - vines could extend past the border, and if "seal tunnels" etc. is done things go
                 // very wrong.
                 if (gBlockDefinitions[gBoxData[boxIndex + gBoxSize[Y]].type].flags & (BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF) &&
-                    gBoxData[boxIndex + gBoxSize[Y]].type != BLOCK_LEAVES)
+                    !TYPE_IS_LEAF(gBoxData[boxIndex + gBoxSize[Y]].type))
                 {
                     // neighbor's a whole block, so shove the vine onto it
                     gBoxData[boxIndex + gBoxSize[Y]].flatFlags |= FLAT_FACE_LO_Z;
@@ -3909,7 +3916,7 @@ static int computeFlatFlags(int boxIndex)
                 // west face (-X)
                 // is there a neighbor?
                 if (gBlockDefinitions[gBoxData[boxIndex - gBoxSizeYZ].type].flags & (BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF) &&
-                    gBoxData[boxIndex - gBoxSizeYZ].type != BLOCK_LEAVES)
+                    !TYPE_IS_LEAF(gBoxData[boxIndex - gBoxSizeYZ].type))
                 {
                     // neighbor's a whole block, so shove the vine onto it
                     gBoxData[boxIndex - gBoxSizeYZ].flatFlags |= FLAT_FACE_HI_X;
@@ -3927,7 +3934,7 @@ static int computeFlatFlags(int boxIndex)
                 // north face (-Z)
                 // is there a neighbor?
                 if (gBlockDefinitions[gBoxData[boxIndex - gBoxSize[Y]].type].flags & (BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF) &&
-                    gBoxData[boxIndex - gBoxSize[Y]].type != BLOCK_LEAVES)
+                    !TYPE_IS_LEAF(gBoxData[boxIndex - gBoxSize[Y]].type))
                 {
                     // neighbor's a real-live whole block, so shove the vine onto it
                     gBoxData[boxIndex - gBoxSize[Y]].flatFlags |= FLAT_FACE_HI_Z;
@@ -3946,7 +3953,7 @@ static int computeFlatFlags(int boxIndex)
                 // east face (+X)
                 // is there a neighbor?
                 if (gBlockDefinitions[gBoxData[boxIndex + gBoxSizeYZ].type].flags & (BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF) &&
-                    gBoxData[boxIndex + gBoxSizeYZ].type != BLOCK_LEAVES)
+                    !TYPE_IS_LEAF(gBoxData[boxIndex + gBoxSizeYZ].type))
                 {
                     // neighbor's a whole block, so shove the vine onto it
                     gBoxData[boxIndex + gBoxSizeYZ].flatFlags |= FLAT_FACE_LO_X;
@@ -4470,7 +4477,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break;	// saveBillboardOrGeometry
 
     case BLOCK_MANGROVE_PROPAGULE:
-        if (dataVal & 0x8)
+        if (!(dataVal & 0x8))
             return saveBillboardFaces(boxIndex, type, BB_FULL_CROSS);
         else {
             // hanging propagule, good times
@@ -4480,11 +4487,147 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             // box flaps that stick out 3 texels in an L, at an angle, seems to be right half of the 6x2 3rd column
             // box below that is 2x3, seems to be a part of the 1st column
             // hanging tongue, in an X that's 2x10 high max at age 4?
-            gUsingTransform = 1;
             // grab hanging texture
             swatchLoc = SWATCH_INDEX(2,55);
+            age = dataVal & 0x7;
+ 
+            gUsingTransform = 1;
+            totalVertexCount = littleTotalVertexCount = gModel.vertexCount;
+            // hanging X 2x2, texture from 3rd column
+            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0 : DIR_HI_Z_BIT), 7, 9, 14, 16, 8, 8);
+            // rotate, move to center
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            rotateMtx(mtx, 0.0f, 45.0f, 0.0f);
+            translateFromOriginMtx(mtx, boxIndex);
+            littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+            transformVertices(littleTotalVertexCount, mtx);
 
-            totalVertexCount = gModel.vertexCount;
+            littleTotalVertexCount = gModel.vertexCount;
+            // other half of hanging X 2x2, texture from 3rd column
+            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0 : DIR_HI_Z_BIT), 7, 9, 14, 16, 8, 8);
+            // rotate, move to center
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            rotateMtx(mtx, 0.0f, -45.0f, 0.0f);
+            translateFromOriginMtx(mtx, boxIndex);
+            littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+            transformVertices(littleTotalVertexCount, mtx);
+
+            // box that's 2x1, textures from top 5 of 1st column
+            littleTotalVertexCount = gModel.vertexCount;
+            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0, 2, 13, 14, 0, 2);
+            // need to reverse X's and Z's (16-X from line above, for both 0,2 pairs) to get the properly flipped coordinates. Yes, this is stupid.
+            saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 14, 16, 13, 14, 14, 16);
+            // top
+            saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 2, 0, 2, 0, 2);
+            if (age == 0) {
+                // remove bottom if we know "pod" below it will be made
+                saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 2, 3, 5, 0, 2);
+            }
+            identityMtx(mtx);
+            translateMtx(mtx, 7.0f / 16.0f, 0.0f, 7.0f / 16.0f);    // center it
+            littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+            transformVertices(littleTotalVertexCount, mtx);
+
+            // box flaps that stick out 3 texels in an L, at an angle, seems to be right half of the 6x2 3rd column
+            for (i = 0; i < 4; i++) {
+                littleTotalVertexCount = gModel.vertexCount;
+                // hanging X 2x2, texture from 3rd column
+                // Note that we ignore the underside, 8,10 in X - probably the underside that should be paired (but singleSided support means we don't want two different sides)
+                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0 : DIR_HI_Z_BIT), 6, 8, 11, 13, 8, 8);
+                // rotate, move to center
+                identityMtx(mtx);
+                translateToOriginMtx(mtx, boxIndex);
+                // center at origin
+                translateMtx(mtx, 1.0f / 16.0f, -3.0f / 16.0f, 0.0f);
+                rotateMtx(mtx, 240.0f, 0.0f, 0.0f);
+                // move to edge of upper pod, 3 texels down from top
+                translateMtx(mtx, 0.0f / 16.0f, 5.0f / 16.0f, 1.0f / 16.0f);
+                rotateMtx(mtx, 0.0f, (float)i * 90.0f, 0.0f);
+                translateFromOriginMtx(mtx, boxIndex);
+                littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+                transformVertices(littleTotalVertexCount, mtx);
+            }
+
+            if (age > 0) {
+                // box below that is 2x3, next part of the 1st column
+                littleTotalVertexCount = gModel.vertexCount;
+                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0, 2, 6, 9, 0, 2);
+                // need to reverse X's and Z's (16-X from line above, for both 0,2 pairs) to get the properly flipped coordinates. Yes, this is stupid.
+                saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 14, 16, 6, 9, 14, 16);
+                // bottom (we never output the top, since it's covered)
+                saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 2, 10, 12, 0, 2);
+                identityMtx(mtx);
+                translateMtx(mtx, 7.0f / 16.0f, 4.0f / 16.0f, 7.0f / 16.0f);    // center it
+                littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+                transformVertices(littleTotalVertexCount, mtx);
+
+                if (age > 1) {
+                    switch (age) {
+                    case 2:
+                        leafSize = 3;
+                        break;
+                    case 3:
+                        leafSize = 7;
+                        break;
+                    case 4:
+                    default:
+                        leafSize = 10;
+                        break;
+                    }
+                    // hanging tongue, in an X that's 2x10 high max at age 4?
+                    littleTotalVertexCount = gModel.vertexCount;
+                    saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0 : DIR_HI_Z_BIT), 3, 5, 6, (float)(leafSize + 6), 8, 8);
+                    // rotate, move to center
+                    identityMtx(mtx);
+                    translateToOriginMtx(mtx, boxIndex);
+                    translateMtx(mtx, 4.0f / 16.0f, (4.0f - (float)leafSize) / 16.0f, 0.0f);
+                    rotateMtx(mtx, 0.0f, 45.0f, 0.0f);
+                    translateFromOriginMtx(mtx, boxIndex);
+                    littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+                    transformVertices(littleTotalVertexCount, mtx);
+
+                    littleTotalVertexCount = gModel.vertexCount;
+                    // hanging X 2x2, texture from 3rd column
+                    saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0 : DIR_HI_Z_BIT), 3, 5, 6, (float)(leafSize + 6), 8, 8);
+                    // rotate, move to center
+                    identityMtx(mtx);
+                    translateToOriginMtx(mtx, boxIndex);
+                    translateMtx(mtx, 4.0f / 16.0f, (4.0f - (float)leafSize) / 16.0f, 0.0f);
+                    rotateMtx(mtx, 0.0f, -45.0f, 0.0f);
+                    translateFromOriginMtx(mtx, boxIndex);
+                    littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+                    transformVertices(littleTotalVertexCount, mtx);
+                }
+            }
+
+            // jitter the location of the whole model
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            wobbleObjectLocation(boxIndex, shiftX, shiftZ);
+            identityMtx(mtx);
+            translateMtx(mtx, shiftX / 16.0f, 0.0f / 16.0f, shiftZ / 16.0f);
+            transformVertices(totalVertexCount, mtx);
+
+            /*
+            littleTotalVertexCount = gModel.vertexCount;
+            // tip - move over by 1
+            gUsingTransform = 1;
+            saveBoxGeometry(boxIndex, BLOCK_LEVER, dataVal, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT, 7, 9, 10, 10, 6, 8);
+            littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+            identityMtx(mtx);
+            translateMtx(mtx, 0.0f, 0.0f, 1.0f / 16.0f);
+            transformVertices(littleTotalVertexCount, mtx);
+
+            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 1, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 0, 16, 0, 0, 0, 16);
+                    saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 0, 16, 16, 16, 0, 16);
+                    saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, 0, 0, 16, 0, 16, 0, 0);
+                    saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, 0, 0, 16, 0, 16, 8, 8);
+                    saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, 0, 0, 16, 0, 16, 16, 16);
+                    saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 0, 0, 0, 16, 0, 16);
+                    saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 8, 8, 0, 16, 0, 16);
+                    saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 16, 16, 0, 16, 0, 16);
+
             // tongue - CHANGE THE 1 (FIRST ITEM) LATER!!!
             saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 3, 4, 6, 16, 0, 0);
             totalVertexCount = gModel.vertexCount - totalVertexCount;
@@ -4494,6 +4637,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             rotateMtx(mtx, 0.0f, 45.0f, 0.0f);
             translateFromOriginMtx(mtx, boxIndex);
             transformVertices(totalVertexCount, mtx);
+            */
 
             gUsingTransform = 0;
         }
@@ -6691,6 +6835,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_COCOA_PLANT:						// saveBillboardOrGeometry
         swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
         shiftVal = 0;
+        shiftX = 0;
         gUsingTransform = 1;
         switch ((dataVal >> 2) & 0x3)
         {
@@ -6719,18 +6864,21 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             // already right swatch
             // note all six sides are used, but with different texture coordinates
             // sides:
-            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0, 7, 15, 3, 12, 7, 15);
-            // it should really be 3,12, but Minecraft has a bug where their sides are wrong and are 3,10
-            saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 1, 9, 3, 10, 1, 9);
+            // 1.18 saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0, 7, 15, 3, 12, 7, 15);
+            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0, 8, 16, 3, 12, 8, 16);
+            // it should really be 3,12, but Minecraft has a bug where their sides are wrong and are 3,10 - finally fixed in 1.19
+            // 1.18: saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 1, 9, 3, 10, 1, 9);
+            saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 0, 8, 3, 12, 0, 8);
             // top and bottom:
-            saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 7, 0, 7, 0, 7);
-            shiftVal = 3;
+            saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 8, 0, 8, 0, 8);
+            shiftVal = 4;
+            shiftX = -1;
             break;
         }
         // -X (west) is the "base" position for the cocoa plant pod
         identityMtx(mtx);
-        // push fruit against tree if printing
-        translateMtx(mtx, (float)gModel.print3D / 16.0f, 0.0f, (float)-shiftVal / 16.0f);
+        // push fruit against tree with X if printing; 1.19 the most mature pod now has to shove outwards by 1; Z centers fruit
+        translateMtx(mtx, (float)(gModel.print3D + shiftX) / 16.0f, 0.0f, (float)-shiftVal / 16.0f);
         transformVertices(8, mtx);
 
         bitAdd = 8;
@@ -10136,10 +10284,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         }
         else {
             // for rendering where culling is on, make everything double-sided - the double-sided flag does come into play
-            // top
-            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 2, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 1, 15, 15, 15, 1, 15);
+            // top, doubled
+            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 1, 15, 15, 15, 1, 15);
             // side -X
-            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 2, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 1, 1, 8, 15, 1, 15);
+            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 2, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 1, 1, 8, 15, 1, 15);
             // side +X
             saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 2, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 15, 15, 8, 15, 1, 15);
             // side -Z
@@ -17300,6 +17448,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_SPORE_BLOSSOM:
         case BLOCK_GLOW_LICHEN:
         case BLOCK_SCULK_VEIN:
+        case BLOCK_MANGROVE_PROPAGULE:						// getSwatch
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             break;
         case BLOCK_LILY_PAD:
@@ -17994,7 +18143,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             // if we're using print export, go with the non-fancy leaves (not transparent)
             // was, when we had opaque leaves: col = gModel.print3D ? 5 : 4;
             // Now we just use black as the background
-            switch (dataVal & 0x7)
+            switch (dataVal & 0x3)
             {
             default:
             case 0: // normal tree (oak)
@@ -18008,9 +18157,6 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case 3: // jungle
                 swatchLoc = SWATCH_INDEX(4, 12);
-                break;
-            case 4: // mangrove
-                swatchLoc = SWATCH_INDEX(11, 54);
                 break;
             }
             break;
@@ -18031,6 +18177,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 swatchLoc = SWATCH_INDEX(1, 52);
                 break;
             }
+            break;
+        case BLOCK_MANGROVE_LEAVES:						// getSwatch
+            // Not actually needed - rare! It's processed and composited earlier on, and
+            // there is only one type of this leaf, so we don't do anything
+            //swatchLoc = SWATCH_INDEX(11, 54);
             break;
         case BLOCK_SAND:						// getSwatch
             switch (dataVal & 0x1)
@@ -19789,7 +19940,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             if (faceDirection == DIRECTION_BLOCK_TOP ) {
                 // use inner top, summon or not
                 // If we deeply cared about 3D printing, we'd probably composite shrieker_top onto these two.
-                swatchLoc = SWATCH_INDEX(dataVal ? 10 : 11, 56);
+                //swatchLoc = SWATCH_INDEX(dataVal ? 10 : 11, 56);
             } else {
                 SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 8, 56, 9, 56);
             }
@@ -23044,6 +23195,7 @@ static int createBaseMaterialTexture()
                 gModel.swatchSize* dstCol + SWATCH_BORDER,
                 gModel.swatchSize* dstRow + SWATCH_BORDER + (gModel.tileSize / 2) + 1
             );
+            // TODO: if we want to really go nuts, stretch the sculk shrieker's top half out to the edges. Me, I think it looks kinda cool with the black edging when printed as blocks.
         }
 
         // Copy middle of top of sea pickle to fill in hole in top of sea pickle
@@ -23294,7 +23446,7 @@ static int createBaseMaterialTexture()
             // assigning green to grayscale textures
             if (multTable[i].type == BLOCK_GRASS_BLOCK || multTable[i].type == BLOCK_GRASS ||
                 multTable[i].type == BLOCK_DOUBLE_FLOWER || multTable[i].type == BLOCK_LILY_PAD ||
-                multTable[i].type == BLOCK_LEAVES || multTable[i].type == BLOCK_AD_LEAVES)
+                TYPE_IS_LEAF(multTable[i].type))
             {
                 // funny stuff: (A) Minecraft makes sides of blocks dimmer than tops, even under full light,
                 // (B) the color set for Grass in the color scheme is used to multiply the grayscale texture,

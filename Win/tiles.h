@@ -958,7 +958,7 @@ static struct {
     {  8, 54, 435, 0, L"frogspawn", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },    // start 1.19
     {  9, 54, 418, 0, L"mangrove_door_bottom", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     { 10, 54, 418, 0, L"mangrove_door_top", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
-    { 11, 54,  18, 0, L"mangrove_leaves", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYNTHESIZED },
+    { 11, 54, 437, 0, L"mangrove_leaves", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYNTHESIZED },
     { 12, 54, 416, 0, L"mangrove_log_top", L"", SWATCH_REPEAT_ALL },
     { 13, 54, 416, 0, L"mangrove_log", L"", SWATCH_REPEAT_ALL },
     { 14, 54, 423, 0, L"stripped_mangrove_log_top", L"", SWATCH_REPEAT_ALL },

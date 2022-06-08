@@ -89,7 +89,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /*  16 */ "Coal Ore",               		0x343434, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2, 2, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//10
     { /*  17 */ "Oak Log",                		0x695333, 1.000f, 0xff7711, 0xff7711, 0.12345f,   5, 1, 0x13, BLF_WHOLE | BLF_TRUNK_PART | BLF_FENCE_NEIGHBOR},	//11/17
     // Leaves block color is from Plains biome color (default terrain in a flat world). Acacia Leaves should also be changed if this is changed.
-    { /*  18 */ "Oak Leaves",					0x6fac2c, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 3, 0x07, BLF_WHOLE | BLF_CUTOUTS | BLF_LEAF_PART | BLF_MAYWATERLOG},	//12
+    { /*  18 */ "Oak Leaves",					0x6fac2c, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 3, 0x03, BLF_WHOLE | BLF_CUTOUTS | BLF_LEAF_PART | BLF_MAYWATERLOG},	//12
     { /*  19 */ "Sponge",                 		0xD1D24E, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 3, 0x01, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//13
     { /*  20 */ "Glass",                  		0xc0f6fe, 0.500f, 0xff7711, 0xff7711, 0.12345f,   1, 3, 0x01, BLF_WHOLE | BLF_CUTOUTS | BLF_FENCE_NEIGHBOR},	//14 - note that BLF_TRANSPARENT is not flagged, 0x00FF, Because glass is either fully on or off, not blended
     { /*  21 */ "Lapis Lazuli Ore",       		0x143880, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,10, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//15
@@ -520,6 +520,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 434 */ "Sculk Vein",           		0x0B3C45, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 56, 0x00, BLF_BILLBOARD | BLF_FLATTEN_SMALL | BLF_PANE | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_OFFSET | BLF_MAYWATERLOG },
     { /* 435 */ "Frogspawn",               		0x4D5581, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 54, 0x00, BLF_FLATTEN | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_OFFSET },
     { /* 436 */ "Ochre Froglight",         		0xFBF6D2, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 55, 0x03, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_EMITTER },
+    { /* 437 */ "Mangrove Leaves",				0x6fac2c, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 54, 0x00, BLF_WHOLE | BLF_CUTOUTS | BLF_LEAF_PART | BLF_MAYWATERLOG },	//12
 
     // Important note: skip 396 if we get there, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
 };

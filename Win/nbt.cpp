@@ -1301,7 +1301,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 166,       HIGH_BIT, "muddy_mangrove_roots", AXIS_PROP },
     { 0, 167,   HIGH_BIT | 1, "stripped_mangrove_log", AXIS_PROP },
     { 0, 168,   HIGH_BIT | 0, "stripped_mangrove_wood", AXIS_PROP },
-    { 0,  18,              4, "mangrove_leaves", LEAF_PROP },
+    { 0, 181,       HIGH_BIT, "mangrove_leaves", LEAF_PROP },
     { 0,  74,	HIGH_BIT | 6, "mangrove_slab", SLAB_PROP },
     { 0,  74,	HIGH_BIT | 7, "mud_brick_slab", SLAB_PROP },
     { 0, 169,	    HIGH_BIT, "mangrove_stairs", STAIRS_PROP },
@@ -3648,8 +3648,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         }
                         // for lantern LANTERN_PROP and PROPAGULE_PROP
                         else if (strcmp(token, "hanging") == 0) {
-                            dataVal = (strcmp(value, "true") == 0) ? 1 : 0;
-                            hanging = true;
+                            hanging = (strcmp(value, "true") == 0);
                         }
                         // for scaffolding
                         else if (strcmp(token, "bottom") == 0) {

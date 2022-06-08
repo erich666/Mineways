@@ -666,9 +666,11 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
     switch (type)
     {
     case BLOCK_LEAVES:
-        switch (dataVal & 0x7)
+        // some upper bit is used in the old 1.12 and earlier format, beats me what.
+        switch (dataVal & 0x3)
         {
         default:
+            // can hit here due to some weird old data == 7 in Voxelia
             assert(0);
             break;
         case 0:
@@ -679,8 +681,6 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Birch Leaves";
         case 3:	// jungle
             return "Jungle Leaves";
-        case 4:	// mangrove
-            return "Mangrove Leaves";
         }
         break;
 
@@ -2816,16 +2816,17 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         break;
 
     case BLOCK_LEAVES:
+    case BLOCK_MANGROVE_LEAVES:
         dataVal = block->data[voxel];
-        switch (dataVal & 0x7)
+        // some upper bit is used in the old 1.12 and earlier format, beats me what.
+        switch (dataVal & 0x3)
         {
         default:
             assert(0);
-        case 0:	// oak
+        case 0:	// oak or mangrove - same same
         case 3:	// jungle
-        case 4:	// mangrove
             // if the default color is in use, use something more visible
-            if (gBlockDefinitions[BLOCK_LEAVES].read_color == gBlockDefinitions[BLOCK_LEAVES].color)
+            if (gBlockDefinitions[type].read_color == gBlockDefinitions[type].color)
             {
                 // NOTE: considerably darker than what is stored:
                 // the stored value is used to affect only the output color, not the map color.
@@ -2859,7 +2860,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         }
         else {
             // if the default color is in use, use something more visible
-            if (gBlockDefinitions[BLOCK_LEAVES].read_color == gBlockDefinitions[BLOCK_LEAVES].color) {
+            if (gBlockDefinitions[type].read_color == gBlockDefinitions[type].color) {
                 // NOTE: considerably darker than what is stored:
                 // the stored value is used to affect only the output color, not the map color.
                 // This oak leaf color (and jungle, below) makes the trees easier to pick out.
@@ -4405,9 +4406,9 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
                 seenempty = 0;
                 type = retrieveType(block, voxel);
 
-                if (type == BLOCK_LEAVES || type == BLOCK_LOG || type == BLOCK_AD_LEAVES || type == BLOCK_AD_LOG || type == BLOCK_MANGROVE_LOG) //special case surface trees
+                if (type == BLOCK_LEAVES || type == BLOCK_LOG || type == BLOCK_AD_LEAVES || type == BLOCK_AD_LOG || type == BLOCK_MANGROVE_LOG || type == BLOCK_MANGROVE_LEAVES) //special case surface trees
                     for (; i >= 1; i--, voxel -= 16 * 16, type = retrieveType(block, voxel))
-                        if (!(type == BLOCK_LOG || type == BLOCK_LEAVES || type == BLOCK_AD_LEAVES || type == BLOCK_AD_LOG || type == BLOCK_MANGROVE_LOG || type == BLOCK_AIR))
+                        if (!(type == BLOCK_LOG || type == BLOCK_LEAVES || type == BLOCK_AD_LEAVES || type == BLOCK_AD_LOG || type == BLOCK_MANGROVE_LOG || type == BLOCK_MANGROVE_LEAVES || type == BLOCK_AIR))
                             break; // skip leaves, wood, air
 
                 for (; i >= 1; i--, voxel -= 16 * 16)
@@ -4716,6 +4717,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_SWEET_BERRY_BUSH:
     case BLOCK_STONECUTTER:
     case BLOCK_LECTERN:
+    case BLOCK_LEAVES:
     case BLOCK_AD_LEAVES:
         // uses 0-3
         if (dataVal < 4)
@@ -4739,7 +4741,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             addBlock = 1;
         }
         break;
-    case BLOCK_LEAVES:
     case BLOCK_CRAFTING_TABLE:
     case BLOCK_PUMPKIN:
     case BLOCK_JACK_O_LANTERN:
@@ -4747,7 +4748,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_DEAD_CORAL_BLOCK:
     case BLOCK_CRIMSON_DOUBLE_SLAB:
     case BLOCK_RESPAWN_ANCHOR:
-        // uses 0-4
+        // uses 0-3
         if (dataVal < 5)
         {
             addBlock = 1;

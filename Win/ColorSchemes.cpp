@@ -536,6 +536,7 @@ INT_PTR CALLBACK ColorSchemeEdit(HWND hDlg, UINT message, WPARAM wParam, LPARAM 
             curCS.colors[BLOCK_LEAVES] &= ~0xff;
             curCS.colors[BLOCK_AD_LEAVES] &= ~0xff;
             curCS.colors[BLOCK_MANGROVE_LOG] &= ~0xff;
+            curCS.colors[BLOCK_MANGROVE_LEAVES] &= ~0xff;
 
             HWND lv = GetDlgItem(hDlg, IDC_COLORLIST);
             ListView_RedrawItems(lv, 0, NUM_BLOCKS_CS - 1);
