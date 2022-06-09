@@ -27638,7 +27638,7 @@ static int createLightingUSD(char *texturePath)
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "        asset shaping:ies:file\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    sprintf_s(outputString, 256, nightLight ? "        asset texture:file = @./%s/_domelight_night.png@\n" : "        asset texture:file = @%s/_domelight.png@\n", texturePath);
+    sprintf_s(outputString, 256, nightLight ? "        asset texture:file = @./%s/_domelight_night.png@\n" : "        asset texture:file = @./%s/_domelight.png@\n", texturePath);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "        token texture:format = \"latlong\"\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
