@@ -4579,7 +4579,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                     }
                     // hanging tongue, in an X that's 2x10 high max at age 4?
                     littleTotalVertexCount = gModel.vertexCount;
-                    saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0 : DIR_HI_Z_BIT), 3, 5, 6, (float)(leafSize + 6), 8, 8);
+                    saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0 : DIR_HI_Z_BIT), 3, 5, 6, (float)(leafSize + 6), 8, 8);
                     // rotate, move to center
                     identityMtx(mtx);
                     translateToOriginMtx(mtx, boxIndex);
