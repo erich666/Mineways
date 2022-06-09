@@ -3425,17 +3425,23 @@ static void computeRedstoneConnectivity(int boxIndex)
     // If so, then wires can run up the sides; whole blocks that are not glass (or pistons or glowstone) cut redstone wires.
     // Said another way, partial blocks, glass, glowstone, and pistons above redstone do not block that redstone from traveling up adjacent blocks.
     // In other words: you have a redstone wire on the ground, you have some random block (say grass) next to it with redstone on top.
-    // These two will normally connect. However, if just above the redstone on the ground is a full block that is not glass/glowstone/piston/observer,
+    // These two will normally connect. However, if just above the redstone on the ground is a full block that is not glass/glowstone/piston/observer/etc.,
     // it will chop the redstone on the ground from connecting with the neighboring redstone a level up. Whew.
     if (!(gBlockDefinitions[gBoxData[boxIndex + 1].origType].flags & BLF_WHOLE) ||
-        (gBoxData[boxIndex + 1].origType == BLOCK_PISTON) ||
+        //(gBoxData[boxIndex + 1].origType == BLOCK_PISTON) || - not needed; not a whole block
         (gBoxData[boxIndex + 1].origType == BLOCK_GLASS) ||
         (gBoxData[boxIndex + 1].origType == BLOCK_GLOWSTONE && (gBoxData[boxIndex + 1].data & 0xf) == 0x0) ||   // shroomlight blocks *do* cut off redstone wires
-         // target used to conduct in 20w16a, now it does not - testing here is easier than moving the TNT elsewhere
+         // "Target" used to conduct in 20w16a, now it does not - testing here is easier than moving the TNT elsewhere
         (gBoxData[boxIndex + 1].origType == BLOCK_TNT && !(gBoxData[boxIndex + 1].data & 0x1)) ||
         (gBoxData[boxIndex + 1].origType == BLOCK_REDSTONE_BLOCK) ||
         (gBoxData[boxIndex + 1].origType == BLOCK_SEA_LANTERN) ||
+        (gBoxData[boxIndex + 1].origType == BLOCK_BEACON) ||
+        (gBoxData[boxIndex + 1].origType == BLOCK_ICE) ||
+        (gBoxData[boxIndex + 1].origType == BLOCK_FROSTED_ICE) ||
         (gBoxData[boxIndex + 1].origType == BLOCK_OBSERVER) ||
+        (gBoxData[boxIndex + 1].origType == BLOCK_LEAVES) ||
+        (gBoxData[boxIndex + 1].origType == BLOCK_AD_LEAVES) ||
+        (gBoxData[boxIndex + 1].origType == BLOCK_MANGROVE_LEAVES) ||
         (gBoxData[boxIndex + 1].origType == BLOCK_STAINED_GLASS))
     {
         // first hurdle passed - now check each in turn: is block above wire. If so,
