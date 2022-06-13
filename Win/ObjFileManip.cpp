@@ -4501,7 +4501,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             gUsingTransform = 1;
             totalVertexCount = littleTotalVertexCount = gModel.vertexCount;
             // hanging X 2x2, texture from 3rd column
-            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0 : DIR_HI_Z_BIT), 7, 9, 14, 16, 8, 8);
+            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY, 7, 9, 14, 16, 8, 8);
             // rotate, move to center
             identityMtx(mtx);
             translateToOriginMtx(mtx, boxIndex);
@@ -4512,7 +4512,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
             littleTotalVertexCount = gModel.vertexCount;
             // other half of hanging X 2x2, texture from 3rd column
-            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0 : DIR_HI_Z_BIT), 7, 9, 14, 16, 8, 8);
+            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY, 7, 9, 14, 16, 8, 8);
             // rotate, move to center
             identityMtx(mtx);
             translateToOriginMtx(mtx, boxIndex);
@@ -4542,7 +4542,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 littleTotalVertexCount = gModel.vertexCount;
                 // hanging X 2x2, texture from 3rd column
                 // Note that we ignore the underside, 8,10 in X - probably the underside that should be paired (but singleSided support means we don't want two different sides)
-                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0 : DIR_HI_Z_BIT), 6, 8, 11, 13, 8, 8);
+                // Here we mirror the sides. We could actually remove FLIP_Z_FACE_VERTICALLY since these L shapes mirror one another.
+                // But I'm not sure which is the top, which is the bottom. I think we're currently seeing the top for both.
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY, 6, 8, 11, 13, 8, 8);
                 // rotate, move to center
                 identityMtx(mtx);
                 translateToOriginMtx(mtx, boxIndex);
@@ -4583,9 +4585,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                         leafSize = 10;
                         break;
                     }
-                    // hanging tongue, in an X that's 2x10 high max at age 4?
+                    // hanging tongue, in an X that's 2x10 high max at age 4
                     littleTotalVertexCount = gModel.vertexCount;
-                    saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0 : DIR_HI_Z_BIT), 3, 5, 6, (float)(leafSize + 6), 8, 8);
+                    saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY, 3, 5, 6, (float)(leafSize + 6), 8, 8);
                     // rotate, move to center
                     identityMtx(mtx);
                     translateToOriginMtx(mtx, boxIndex);
@@ -4597,7 +4599,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
                     littleTotalVertexCount = gModel.vertexCount;
                     // hanging X 2x2, texture from 3rd column
-                    saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0 : DIR_HI_Z_BIT), 3, 5, 6, (float)(leafSize + 6), 8, 8);
+                    saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY, 3, 5, 6, (float)(leafSize + 6), 8, 8);
                     // rotate, move to center
                     identityMtx(mtx);
                     translateToOriginMtx(mtx, boxIndex);
