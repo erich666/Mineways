@@ -63,7 +63,8 @@ deflated data is the chunk length - 1.
 #include "stdafx.h"
 
 #define CHUNK_DEFLATE_MAX (1024 * 1024)  // 1MB limit for compressed chunks
-#define CHUNK_INFLATE_MAX (1024 * 2048) // 2MB limit for inflated chunks
+// had to kick this up due to F Seaworld 1.18 world test
+#define CHUNK_INFLATE_MAX (20 * 1024 * 1024) // 20MB limit for inflated chunks
 
 #define RERROR(x) if(x) { PortaClose(regionFile); return 0; }
 
@@ -88,6 +89,8 @@ static int regionPrepareBuffer(bfFile & bf, wchar_t* directory, int cx, int cz)
     swprintf_s(filename, 256, L"%sregion/r.%d.%d.mca", directory, cx >> 5, cz >> 5);
 
     regionFile = PortaOpen(filename);
+    // this error means that we're trying to open an .mca that doesn't actually exist;
+    // no data -> nothing to do, but don't flag an error
     if (regionFile == INVALID_HANDLE_VALUE)
         return 0;
 
@@ -140,8 +143,8 @@ static int regionPrepareBuffer(bfFile & bf, wchar_t* directory, int cx, int cz)
     inflateReset(&strm);
     status = inflate(&strm, Z_FINISH); // decompress in one step
 
-    if (status != Z_STREAM_END) // error inflating (not enough space?)
-        return 0;
+    if (status != Z_STREAM_END) // error inflating (not enough space? Increase CHUNK_INFLATE_MAX, ugh)
+        return ERROR_INFLATE;
 
     // the uncompressed chunk data is now in "out", with length strm.avail_out
 
@@ -164,9 +167,10 @@ int regionGetBlocks(wchar_t* directory, int cx, int cz, unsigned char* block, un
 {
     bfFile bf;
 
-    if (regionPrepareBuffer(bf, directory, cx, cz) == 0) {
+    int errCode = regionPrepareBuffer(bf, directory, cx, cz);
+    if (errCode <= 0) {
         // failed
-        return 0;
+        return errCode < 0 ? ERROR_INFLATE : 0;
     }
 
     return nbtGetBlocks(&bf, block, data, blockLight, biome, entities, numEntities, mcVersion, minHeight, maxHeight, mfsHeight, unknownBlock);
@@ -176,9 +180,10 @@ int regionTestHeights(wchar_t* directory, int& minHeight, int& maxHeight, int mc
 {
     bfFile bf;
 
-    if (regionPrepareBuffer(bf, directory, cx, cz) == 0) {
+    int errCode = regionPrepareBuffer(bf, directory, cx, cz);
+    if (errCode <= 0) {
         // failed
-        return 0;
+        return errCode < 0 ? ERROR_INFLATE : 0;
     }
 
     return nbtGetHeights(&bf, minHeight, maxHeight, mcVersion);

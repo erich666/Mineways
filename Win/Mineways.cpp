@@ -343,7 +343,7 @@ static struct {
     {_T("Warning: multiple separate parts found after processing.\n\nThis may not be what you want to print. Increase the value for 'Delete floating parts' to delete these. Try the 'Debug: show separate parts' export option to see if the model is what you expected."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<3
     {_T("Warning: at least one dimension of the model is too long.\n\nCheck the dimensions for this printer's material: look in the top of the model file itself, using a text editor."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<4
     {_T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock or, for 1.13+ blocks, to grass. Mineways does not understand blocks added by mods, and uses the older (simpler) schematic format so does not support blocks added in 1.13 or newer versions. If you are not using mods nor exporting 1.13 or newer blocks, your version of Mineways may be out of date. Check http://mineways.com for a newer version."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<5
-    {_T("Warning: too few rows of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt*.png with 55 rows."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<6 VERTICAL_TILES
+    {_T("Warning: too few rows of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt*.png with 57 rows."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<6 VERTICAL_TILES
     {_T("Warning: one or more Change Block commands specified location(s) that were outside the selected volume."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<6
     {_T("Warning: with the large Terrain File you're using, the output texture is extremely large. Other programs make have problems using it. We recommend that you use the 'Export tiles' option instead, or reduce the size of your Terrain File by using the '-t 256' (or smaller) option in TileMaker.\n\nThis warning will not be repeated this session."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<6
 
@@ -3374,7 +3374,7 @@ static int loadWorld(HWND hWnd)
         // load test world
         MY_ASSERT(gWorldGuide.world[0] == 0);
         gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
-        gVersionID = 2730;	// Change this to the current release number https://minecraft.fandom.com/wiki/Data_version
+        gVersionID = 3105;	// Change this to the current release number https://minecraft.fandom.com/wiki/Data_version
         gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
         setHeightsFromVersionID();
         break;
@@ -6485,23 +6485,25 @@ static int interpretImportLine(char* line, ImportedSet& is)
         }
         // if we process the data in this run, do it
         if (is.processData) {
-            // two cases: scripting and model loading. Model loading defers loading the world, so process the data.
+            // two cases: reading in a model's header or scripting. Model header reading defers loading the world, so process the data.
             if (is.readingModel || gLoaded) {
+                // is nothing selected? i.e., "Selection location: none"?
                 if (noSelection) {
                     // for scripting we could test that there's no world loaded, but it's fine to call this then anyway.
                     gHighlightOn = FALSE;
                     SetHighlightState(gHighlightOn, 0, gTargetDepth, 0, 0, gCurDepth, 0, gMinHeight, gMaxHeight, gLoaded ? HIGHLIGHT_UNDO_PUSH : HIGHLIGHT_UNDO_CLEAR);
                 }
                 else {
-                    // yes, a selection
+                    // yes, a real selection is being made
                     is.minxVal = v[0];
                     is.minyVal = v[1];
                     is.minzVal = v[2];
                     is.maxxVal = v[3];
                     is.maxyVal = v[4];
                     is.maxzVal = v[5];
+                    // are we using scripting?
                     if (!is.readingModel) {
-                        // is a world loaded? If not, then don't set the selection
+                        // Scripting; is a world loaded? If not, then don't set the selection
                         if (gLoaded) {
                             gCurX = (is.minxVal + is.maxxVal) / 2;
                             gCurZ = (is.minzVal + is.maxzVal) / 2;
@@ -6520,12 +6522,19 @@ static int interpretImportLine(char* line, ImportedSet& is)
                             setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
                             setSlider(is.ws.hWnd, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, gTargetDepth, false);
                         }
-                        else {
-                            saveErrorMessage(is, L"selection set but no world is loaded.");
-                            return INTERPRETER_FOUND_ERROR;
-                        }
+                        //else {
+                        //    // shouldn't really be able to reach this line, as is.readingModel is false and gLoaded is false.
+                        //    // Moved this message further down.
+                        //    saveErrorMessage(is, L"selection set but no world is loaded.");
+                        //    return INTERPRETER_FOUND_ERROR;
+                        //}
                     }
                 }
+            }
+            else {
+                // we are not reading in a model's header (where a deferred selection is fine), i.e., we're scripting and a world is not loaded.
+                saveErrorMessage(is, L"selection set but no world is loaded. For scripting, you must load a world manually before using a script or must include the 'Minecraft world: your world directory' command in your script.");
+                return INTERPRETER_FOUND_ERROR;
             }
         }
         return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
@@ -9150,7 +9159,14 @@ static void checkMapDrawErrorCode(int retCode)
         // error - show an error reading?
         if (gOneTimeDrawError) {
             gOneTimeDrawError = false;
-            wsprintf(fullbuf, _T("Error: chunk read error at nbt.cpp line %d. Mineways does not support betas or mods. Also, make sure you have downloaded the latest version of Mineways from mineways.com. If it's neither of these, please report it as a bug (see the Help menu)."), -retCode);
+            if (retCode == ERROR_INFLATE) {
+                wsprintf(fullbuf, _T("Error: status != Z_STREAM_END error. Tell Eric to increase the size of CHUNK_INFLATE_MAX again and cross his fingers."));
+            }
+            else {
+                int bx, bz;
+                GetBadChunkLocation(&bx, &bz);
+                wsprintf(fullbuf, _T("Error: chunk (%d, %d) read error at nbt.cpp line %d. Mineways does not support betas or mods. Also, make sure you have downloaded the latest version of Mineways from mineways.com. If it's neither of these, please report it as a bug (see the Help menu)."), bx, bz, -retCode);
+            }
             FilterMessageBox(NULL, fullbuf,
                 _T("Warning"), MB_OK | MB_ICONERROR | MB_TOPMOST);
         }
