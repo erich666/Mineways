@@ -3427,6 +3427,7 @@ static void computeRedstoneConnectivity(int boxIndex)
     // In other words: you have a redstone wire on the ground, you have some random block (say grass) next to it with redstone on top.
     // These two will normally connect. However, if just above the redstone on the ground is a full block that is not glass/glowstone/piston/observer/etc.,
     // it will chop the redstone on the ground from connecting with the neighboring redstone a level up. Whew.
+    // See the "full-block solids" section here https://minecraft.fandom.com/wiki/Opacity#Types_of_transparent_blocks for which blocks should be listed below
     if (!(gBlockDefinitions[gBoxData[boxIndex + 1].origType].flags & BLF_WHOLE) ||
         //(gBoxData[boxIndex + 1].origType == BLOCK_PISTON) || - not needed; not a whole block
         (gBoxData[boxIndex + 1].origType == BLOCK_GLASS) ||
