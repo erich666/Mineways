@@ -9114,6 +9114,7 @@ static void showLoadWorldError(int loadErr)
         if (gSubError > 0) {
             wsprintf(fullbuf, _T("Error: cannot read or find your world for some reason. Path attempted: \"%s\". Try copying your world save directory to some simple location such as C:\\temp and use File | Open...\n\n%s"), gFileOpened, extrabuf);
         }
+        // To be honest, I'm not sure how -3 could ever be set here, but it evidently can be...
         else if (gSubError == -3) {
             wsprintf(fullbuf, _T("Error: cannot read world's file version. You might be trying to read a world from Minecraft for Windows 10. Mineways cannot read this type of world, as it is in a different ('Bedrock') format. Click 'OK' to go to http://bit.ly/mcbedrock and follow the instructions there to convert your world to the 'Classic' Java format, which Mineways can read."));
             int retcode = FilterMessageBox(NULL, fullbuf,
@@ -9128,6 +9129,7 @@ static void showLoadWorldError(int loadErr)
             return;
         }
         else {
+            // prints the line in the code where the error was returned via (a negated) LINE_ERROR.
             wsprintf(fullbuf, _T("Error: cannot read world's file version, which may mean that Mineways cannot read or find your world for some reason. Path attempted: \"%s\". Try copying your world save directory to some simple location such as C:\\temp and use File | Open...\n\n%s"), gFileOpened, extrabuf);
         }
         FilterMessageBox(NULL, fullbuf,

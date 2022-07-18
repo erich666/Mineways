@@ -4511,10 +4511,10 @@ int nbtGetFileVersion(bfFile* pbf, int* version)
     return 0;
 }
 
-// From Version, not version, see http://minecraft.gamepedia.com/Level_format#level.dat_format at bottom
-// This is a newer tag for 1.9 and on, older worlds do not have them
-//  The NBT data version, which tells the MC release. See https://minecraft.gamepedia.com/Data_version
-// 1444 is 1.13, 1901 is 1.14
+// From Version, not version, see http://minecraft.gamepedia.com/Level_format#level.dat_format at bottom.
+// This is a newer tag for 1.9 and on, older worlds do not have them.
+// The NBT data version is also included, which tells the MC release. See https://minecraft.gamepedia.com/Data_version
+// e.g., 1444 is 1.13, 1901 is 1.14
 int nbtGetFileVersionId(bfFile* pbf, int* versionId)
 {
     *versionId = 0x0; // initialize
