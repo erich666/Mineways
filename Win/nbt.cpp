@@ -4504,9 +4504,9 @@ int nbtGetFileVersion(bfFile* pbf, int* version)
     if (bfseek(pbf, len, SEEK_CUR) < 0)
         return LINE_ERROR; //skip name ()
     if (nbtFindElement(pbf, "Data") != 10)
-        return LINE_ERROR;
+        return ERROR_GET_FILE_VERSION_DATA;
     if (nbtFindElement(pbf, "version") != 3)
-        return LINE_ERROR;
+        return ERROR_GET_FILE_VERSION_VERSION;
     *version = readDword(pbf);
     return 0;
 }

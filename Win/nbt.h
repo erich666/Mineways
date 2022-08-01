@@ -75,6 +75,10 @@ enum { BF_BUFFER, BF_GZIP };
 #define     NBT_NO_SECTIONS             2
 #define		NBT_WARNING_NAME_NOT_FOUND	0x4
 
+// Errors
+#define ERROR_GET_FILE_VERSION_DATA     -101
+#define ERROR_GET_FILE_VERSION_VERSION  -102
+
 // upper limit on these
 #define     NUM_BLOCK_ENTITIES  (16 * 16 * 384)
 
