@@ -382,6 +382,7 @@ static bool startExecutionLogFile(const LPWSTR* argList, int argCount);
 static int modifyWindowSizeFromCommandLine(int* x, int* y, const LPWSTR* argList, int argCount);
 static int loadWorldFromFilename(wchar_t* pathAndFile, HWND hWnd);
 static int getWorldSaveDirectoryFromCommandLine(wchar_t* saveWorldDirectory, const LPWSTR* argList, int argCount);
+static int getSuppressFromCommandLine(const LPWSTR* argList, int argCount);
 static int getZoomLevelFromCommandLine(float* minZoom, const LPWSTR* argList, int argCount);
 static int getTerrainFileFromCommandLine(wchar_t* TerrainFile, const LPWSTR* argList, int argCount);
 static bool processCreateArguments(WindowSet& ws, const char** pBlockLabel, LPARAM holdlParam, const LPWSTR* argList, int argCount);
@@ -817,9 +818,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
         validateItems(GetMenu(hWnd));
 
+        int val = getSuppressFromCommandLine(gArgList, gArgCount);
+        if (val > 0) {
+            // -suppress found on command line.
+            LOG_INFO(gExecutionLogfile, " getSuppressFromCommandLine successful\n");
+            gShowInformational = false;
+            gShowWarning = false;
+            gShowError = false;
+        }
+
         // set zoom level, if changed on command line
         float minZoom = 1.0f;
-        int val = getZoomLevelFromCommandLine(&minZoom, gArgList, gArgCount);
+        val = getZoomLevelFromCommandLine(&minZoom, gArgList, gArgCount);
         if (val > 0) {
             // legal zoom level found on command line.
             LOG_INFO(gExecutionLogfile, " getZoomLevelFromCommandLine successful\n");
@@ -2843,9 +2853,29 @@ static int getWorldSaveDirectoryFromCommandLine(wchar_t* saveWorldDirectory, con
     // we return 0 when we don't find a directory that was input on the command line
     return 0;
 }
-static int getZoomLevelFromCommandLine(float *minZoom, const LPWSTR* argList, int argCount)
+
+static int getSuppressFromCommandLine(const LPWSTR* argList, int argCount)
 {
-    // parse to get -s dir
+    // parse to get -suppress
+    int argIndex = 1;
+    while (argIndex < argCount)
+    {
+        if (wcscmp(argList[argIndex], L"-suppress") == 0) {
+            // found suppress
+            return 1;
+        }
+        else {
+            // skip whatever it is.
+            argIndex++;
+        }
+    }
+    // we return 0 when we don't find the right information on the command line
+    return 0;
+}
+
+static int getZoomLevelFromCommandLine(float* minZoom, const LPWSTR* argList, int argCount)
+{
+    // parse to get -zl zoom
     int argIndex = 1;
     while (argIndex < argCount)
     {
@@ -2950,9 +2980,14 @@ static bool processCreateArguments(WindowSet& ws, const char** pBlockLabel, LPAR
             argIndex += 2;
         }
         else if (wcscmp(argList[argIndex], L"-zl") == 0) {
-            // skip terrain file
+            // skip minimum zoom level (experimental feature)
             LOG_INFO(gExecutionLogfile, " skip minimum zoom level\n");
             argIndex += 2;
+        }
+        else if (wcscmp(argList[argIndex], L"-suppress") == 0) {
+            // skip minimum zoom level (experimental feature)
+            LOG_INFO(gExecutionLogfile, " skip suppressing all popups\n");
+            argIndex++;
         }
         else if (*argList[argIndex] == '-') {
             // unknown argument, so list out arguments
