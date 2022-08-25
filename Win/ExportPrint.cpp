@@ -1202,13 +1202,13 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 return (INT_PTR)FALSE;
             }
 
-            if (lepd.fileType == FILE_TYPE_USD && lepd.scaleLightsVal <= 0.0f)
+            if (lepd.fileType == FILE_TYPE_USD && lepd.scaleLightsVal < 0.0f)
             {
                 MessageBox(NULL,
                     _T("Light scale must be a non-negative number;\nYou need to fix this, then hit OK again."), _T("Value error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
                 return (INT_PTR)FALSE;
             }
-            if (lepd.fileType == FILE_TYPE_USD && lepd.scaleEmittersVal <= 0.0f)
+            if (lepd.fileType == FILE_TYPE_USD && lepd.scaleEmittersVal < 0.0f)
             {
                 MessageBox(NULL,
                     _T("Surface emit scale must be a non-negative number;\nYou need to fix this, then hit OK again."), _T("Value error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
