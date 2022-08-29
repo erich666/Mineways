@@ -1802,6 +1802,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             wcscpy_s(gSelectTerrainPathAndName, MAX_PATH_AND_FILE, terrainLoc);
             splitToPathAndName(gSelectTerrainPathAndName, gSelectTerrainDir, NULL);
             formTitle(&gWorldGuide, hWnd);
+            // someday might show a check mark by selected (and have to add code to unselect all the rest). We already do show it at the top of the program
+            // TODO - it's a little tricky, as the terrain file could be chosen manually - how would that affect this menus?
+            //CheckMenuItem(GetMenu(hWnd), wmId, MF_CHECKED);
         }
         else {
 
