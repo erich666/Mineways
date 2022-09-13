@@ -1134,7 +1134,7 @@ See <a href="https://youtu.be/tBDGH5v40x8">the tutorial video</a>. It runs throu
 <b>Step 1a:</b> I highly recommend doing "File -> Choose Terrain File" and selecting the terrainExt_JG-RTX64.png file that comes with Mineways. This will give you more interesting and physically realistic materials for some blocks.
 </P>
 <P>
-<b>Step 2:</b> Save as the file type 'USDA'. This is the <a href="https://graphics.pixar.com/usd/docs/USD-Frequently-Asked-Questions.html">Universal Scene Description ASCII file format</a>. USD is a format developed by Pixar that is used in film studios and other applications.
+<b>Step 2:</b> Save as the file type 'USDA'. This is the <a href="https://graphics.pixar.com/usd/docs/USD-Frequently-Asked-Questions.html">Universal Scene Description ASCII file format</a>. USD is a format developed by Pixar that is used in film studios and other applications. You can see my <a href="https://github.com/erich666/McUsd">test scene project</a> for an idea of how various renderers handle this file format as of August 2022 (they're always improving).
 <P>
 After choosing the file name, you are faced with many export options. Most are grayed out in the upper left part of this dialog, with one important exception: "Custom material." By default this box is checked. Doing so gives the distinctive blocky look for Minecraft textures. However, if you are using higher resolution textures, 64x64 or larger, I recommend unchecking this box. You will then use Omniverse default materials, which blend smoothly between texture texels. Also, these default materials will display much more quickly; the custom materials need to be compiled when viewed in Omniverse Create for the first time.
 <P>
@@ -1247,7 +1247,9 @@ That's about it! I'll mention that you can also import Mineways' VRML files into
 <P>
 Houdini Apprentice can be <a href="https://www.sidefx.com/buy/#houdini0">downloaded for free</a> for non-commercial use. Houdini Apprentice pays attention to the UsdPreview material Mineways produces. Their support for USDA continues to improve, so get the newest version when you can. One nice thing about Houdini is that it can read USDA files from Mineways, allowing more elaborate material descriptions, such as using normal maps. Make sure to have the newest version (at least version 19), as their USD import has improved enormously recently.
 <P>
-I made <a href="https://www.youtube.com/watch?v=w3qCPts_70I&t=67s">a short tutorial video</a> for how to import Mineways USDA models with physically-based rendering textures attached to them. Summary: select Build -> Solaris, right-click in the lower right "/stage" dialog, type "file," and then click in the dialog to place this element. Above this dialog is now "Sublayer file1" - scroll down to find "Sublayer File" and in "File" give the USDA file you want to import. Once imported, scroll out with Alt and mouse-wheel down. Turn off the sun and dome light in the lower left dialog, "Scene Graph Tree." Add your own lights from the icons in the upper left of the app. Hold down "Alt" and use the mouse for camera moves. In the upper right of the viewport select the Karma renderer from "persp" to use the path tracer. 
+I made <a href="https://www.youtube.com/watch?v=w3qCPts_70I&t=67s">a short tutorial video</a> for how to import Mineways USDA models with physically-based rendering textures attached to them. It's for an older version of Houdini, but should get you most of the way there.
+
+Here's a run through for Houdini 19.5.303: select Build -> Solaris, right-click in the lower right "/stage" dialog, type "file," and pick "Sublayer" in the USD dialog that pops up. Then click in the dialog to place this element. Above this dialog, in the upper-right of the application, is now "Sublayer file1" - scroll down to find "Sublayer File" and in "File" give the USDA file you want to import. Once imported, scroll out with Alt and mouse-wheel down. Turn off the sun and dome light in the lower left dialog, "Scene Graph Tree." Add your own lights from the icons in the upper left of the app. Hold down "Alt" and use the mouse for camera moves. In the upper right of the viewport select the Karma renderer from "persp" to use the path tracer. 
 <P>
 One thing I did forget to mention in the video narration: at time 1:14, where I add a File node, what I did was right-click in that lower-right area and typed "file" to get that node, then clicked in the area to make the node appear.
 
@@ -2670,15 +2672,18 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 <LI>Version 10.02, xx/xx/2022 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1002.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
   <UL>
-    <LI>Added <a href="scripting.html#clo">-suppress" command line option</a>. 
-    <LI>Improve "cannot read world" error message, noting that the world could be a Bedrock world.
+  <LI>Add "Zoom out further" option. Turns on the experimental "-zl" command line option and lets you zoom out to more than one block per pixel. Doing so may cause slowdowns or lockups. This is not a feature that is controllable by scripting (though can be invoked by the -zl command line option on startup). See the <a href="scripting.html#clo">scripting</a> command line options for more information.
+  <LI>If the "Export individual textures to" directory ("tex" by default) is left blank, all textures are not placed in the subdirectory. For OBJ this means all the textures are in the same directory, for USD the textures are places in "yourfilename_materials" instead of "yourfilename_materials/tex".
+  <LI>Add defaultPrim to the USDA export for Mineways, delete unnecessary renderSettings. Fog settings will be output if the Elevation shading option is checked. Note <a href="https://github.com/erich666/McUsd">my McUsd test scene project</a> in the docs.
+  <LI>Added <a href="scripting.html#clo">-suppress" command line option</a>. 
+  <LI>Improve "cannot read world" error message, noting that the world could be a Bedrock world.
 	<LI>Fix: allow light values to be zero for USD export. A zero value for the "Light scale" value means the external lights (sun and environment) are not exported at all.
   </UL>
 
 <LI>Version 10.01, 6/14/2022 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1001.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
   <UL>
-    <LI>Fixed mapping of billboarded parts of mangrove propagule, properly mirroring the billboards.
+  <LI>Fixed mapping of billboarded parts of mangrove propagule, properly mirroring the billboards.
 	<LI>Fixed redstone dust wire getting trimmed vertically between blocks by the following blocks: beacon, ice, frosted ice, observer, and leaves. <I>(Thanks T2 Studios)</I>
 	<LI>Update JG-RTX terrain images, including more mangrove textures.
   </UL>

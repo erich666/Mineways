@@ -1017,6 +1017,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         LOG_INFO(gExecutionLogfile, " useCustomColor\n");
         useCustomColor(IDM_CUSTOMCOLOR, hWnd);
 
+        // initialize zoom menu check
+        wmId = LOWORD(wParam);
+        CheckMenuItem(GetMenu(hWnd), IDM_ZOOMOUTFURTHER, (gMinZoom < MINZOOM) ? MF_CHECKED : MF_UNCHECKED);
+
         // finally, load any scripts on the command line.
         LOG_INFO(gExecutionLogfile, " processCreateArguments\n");
         processCreateArguments(gWS, &gBlockLabel, gHoldlParam, gArgList, gArgCount);
@@ -2308,6 +2312,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.worldType & MAP_GRID) ? MF_CHECKED : MF_UNCHECKED);
                 REDRAW_ALL;
                 break;
+            case IDM_ZOOMOUTFURTHER:
+                gMinZoom = (gMinZoom < MINZOOM) ? MINZOOM : 0.0625f;
+                if (gMinZoom < MINZOOM) {
+                    FilterMessageBox(NULL, _T("Warning: you can now zoom out further with the mouse scroll wheel, up to 16 blocks wide per pixel. You can see your zoom factor displayed at the top of the program, in the title bar. However, this feature uses up lots of memory as you zoom out, so may cause Mineways to slow or lock up. Massive map display is not what Mineways is made for. You're on your own!"),
+                        _T("Warning"), MB_OK | MB_ICONWARNING);
+                }
+                CheckMenuItem(GetMenu(hWnd), wmId, (gMinZoom < MINZOOM) ? MF_CHECKED : MF_UNCHECKED);
+                REDRAW_ALL;
+                break;
             case IDM_RELOAD_WORLD:
                 // reload world, if loaded
                 if (gLoaded)
@@ -2316,7 +2329,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     {
                         // world not loaded properly
                         FilterMessageBox(NULL, _T("Error: cannot reload world."),
-                            _T("Read error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
+                            _T("Read error"), MB_OK | MB_ICONERROR);
 
                         return 0;
                     }
@@ -2595,7 +2608,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         // note how this is different that the write schematic message, which notes 1.13 export problems
         FilterMessageBox(NULL, _T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock. Mineways does not understand blocks added by mods. If you are not using mods, your version of Mineways may be out of date. Check http://mineways.com for a newer version of Mineways."),
-            _T("Read error"), MB_OK | MB_ICONERROR);
+            _T("Read error"), MB_OK | MB_ICONWARNING);
     }
 
     return 0;
@@ -2835,7 +2848,7 @@ static int getWorldSaveDirectoryFromCommandLine(wchar_t* saveWorldDirectory, con
                     wchar_t message[1024];
                     wsprintf(message, _T("Warning:\nThe path \"%s\" you specified on the command line for your saved worlds location does not exist, so default worlds directory will be used. Use \"-s none\" to load no worlds."), saveWorldDirectory);
                     FilterMessageBox(NULL, message,
-                        _T("Warning"), MB_OK | MB_ICONWARNING | MB_TOPMOST);
+                        _T("Warning"), MB_OK | MB_ICONWARNING);
                     return 0;
                 }
                 else {
@@ -2926,7 +2939,7 @@ static int getTerrainFileFromCommandLine(wchar_t* terrainFile, const LPWSTR* arg
                     wchar_t message[1024];
                     wsprintf(message, _T("Warning:\nThe path \"%s\" you specified on the command line for your terrain file does not exist, so the default terrain is used."), terrainFile);
                     FilterMessageBox(NULL, message,
-                        _T("Warning"), MB_OK | MB_ICONWARNING | MB_TOPMOST);
+                        _T("Warning"), MB_OK | MB_ICONWARNING);
                     return 0;
                 }
                 else {
