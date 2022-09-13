@@ -28339,6 +28339,48 @@ static int writeTileFromCategoryInput(wchar_t *filename, int index, int category
         }
     }
 
+// To find and fix bad (pointing into the surface, or not around length 1.0) normals, define CHECK_NORMAL_VALIDITY
+// Normally off, as I try to leave the intent of the normal map intact. But, normals pointing below the surface
+// can cause ray tracing weirdness (e.g. Omniverse just throws the normal away, I believe), and normals that are
+// not around a length of 1.0 could darken (or brighten) a surface, if the shader (as is likely) does not renormalize.
+//#define CHECK_NORMAL_VALIDITY
+#ifdef CHECK_NORMAL_VALIDITY
+    if (category == CATEGORY_NORMALS) {
+        float xyz[3];
+        imageDst = &dst.image_data[0];
+        for (int row = 0; row < dst.height; row++)
+        {
+            for (int col = 0; col < dst.width; col++)
+            {
+                if (imageDst[2] < 128) {
+                    // hey, a normal is pointing into the surface; that shouldn't happen
+                    //assert(0);
+                    // corrective action, e.g., clamp
+                    imageDst[2] = 128;
+                }
+                // now check if normal is around 1.0 in length
+                for (int ch = 0; ch < 3; ch++)
+                {
+                    xyz[ch] = ((float)imageDst[ch]/255.0f) * 2.0f - 1.0f;
+                }
+                float len = xyz[0] * xyz[0] + xyz[1] * xyz[1] + xyz[2] * xyz[2];
+                // test whether normal is around 1.0f in length. Is this a good test?
+                if (len > 1.02f || len < 0.98f) {
+                    //assert(0);
+                    // corrective action, e.g., renormalize
+                    len = (float)sqrt(len);
+                    for (int ch = 0; ch < 3; ch++)
+                    {
+                        xyz[ch] /= len; // really, could just fold this line into the next - xyx computed just for debug view
+                        imageDst[ch] = (unsigned char)(255.0f * ((xyz[ch] + 1.0f) / 2.0f) + 0.5f);
+                    }
+                }
+                imageDst += numChannels;
+            }
+        }
+    }
+#endif
+
     rc |= writepng(&dst, numChannels, filename);
     addOutputFilenameToList(filename);
 

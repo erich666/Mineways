@@ -2680,7 +2680,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
   <LI>Delete lens flare renderSettings. Fog settings will still be output if the Elevation shading option is checked. I still use ambientLightIntensity = 0.01.
   <LI>Improve "cannot read world" error message, noting that the world could be a Bedrock world.
 	<LI>Fix: allow light values to be zero for USD export. Bug fix: a zero value for the "Light scale" value now properly means the external lights (sun and environment) are not exported at all.
-  <LI>*Debug: when exporting normal maps, check that the Z value isn't < 128 (force to 128 if it is), and renormalize the normal to be close to 1.0 if far off.
+  <LI>Internal debug: when exporting normal maps, check that the Z value isn't < 128 (force to 128 if it is), and renormalize the normal to be close to 1.0 if far off in length. I'm detecting a lot of normal maps that are not normalized, so is this something I'm misunderstanding?
   <LI>Update documentation: update Houdini how-to, and mention <a href="https://github.com/erich666/McUsd">my McUsd test scene project</a>.
   <LI>*Update JG-RTX terrain images
   </UL>
