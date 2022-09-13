@@ -721,7 +721,7 @@ static bool findNextChunk(int startInstance, int& endInstance, char* chunkLocati
 static void nameFromHash(int hash, char* instanceNameString);
 static int openUSDFile(wchar_t* destination, PORTAFILE& modelFile);
 static int writeCommentUSD(char* commentString);
-static int finishCommentsUSD();
+static int finishCommentsUSD(char* defaultPrim);
 static int createMeshesUSD(wchar_t* blockLibraryPath, char* materialLibrary, bool singleTerrainFile);
 static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int numVerts, char* prefixLook, char* mtlName, float resScale, int progressTick, int progressIncrement, bool singleTerrainFile);
 static boolean allocOutData(int vertsize, int facesize);
@@ -1648,6 +1648,10 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
                         retCode |= MW_CANNOT_CREATE_DIRECTORY;
                         return retCode;
                     }
+                }
+                else if (gModel.options->pEFD->fileType == FILE_TYPE_USD) {
+                    // no texture directory per se; still need to put the subdirectory in the path, which should exist by now
+                    wcscpy_s(gTextureDirectoryPath, MAX_PATH_AND_FILE, gMaterialDirectoryPath);
                 }
 
                 assert(gModel.tileListCount);   // should be computed before calling this function
@@ -24581,8 +24585,9 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
     // needed for dome light by all:
     char fullTexturePath[MAX_PATH_AND_FILE];
     strcpy_s(fullTexturePath, MAX_PATH_AND_FILE, gMaterialFileSubdirChar);
-    // if exporting a single tile (for 3d printing, mostly), don't use a subdirectory
-    if (gModel.exportTiles) {
+    // if exporting a single tile (for 3d printing, mostly), don't use a subdirectory;
+    // if texture path is empty, we won't have a sub-subdirectory, so don't add "/"
+    if (gModel.exportTiles && strlen(texturePath) > 0) {
         strcat_s(fullTexturePath, MAX_PATH_AND_FILE, "/");
         strcat_s(fullTexturePath, MAX_PATH_AND_FILE, texturePath);
     }
@@ -24597,6 +24602,27 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
         goto Exit;
     }
 
+    // Get the world name (defaultPrim) to use for export.
+    // USDA is quite picky about file names, unlike OBJ, so force all punctuation to become underlines
+    convertWcharPathUnderlined(worldNameUnderlined, pWorldGuide->world, true);
+    char defaultPrim[256];
+    if (strlen(worldNameUnderlined)) {
+        // is first character a numeral? Illegal in USD
+        if (worldNameUnderlined[0] < '0' || worldNameUnderlined[0] > '9') {
+            // name is assumed valid
+            strcpy_s(defaultPrim, 256, worldNameUnderlined);
+        }
+        else {
+            // put a _ in front of the illegal name, making it valid
+            sprintf_s(defaultPrim, 256, "_%s", worldNameUnderlined);
+        }
+    }
+    else {
+        // no name given, which happens with the block test world
+        strcpy_s(defaultPrim, 256, "Block_Test_World");
+    }
+
+
     // write comments for Import Settings and write globals
     sprintf_s(outputString, 256, "    \"\"\"\n# USDA 1.0 file made by Mineways version %d.%02d, http://mineways.com\n", gMinewaysMajorVersion, gMinewaysMinorVersion);
     if (retCode |= writeCommentUSD(outputString)) {
@@ -24607,10 +24633,11 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
     if (retCode >= MW_BEGIN_ERRORS) {
         goto Exit;
     }
-    if (retCode |= finishCommentsUSD()) {
+    if (retCode |= finishCommentsUSD(defaultPrim)) {
         // failed to write
         goto Exit;
     }
+
 
     // export a reasonable camera
     //if (createCameraUSD()) {
@@ -24620,24 +24647,10 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
     //    strcpy_s(outputString, 256, "\ndef Xform \"World\"\n{\n");
     //} else {
     // 
-    // USDA is quite picky about file names, unlike OBJ, so force all punctuation to become underlines
-    convertWcharPathUnderlined(worldNameUnderlined, pWorldGuide->world, true);
-    if (strlen(worldNameUnderlined)) {
-        // is first character a numeral? Illegal in USD
-        if (worldNameUnderlined[0] < '0' || worldNameUnderlined[0] > '9') {
-            // name is assumed valid
-            sprintf_s(outputString, 256, "\ndef Xform \"%s\"\n{\n", worldNameUnderlined);
-        }
-        else {
-            // put a _ in front of the illegal name, making it valid
-            sprintf_s(outputString, 256, "\ndef Xform \"_%s\"\n{\n", worldNameUnderlined);
-        }
-    }
-    else {
-        // no name given, which happens with the block test world
-        strcpy_s(outputString, 256, "\ndef Xform \"Block_Test_World\"\n{\n");
-    }
-    //}
+
+
+    // topmost Xform
+    sprintf_s(outputString, 256, "\ndef Xform \"%s\"\n{\n", defaultPrim);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     if (gXformScale != 1.0f) {
@@ -25027,7 +25040,7 @@ static int writeCommentUSD(char* commentString)
     return 0;
 }
 
-static int finishCommentsUSD()
+static int finishCommentsUSD(char* defaultPrim)
 {
     char outputString[256];
     // close comments
@@ -25109,8 +25122,9 @@ static int finishCommentsUSD()
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     }
     // 0 means run forever - best to call it a day at some point, so it doesn't run forever
-    strcpy_s(outputString, 256, "            int \"rtx:pathtracing:totalSpp\" = 1000\n");
-    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    // No longer needed - the default has been made 64 or 512 or whatever.
+    //strcpy_s(outputString, 256, "            int \"rtx:pathtracing:totalSpp\" = 1000\n");
+    //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     // no longer used
     //strcpy_s(outputString, 256, "            double \"rtx:post:aa:op\" = 3\n");
     //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -25122,18 +25136,24 @@ static int finishCommentsUSD()
     strcpy_s(outputString, 256, "            double \"rtx:post:lensFlares:cutoffFuzziness\" = 0.506608\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     */
-    strcpy_s(outputString, 256, "            bool \"rtx:post:lensFlares:enabled\" = 1\n");
-    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "            double \"rtx:post:lensFlares:flareScale\" = 0.1\n");
-    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "            double \"rtx:post:lensFlares:focalLength\" = 250\n");
-    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    // Not really needed, turns lens flare on. Let the user figure that out instead...
+    //strcpy_s(outputString, 256, "            bool \"rtx:post:lensFlares:enabled\" = 1\n");
+    //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    //strcpy_s(outputString, 256, "            double \"rtx:post:lensFlares:flareScale\" = 0.1\n");
+    //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    //strcpy_s(outputString, 256, "            double \"rtx:post:lensFlares:focalLength\" = 250\n");
+    //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+    // Used only because we make the light sources "reasonable", with an emission of 30 and 6 for Sun and DomeLight,
+    // 1000 for nits for emission. See https://github.com/erich666/McUsd#omniverse-adjustments for a way to delete these
+    // and use the "true" emission values: 1550, 310, and 53000.
     strcpy_s(outputString, 256, "            double \"rtx:post:tonemap:cameraShutter\" = 10\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            double \"rtx:post:tonemap:filmIso\" = 1000\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     // Slows performance down massively in real-time rendering mode (like 3X), but without it, semitransparent objects
     // do not display correctly. This is documented in Mineways' docs about OV Create.
+    // A little more info at: https://github.com/erich666/McUsd#omniverse-adjustments
     strcpy_s(outputString, 256, "            bool \"rtx:raytracing:fractionalCutoutOpacity\" = 1\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
@@ -25143,13 +25163,17 @@ static int finishCommentsUSD()
 
     strcpy_s(outputString, 256, "            token \"rtx:rendermode\" = \"PathTracing\"\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    // Normally washes things out. Find this setting in Omniverse in the upper right, under
+    // Render Settings tab, Renderer: Real-Time, Ray Tracing, Indirect Diffuse Light, Ambient Light Intensity
     strcpy_s(outputString, 256, "            double \"rtx:sceneDb:ambientLightIntensity\" = 0.01\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "        }\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    }\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    sprintf_s(outputString, 256, "    metersPerUnit = %g\n    upAxis = \"%s\"\n)\n", 1.0f / gXformScale, gModel.options->pEFD->chkMakeZUp[gModel.options->pEFD->fileType]?"Z":"Y");
+    sprintf_s(outputString, 256, "    defaultPrim = \"%s\"\n", defaultPrim);
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    sprintf_s(outputString, 256, "    metersPerUnit = %g\n    upAxis = \"%s\"\n)\n", 1.0f / gXformScale, gModel.options->pEFD->chkMakeZUp[gModel.options->pEFD->fileType] ? "Z" : "Y");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     return 0;
