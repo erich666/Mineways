@@ -2680,7 +2680,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
   <LI>Delete lens flare renderSettings. Fog settings will still be output if the Elevation shading option is checked. I still use ambientLightIntensity = 0.01.
   <LI>Improve "cannot read world" error message, noting that the world could be a Bedrock world.
 	<LI>Fix: allow light values to be zero for USD export. Bug fix: a zero value for the "Light scale" value now properly means the external lights (sun and environment) are not exported at all.
-  <LI>TileMaker option "-dcn", version now 3.16: when creating normal map terrain images, now check that the Z value isn't < 128 (force to 128 if it is), and renormalize the normal to be close to 1.0 if it's far off in length. Normals processed by TileMaker were getting unnormalized, plus some packages give crummy normals, so now we clean these up by default. If you don't want cleanup to occur, set "-dcn".
+  <LI>TileMaker option "-dcn", version now 3.16: when creating normal map terrain images, now check that the Z value isn't < 128 (force to 128 if it is), and renormalize the normal to be close to 1.0 if it's far off in length, or has a Z value that goes from 0 to 1 (USD expects -1 to 1). Normals processed by TileMaker were getting unnormalized, plus some packages give crummy normals, so now we clean these up by default. If you don't want cleanup to occur, set "-dcn". Also fix miscount on deleting duplicate heightmaps.
   <LI>ChannelMixer version now 1.11: clean up typo in warning message about duplicate file found.
   <LI>Update documentation: update Houdini how-to, and mention <a href="https://github.com/erich666/McUsd">my McUsd test scene project</a>.
   <LI>*Update JG-RTX terrain images

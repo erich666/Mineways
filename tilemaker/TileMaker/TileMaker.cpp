@@ -191,7 +191,8 @@ static void copyPNG(progimage_info* dst, progimage_info* src);
 static void copyPNGArea(progimage_info* dst, unsigned long dst_x_min, unsigned long dst_y_min, unsigned long size_x, unsigned long size_y, progimage_info* src, int src_x_min, int src_y_min);
 
 static int checkForCutout(progimage_info* dst);
-static int cleanNormalMap(progimage_info& tile);
+static int isNormalMapZ01(progimage_info& tile);
+static bool cleanNormalMap(progimage_info& tile, int type);
 static int convertHeightfieldToXYZ(progimage_info* src, float heightfieldScale);
 
 static bool rotateTileIfHorizontal(progimage_info& tile);
@@ -679,7 +680,7 @@ int wmain(int argc, wchar_t* argv[])
 					gWarningCount++;
 				}
 				if (gFG.fr[fullIndexHeightmaps].exists) {
-					deleteFileFromGrid(&gFG, CATEGORY_NORMALS_LONG, fullIndexHeightmaps);
+					deleteFileFromGrid(&gFG, CATEGORY_HEIGHTMAP, fullIndexHeightmaps);
 					wprintf(L"DUP WARNING: File '%s' and '%s' specify the same texture, so the second file is ignored.\n", gFG.fr[fullIndexN].fullFilename, gFG.fr[fullIndexHeightmaps].fullFilename);
 					gWarningCount++;
 				}
@@ -705,7 +706,7 @@ int wmain(int argc, wchar_t* argv[])
 				}
 			}
 		}
-		assert(!gFG.fr[fullIndexNormals].exists&& !gFG.fr[fullIndexHeightmaps].exists);
+		assert(!gFG.fr[fullIndexNormals].exists && !gFG.fr[fullIndexHeightmaps].exists);
 	}
 	// these should all now be cleared out
 	assert(gFG.categories[CATEGORY_NORMALS_LONG] == 0);
@@ -922,7 +923,10 @@ int wmain(int argc, wchar_t* argv[])
 									// We normally always clean normals. First, some normals from textures are crap. Second, if you average
 									// normals when you read them in (as we often do), you will get unnormalized normals. Clean those up.
 									if (cleanNormals) {
-										cleanNormalMap(tile);
+										int normType = isNormalMapZ01(tile);
+										if (normType != -2) {
+											cleanNormalMap(tile, normType);
+										}
 									}
 									normalsCount++;
 								}
@@ -2066,9 +2070,73 @@ static int checkForCutout(progimage_info* dst)
 	return ret_code;
 };
 
+// Check if the Z value normals range from 0 to 1, or -1 to 1, or something else
+// -2 means all normals found to be normalized between -1 and 1, no further processing needed!
+// -1 means -1 to 1, what USD (for example) expects
+// 0 means 0 to 1, a norm from long back
+// 1 means "I dunno, nothing's normal and there's not a lot of negatives" and we'll blithely act like it's -1 to 1
+static int isNormalMapZ01(progimage_info& tile)
+{
+	int row, col;
+	float xyz[3];
+	unsigned char* src_data = &tile.image_data[0];
+	int negZ = 0;
+	int zn11 = 0;
+	int z01 = 0;
+
+	for (row = 0; row < tile.height; row++)
+	{
+		for (col = 0; col < tile.width; col++)
+		{
+			// note it's 127 here, to be "safe"
+			if (src_data[2] < 127) {
+				negZ++;
+			}
+			// now check if normal is around 1.0 in length
+			for (int ch = 0; ch < 3; ch++)
+			{
+				xyz[ch] = ((float)src_data[ch] / 255.0f) * 2.0f - 1.0f;
+			}
+			float len = xyz[0] * xyz[0] + xyz[1] * xyz[1] + xyz[2] * xyz[2];
+			// test whether normal is around 1.0f in length. Is this a good test?
+			if (len > 1.02f || len < 0.98f) {
+				// instead scale Z from 0 to 1
+				xyz[2] = (float)src_data[2] / 255.0f;
+				len = xyz[0] * xyz[0] + xyz[1] * xyz[1] + xyz[2] * xyz[2];
+				if (len <= 1.02f && len >= 0.98f) {
+					z01++;
+				}
+			}
+			else {
+				zn11++;
+			}
+			src_data += 3;
+		}
+	}
+	// if all the normals are normalized and there are no full negatives, we're done!
+	if ((zn11 == tile.height * tile.width) && negZ == 0) {
+		return -2;
+	}
+	// Else, check if the -1 to 1 range where normals were found to be normalized is greater than the 0 to 1 range.
+	// Not really a great test, we should probably be doing something like "the sum of normal lengths on average",
+	// but seems to work
+	if (zn11 > z01 * 1.5) {
+		return -1;
+	}
+	// Else, check if 0 to 1 dominates
+	if (z01 > zn11 * 1.5) {
+		assert(0);	// should be a rare case, fingers crossed, but nice to know if we see one
+		return 0;
+	}
+	// Else, dunno - could be a normal map without much going on, but convert it anyway from -1 to 1
+	return 1;
+}
+
+
 // Check that each normal doesn't point downward, and that it is nearly 1.0 in length.
 // Returns true if the texture was already clean, no corrections, false if corrections were made.
-static int cleanNormalMap(progimage_info& tile)
+// Basically, type -1 or 1 (from above) means convert Z from -1 to 1 range; type 0 means 0 to 1 range for Z.
+static bool cleanNormalMap(progimage_info& tile, int type)
 {
 	int row, col;
 	float xyz[3];
@@ -2079,7 +2147,7 @@ static int cleanNormalMap(progimage_info& tile)
 	{
 		for (col = 0; col < tile.width; col++)
 		{
-			if (src_data[2] < 128) {
+			if (type != 0 && src_data[2] < 128) {
 				// hey, a normal is pointing into the surface; that shouldn't happen
 				//assert(0);
 				// corrective action, e.g., clamp
@@ -2087,16 +2155,18 @@ static int cleanNormalMap(progimage_info& tile)
 				retval = false;
 			}
 			// now check if normal is around 1.0 in length
-			for (int ch = 0; ch < 3; ch++)
+			for (int ch = 0; ch < 2; ch++)
 			{
 				xyz[ch] = ((float)src_data[ch] / 255.0f) * 2.0f - 1.0f;
 			}
+			xyz[2] = (type != 0) ? ((float)src_data[2] / 255.0f) * 2.0f - 1.0f : (float)src_data[2] / 255.0f;
 			float len = xyz[0] * xyz[0] + xyz[1] * xyz[1] + xyz[2] * xyz[2];
-			// test whether normal is around 1.0f in length. Is this a good test?
-			if (len > 1.02f || len < 0.98f) {
+			// test whether normal is around 1.0f in length, or if we're going to type -1 from type 0.
+			if (type == 0 || len > 1.02f || len < 0.98f) {
 				//assert(0);
 				// corrective action, e.g., renormalize
 				len = (float)sqrt(len);
+				// we always convert to -1 to 1 range
 				for (int ch = 0; ch < 3; ch++)
 				{
 					src_data[ch] = (unsigned char)(255.0f * (((xyz[ch]/len) + 1.0f) / 2.0f) + 0.5f);
