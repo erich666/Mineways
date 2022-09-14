@@ -16,7 +16,7 @@
 #include "tiles.h"
 #include "tilegrid.h"
 
-#define	VERSION_STRING	L"3.15"
+#define	VERSION_STRING	L"3.16"
 
 //#define TILE_PATH	L".\\blocks\\"
 #define BASE_INPUT_FILENAME			L"terrainBase.png"
@@ -191,6 +191,7 @@ static void copyPNG(progimage_info* dst, progimage_info* src);
 static void copyPNGArea(progimage_info* dst, unsigned long dst_x_min, unsigned long dst_y_min, unsigned long size_x, unsigned long size_y, progimage_info* src, int src_x_min, int src_y_min);
 
 static int checkForCutout(progimage_info* dst);
+static int cleanNormalMap(progimage_info& tile);
 static int convertHeightfieldToXYZ(progimage_info* src, float heightfieldScale);
 
 static bool rotateTileIfHorizontal(progimage_info& tile);
@@ -244,6 +245,7 @@ int wmain(int argc, wchar_t* argv[])
 	int heightfieldCount = 0;
 	float heightfieldScale = 0.5f;
 	int normalsCount = 0;
+	bool cleanNormals = true;
 
 	bool allChests = true;
 	bool anyChests = false;
@@ -358,6 +360,11 @@ int wmain(int argc, wchar_t* argv[])
 		{
 			// verbose: tell when normal things happen
 			verbose = 1;
+		}
+		else if (wcscmp(argv[argLoc], L"-dcn") == 0)
+		{
+			// no base background image; mostly for debug, to see which tiles we actually have ready.
+			cleanNormals = false;
 		}
 		else
 		{
@@ -912,6 +919,11 @@ int wmain(int argc, wchar_t* argv[])
 									continue;
 								}
 								else {
+									// We normally always clean normals. First, some normals from textures are crap. Second, if you average
+									// normals when you read them in (as we often do), you will get unnormalized normals. Clean those up.
+									if (cleanNormals) {
+										cleanNormalMap(tile);
+									}
 									normalsCount++;
 								}
 								break;
@@ -1277,6 +1289,7 @@ void printHelp()
 	wprintf(L"  -m - to report all missing tiles, ones that Mineways uses but were not in the\n    tiles directory.\n");
 	wprintf(L"  -s - take the average color of the incoming tile and output this solid color.\n");
 	wprintf(L"  -S - as above, but preserve the cutout transparent areas.\n");
+	wprintf(L"  -dcn - don't clean normals. Many normal maps are poorly formed, with normals pointing\n    down into the surface, or the normals are not normalized. This option\n    lets you turn off the normal cleaning feature.\n");
 }
 
 // Shares textures found, as possible. If both or neither exist, nothing to do.
@@ -2053,6 +2066,49 @@ static int checkForCutout(progimage_info* dst)
 	return ret_code;
 };
 
+// Check that each normal doesn't point downward, and that it is nearly 1.0 in length.
+// Returns true if the texture was already clean, no corrections, false if corrections were made.
+static int cleanNormalMap(progimage_info& tile)
+{
+	int row, col;
+	float xyz[3];
+	unsigned char* src_data = &tile.image_data[0];
+	bool retval = true;
+
+	for (row = 0; row < tile.height; row++)
+	{
+		for (col = 0; col < tile.width; col++)
+		{
+			if (src_data[2] < 128) {
+				// hey, a normal is pointing into the surface; that shouldn't happen
+				//assert(0);
+				// corrective action, e.g., clamp
+				src_data[2] = 128;
+				retval = false;
+			}
+			// now check if normal is around 1.0 in length
+			for (int ch = 0; ch < 3; ch++)
+			{
+				xyz[ch] = ((float)src_data[ch] / 255.0f) * 2.0f - 1.0f;
+			}
+			float len = xyz[0] * xyz[0] + xyz[1] * xyz[1] + xyz[2] * xyz[2];
+			// test whether normal is around 1.0f in length. Is this a good test?
+			if (len > 1.02f || len < 0.98f) {
+				//assert(0);
+				// corrective action, e.g., renormalize
+				len = (float)sqrt(len);
+				for (int ch = 0; ch < 3; ch++)
+				{
+					src_data[ch] = (unsigned char)(255.0f * (((xyz[ch]/len) + 1.0f) / 2.0f) + 0.5f);
+				}
+				retval = false;
+			}
+			src_data += 3;
+		}
+	}
+	return retval;
+}
+
 // assumes 3 channels
 // could return largest difference in heights. If 0, then the resulting normal map is flat
 static int convertHeightfieldToXYZ(progimage_info* src, float heightfieldScale)
@@ -2077,7 +2133,7 @@ static int convertHeightfieldToXYZ(progimage_info* src, float heightfieldScale)
 			float x = heightfieldScale * (phf_data[row * phf->width + lcol] - phf_data[row * phf->width + rcol]) / 255.0f;
 			float y = heightfieldScale * (phf_data[trow * phf->width + col] - phf_data[brow * phf->width + col]) / 255.0f;
 			float length = (float)sqrt(x * x + y * y + 1.0f);
-			// Basically, map from XYZ [-1,1] to RGB.
+			// Basically, map from XYZ [-1,1] to RGB. Make sure it's normalized.
 			*src_data++ = (unsigned char)((1.0f + x / length) * 127.5f);
 			*src_data++ = (unsigned char)((1.0f + y / length) * 127.5f);
 			*src_data++ = (unsigned char)((1.0f + 1.0 / length) * 127.5f);

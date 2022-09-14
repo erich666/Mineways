@@ -8,7 +8,7 @@
 #include "tiles.h"
 #include "tilegrid.h"
 
-#define	VERSION_STRING	L"1.10"
+#define	VERSION_STRING	L"1.11"
 
 // how the green and blue tiles get tinted
 //#define FOLIAGE_GREEN	0x8cbd57
@@ -324,7 +324,7 @@ static int copyFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirecto
 						if (category == CATEGORY_NORMALS_LONG || category == CATEGORY_HEIGHTMAP) {
 							int otherIndex = copyCategories[CATEGORY_NORMALS] * pfg->totalTiles + i;
 							if (pfg->fr[otherIndex].exists) {
-								wprintf(L"WARNING: File '%s' also has a version named '%s_n.png'. Both copied over.\n", pfg->fr[fullIndex].fullFilename, pfg->fr[otherIndex].fullFilename);
+								wprintf(L"WARNING: File '%s' also has a version named '%s'. Both copied over.\n", pfg->fr[fullIndex].fullFilename, pfg->fr[otherIndex].fullFilename);
 							}
 						}
 					}
@@ -398,7 +398,7 @@ static int copyFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirecto
 						if (category == CATEGORY_NORMALS_LONG || category == CATEGORY_HEIGHTMAP) {
 							int otherIndex = copyCategories[CATEGORY_NORMALS] * pcg->totalTiles + i;
 							if (pcg->cr[otherIndex].exists) {
-								wprintf(L"WARNING: File '%s' also has a version named '%s_n.png'. Both copied over.\n", pcg->cr[fullIndex].fullFilename, pcg->cr[otherIndex].fullFilename);
+								wprintf(L"WARNING: File '%s' also has a version named '%s'. Both copied over.\n", pcg->cr[fullIndex].fullFilename, pcg->cr[otherIndex].fullFilename);
 							}
 						}
 					}
