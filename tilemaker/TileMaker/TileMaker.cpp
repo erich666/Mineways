@@ -247,6 +247,7 @@ int wmain(int argc, wchar_t* argv[])
 	float heightfieldScale = 0.5f;
 	int normalsCount = 0;
 	bool cleanNormals = true;
+	bool normalsZoom = false;
 
 	bool allChests = true;
 	bool anyChests = false;
@@ -993,10 +994,14 @@ int wmain(int argc, wchar_t* argv[])
 							}
 						}
 
-						if (copyPNGTile(destination_ptr, channels, gTilesTable[index].txrX, gTilesTable[index].txrY, chosenTile, &tile, 0, 0, 16, 16, 0, 0, 0x0, (float)destination_ptr->width / (float)(trueWidth(index, tile.width, lavaFlowIndex, waterFlowIndex) * 16))) {
+						float zoom = (float)destination_ptr->width / (float)(trueWidth(index, tile.width, lavaFlowIndex, waterFlowIndex) * 16);
+						if (copyPNGTile(destination_ptr, channels, gTilesTable[index].txrX, gTilesTable[index].txrY, chosenTile, &tile, 0, 0, 16, 16, 0, 0, 0x0, zoom)) {
 							// failed to copy, somehow
 							assert(0);
 							return 1;
+						}
+						if (zoom != 1.0f && catIndex == CATEGORY_NORMALS) {
+							normalsZoom = true;
 						}
 //wprintf(L"%s\n", gFG.fr[fullIndex].fullFilename);
 						filesProcessed++;
@@ -1175,13 +1180,19 @@ int wmain(int argc, wchar_t* argv[])
 							}
 
 							// copy from area to area, scaling as needed
+							float zoom = (float)destination_ptr->width / (256.0f * (float)chestImage.width / (float)pChest->defaultResX);
 							copyPNGTile(destination_ptr, channels, pChest->data[copyIndex].txrX, pChest->data[copyIndex].txrY, 0,
 								&chestImage,
 								pChest->data[copyIndex].toX, pChest->data[copyIndex].toY,
 								pChest->data[copyIndex].toX + pChest->data[copyIndex].sizeX, pChest->data[copyIndex].toY + pChest->data[copyIndex].sizeY,
 								pChest->data[copyIndex].fromX, pChest->data[copyIndex].fromY,
 								pChest->data[copyIndex].flags,
-								(float)destination_ptr->width / (256.0f * (float)chestImage.width / (float)pChest->defaultResX));	// default is 256 / 64 * 4 or 128 * 2
+								zoom);	// default is 256 / 64 * 4 or 128 * 2
+
+							if (zoom != 1.0f && catIndex == CATEGORY_NORMALS) {
+								normalsZoom = true;
+							}
+
 						}
 						filesProcessed++;
 //wprintf(L"%s\n", gCG.cr[index + catIndex * gCG.totalTiles].fullFilename);
@@ -1201,6 +1212,14 @@ int wmain(int argc, wchar_t* argv[])
 						makeSolidTile(destination_ptr, i, solid);
 					}
 				}
+			}
+
+			if (catIndex == CATEGORY_NORMALS && normalsZoom) {
+				if (verbose)
+					wprintf(L"Cleaning final normals map.\n");
+
+				// if normals got filtered down, we need to renormalize them.
+				cleanNormalMap(*destination_ptr, -1);
 			}
 
 			if (verbose)
@@ -2147,31 +2166,35 @@ static bool cleanNormalMap(progimage_info& tile, int type)
 	{
 		for (col = 0; col < tile.width; col++)
 		{
-			if (type != 0 && src_data[2] < 128) {
-				// hey, a normal is pointing into the surface; that shouldn't happen
-				//assert(0);
-				// corrective action, e.g., clamp
-				src_data[2] = 128;
-				retval = false;
-			}
-			// now check if normal is around 1.0 in length
-			for (int ch = 0; ch < 2; ch++)
-			{
-				xyz[ch] = ((float)src_data[ch] / 255.0f) * 2.0f - 1.0f;
-			}
-			xyz[2] = (type != 0) ? ((float)src_data[2] / 255.0f) * 2.0f - 1.0f : (float)src_data[2] / 255.0f;
-			float len = xyz[0] * xyz[0] + xyz[1] * xyz[1] + xyz[2] * xyz[2];
-			// test whether normal is around 1.0f in length, or if we're going to type -1 from type 0.
-			if (type == 0 || len > 1.02f || len < 0.98f) {
-				//assert(0);
-				// corrective action, e.g., renormalize
-				len = (float)sqrt(len);
-				// we always convert to -1 to 1 range
-				for (int ch = 0; ch < 3; ch++)
-				{
-					src_data[ch] = (unsigned char)(255.0f * (((xyz[ch]/len) + 1.0f) / 2.0f) + 0.5f);
+			if (src_data[0] > 5 || src_data[1] > 5 || src_data[2] > 5) {
+				// else black pixel, or near black, some background thing, so skip
+
+				if (type != 0 && src_data[2] < 128) {
+					// hey, a normal is pointing into the surface; that shouldn't happen
+					//assert(0);
+					// corrective action, e.g., clamp
+					src_data[2] = 128;
+					retval = false;
 				}
-				retval = false;
+				// now check if normal is around 1.0 in length
+				for (int ch = 0; ch < 2; ch++)
+				{
+					xyz[ch] = ((float)src_data[ch] / 255.0f) * 2.0f - 1.0f;
+				}
+				xyz[2] = (type != 0) ? ((float)src_data[2] / 255.0f) * 2.0f - 1.0f : (float)src_data[2] / 255.0f;
+				float len = xyz[0] * xyz[0] + xyz[1] * xyz[1] + xyz[2] * xyz[2];
+				// test whether normal is around 1.0f in length, or if we're going to type -1 from type 0.
+				if (type == 0 || len > 1.02f || len < 0.98f) {
+					//assert(0);
+					// corrective action, e.g., renormalize
+					len = (float)sqrt(len);
+					// we always convert to -1 to 1 range
+					for (int ch = 0; ch < 3; ch++)
+					{
+						src_data[ch] = (unsigned char)(255.0f * (((xyz[ch] / len) + 1.0f) / 2.0f) + 0.5f);
+					}
+					retval = false;
+				}
 			}
 			src_data += 3;
 		}
