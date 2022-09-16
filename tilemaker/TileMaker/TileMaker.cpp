@@ -162,6 +162,13 @@ static wchar_t gConcatErrorString[CONCAT_ERROR_LENGTH];
 												return 1; \
 											}
 
+
+#ifdef SHOW_PIXEL_VALUE
+#define PRINT_PIXEL(s,t,ch,c,r) { unsigned char *p = &(t).image_data[(ch)*((t).width*(r)+(c))]; printf ("%s %d %d %d\n",(s),(int)p[0],(int)p[1],(int)p[2]);}
+#else
+#define PRINT_PIXEL(s,t,ch,c,r)
+#endif
+
 //-------------------------------------------------------------------------
 void printHelp();
 
@@ -200,8 +207,6 @@ static void rotateTile(progimage_info& tile, int channels);
 static int classifyImageBumpMap(progimage_info& tile);
 
 int doesTileHaveCutouts(int index);
-
-
 
 int wmain(int argc, wchar_t* argv[])
 {
@@ -924,9 +929,16 @@ int wmain(int argc, wchar_t* argv[])
 									// We normally always clean normals. First, some normals from textures are crap. Second, if you average
 									// normals when you read them in (as we often do), you will get unnormalized normals. Clean those up.
 									if (cleanNormals) {
+										PRINT_PIXEL("single way before", tile, 3, 63, 58);
 										int normType = isNormalMapZ01(tile);
 										if (normType != -2) {
+											if (verbose) {
+												wprintf(L"Normal map '%s' does not appear to be normalized (state %d), so it is being cleaned up.\n",
+													gFG.fr[fullIndex].fullFilename, normType);
+											}
+											PRINT_PIXEL("single before", tile, 3, 63, 58);
 											cleanNormalMap(tile, normType);
+											PRINT_PIXEL("single after", tile, 3, 63, 58);
 										}
 									}
 									normalsCount++;
@@ -1216,10 +1228,12 @@ int wmain(int argc, wchar_t* argv[])
 
 			if (catIndex == CATEGORY_NORMALS && normalsZoom) {
 				if (verbose)
-					wprintf(L"Cleaning final normals map.\n");
+					wprintf(L"Cleaning final normals map due to image zoom.\n");
 
 				// if normals got filtered down, we need to renormalize them.
+				PRINT_PIXEL("before", *destination_ptr, 3, 2879, 5690);
 				cleanNormalMap(*destination_ptr, -1);
+				PRINT_PIXEL("after", *destination_ptr, 3, 2879, 5690);
 			}
 
 			if (verbose)
@@ -2094,11 +2108,13 @@ static int checkForCutout(progimage_info* dst)
 // -1 means -1 to 1, what USD (for example) expects
 // 0 means 0 to 1, a norm from long back
 // 1 means "I dunno, nothing's normal and there's not a lot of negatives" and we'll blithely act like it's -1 to 1
+// 2 means "the Z channel is not assigned (is likely 255 everywhere) and must be derived"
 static int isNormalMapZ01(progimage_info& tile)
 {
 	int row, col;
 	float xyz[3];
 	unsigned char* src_data = &tile.image_data[0];
+	int is255 = 0;
 	int negZ = 0;
 	int zn11 = 0;
 	int z01 = 0;
@@ -2110,6 +2126,9 @@ static int isNormalMapZ01(progimage_info& tile)
 			// note it's 127 here, to be "safe"
 			if (src_data[2] < 127) {
 				negZ++;
+			}
+			else if (src_data[2] == 255) {
+				is255++;
 			}
 			// now check if normal is around 1.0 in length
 			for (int ch = 0; ch < 3; ch++)
@@ -2131,6 +2150,11 @@ static int isNormalMapZ01(progimage_info& tile)
 			}
 			src_data += 3;
 		}
+	}
+	// if all the normals are 255 in Z, the Z channel is (extremely likely) not being used
+	// and must be derived
+	if (is255 == tile.height * tile.width) {
+		return 2;
 	}
 	// if all the normals are normalized and there are no full negatives, we're done!
 	if ((zn11 == tile.height * tile.width) && negZ == 0) {
@@ -2160,7 +2184,9 @@ static bool cleanNormalMap(progimage_info& tile, int type)
 	int row, col;
 	float xyz[3];
 	unsigned char* src_data = &tile.image_data[0];
+	bool clamped = false;
 	bool retval = true;
+	float len;
 
 	for (row = 0; row < tile.height; row++)
 	{
@@ -2168,12 +2194,12 @@ static bool cleanNormalMap(progimage_info& tile, int type)
 		{
 			if (src_data[0] > 5 || src_data[1] > 5 || src_data[2] > 5) {
 				// else black pixel, or near black, some background thing, so skip
-
 				if (type != 0 && src_data[2] < 128) {
 					// hey, a normal is pointing into the surface; that shouldn't happen
 					//assert(0);
 					// corrective action, e.g., clamp
 					src_data[2] = 128;
+					clamped = true;
 					retval = false;
 				}
 				// now check if normal is around 1.0 in length
@@ -2181,19 +2207,30 @@ static bool cleanNormalMap(progimage_info& tile, int type)
 				{
 					xyz[ch] = ((float)src_data[ch] / 255.0f) * 2.0f - 1.0f;
 				}
-				xyz[2] = (type != 0) ? ((float)src_data[2] / 255.0f) * 2.0f - 1.0f : (float)src_data[2] / 255.0f;
-				float len = xyz[0] * xyz[0] + xyz[1] * xyz[1] + xyz[2] * xyz[2];
-				// test whether normal is around 1.0f in length, or if we're going to type -1 from type 0.
-				if (type == 0 || len > 1.02f || len < 0.98f) {
-					//assert(0);
-					// corrective action, e.g., renormalize
-					len = (float)sqrt(len);
-					// we always convert to -1 to 1 range
-					for (int ch = 0; ch < 3; ch++)
-					{
-						src_data[ch] = (unsigned char)(255.0f * (((xyz[ch] / len) + 1.0f) / 2.0f) + 0.5f);
-					}
+				// All Z's in image are 255, so Z needs to be derived from X and Y.
+				// (Even if the Z's are correct, i.e., the normal map is flat, "correcting" won't hurt here.)
+				if (type == 2) {
+					// derive Z from XY values
+					xyz[2] = (float)sqrt(1.0f - xyz[0] * xyz[0] - xyz[1] * xyz[1]);
+					src_data[2] = (unsigned char)(255.0f * ((xyz[2] + 1.0f) / 2.0f) + 0.5f);
 					retval = false;
+				}
+				else {
+					xyz[2] = (type != 0) ? ((float)src_data[2] / 255.0f) * 2.0f - 1.0f : (float)src_data[2] / 255.0f;
+					len = xyz[0] * xyz[0] + xyz[1] * xyz[1] + xyz[2] * xyz[2];
+					// test whether normal is around 1.0f in length, or if we're going to type -1 from type 0.
+					if (type == 0 || clamped || len > 1.02f || len < 0.98f) {
+						clamped = false;
+						//assert(0);
+						// corrective action, e.g., renormalize
+						len = (float)sqrt(len);
+						// we always convert to -1 to 1 range
+						for (int ch = 0; ch < 3; ch++)
+						{
+							src_data[ch] = (unsigned char)(255.0f * (((xyz[ch] / len) + 1.0f) / 2.0f) + 0.5f);
+						}
+						retval = false;
+					}
 				}
 			}
 			src_data += 3;
