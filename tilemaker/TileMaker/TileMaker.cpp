@@ -2218,7 +2218,7 @@ static bool cleanNormalMap(progimage_info& tile, int type)
 					else {
 						// If the length of the X and Y component vector is greater than 1, who
 						// the heck knows what's going on. I guess go renormalize the whole thing.
-						assert(0);
+						assert(len > -0.02f);
 						xyz[2] = 0.0f;
 						goto Renormalize;
 					}
