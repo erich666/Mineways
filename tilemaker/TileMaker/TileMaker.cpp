@@ -2211,12 +2211,23 @@ static bool cleanNormalMap(progimage_info& tile, int type)
 				// (Even if the Z's are correct, i.e., the normal map is flat, "correcting" won't hurt here.)
 				if (type == 2) {
 					// derive Z from XY values
-					xyz[2] = (float)sqrt(1.0f - xyz[0] * xyz[0] - xyz[1] * xyz[1]);
+					len = 1.0f - xyz[0] * xyz[0] - xyz[1] * xyz[1];
+					if (len >= 0.0f) {
+						xyz[2] = (float)sqrt(len);
+					}
+					else {
+						// If the length of the X and Y component vector is greater than 1, who
+						// the heck knows what's going on. I guess go renormalize the whole thing.
+						assert(0);
+						xyz[2] = 0.0f;
+						goto Renormalize;
+					}
 					src_data[2] = (unsigned char)(255.0f * ((xyz[2] + 1.0f) / 2.0f) + 0.5f);
 					retval = false;
 				}
 				else {
 					xyz[2] = (type != 0) ? ((float)src_data[2] / 255.0f) * 2.0f - 1.0f : (float)src_data[2] / 255.0f;
+					Renormalize:
 					len = xyz[0] * xyz[0] + xyz[1] * xyz[1] + xyz[2] * xyz[2];
 					// test whether normal is around 1.0f in length, or if we're going to type -1 from type 0.
 					if (type == 0 || clamped || len > 1.02f || len < 0.98f) {
