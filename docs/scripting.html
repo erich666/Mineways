@@ -871,7 +871,7 @@ Specify the terrain file to use initially. See <a href="mineways.html#texture_ou
 For debugging startup problems; you'll normally never use this. This option saves a log of startup and commands executed. The file mineways_debug_log.bat runs Mineways in this way.
 <P>
 -suppress<br>
-Suppress all informational, warning, and error popups. Equivalent to "Show informational: false", "Show warning: false", and "Show error: false", but performed before any other operations are done in Mineways. This allows a nearly-batch mode for Mineways with no pauses, as no popups will appear at startup (such as "bad world" warnings) or during execution of any scripts executed. You can turn popup display back on during execution normally, e.g., a script with "Show error: true".
+Suppress all informational, warning, and error popups. Equivalent to "Show informational: false", "Show warning: false", and "Show error: false", but performed before any other operations are done in Mineways. This allows a nearly-batch mode for Mineways with no pauses, as no popups will appear at startup (such as "bad world" warnings) or during execution of any scripts executed. You can turn popup display back on during execution normally, e.g., a script with "Show error: true", "Show warning: YES", etc.
 <P>
 -zl <i>MinZoom</i><br>
 Congratulations! You found an experimental feature. <I>Setting this may cause memory problems or crashes on your machine.</I> Normally Mineways has a limit to how far you can zoom out: 1 pixel per block. But, if you set this MinZoom value to something lower than 1.0, that's how low you can zoom out with the mouse wheel. For example, 0.5 means 0.5 pixels per block, aka 1 pixel for every 2 blocks in width on the screen. Lowest you can go is 0.0625 (16 blocks wide per pixel). This zoom level lets you see a lot more of your world in the window. It'll also load a lot more blocks (a LOT more. For example, 0.5 means loading four - 2x2 - more blocks to display. 0.0625 means loading 256 more blocks per pixel than normal). You may experience slowdowns or a crash as you zoom farther out, as more and more chunks get loaded. Have fun! <B>Bonus behavior:</B> if you set this zoom value on startup, you'll have more cache available as you pan around your map. So, for example, you could set "-zl 0.25" and more chunks will be cached overall, leading to less hesitation when you scroll around further. Give it a try if you find you scroll back and forth between areas a lot (or just use View -> Focus View on the menu).
@@ -1032,7 +1032,7 @@ Running the script to set up the scene, then exporting (manually) to Sketchfab, 
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 11/28/2021</p>	</div>
+		<br id="lastUpdate">Last updated 9/17/2022</p>	</div>
 </div>
 
 </body>

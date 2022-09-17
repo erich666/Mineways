@@ -1311,7 +1311,7 @@ int wmain(int argc, wchar_t* argv[])
 void printHelp()
 {
 	wprintf(L"TileMaker version %s\n", VERSION_STRING);
-	wprintf(L"usage: TileMaker [-v] [-i terrainBase.png] [-d blocks] [-o terrainExt.png]\n        [-t tileSize] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-s] [-S] [-h #]\n");
+	wprintf(L"usage: TileMaker [-v] [-i terrainBase.png] [-d blocks] [-o terrainExt.png]\n        [-t tileSize] [-h #] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-s] [-S] [-dcn]\n");
 	wprintf(L"  -v - verbose, explain everything going on. Default: display only warnings and errors.\n");
 	wprintf(L"  -i terrainBase.png - image containing the base set of terrain blocks\n    (includes special chest tiles). Default is 'terrainBase.png'.\n");
 	wprintf(L"  -d blocks - directory of block textures to overlay on top of the base.\n    Default directory is 'blocks'. Can be set multiple times to include\n    multiple directories.\n");
@@ -1326,7 +1326,7 @@ void printHelp()
 	wprintf(L"  -m - to report all missing tiles, ones that Mineways uses but were not in the\n    tiles directory.\n");
 	wprintf(L"  -s - take the average color of the incoming tile and output this solid color.\n");
 	wprintf(L"  -S - as above, but preserve the cutout transparent areas.\n");
-	wprintf(L"  -dcn - don't clean normals. Many normal maps are poorly formed, with normals pointing\n    down into the surface, or the normals are not normalized. This option\n    lets you turn off the normal cleaning feature.\n");
+	wprintf(L"  -dcn - don't clean normals. Many normal maps are poorly formed, with normals pointing\n    down into the surface, or the normals are not normalized, or Z is always 255.\n    This option turns off the normal cleaning feature.\n");
 }
 
 // Shares textures found, as possible. If both or neither exist, nothing to do.

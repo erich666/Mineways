@@ -2670,7 +2670,7 @@ The textures and rules used in Minecraft for how blocks appear and connect have 
 <P>
 From newest to oldest. The very newest is sometimes unreleased work in progress, with "*" meaning "to do" and "**" meaning "stretch goal."
 <UL>
-<LI>Version 10.02, xx/xx/2022 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1002.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 10.02, 9/17/2022 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1002.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
   <UL>
   <LI>Add <a href="scripting.html#clo">-suppress" command line option</a>, which suppressings all popup messages, allowing a near-batch mode for Mineways, with no pauses. 
@@ -2680,7 +2680,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
   <LI>Delete lens flare renderSettings. Fog settings will still be output if the Elevation shading option is checked. I still use ambientLightIntensity = 0.01.
   <LI>Improve "cannot read world" error message, noting that the world could be a Bedrock world.
 	<LI>Fix: allow light values to be zero for USD export. Bug fix: a zero value for the "Light scale" value now properly means the external lights (sun and environment) are not exported at all.
-  <LI>TileMaker option "-dcn", version now 3.16: when creating normal map terrain images, now check that the Z value isn't < 128 (force to 128 if it is), and renormalize the normal to be close to 1.0 if it's far off in length, or has a Z value that goes from 0 to 1 (USD expects -1 to 1). Normals processed by TileMaker were getting unnormalized, plus some packages give crummy normals, so now we clean these up by default. If you don't want cleanup to occur, set "-dcn". Also fix miscount on deleting duplicate heightmaps.
+  <LI>TileMaker option "-dcn", version now 3.16: when creating normal map terrain images, now check that the Z value isn't < 128 (force to 128 if it is) or <a href="https://wiki.shaderlabs.org/wiki/LabPBR_Material_Standard">always 255</a> (derive it from X and Y if so), and renormalize the normal to be close to 1.0 if it's far off in length, or has a Z value that goes from 0 to 1 (USD expects -1 to 1). If you don't want cleanup to occur, set "-dcn". Also, fix TileMaker miscount on deleting duplicate heightmaps.
   <LI>ChannelMixer version now 1.11: clean up typo in warning message about duplicate file found.
   <LI>Update documentation: update Houdini how-to, and mention <a href="https://github.com/erich666/McUsd">my McUsd test scene project</a>.
   <LI>*Update JG-RTX terrain images
@@ -3778,7 +3778,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 6/14/2022</p>
+		<br id="lastUpdate">Last updated 9/17/2022</p>
 	</div>
 </div>
 

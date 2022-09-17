@@ -473,8 +473,8 @@ TileMaker -?
 </PRE>
 on the command line.
 <P>
-<b>Usage:</b> TileMaker [-i terrainBase.png] [-d blocks] [-o terrainExt.png]
-        [-t tileSize] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-a] [-v]
+<b>Usage:</b> TileMaker [-v] [-i terrainBase.png] [-d blocks] [-o terrainExt.png]
+        [-t tileSize] [-h #] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-s] [-S] [-dcn]
 
 <UL>
 <LI><b>-v</b> - verbose, explain everything going on. Default: display only warnings and errors.
@@ -506,6 +506,9 @@ on the command line.
     tiles directory.
 <LI><b>-s</b> - take the average color of the incoming tile and output this solid color.
 <LI><b>-S</b> - as above, but preserve the cutout transparent areas.
+<LI><b>-dcn</b> - don't clean normals. Many normal maps are poorly formed, with normals pointing
+	down into the surface, or the normals are not normalized, or Z is <a href="https://wiki.shaderlabs.org/wiki/LabPBR_Material_Standard">always 255</a>.
+	This option turns off the normal cleaning feature.
 </UL>
 <HR>
 
@@ -513,7 +516,7 @@ on the command line.
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 2/1/2022</p>	</div>
+		<br id="lastUpdate">Last updated 9/17/2022</p>	</div>
 </div>
 
 </body>
