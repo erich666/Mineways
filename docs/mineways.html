@@ -2670,10 +2670,18 @@ The textures and rules used in Minecraft for how blocks appear and connect have 
 <P>
 From newest to oldest. The very newest is sometimes unreleased work in progress, with "*" meaning "to do" and "**" meaning "stretch goal."
 <UL>
+  <LI>Version 10.03, xx/xx/202x - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1003.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+    <BR>
+    <UL>
+    <LI>TileMaker 3.17: If normals listed as 255,255,255, convert to 128,128,255 (happens with Smoolistic). Helps avoid any interpolation errors along the edges.
+    <LI>Update JG-RTX terrain and LunaHD images, re-convert Smoolistic.
+    </UL>
+
+<UL>
 <LI>Version 10.02, 9/17/2022 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1002.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
   <UL>
-  <LI>Add <a href="scripting.html#clo">-suppress" command line option</a>, which suppressings all popup messages, allowing a near-batch mode for Mineways, with no pauses. 
+  <LI>Add <a href="scripting.html#clo">"-suppress" command line option</a>, which suppresses all popup messages, allowing a near-batch mode for Mineways, with no pauses. 
   <LI>Add "Zoom out further" option under the View menu. Turns on <a href="scripting.html#clo">the experimental "-zl" command line option</a> and lets you zoom out to more than one block per pixel. Doing so may cause slowdowns or lockups. This is not a feature that is controllable by scripting (though can be invoked by the -zl command line option on startup). See <a href="scripting.html#clo">the scripting command line options</a> for more information.
   <LI>Bug fix: If the "Export individual textures to" directory ("tex" by default) is left blank, all textures are not placed in a subdirectory. For OBJ this means all the textures are in the same directory as the OBJ and MTL files (which worked fine). For USD the textures are now placed (and properly reference) in the "yourfilename_materials" directory instead of "yourfilename_materials/tex".
   <LI>Add defaultPrim to the USDA export for Mineways, to comply with the USD standard.
@@ -2683,9 +2691,9 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
   <LI>TileMaker option "-dcn", version now 3.16: when creating normal map terrain images, now check that the Z value isn't < 128 (force to 128 if it is) or <a href="https://wiki.shaderlabs.org/wiki/LabPBR_Material_Standard">always 255</a> (derive it from X and Y if so), and renormalize the normal to be close to 1.0 if it's far off in length, or has a Z value that goes from 0 to 1 (USD expects -1 to 1). If you don't want cleanup to occur, set "-dcn". Also, fix TileMaker miscount on deleting duplicate heightmaps.
   <LI>ChannelMixer version now 1.11: clean up typo in warning message about duplicate file found.
   <LI>Update documentation: update Houdini how-to, and mention <a href="https://github.com/erich666/McUsd">my McUsd test scene project</a>.
-  <LI>*Update JG-RTX terrain images
+  <LI>Update JG-RTX terrain images.
   </UL>
-
+  
 <LI>Version 10.01, 6/14/2022 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1001.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
   <UL>

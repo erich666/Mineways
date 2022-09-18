@@ -16,7 +16,7 @@
 #include "tiles.h"
 #include "tilegrid.h"
 
-#define	VERSION_STRING	L"3.16"
+#define	VERSION_STRING	L"3.17"
 
 //#define TILE_PATH	L".\\blocks\\"
 #define BASE_INPUT_FILENAME			L"terrainBase.png"
@@ -2194,53 +2194,62 @@ static bool cleanNormalMap(progimage_info& tile, int type)
 		{
 			if (src_data[0] > 5 || src_data[1] > 5 || src_data[2] > 5) {
 				// else black pixel, or near black, some background thing, so skip
-				if (type != 0 && src_data[2] < 128) {
-					// hey, a normal is pointing into the surface; that shouldn't happen
-					//assert(0);
-					// corrective action, e.g., clamp
-					src_data[2] = 128;
-					clamped = true;
-					retval = false;
-				}
-				// now check if normal is around 1.0 in length
-				for (int ch = 0; ch < 2; ch++)
-				{
-					xyz[ch] = ((float)src_data[ch] / 255.0f) * 2.0f - 1.0f;
-				}
-				// All Z's in image are 255, so Z needs to be derived from X and Y.
-				// (Even if the Z's are correct, i.e., the normal map is flat, "correcting" won't hurt here.)
-				if (type == 2) {
-					// derive Z from XY values
-					len = 1.0f - xyz[0] * xyz[0] - xyz[1] * xyz[1];
-					if (len >= 0.0f) {
-						xyz[2] = (float)sqrt(len);
-					}
-					else {
-						// If the length of the X and Y component vector is greater than 1, who
-						// the heck knows what's going on. I guess go renormalize the whole thing.
-						assert(len > -0.02f);
-						xyz[2] = 0.0f;
-						goto Renormalize;
-					}
-					src_data[2] = (unsigned char)(255.0f * ((xyz[2] + 1.0f) / 2.0f) + 0.5f);
-					retval = false;
+
+				// Smoolistic, for example, sets unused areas to white. Better to make these "no normals"
+				// to avoid any interpolation funniness around the edges.
+				if (src_data[0] == 255 || src_data[1] == 255 || src_data[2] == 255) {
+					src_data[0] = 128;
+					src_data[1] = 128;
 				}
 				else {
-					xyz[2] = (type != 0) ? ((float)src_data[2] / 255.0f) * 2.0f - 1.0f : (float)src_data[2] / 255.0f;
-					Renormalize:
-					len = xyz[0] * xyz[0] + xyz[1] * xyz[1] + xyz[2] * xyz[2];
-					// test whether normal is around 1.0f in length, or if we're going to type -1 from type 0.
-					if (type == 0 || clamped || len > 1.02f || len < 0.98f) {
-						clamped = false;
+					if (type != 0 && src_data[2] < 128) {
+						// hey, a normal is pointing into the surface; that shouldn't happen
 						//assert(0);
-						// corrective action, e.g., renormalize
-						len = (float)sqrt(len);
-						// we always convert to -1 to 1 range
-						for (int ch = 0; ch < 3; ch++)
-						{
-							src_data[ch] = (unsigned char)(255.0f * (((xyz[ch] / len) + 1.0f) / 2.0f) + 0.5f);
-						}
+						// corrective action, e.g., clamp
+						src_data[2] = 128;
+						clamped = true;
 						retval = false;
+					}
+					// now check if normal is around 1.0 in length
+					for (int ch = 0; ch < 2; ch++)
+					{
+						xyz[ch] = ((float)src_data[ch] / 255.0f) * 2.0f - 1.0f;
+					}
+					// All Z's in image are 255, so Z needs to be derived from X and Y.
+					// (Even if the Z's are correct, i.e., the normal map is flat, "correcting" won't hurt here.)
+					if (type == 2) {
+						// derive Z from XY values
+						len = 1.0f - xyz[0] * xyz[0] - xyz[1] * xyz[1];
+						if (len >= 0.0f) {
+							xyz[2] = (float)sqrt(len);
+						}
+						else {
+							// If the length of the X and Y component vector is greater than 1, who
+							// the heck knows what's going on. I guess go renormalize the whole thing.
+							assert(len > -0.02f);
+							xyz[2] = 0.0f;
+							goto Renormalize;
+						}
+						src_data[2] = (unsigned char)(255.0f * ((xyz[2] + 1.0f) / 2.0f) + 0.5f);
+						retval = false;
+					}
+					else {
+						xyz[2] = (type != 0) ? ((float)src_data[2] / 255.0f) * 2.0f - 1.0f : (float)src_data[2] / 255.0f;
+					Renormalize:
+						len = xyz[0] * xyz[0] + xyz[1] * xyz[1] + xyz[2] * xyz[2];
+						// test whether normal is around 1.0f in length, or if we're going to type -1 from type 0.
+						if (type == 0 || clamped || len > 1.02f || len < 0.98f) {
+							clamped = false;
+							//assert(0);
+							// corrective action, e.g., renormalize
+							len = (float)sqrt(len);
+							// we always convert to -1 to 1 range
+							for (int ch = 0; ch < 3; ch++)
+							{
+								src_data[ch] = (unsigned char)(255.0f * (((xyz[ch] / len) + 1.0f) / 2.0f) + 0.5f);
+							}
+							retval = false;
+						}
 					}
 				}
 			}
