@@ -8,7 +8,7 @@
 #include "tiles.h"
 #include "tilegrid.h"
 
-#define	VERSION_STRING	L"1.11"
+#define	VERSION_STRING	L"1.12"
 
 // how the green and blue tiles get tinted
 //#define FOLIAGE_GREEN	0x8cbd57
@@ -523,7 +523,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 							return filesRead;
 						}
 						if (verbose) {
-							wprintf(L"New texture '%s' created.\n", outputFile);
+							wprintf(L"New texture '%s' fullIndex %d created due to grayscale.\n", outputFile, fullIndex);
 						}
 					}
 					writepng_cleanup(destination_ptr);
@@ -587,7 +587,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
                                     return filesRead;
                                 }
                                 if (verbose) {
-                                    wprintf(L"New texture '%s' created.\n", outputFile);
+                                    wprintf(L"New texture '%s' fullIndex %d created due to SME.\n", outputFile, fullIndex);
                                 }
                             }
                             writepng_cleanup(destination_ptr);
@@ -609,7 +609,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 								return filesRead;
 							}
 							if (verbose) {
-								wprintf(L"New merged MER texture '%s' created.\n", outputFile);
+								wprintf(L"New merged MER texture '%s' fullIndex %d created.\n", outputFile, fullIndex);
 							}
 						}
 						else {
@@ -837,7 +837,7 @@ static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputD
 							return filesRead;
 						}
 						if (verbose)
-							wprintf(L"New texture '%s' created.\n", outputFile);
+							wprintf(L"New texture '%s' fullIndex %d created due to MER.\n", outputFile, fullIndex);
 						//}
 					}
 					writepng_cleanup(destination_ptr);
