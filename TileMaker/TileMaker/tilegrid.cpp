@@ -143,12 +143,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 					int imageFileType = isImageFile(ffd.cFileName);
 					if (filesProcessed > 0 && !chestFound && (imageFileType == PNG_EXTENSION_FOUND || imageFileType == TGA_EXTENSION_FOUND)) {
 						// we already found some good files in this directory, so note that this file was not used.
-						if (verbose) {
-							wprintf(L"WARNING: The file '%s' in directory '%s' is not recognized and so is not used.\n", ffd.cFileName, tilePath);
-						}
-						else {
-							wprintf(L"WARNING: The file '%s' is not recognized and so is not used.\n", ffd.cFileName);
-						}
+						wprintf(L"WARNING: The file '%s' in directory '%s' is not recognized and so is not used.\n", ffd.cFileName, tilePath);
 					}
 					// if JPG or BMP, note it if corresponding PNG or TGA not found
 					else if (imageFileType == JPG_EXTENSION_FOUND || imageFileType == BMP_EXTENSION_FOUND) {
@@ -288,18 +283,31 @@ int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* orig
 					return FILE_FOUND_AND_DUPLICATE;
 				}
 			}
-			else {
-				// it's new and unique
-				pfg->fileCount++;
-				pfg->categories[category]++;
-				clearFileRecordStorage(&pfg->fr[fullIndex]);
-				pfg->fr[fullIndex].rootName = _wcsdup(tileName);
-				pfg->fr[fullIndex].fullFilename = _wcsdup(origTileName);
-				pfg->fr[fullIndex].path = _wcsdup(tilePath);
-				pfg->fr[fullIndex].exists = true;
-//wprintf(L"%s\n", origTileName);
-				return FILE_FOUND;
+
+			// check if an SME and MER version both exist
+			if (category == CATEGORY_SPECULAR || category == CATEGORY_MER) {
+				int otherFullIndex = ((category == CATEGORY_SPECULAR) ? CATEGORY_MER : CATEGORY_SPECULAR) * pfg->totalTiles + index;
+				if (pfg->fr[otherFullIndex].exists) {
+					if (verbose) {
+						wprintf(L"DUP WARNING: Duplicate file ignored;\n  file '%s' in directory '%s' is a different name for the same type of multi-channel texture '%s' in '%s'.\n", origTileName, tilePath, pfg->fr[otherFullIndex].fullFilename, pfg->fr[otherFullIndex].path);
+					}
+					else if (warnDups) {
+						wprintf(L"DUP WARNING: Duplicate file ignored;\n  file '%s' is a different name for the same type of multi-channel texture '%s'.\n", origTileName, pfg->fr[otherFullIndex].fullFilename);
+					}
+					return FILE_FOUND_AND_DUPLICATE;
+				}
 			}
+
+			// survived tests and didn't return; it's new and unique
+			pfg->fileCount++;
+			pfg->categories[category]++;
+			clearFileRecordStorage(&pfg->fr[fullIndex]);
+			pfg->fr[fullIndex].rootName = _wcsdup(tileName);
+			pfg->fr[fullIndex].fullFilename = _wcsdup(origTileName);
+			pfg->fr[fullIndex].path = _wcsdup(tilePath);
+			pfg->fr[fullIndex].exists = true;
+//wprintf(L"%s\n", origTileName);
+			return FILE_FOUND;
 		}
 		// check if on "unused" list - if so, then we don't issue a warning but just return
 		int i = 0;
