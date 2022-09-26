@@ -231,7 +231,7 @@ Why two separate processes? Because resource pack makers do all sorts of things,
 What TileMaker does by default is simple: it reads in the terrainBase.png file Mineways provides (or ../terrainExt.png, if terrainBase.png is not found), overlays it with any tiles in the "blocks" directory (replacing the originals), extracts the chests from the "chest" subdirectory, then writes out this new image as terrainExt.png. The "chest" subdirectory normally has three chest tiles, as available - ender.png, normal.png, and normal_double.png (or similar names) - to generate chest tiles.
 
 <P>
-Mineways' two tools work with both Minecraft Classic resource packs and with Minecraft Bedrock <a href="https://mcpedb.com/tag/mcpack/">MCPack files</a>. You can find resource packs on such sites as <a href="https://www.planetminecraft.com/texture-packs/">this</a>, <a href="https://www.curseforge.com/minecraft/texture-packs">this</a>, <a href="https://mcpedl.com/?s=PBR">this</a> (and also <a href="https://mcpedl.com/?s=RTX">this search</a> there), and <a href="https://resourcepack.net/">this</a>. Or <a href="https://www.google.com/search?q=minecraft+resource+packs">google around</a> for way too many more. Best ones? <a href="https://www.pcgamer.com/best-minecraft-texture-packs/">Here's what PC Gamer</a> thinks. Want to make your own PBR resource pack? <a href="https://www.planetminecraft.com/blog/how-to-convert-any-texture-pack-to-support-ray-tracing/">This post</a> gives some tools and steps for making normal maps, etc.
+Mineways' two tools work with both Minecraft Classic resource packs and with Minecraft Bedrock <a href="https://mcpedb.com/tag/mcpack/">MCPack files</a>. You can find resource packs on such sites as <a href="https://wiki.shaderlabs.org/wiki/LabPBR_Supported_Packs">this</a>, <a href="https://www.planetminecraft.com/texture-packs/">this</a>, <a href="https://www.curseforge.com/minecraft/texture-packs">this</a>, <a href="https://mcpedl.com/?s=PBR">this</a> (and also <a href="https://mcpedl.com/?s=RTX">this search</a> there), and <a href="https://resourcepack.net/">this</a>. Or <a href="https://www.google.com/search?q=minecraft+resource+packs">google around</a> for way too many more. Best ones? <a href="https://www.pcgamer.com/best-minecraft-texture-packs/">Here's what PC Gamer</a> thinks. Want to make your own PBR resource pack? <a href="https://www.planetminecraft.com/blog/how-to-convert-any-texture-pack-to-support-ray-tracing/">This post</a> gives some tools and steps for making normal maps, etc.
 
 
 <h3 id="channelmixer">ChannelMixer</h3>
@@ -458,7 +458,7 @@ on the command line.
 <LI><b>-o outputTexturesDirectory</b> - directory where resulting textures will go.
         If none given, current directory.
 <LI><b>-m</b> - output merged '_mer' format files in addition to separate files, as found. Experimental (as in, I've rarely used it). Can maybe be a help if you want to make a <a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-texturing-guide/">MER MCPack format texture</a> from separate _m/_e/_r files.
-<LI><b>-k {m|e|r|n}</b> - kill creation of the metallic, emissive, roughness, and/or normals textures. These files, if present, will not be copied over or created. For example, "-k mern" suppresses all physically based material creation so that only color textures are copied. Using "-k e" suppresses pulling in the blue channel in any "_s" type file, a common use, as this channel is sometimes set to something else (such as in labPBR).
+<LI><b>-k {m|e|r|n}</b> - kill creation of the metallic, emissive, roughness, and/or normals textures. These files, if present, will not be copied over or created. For example, "-k mern" suppresses all physically based material creation so that only color textures are copied. Using "-k e" suppresses pulling in the blue channel in any "_s" type file, a common use, as this channel is sometimes set to something else (such as in labPBR, which uses it for porosity and subsurface scattering).
 </UL>
 
 <H2>TileMaker Reference</H2>
@@ -507,7 +507,7 @@ on the command line.
 <LI><b>-s</b> - take the average color of the incoming tile and output this solid color.
 <LI><b>-S</b> - as above, but preserve the cutout transparent areas.
 <LI><b>-dcn</b> - don't clean normals. Many normal maps are poorly formed, with normals pointing
-	down into the surface, or the normals are not normalized, or Z is <a href="https://wiki.shaderlabs.org/wiki/LabPBR_Material_Standard">always 255</a>.
+	down into the surface, or the normals are not normalized, or Z is <a href="https://wiki.shaderlabs.org/wiki/LabPBR_Material_Standard">always 255</a> (seen in the JG-RTX resource pack).
 	This option turns off the normal cleaning feature.
 </UL>
 <HR>
@@ -516,7 +516,7 @@ on the command line.
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 9/17/2022</p>	</div>
+		<br id="lastUpdate">Last updated 9/26/2022</p>	</div>
 </div>
 
 </body>
