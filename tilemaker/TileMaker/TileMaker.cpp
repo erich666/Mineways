@@ -5,7 +5,7 @@
 // set of tiles.
 // Step 3: make the background tile (which contains defaults) the proper size of the largest tile found in "tiles". 
 // For example, if a 64x64 tile is found, the background set of tile are all expanded to this size.
-// Step 4: overlay new tiles. Write out new tile set as terrain_new.png
+// Step 4: overlay new tiles. Write out new tile set as terrain_new.png.
 
 #include <assert.h>
 #include <windows.h>
