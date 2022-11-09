@@ -24654,7 +24654,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     if (gXformScale != 1.0f) {
-        sprintf_s(outputString, 256, "    float3 xformOp:scale = (%g, %g, %g)\n    uniform token[] xformOpOrder = [\"xformOp:scale\"]\n\n", gXformScale, gXformScale, gXformScale);
+        sprintf_s(outputString, 256, "    double3 xformOp:scale = (%g, %g, %g)\n    uniform token[] xformOpOrder = [\"xformOp:scale\"]\n\n", gXformScale, gXformScale, gXformScale);
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     }
 
