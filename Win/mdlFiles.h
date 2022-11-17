@@ -1609,8 +1609,8 @@ const char* file_OmniSurfaceLiteBase[] = {
 	"    //Emission - Diffuse emission\n",
 	"    uniform float emission_unit_intensity = \n",
 	"        (emission_mode == OmniShared::emission_lx) ? \n",
-	"            math::PI * 1000.0f: \n",
-	"            1.0f;\n",
+	"            1.0f: \n",
+	"            0.05f;\n",	// hack added in 10.03 so lava isn't too bright
 	"\n",
 	"    color emission_coat_affect = math::lerp(color(1.0), coat_color, coat_weight);\n",
 	"\n",
