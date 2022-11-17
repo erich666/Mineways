@@ -25171,6 +25171,7 @@ static int addCameraUSD()
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    hide_in_stage_window = false\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "    no_delete = false\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, ")\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
