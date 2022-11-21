@@ -385,8 +385,8 @@ export material OmniSurfaceLiteBase(
     //Emission - Diffuse emission
     uniform float emission_unit_intensity = 
         (emission_mode == OmniShared::emission_lx) ? 
-            math::PI * 1000.0f: 
-            1.0f;
+            1.0f: 
+            0.05f;	// hack so lava isn't too bright
 
     color emission_coat_affect = math::lerp(color(1.0), coat_color, coat_weight);
 
@@ -396,7 +396,7 @@ export material OmniSurfaceLiteBase(
             emission_color;
 
     color emission_final_intensity = 
-        emission_weight * emission_intensity * emission_unit_intensity * 
+        emission_weight * emission_intensity * emission_unit_intensity *
         emission_final_color * emission_coat_affect;
 
     material_emission emission = material_emission(

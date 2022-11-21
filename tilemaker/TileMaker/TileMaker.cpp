@@ -2197,7 +2197,7 @@ static bool cleanNormalMap(progimage_info& tile, int type)
 
 				// Smoolistic, for example, sets unused areas to white. Better to make these "no normals"
 				// to avoid any interpolation funniness around the edges.
-				if (src_data[0] == 255 || src_data[1] == 255 || src_data[2] == 255) {
+				if (src_data[0] == 255 && src_data[1] == 255 && src_data[2] == 255) {
 					src_data[0] = 128;
 					src_data[1] = 128;
 				}
