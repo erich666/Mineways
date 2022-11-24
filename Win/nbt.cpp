@@ -3828,7 +3828,6 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
         case STANDING_SIGN_PROP:
         case WT_PRESSURE_PROP:
         case PICKLE_PROP:
-        case LANTERN_PROP:
         case WIRE_PROP:
         case STRUCTURE_PROP:
             break;
@@ -4258,6 +4257,9 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             if (berries) {
                 paletteBlockEntry[entryIndex]++;
             }
+            break;
+        case LANTERN_PROP:
+            dataVal = hanging ? 1 : 0;
             break;
         case PROPAGULE_PROP:
             // use the age only if hanging. Age otherwise appears irrelevant?
