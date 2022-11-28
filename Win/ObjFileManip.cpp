@@ -25121,6 +25121,12 @@ static int finishCommentsUSD(char* defaultPrim)
     //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     //strcpy_s(outputString, 256, "            double \"rtx:post:tonemap:filmIso\" = 1000\n");
     //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+    // If fireflies are suppressed in the path tracer, the result is considerably dimmer. OM-74000
+    // Adjusting the emissives to a reasonable range seems to solve this one, so not necessary
+    //strcpy_s(outputString, 256, "            bool \"rtx:pathtracing:fireflyFilter:enabled\" = 0\n");
+    //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
     // Slows performance down massively in real-time rendering mode (like 3X), but without it, semitransparent objects
     // do not display correctly. This is documented in Mineways' docs about OV Create.
     // A little more info at: https://github.com/erich666/McUsd#omniverse-adjustments
@@ -26648,18 +26654,18 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                         strcpy_s(outputString, 256, "            )\n");
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
 
-                        // Omniverse rejiggers stuff and the emissive intensity needs to get multiplied by 10,000;
+                        // Omniverse rejiggers stuff and the emissive intensity needs to get multiplied by 90;
                         // I don't want all those 0's in the interface
-                        sprintf_s(outputString, 256, "            float inputs:emissive_intensity = %g (\n", gModel.options->pEFD->scaleEmittersVal * emission * 10000.0f);
+                        sprintf_s(outputString, 256, "            float inputs:emissive_intensity = %g (\n", gModel.options->pEFD->scaleEmittersVal * emission * 90.0f);
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                         if (outputCustomData) {
                             strcpy_s(outputString, 256, "                customData = {\n");
                             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                            strcpy_s(outputString, 256, "                    float default = 10000000\n");
+                            strcpy_s(outputString, 256, "                    float default = 90000\n");
                             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                             strcpy_s(outputString, 256, "                    dictionary range = {\n");
                             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                            strcpy_s(outputString, 256, "                        float max = 100000000\n");
+                            strcpy_s(outputString, 256, "                        float max = 1000000\n");
                             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                             strcpy_s(outputString, 256, "                        float min = 0\n");
                             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -27037,18 +27043,17 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 }
             }
             else {
-                // only in Minecraft.mdl, not in OmniGlass.mdl
-                //// default roughness should be 1.0, not the 0.5 favored by OmniPBR
-                //if (roughness != 1.0f) {
-                //    sprintf_s(outputString, 256, "            float inputs:reflection_roughness_constant = %g (\n", roughness);
-                //    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                //    strcpy_s(outputString, 256, "                displayGroup = \"Reflectivity\"\n");
-                //    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                //    strcpy_s(outputString, 256, "                displayName = \"Roughness Amount\"\n");
-                //    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                //    strcpy_s(outputString, 256, "            )\n");
-                //    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                //}
+                // only in Minecraft.mdl and OmniPBR.mdl, not in OmniGlass.mdl
+                if (!isSemitransparent) {
+                    sprintf_s(outputString, 256, "            float inputs:reflection_roughness_constant = %g (\n", roughness);
+                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                displayGroup = \"Reflectivity\"\n");
+                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "                displayName = \"Roughness Amount\"\n");
+                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                    strcpy_s(outputString, 256, "            )\n");
+                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+                }
             }
 
             // Special case: polygons emit on just one side. For the custom material, we can make polygons emit double-sided if

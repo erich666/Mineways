@@ -225,7 +225,10 @@ The general flow is:
 Put your terrainExt image file wherever mineways.exe is located and start Mineways up. You then can load the terrainExt_yourNameHere.png file you've created by using "File -> Choose Terrain File". You can even make it the default terrain you always use when starting up Mineways, <a href="mineways.html#default_terrain">as explained here</a>.
 
 <P>
-Why two separate processes? Because resource pack makers do all sorts of things, so along the way you may need to modify their input textures. ChannelMixer copies the textures Mineways cares about into a directory (and a "chests" subdirectory). TileMaker then puts all these tiles into a single terrain file (or a set of terrain files, if physically based materials are supported by the resource pack). Each program may issue warnings or errors when run, which is where you come in. You can blithely ignore these messages, or you can look them over and take corrective actions, such as renaming, resizing, or otherwise modifying the resource pack's textures. I recommend the free <a href="https://www.getpaint.net/">paint.net</a> program if you are just getting started, but any image manipulation tool you like is fine.
+Why two separate processes? Because resource pack makers do all sorts of things, so along the way you may need to modify their input textures. ChannelMixer copies the textures Mineways cares about into a directory (and a "chests" subdirectory). For example, for basic Minecraft the block textures are found in "\assets\minecraft\textures\blocks" and chest textures in "\assets\minecraft\textures\entity\chest".
+
+<P>
+TileMaker then puts all these tiles into a single terrain file (or a set of terrain files, if physically based materials are supported by the resource pack). Each program may issue warnings or errors when run, which is where you come in. You can blithely ignore these messages, or you can look them over and take corrective actions, such as renaming, resizing, or otherwise modifying the resource pack's textures. I recommend the free <a href="https://www.getpaint.net/">paint.net</a> program if you are just getting started, but any image manipulation tool you like is fine.
 
 <P>
 What TileMaker does by default is simple: it reads in the terrainBase.png file Mineways provides (or ../terrainExt.png, if terrainBase.png is not found), overlays it with any tiles in the "blocks" directory (replacing the originals), extracts the chests from the "chest" subdirectory, then writes out this new image as terrainExt.png. The "chest" subdirectory normally has three chest tiles, as available - ender.png, normal.png, and normal_double.png (or similar names) - to generate chest tiles.
@@ -249,7 +252,9 @@ Go to <a href="https://github.com/jasonjgardner/jg-rtx/releases">the release pag
 Unzip the jg-rtx-0.7.0-alpha.zip (or newer!) file somewhere, say "C:\temp" to keep it short and sweet. I'm using the 0.7.0-alpha version here as an example, since it shows off some common problems.
 
 <P>
-C:\Users\ehaines\Documents\_documents\Github\Mineways\docs\imagesYou should now see something like this:
+C:\Users\ehaines\Documents\_documents\Github\Mineways\docs\images
+
+<P>You should now see something like this:
 
 <P>
 <div>
@@ -518,7 +523,7 @@ on the command line.
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 11/21/2022</p>	</div>
+		<br id="lastUpdate">Last updated 11/28/2022</p>	</div>
 </div>
 
 </body>
