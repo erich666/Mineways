@@ -163,7 +163,7 @@ static int regionPrepareBuffer(bfFile & bf, wchar_t* directory, int cx, int cz)
 // blockLight: a 16KB buffer to write block light into (not skylight)
 //
 // returns 1 on success, 0 on error or nothing found
-int regionGetBlocks(wchar_t* directory, int cx, int cz, unsigned char* block, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int minHeight, int maxHeight, int & mfsHeight, char* unknownBlock)
+int regionGetBlocks(wchar_t* directory, int cx, int cz, unsigned char* block, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int minHeight, int maxHeight, int & mfsHeight, char* unknownBlock, int unknownBlockID)
 {
     bfFile bf;
 
@@ -173,7 +173,7 @@ int regionGetBlocks(wchar_t* directory, int cx, int cz, unsigned char* block, un
         return errCode < 0 ? ERROR_INFLATE : 0;
     }
 
-    return nbtGetBlocks(&bf, block, data, blockLight, biome, entities, numEntities, mcVersion, minHeight, maxHeight, mfsHeight, unknownBlock);
+    return nbtGetBlocks(&bf, block, data, blockLight, biome, entities, numEntities, mcVersion, minHeight, maxHeight, mfsHeight, unknownBlock, unknownBlockID);
 }
 
 int regionTestHeights(wchar_t* directory, int& minHeight, int& maxHeight, int mcVersion, int cx, int cz)

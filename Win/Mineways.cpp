@@ -7849,6 +7849,22 @@ JumpToSpawn:
         return INTERPRETER_FOUND_VALID_LINE;
     }
 
+    strPtr = findLineDataNoCase(line, "Set unknown block ID:");
+    if (strPtr != NULL) {
+        int val;
+        if (1 != sscanf_s(strPtr, "%d", &val))
+        {
+            saveErrorMessage(is, L"could not find ID value for 'Set unknown block ID' command.");
+            return INTERPRETER_FOUND_ERROR;
+        }
+        if (val < 0 || val >= NUM_BLOCKS_DEFINED) return INTERPRETER_FOUND_ERROR;
+        if (is.processData)
+        {
+            SetUnknownBlockID(val);
+        }
+        return INTERPRETER_FOUND_VALID_LINE;
+    }
+
     strPtr = findLineDataNoCase(line, "Show informational:");
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
@@ -9227,7 +9243,8 @@ static void checkMapDrawErrorCode(int retCode)
     else if (gOneTimeDrawWarning & retCode) {
         // NBT_WARNING_NAME_NOT_FOUND is the only one now
         // currently the only warning - we will someday look at bits, I guess, in retCode
-        wsprintf(fullbuf, _T("Warning: at least one unknown block type '%S' was encountered and ignored (turned into air).\n\nIf you are not running a Minecraft beta, mod, or conversion, please download the latest version of Mineways from mineways.com. If you think Mineways has a bug, please report it (see the Help menu)."), MapUnknownBlockName());
+        wsprintf(fullbuf, _T("Warning: at least one unknown block type '%S' was encountered and turned into '%S'.\n\nIf you are not running a Minecraft beta, mod, or conversion, please download the latest version of Mineways from mineways.com. If you think Mineways has a bug, please report it (see the Help menu)."),
+            MapUnknownBlockName(), gBlockDefinitions[GetUnknownBlockID()].name);
         FilterMessageBox(NULL, fullbuf,
             _T("Warning"), MB_OK | MB_ICONWARNING | MB_TOPMOST);
         gOneTimeDrawWarning &= ~NBT_WARNING_NAME_NOT_FOUND;

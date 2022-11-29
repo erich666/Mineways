@@ -78,6 +78,14 @@ static bool gUndoAvailable = false;
 static int gUnknownBlock = 0;
 static int gPerformUnknownBlockCheck = 1;
 static char gUnknownBlockName[100];
+// What block ID should be used for any unknown blocks?
+#ifdef _DEBUG
+// Make it bedrock, so we see it's not translated
+static int gUnknownBlockID = 7;
+#else
+// Make unknown blocks air (0) by default
+static int gUnknownBlockID = 0;
+#endif
 
 static wchar_t gSeparator[3];
 
@@ -6798,7 +6806,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
 
             // Given coordinates, check if the file for that location exists, data for the chunk exists, and populate the block.
             // Return 
-            retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion, block->minHeight, block->maxHeight, block->maxFilledSectionHeight, gUnknownBlockName);
+            retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion, block->minHeight, block->maxHeight, block->maxFilledSectionHeight, gUnknownBlockName, gUnknownBlockID);
             assert(block->numEntities <= 384);  // if higher, the allocation above needs to change!
 
             if (retCode == ERROR_INFLATE) {
@@ -7233,6 +7241,15 @@ static void initColors()
 char* MapUnknownBlockName()
 {
     return gUnknownBlockName;
+}
+
+void SetUnknownBlockID(int val)
+{
+    gUnknownBlockID = val;
+}
+int GetUnknownBlockID()
+{
+    return gUnknownBlockID;
 }
 
 static void saveBadChunkLocation(int bx, int bz) {

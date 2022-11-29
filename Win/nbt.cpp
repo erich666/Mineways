@@ -42,7 +42,7 @@ static int skipList(bfFile* pbf);
 static int skipCompound(bfFile* pbf);
 
 static int readBiomePalette(bfFile* pbf, unsigned char* paletteBiomeEntry, int& entryIndex);
-static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned char* paletteBlockEntry, unsigned char* paletteDataEntry, int& entryIndex, char* unknownBlock);
+static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned char* paletteBlockEntry, unsigned char* paletteDataEntry, int& entryIndex, char* unknownBlock, int unknownBlockID);
 static int readBlockData(bfFile* pbf, int& bigbufflen, unsigned char* bigbuff);
 
 typedef struct BlockTranslator {
@@ -1930,7 +1930,7 @@ unsigned char mod16(int val)
 #define FORMAT_1_13_THROUGH_1_17    1
 #define FORMAT_1_18_AND_NEWER       2
 // return negative value on error, 1 on read OK, 2 on read and it's empty, and higher bits than 1 or 2 are warnings
-int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int minHeight, int maxHeight, int & mfsHeight, char* unknownBlock)
+int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int minHeight, int maxHeight, int & mfsHeight, char* unknownBlock, int unknownBlockID)
 {
     int len, nsections, i;
     int biome_save;
@@ -2374,7 +2374,7 @@ SectionsCode:
                 {
                     ret = 1;
                     
-                    int retVal = readPalette(returnCode, pbf, mcVersion, paletteBlockEntry, paletteDataEntry, paletteLength, unknownBlock);
+                    int retVal = readPalette(returnCode, pbf, mcVersion, paletteBlockEntry, paletteDataEntry, paletteLength, unknownBlock, unknownBlockID);
                     // did we hit an error?
                     if (retVal != 0) {
                         // don't worry, the value is a line error
@@ -2402,7 +2402,7 @@ SectionsCode:
                         if (strcmp(thisName, "palette") == 0)
                         {
                             subret = 1;
-                            int retVal = readPalette(returnCode, pbf, mcVersion, paletteBlockEntry, paletteDataEntry, paletteLength, unknownBlock);
+                            int retVal = readPalette(returnCode, pbf, mcVersion, paletteBlockEntry, paletteDataEntry, paletteLength, unknownBlock, unknownBlockID);
                             // did we hit an error?
                             if (retVal != 0) {
                                 // don't worry, the value is a line error
@@ -3105,7 +3105,7 @@ static int readBiomePalette(bfFile* pbf, unsigned char* paletteBiomeEntry, int& 
     return 0;
 }
 
-static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned char *paletteBlockEntry, unsigned char *paletteDataEntry, int& entryIndex, char* unknownBlock)
+static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned char *paletteBlockEntry, unsigned char *paletteDataEntry, int& entryIndex, char* unknownBlock, int unknownBlockID)
 {
     int dataVal, len;
     unsigned char type;
@@ -3201,16 +3201,11 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         // return unknown block's name to output
                         strcpy_s(unknownBlock, 100, thisBlockName + 10);
                     }
-#ifdef _DEBUG
-                                    // Make it bedrock, so we see it's not translated
-                    paletteBlockEntry[entryIndex] = 7;
-                    assert(0);
-#else
-                                    // For release, make it air, so it doesn't gunk up the export
-                    paletteBlockEntry[entryIndex] = 0;
-#endif
-                    // data value always reset to 0
-                    paletteDataEntry[entryIndex] = 0;
+                    // Make unknown blocks air (0) by default
+                    paletteBlockEntry[entryIndex] = (unsigned char)(unknownBlockID & 0xff);
+
+                    // data value high bit set if needed
+                    paletteDataEntry[entryIndex] = (unknownBlockID > 255) ? HIGH_BIT : 0;
                     returnCode |= NBT_WARNING_NAME_NOT_FOUND;
                 }
             }
@@ -4382,7 +4377,7 @@ SectionsCode:
             {
                 ret = 1;
 
-                int retVal = readPalette(returnCode, pbf, mcVersion, paletteBlockEntry, paletteDataEntry, paletteLength, NULL);
+                int retVal = readPalette(returnCode, pbf, mcVersion, paletteBlockEntry, paletteDataEntry, paletteLength, NULL, 0);
                 // did we hit an error?
                 if (retVal != 0) {
                     return retVal;
@@ -4410,7 +4405,7 @@ SectionsCode:
                     if (strcmp(thisName, "palette") == 0)
                     {
                         subret = 1;
-                        int retVal = readPalette(returnCode, pbf, mcVersion, paletteBlockEntry, paletteDataEntry, paletteLength, NULL);
+                        int retVal = readPalette(returnCode, pbf, mcVersion, paletteBlockEntry, paletteDataEntry, paletteLength, NULL, 0);
                         // did we hit an error?
                         if (retVal != 0) {
                             return retVal;

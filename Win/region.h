@@ -30,5 +30,5 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #define ERROR_INFLATE	-9876
 
-int regionGetBlocks(wchar_t* directory, int cx, int cz, unsigned char* block, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int minHeight, int maxHeight, int& mfsHeight, char* unknownBlock);
+int regionGetBlocks(wchar_t* directory, int cx, int cz, unsigned char* block, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int minHeight, int maxHeight, int& mfsHeight, char* unknownBlock, int unknownBlockID);
 int regionTestHeights(wchar_t* directory, int& minHeight, int& maxHeight, int mcVersion, int cx, int cz);

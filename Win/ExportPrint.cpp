@@ -1087,7 +1087,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             }
             else
             {
-                // for unused OBJ, when exporting to another format, restore state - these should never get set to indeterminate
+                // when exporting to another format, for properties only relevant to OBJ, restore state (should not be changed)
                 lepd.chkMakeGroupsObjects = origEpd.chkMakeGroupsObjects;
                 lepd.chkSeparateTypes = origEpd.chkSeparateTypes;
                 lepd.chkMaterialPerFamily = origEpd.chkMaterialPerFamily;
