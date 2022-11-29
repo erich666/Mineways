@@ -670,9 +670,9 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 }
                 else
                 {
-                    // check the box and set up state otherwise
+                    // check the box and set up state back to the default:
                     CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_CHECKED);
-                    CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, BST_UNCHECKED);
+                    CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, BST_CHECKED);
                     if (epd.flags & EXPT_3DPRINT)
                     {
                         // for 3D printing we never allow individual blocks.
@@ -769,9 +769,15 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             break;
 
         case IDC_G3D_MATERIAL:
-            if (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ ||
-                epd.fileType == FILE_TYPE_USD)
+            if (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ )
             {
+                if (IsDlgButtonChecked(hDlg, IDC_G3D_MATERIAL) == BST_INDETERMINATE)
+                {
+                    CheckDlgButton(hDlg, IDC_G3D_MATERIAL, BST_UNCHECKED);
+                }
+            }
+            // modify state for USD only if MDL export is checked:
+            else if (epd.fileType == FILE_TYPE_USD && IsDlgButtonChecked(hDlg, IDC_EXPORT_MDL) == BST_CHECKED) {
                 if (IsDlgButtonChecked(hDlg, IDC_G3D_MATERIAL) == BST_INDETERMINATE)
                 {
                     CheckDlgButton(hDlg, IDC_G3D_MATERIAL, BST_UNCHECKED);
@@ -779,6 +785,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             }
             else
             {
+                // do nothing, not valid
                 CheckDlgButton(hDlg, IDC_G3D_MATERIAL, BST_INDETERMINATE);
             }
             break;
@@ -786,9 +793,18 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
         case IDC_EXPORT_MDL:
             if (epd.fileType == FILE_TYPE_USD)
             {
+                // This is a tri-state box, cycling through unchecked, checked, and indeterminate.
+                // If we detect INDETERMINATE while using USD, that really means UNCHECKED, so go
+                // to the next state.
                 if (IsDlgButtonChecked(hDlg, IDC_EXPORT_MDL) == BST_INDETERMINATE)
                 {
                     CheckDlgButton(hDlg, IDC_EXPORT_MDL, BST_UNCHECKED);
+                    // And, if unchecked, it means IDC_G3D_MATERIAL should be unchecked, too.
+                    CheckDlgButton(hDlg, IDC_G3D_MATERIAL, BST_INDETERMINATE);
+                }
+                else {
+                    // else it's determinate, so set G3D_MATERIAL back to its original state upon entry.
+                    CheckDlgButton(hDlg, IDC_G3D_MATERIAL, epd.chkCustomMaterial[epd.fileType]);
                 }
             }
             else
@@ -1071,14 +1087,14 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             }
             else
             {
-                // restore state - these should never get set to indeterminate
+                // for unused OBJ, when exporting to another format, restore state - these should never get set to indeterminate
                 lepd.chkMakeGroupsObjects = origEpd.chkMakeGroupsObjects;
                 lepd.chkSeparateTypes = origEpd.chkSeparateTypes;
                 lepd.chkMaterialPerFamily = origEpd.chkMaterialPerFamily;
                 lepd.chkSplitByBlockType = origEpd.chkSplitByBlockType;
                 if (epd.fileType == FILE_TYPE_USD) {
-                    lepd.chkCustomMaterial[epd.fileType] = (IsDlgButtonChecked(hDlg, IDC_G3D_MATERIAL) == BST_CHECKED);
                     lepd.chkExportMDL = (IsDlgButtonChecked(hDlg, IDC_EXPORT_MDL) == BST_CHECKED);
+                    lepd.chkCustomMaterial[epd.fileType] = (IsDlgButtonChecked(hDlg, IDC_G3D_MATERIAL) == BST_CHECKED);
                     GetDlgItemTextA(hDlg, IDC_SCALE_LIGHTS, lepd.scaleLightsString, EP_FIELD_LENGTH);
                     GetDlgItemTextA(hDlg, IDC_SCALE_EMITTERS, lepd.scaleEmittersString, EP_FIELD_LENGTH);
                 }

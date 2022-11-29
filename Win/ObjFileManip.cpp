@@ -24564,7 +24564,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
 {
     // Write the file in a simple way.
     wchar_t fileNameWithSuffix[MAX_PATH_AND_FILE];
-    char worldNameUnderlined[MAX_PATH_AND_FILE];
+    //char worldNameUnderlined[MAX_PATH_AND_FILE];
     int retCode = MW_NO_ERROR;
     char outputString[256];
     int i;
@@ -24605,24 +24605,17 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
 
     // Get the world name (defaultPrim) to use for export.
     // USDA is quite picky about file names, unlike OBJ, so force all punctuation to become underlines
-    convertWcharPathUnderlined(worldNameUnderlined, pWorldGuide->world, true);
-    char defaultPrim[256];
-    if (strlen(worldNameUnderlined)) {
-        // is first character a numeral? Illegal in USD
-        if (worldNameUnderlined[0] < '0' || worldNameUnderlined[0] > '9') {
-            // name is assumed valid
-            strcpy_s(defaultPrim, 256, worldNameUnderlined);
-        }
-        else {
-            // put a _ in front of the illegal name, making it valid
-            sprintf_s(defaultPrim, 256, "_%s", worldNameUnderlined);
-        }
+    // old way: convertWcharPathUnderlined(worldNameUnderlined, pWorldGuide->world, true);
+    char defaultPrim[MAX_PATH_AND_FILE];
+    // is first character a numeral? Illegal in USD
+    if (gOutputFileRootCleanChar[0] < '0' || gOutputFileRootCleanChar[0] > '9') {
+        // name is assumed valid
+        strcpy_s(defaultPrim, MAX_PATH_AND_FILE, gOutputFileRootCleanChar);
     }
     else {
-        // no name given, which happens with the block test world
-        strcpy_s(defaultPrim, 256, "Block_Test_World");
+        // put a _ in front of the illegal name, making it valid
+        sprintf_s(defaultPrim, MAX_PATH_AND_FILE, "_%s", gOutputFileRootCleanChar);
     }
-
 
     // write comments for Import Settings and write globals
     sprintf_s(outputString, 256, "    \"\"\"\n# USDA 1.0 file made by Mineways version %d.%02d, http://mineways.com\n", gMinewaysMajorVersion, gMinewaysMinorVersion);
@@ -25149,7 +25142,8 @@ static int finishCommentsUSD(char* defaultPrim)
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     sprintf_s(outputString, 256, "    defaultPrim = \"%s\"\n", defaultPrim);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    sprintf_s(outputString, 256, "    metersPerUnit = %g\n    upAxis = \"%s\"\n)\n", 1.0f / gXformScale, gModel.options->pEFD->chkMakeZUp[gModel.options->pEFD->fileType] ? "Z" : "Y");
+    // let's never touch metersPerUnit, it leads to confusion, e.g., https://github.com/erich666/McUsd/issues/3
+    sprintf_s(outputString, 256, "    metersPerUnit = 0.01\n    upAxis = \"%s\"\n)\n", gModel.options->pEFD->chkMakeZUp[gModel.options->pEFD->fileType] ? "Z" : "Y");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     return 0;

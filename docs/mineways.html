@@ -488,7 +488,7 @@ SELECTED
 unchecked
 </td>
 <td>
-<b>Default for rendering:</b> Polygons are grouped by block family. Result is one Grass_Block group using the Grass_Block material applied to 8 block faces (the visible faces of the two grass blocks) and one Stone group using the Stone material applied to 14 faces (the visible faces of the four stone-related blocks).
+Polygons are grouped by block family. Result is one Grass_Block group using the Grass_Block material applied to 8 block faces (the visible faces of the two grass blocks) and one Stone group using the Stone material applied to 14 faces (the visible faces of the four stone-related blocks, Stone and Diorite).
 </td>
 <td>
 Each block <i>family</i> has a separate material. Result is two materials, Grass_Block and Stone.
@@ -509,7 +509,7 @@ SELECTED
 SELECTED
 </td>
 <td>
-Polygons are grouped by block type. Result is one Grass_Block group using the Grass_Block material applied to the 8 visible block faces, one Stone group using the Stone material applied to the 6 visible faces, and one Diorite group using the Diorite material applied to its 8 visible block faces.
+<b>Default for rendering:</b> Polygons are grouped by block type. Result is one Grass_Block group using the Grass_Block material applied to the 8 visible block faces, one Stone group using the Stone material applied to the 6 visible faces, and one Diorite group using the Diorite material applied to its 8 visible block faces.
 </td>
 <td>
 Each block <i>type</i> has a separate material. Result is three materials, Grass_Block, Stone, and Diorite.
@@ -2673,6 +2673,13 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 
 <UL>
 
+  <LI>Version 10.05, 12/**/2022 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1005.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+    <BR>
+    <UL>
+	<LI>Clean up export dependencies: "Split by Block Type" should be the default for rendering when toggling between it and "Export individual blocks" (docs also fixed), and "Custom material" should be grayed out (indeterminate) when "Export MDL" is off.
+	<LI>For USD, use the file name for the defaultPrim/Xform name. This makes tiled export of a world work better with Unreal.
+	<LI>Fix block size scaling for USD, so that "Make each block" properly scales the USD output. Change the Model Export Dialog label to "Model size and 3D printing options."
+    </UL>
 
   <LI>Version 10.04, 11/28/2022 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1004.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
     <BR>
