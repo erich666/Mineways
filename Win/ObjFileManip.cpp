@@ -29230,13 +29230,17 @@ static void spacesToUnderlines(wchar_t* targetString)
     }
 }
 
+// well, maybe not all junk, but nearly all - USD likes letters, numbers, and underlines
 static void allJunkToUnderlines(char* targetString)
 {
-    char* charFound = strpbrk(targetString, " -+=[]{}`~,.';!@#$%^&()");
-    while (charFound) {
-        // convert any garbage to underlines
-        *charFound = '_';
-        charFound = strpbrk(charFound, " -+=[]{}`~,.';!@#$%^&()");
+    while (*targetString) {
+        // convert anything not a numeral, character or underline to an underline
+        if ((*targetString < '0' || *targetString > '9') &&
+            (*targetString < 'A' || *targetString > 'z') &&
+            (*targetString != '_')) {
+            *targetString = '_';
+        }
+        targetString++;
     }
 }
 
