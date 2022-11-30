@@ -767,6 +767,7 @@ static int finalModelChecks();
 static void addOutputFilenameToList(wchar_t* filename);
 
 static void spacesToUnderlines(wchar_t* targetString);
+static void allJunkToUnderlines(char* targetString);
 static void changeCharToUnderline(char toReplace, char* targetString);
 
 static float retrieveMtlAlpha(int type);
@@ -24616,6 +24617,8 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
         // put a _ in front of the illegal name, making it valid
         sprintf_s(defaultPrim, MAX_PATH_AND_FILE, "_%s", gOutputFileRootCleanChar);
     }
+    // defaultPrim and Xform names should have only letters, numbers, and underline characters
+    allJunkToUnderlines(defaultPrim);
 
     // write comments for Import Settings and write globals
     sprintf_s(outputString, 256, "    \"\"\"\n# USDA 1.0 file made by Mineways version %d.%02d, http://mineways.com\n", gMinewaysMajorVersion, gMinewaysMinorVersion);
@@ -29224,6 +29227,17 @@ static void spacesToUnderlines(wchar_t* targetString)
         strPtr = wcschr(targetString, (int)' ');
     }
 }
+
+static void allJunkToUnderlines(char* targetString)
+{
+    char* charFound = strpbrk(targetString, " -+=[]{}`~,.';!@#$%^&()");
+    while (charFound) {
+        // convert any garbage to underlines
+        *charFound = '_';
+        charFound = strpbrk(charFound, " -+=[]{}`~,.';!@#$%^&()");
+    }
+}
+
 
 // substitute ' ' to '_'
 static void changeCharToUnderline(char toReplace, char* targetString)
