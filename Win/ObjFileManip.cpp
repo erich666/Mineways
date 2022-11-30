@@ -25159,6 +25159,8 @@ static int addCameraUSD()
     // figure out largest axis and use that to scale the camera
     IPoint axisSizes;
     Vec3Op(axisSizes, =, gSolidWorldBox.max, -, gSolidWorldBox.min);
+    // add one since max can equal min for a single block
+    VecScalar(axisSizes, +=, 1);
     float maxSize = (float)sqrt((float)VecDot(axisSizes, axisSizes));
     // probably need to multiply maxSize by something...
     static float scale = 200.0f;
