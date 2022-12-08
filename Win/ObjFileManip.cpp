@@ -24635,6 +24635,12 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
         goto Exit;
     }
 
+    // add camera
+    if (retCode |= addCameraUSD()) {
+        // failed to write
+        goto Exit;
+    }
+
     // create lighting, put outside of model - do before everything else, so that these are easier to find (no scrolling to the bottom)
     if (gModel.options->pEFD->scaleLightsVal > 0.0f) {
         // scale value is set > 0, so output lights
@@ -24914,12 +24920,6 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
         }
     }
 
-    // add camera at end
-    if (retCode |= addCameraUSD()) {
-        // failed to write
-        goto Exit;
-    }
-
     // create custom MDLs, if needed
     if (gModel.exportMDL && gModel.customMaterial) {
         if (retCode |= writeMDLforUSD(gMaterialDirectoryPath)) {
@@ -25087,6 +25087,11 @@ static int finishCommentsUSD(char* defaultPrim)
         strcpy_s(outputString, 256, "            bool \"rtx:pathtracing:ptfog:enabled\" = 1\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     }
+
+    // GI is good for the real-time version - should always be on, IMO:
+    strcpy_s(outputString, 256, "            bool \"rtx:indirectDiffuse:enabled\" = 1\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
     // 0 means run forever - best to call it a day at some point, so it doesn't run forever
     // No longer needed - the default has been made 64 or 512 or whatever.
     //strcpy_s(outputString, 256, "            int \"rtx:pathtracing:totalSpp\" = 1000\n");
@@ -25215,13 +25220,13 @@ static int addCameraUSD()
     strcpy_s(outputString, 256, "    token visibility = \"inherited\"\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     // really don't like YXZ here and below, ZXY is better, with -45,45,0. But this preserves the translations
-    strcpy_s(outputString, 256, "    float3 xformOp:rotateYXZ = (-24.094843, 50.76848, 26.56505)\n");
+    strcpy_s(outputString, 256, "    float3 xformOp:rotateZXY = (-38, 45, 0)\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    float3 xformOp:scale = (1, 1, 1)\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     sprintf_s(outputString, 256, "    double3 xformOp:translate = (%f, %f, %f)\n", loc[0], loc[1], loc[2]);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    uniform token[] xformOpOrder = [\"xformOp:translate\", \"xformOp:rotateYXZ\", \"xformOp:scale\"]\n");
+    strcpy_s(outputString, 256, "    uniform token[] xformOpOrder = [\"xformOp:translate\", \"xformOp:rotateZXY\", \"xformOp:scale\"]\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "}\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -27488,7 +27493,7 @@ static void setMetallicRoughnessByName(char *mtlName, float *metallic, float *ro
         *roughness = 0.20f;
     }
     else if (strstr(blockName, "ice") != NULL) {
-        *roughness = 0.50f;
+        *roughness = 0.20f; // a little shiny is nice
     }
     else if (strstr(blockName, "water") != NULL) {
         *roughness = 0.15f;

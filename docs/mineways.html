@@ -1539,7 +1539,23 @@ The options I know of are:
   <LI><a href="https://www.universalminecraftconverter.com/">Universal Minecraft Converter</a> - evidently more reliable than the MCC ToolChest, but is a (rather pricey) subscription service.</LI>
 </UL>
 
-<P><b>Amulet instructions:</b> <a href="https://www.amuletmc.com/">Amulet</a> converts, but need to have a world to save into. Make an empty world in Java (Classic) Minecraft, easiest is to make a superflat world. Start Amulet and make the window much larger (this is important for usability - in general, resize all windows in Amulet to be larger, so you can see all the controls). Pick "Open World". Pick "Bedrock" and select the world you want to convert. Click the "Convert" tab along the left edge. "Select Output World" and choose the empty superflat world you made at the start. Click the "Convert" tab at the bottom (a large world can take a fair bit of time to convert - patience). If you don't see the "Convert" tab, you need to resize the Amulet window to make it visible.
+<P><b>Short Amulet instructions:</b> <a href="https://www.amuletmc.com/">Amulet</a> converts, but need to have a world to save into. Make an empty world in Java (Classic) Minecraft, easiest is to make a superflat world. Start Amulet and make the window much larger (this is important for usability - in general, resize all windows in Amulet to be larger, so you can see all the controls). Pick "Open World". Pick "Bedrock" and select the world you want to convert. Click the "Convert" tab along the left edge. "Select Output World" and choose the empty superflat world you made at the start. Click the "Convert" tab at the bottom (a large world can take a fair bit of time to convert - patience). If you don't see the "Convert" tab, you need to resize the Amulet window to make it visible.
+
+<P><b>Longer Amulet instructions:</b> There are any number of ways you can go wrong with Amulet, so here are detailed instructions. I use some directory paths on my machine as examples. Yours are almost assuredly going to be different. Here goes:
+<OL>
+<LI>Start up Java Minecraft and make an empty world, let's call it <a href="https://www.planetminecraft.com/project/nvidia-rtx-winter-world/">NVIDIA RTX Winter World</a>, a free Bedrock map I'll use as an example. This is the world you’ll convert into. The empty world is best as a superflat, but it doesn’t matter much (other than avoiding wasting time), since we’re going to delete all the data from it manually.
+<LI>In Windows Explorer, go into wherever the world was created, e.g., C:\Users\ehaines\AppData\Roaming\.minecraft\saves\NVIDIA RTX Winter World. Go into the region subdirectory. Delete the four files there, r.-1.-1.mca etc. You now have an empty world you will now fill with the conversion from Bedrock. This step is not strictly necessary, but I like knowing that there aren’t any extra chunks sitting around.
+<LI>Download the <a href="https://www.planetminecraft.com/project/nvidia-rtx-winter-world/">Bedrock Winter World</a>. In theory you could double-click the Winter World download and it’ll install into Bedrock Minecraft (if you have it). I did this, but it didn’t seem to work the first time I tried; I couldn’t see the world.
+Alternately, right-click the s.zip.mctemplate file you downloaded and open with WinRAR.
+Unzip the contents into a directory called something like "NVIDIA_RTX_WinterWorld" created in some temporary directory, say C:\temp or your Downloads directory. Alternately, and not required, but in theory if you have Bedrock Minecraft installed, you could unzip it into the save directory, something crazy like directory C:\Users\ehaines\AppData\Local\Packages\Microsoft.MinecraftUWP_8wekyb3d8bbwe\LocalState\games\com.mojang\minecraftWorlds (or similar - basically, search for "minecraftWorlds" on your machine to find this well-buried directory).
+<LI>After downloading <a href="https://www.amuletmc.com/">Amulet</a>, unzip it into some directory in your personal area. I tried putting it in C:\Program Files\Amulet, but it then had permission problems when run. I ended up with putting it in my C:\Users\ehaines\Documents\Amulet directory.
+<LI>Start amulet_app.exe in that directory (double-click, or start in a CMD window so you can see any problems). Make it full screen.
+<LI>In Amulet, pick Main Menu (if not there by default) and Open World.
+<LI>In the upper left, you have a choice. You want to open the world you want to convert. If you just unzipped the Bedrock world into C:\temp, use the "Open other world" button and navigate to and choose "c:\temp\NVIDIA_RTX_WinterWorld". If you instead put the world into your Bedrock saves, click the down-arrow next to Bedrock and then pick Christmas Adventure RTX.
+<LI>Now, along the left edge of Amulet, pick the Convert tab, then the Select Output World button in the middle, and pick the empty Java world you made earlier.
+<LI>Wait a bit. You should see the converted files in your Minecraft Java save directory, e.g., C:\Users\ehaines\AppData\Roaming\.minecraft\saves\NVIDIA RTX Winter World\region or wherever your Java world is. You can also look at the Amulet CMD output window for errors. I've found it's usually an all-or-nothing affair. Amulet either succeeds or fails on everything, for whatever reason.
+<LI>Once done, you can now read this world into Mineways. Start Mineways and pick the world.
+</OL>
 
 <P><b>MCC ToolChest PE instructions:</b> Download it, install, and run. If you get an error about some missing DLL, you may also need to install the <a href="https://web.archive.org/web/20210513191001/http://www.mcctoolchest.com/Download">VS 2015 C++ Runtime</a>. Once running, do the following in MCC ToolChest - PE:
 <OL>
@@ -2672,6 +2688,14 @@ The textures and rules used in Minecraft for how blocks appear and connect have 
 From newest to oldest. The very newest is sometimes unreleased work in progress, with "*" meaning "to do" and "**" meaning "stretch goal."
 
 <UL>
+
+  <LI>Version 10.06, */*/202* - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1006.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+    <BR>
+    <UL>
+	<LI>USD improvements: better camera (proper Euler angles) and output first, enable indirect diffuse for the Omniverse real-time renderer.
+	<LI>Change ice to have a roughness of 0.2 instead of 0.5, making it a bit more reflective.
+	<LI>Give <a href="mineways.html#mcpe">a full explanation</a> of the steps for using Amulet for Bedrock conversions, describing options and pitfalls.
+    </UL>
 
   <LI>Version 10.05, 12/1/2022 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1005.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
     <BR>
@@ -3808,7 +3832,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 12/1/2022</p>
+		<br id="lastUpdate">Last updated 12/8/2022</p>
 	</div>
 </div>
 
