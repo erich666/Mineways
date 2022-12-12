@@ -729,7 +729,7 @@ This option was on by default for rendering up to version 5.00 of Mineways (in t
 <a href="https://graphics.pixar.com/usd/release/index.html">Pixar's USD format</a> is getting uptake in many popular digital content creation (DCC) applications, including Cinema 4D, Houdini, Unreal Editor, and (soon) Blender. It is more full-featured than the ancient Wavefront OBJ format, including direct support for physically based materials, emitters, and more. If your package of choice supports it, consider using it!
 
 <P>
-There are a few changes to how the export dialog works. Many options are not supported at this point, as the focus has been the highest-quality and more flexible export option: Export individual textures. This form lets you replace and edit individual texture files. USD export works particularly nicely with the JG-RTX terrain files.
+There are a few changes to how the export dialog works. Some export options are not supported, as the focus has been the highest-quality and more flexible export option: Export individual textures. This form lets you replace and edit individual texture files. USD export works particularly nicely with the JG-RTX terrain files.
 
 <P>
 What follows are how various options apply to USD export. Also, Mineways' "View | Light" can be toggled on to give nighttime lighting. Turning "View | Elevation shading" on will give a light fog to the USD scene exported.
@@ -741,7 +741,7 @@ What follows are how various options apply to USD export. Also, Mineways' "View 
 <B>Export MDL:</B> Applies only to USD export. <a href="https://www.nvidia.com/en-us/design-visualization/technologies/material-definition-language/">MDL material descriptions</a> are exported. These generally give higher-quality looks to glass objects, for example. Omniverse is the main user of MDL at this point, with other applications coming up to speed. Turning this off will export only <a href="https://graphics.pixar.com/usd/release/wp_usdpreviewsurface.html">UsdPreviewSurface material descriptions</a>. Note that UsdPreviewSurface descriptions are always exported.
 
 <P>
-<B>Custom material:</B> This option is ignored if Export MDL is off. For USDA export, the Custom material setting mainly has the effects of making the texture's texels appear blocky, in Minecraft fashion, and present stripped down materials in <a href="#ovcreate">Omniverse Create</a>. This is almost always a good idea, even with high resolution textures. If you turn this option off, you can get texture wrapping problems, where the bottom of a fire cutout, for example, will get interpolated along the top edge of the fire, giving a narrow line of fire at the top of the cutout.
+<B>Custom material:</B> This option is ignored if Export MDL is off. For USDA export, the Custom material setting mainly has the effects of making the texture's texels appear blocky, in Minecraft fashion, and present stripped down materials in <a href="#ovcreate">Omniverse Create</a>. I uncheck this box for higher-resolution resource packs (basically 64x64 or larger tiles) so that the textures interpolate more smoothly. This option is also discussed in <a href="https://youtu.be/lpFpj84eFgw">this video</a>.
 
 <P>
 <B>Light scale:</B> Used only by USD. This has a value of 30 by default. You can change the intensity of the lights exported to USD - the sun and dome light - by changing this value. The sun is normally at 30, the surrounding dome light is 6. Nighttime lighting of 2 and 2 respectively, is used if you toggle on the View | Lighting option before export. If you set the light scale to 0, the two lights will not be exported to the USD file.
@@ -1127,7 +1127,7 @@ There are tons of other Blender+Minecraft things out there. For example, <a href
 <P>
 Here is how to import a model into the free Omniverse Create program. First, download the <a href="https://www.nvidia.com/en-us/omniverse">Omniverse Launcher</a>, install and run it, then from the launcher install and launch Omniverse Create.
 <P>
-See <a href="https://youtu.be/tBDGH5v40x8">the tutorial video</a>. It runs through a lot of the common operations for Omniverse Create: moving the camera, modifying the lighting and materials, etc. There's a lot of documentation on <a href="https://docs.omniverse.nvidia.com/">Omniverse</a> and <a href="https://docs.omniverse.nvidia.com/app_create/app_create/overview.html">Create</a>, but the video will get you started. I also show Omniverse in action <a href="https://youtu.be/EH8NhyusZBU">here</a>. What follows are the steps in the video.
+See <a href="https://youtu.be/tBDGH5v40x8">the tutorial video</a>. It runs through a lot of the common operations for Omniverse Create: moving the camera, modifying the lighting and materials, etc. There's a lot of documentation on <a href="https://docs.omniverse.nvidia.com/">Omniverse</a> and <a href="https://docs.omniverse.nvidia.com/app_create/app_create/overview.html">Create</a>, but the video will get you started. I also give some tips and tricks in <a href="https://youtu.be/lpFpj84eFgw">this "the whole process" video</a>. I also show Omniverse in action <a href="https://youtu.be/EH8NhyusZBU">here</a>. What follows are the steps in the first video.
 <P>
 <b>Step 1:</b> Select your world and region for export in Mineways, then from the menu choose File | Export Rendering.
 </P>
@@ -3832,7 +3832,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 12/8/2022</p>
+		<br id="lastUpdate">Last updated 12/12/2022</p>
 	</div>
 </div>
 
