@@ -16,7 +16,7 @@
 #include "tiles.h"
 #include "tilegrid.h"
 
-#define	VERSION_STRING	L"3.17"
+#define	VERSION_STRING	L"3.18"
 
 //#define TILE_PATH	L".\\blocks\\"
 #define BASE_INPUT_FILENAME			L"terrainBase.png"
@@ -174,7 +174,7 @@ void printHelp();
 
 int shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2);
 bool swapFileRecords(FileGrid* pfg, int index1, int index2);
-int checkFileWidth(FileRecord* pfr, int overlayTileSize, boolean square, boolean isFileGrid, int index, int lavaFlowIndex, int waterFlowIndex);
+int checkFileWidth(FileRecord* pfr, int overlayTileSize, bool square, bool isFileGrid, int index, int lavaFlowIndex, int waterFlowIndex);
 int trueWidth(int index, int width, int lavaFlowIndex, int waterFlowIndex);
 
 int testFileForPowerOfTwo(int width, int height, const wchar_t* cFileName, bool square);
@@ -258,6 +258,7 @@ int wmain(int argc, wchar_t* argv[])
 	bool anyChests = false;
 
 	bool terrainBaseSet = false;
+	bool warnUnused = false;
 
 	initializeFileGrid(&gFG);
 	initializeChestGrid(&gCG);
@@ -363,10 +364,16 @@ int wmain(int argc, wchar_t* argv[])
 			INC_AND_TEST_ARG_INDEX(argLoc);
 			swscanf_s(argv[argLoc], L"%f", &heightfieldScale);
 		}
+		else if (wcscmp(argv[argLoc], L"-u") == 0)
+		{
+			// warn if a PNG is found but does not match anything we would use.
+			warnUnused = true;
+		}
 		else if (wcscmp(argv[argLoc], L"-v") == 0)
 		{
 			// verbose: tell when normal things happen
-			verbose = 1;
+			verbose = true;
+			warnUnused = true;
 		}
 		else if (wcscmp(argv[argLoc], L"-dcn") == 0)
 		{
@@ -469,7 +476,7 @@ int wmain(int argc, wchar_t* argv[])
 	// look through tiles in tiles directories, see which exist.
 	int filesFound = 0;
 	int filesProcessed = 0;
-	boolean warnDups = true;
+	bool warnDups = true;
 	wchar_t** inputDirectoryPtr = inputDirectoryList;
 	while (*inputDirectoryPtr != NULL) {
 		// Strategy: does the directory exist?
@@ -478,7 +485,7 @@ int wmain(int argc, wchar_t* argv[])
 		//  "chest" or "chests" - look for chest names and fill in
 		//  "item" or "items" - look for barrier.png, only
 		// If it's none of these, then look through it for directories. Ignore '.' and '..'. Recursively search directories for more directories.
-		int fileCount = searchDirectoryForTiles(&gFG, &gCG, *inputDirectoryPtr, wcslen(*inputDirectoryPtr), verbose, alternate, true, warnDups);
+		int fileCount = searchDirectoryForTiles(&gFG, &gCG, *inputDirectoryPtr, wcslen(*inputDirectoryPtr), verbose, alternate, true, warnUnused, warnDups);
 		warnDups = false;
 		if (fileCount < 0) {
 			wsprintf(gErrorString, L"***** ERROR: cannot access the directory '%s' (Windows error code # %d). Ignoring directory.\n", *inputDirectoryPtr, GetLastError());
@@ -727,7 +734,7 @@ int wmain(int argc, wchar_t* argv[])
 		// does color tile exist?
 		if (!gFG.fr[index].exists) {
 			// does not exist, so see if other non-color tiles do exist
-			boolean foundMismatch = false;
+			bool foundMismatch = false;
 			for (int testType = 0; testType < 4; testType++) {
 				int compareIndex;
 				switch (testType) {
@@ -1040,8 +1047,8 @@ int wmain(int argc, wchar_t* argv[])
 				fullIndex = catIndex * gFG.totalTiles + startIndex;
 				// go through 16 side and bottoms
 				for (i = 0; i < 16; i++) {
-					boolean sideNeeded = !gFG.fr[fullIndex].exists;
-					boolean bottomNeeded = !gFG.fr[fullIndex + 16].exists;	// bottoms follow sides
+					bool sideNeeded = !gFG.fr[fullIndex].exists;
+					bool bottomNeeded = !gFG.fr[fullIndex + 16].exists;	// bottoms follow sides
 					if (sideNeeded || bottomNeeded) {
 						// Compute shulker box sides and bottoms, if not input
 
@@ -1300,6 +1307,8 @@ int wmain(int argc, wchar_t* argv[])
 		wprintf(L"Error count: %d error%S generated.\n", gErrorCount, (gErrorCount == 1) ? " was" : "s were");
 	}
 
+
+
 	wprintf(L"TileMaker summary: %d relevant PNG and TGA files discovered and %d of these were used.\n", filesFound, filesProcessed);
 	if (filesFound > filesProcessed) {
 		wprintf(L"    This difference of %d files means that some files were found and not used.\n", filesFound - filesProcessed);
@@ -1311,7 +1320,7 @@ int wmain(int argc, wchar_t* argv[])
 void printHelp()
 {
 	wprintf(L"TileMaker version %s\n", VERSION_STRING);
-	wprintf(L"usage: TileMaker [-v] [-i terrainBase.png] [-d blocks] [-o terrainExt.png]\n        [-t tileSize] [-h #] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-s] [-S] [-dcn]\n");
+	wprintf(L"usage: TileMaker [-v] [-i terrainBase.png] [-d blocks] [-o terrainExt.png]\n        [-t tileSize] [-h #] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-s] [-S] [-dcn] [-u]\n");
 	wprintf(L"  -v - verbose, explain everything going on. Default: display only warnings and errors.\n");
 	wprintf(L"  -i terrainBase.png - image containing the base set of terrain blocks\n    (includes special chest tiles). Default is 'terrainBase.png'.\n");
 	wprintf(L"  -d blocks - directory of block textures to overlay on top of the base.\n    Default directory is 'blocks'. Can be set multiple times to include\n    multiple directories.\n");
@@ -1327,6 +1336,7 @@ void printHelp()
 	wprintf(L"  -s - take the average color of the incoming tile and output this solid color.\n");
 	wprintf(L"  -S - as above, but preserve the cutout transparent areas.\n");
 	wprintf(L"  -dcn - don't clean normals. Many normal maps are poorly formed, with normals pointing\n    down into the surface, or the normals are not normalized, or Z is always 255.\n    This option turns off the normal cleaning feature.\n");
+	wprintf(L"  -u - show all image files encountered that are not standard Minecraft block or chest names.\n");
 }
 
 // Shares textures found, as possible. If both or neither exist, nothing to do.
@@ -1389,7 +1399,7 @@ bool swapFileRecords(FileGrid* pfg, int index1, int index2)
 }
 
 
-int checkFileWidth(FileRecord *pfr, int overlayTileSize, boolean square, boolean isFileGrid, int index, int lavaFlowIndex, int waterFlowIndex) {
+int checkFileWidth(FileRecord *pfr, int overlayTileSize, bool square, bool isFileGrid, int index, int lavaFlowIndex, int waterFlowIndex) {
 	// check that width and height make sense.
 	wchar_t inputFile[MAX_PATH_AND_FILE];
 	wcscpy_s(inputFile, MAX_PATH_AND_FILE, pfr->path);

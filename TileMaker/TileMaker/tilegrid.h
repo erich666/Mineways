@@ -39,7 +39,7 @@ typedef struct FileRecord {
 	wchar_t* rootName;
 	wchar_t* fullFilename;
 	wchar_t* path;
-	boolean exists;
+	bool exists;
 	int alternateExtensionFound;
 } FileRecord;
 
@@ -77,13 +77,13 @@ static ChestGrid gCG;
 void initializeFileGrid(FileGrid* pfg);
 void initializeChestGrid(ChestGrid* pcg);
 void addBackslashIfNeeded(wchar_t* dir);
-int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, boolean topmost, boolean warnDups);
+int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, bool topmost, bool warnUnused, bool warnDups);
 bool dirExists(const wchar_t* path);
 bool createDir(const wchar_t* path);
 int checkTilesInDirectory(FileGrid* pfg, const wchar_t* tilePath, int verbose, int alternate);
-int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose, int alternate, boolean warnDNE, boolean warnDups);
+int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose, int alternate, bool warnDNE, bool warnDups);
 int testIfChestFile(ChestGrid* pcg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose);
-boolean removeFileType(wchar_t* name);
+bool removeFileType(wchar_t* name);
 int isImageFile(wchar_t* name);
 int stripTypeSuffix(wchar_t* tileName, const wchar_t** suffixes, int numSuffixes, FileGrid* pfg);
 int findTileIndex(const wchar_t* tileName, int alternate);

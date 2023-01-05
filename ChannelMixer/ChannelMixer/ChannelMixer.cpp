@@ -8,7 +8,7 @@
 #include "tiles.h"
 #include "tilegrid.h"
 
-#define	VERSION_STRING	L"1.12"
+#define	VERSION_STRING	L"1.13"
 
 // how the green and blue tiles get tinted
 //#define FOLIAGE_GREEN	0x8cbd57
@@ -29,11 +29,11 @@ static int gWarningCount = 0;
 static int gWriteProtectCount = 0;
 static int gIgnoredCount = 0;
 //static int gChestCount = 0;
-static boolean gChestDirectoryExists = false;
-static boolean gChestDirectoryFailed = false;
+static bool gChestDirectoryExists = false;
+static bool gChestDirectoryFailed = false;
 
 //                                                L"", L"_n", L"_normal", L"_m", L"_e", L"_r", L"_s", L"_mer", L"_y", L"_heightmap"
-static boolean gUseCategory[TOTAL_CATEGORIES] = { true, true, true, true, true, true, true, true, true, true };
+static bool gUseCategory[TOTAL_CATEGORIES] = { true, true, true, true, true, true, true, true, true, true };
 
 
 static wchar_t gErrorString[1000];
@@ -47,20 +47,20 @@ progimage_info* allocateGrayscaleImage(progimage_info* source_ptr);
 
 
 static void printHelp();
-//static void createCompositedLeaves(const wchar_t* inputDirectory, const wchar_t* outputDirectory, const wchar_t* outputSuffix, boolean verbose);
+//static void createCompositedLeaves(const wchar_t* inputDirectory, const wchar_t* outputDirectory, const wchar_t* outputSuffix, bool verbose);
 static void reportReadError(int rc, const wchar_t* filename);
 static void saveErrorForEnd();
 
-static int copyFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirectory, boolean verbose);
-static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirectory, boolean outputMerged, boolean verbose);
-static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirectory, boolean verbose);
-static boolean setChestDirectory(const wchar_t* outputDirectory, wchar_t* outputChestDirectory);
+static int copyFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirectory, bool verbose);
+static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirectory, bool outputMerged, bool verbose);
+static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirectory, bool verbose);
+static bool setChestDirectory(const wchar_t* outputDirectory, wchar_t* outputChestDirectory);
 
 static int isNearlyGrayscale(progimage_info* src, int channels);
 static bool isAlphaSemitransparent(progimage_info * src);
 static void invertChannel(progimage_info* dst);
 static void StoMER(progimage_info * dst, progimage_info * src);
-static boolean SMEtoMER(progimage_info * dst, progimage_info * src);
+static bool SMEtoMER(progimage_info * dst, progimage_info * src);
 
 
 int wmain(int argc, wchar_t* argv[])
@@ -69,10 +69,11 @@ int wmain(int argc, wchar_t* argv[])
 	wchar_t inputSuffix[MAX_PATH] = L"_mer";
 	wchar_t inputDirectory[MAX_PATH] = L".";
 	wchar_t outputDirectory[MAX_PATH] = L".";
-	boolean outputMerged = false;
-	boolean verbose = false;
+	bool outputMerged = false;
+	bool verbose = false;
+	bool warnUnused = false;
 	//wchar_t synthOutSuffix[MAX_PATH] = L"_y";	// _y.png is synthesized (composited) textures
-	//boolean createLeaves = false;
+	//bool createLeaves = false;
 
 	initializeFileGrid(&gFG);
 	initializeChestGrid(&gCG);
@@ -129,10 +130,16 @@ int wmain(int argc, wchar_t* argv[])
 				gUseCategory[CATEGORY_HEIGHTMAP] = false;
 			}
 		}
+		else if (wcscmp(argv[argLoc], L"-u") == 0)
+		{
+			// warn if a PNG is found but does not match anything we would use.
+			warnUnused = true;
+		}
 		else if (wcscmp(argv[argLoc], L"-v") == 0)
 		{
 			// verbose: tell when normal things happen
 			verbose = true;
+			warnUnused = true;
 		}
 		else
 		{
@@ -177,11 +184,11 @@ int wmain(int argc, wchar_t* argv[])
 	// Copy files over if output directory is different than input directory.
 	// Split _mer and _s files into _m _e _r files.
 
-	boolean sameDir = (_wcsicmp(inputDirectory, outputDirectory) == 0);
+	bool sameDir = (_wcsicmp(inputDirectory, outputDirectory) == 0);
 
 	// look through tiles in tiles directories, see which exist.
 	int filesFound = 0;
-	int fileCount = searchDirectoryForTiles(&gFG, &gCG, inputDirectory, wcslen(inputDirectory), verbose, alternate, true, true);
+	int fileCount = searchDirectoryForTiles(&gFG, &gCG, inputDirectory, wcslen(inputDirectory), verbose, alternate, true, warnUnused, true);
 	if (fileCount < 0) {
 		wsprintf(gErrorString, L"***** ERROR: cannot access the directory '%s' (Windows error code # %d). Ignoring directory.\n", inputDirectory, GetLastError());
 		saveErrorForEnd();
@@ -220,6 +227,29 @@ int wmain(int argc, wchar_t* argv[])
 	//	createCompositedLeaves(inputDirectory, outputDirectory, synthOutSuffix, verbose);
 	//}
 
+	// output all color textures that were NOT replaced.
+	if (verbose) {
+		int ifn, ifc;
+		ifc = 0;
+		for (ifn = 0; ifn < TOTAL_TILES; ifn++) {
+			// Note we assume the first tiles in the long list are RGBAs. These are all we check.
+			FileRecord* pfr = &gFG.fr[ifn];
+			if (!pfr->exists) {
+				// RGBA not found - could it ever be found?
+				if (wcslen(gTilesTable[ifn].filename) > 0 && wcsstr(gTilesTable[ifn].filename, L"MW") == NULL) {
+					if (ifc == 0) {
+						wprintf(L"Minecraft RGBA textures that could be replaced but were not:\n");
+					}
+					wprintf(L"    %s.png\n", gTilesTable[ifn].filename);
+					ifc++;
+				}
+			}
+		}
+		if (ifc > 0) {
+			wprintf(L"Total number of RGBA textures not replaced is %d.\n", ifc);
+		}
+	}
+
 	if (gWriteProtectCount > 1) {
 		wprintf(L"WARNING: a total of %d files could not be written due to write protection.\n", gWriteProtectCount);
 	}
@@ -231,23 +261,24 @@ int wmain(int argc, wchar_t* argv[])
 		wprintf(L"Summary: %d error%S and %d warning%S were generated.\n", gErrorCount, (gErrorCount == 1) ? "" : "s", gWarningCount, (gWarningCount == 1) ? "" : "s");
 
 	if (gWriteProtectCount > 0) {
-		wprintf(L"ChannelMixer summary: %d relevant PNG and TGA files discovered; %d of these were used and\n  %d were read-only so could not be overwritten.\n", filesFound, filesProcessed, gWriteProtectCount);
+		wprintf(L"ChannelMixer summary: %d relevant PNG and TGA files discovered; %d of these were used and\n    %d were read-only so could not be overwritten.\n", filesFound, filesProcessed, gWriteProtectCount);
 	}
 	else {
 		wprintf(L"ChannelMixer summary: %d relevant PNG and TGA files discovered and %d of these were used.\n", filesFound, filesProcessed);
 	}
-	if (filesFound > filesProcessed + gWriteProtectCount + gIgnoredCount ) {
+	if (filesFound > filesProcessed + gWriteProtectCount + gIgnoredCount) {
 		wprintf(L"    This difference of %d files means that some duplicate files were found and not used.\n", filesFound - filesProcessed - gWriteProtectCount);
 		wprintf(L"    Look through the 'DUP WARNING's and rename or delete those files you do not want to use.\n");
 	}
+
 	// note various types of files, if there are types
-	if (filesFound > gFG.categories[CATEGORY_RGBA] + gCG.categories[CATEGORY_RGBA] + gWriteProtectCount + gIgnoredCount ) {
-		wprintf(L"    Relevant block and chest files found:");
+	if (filesFound > gFG.categories[CATEGORY_RGBA] + gCG.categories[CATEGORY_RGBA] + gWriteProtectCount + gIgnoredCount) {
 		bool foundFirst = false;
 		for (int category = 0; category < TOTAL_CATEGORIES; category++) {
 			// does this category have any input files? If not, skip it - just a small speed-up.
 			if (gFG.categories[category] + gCG.categories[category] > 0) {
-				wprintf(L"%s %d %s%s.png", foundFirst ? L"," : L"", gFG.categories[category] + gCG.categories[category],
+				wprintf(L"%s %d %s%s.png",
+					foundFirst ? L"," : L"Summary of PBR types of images processed:", gFG.categories[category] + gCG.categories[category],
 					(category != CATEGORY_RGBA) ? L"*" : L"(RGBA)",
 					(category != CATEGORY_RGBA) ? gCatSuffixes[category] : L"*");
 				foundFirst = true;
@@ -255,21 +286,36 @@ int wmain(int argc, wchar_t* argv[])
 		}
 		wprintf(L".\n");
 	}
+
+
+	/*
+	if (verbose) {
+		// count how many color textures there are that were not replaced
+		int ifn, ifc;
+		ifc = 0;
+		for (ifn = 0; ifn < )
+			if (filesProcessed < ) {
+				wprintf(L"    This difference of %d files means that some duplicate files were found and not used.\n", filesFound - filesProcessed - gWriteProtectCount);
+				wprintf(L"    Look through the 'DUP WARNING's and rename or delete those files you do not want to use.\n");
+			}
+	}
+	*/
 	return 0;
 }
 
 static void printHelp()
 {
 	wprintf(L"ChannelMixer version %s\n", VERSION_STRING);
-	wprintf(L"usage: ChannelMixer [-v] [-i inputTexturesDirectory] [-o outputTexturesDirectory] [-m] [-k {m|e|r|n}]\n");
+	wprintf(L"usage: ChannelMixer [-v] [-i inputTexturesDirectory] [-o outputTexturesDirectory] [-m] [-k {m|e|r|n}] [-u]\n");
 	wprintf(L"  -v - verbose, explain everything going on. Default: display only warnings and errors.\n");
 	wprintf(L"  -i inputTexturesDirectory - directory of textures to search and process.\n        If none given, current directory.\n");
 	wprintf(L"  -o outputTexturesDirectory - directory where resulting textures will go.\n        If none given, current directory.\n");
 	wprintf(L"  -m - output merged '_mer' format files in addition to separate files, as found.\n");
 	wprintf(L"  -k {m|e|r|n} - kill export of the metallic, emissive, roughness, and/or normals textures.\n");
+	wprintf(L"  -u - show all image files encountered that are not standard Minecraft block or chest names.\n");
 }
 
-static int copyFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirectory, boolean verbose) {
+static int copyFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirectory, bool verbose) {
 	int filesRead = 0;
 
 	int copyCategories[] = { CATEGORY_RGBA, CATEGORY_NORMALS, CATEGORY_NORMALS_LONG, CATEGORY_METALLIC, CATEGORY_EMISSION, CATEGORY_ROUGHNESS, CATEGORY_HEIGHTMAP };
@@ -301,7 +347,7 @@ static int copyFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirecto
 							}
 							if (isReadOnly) {
 								if (!gWriteProtectCount || verbose) {
-									wprintf(L"WARNING: File '%s' was not copied to the output directory, as the copy there is read-only.\n  If you are running ChannelMixer again, on the same input and output directories, you can likely ignore this warning. Alternately, make your files writeable.\n", pfg->fr[fullIndex].fullFilename);
+									wprintf(L"WARNING: File '%s' was not copied to the output directory, as the copy there is read-only.\n    If you are running ChannelMixer again, on the same input and output directories, you can likely ignore this warning. Alternately, make your files writeable.\n", pfg->fr[fullIndex].fullFilename);
 									if (!verbose)
 										wprintf(L"  To avoid generating noise, this warning is shown only once (use '-v' to see them all).\n");
 								}
@@ -375,7 +421,7 @@ static int copyFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirecto
 							}
 							if (isReadOnly) {
 								if (!gWriteProtectCount || verbose) {
-									wprintf(L"WARNING: File '%s' was not copied to the output directory, as the copy there is read-only.\n  If you are running ChannelMixer again, on the same input and output directories, you can likely ignore this warning. Alternately, make your files writeable.\n", pcg->cr[fullIndex].fullFilename);
+									wprintf(L"WARNING: File '%s' was not copied to the output directory, as the copy there is read-only.\n    If you are running ChannelMixer again, on the same input and output directories, you can likely ignore this warning. Alternately, make your files writeable.\n", pcg->cr[fullIndex].fullFilename);
 									if (!verbose)
 										wprintf(L"  To avoid generating excessive error messages, this warning is shown only once (use '-v' to see them all).\n");
 								}
@@ -420,7 +466,7 @@ static int copyFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirecto
 	return filesRead;
 }
 
-static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirectory, boolean outputMerged, boolean verbose) {
+static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirectory, bool outputMerged, bool verbose) {
 	int rc;
 	int isGrayscale = 0;
 	int isSME = 0;
@@ -505,7 +551,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 					progimage_info* destination_ptr = allocateGrayscaleImage(&tile);
 					copyOneChannel(destination_ptr, CHANNEL_RED, &tile, readColorType);
 					// output the channel if it's not all black
-					boolean allBlack = true;
+					bool allBlack = true;
 					if (gUseCategory[CATEGORY_ROUGHNESS] && !channelEqualsValue(destination_ptr, 0, 1, 0, 0)) {
 						allBlack = false;
 						invertChannel(destination_ptr);
@@ -662,7 +708,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 					progimage_info* destination_ptr = allocateGrayscaleImage(&tile);
 					copyOneChannel(destination_ptr, CHANNEL_RED, &tile, LCT_RGB);
 					// output the channel if it's not all black
-					boolean allBlack = true;
+					bool allBlack = true;
 					if (gUseCategory[CATEGORY_ROUGHNESS] && !channelEqualsValue(destination_ptr, 0, 1, 0, 0)) {
 						allBlack = false;
 						invertChannel(destination_ptr);
@@ -768,7 +814,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 		}
 	}
 	if (isGrayscale > 0 && isSME > 0) {
-		wprintf(L"WARNING: The input files with a suffix of '*_s.png' seem to be of two formats:\n  %d are specular-only, %d are specular/metallic/emissive.\n", isGrayscale, isSME);
+		wprintf(L"WARNING: The input files with a suffix of '*_s.png' seem to be of two formats:\n    %d are specular-only, %d are specular/metallic/emissive.\n", isGrayscale, isSME);
 	}
 	else if (verbose) {
 		wprintf(L"Specular input files processed: %d are specular-only, %d are specular/metallic/emissive.\n", isGrayscale, isSME);
@@ -776,7 +822,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* ou
 	return filesRead;
 }
 
-static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirectory, boolean verbose) {
+static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirectory, bool verbose) {
 	int rc;
 	int isMER = 0;
 	int filesRead = 0;
@@ -925,7 +971,7 @@ static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputD
 }
 
 // true for success, false for there was a serious error
-static boolean setChestDirectory(const wchar_t* outputDirectory, wchar_t* outputChestDirectory)
+static bool setChestDirectory(const wchar_t* outputDirectory, wchar_t* outputChestDirectory)
 {
 	// copy directory over and add "\chest" - repetitive, and should really just test another way, but
 	// this operation is not done much.
@@ -949,7 +995,7 @@ static boolean setChestDirectory(const wchar_t* outputDirectory, wchar_t* output
 
 
 /*
-static void createCompositedLeaves(const wchar_t* inputDirectory, const wchar_t* outputDirectory, const wchar_t* outputSuffix, boolean verbose)
+static void createCompositedLeaves(const wchar_t* inputDirectory, const wchar_t* outputDirectory, const wchar_t* outputSuffix, bool verbose)
 {
 	int rc = 0;
 	int i;
@@ -1093,7 +1139,7 @@ static void reportReadError(int rc, const wchar_t* filename)
 	gErrorCount++;
 
 	if (rc != 78 && rc < 100) {
-		wsprintf(gErrorString, L"Often this means the PNG file has some small bit of information that ChannelMixer cannot\n  handle. You might be able to fix this error by opening this PNG file in\n  Irfanview or other viewer and then saving it again. This has been known to clear\n  out any irregularity that ChannelMixer's somewhat-fragile PNG reader dies on.\n");
+		wsprintf(gErrorString, L"Often this means the PNG file has some small bit of information that ChannelMixer cannot\n    handle. You might be able to fix this error by opening this PNG file in\n    Irfanview or other viewer and then saving it again. This has been known to clear\n    out any irregularity that ChannelMixer's somewhat-fragile PNG reader dies on.\n");
 	}
 	saveErrorForEnd();
 }
@@ -1184,9 +1230,9 @@ static void StoMER(progimage_info* dst, progimage_info* src)
 }
 
 // true if there is a non-black pixel
-static boolean SMEtoMER(progimage_info* dst, progimage_info* src)
+static bool SMEtoMER(progimage_info* dst, progimage_info* src)
 {
-	boolean allBlack = true;
+	bool allBlack = true;
 	int row, col;
 	unsigned char* dst_data = &dst->image_data[0];
 	unsigned char* src_data = &src->image_data[0];

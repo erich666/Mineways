@@ -53,7 +53,7 @@ void addBackslashIfNeeded(wchar_t* dir)
 // return negative number for error type;
 // otherwise returns number of files that we care about, i.e., ones that we'll want to read in later. Note: this number includes duplicates,
 // but does not include tiles that we simply don't care about (on the gUnneeded list).
-int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, boolean topmost, boolean warnDups)
+int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, bool topmost, bool warnUnused, bool warnDups)
 {
 	int filesProcessed = 0;
 	int filesSubProcessed = 0;
@@ -81,7 +81,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 		return -1;
 	}
 	else {
-		boolean chestFound = false;
+		bool chestFound = false;
 		do {
 			if (verbose) {
 				wprintf(L"File %s in directory %s being examined.\n", ffd.cFileName, tilePath);
@@ -99,7 +99,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 				wcscat_s(subdir, MAX_PATH_AND_FILE, ffd.cFileName);
 				addBackslashIfNeeded(subdir);
 
-				int fileCount = searchDirectoryForTiles(pfg, pcg, subdir, origTPLen, verbose, alternate, false, warnDups);
+				int fileCount = searchDirectoryForTiles(pfg, pcg, subdir, origTPLen, verbose, alternate, false, warnUnused, warnDups);
 				if (fileCount < 0) {
 					// error, cannot read subdirectory for some reason - we just ignore it for now; main test is the top directory test, above.
 					//return -2;
@@ -116,7 +116,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 				// c:\temp\my_block_processing\Vanilla\ where Vanilla is where you put the resource pack, as ALL subdirectories will be
 				// considered to be "block" directories.
 				if (topmost || wcsstr(tilePathAppended + origTPLen, L"block") != NULL) {
-					int status = testIfTileExists(pfg, tilePathAppended, ffd.cFileName, verbose, alternate, false, warnDups);
+					int status = testIfTileExists(pfg, tilePathAppended, ffd.cFileName, verbose, alternate, warnUnused, warnDups);
 					if (status == FILE_FOUND || status == FILE_FOUND_AND_DUPLICATE) {
 						used = 1;
 						filesProcessed++;
@@ -142,8 +142,8 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 					int flag = 0x0;
 					int imageFileType = isImageFile(ffd.cFileName);
 					if (filesProcessed > 0 && !chestFound && (imageFileType == PNG_EXTENSION_FOUND || imageFileType == TGA_EXTENSION_FOUND)) {
-						// we already found some good files in this directory, so note that this file was not used.
-						wprintf(L"WARNING: The file '%s' in directory '%s' is not recognized and so is not used.\n", ffd.cFileName, tilePath);
+						// we already found some good files in this directory, so don't use this one.
+						//wprintf(L"WARNING: The file '%s' in directory '%s' is not recognized and so is not used.\n", ffd.cFileName, tilePath);
 					}
 					// if JPG or BMP, note it if corresponding PNG or TGA not found
 					else if (imageFileType == JPG_EXTENSION_FOUND || imageFileType == BMP_EXTENSION_FOUND) {
@@ -177,10 +177,10 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 		if (!pfg->fr[i].exists && pfg->fr[i].alternateExtensionFound) {
 			// not a duplicate, so warn
 			if (verbose) {
-				wprintf(L"IMAGE WARNING: The file '%s' in directory '%s' is not a PNG file (and there is no corresponding PNG).\n  Please convert it to PNG, as TileMaker ignores this image file format.\n", pfg->fr[i].fullFilename, pfg->fr[i].path);
+				wprintf(L"IMAGE WARNING: The file '%s' in directory '%s' is not a PNG file (and there is no corresponding PNG).\n    Please convert it to PNG, as TileMaker ignores this image file format.\n", pfg->fr[i].fullFilename, pfg->fr[i].path);
 			}
 			else {
-				wprintf(L"IMAGE WARNING: The file '%s' is not a PNG file (and there is no corresponding PNG).\n  Please convert it to PNG, as TileMaker ignores this image file format.\n", pfg->fr[i].fullFilename);
+				wprintf(L"IMAGE WARNING: The file '%s' is not a PNG file (and there is no corresponding PNG).\n    Please convert it to PNG, as TileMaker ignores this image file format.\n", pfg->fr[i].fullFilename);
 			}
 		}
 	}
@@ -240,7 +240,7 @@ int checkTilesInDirectory(FileGrid* pfg, const wchar_t* tilePath, int verbose, i
 }
 
 // returns 1 if file exists and is usable (not a duplicate, alternate name of something already in use), 2 if found and known to be ignorable
-int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose, int alternate, boolean warnUnused, boolean warnDups)
+int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose, int alternate, bool warnUnused, bool warnDups)
 {
 	wchar_t tileName[MAX_PATH];
 
@@ -272,13 +272,13 @@ int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* orig
 				}
 				else {
 					if ((warnDups || verbose) && wcscmp(origTileName, pfg->fr[fullIndex].fullFilename) == 0) {
-						wprintf(L"DUP WARNING: Duplicate file ignored;\n  file '%s' in directory '%s' is in a different location for the same texture '%s' in '%s'.\n", origTileName, tilePath, pfg->fr[fullIndex].fullFilename, pfg->fr[fullIndex].path);
+						wprintf(L"DUP WARNING: Duplicate file ignored.\n    File '%s' in directory '%s' is in a different location for the same texture '%s' in '%s'.\n", origTileName, tilePath, pfg->fr[fullIndex].fullFilename, pfg->fr[fullIndex].path);
 					}
 					else if (verbose) {
-						wprintf(L"DUP WARNING: Duplicate file ignored;\n  file '%s' in directory '%s' is a different name for the same texture '%s' in '%s'.\n", origTileName, tilePath, pfg->fr[fullIndex].fullFilename, pfg->fr[fullIndex].path);
+						wprintf(L"DUP WARNING: Duplicate file ignored.\n    File '%s' in directory '%s' is a different name for the same texture '%s' in '%s'.\n", origTileName, tilePath, pfg->fr[fullIndex].fullFilename, pfg->fr[fullIndex].path);
 					}
 					else if (warnDups) {
-						wprintf(L"DUP WARNING: Duplicate file ignored;\n  file '%s' is a different name for the same texture '%s'.\n", origTileName, pfg->fr[fullIndex].fullFilename);
+						wprintf(L"DUP WARNING: Duplicate file ignored.\n    File '%s' is a different name for the same texture '%s'.\n", origTileName, pfg->fr[fullIndex].fullFilename);
 					}
 					return FILE_FOUND_AND_DUPLICATE;
 				}
@@ -289,10 +289,10 @@ int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* orig
 				int otherFullIndex = ((category == CATEGORY_SPECULAR) ? CATEGORY_MER : CATEGORY_SPECULAR) * pfg->totalTiles + index;
 				if (pfg->fr[otherFullIndex].exists) {
 					if (verbose) {
-						wprintf(L"DUP WARNING: Duplicate file ignored;\n  file '%s' in directory '%s' is a different name for the same type of multi-channel texture '%s' in '%s'.\n", origTileName, tilePath, pfg->fr[otherFullIndex].fullFilename, pfg->fr[otherFullIndex].path);
+						wprintf(L"DUP WARNING: Duplicate file ignored.\n    File '%s' in directory '%s' is a different name for the same type of multi-channel texture '%s' in '%s'.\n", origTileName, tilePath, pfg->fr[otherFullIndex].fullFilename, pfg->fr[otherFullIndex].path);
 					}
 					else if (warnDups) {
-						wprintf(L"DUP WARNING: Duplicate file ignored;\n  file '%s' is a different name for the same type of multi-channel texture '%s'.\n", origTileName, pfg->fr[otherFullIndex].fullFilename);
+						wprintf(L"DUP WARNING: Duplicate file ignored.\n    File '%s' is a different name for the same type of multi-channel texture '%s'.\n", origTileName, pfg->fr[otherFullIndex].fullFilename);
 					}
 					return FILE_FOUND_AND_DUPLICATE;
 				}
@@ -322,7 +322,14 @@ int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* orig
 
 	// unknown file name
 	if (warnUnused) {
-		wprintf(L"WARNING: The file '%s' is not recognized and so is not used.\n", origTileName);
+		if (imageFileType == PNG_EXTENSION_FOUND || imageFileType == TGA_EXTENSION_FOUND) {
+			wprintf(L"WARNING: The file '%s' in directory '%s' is not a standard Minecraft block texture name and so is not used.\n", origTileName, tilePath);
+			static bool extraWarnUnused = true;
+			if (extraWarnUnused) {
+				extraWarnUnused = false;
+				wprintf(L"    To see the list of valid (and alternate) names, visit https://github.com/erich666/Mineways/blob/master/Win/tiles.h#L86\n");
+			}
+		}
 	}
 	return FILE_NOT_FOUND;
 }
@@ -341,7 +348,7 @@ int testIfChestFile(ChestGrid* pcg, const wchar_t* tilePath, const wchar_t* orig
 		int type = stripTypeSuffix(tileName, gCatSuffixes, TOTAL_CATEGORIES, NULL);
 
 		// the four PNG/TGA files we care about
-		boolean found = false;
+		bool found = false;
 		int index = 0;
 		for (int i = 0; i < TOTAL_CHEST_TILES && !found; i++) {
 			if (_wcsicmp(tileName, gChestNames[i]) == 0) {
@@ -385,7 +392,7 @@ int testIfChestFile(ChestGrid* pcg, const wchar_t* tilePath, const wchar_t* orig
 	return FILE_NOT_FOUND;
 }
 
-boolean removeFileType(wchar_t* name)
+bool removeFileType(wchar_t* name)
 {
 	wchar_t *loc = wcsrchr(name, L'.');
 	if (loc != NULL)
