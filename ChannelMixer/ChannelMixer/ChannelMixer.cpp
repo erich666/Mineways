@@ -233,10 +233,9 @@ int wmain(int argc, wchar_t* argv[])
 		ifc = 0;
 		for (ifn = 0; ifn < TOTAL_TILES; ifn++) {
 			// Note we assume the first tiles in the long list are RGBAs. These are all we check.
-			FileRecord* pfr = &gFG.fr[ifn];
-			if (!pfr->exists) {
+			if (!gFG.fr[ifn].exists) {
 				// RGBA not found - could it ever be found?
-				if (wcslen(gTilesTable[ifn].filename) > 0 && wcsstr(gTilesTable[ifn].filename, L"MW") == NULL) {
+				if (wcslen(gTilesTable[ifn].filename) > 0 && wcsncmp(gTilesTable[ifn].filename, L"MW", 2) != 0) {
 					if (ifc == 0) {
 						wprintf(L"Minecraft RGBA textures that could be replaced but were not:\n");
 					}
@@ -268,17 +267,17 @@ int wmain(int argc, wchar_t* argv[])
 	}
 	if (filesFound > filesProcessed + gWriteProtectCount + gIgnoredCount) {
 		wprintf(L"    This difference of %d files means that some duplicate files were found and not used.\n", filesFound - filesProcessed - gWriteProtectCount);
-		wprintf(L"    Look through the 'DUP WARNING's and rename or delete those files you do not want to use.\n");
+		wprintf(L"    Look through the 'DUP WARNING's and rename or delete those files you do not want to use, clear the directory, and run again.\n");
 	}
 
-	// note various types of files, if there are types
+	// Note various types of files used, if more found than used. Not sure why I added this...
 	if (filesFound > gFG.categories[CATEGORY_RGBA] + gCG.categories[CATEGORY_RGBA] + gWriteProtectCount + gIgnoredCount) {
 		bool foundFirst = false;
 		for (int category = 0; category < TOTAL_CATEGORIES; category++) {
 			// does this category have any input files? If not, skip it - just a small speed-up.
 			if (gFG.categories[category] + gCG.categories[category] > 0) {
 				wprintf(L"%s %d %s%s.png",
-					foundFirst ? L"," : L"Summary of PBR types of images processed:", gFG.categories[category] + gCG.categories[category],
+					foundFirst ? L"," : L"    Relevant block and chest files found:", gFG.categories[category] + gCG.categories[category],
 					(category != CATEGORY_RGBA) ? L"*" : L"(RGBA)",
 					(category != CATEGORY_RGBA) ? gCatSuffixes[category] : L"*");
 				foundFirst = true;
@@ -370,7 +369,7 @@ static int copyFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirecto
 						if (category == CATEGORY_NORMALS_LONG || category == CATEGORY_HEIGHTMAP) {
 							int otherIndex = copyCategories[CATEGORY_NORMALS] * pfg->totalTiles + i;
 							if (pfg->fr[otherIndex].exists) {
-								wprintf(L"WARNING: File '%s' also has a version named '%s'. Both copied over.\n", pfg->fr[fullIndex].fullFilename, pfg->fr[otherIndex].fullFilename);
+								wprintf(L"WARNING: File '%s' also has a version named '%s'. Both copied over; TileMaker will ignore the '_normal.png' version.\n", pfg->fr[fullIndex].fullFilename, pfg->fr[otherIndex].fullFilename);
 							}
 						}
 					}
@@ -444,7 +443,7 @@ static int copyFiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* outputDirecto
 						if (category == CATEGORY_NORMALS_LONG || category == CATEGORY_HEIGHTMAP) {
 							int otherIndex = copyCategories[CATEGORY_NORMALS] * pcg->totalTiles + i;
 							if (pcg->cr[otherIndex].exists) {
-								wprintf(L"WARNING: File '%s' also has a version named '%s'. Both copied over.\n", pcg->cr[fullIndex].fullFilename, pcg->cr[otherIndex].fullFilename);
+								wprintf(L"WARNING: Chest file '%s' also has a version named '%s'. Both copied over.\n", pcg->cr[fullIndex].fullFilename, pcg->cr[otherIndex].fullFilename);
 							}
 						}
 					}

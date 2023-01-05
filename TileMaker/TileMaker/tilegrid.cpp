@@ -142,7 +142,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 					int flag = 0x0;
 					int imageFileType = isImageFile(ffd.cFileName);
 					if (filesProcessed > 0 && !chestFound && (imageFileType == PNG_EXTENSION_FOUND || imageFileType == TGA_EXTENSION_FOUND)) {
-						// we already found some good files in this directory, so don't use this one.
+						// we already found some good files in this directory, so don't use this unused one.
 						//wprintf(L"WARNING: The file '%s' in directory '%s' is not recognized and so is not used.\n", ffd.cFileName, tilePath);
 					}
 					// if JPG or BMP, note it if corresponding PNG or TGA not found
@@ -259,7 +259,7 @@ int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* orig
 			if (pfg->fr[fullIndex].exists) {
 				// duplicate, so warn and exit, except for special case of this being a gray water tile
 				if ((wcscmp(tileName, L"water_flow_grey") == 0) || (wcscmp(tileName, L"water_still_grey") == 0)) {
-					wprintf(L"DUP WARNING: Duplicate colored water file ignored, as we usually want the grayscale version;\n  file '%s' in directory '%s' is favored over\n  texture '%s' in '%s'.\n", tilePath, origTileName, pfg->fr[fullIndex].fullFilename, pfg->fr[fullIndex].path);
+					wprintf(L"DUP WARNING: Duplicate colored water file ignored, as we usually want the grayscale version;\n    file '%s' in directory '%s' is favored over\n    texture '%s' in '%s'.\n", tilePath, origTileName, pfg->fr[fullIndex].fullFilename, pfg->fr[fullIndex].path);
 					// replace other tile - we want the grey one
 					//pfg->fileCount++;
 					//pfg->categories[category]++;
@@ -322,6 +322,7 @@ int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* orig
 
 	// unknown file name
 	if (warnUnused) {
+		// if PNG or TGA, note this
 		if (imageFileType == PNG_EXTENSION_FOUND || imageFileType == TGA_EXTENSION_FOUND) {
 			wprintf(L"WARNING: The file '%s' in directory '%s' is not a standard Minecraft block texture name and so is not used.\n", origTileName, tilePath);
 			static bool extraWarnUnused = true;
