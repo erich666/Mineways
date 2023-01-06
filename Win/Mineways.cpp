@@ -5202,7 +5202,7 @@ static void initializePrintExportData(ExportFileData& printData)
     // might as well export color with OBJ and binary STL - nice for previewing
     INIT_ALL_FILE_TYPES(printData.radioExportMtlColors,    0, 0, 0, 1, 1, 0, 0, 0);
     INIT_ALL_FILE_TYPES(printData.radioExportSolidTexture, 0, 0, 0, 0, 0, 0, 0, 0);
-    INIT_ALL_FILE_TYPES(printData.radioExportFullTexture,  1, 1, 0, 0, 0, 0, 1, 0);
+    INIT_ALL_FILE_TYPES(printData.radioExportFullTexture,  1, 1, 0, 0, 0, 0, 1, 0); // for 3D printing, nice to be able to load just the large RGB texture
     INIT_ALL_FILE_TYPES(printData.radioExportTileTextures, 0, 0, 1, 0, 0, 0, 0, 0);
 
     strcpy_s(printData.tileDirString, MAX_PATH, "tex");
@@ -5309,8 +5309,8 @@ static void initializeViewExportData(ExportFileData& viewData)
     INIT_ALL_FILE_TYPES(viewData.radioExportNoMaterials,  0, 0, 0, 0, 0, 1, 0, 1);
     INIT_ALL_FILE_TYPES(viewData.radioExportMtlColors,    0, 0, 0, 1, 1, 0, 0, 0);
     INIT_ALL_FILE_TYPES(viewData.radioExportSolidTexture, 0, 0, 0, 0, 0, 0, 0, 0);
-    INIT_ALL_FILE_TYPES(viewData.radioExportFullTexture,  1, 1, 0, 0, 0, 0, 1, 0);
-    INIT_ALL_FILE_TYPES(viewData.radioExportTileTextures, 0, 0, 1, 0, 0, 0, 0, 0);  // USD uses tile per block, only; really, a better default anyway
+    INIT_ALL_FILE_TYPES(viewData.radioExportFullTexture,  0, 0, 0, 0, 0, 0, 1, 0);  // was 1's for OBJ; now just for VRML, which doesn't have individual texture export code
+    INIT_ALL_FILE_TYPES(viewData.radioExportTileTextures, 1, 1, 1, 0, 0, 0, 0, 0);  // USD uses tile per block, only; really, a better default anyway
 
     strcpy_s(viewData.tileDirString, MAX_PATH, "tex");
 
