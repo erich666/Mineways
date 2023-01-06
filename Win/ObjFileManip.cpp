@@ -592,6 +592,7 @@ static void randomRotation(int boxIndex, int& angle);
 static bool fenceNeighbor(int type, int boxIndex, int blockSide);
 static int saveBillboardOrGeometry(int boxIndex, int type);
 static int saveTriangleGeometry(int type, int dataVal, int boxIndex, int typeBelow, int dataValBelow, int boxIndexBelow, int choppedSide);
+static bool badNeighborTest(int& neighborIndex, int boxIndex, int offset);
 static unsigned int getStairMask(int boxIndex, int dataVal);
 static void setDefaultUVs(Point2 uvs[3], int skip);
 static FaceRecord* allocFaceRecordFromPool();
@@ -10594,6 +10595,41 @@ static void rotateMask(int& mask)
     }
 }
 
+static bool badNeighborTest(int& neighborIndex, int boxIndex, int offset)
+{
+    int wx, wz;
+    BOX_INDEX_TO_WORLD_XZ(boxIndex, wx, wz);
+    // set it to something, just in case...
+    neighborIndex = boxIndex;
+    switch (offset) {
+    case 0:
+        if (wx < gSolidWorldBox.min[X]) {
+            return 1;
+        }
+        break;
+    case 3:
+        if (wx > gSolidWorldBox.max[X]) {
+            return 1;
+        }
+        break;
+    case 2:
+        if (wz < gSolidWorldBox.min[Z]) {
+            return 1;
+        }
+        break;
+    case 5:
+        if (wz > gSolidWorldBox.max[Z]) {
+            return 1;
+        }
+        break;
+    default:
+        assert(0);  // we should never be going up or down for this test, which is used for stairs
+        break;
+    }
+    neighborIndex = boxIndex + gFaceOffset[offset];
+    return 0;
+}
+
 static unsigned int getStairMask(int boxIndex, int dataVal)
 {
     // The stairs block has a full level (a full slab) on one level. Our task is to find which of
@@ -10709,10 +10745,25 @@ static unsigned int getStairMask(int boxIndex, int dataVal)
         bool sideNeighbor;
         unsigned int newMask;
         int neighborDataVal;
+        
+        // There's a subtle headache here. We have code where we're looking at the neighboring
+        // stair block and seeing if its mask is the same as the stair block we're actually processing.
+        // The problem is that the neighboring stair block could be right on the edge of things,
+        // such that if we at *its* neighbor, this neighbor could be entirely non-existent. This
+        // can cause a crash, see https://github.com/erich666/Mineways/issues/102.
+        // So, we have to be extra careful here. Whenever we compute a neighborIndex, we must
+        // first check if the offset is moving us in a direction where we're already at the edge. Fun.
+        // If we move off the edge, we'll return a 0 mask, meaning "heck if we know". This won't match
+        // the original block's mask, so making the equals test in saveBillboardOrGeometry fail.
+        // Which might not be quite right, but it beats crashing.
 
-        int neighborIndex = boxIndex + gFaceOffset[stairs[stepDir].backDir];
-        int neighborType = gBoxData[neighborIndex].origType;
+        int neighborIndex;
         // is there a stairs behind us that subtracted a block?
+        if (badNeighborTest(neighborIndex, boxIndex, stairs[stepDir].backDir)) {
+            return 0x0;
+        }
+        //int neighborIndex = boxIndex + gFaceOffset[stairs[stepDir].backDir];
+        int neighborType = gBoxData[neighborIndex].origType;
         bool subtractedBlock = false;
         if (gBlockDefinitions[neighborType].flags & BLF_STAIRS)
         {
@@ -10731,7 +10782,10 @@ static unsigned int getStairMask(int boxIndex, int dataVal)
                     // If so, we ignore subtraction, else allow it. Basically, steps next to steps keep
                     // the step's upper step "in place" without subtraction.
                     sideNeighbor = false;
-                    neighborIndex = boxIndex + gFaceOffset[stairs[stepDir].sideDir[(neighborDataVal & 0x3)]];
+                    //neighborIndex = boxIndex + gFaceOffset[stairs[stepDir].sideDir[(neighborDataVal & 0x3)]];
+                    if (badNeighborTest(neighborIndex, boxIndex, stairs[stepDir].sideDir[(neighborDataVal & 0x3)])) {
+                        return 0x0;
+                    }
                     assert(neighborIndex != boxIndex);
                     neighborType = gBoxData[neighborIndex].origType;
                     // is there a stairs to the key side of us?
@@ -10768,7 +10822,10 @@ static unsigned int getStairMask(int boxIndex, int dataVal)
         if (!subtractedBlock)
         {
             // now check the neighbor in front, in a similar manner.
-            neighborIndex = boxIndex + gFaceOffset[(stairs[stepDir].backDir + 3) % 6];
+            //neighborIndex = boxIndex + gFaceOffset[(stairs[stepDir].backDir + 3) % 6];
+            if (badNeighborTest(neighborIndex, boxIndex, (stairs[stepDir].backDir + 3) % 6)) {
+                return 0x0;
+            }
             neighborType = gBoxData[neighborIndex].origType;
             // is there a stairs in front of us?
             if (gBlockDefinitions[neighborType].flags & BLF_STAIRS)
@@ -10788,7 +10845,10 @@ static unsigned int getStairMask(int boxIndex, int dataVal)
                         // If so, we ignore addition, else allow it. Basically, steps next to steps keep
                         // the step's upper step "in place" without addition.
                         sideNeighbor = false;
-                        neighborIndex = boxIndex + gFaceOffset[(stairs[stepDir].sideDir[(neighborDataVal & 0x3)] + 3) % 6];
+                        if (badNeighborTest(neighborIndex, boxIndex, (stairs[stepDir].sideDir[(neighborDataVal & 0x3)] + 3) % 6)) {
+                            return 0x0;
+                        }
+                        //neighborIndex = boxIndex + gFaceOffset[(stairs[stepDir].sideDir[(neighborDataVal & 0x3)] + 3) % 6];
                         assert(neighborIndex != boxIndex);
                         neighborType = gBoxData[neighborIndex].origType;
                         // is there a stairs to the key side of us?
