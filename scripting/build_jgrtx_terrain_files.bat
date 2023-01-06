@@ -1,8 +1,8 @@
 @rem echo Script to make JG-RTX terrainExt files. By Eric Haines, 11/21/2022 
 
-@rem echo Setup: Create some subdirectory, say "MinewaysJGRTX". Copy the ChannelMixer.exe, TileMaker.exe, and terrainExt.png to this directtory. Go to https://github.com/jasonjgardner/jg-rtx. Under the green Code button, Download ZIP. Unzip into MinewaysJGRTX, so that there's a directory called "jg-rtx-main" inside this directory (which has all the JG-RTX files in it). Then, run this script!
+@rem echo Setup: Create some subdirectory, say "MinewaysJGRTX". Copy the ChannelMixer.exe, TileMaker.exe, and terrainExt.png to this directory. Go to https://github.com/jasonjgardner/jg-rtx. Under the green Code button, Download ZIP. Unzip into MinewaysJGRTX, so that there's a directory called "jg-rtx-main" inside this directory (which has all the JG-RTX files in it). Then, run this script!
 
-@rem echo Use ./bedrock/pack/RP as your input path. Copy some of the missing textures from ./java/assets/minecraft/textures/block/ first. Then any remaining missing textures might be in ./mineways/textures/ – though some will be wonky. I'm somewhat available for the next couple hours. I can try to provide any missing textures or make some less-wonky ones while I'm online
+@rem echo The commands below encode tips from Jason Gardner: Use ./bedrock/pack/RP as your input path. Copy some of the missing textures from ./java/assets/minecraft/textures/block/ first. Then any remaining missing textures might be in ./mineways/textures/ – though some will be wonky.
 
 rmdir /S /Q blocks
 mkdir blocks
