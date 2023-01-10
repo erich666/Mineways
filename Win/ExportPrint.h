@@ -17,3 +17,9 @@ public:
 void getExportPrintData(ExportFileData* pEpd);
 void setExportPrintData(ExportFileData* pEpd);
 int doExportPrint(HINSTANCE hInst, HWND hWnd);
+HWND CreateToolTip(int toolID, HWND hDlg, PTSTR pszText);
+
+typedef struct TooltipDefinition {
+    const int id;
+    const PTSTR name;
+} TooltipDefinition;

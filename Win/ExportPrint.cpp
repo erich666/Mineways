@@ -36,6 +36,14 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 static int prevPhysMaterial;
 static int curPhysMaterial;
+static HINSTANCE g_hInst;
+
+#define EP_TOOLTIP_COUNT 2
+TooltipDefinition g_epTT[EP_TOOLTIP_COUNT] = {
+    { IDC_SCALE_LIGHTS, L"For USD export, the relative brightness of the sun and dome lights"},
+    { IDC_SCALE_EMITTERS, L"For USD export, the relative brightness of emissive blocks such as torches and lava"},
+};
+
 
 ExportPrint::ExportPrint(void)
 {
@@ -68,6 +76,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
 int doExportPrint(HINSTANCE hInst, HWND hWnd)
 {
     gOK = 0;
+    g_hInst = hInst;
     DialogBox(hInst, MAKEINTRESOURCE(IDD_EXPT_VIEW), hWnd, ExportPrint);
     // did we hit cancel?
     return gOK;
@@ -81,6 +90,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
     UNREFERENCED_PARAMETER(lParam);
 
     static int focus = -1;
+
+    HWND tt;
 
     switch (message)
     {
@@ -274,6 +285,17 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             SendDlgItemMessage(hDlg, IDC_COMBO_MODELS_UNITS, CB_ADDSTRING, 0, (LPARAM)gUnitTypeTable[i].wname);
 
         SendDlgItemMessage(hDlg, IDC_COMBO_MODELS_UNITS, CB_SETCURSEL, epd.comboModelUnits[epd.fileType], 0);
+
+        // tooltips
+        for (int itt = 0; itt < EP_TOOLTIP_COUNT; itt++) {
+            tt = CreateToolTip(g_epTT[itt].id, hDlg, g_epTT[itt].name);
+            if (tt != NULL) {
+                SendMessage(tt, TTM_ACTIVATE, TRUE, 0);
+            }
+            else {
+                assert(0);
+            }
+        }
     }
     return (INT_PTR)TRUE;
     case WM_COMMAND:
@@ -1270,4 +1292,48 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
         break;
     }
     return (INT_PTR)FALSE;
+}
+
+// Description:
+//   Creates a tooltip for an item in a dialog box. 
+// Parameters:
+//   idTool - identifier of an dialog box item.
+//   nDlg - window handle of the dialog box.
+//   pszText - string to use as the tooltip text.
+// Returns:
+//   The handle to the tooltip.
+//
+HWND CreateToolTip(int toolID, HWND hDlg, PTSTR pszText)
+{
+    if (!toolID || !hDlg || !pszText)
+    {
+        return FALSE;
+    }
+    // Get the window of the tool.
+    HWND hwndTool = GetDlgItem(hDlg, toolID);
+
+    // Create the tooltip. g_hInst is the global instance handle.
+    HWND hwndTip = CreateWindowEx(NULL, TOOLTIPS_CLASS, NULL,
+        WS_POPUP | TTS_ALWAYSTIP | TTS_NOPREFIX, // TTS_BALLOON to get balloon look, which I don't like
+        CW_USEDEFAULT, CW_USEDEFAULT,
+        CW_USEDEFAULT, CW_USEDEFAULT,
+        hDlg, NULL,
+        g_hInst, NULL);
+
+    if (!hwndTool || !hwndTip)
+    {
+        return (HWND)NULL;
+    }
+
+    // Associate the tooltip with the tool.
+    TOOLINFO toolInfo = { 0 };
+    // magic setting that makes the tooltip work!
+    toolInfo.cbSize = TTTOOLINFO_V1_SIZE; // sizeof(toolInfo); // why TTTOOLINFO_V1_SIZE see https://social.msdn.microsoft.com/Forums/sqlserver/en-US/4e74bd31-d3bb-4c0a-9f16-5457991b4a0b/win32-how-use-the-tooltip-control?forum=vclanguage
+    toolInfo.hwnd = hDlg;
+    toolInfo.uFlags = TTF_IDISHWND | TTF_SUBCLASS;
+    toolInfo.uId = (UINT_PTR)hwndTool;
+    toolInfo.lpszText = pszText;
+    SendMessage(hwndTip, TTM_ADDTOOL, 0, (LPARAM)&toolInfo);
+
+    return hwndTip;
 }
