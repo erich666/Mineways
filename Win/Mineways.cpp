@@ -1024,6 +1024,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         // finally, load any scripts on the command line.
         LOG_INFO(gExecutionLogfile, " processCreateArguments\n");
         processCreateArguments(gWS, &gBlockLabel, gHoldlParam, gArgList, gArgCount);
+
+        //// tooltips for menu items
+        //HWND tt = CreateToolTip(ID_FILE_IMPORTSETTINGS, hInst, GetMenu(hWnd), L"Show import settings");
+        //if (tt != NULL) {
+        //    SendMessage(tt, TTM_ACTIVATE, TRUE, 0);
+        //}
     }
     break;
     case WM_LBUTTONDOWN:

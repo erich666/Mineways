@@ -369,6 +369,9 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
 
         switch (LOWORD(wParam))
         {
+        case IDC_EXPORT_HELP:
+            ShellExecute(NULL, L"open", L"http://mineways.com/mineways.html#options", NULL, NULL, SW_SHOWNORMAL);
+            break;
         case IDC_FILL_BUBBLES:
         {
             UINT isFillBubblesChecked = IsDlgButtonChecked(hDlg, IDC_FILL_BUBBLES);
