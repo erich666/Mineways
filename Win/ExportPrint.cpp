@@ -38,20 +38,20 @@ static int prevPhysMaterial;
 static int curPhysMaterial;
 static HINSTANCE g_hInst;
 
-
-#define FILE_TYPE_WAVEFRONT_ABS_OBJ 0
-#define FILE_TYPE_WAVEFRONT_REL_OBJ 1
-#define FILE_TYPE_USD               2
-#define FILE_TYPE_BINARY_MAGICS_STL 3
-#define FILE_TYPE_BINARY_VISCAM_STL 4
-#define FILE_TYPE_ASCII_STL         5
-#define FILE_TYPE_VRML2             6
-// this is an entirely separate file type, only exportable through the schematic export option
-#define FILE_TYPE_SCHEMATIC         7
-
-
-#define EP_TOOLTIP_COUNT 2
+// OBJ, OBJ, USD, MAGICS STL, VISCAM STL, ASCII STL, VRML2, SCHEMATIC
+#define EP_TOOLTIP_COUNT 13
 TooltipDefinition g_epTT[EP_TOOLTIP_COUNT] = {
+    { IDC_WORLD_MIN_X,      {1,1,1,1,1,1,1,1}, L"Western edge of volume exported", L""},
+    { IDC_WORLD_MIN_Y,      {1,1,1,1,1,1,1,1}, L"Lower bound of volume exported", L""},
+    { IDC_WORLD_MIN_Z,      {1,1,1,1,1,1,1,1}, L"Northern edge of volume exported", L""},
+    { IDC_WORLD_MAX_X,      {1,1,1,1,1,1,1,1}, L"Eastern edge of volume exported", L""},
+    { IDC_WORLD_MAX_Y,      {1,1,1,1,1,1,1,1}, L"Upper bound of volume exported", L""},
+    { IDC_WORLD_MAX_Z,      {1,1,1,1,1,1,1,1}, L"Southern edge of volume exported", L""},
+    { IDC_RADIO_EXPORT_NO_MATERIALS,        {1,1,0,1,1,1,1,0}, L"No materials are exported", L""},
+    { IDC_RADIO_EXPORT_MTL_COLORS_ONLY,     {1,1,0,2,2,0,1,0}, L"Solid colors are exported, with no textures", L"Solid colors are exported"},
+    { IDC_RADIO_EXPORT_SOLID_TEXTURES,      {1,1,1,0,0,0,1,0}, L"Solid 'noisy' textures are exported", L""},
+    { IDC_RADIO_EXPORT_FULL_TEXTURES,       {1,1,2,0,0,0,1,0}, L"Three 'mosaic' textures of all blocks are exported; useful for 3D printing, not great for rendering", L"For USD, one large 'mosaic' texture of all blocks is exported"},
+    { IDC_RADIO_EXPORT_SEPARATE_TILES,      {1,1,1,0,0,0,0,0}, L"Separate textures are exported for each block face, as needed", L""},
     { IDC_SCALE_LIGHTS,     {0,0,1,0,0,0,0,0}, L"The relative brightness of the sun and dome lights", L""},
     { IDC_SCALE_EMITTERS,   {0,0,1,0,0,0,0,0}, L"The relative brightness of emissive blocks such as torches and lava", L""},
 };
@@ -523,6 +523,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                     CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES, 1);
                     CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, 0);
                     SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
+                    CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_CHECKED);
+                    CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_UNCHECKED);
                 }
                 else if (epd.fileType == FILE_TYPE_ASCII_STL) {
                     CheckDlgButton(hDlg, IDC_RADIO_EXPORT_NO_MATERIALS, 1);
@@ -540,10 +542,29 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             }
             else {
                 // render
-                // set the combo box material to color (might already be that, which is fine)
-                // not used in rendering, so nevermind: SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
-                CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
-                //CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_CHECKED);
+                if (epd.fileType == FILE_TYPE_ASCII_STL) {
+                    CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, 0);
+                    CheckDlgButton(hDlg, IDC_RADIO_EXPORT_NO_MATERIALS, 1);
+                    SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE, 0);
+                }
+                else if (epd.fileType == FILE_TYPE_BINARY_MAGICS_STL || epd.fileType == FILE_TYPE_BINARY_VISCAM_STL) {
+                    CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, 0);
+                    CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MTL_COLORS_ONLY, 1);
+                    SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
+                }
+                else if (epd.fileType == FILE_TYPE_VRML2) {
+                    CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, 0);
+                    CheckDlgButton(hDlg, IDC_RADIO_EXPORT_FULL_TEXTURES, 1);
+                    SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
+                }
+                else {
+                    // Valid selection (OBJ or USD)
+                    // set the combo box material to color (might already be that, which is fine)
+                    // not used in rendering, but still set it:
+                    SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
+                    CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_UNCHECKED);
+                    CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_CHECKED);
+                }
             }
             goto ChangeMaterial;
 
