@@ -17,7 +17,7 @@ public:
 void getExportPrintData(ExportFileData* pEpd);
 void setExportPrintData(ExportFileData* pEpd);
 int doExportPrint(HINSTANCE hInst, HWND hWnd);
-HWND CreateToolTip(int toolID, HWND hDlg, PTSTR pszText);
+HWND CreateToolTip(int toolID, HINSTANCE hInst, HWND hDlg, PTSTR pszText);
 
 // we assume we need no more than 2 different messages (typically OBJ vs. USD) for any tool tip
 typedef struct TooltipDefinition {

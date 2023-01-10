@@ -347,13 +347,13 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             default:
                 assert(0);  // wrong value, not between 0-2 inclusive, for fileTypeMsg
             case 0:
-                tt = CreateToolTip(g_epTT[itt].id, hDlg, L"Not used for this file format");
+                tt = CreateToolTip(g_epTT[itt].id, g_hInst, hDlg, L"Not used for this file format");
                 break;
             case 1:
-                tt = CreateToolTip(g_epTT[itt].id, hDlg, g_epTT[itt].name1);
+                tt = CreateToolTip(g_epTT[itt].id, g_hInst, hDlg, g_epTT[itt].name1);
                 break;
             case 2:
-                tt = CreateToolTip(g_epTT[itt].id, hDlg, g_epTT[itt].name2);
+                tt = CreateToolTip(g_epTT[itt].id, g_hInst, hDlg, g_epTT[itt].name2);
                 break;
             }
             if (tt != NULL) {
@@ -1391,7 +1391,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
 // Returns:
 //   The handle to the tooltip.
 //
-HWND CreateToolTip(int toolID, HWND hDlg, PTSTR pszText)
+HWND CreateToolTip(int toolID, HINSTANCE hInst, HWND hDlg, PTSTR pszText)
 {
     if (!toolID || !hDlg || !pszText)
     {
@@ -1400,13 +1400,13 @@ HWND CreateToolTip(int toolID, HWND hDlg, PTSTR pszText)
     // Get the window of the tool.
     HWND hwndTool = GetDlgItem(hDlg, toolID);
 
-    // Create the tooltip. g_hInst is the global instance handle.
+    // Create the tooltip.
     HWND hwndTip = CreateWindowEx(NULL, TOOLTIPS_CLASS, NULL,
         WS_POPUP | TTS_ALWAYSTIP | TTS_NOPREFIX, // TTS_BALLOON to get balloon look, which I don't like
         CW_USEDEFAULT, CW_USEDEFAULT,
         CW_USEDEFAULT, CW_USEDEFAULT,
         hDlg, NULL,
-        g_hInst, NULL);
+        hInst, NULL);
 
     if (!hwndTool || !hwndTip)
     {
