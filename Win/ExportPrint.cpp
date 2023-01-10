@@ -39,7 +39,7 @@ static int curPhysMaterial;
 static HINSTANCE g_hInst;
 
 // OBJ, OBJ, USD, MAGICS STL, VISCAM STL, ASCII STL, VRML2, SCHEMATIC
-#define EP_TOOLTIP_COUNT 13
+#define EP_TOOLTIP_COUNT 26
 TooltipDefinition g_epTT[EP_TOOLTIP_COUNT] = {
     { IDC_WORLD_MIN_X,      {1,1,1,1,1,1,1,1}, L"Western edge of volume exported", L""},
     { IDC_WORLD_MIN_Y,      {1,1,1,1,1,1,1,1}, L"Lower bound of volume exported", L""},
@@ -47,15 +47,27 @@ TooltipDefinition g_epTT[EP_TOOLTIP_COUNT] = {
     { IDC_WORLD_MAX_X,      {1,1,1,1,1,1,1,1}, L"Eastern edge of volume exported", L""},
     { IDC_WORLD_MAX_Y,      {1,1,1,1,1,1,1,1}, L"Upper bound of volume exported", L""},
     { IDC_WORLD_MAX_Z,      {1,1,1,1,1,1,1,1}, L"Southern edge of volume exported", L""},
+    { IDC_CREATE_ZIP,       {1,1,1,1,1,1,1,1}, L"Put all exported files in a corresponding ZIP file", L""},
+    { IDC_CREATE_FILES,     {1,1,1,1,1,1,1,1}, L"If unchecked, files are deleted after being put in a ZIP file", L""},
     { IDC_RADIO_EXPORT_NO_MATERIALS,        {1,1,0,1,1,1,1,0}, L"No materials are exported", L""},
     { IDC_RADIO_EXPORT_MTL_COLORS_ONLY,     {1,1,0,2,2,0,1,0}, L"Solid colors are exported, with no textures", L"Solid colors are exported"},
     { IDC_RADIO_EXPORT_SOLID_TEXTURES,      {1,1,1,0,0,0,1,0}, L"Solid 'noisy' textures are exported", L""},
-    { IDC_RADIO_EXPORT_FULL_TEXTURES,       {1,1,2,0,0,0,1,0}, L"Three 'mosaic' textures of all blocks are exported; useful for 3D printing, not great for rendering", L"For USD, one large 'mosaic' texture of all blocks is exported"},
+    { IDC_RADIO_EXPORT_FULL_TEXTURES,       {1,1,2,0,0,0,1,0}, L"Three large, mosaic textures of all blocks are exported; useful for 3D printing, not great for rendering", L"For USD, one large, mosaic texture of all blocks is exported"},
     { IDC_RADIO_EXPORT_SEPARATE_TILES,      {1,1,1,0,0,0,0,0}, L"Separate textures are exported for each block face, as needed", L""},
+    { IDC_TILE_DIR,         {1,1,2,0,0,0,1,0}, L"Textures are put in a subdirectory called this (set blank for no subdirectory)", L"In the '*_materials' subdirectory, textures are put in a subdirectory called this (set blank for no subdirectory)"},
+    { IDC_TEXTURE_RGB,      {1,1,1,0,0,0,1,0}, L"If you previously exported textures for this model, you can save time by unchecking these", L""},
+    { IDC_TEXTURE_A,        {1,1,1,0,0,0,1,0}, L"If you previously exported textures for this model, you can save time by unchecking these", L""},
+    { IDC_TEXTURE_RGBA,     {1,1,1,0,0,0,1,0}, L"If you previously exported textures for this model, you can save time by unchecking these", L""},
     { IDC_SCALE_LIGHTS,     {0,0,1,0,0,0,0,0}, L"The relative brightness of the sun and dome lights", L""},
     { IDC_SCALE_EMITTERS,   {0,0,1,0,0,0,0,0}, L"The relative brightness of emissive blocks such as torches and lava", L""},
+    { IDC_SEPARATE_TYPES,   {1,1,0,0,0,0,0,0}, L"Each type of block - stone, logs, fences, and so on - are put in a separate group", L""},
+    { IDC_INDIVIDUAL_BLOCKS,{1,1,1,0,0,0,0,0}, L"All faces of every block are output. Useful if you are animating blocks; you may also then want to 'Make groups objects', below.", L""},
+    { IDC_MATERIAL_PER_BLOCK_FAMILY,{1,1,0,0,0,0,0,0}, L"For mosaic texures only: if unchecked, a single material is shared by **all** blocks. Rarely a good idea.", L""},
+    { IDC_SPLIT_BY_BLOCK_TYPE,  {1,1,0,0,0,0,0,0}, L"Checked, every type of block has a separate material. Unchecked, blocks in a 'family' (such as 'planks') share a single material.", L""},
+    { IDC_MAKE_GROUPS_OBJECTS,  {1,1,0,0,0,0,0,0}, L"Checked, there is one object. Unchecked, each OBJ group is a separate object; useful for animation.", L""},
+    { IDC_G3D_MATERIAL,     {1,1,2,0,0,0,0,0}, L"Output extended PBR materials and textures, such as roughness, normals, and emission, as available", L"Use custom 'blocky' shaders for MDL. Uncheck if your textures are high resolution."},
+    { IDC_EXPORT_MDL,       {0,0,1,0,0,0,0,0}, L"Export MDL shaders. Unchecked means export only UsdPreviewSurface materials.", L""},
 };
-
 
 ExportPrint::ExportPrint(void)
 {
