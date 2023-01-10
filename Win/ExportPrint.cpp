@@ -38,10 +38,22 @@ static int prevPhysMaterial;
 static int curPhysMaterial;
 static HINSTANCE g_hInst;
 
+
+#define FILE_TYPE_WAVEFRONT_ABS_OBJ 0
+#define FILE_TYPE_WAVEFRONT_REL_OBJ 1
+#define FILE_TYPE_USD               2
+#define FILE_TYPE_BINARY_MAGICS_STL 3
+#define FILE_TYPE_BINARY_VISCAM_STL 4
+#define FILE_TYPE_ASCII_STL         5
+#define FILE_TYPE_VRML2             6
+// this is an entirely separate file type, only exportable through the schematic export option
+#define FILE_TYPE_SCHEMATIC         7
+
+
 #define EP_TOOLTIP_COUNT 2
 TooltipDefinition g_epTT[EP_TOOLTIP_COUNT] = {
-    { IDC_SCALE_LIGHTS, L"For USD export, the relative brightness of the sun and dome lights"},
-    { IDC_SCALE_EMITTERS, L"For USD export, the relative brightness of emissive blocks such as torches and lava"},
+    { IDC_SCALE_LIGHTS,     {0,0,1,0,0,0,0,0}, L"The relative brightness of the sun and dome lights", L""},
+    { IDC_SCALE_EMITTERS,   {0,0,1,0,0,0,0,0}, L"The relative brightness of emissive blocks such as torches and lava", L""},
 };
 
 
@@ -288,7 +300,19 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
 
         // tooltips
         for (int itt = 0; itt < EP_TOOLTIP_COUNT; itt++) {
-            tt = CreateToolTip(g_epTT[itt].id, hDlg, g_epTT[itt].name);
+            switch (g_epTT[itt].fileTypeMsg[epd.fileType]) {
+            default:
+                assert(0);  // wrong value, not between 0-2 inclusive, for fileTypeMsg
+            case 0:
+                tt = CreateToolTip(g_epTT[itt].id, hDlg, L"Not used for this file format");
+                break;
+            case 1:
+                tt = CreateToolTip(g_epTT[itt].id, hDlg, g_epTT[itt].name1);
+                break;
+            case 2:
+                tt = CreateToolTip(g_epTT[itt].id, hDlg, g_epTT[itt].name2);
+                break;
+            }
             if (tt != NULL) {
                 SendMessage(tt, TTM_ACTIVATE, TRUE, 0);
             }

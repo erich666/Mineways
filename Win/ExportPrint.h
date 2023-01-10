@@ -19,7 +19,10 @@ void setExportPrintData(ExportFileData* pEpd);
 int doExportPrint(HINSTANCE hInst, HWND hWnd);
 HWND CreateToolTip(int toolID, HWND hDlg, PTSTR pszText);
 
+// we assume we need no more than 2 different messages (typically OBJ vs. USD) for any tool tip
 typedef struct TooltipDefinition {
     const int id;
-    const PTSTR name;
+    const int fileTypeMsg[FILE_TYPE_TOTAL];
+    const PTSTR name1;
+    const PTSTR name2;
 } TooltipDefinition;
