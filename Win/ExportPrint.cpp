@@ -39,7 +39,7 @@ static int curPhysMaterial;
 static HINSTANCE g_hInst;
 
 // OBJ, OBJ, USD, MAGICS STL, VISCAM STL, ASCII STL, VRML2, SCHEMATIC
-#define EP_TOOLTIP_COUNT 26
+#define EP_TOOLTIP_COUNT 32
 TooltipDefinition g_epTT[EP_TOOLTIP_COUNT] = {
     { IDC_WORLD_MIN_X,      {1,1,1,1,1,1,1,1}, L"Western edge of volume exported", L""},
     { IDC_WORLD_MIN_Y,      {1,1,1,1,1,1,1,1}, L"Lower bound of volume exported", L""},
@@ -67,6 +67,12 @@ TooltipDefinition g_epTT[EP_TOOLTIP_COUNT] = {
     { IDC_MAKE_GROUPS_OBJECTS,  {1,1,0,0,0,0,0,0}, L"Checked, there is one object. Unchecked, each OBJ group is a separate object; useful for animation.", L""},
     { IDC_G3D_MATERIAL,     {1,1,2,0,0,0,0,0}, L"Output extended PBR materials and textures, such as roughness, normals, and emission, as available", L"Use custom 'blocky' shaders for MDL. Uncheck if your textures are high resolution."},
     { IDC_EXPORT_MDL,       {0,0,1,0,0,0,0,0}, L"Export MDL shaders. Unchecked means export only UsdPreviewSurface materials.", L""},
+    { IDC_MAKE_Z_UP,        {1,1,1,1,1,1,1,1}, L"The Y axis is up by default; check to instead use Z as the up direction", L""},
+    { IDC_COMPOSITE_OVERLAY,{1,1,1,0,0,0,1,0}, L"If checked, vines, ladders, rails, etc. are composited onto the underlying texture, creating a new texture. Mostly needed for 3D printing.", L""},
+    { IDC_CENTER_MODEL,     {1,1,1,1,1,1,1,1}, L"Checked means model is roughly centered around (0,0,0); unchecked means use the world's coordinates", L""},
+    { IDC_BIOME,            {1,1,1,1,1,1,1,0}, L"The biome at the center of the model is applied to the whole model, likely changing its coloration", L""},
+    { IDC_BLOCKS_AT_BORDERS,{1,1,1,1,1,1,1,0}, L"Unchecked means the bottoms and sides of blocks at the edge of the volume selected are not exported, reducing polygon count", L""},
+    { IDC_TREE_LEAVES_SOLID,{1,1,1,0,0,0,1,0}, L"Checked means use solid, non-transparent textures for leaves, so reducing polygon count", L""},
 };
 
 ExportPrint::ExportPrint(void)
