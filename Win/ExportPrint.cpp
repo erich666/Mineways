@@ -39,7 +39,7 @@ static int curPhysMaterial;
 static HINSTANCE g_hInst;
 
 // OBJ, OBJ, USD, MAGICS STL, VISCAM STL, ASCII STL, VRML2, SCHEMATIC
-#define EP_TOOLTIP_COUNT 32
+#define EP_TOOLTIP_COUNT 55
 TooltipDefinition g_epTT[EP_TOOLTIP_COUNT] = {
     { IDC_WORLD_MIN_X,      {1,1,1,1,1,1,1,1}, L"Western edge of volume exported", L""},
     { IDC_WORLD_MIN_Y,      {1,1,1,1,1,1,1,1}, L"Lower bound of volume exported", L""},
@@ -73,7 +73,32 @@ TooltipDefinition g_epTT[EP_TOOLTIP_COUNT] = {
     { IDC_BIOME,            {1,1,1,1,1,1,1,0}, L"The biome at the center of the model is applied to the whole model, likely changing its coloration", L""},
     { IDC_BLOCKS_AT_BORDERS,{1,1,1,1,1,1,1,0}, L"Unchecked means the bottoms and sides of blocks at the edge of the volume selected are not exported, reducing polygon count", L""},
     { IDC_TREE_LEAVES_SOLID,{1,1,1,0,0,0,1,0}, L"Checked means use solid, non-transparent textures for leaves, so reducing polygon count", L""},
+    { IDC_RADIO_SCALE_TO_HEIGHT,    {1,1,1,1,1,1,1,0}, L"Normally for 3D printing, specify the height of the model", L""},
+    { IDC_MODEL_HEIGHT,     {1,1,1,1,1,1,1,0}, L"Normally for 3D printing, specify the height of the model", L""},
+    { IDC_RADIO_SCALE_TO_MATERIAL,  {1,1,1,1,1,1,1,0}, L"For 3D printing, absolutely minimize the size of the model for the material", L""},
+    { IDC_RADIO_SCALE_BY_BLOCK, {1,1,1,1,1,1,1,0}, L"For rendering and 3D printing, change the size of a block", L""},
+    { IDC_BLOCK_SIZE,       {1,1,1,1,1,1,1,0}, L"For rendering and 3D printing, change the size of a block", L""},
+    { IDC_RADIO_SCALE_BY_COST,  {1,1,1,1,1,1,1,0}, L"For 3D printing, aim for a (very) approximate cost", L""},
+    { IDC_COST,             {1,1,1,1,1,1,1,0}, L"For 3D printing, aim for a (very) approximate cost", L""},
+    { IDC_FILL_BUBBLES,   {1,1,1,1,1,1,1,0}, L"Any hollow volume is filled with solid material", L""},
+    { IDC_SEAL_ENTRANCES, {1,1,1,1,1,1,1,0}, L"Suboption to fill in the insides of buildings", L""},
+    { IDC_SEAL_SIDE_TUNNELS,  {1,1,1,1,1,1,1,0}, L"Suboption to fill in isolated tunnels", L""},
+    { IDC_CONNECT_PARTS,  {1,1,1,1,1,1,1,0}, L"For 3D printing, connect neighboring blocks if needed", L""},
+    { IDC_CONNECT_CORNER_TIPS,{1,1,1,1,1,1,1,0}, L"Suboption to connect separate objects touching at just a point", L""},
+    { IDC_CONNECT_ALL_EDGES,  {1,1,1,1,1,1,1,0}, L"Suboption to connect all shared edges", L""},
+    { IDC_DELETE_FLOATERS,{1,1,1,1,1,1,1,0}, L"Delete small objects floating in space, unconnected to the main model", L""},
+    { IDC_FLOAT_COUNT,    {1,1,1,1,1,1,1,0}, L"Size of small objects in blocks", L""},
+    { IDC_HOLLOW,         {1,1,1,1,1,1,1,0}, L"For 3D printing, hollow out the bottom of the model to save material", L""},
+    { IDC_HOLLOW_THICKNESS,   {1,1,1,1,1,1,1,0}, L"For 3D printing, how thick to make walls when hollowing", L""},
+    { IDC_SUPER_HOLLOW,   {1,1,1,1,1,1,1,0}, L"Be more aggressive in hollowing out volumes", L""},
+    { IDC_MELT_SNOW,      {1,1,1,1,1,1,1,0}, L"For 3D printing, melt snow blocks (for sealing entrances)", L""},
+    { IDC_EXPORT_ALL,     {1,1,1,1,1,1,1,0}, L"For 3D printing, export more precise versions of partial blocks", L""},
+    { IDC_FATTEN,         {1,1,1,1,1,1,1,0}, L"Suboption to make the partial blocks thicker, to print better", L""},
+    { IDC_SHOW_PARTS,     {1,1,1,1,1,0,1,0}, L"For 3D printing, show separated parts in different colors", L""},
+    { IDC_SHOW_WELDS,     {1,1,1,1,1,0,1,0}, L"For 3D printing, show blocks Mineways adds to connect objects", L""},
 };
+
+
 
 ExportPrint::ExportPrint(void)
 {
