@@ -2745,7 +2745,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
   <LI>Version 10.07, 1/11/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1007.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
     <BR>
     <UL>
-	<LI>Added tooltips and help button for the export dialog. Hover over a checkbox, etc., and get additional information. <I>(Thanks, StandingPadAnimations)</I>
+	<LI>Added tooltips and help button for the export dialog. Hover over a checkbox, etc., and get additional information. <I>(Thanks, StandingPadAnimations, for the suggestion)</I>
 	<LI>Fix obscure export interaction and mode problems, such as exporting OBJ without materials then with materials giving assertions on swatches.
     <LI>Improve documentation a bit for the myriad export options, including <a href="#options">an old-school image map</a>.
 	</UL>
@@ -2753,12 +2753,12 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
   <LI>Version 10.06, 1/7/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1006.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
     <BR>
     <UL>
-	<LI>Fixed <a href="https://github.com/erich666/Mineways/issues/102">stair neighbor export bug</a> for the old world format, 1.12 and earlier. <I>(Thanks, ouabout)</I>
-	<LI>Change default export for rendering for OBJ from 3 large images to individual textures. In polling users, seven out of eight wanted this change, and I agree. The large mosaic images are handy, but they do not work well with standard texture filter techniques such as mipmapping. Best to give the higher-quality export format by default. <I>(Thanks, StandingPadAnimations)</I>
+	<LI>Fixed <a href="https://github.com/erich666/Mineways/issues/102">stair neighbor export bug</a> for the old world format, 1.12 and earlier. <I>(Thanks, ouabout, for the test case)</I>
+	<LI>Change default export for rendering for OBJ from 3 large images to individual textures. In polling users, seven out of eight wanted this change, and I agree. The large mosaic images are handy, but they do not work well with standard texture filter techniques such as mipmapping. Best to give the higher-quality export format by default. <I>(Thanks, StandingPadAnimations, for the suggestion)</I>
 	<LI>Fix lantern chains, which had disappeared when I added propagule code - oops. <I>(Many thanks to Eearslya for <a href="https://github.com/erich666/Mineways/pull/103">their pull request</a> for this fix.)</I>
 	<LI>USD improvements: better camera (proper Euler angles) and output first, enable indirect diffuse for the Omniverse real-time renderer.
 	<LI>Change ice to have a roughness of 0.2 instead of 0.5, making it a bit more reflective.
-	<LI>Better ChannelMixer 1.13 and TileMaker 3.18 warnings. Now "-u" (or "-v") on the command line for either will show any image files that are not used, instead of the previous behavior: showing all unused files (of any sort) by default. Verbose "-v" will also show, at the end, all block textures that were <I>not</I> found in the resource pack (i.e., not replaced) but are used in Minecraft, which can be a help. This is like the "-m" option in TileMaker. <I>(Thanks, Jaime Hedrera)</I>
+	<LI>Better ChannelMixer 1.13 and TileMaker 3.18 warnings. Now "-u" (or "-v") on the command line for either will show any image files that are not used, instead of the previous behavior: showing all unused files (of any sort) by default. Verbose "-v" will also show, at the end, all block textures that were <I>not</I> found in the resource pack (i.e., not replaced) but are used in Minecraft, which can be a help. This is like the "-m" option in TileMaker. <I>(Thanks, Jaime Hedrera, for the suggestion)</I>
 	<LI>Give <a href="mineways.html#mcpe">a full explanation</a> of the steps for using Amulet for Bedrock conversions, describing options and pitfalls.
     </UL>
 
