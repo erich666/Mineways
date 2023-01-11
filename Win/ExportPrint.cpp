@@ -714,7 +714,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
         case IDC_SHOW_PARTS:
         {
             UINT isInactive = IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_NO_MATERIALS)
-                || (epd.fileType == FILE_TYPE_ASCII_STL);
+                | (epd.fileType == FILE_TYPE_ASCII_STL);
             if (isInactive)
             {
                 CheckDlgButton(hDlg, IDC_SHOW_PARTS, BST_INDETERMINATE);
@@ -730,7 +730,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
         case IDC_SHOW_WELDS:
         {
             UINT isInactive = IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_NO_MATERIALS)
-                || (epd.fileType == FILE_TYPE_ASCII_STL);
+                | (epd.fileType == FILE_TYPE_ASCII_STL);
             if (isInactive)
             {
                 CheckDlgButton(hDlg, IDC_SHOW_WELDS, BST_INDETERMINATE);
