@@ -106,14 +106,26 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
    <LI><a href="#texture_output">Texture Export</a>
    <LI><a href="#custom_terrain">Custom Terrain</a>
    <LI><a href="#blurry">Blurry Textures</a>
-   <LI><a href="#obj_export_options">Wavefront OBJ and USD Export Options</a>
+   <LI><a href="#obj_export_options">Wavefront OBJ Export Group Options</a>
    <LI><a href="#full_material">Custom Material</a>
-   <LI><a href="#composite">Create Composite Overlay Faces</a>
    <LI><a href="#usd_export_options">Pixar USD File Export Options</a>
-   <LI><a href="#center_model">Center Model Around the Origin</a>
-   <LI><a href="#leaves_solid">Tree Leaves Solid</a>
  </UL>
- <LI><a href="#print">Exporting to 3D print</a> - in-depth coverage of 3D print options.
+ <LI><a href="#opt_globals">Global Model Options</a> - modify block coordinates and textures for output
+ <UL>
+   <LI><a href="#z_up">Make Z the up direction instead of Y</a>
+   <LI><a href="#composite">Create composite overlay faces</a>
+   <LI><a href="#center_model">Center model around the origin</a>
+   <LI><a href="#biome_center">Use biome in center of export area</a>
+   <LI><a href="#border_faces">Create block faces at the borders</a>
+   <LI><a href="#leaves_solid">Tree leaves solid</a>
+   <LI><a href="#rotate_model">Rotate model clockwise</a>
+ </UL>
+ <LI><a href="#print">Exporting to 3D print</a> - 3D print options.
+ <UL>
+   <LI><a href="#opt_size">Model Size</a>
+   <LI><a href="#opt_fill">Filling and Hollowing Options</a>
+   <LI><a href="#opt_debug">Debugging Visualization</a>
+ </UL>
  <LI><a href="#tilemaker">ChannelMixer and TileMaker</a> - how to make your own custom texture terrainExt.png files.
  <LI><a href="#rendering">Rendering Tips</a> - help for importing to different renderers.
 <UL>
@@ -184,7 +196,7 @@ NOTE: the new schematic file format <a href="https://github.com/erich666/Mineway
 <P>
 When you import a file's settings, the settings affect only the particular file type. For example, if you read in a WRL file for 3D printing, its settings will not affect OBJ rendering export (or even OBJ 3D printing export, for export settings specific to OBJ files, such as material output). This feature is backward compatible to Mineways 2.0, though features added since then will be given default values. The two exceptions are that the "Create a ZIP" and "create files themselves" export settings are not changed when settings are imported.
 <P>
-One other extremely useful type of file that Import Settings can read in is a script file. You can create script files to automatically perform all sorts of operations, including special ways of modifying blocks during export. See <a href="scripting.html">the scripting documentation</a> for more information.
+One other useful type of file that Import Settings can read in is a script file. You can create script files to automatically perform all sorts of operations, including special ways of modifying blocks during export. See <a href="scripting.html">the scripting documentation</a> for more information.
 </P>
 The first image is a schematic <i>pikachu7795240.schematic</i> loaded via "File | Open..." In the second the schematic is renamed <i>pikachu7795240repeat.schematic</i> and loaded. The word "repeat" in the file name tips off Mineways to repeat the object. Also, I typed Control-A to select a single copy of the schematic.
 <P>
@@ -287,7 +299,7 @@ Here's an example, side to side, of a lot of the blocks in Minecraft.
     <img src="images/g3d_view.jpg" alt="OBJ render with G3D">
   </div><P>
 <h3 id="schemes">Color Schemes</h3> 
-Color schemes allows you to change the color for many blocks, and - extremely useful for 3D printing and some rendering applications - remove any blocks you want from view. <b>One tip:</b> you can eliminate all glass from your model by setting its alpha to 0 in a color scheme. <a href="http://www.youtube.com/watch?v=9ZJZMZEfEC0&t=7m20s">This part of this video</a> shows how to use color schemes to do this.
+Color schemes allows you to change the color for many blocks, and - useful for 3D printing and some rendering applications - remove any blocks you want from view. <b>One tip:</b> you can eliminate all glass from your model by setting its alpha to 0 in a color scheme. <a href="http://www.youtube.com/watch?v=9ZJZMZEfEC0&t=7m20s">This part of this video</a> shows how to use color schemes to do this.
 <P>
 <B>Note:</B> with the new file format introduced with Minecraft 1.13, the whole "blocks from 0-255" way of listing block types is not valid for newer blocks. Mineways still uses a form of this internally, so the feature is still in place. Also, Mineways has evolved to provide colors for different colored blocks of the same type. For example, the various wool blocks will display using their colors. Changing the color of the wool block using a color scheme will change only the white wool version of the block. Color schemes still have their uses, such as for removing some blocks from view and from export. Color schemes use my internal block type numbering system for blocks from 1.13 on. If you get flaky problems with older color schemes, at worst you can always run REGEDIT and delete the ColorSchemes directory at "Computer\HKEY_CURRENT_USER\Software\&lt;your name here&gt;\Mineways".
 <P>
@@ -309,7 +321,7 @@ There are some solutions to the price problem:
 <UL>
 <LI>Switch to the white and flexible physical material. Choose this material in the options dialog on export and the thin wall minimum drops to 0.7 mm. This brings the price (and size) of your model down, from about $6.00 per thousand blocks to $0.48 per thousand. You do lose color printout, but can <a href="https://support.shapeways.com/hc/en-us/articles/360033930173-Cleaning-and-painting-Fine-Detail-Plastic-models">paint the model yourself</a>. Your model should print safely.
 <LI>Print it smaller and cross your fingers. Change "Make each block 2 mm high" to "Make each block 1 mm high", for example: at 1 mm/block, you can print 8 times as many blocks as 2 mm/block: $0.75 per thousand blocks. I like this scale a lot, it's cute. Two examples: <a href="http://www.shapeways.com/model/458361/small-bowl.html">World in a Bowl</a> and <a href="http://www.shapeways.com/model/432763/sentinel-1mm.html">Sentinel Castle</a>. If you don't have any tree trunks (which at 1 mm <a href="http://www.flickr.com/photos/postapocalyptic/6606215281/in/pool-1862849@N21/">will snap right off</a>), thin walls, or other filigree, the model should be fine. You can remove trees from your model by using a <a href="#schemes">color scheme</a> that makes leaves and logs invisible. See <a href="http://www.youtube.com/watch?v=9ZJZMZEfEC0&t=7m20s">this video</a>, which shows how to make glass blocks invisible; just do the same with logs and leaves. At worst, at 1 mm other little bits might break off. Companion cubes will print with no problems, models of ships with thin masts and lanyards are much less likely to survive. Keep going smaller until you like the price, or simpler yet, just choose the scaling option "Aim for a cost of $25.00" or whatever you want. Note that Shapeways itself might refuse to print your model if they believe some parts are too thin to support the structure; <a href="images/model_fail.jpg">here's an example</a> where Shapeways decided the support struts were not thick enough.
-<LI>Learn more about the options below. Proper use of "fill bubbles" and "super-hollow" can easily combine to reduce your costs by 2/3rds. <a href="#seal">"Seal off entrances"</a> and "Fill in isolated tunnels" can also help. These options are extremely useful for going to a smaller scale but still having thick enough walls. The strategy I like is to have the interior of the building get filled with blocks by using "fill bubbles" and then have "super-hollow" remove most of these blocks, leaving a shell that's thick enough to print. Long and short, don't print what you can't see.
+<LI>Learn more about the options below. Proper use of "fill bubbles" and "super-hollow" can easily combine to reduce your costs by 2/3rds. <a href="#seal">"Seal off entrances"</a> and "Fill in isolated tunnels" can also help. These options are useful for going to a smaller scale but still having thick enough walls. The strategy I like is to have the interior of the building get filled with blocks by using "fill bubbles" and then have "super-hollow" remove most of these blocks, leaving a shell that's thick enough to print. Long and short, don't print what you can't see.
 </UL>
 By the way, I hear "it would be cheaper using LEGOs" a fair bit. LEGO blocks cost around 4-5 cents a block, 2 mm colored sandstone 3D printed blocks run about 6/10th of a cent. There are advantages to LEGOs (larger, reusable, fun to make) and disadvantages (no textures, not perfect cubes), but LEGO cost is not an advantage.
 <P>
@@ -329,20 +341,40 @@ By default, <a href="http://en.wikipedia.org/wiki/Wavefront_OBJ">Wavefront OBJ</
 
 <HR>
 <H3 id="options">
-Export options
+Export Options
 </H3>
 <p>
-There is a bewildering dialog that pops up on export, with a ton of options. You can blithely ignore this dialog and always just click OK (or the Enter key). However, some of the options are extremely useful, so plow on if you want to make sure your model is good enough, smart enough, and gosh darn it people will like it. Note that in the program you can hover over most of the options to get a short reminder of what each is about; some you have to hover over the box itself.
-</p>
-<p class="center">
-<img src="images/export_dialog.jpg" alt="export dialog">
+There is a bewildering dialog that pops up on export, with a ton of options. You can blithely ignore this dialog and just click <B>OK</B> (or hit the Enter key). But, there are lots of variations possible: you may want to animate individual blocks, need special options for your rendering program, want to resize or reposition your model, on and on.
+<P>
+When this dialog is up in the program, you can hover over most of the options to get a bit more information on what each is about; some you have to hover over the box itself.
+<P>
+If you find you always want certain options set, you can easily do so using mineways.bat to start the program and edit the script file scripting/startup.mwscript. See those files and <a href="scripting.html#clo">scripting</a> for more on doing so.
 <p>
+<B>Click on the image below</B> to be taken to the relevant documentation (yes, old-school image map!):
+<p class="center">
+<img src="images/export_dialog.jpg" usemap="#image-map" alt="export dialog">
+<!-- Image Map Generated by http://www.image-map.net/ -->
+<map name="image-map">
+    <area target="" alt="coordinates" title="World coordinates selection" href="#opt_coord" coords="0,0,433,121" shape="rect">
+    <area target="" alt="zip and files" title="zip and files" href="#opt_zip" coords="0,122,433,143" shape="rect">
+    <area target="" alt="materials" title="Material Export" href="#terrain_png" coords="0,144,281,249" shape="rect">
+    <area target="" alt="textures" title="Texture Output" href="#texture_output" coords="0,250,281,269" shape="rect">
+    <area target="" alt="grouping" title="Export Group Options" href="#obj_export_options" coords="282,144,433,257" shape="rect">
+    <area target="" alt="custom material" title="Custom material" href="#full_material" coords="282,258,433,307" shape="rect">
+    <area target="" alt="lighting" title="USD Lighting" href="#opt_lighting" coords="0,270,281,307" shape="rect">
+    <area target="" alt="global options" title="Global Model Options" href="#opt_globals" coords="0,308,433,415" shape="rect">
+    <area target="" alt="size" title="size" href="#print" coords="434,0,905,151" shape="rect">
+    <area target="" alt="3D print and fill" title="3D print and fill" href="#opt_fill" coords="434,152,906,315" shape="rect">
+    <area target="" alt="debug" title="debug" href="#opt_debug" coords="434,316,711,415" shape="rect">
+<!--     <area target="" alt="help and exit" title="help and exit" href="#opt_ok" coords="712,316,906,415" shape="rect"> -->
+</map>
 
-<B>World coordinates selection</B>: you can see and change the 3D volume of space to export from your world. If you want to know the location of a place in your world, use the F3 key when playing Minecraft. Note that negative values like -5.239 will round down to -6. Also note that your Y-value altitude is one higher than where your feet are located, and so two higher than the ground beneath you.
+<p>
+<B><a name="opt_coord">World coordinates selection</a>:</B> you can see and change the 3D volume of space to export from your world. If you want to know the location of a place in your world, use the F3 key when playing Minecraft. Note that negative values like -5.239 will round down to -6. Also note that your Y-value altitude is one higher than where your feet are located, and so two higher than the ground beneath you.
 <P>
 <B>Key tip:</B> If you exported a model in an earlier session and want to use the same settings for another export, read the model file (.OBJ, .WRL, or for STL the .TXT file) with the <a href="#importsettings">"Import Settings" command</a> from the "File" Menu.
 <P>
-<b>Create a ZIP:</b> like it says, when exporting for 3D printing a ZIP file of the exported files is created, ready for upload for 3D printing at Shapeways or other service.
+<b><a name="opt_zip">Create a ZIP:</a></b> like it says, when exporting for 3D printing a ZIP file of the exported files is created, ready for upload for 3D printing at Shapeways or other service.
 <P>
 <b>Create files themselves:</b> the exported files themselves are also made available for previewing. By default, this option is off for VRML 3D printing, on for everything else. This is done because too often the .wrl file got uploaded to Shapeways; you must upload the .zip file.
 
@@ -369,11 +401,11 @@ Content is shown on the left exported with "all textures to three large images" 
 
 <a id="texture_output"><H4>Texture Output</H4></a>
 
-If you "Export all textures to three large images", by default there are three types of files that can be output to PNG files, as needed. "RGB" is a colors-only file, "RGBA" is colors and transparency, "A" is just the transparency values. For 3D printing, only the RGB file is exported. For rendering export, if any blocks needing transparency are found in your model, then the "RGBA" and "A" files are also exported. Most rendering systems need only one or two of these file types, not all three. You can turn off output of any of these file types by unchecking the corresponding box.
+These options were originally for the "three larger, mosaic images" export option, but can also be used with the default "Export individual textures" option. For this second option, unchecking all three checkboxes means no texture images themselves get exported. The output model file(s) will still reference the textures. Used properly, turning off texture output can save you time each time you export a model. For example, say you export a model, then realize you want to export it again, but with a smaller volume. In that case, the model will use the same or fewer textures, so you could turn off texture output. Another use is when you want a model to use a directory of customized textures and do not want to overwrite it.
 <P>
-The "texture output" export option can save you much time if you are exporting again and again while using a large custom terrainExt file (see the next paragraph for what that is). You can export your model once with textures on, then modify your export and, by exporting to the same file name, you don't need to export the textures again. For the "individual textures" option, you need to uncheck <I>all</I> boxes to turn off texture creation and export - any one box checked means all textures will be output.
+If you "Export all textures to three large images", by default there are three types of files that can be output to PNG files, as needed. "RGB" is a colors-only file, "RGBA" is colors and transparency, "A" is just the transparency values. For 3D printing, only the RGB file is exported. For rendering export, if any blocks needing transparency are found in your model, then the "RGBA" and "A" files are also exported. Some rendering systems need only one or two of these file types, not all three. If you know this in advance, turn off the export textures you don't need.
 <P>
-The other major option for texture export is "Export individual textures", just below the "full color texture patterns" option on the export dialog. As noted in the previous section, this exports a texture for every block face used in the mesh produced. The "texture export" checkboxes below can also be used to suppress textures when using it. All three checkboxes must be unchecked to stop texture export for this option. Also, since the "export individual" method truly exports only those textures needed, if you change the boundaries of your export, you may expose new blocks but won't export their textures if you turn off texture output (in other words, suppressing texture export is then not a good idea). That said, used properly, turning off texture output can save you time each time you export a model.
+The "texture output" export option can save you much time if you are exporting the same model a few times (e.g., you're editing its bounds), especially while using a large custom terrainExt file (see the next paragraph for what that is). You can export your model once with textures on, then modify your export and, by exporting to the same file name, you don't need to export the textures again.
 <P>
 
 <a id="custom_terrain"><H4>Custom Terrain</H4></a>
@@ -381,7 +413,9 @@ The one file you may want to change is the terrainExt.png file that comes with M
 Visit the <a href="textures.html">Textures page</a> for previews and download links for terrain files not included in the Mineways distribution.
 
 <P>
-<a id="default_terrain">If you have a terrain PNG file you would always like to use by default, copy it into the directory where mineways.exe is located and call it terrainExt.png, replacing the one that is there. For example, if you always want to use terrainExt_Smoolistic.png, delete (or, better, rename) terrainExt.png, then copy terrainExt_Smoolistic.png to terrainExt.png. If you know how to use <a href="https://www.computerhope.com/issues/chusedos.htm">the command line</a>, you can also use a <a href="scripting.html#clo">command line option</a> to specify the terrain file to use on startup, e.g., "mineways.exe -t terrainExt_Smoolistic.png". Better still, you could make a <a href="https://www.windowscentral.com/how-create-and-run-batch-file-windows-10">batch file</a> called, say, "my_mineways.bat" that contains the single line "mineways.exe -t terrainExt_Smoolistic.png" and double-click that to start up using your preferred terrain file. Yet another way is to use <a href="scripting.html#modelExportTable">a Mineways script</a> to change the terrain file. This is handy for exporting the same model multiple times, each time with a different terrain file applied.
+<a id="default_terrain">If you have a terrain PNG file you would always like to use by default, copy it into the directory where mineways.exe is located and call it terrainExt.png, replacing the one that is there. For example, if you always want to use terrainExt_Smoolistic.png, delete (or, better, rename) terrainExt.png, then copy terrainExt_Smoolistic.png to terrainExt.png. If you know how to use <a href="https://www.computerhope.com/issues/chusedos.htm">the command line</a>, a better way is to use a <a href="scripting.html#clo">command line option</a> to specify the terrain file to use on startup, e.g., "mineways.exe -t terrainExt_Smoolistic.png". Better still, you could make a <a href="https://www.windowscentral.com/how-create-and-run-batch-file-windows-10">batch file</a> called, say, "my_mineways.bat" that contains the single line "mineways.exe -t terrainExt_Smoolistic.png" and double-click that to start up using your preferred terrain file.
+<P>
+Mineways in fact comes with "mineways.bat", which resizes the startup window and calls the scripting/startup.mwscript script (which does nothing, but can be edited to perform various startup commands). Yet another way is to use File->Import Settings and read in <a href="scripting.html#modelExportTable">a Mineways script</a> to change the terrain file. This is handy for exporting the same model multiple times, each time with a different terrain file applied.
 
 <P>
 For a more thorough explanation of textures and how they're used in Mineways, read the <a href="textures.html">Textures page</a>.
@@ -434,7 +468,7 @@ The Minecraft block textures are normally put in one large texture and each is g
 
 
 <a id="obj_export_options">
-<H4>Wavefront OBJ and USD Export Options</H4></a>
+<H4>Wavefront OBJ Export Group Options</H4></a>
 
 If you find you want your model data to be arranged a bit differently for your rendering system, there are a bunch of options. These vary how Minecraft blocks are grouped and how materials are shared among different block types. Every rendering system imports OBJ files differently, so try different combinations and see what you prefer. Most of these options do not affect display. These options are mostly for determining how much control you have over modifying materials and moving blocks around.
 <P>
@@ -443,7 +477,7 @@ If you find you want your model data to be arranged a bit differently for your r
 <P>Any number of polygons can be in an object or group. There is also a set of materials (defined in the .mtl file). One and only one material is applied to each polygon.
 <UL>
 <LI>Export separate types: on by default, this option says each type of block - stone, logs, fences, and so on - are put in a separate group. Turning this option off means no groups are created, which can be useful for simplifying import into rendering packages but can make editing more difficult. This option does not affect how many materials are generated.
-<LI id="individual" class="ib">Export individual blocks: This option is mutually exclusive with the previous option, "Export separate types." Normally Mineways exports only those faces that are visible. By checking this box, <i>all</i> faces of <i>every</i> block are output, allowing you to animate such operations as mining or explosions. This considerably increases file size and render time, so use it only if you need it. You may also want to check the <a href="#make_groups_objects">Make groups objects</a> option, e.g., for Blender export, as each group will then be a separate object you can manipulate. For Blender you'll also want to make sure "Material per family" is checked. Note that the individual blocks option will change the appearance of some blocks, such as water and glass blocks, as all faces now have sides, which are visible. Normally Minecraft removes these interior sides (e.g., where two glass blocks share a face), but this option makes them visible. This option works for OBJ and USD export.
+<LI id="individual" class="ib">Export individual blocks: This option is mutually exclusive with the previous option, "Export separate types." Normally Mineways exports only those faces that are visible. By checking this box, <i>all</i> faces of <i>every</i> block are output, allowing you to animate such operations as mining or explosions. This considerably increases file size and render time, so use it only if you need it. You may also want to check the <a href="#make_groups_objects">Make groups objects</a> option, e.g., for Blender export, as each group will then be a separate object you can manipulate. For Blender you'll also want to make sure "Material per family" is checked. Note that the individual blocks option will change the appearance of some blocks, such as water and glass blocks, as all faces now have sides, which are visible. Normally Minecraft removes these interior sides (e.g., where two glass blocks share a face), but this option makes them visible. This option works for OBJ and <a href="#usd_export_options">USD export</a>.
 <LI>Material per family: on by default; when exporting the three large mosaic textures (only), blocks in a family (or type; see next option) have their own material. If turned off, a single material is used for all objects. When exporting individual blocks, this checkbox affects whether each block is in its own group (making it easier to edit: move, delete, etc.) or whether individual blocks are grouped by material.
 <LI><a id="material_subtypes">Split by block type</a>: Blocks have a family and a type. When checked (the default), the individual types are used for grouping and materials. If you find you are editing too many materials, turn it off and materials will be exported per family. You can see many of the families <a href="https://minecraft-ids.grahamedgecombe.com/">on this page</a>, e.g., Stone, Granite, Polished Granite..., through Polished Andesite are a family. New materials are limited to those where there's a physical difference in the material itself, not just geometric changes. For example, a cake being sliced will not give it a separate material and group. Crops are given separate materials for each growth level, and farmland for each wetness level. Redstone wire is given separate materials for its 16 levels of power, even though Mineways itself differentiates only between off and on states. Campfires, sea pickles, and respawn anchors will be given <a href="https://minecraft.gamepedia.com/Light">separate emission levels</a> when this box is checked; else the maximum light level is assumed.
 </UL>
@@ -684,7 +718,7 @@ When exporting <B>individual textures</B> these settings have slightly different
 
 <a id="full_material"><H4>Custom material</H4></a>
 
-Checking this box causes a more elaborate illumination model to be output. By default it is checked, so that a more elaborate material model is used. Specifically, the parameters Ns, Ka, map_Ka, illum, and Tf are set. Also, a special mode is exported for use by G3D: "interpolateMode NEAREST_MAGNIFICATION_TRILINEAR_MIPMAP_MINIFICATION". This hints to G3D to make the textures look blocky, giving the classic Minecraft look. This line should not hurt OBJ readers, which should simply ignore it (or possibly flag a warning).
+Checking this box causes a more elaborate illumination model to be output for OBJ (see <a href="#usd_export_options">the USD documentation</a> for its effect with that format). By default it is checked, so that a more elaborate material model is used. Specifically, the parameters Ns, Ka, map_Ka, illum, and Tf are set. Also, a special mode is exported for use by G3D: "interpolateMode NEAREST_MAGNIFICATION_TRILINEAR_MIPMAP_MINIFICATION". This hints to G3D to make the textures look blocky, giving the classic Minecraft look. This line should not hurt OBJ readers, which should simply ignore it (or possibly flag a warning).
 <P>
 If you are using a <a href="textures.html">physically based terrain set</a>, the custom material will also include additional channels of information, such as textures for normal maps, shininess power, metallic, and emission textures. These attempt to follow <a href="http://exocortex.com/blog/extending_wavefront_mtl_to_support_pbr">this proposed specification</a>, also documented <a href="https://en.wikipedia.org/wiki/Wavefront_.obj_file#Physically-based_Rendering">here</a>. An example:
 <UL>
@@ -697,30 +731,6 @@ If you want to use the custom material description for OBJ export but do not wan
 
 <P>
 Special note: in terrain files, the one ending in "_r.png" is a roughness texture. When exported for OBJ, this texture is inverted and the exported files are named "_s.png", for "specular". This is all a bit confusing, I know, but my advice is to export using terrainExt_JGRTX64.png, for example, and see what gets created for you, with "Custom material" set or not. If you want the "r" version, you can either manually invert the _s.png images (ugh), or just do a separate USDA export, which will produce the _r.png versions.
-
-<P>
-<b>Make Z the up direction instead of Y:</b> some graphics applications consider the Y direction to be "up", some Z. If your model imports sideways into your application, check (or uncheck) this box.
-</P>
-
-
-<a id="composite"><H4>Create Composite Overlay Faces</H4></a>
-
-For 3D printing there cannot be "floating" cutout textures such as vines, ladders, rails, torches, and so on. These block types are overlaid atop the underlying block and a new "composite" texture is saved and used. This process must be done for 3D printing. For rendering it is an option. The advantage of leaving this option off is that the result more closely matches Minecraft itself, and that each object has its own material. It also means that all render files exported could use single set of PNG textures, since no composite textures are created. The main drawback of having this option off is that you may encounter z-fighting problems, stray shadows, or other artifacts in your renderings.
-<P>
-This option was on by default for rendering up to version 5.00 of Mineways (in truth, it could not be turned off); as of 5.01 this option is off by default.
-<P>
-<div id="textureImgsSet">
-  <div id="textureImgs">
-    <div class="textureImg">
-      <img src="images/composite_off.jpg" alt="composite off">
-      <span class="caption">Create composite option off (the default). The ladders, rails, and lily pad float a bit above the surface.</span>
-    </div>
-    <div class="textureImg">
-      <img src="images/composite_on.jpg" alt="composite on">
-      <span class="caption">Create composite option on. Note how the ladders, rails, and lily pad are attached to the surface.</span>
-    </div>
-  </div>
-</div>
 
 
 <a id="usd_export_options">
@@ -744,23 +754,55 @@ What follows are how various options apply to USD export. Also, Mineways' "View 
 <B>Custom material:</B> This option is ignored if Export MDL is off. For USDA export, the Custom material setting mainly has the effects of making the texture's texels appear blocky, in Minecraft fashion, and present stripped down materials in <a href="#ovcreate">Omniverse Create</a>. I uncheck this box for higher-resolution resource packs (basically 64x64 or larger tiles) so that the textures interpolate more smoothly. This option is also discussed in <a href="https://youtu.be/lpFpj84eFgw">this video</a>.
 
 <P>
-<B>Light scale:</B> Used only by USD. This has a value of 30 by default. You can change the intensity of the lights exported to USD - the sun and dome light - by changing this value. The sun is normally at 30, the surrounding dome light is 6. Nighttime lighting of 2 and 2 respectively, is used if you toggle on the View | Lighting option before export. If you set the light scale to 0, the two lights will not be exported to the USD file.
+<B><a name="opt_lighting">Light scale:</a></B> Used only by USD. This has a value of 30 by default. You can change the intensity of the lights exported to USD - the sun and dome light - by changing this value. The sun is normally at 30, the surrounding dome light is 6. Nighttime lighting of 2 and 2 respectively, is used if you toggle on the View | Lighting option before export. If you set the light scale to 0, the two lights will not be exported to the USD file.
 
 <P>
 <B>Surface emit scale:</B> Used only by USD. This has a value of 1000 by default. It's more or less a <a href="https://en.wikipedia.org/wiki/Candela_per_square_metre">nit</a> value for emitting surfaces. Omniverse Create looks good with the default, though realistically the emitters are then quite bright (but look good for interior scenes or when the sun is turned off). Adjusting the camera exposure is another way to deal with this situation.
 
 
-<a id="center_model">
-<H4>Center Model Around the Origin</H4></a>
+<a id="opt_globals">
+<H3>Global Model Options</H3></a>
+A few options change how blocks' coordinates and textures are output. If you want to change the overall scale of the model, use the <a href="#opt_size">"Make each block" option</a> in the upper right of the dialog.
 
-When checked, the center of the bottom of the model is put at the origin, location (0,0,0). This helps for import into some renderers, and can improve the floating-point resolution of the data. If you want to instead have the same coordinate values as in your world, uncheck this box (you might also want to set the "Make each block" size to whatever you like). Unchecking this option is useful if you do multiple exports from the same world for rendering and want them to use the same coordinate space. Multiple exports are a way to get around the export size limits for the 32-bit version of Mineways, which is what runs on the Mac.
-</P>
-<b>Use biome in center of export area:</b> Instead of the default colors (seen on the <a href="http://minecraft.gamepedia.com/Biome">Plains biome</a>), use the grass, tree, and water colors computed by the biome in the export. Currently the biome at the center of the export is used for the whole export. It would be nice to export multiple biomes someday, but this is a complex export, as it can require many different color variants of grass and tree blocks. Show biomes (F8) to display the biomes in the map itself.
-<p>
-</p>
+<a id="z_up">
+<H4>Make Z the up direction instead of Y</H4></a>
+Some graphics applications consider the Y direction to be "up", some Z. If your model imports sideways into your application, check (or uncheck) this box.
+
+<a id="composite">
+<H4>Create composite overlay faces</H4></a>
+
+For 3D printing there cannot be "floating" cutout textures such as vines, ladders, rails, torches, and so on. These block types are overlaid atop the underlying block and a new "composite" texture is saved and used. This process must be done for 3D printing. For rendering it is an option. The advantage of leaving this option off is that the result more closely matches Minecraft itself, and that each object has its own material. It also means that all render files exported could use single set of PNG textures, since no composite textures are created. The main drawback of having this option off is that you may encounter z-fighting problems, stray shadows, or other artifacts in your renderings.
 <P>
+This option was on by default for rendering up to version 5.00 of Mineways (in truth, it could not be turned off); as of 5.01 this option is off by default.
+<P>
+<div id="textureImgsSet">
+  <div id="textureImgs">
+    <div class="textureImg">
+      <img src="images/composite_off.jpg" alt="composite off">
+      <span class="caption">Create composite option off (the default). The ladders, rails, and lily pad float a bit above the surface.</span>
+    </div>
+    <div class="textureImg">
+      <img src="images/composite_on.jpg" alt="composite on">
+      <span class="caption">Create composite option on. Note how the ladders, rails, and lily pad are attached to the surface.</span>
+    </div>
+  </div>
+</div>
+
+
+<a id="center_model">
+<H4>Center model around the origin</H4></a>
+
+When checked, the center of the bottom of the model is put at the origin, location (0,0,0). This helps for import into some renderers, and can improve the floating-point resolution of the data. If you want to instead have the same coordinate values as in your world, uncheck this box (you might also want to set <a href="#opt_size">the "Make each block" size</a> to whatever you like). Unchecking this option is useful if you do multiple exports from the same world for rendering and want them to use the same coordinate space. Multiple exports are a way to get around the export size limits for the 32-bit version of Mineways, which is what runs on the Mac.
+
+<a id="biome_center">
+<H4>Use biome in center of export area</H4></a>
+
+Instead of the default colors (seen on the <a href="http://minecraft.gamepedia.com/Biome">Plains biome</a>), use the grass, tree, and water colors computed by the biome in the export. Currently the biome at the center of the export is used for the whole export. It would be nice to export multiple biomes someday, but this is a complex export, as it can require many different color variants of grass and tree blocks. Show biomes (F8) to display the biomes in the map itself.
+
 <a id="border_faces">
-<b>Create block faces at the borders:</b></a> this option is only available for rendering, to reduce polygon count. When on, the edges of the export the model are sealed off with whatever blocks were at the borders. For 3D printing this is necessary, as the model must be a solid object. For rendering these side and bottom polygons often are not needed, as the camera is usually positioned to never view these areas of the model. Turning this option off for rendering also allows better "tiling", where you export a world piece by piece and read all the pieces in (see <a href="#center_model">center model</a>, above), as it pays more attention to neighboring blocks just outside the borders. Note: the various 3D print "fill air bubbles" methods will turn off this method (it's a bug).
+<H4>Create block faces at the borders</H4></a>
+
+This option is only available for rendering, to reduce polygon count. When on, the edges of the export the model are sealed off with whatever blocks were at the borders. For 3D printing this is necessary, as the model must be a solid object. For rendering these side and bottom polygons often are not needed, as the camera is usually positioned to never view these areas of the model. Turning this option off for rendering also allows better "tiling", where you export a world piece by piece and read all the pieces in (see <a href="#center_model">center model</a>, above), as it pays more attention to neighboring blocks just outside the borders. Note: the various 3D print "fill air bubbles" methods will turn off this method (it's a bug).
 <P>
 In the scene below, the camera is dollied out to see the borders. The model with borders off, on the right, has about 15% less polygons in it.
 </P>
@@ -769,10 +811,8 @@ In the scene below, the camera is dollied out to see the borders. The model with
   <img src="images/borders_off.jpg">
 </div>
 
-
-
 <a id="leaves_solid">
-<H4>Tree Leaves Solid</H4></a>
+<H4>Tree leaves solid</H4></a>
 
 This option is only available for rendering, to reduce polygon count. Tree leaves are "cutout" textures, which means that by default each leaf block is exported, along with the trunks. In forested scenes this can make for a lot of extra polygons. By checking this box, leaves are made solid with a black background, which then allows many less polygons to be generated. For example, in the scene below, rendered with <a href="#g3d">G3D</a>, the transparent leaf model has 986k triangles, the solid leaf model just 369k triangles.
 </P>
@@ -780,8 +820,14 @@ This option is only available for rendering, to reduce polygon count. Tree leave
   <img src="images/trees_transparent.jpg">
   <img src="images/trees_solid.jpg">
 </div>
+
+<a id="rotate_model">
+<H4>Rotate model clockwise</H4></a>
+
+Can be useful for choosing a default view angle for other programs reading in the model produced. For example, the view of the model is rendered by Shapeways from the south-south-east. So if your model faces west, you might rotate it 270 degrees to have it face south and so display better on your models page.
+
 <P>
-The rest of the options mostly have to do with 3D printing, which follows.
+The rest of the options mostly have to do with 3D printing, which follows. The main exception is <a href="#opt_size">"Make each block 1000 mm high"</a>, which can be used to change the size of the model output.
 
 
 <HR>
@@ -793,10 +839,12 @@ As background, view the <a href="http://www.youtube.com/watch?v=hHxp9Ail6MY&feat
 <P>
 There are other potential pitfalls with 3D printing, such as <a href="http://www.shapeways.com/tutorials/3dprintingminimumwallthicknesstutorial">thin wall problems</a> (more <a href="http://www.shapeways.com/tutorials/thin_walls_tutorial">here</a>), and <a href="https://support.shapeways.com/hc/en-us/sections/360004437873-Software-Tutorials">too many polygons</a> (rare for a Minecraft model), to name just two. Shapeways' <a href="https://support.shapeways.com/hc/en-us/categories/360001855814-Tutorials">tutorial pages</a> and <a href="https://support.shapeways.com/hc/en-us/sections/360003550794-Materials">materials pages</a> give you a lot to chew on, <a href="http://www.sculpteo.com/en/help/">Sculpteo</a> also has a help section. The Mineways program tries to guide you past the major pitfalls, but it's always possible to generate something that's essentially unprintable: too weak, holes too small to clear out the dust, or some other problem. Browsing the tutorials there should help you understand what is possible. Options follow.
 <P>
-<b>Rotate model clockwise:</b> Can be useful for choosing a default view angle for other programs reading in the model produced. For example, the view of the model is rendered by Shapeways from the south-south-east. So if your model faces west, you might rotate it 270 degrees to have it face south and so display better on your models page.
-<P>
 
-<B>3D printing related options:</b> There are four major ways to scale your model.
+<H4 id="opt_size">
+Model Size
+</H4>
+
+There are four major ways to set your model's size.
 <ul>
 <li>Make the model #N cm high: you can specify how high you would like a model to be. This is also useful for rendering output, where the default is set to be reasonable for import into Blender.
 </li><li>Minimize size based on wall thickness: if you want to make "draft" 3D print models that are as small as safely possible, check this option. That said, if you know your model has thick walls, you could make your model smaller still by using the next option.
@@ -817,7 +865,11 @@ The "Custom Printer" material is used for STL export. By default, it is set to s
 <LI><a href="http://ponoko.com">Ponoko</a> - this 3D print service uses centimeters, millimeters, and inches. "Z is up" should be on, to show properly in Ponoko's thumbnail view. If your model is flagged as having a problem with normals, export again and check the "Weld all shared edges" checkbox. You can use the "Export solid material colors" or "no materials" options; textures are not supported. The preview itself will not show the colors, but I have been assured the model will print with color.
 <LI><a href="http://reprap.org/wiki/RepRap">RepRap</a> - this home 3D printer <a href="http://repraprip.blogspot.com/2012/01/tutorial-printing-from-minecraft-with.html">appears to need models in centimeters</a>. I'm not sure if this is more of a requirement of the related software.
 </UL>
-<P>
+
+<H4 id="opt_fill">
+Filling and Hollowing Options
+</H4>
+
 By default, the model is heavily processed to clear up a number of potential 3D printing problems:
 </p>
 <P>
@@ -845,7 +897,7 @@ By default, the model is heavily processed to clear up a number of potential 3D 
 <img src="images/seal_with_snow.jpg">
 <img src="images/seal_with_snow_melted.jpg">
 <P>
-<b>Connect parts sharing an edge:</b> certain <a href="https://support.shapeways.com/hc/en-us/articles/360007107674-Tips-for-successful-modeling">non-manifold edges</a> (where two blocks are diagonal and share an edge) are eliminated by a welding process in which more blocks are added. This welding process normally occurs only when it joins pieces that otherwise would be separated and fall apart.
+<b><a name="opt_connect">Connect parts sharing an edge:</a></b> certain <a href="https://support.shapeways.com/hc/en-us/articles/360007107674-Tips-for-successful-modeling">non-manifold edges</a> (where two blocks are diagonal and share an edge) are eliminated by a welding process in which more blocks are added. This welding process normally occurs only when it joins pieces that otherwise would be separated and fall apart.
 <ul>
 <li>Connect corner tips: if two blocks touch at just their tips and the blocks are found to be in separate parts, they are then welded together by adding two new blocks.
 </li>
@@ -874,7 +926,7 @@ By default, the model is heavily processed to clear up a number of potential 3D 
   </div>
 </div>
 <P>
-<b>Delete floating objects:</b> if objects hang in space, these are eliminated if they're small (less than 16 blocks in size) or are entirely tree logs and leaves. This step eliminates parts of trees hanging along the edge because of where the selection box is located. If you get a warning about there being more than one part in a model exported, crank the block number up to 1000 or more to get rid of larger chunks (once you know what those chunks are - see the debug display parts mode below). If you're sure you want just the one connected group in the scene, set this value to 999999 and only the largest object in the scene will be saved.
+<b><a name="opt_floating">Delete floating objects:</a></b> if objects hang in space, these are eliminated if they're small (less than 16 blocks in size) or are entirely tree logs and leaves. This step eliminates parts of trees hanging along the edge because of where the selection box is located. If you get a warning about there being more than one part in a model exported, crank the block number up to 1000 or more to get rid of larger chunks (once you know what those chunks are - see the debug display parts mode below). If you're sure you want just the one connected group in the scene, set this value to 999999 and only the largest object in the scene will be saved.
 <P>
 This option can help tidy up a model for rendering or Sketchfab, too, by deleting tree foliage poking into an exported volume. In these export modes, any adjacent blocks are joined up (for 3D printing, only blocks that fill the cell are joined together). This difference means that, for example, a roof supported by fence posts won't be considered floating when rendering, but will when using detailed 3D printing (as the fence supports would likely be too thin to hold the roof).
 <P>
@@ -962,11 +1014,13 @@ Below are three prints done with fences, stair and slab roofs, and other small b
 <P>
 <b id="fatten">Fatten lesser blocks:</b><span> If you do decide to export using the "lesser" option, by default some of the more delicate blocks are made fatter so that they are less likely to break off during printing. No guarantees! The blocks fattened are: fences, fence gates, doors, free-standing sign posts (which I suspect will still snap off), pressure plates (since they sometimes get used for table tops), bells, and a number of others - see <a href="#fullBlocksTable">the table</a>.</span>
 
+<H4 id="opt_debug">
+Debugging Visualization
+</H4>
 
+There are also two debug print options available. The "Debug: show floating parts" option does just that: the largest object is made semitransparent and smaller groups each given a unique color, so that you can see what pieces of the model are not connected. <a href="#opt_floating">See images here</a>. Either remove these smaller parts by kicking up the "delete floating objects" limit, or go into Minecraft itself and add blocks to attach them together. That said, separate parts are fine in a file if you know what you are doing: you could be making a chain of separate links, or could have a number of individual pieces (such as letters) you want to create in a single print run.
 <P>
-There are also two debug print options available, both shown in examples above. The "Debug: show floating parts" option does just that: the largest object is made semitransparent and smaller groups each given a unique color, so that you can see what pieces of the model are not connected. Either remove these smaller parts by kicking up the "delete floating objects" limit, or go into Minecraft itself and add blocks to attach them together. That said, separate parts are fine in a file if you know what you are doing: you could be making a chain of separate links, or could have a number of individual pieces (such as letters) you want to create in a single print run.
-<P>
-The "show weld blocks" option shows what blocks are added by the various "connect parts" options. If you don't like where the welds are put, you can go into your Minecraft world and edit the model yourself. <b>Key tip:</b> you can run Mineways and play Minecraft at the same time. So, you can edit your world in Minecraft, then reload the world into Mineways by pressing the "r" key. The selected area won't be cleared when you do so, so you can edit, reload, export, and view the model (in a separate viewer); lather, rinse, repeat. This is an efficient way to improve and view any model you're working on.
+The "show weld blocks" option shows what blocks are added by the various "connect parts" options. <a href="#opt_connect">See images here</a>. If you don't like where the welds are put, you can go into your Minecraft world and edit the model yourself. <b>Key tip:</b> you can run Mineways and play Minecraft at the same time. So, you can edit your world in Minecraft, then reload the world into Mineways by pressing the "r" key. The selected area won't be cleared when you do so, so you can edit, reload, export, and view the model (in a separate viewer); lather, rinse, repeat. This is an efficient way to improve and view any model you're working on.
 
 <HR>
 <H3 id="tilemaker">
@@ -2688,12 +2742,12 @@ The textures and rules used in Minecraft for how blocks appear and connect have 
 From newest to oldest. The very newest is sometimes unreleased work in progress, with "*" meaning "to do" and "**" meaning "stretch goal."
 
 <UL>
-  <LI>Version 10.07, 1/*/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1007.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+  <LI>Version 10.07, 1/11/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1007.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
     <BR>
     <UL>
 	<LI>Added tooltips and help button for the export dialog. Hover over a checkbox, etc., and get additional information. <I>(Thanks, StandingPadAnimations)</I>
 	<LI>Fix obscure export interaction and mode problems, such as exporting OBJ without materials then with materials giving assertions on swatches.
-    <LI>Improve documentation a bit for the myriad OBJ export options.
+    <LI>Improve documentation a bit for the myriad export options, including <a href="#options">an old-school image map</a>.
 	</UL>
 
   <LI>Version 10.06, 1/7/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1006.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
@@ -3843,7 +3897,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 1/7/2023</p>
+		<br id="lastUpdate">Last updated 1/11/2023</p>
 	</div>
 </div>
 
