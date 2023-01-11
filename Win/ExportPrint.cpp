@@ -54,7 +54,7 @@ TooltipDefinition g_epTT[EP_TOOLTIP_COUNT] = {
     { IDC_RADIO_EXPORT_SOLID_TEXTURES,      {1,1,1,0,0,0,1,0}, L"Solid 'noisy' textures are exported", L""},
     { IDC_RADIO_EXPORT_FULL_TEXTURES,       {1,1,2,0,0,0,1,0}, L"Three large, mosaic textures of all blocks are exported; useful for 3D printing, not great for rendering", L"For USD, one large, mosaic texture of all blocks is exported"},
     { IDC_RADIO_EXPORT_SEPARATE_TILES,      {1,1,1,0,0,0,0,0}, L"Separate textures are exported for each block face, as needed", L""},
-    { IDC_TILE_DIR,         {1,1,2,0,0,0,1,0}, L"Textures are put in a subdirectory called this (set blank for no subdirectory)", L"In the '*_materials' subdirectory, textures are put in a subdirectory called this (set blank for no subdirectory)"},
+    { IDC_TILE_DIR,         {1,1,2,0,0,0,1,0}, L"Textures are put in a subdirectory called this (delete the name for no subdirectory, putting the textures in the same directory)", L"In the '*_materials' subdirectory, textures are put in a subdirectory called this (delete the name for no subdirectory, putting the textures in the same directory)"},
     { IDC_TEXTURE_RGB,      {1,1,1,0,0,0,1,0}, L"If you previously exported textures for this model, you can save time by unchecking these", L""},
     { IDC_TEXTURE_A,        {1,1,1,0,0,0,1,0}, L"If you previously exported textures for this model, you can save time by unchecking these", L""},
     { IDC_TEXTURE_RGBA,     {1,1,1,0,0,0,1,0}, L"If you previously exported textures for this model, you can save time by unchecking these", L""},
