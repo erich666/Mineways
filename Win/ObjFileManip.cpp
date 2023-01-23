@@ -8318,11 +8318,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 miny = 0;
                 maxy = 12;
             }
+            // slender post
             saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0, 0, 2, miny, maxy, 0, 2);
             // for the high X and Z, we need to use (1-u) for x and z
             saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 14, 16, miny, maxy, 14, 16);
-            // the ends; we need to use (1-v) for z here
-            saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 2, 4, miny, maxy, 0, 2);
+            // the ends; we need to use (1-v) for z here. Can leave off bottom face if an end rod, top if a lightning rod
+            saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, (endRod ? DIR_BOTTOM_BIT : DIR_TOP_BIT) | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 2, 4, miny, maxy, 0, 2);
 
             littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
 
@@ -8344,10 +8345,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             }
             else {
                 // lightning rod
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 0, 4, 12, 16, 12, 16);
-                saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 0, 4, 12, 16, 12, 16);
-                // for the high X and Z, we need to use (1-u) for x and z
-                saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 0, 4, 12, 16, 12, 16);
+                // OK: saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 0, 4, 12, 16, 0, 4);
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 0, 4, 12, 16, 0, 4); //DIR_BOTTOM_BIT | DIR_TOP_BIT
+                saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 4, 12, 16, 0, 4);
+                saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 4, 12, 16, 12, 16);
             }
 
             totalVertexCount = gModel.vertexCount - totalVertexCount;
@@ -8358,7 +8359,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 transformVertices(totalVertexCount - littleTotalVertexCount, mtx);
             }
             else {
-                translateMtx(mtx, 6.0f / 16.0f, 0.0f, -6.0f / 16.0f);
+                translateMtx(mtx, 6.0f / 16.0f, 0.0f, 6.0f / 16.0f);
                 transformVertices(totalVertexCount - littleTotalVertexCount, mtx);
             }
 
@@ -9636,8 +9637,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
         // bottom of bell
         saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 0, 8, 7, 9, 8, 16);
-        saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, topSwatchLoc, DIR_BOTTOM_BIT, 0, 8, 8, 16);
-        saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, bottomSwatchLoc, DIR_TOP_BIT, 0, 8, 8, 16);
+        saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, topSwatchLoc, DIR_BOTTOM_BIT, 0, 8, 8, 16); // top
+        saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, bottomSwatchLoc, DIR_TOP_BIT, 0, 8, 8, 16); // bottom
+        // middle of bell
         saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY, 1, 7, 9, 16, 9, 15);
         saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, topSwatchLoc, DIR_BOTTOM_BIT, 0, 8, 8, 16);
         littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
