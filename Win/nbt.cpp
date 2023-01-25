@@ -3134,6 +3134,10 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
         delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt =
         thickness = vertical_direction = berries = 0;
 
+    // IMPORTANT: if any PROP field uses any of these:
+    // triggered, extended, sticky, enabled, conditional, open, powered, face, has_book, powered, attachment, lit, signal_fire, honey_level
+    // then the value needs to be reset to false or 0x0 after it is used. This is important for EXTENDED_FACING_PROP and EXTENDED_SWNE_FACING_PROP to work right.
+
     // walk through entries' names and convert to their block ID
     int nentries = readDword(pbf);
     if (nentries <= 0)
@@ -3308,7 +3312,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                                 sticky = 8;
                             }
                             else if (strcmp(value, "normal") == 0) {
-                                sticky = false;
+                                sticky = 0;
                             }
                             /* chest */
                             else if (strcmp(value, "single") == 0) {
@@ -3810,6 +3814,44 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             // prop defined but not used in list below - just use NO_PROP if the prop does nothing
             assert(0);
 
+        // These next two use shared properties, which means the other PROPs that use any of these need to reset them (except for dropper_facing and door_facing).
+        case EXTENDED_FACING_PROP:
+            // properties DROPPER_PROP, PISTON_PROP, PISTON_HEAD_PROP, HOPPER_PROP, COMMAND_BLOCK_PROP, 
+            // also WALL_SIGN_PROP, OBSERVER_PROP
+            dataVal = dropper_facing | (extended ? 8 : 0) | sticky | (enabled ? 8 : 0) | (conditional ? 8 : 0) | (open ? 8 : 0) | (powered ? 8 : 0) | (triggered ? 8 : 0);
+            // We have to reset, as this property is used by lots of different blocks, each of which sets its own set of properties.
+            // Normally we don't have to reset, as (for example) a fence gate FENCE_GATE_PROP will always set the "open" property, it's always present, so when a second fence
+            // gate is found in the palette, it is guaranteed to have set this value, i.e., no clearing is needed there.
+            // However, here we use a bunch of properties above that are *likely* to not be set by the block with EXTENDED_FACING_PROP. For example, "sticky" is used by
+            // pistons, which use EXTENDED_FACING_PROP. We need to reset it to 0x0 so that if the next EXTENDED_FACING_PROP block, say a lightning rod, doesn't have that
+            // property, then that property won't get rest.
+            dropper_facing = 0;     // don't really need to reset this one, I think, as every EXTENDED_FACING_PROP should use it. But, doesn't hurt.
+            triggered = false; // non-graphical
+            extended = false;
+            sticky = 0x0;
+            enabled = false;
+            conditional = false;
+            open = 0x0;
+            powered = false;
+            break;
+        case EXTENDED_SWNE_FACING_PROP:
+            // properties GRINDSTONE_PROP, LECTERN_PROP, BELL_PROP, CAMPFIRE_PROP
+            // really, powered and signal_fire have no effect on rendering the objects themselves, but tracked for now anyway
+            dataVal = door_facing | (face << 2) // grindstone
+                | (has_book ? 4 : 0) | (powered ? 8 : 0) // lectern, and bell is powered
+                | (attachment << 4) // bell: 0x30 field (note that bell's 0x04 field is not used
+                | (lit ? 4 : 0)
+                //| (signal_fire ? 8 : 0) - commented out, as we now use 0x8 to mean it's a soul campfire; signal fire has no effect on rendering, AFAIK
+                | (honey_level << 2); // bee_nest, beehive
+            door_facing = face = 0; // don't need to do door_facing, and in fact the rest of the code doesn't reset this, as it should always be set by this prop anyway.
+            has_book = false;
+            powered = false;
+            attachment = 0;
+            lit = false;
+            signal_fire = false;
+            honey_level = 0;
+            break;
+
         case NO_PROP:
             // these are also ones where nothing needs to be done. They could all be called NO_PROP,
             // but it's handy to know what blocks have what properties associated with them.
@@ -3844,6 +3886,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 // turn candle type into lit candle, which is one above an unlit candle
                 paletteBlockEntry[entryIndex]++;
             }
+            lit = false;
             break;
         case AXIS_PROP:
             // will get OR'ed in with type of block later
@@ -3872,6 +3915,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 // turn it off
                 paletteBlockEntry[entryIndex] = 75;
             }
+            lit = false;
             break;
         case STAIRS_PROP:
             dataVal = (dataVal - 1) | (half ? 4 : 0) | stairs;
@@ -3881,9 +3925,13 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             if (!(paletteBlockEntry[entryIndex] == 66)) {
                 dataVal |= (powered ? 8 : 0);
             }
+            // reset used value that is shared with other blocks (especially EXTENDED_FACING_PROP, which uses a bunch of properties but may not set them all)
+            powered = false;
             break;
         case PRESSURE_PROP:
             dataVal = powered ? 1 : 0;
+            // reset used value that is shared with other blocks (especially EXTENDED_FACING_PROP, which uses a bunch of properties but may not set them all)
+            powered = false;
             break;
         case DOOR_PROP:
             // if upper door, use hinge and powered, else use facing and open
@@ -3895,6 +3943,9 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 // lower
                 dataVal = open | door_facing;
             }
+            // reset used value that is shared with other blocks (especially EXTENDED_FACING_PROP, which uses a bunch of properties but may not set them all)
+            powered = false;
+            open = 0x0;
             break;
         case LEVER_PROP:
             // which way is face?
@@ -3969,6 +4020,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                     break;
                 }
             }
+            // reset used value that is shared with other blocks (especially EXTENDED_FACING_PROP, which uses a bunch of properties but may not set them all)
+            powered = false;
             face = 0;
             break;
         case CHEST_PROP:
@@ -3985,6 +4038,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 // light furnace: move type to be the "lit" version.
                 paletteBlockEntry[entryIndex] = 62;
             }
+            lit = false;
             break;
         case BUTTON_PROP:
             // dataVal is set fron "facing" already (1234), just need face & powered
@@ -3999,10 +4053,14 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             //else if (face == 1) {
             // not needed, as dataVal should be set just right at this point for walls
             dataVal |= powered ? 0x8 : 0;
+            // reset used value that is shared with other blocks (especially EXTENDED_FACING_PROP, which uses a bunch of properties but may not set them all)
+            powered = false;
             face = 0;
             break;
         case TRAPDOOR_PROP:
             dataVal = (half ? 8 : 0) | (open ? 4 : 0) | (4 - dataVal);
+            // reset used value that is shared with other blocks (especially EXTENDED_FACING_PROP, which uses a bunch of properties but may not set them all)
+            open = 0x0;
             break;
         case TALL_FLOWER_PROP:
             // Top half of sunflowers, etc., have just the 0x8 bit set, not the flower itself.
@@ -4015,10 +4073,13 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 // light redstone ore or redstone lamp
                 paletteBlockEntry[entryIndex]++;
             }
+            lit = false;
             break;
         case FENCE_GATE_PROP:
             // strange but true;
             dataVal = (open ? 0x4 : 0x0) | ((door_facing + 3) % 4) | (in_wall ? 0x20 : 0);
+            // reset used value that is shared with other blocks (especially EXTENDED_FACING_PROP, which uses a bunch of properties but may not set them all)
+            open = 0x0;
             break;
         case SWNE_FACING_PROP:
             // south/west/north/east == 0/1/2/3
@@ -4028,39 +4089,6 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             // south/west/north/east == 0/1/2/3
             // note that "occupied" will not be set if GRAPHICAL_ONLY is defined
             dataVal = ((door_facing + 3) % 4) + part + occupied;
-            break;
-        case EXTENDED_FACING_PROP:
-            // properties DROPPER_PROP, PISTON_PROP, PISTON_HEAD_PROP, HOPPER_PROP, COMMAND_BLOCK_PROP, 
-            // also WALL_SIGN_PROP, OBSERVER_PROP
-            dataVal = dropper_facing | (extended ? 8 : 0) | sticky | (enabled ? 8 : 0) | (conditional ? 8 : 0) | (open ? 8 : 0) | (powered ? 8 : 0) | (triggered ? 8 : 0);
-            // We have to reset, as this property is used by lots of different blocks, each of which sets its own set of properties.
-            // Normally we don't have to reset, as (for example) a fence gate FENCE_GATE_PROP will always set the "open" property, it's always present, so when a second fence
-            // gate is found in the palette, it is guaranteed to have set this value, i.e., no clearing is needed there.
-            dropper_facing = 0;
-            triggered = false; // non-graphical
-            extended = false;
-            sticky = 0x0;
-            enabled = false;
-            conditional = false;
-            open = false;
-            powered = false;
-            break;
-        case EXTENDED_SWNE_FACING_PROP:
-            // properties GRINDSTONE_PROP, LECTERN_PROP, BELL_PROP, CAMPFIRE_PROP
-            // really, powered and signal_fire have no effect on rendering the objects themselves, but tracked for now anyway
-            dataVal = door_facing | (face << 2) // grindstone
-                | (has_book ? 4 : 0) | (powered ? 8 : 0) // lectern, and bell is powered
-                | (attachment << 4) // bell: 0x30 field (note that bell's 0x04 field is not used
-                | (lit ? 4 : 0)
-                //| (signal_fire ? 8 : 0) - commented out, as we now use 0x8 to mean it's a soul campfire; signal fire has no effect on rendering, AFAIK
-                | (honey_level << 2); // bee_nest, beehive
-            door_facing = face = 0;
-            has_book = false;
-            powered = false;
-            attachment = 0;
-            lit = false;
-            signal_fire = false;
-            honey_level = 0;
             break;
         case FENCE_AND_VINE_PROP:
             // Note that for vines, 0 means there's one "above" (really, underneath).
@@ -4100,9 +4128,13 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 // use active form
                 paletteBlockEntry[entryIndex]++;
             }
+            // reset used value that is shared with other blocks (especially EXTENDED_FACING_PROP, which uses a bunch of properties but may not set them all)
+            powered = false;
             break;
         case COMPARATOR_PROP:
             dataVal = ((door_facing + 3) % 4) | (mode ? 4 : 0) | (powered ? 8 : 0);
+            // reset used value that is shared with other blocks (especially EXTENDED_FACING_PROP, which uses a bunch of properties but may not set them all)
+            powered = false;
             break;
         case MUSHROOM_STEM_PROP:
             // Old code, where we try to stuff the new, flexible settings into the limited old version numbers;
@@ -4182,9 +4214,13 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             break;
         case TRIPWIRE_PROP:
             dataVal = (powered ? 1 : 0) | (attached ? 4 : 0) | (disarmed ? 8 : 0);
+            // reset used value that is shared with other blocks (especially EXTENDED_FACING_PROP, which uses a bunch of properties but may not set them all)
+            powered = false;
             break;
         case TRIPWIRE_HOOK_PROP:
             dataVal = ((door_facing + 3) % 4) | (attached ? 4 : 0) | (powered ? 8 : 0);
+            // reset used value that is shared with other blocks (especially EXTENDED_FACING_PROP, which uses a bunch of properties but may not set them all)
+            powered = false;
             break;
         case END_PORTAL_PROP:
             dataVal = ((door_facing + 3) % 4) | (eye ? 4 : 0);
@@ -4233,6 +4269,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             //    break;
         case AMETHYST_PROP:
             dataVal = dropper_facing << 2;
+            dropper_facing = 0;
             break;
         case DRIPSTONE_PROP:
             // up is vertical_direction, and if "down" the value is set to 0x08
@@ -4248,7 +4285,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             break;
         case BERRIES_PROP:
             dataVal = 0x0;
-            // use lit/berries form if berries present
+            // use the lit berries form if berries present, see https://minecraft.fandom.com/wiki/Glow_Berries
             if (berries) {
                 paletteBlockEntry[entryIndex]++;
             }

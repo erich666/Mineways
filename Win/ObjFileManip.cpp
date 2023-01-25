@@ -6084,40 +6084,47 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break; // saveBillboardOrGeometry
 
     case BLOCK_WALL_SIGN:						// saveBillboardOrGeometry
-        switch (dataVal & (BIT_32 | BIT_16 | BIT_8)) {
-        default:
-        case 0:
-            // oak
-            swatchLoc = SWATCH_INDEX(4, 0);
-            break;
-        case BIT_8:
-            // spruce
-            swatchLoc = SWATCH_INDEX(6, 12);
-            break;
-        case BIT_16:
-            // birch
-            swatchLoc = SWATCH_INDEX(6, 13);
-            break;
-        case (BIT_16 | BIT_8):
-            // jungle
-            swatchLoc = SWATCH_INDEX(7, 12);
-            break;
-        case BIT_32:
-            // acacia
-            swatchLoc = SWATCH_INDEX(0, 22);
-            break;
-        case (BIT_32 | BIT_8):
-            // dark oak
-            swatchLoc = SWATCH_INDEX(1, 22);
-            break;
-        case BIT_32 | BIT_16:
-            // crimson
-            swatchLoc = SWATCH_INDEX(8, 43);
-            break;
-        case BIT_32 | BIT_16 | BIT_8:
-            // warped
-            swatchLoc = SWATCH_INDEX(8, 44);
-            break;
+    case BLOCK_MANGROVE_WALL_SIGN:
+        if (type == BLOCK_WALL_SIGN) {
+            switch (dataVal & (BIT_32 | BIT_16 | BIT_8)) {
+            default:
+            case 0:
+                // oak
+                swatchLoc = SWATCH_INDEX(4, 0);
+                break;
+            case BIT_8:
+                // spruce
+                swatchLoc = SWATCH_INDEX(6, 12);
+                break;
+            case BIT_16:
+                // birch
+                swatchLoc = SWATCH_INDEX(6, 13);
+                break;
+            case (BIT_16 | BIT_8):
+                // jungle
+                swatchLoc = SWATCH_INDEX(7, 12);
+                break;
+            case BIT_32:
+                // acacia
+                swatchLoc = SWATCH_INDEX(0, 22);
+                break;
+            case (BIT_32 | BIT_8):
+                // dark oak
+                swatchLoc = SWATCH_INDEX(1, 22);
+                break;
+            case BIT_32 | BIT_16:
+                // crimson
+                swatchLoc = SWATCH_INDEX(8, 43);
+                break;
+            case BIT_32 | BIT_16 | BIT_8:
+                // warped
+                swatchLoc = SWATCH_INDEX(8, 44);
+                break;
+            }
+        }
+        else {
+            // mangrove sign - just the one type
+            swatchLoc = SWATCH_INDEX(0, 55);
         }
         switch (dataVal & 0x7)
         {
@@ -8262,7 +8269,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         {
             bool endRod = (type == BLOCK_END_ROD);
             swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-            if (!endRod && dataVal & 0x8) {
+            if (!endRod && (dataVal & 0x8)) {
                 // use lit version of lightning rod if powered
                 swatchLoc++;
             }
