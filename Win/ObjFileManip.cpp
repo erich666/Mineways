@@ -20654,6 +20654,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 swatchLoc = SWATCH_INDEX(8, 44);
                 break;
             case 2: // blackstone_slab
+                // top and bottom get this one:
+                swatchLoc = SWATCH_INDEX(0, 46);
+                // if sides in use, overwrite with that (yes, I'm lazy here):
                 SWATCH_SWITCH_SIDE(faceDirection, 1, 46);
                 break;
             case 3: // polished_blackstone_slab
@@ -24794,7 +24797,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
             // just one chunk
             strcpy_s(outputString, 256, "    def PointInstancer \"pointinstancer\" {\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            strcpy_s(outputString, 256, "        point3f[] positions = [\n");
+            strcpy_s(outputString, 256, "        point3f[] positions = [");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
             InstanceLocation* pil = gModel.instanceLoc;
@@ -24804,12 +24807,12 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
                     UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)i / doubleCount));
                     progressTick += progressIncrement;
                 }
-                sprintf_s(outputString, 256, "(%g, %g, %g)%s\n", pil->location[X], pil->location[Y], pil->location[Z], (i == gModel.instanceLocCount - 1) ? "]" : ",");
+                sprintf_s(outputString, 256, "(%g, %g, %g)%s", pil->location[X], pil->location[Y], pil->location[Z], (i == gModel.instanceLocCount - 1) ? "]\n" : ",");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 pil++;
             }
 
-            strcpy_s(outputString, 256, "        int[] protoIndices = [\n");
+            strcpy_s(outputString, 256, "        int[] protoIndices = [");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             // reset and count second half
             progressTick = progressIncrement;
@@ -24820,13 +24823,13 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
                     UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)(i + gModel.instanceLocCount) / doubleCount));
                     progressTick += progressIncrement;
                 }
-                sprintf_s(outputString, 256, "%d%s\n", blockIndex[pil->index], (i == gModel.instanceLocCount - 1) ? "]" : ",");
+                sprintf_s(outputString, 256, "%d%s", blockIndex[pil->index], (i == gModel.instanceLocCount - 1) ? "]\n" : ",");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 pil++;
             }
 
             // output all instance names
-            strcpy_s(outputString, 256, "        prepend rel prototypes = [\n");
+            strcpy_s(outputString, 256, "        prepend rel prototypes = [");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             char instanceNameString[MAX_PATH_AND_FILE];
             for (i = 0; i < gModel.instanceCount; i++) {
@@ -24836,8 +24839,8 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
                 nameFromHash(pbi->hash, instanceNameString);
                 // convertCharPathUnderlined(instanceNameUnderlined, instanceNameString, true);
 
-                //sprintf_s(outputString, 256, "<Blocks/%s>%s\n", instanceNameUnderlined, (i == gModel.instanceCount - 1) ? "]" : ",");
-                sprintf_s(outputString, 256, "<Blocks/%s>%s\n", instanceNameString, (i == gModel.instanceCount - 1) ? "]" : ",");
+                //sprintf_s(outputString, 256, "<Blocks/%s>%s", instanceNameUnderlined, (i == gModel.instanceCount - 1) ? "]" : ",");
+                sprintf_s(outputString, 256, "<Blocks/%s>%s", instanceNameString, (i == gModel.instanceCount - 1) ? "]\n" : ",");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             }
 
@@ -24914,24 +24917,24 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
 
                 sprintf_s(outputString, 256, "        def PointInstancer \"Chunk_%s\" {\n", chunkLocation);
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                strcpy_s(outputString, 256, "            point3f[] positions = [\n");
+                strcpy_s(outputString, 256, "            point3f[] positions = [");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
                 pil = &gModel.instanceLoc[startInstance];
                 for (i = startInstance; i < endInstance; i++) {
-                    sprintf_s(outputString, 256, "(%g, %g, %g)%s\n", pil->location[X], pil->location[Y], pil->location[Z], (i == endInstance - 1) ? "]" : ",");
+                    sprintf_s(outputString, 256, "(%g, %g, %g)%s", pil->location[X], pil->location[Y], pil->location[Z], (i == endInstance - 1) ? "]\n" : ",");
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                     pil++;
                 }
 
-                strcpy_s(outputString, 256, "            int[] protoIndices = [\n");
+                strcpy_s(outputString, 256, "            int[] protoIndices = [");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 // reset and count second half
                 progressTick = progressIncrement;
                 pil = &gModel.instanceLoc[startInstance];
                 for (i = startInstance; i < endInstance; i++) {
                     assert(localBlockIndex[pil->index] >= 0);
-                    sprintf_s(outputString, 256, "%d%s\n", localBlockIndex[pil->index], (i == endInstance - 1) ? "]" : ",");
+                    sprintf_s(outputString, 256, "%d%s", localBlockIndex[pil->index], (i == endInstance - 1) ? "]\n" : ",");
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                     pil++;
                 }
