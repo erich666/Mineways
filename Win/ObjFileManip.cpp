@@ -22609,7 +22609,7 @@ static int writeOBJMtlFile()
             // With G3D, map_d for individual textures will reuse the RGBA image and G3D will misinterpret map_d
             // as the red channel, I believe. So, we set map_d only when we have a separate pure-alpha texture.
             // The alternative for individual texture output would be to export both an RGB texture and a separate
-            // A texture, which seems excessive.
+            // Alpha texture, which seems excessive.
 
             // Well, time to leave G3D behind (or fix it). Always export map_d
             if (gModel.usesAlpha) {
