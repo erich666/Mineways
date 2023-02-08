@@ -874,7 +874,7 @@ static struct {
     {  4, 49, 389, 0, L"amethyst_cluster", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  5, 49, 389, 0, L"budding_amethyst", L"", SWATCH_REPEAT_ALL },
     {  6, 49,   1, 0, L"calcite", L"", SWATCH_REPEAT_ALL },
-    {  7, 49,   1, 0, L"388", L"", SWATCH_REPEAT_ALL },
+    {  7, 49,   1, 0, L"tuff", L"", SWATCH_REPEAT_ALL },
     {  8, 49, 390, 0, L"dripstone_block", L"", SWATCH_REPEAT_ALL },
     {  9, 49, 390, 0, L"pointed_dripstone_up_tip", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
     { 10, 49, 390, 0, L"pointed_dripstone_up_tip_merge", L"pointed_dripstone_up_merge", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL }, // Bedrock alt
