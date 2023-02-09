@@ -12,7 +12,7 @@
 # if you want to reverse the order of the maps, i.e., slice 0 will be at height 255, set "reverse" to True:
 reverse = False
 
-for num in range(0,256):     # iterate between levels 0 and 255, inclusive
+for num in range(0,256):     # iterate between levels 0 and 255
     print ("Select maximum height: %d" % num)
     slice = (255-num) if reverse else num;
     print ("Export map: slice_%d.png" % slice )
