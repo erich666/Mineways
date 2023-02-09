@@ -49,8 +49,12 @@ highest = 90
 # ---------------------
 # Feel free to change the code below, of course 
 
+# Dummy world to import blocks into. This world has no content above height 0
+print('Minecraft world: [Block Test World]')
+
 rows = im.shape[0]
 cols = im.shape[1]
+print('Selection location min to max: 0, ' + str(lowest) + ', 0 to ' + str(rows-1) + ', ' + str(highest) + ', ' + str(cols-1))
 
 for y in range(rows):   # note "y" is rows for the image, but actually Z in Minecraft world terms
     for x in range(cols):

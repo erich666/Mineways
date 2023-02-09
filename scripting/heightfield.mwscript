@@ -1,3 +1,5 @@
+Minecraft world: [Block Test World]
+Selection location min to max: 0, 64, 0 to 255, 90, 255
 Change blocks: to "grass block" at 0,64,0 to 0,64,0
 Change blocks: to "grass block" at 1,64,0 to 1,64,0
 Change blocks: to "grass block" at 2,64,0 to 2,64,0
