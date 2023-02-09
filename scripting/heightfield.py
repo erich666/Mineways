@@ -19,6 +19,7 @@
 #    python heightfield.py > heightfield.mwscript
 #
 # This creates a file called "heightfield.mwscript" with a bunch of Mineways script commands.
+# You can call this .mwscript file whatever you like.
 #
 # In Mineways load the built-in world called [Block Test World]. Choose File | Import Settings
 # and select this heightfield.mwscript file. The script will then run and "secretly" add these
@@ -65,3 +66,10 @@ for y in range(rows):   # note "y" is rows for the image, but actually Z in Mine
         # A more luma-based function, see https://en.wikipedia.org/wiki/Luma_(video):
         #h = round((0.299*float(r)+0.587*float(g)+0.114*float(b))*(highest-lowest)/255)
         print('Change blocks: to \"grass block\" at ' + str(x) + ',' + str(lowest) + ',' + str(y) + ' to ' + str(x) + ',' + str(h+lowest) + ',' + str(y))
+
+# You could also entirely automate this process by adding lines at the end of the Python script such as:
+#print('Export for Rendering: height.obj')
+#print('Close')
+#
+# and have Mineways run the script by (on a command line or .bat file):
+#mineways.exe heightfield.mwscript
