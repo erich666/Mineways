@@ -478,11 +478,11 @@ If you find you want your model data to be arranged a bit differently for your r
 <UL>
 <LI>Export separate types: on by default, this option says each type of block - stone, logs, fences, and so on - are put in a separate group. Turning this option off means no groups are created, which can be useful for simplifying import into rendering packages but can make editing more difficult. This option does not affect how many materials are generated.
 <LI id="individual" class="ib">Export individual blocks: This option is mutually exclusive with the previous option, "Export separate types." Normally Mineways exports only those faces that are visible. By checking this box, <i>all</i> faces of <i>every</i> block are output, allowing you to animate such operations as mining or explosions. This considerably increases file size and render time, so use it only if you need it. You may also want to check the <a href="#make_groups_objects">Make groups objects</a> option, e.g., for Blender export, as each group will then be a separate object you can manipulate. For Blender you'll also want to make sure "Material per family" is checked. Note that the individual blocks option will change the appearance of some blocks, such as water and glass blocks, as all faces now have sides, which are visible. Normally Minecraft removes these interior sides (e.g., where two glass blocks share a face), but this option makes them visible. This option works for OBJ and <a href="#usd_export_options">USD export</a>.
-<LI>Material per family: on by default; when exporting the three large mosaic textures (only), blocks in a family (or type; see next option) have their own material. If turned off, a single material is used for all objects. When exporting individual blocks, this checkbox affects whether each block is in its own group (making it easier to edit: move, delete, etc.) or whether individual blocks are grouped by material.
+<LI>Material per family: on by default. <i>Only affects export when exporting the three large mosaic textures</i>. When on, the default, blocks in a family (or type; see next option) have their own material. If turned off, a single material is used for all objects. When exporting individual blocks, this checkbox affects whether each block is in its own group (making it easier to edit: move, delete, etc.) or whether individual blocks are grouped by material. To reiterate, this option does not affect anything when exporting individual textures, as each individual texture needs its own material and so materials cannot be grouped.
 <LI><a id="material_subtypes">Split by block type</a>: Blocks have a family and a type. When checked (the default), the individual types are used for grouping and materials. If you find you are editing too many materials, turn it off and materials will be exported per family. You can see many of the families <a href="https://minecraft-ids.grahamedgecombe.com/">on this page</a>, e.g., Stone, Granite, Polished Granite..., through Polished Andesite are a family. New materials are limited to those where there's a physical difference in the material itself, not just geometric changes. For example, a cake being sliced will not give it a separate material and group. Crops are given separate materials for each growth level, and farmland for each wetness level. Redstone wire is given separate materials for its 16 levels of power, even though Mineways itself differentiates only between off and on states. Campfires, sea pickles, and respawn anchors will be given <a href="https://minecraft.gamepedia.com/Light">separate emission levels</a> when this box is checked; else the maximum light level is assumed.
 </UL>
 <P>
-Confused yet? There are non-obvious interactions among the various settings. A table follows, describing the results when using this 2x3 set of blocks - two grass blocks, two stone, two diorite - as the exported volume, and when using the large mosaic texture option. Recall that diorite is part of the stone family.
+Confused yet? There are non-obvious interactions among the various settings. A table follows, describing the results when using this 2x3 set of blocks - two grass blocks, two stone, two diorite - as the exported volume, and when using the large mosaic texture option. Recall that diorite is part of the stone family. This table fully applies when using the "three mosaic image" material output option. For individual texture output, the "Material per family" option is grayed out, since it has no effect. Results are described as "For mosaics" when materials are output using "three large, mosaic images" mode and "For individuals" when using "individual textures" mode. Note that for individual texture output, it is always the case that different textures will need different materials.
 <P>
 <img src="images/grass_stone_diorite.jpg">
 
@@ -522,31 +522,10 @@ SELECTED
 unchecked
 </td>
 <td>
-Polygons are grouped by block family. Result is one Grass_Block group using the Grass_Block material applied to 8 block faces (the visible faces of the two grass blocks) and one Stone group using the Stone material applied to 14 faces (the visible faces of the four stone-related blocks, Stone and Diorite).
+Polygons are grouped by block family. For mosaics, result is one Grass_Block group using the Grass_Block material applied to 8 block faces (the visible faces of the two grass blocks) and one Stone group using the Stone material applied to 14 faces (the visible faces of the four stone-related blocks, Stone and Diorite). Similarly, for individuals, one group is made for Grass, one for Stone that includes both the stone and granite blocks.
 </td>
 <td>
-Each block <i>family</i> has a separate material. Result is two materials, Grass_Block and Stone.
-</td>
-</tr>
-
-<tr>
-<td>
-SELECTED
-</td>
-<td>
-unchecked
-</td>
-<td>
-SELECTED
-</td>
-<td>
-SELECTED
-</td>
-<td>
-<b>Default for rendering:</b> Polygons are grouped by block type. Result is one Grass_Block group using the Grass_Block material applied to the 8 visible block faces, one Stone group using the Stone material applied to the 6 visible faces, and one Diorite group using the Diorite material applied to its 8 visible block faces.
-</td>
-<td>
-Each block <i>type</i> has a separate material. Result is three materials, Grass_Block, Stone, and Diorite.
+Each block <i>family</i> has a separate material. For mosaics, result is two materials, Grass_Block and Stone.
 </td>
 </tr>
 
@@ -558,16 +537,16 @@ SELECTED
 unchecked
 </td>
 <td>
-unchecked
+SELECTED
 </td>
 <td>
-unchecked
+SELECTED
 </td>
 <td>
-Polygons are grouped by block family. Result is one Grass_Block group with 8 visible block faces and one Stone group with 14 visible faces.
+<b>Default for rendering:</b> Polygons are grouped by block type. For mosaics, result is one Grass_Block group using the Grass_Block material applied to the 8 visible block faces, one Stone group using the Stone material applied to the 6 visible faces, and one Diorite group using the Diorite material applied to its 8 visible block faces. For individuals, there are three groups: Grass_Block, Stone, and Diorite.
 </td>
 <td>
-Single material. A default MC_material is created and applied to all polygons.
+Each block <i>type</i> has a separate material. For mosaics, result is three materials: Grass_Block, Stone, and Diorite.
 </td>
 </tr>
 
@@ -582,13 +561,34 @@ unchecked
 unchecked
 </td>
 <td>
+unchecked
+</td>
+<td>
+Polygons are grouped by block family. For mosaics, result is one Grass_Block group with 8 visible block faces and one Stone group with 14 visible faces. For individuals, since "Material per family" does not affect export in this mode, the result is the same as two lines above: one group is made for Grass, one for Stone that includes both the stone and granite blocks.
+</td>
+<td>
+Single material. For mosaics, a default MC_material is created and applied to all polygons.
+</td>
+</tr>
+
+<tr>
+<td>
 SELECTED
 </td>
 <td>
-Polygons are grouped by block type. Result is one Grass_Block group with 8 visible block faces, one Stone group with 6 visible faces, and one Diorite group with 8 visible block faces.
+unchecked
 </td>
 <td>
-Single material. A default MC_material is created and applied to all polygons.
+unchecked
+</td>
+<td>
+SELECTED
+</td>
+<td>
+Polygons are grouped by block type. Result is one Grass_Block group with 8 visible block faces, one Stone group with 6 visible faces, and one Diorite group with 8 visible block faces. For individuals, since "Material per family" does not affect export in this mode, the result is the same as two lines above: three groups, Grass_Block, Stone, and Diorite.
+</td>
+<td>
+Single material. For mosaics, a default MC_material is created and applied to all polygons.
 </td>
 </tr>
 
@@ -615,7 +615,7 @@ unchecked
 <B>Default for 3D printing:</B> No groups are created at all. Result is 22 visible block faces.
 </td>
 <td>
-Single material. A default MC_material is created and applied to all polygons.
+Single material. For mosaics, a default MC_material is created and applied to all polygons.
 </td>
 </tr>
 
@@ -639,31 +639,10 @@ SELECTED
 unchecked
 </td>
 <td>
-Each individual block is in its own group. Result is 6 block faces in each of six groups (the six blocks): block_00001, block_00002, etc. The related material <i>family</i>, Grass_Block or Stone, is assigned to each block in turn.
+Each individual block is in its own group. Result is 6 block faces in each of six groups (the six blocks): block_00001, block_00002, etc. For mosaics only, the related material <i>family</i>, Grass_Block or Stone, is assigned to each block in turn.
 </td>
 <td>
-Each block <i>family</i> has a separate material. Result is two materials, Grass_Block and Stone.
-</td>
-</tr>
-
-<tr>
-<td>
-unchecked
-</td>
-<td>
-SELECTED
-</td>
-<td>
-SELECTED
-</td>
-<td>
-SELECTED
-</td>
-<td>
-Each individual block is in its own group. Result is 6 block faces in each of six (block) groups: block_00001, block_00002, etc. The related material <i>type</i>, Grass_Block, Stone, or Diorite, is assigned to each block in turn.
-</td>
-<td>
-Each block <i>type</i> has a separate material. Result is three materials, Grass_Block, Stone, and Diorite.
+For mosaics, each block <i>family</i> has a separate material. Result is two materials, Grass_Block and Stone.
 </td>
 </tr>
 
@@ -675,16 +654,16 @@ unchecked
 SELECTED
 </td>
 <td>
-unchecked
+SELECTED
 </td>
 <td>
-unchecked
+SELECTED
 </td>
 <td>
-Individual blocks are output, but grouped by block family. Result is one Grass_Block group using the Grass_Block material applied to two blocks' 12 block faces and one Stone group using the Stone material applied to four blocks' 24 faces.
+Each individual block is in its own group. Result is 6 block faces in each of six (block) groups: block_00001, block_00002, etc. For mosaics only, the related material <i>type</i>, Grass_Block, Stone, or Diorite, is assigned to each block in turn.
 </td>
 <td>
-Each block <i>family</i> has a separate material. Result is two materials, Grass_Block and Stone.
+For mosaics, each block <i>type</i> has a separate material. Result is three materials, Grass_Block, Stone, and Diorite.
 </td>
 </tr>
 
@@ -699,13 +678,34 @@ SELECTED
 unchecked
 </td>
 <td>
+unchecked
+</td>
+<td>
+Individual blocks are output, but grouped by block family. Result is one Grass_Block group, and for mosaics using the Grass_Block material applied to two blocks' 12 block faces and one Stone group and for mosaics using the Stone material applied to four blocks' 24 faces.
+</td>
+<td>
+For mosaics, each block <i>family</i> has a separate material. Result is two materials, Grass_Block and Stone.
+</td>
+</tr>
+
+<tr>
+<td>
+unchecked
+</td>
+<td>
 SELECTED
 </td>
 <td>
-Individual blocks are output, but grouped by block type. Result is one Grass_Block group using the Grass_Block material applied to two blocks' 12 block faces, one Stone group using the Stone material applied to two blocks' 12 faces, and one Diorite group using the Diorite material applied to two blocks' 12 block faces.
+unchecked
 </td>
 <td>
-Each block <i>type</i> has a separate material. Result is three materials, Grass_Block, Stone, and Diorite.
+SELECTED
+</td>
+<td>
+Individual blocks are output, but grouped by block type. Result is one Grass_Block group (and for mosaics only) using the Grass_Block material applied to two blocks' 12 block faces, one Stone group (and for mosaics only) using the Stone material applied to two blocks' 12 faces, and one Diorite group (and for mosaics only) using the Diorite material applied to two blocks' 12 block faces.
+</td>
+<td>
+For mosaics, each block <i>type</i> has a separate material. Result is three materials, Grass_Block, Stone, and Diorite.
 </td>
 </tr>
 
@@ -2743,9 +2743,10 @@ The textures and rules used in Minecraft for how blocks appear and connect have 
 From newest to oldest. The very newest is sometimes unreleased work in progress, with "*" meaning "to do" and "**" meaning "stretch goal."
 
 <UL>
-  <LI>Version 10.10, */*/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1009.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+  <LI>Version 10.10, */*/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1010.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
     <BR>
     <UL>
+	<LI>Gray out the "Material per family" option when exporting individual textures, since it has no effect. Improve <a href="https://www.realtimerendering.com/erich/minecraft/public/mineways/mineways.html#obj_export_options">corresponding documentation</a> <I>(Thanks, Photograph Otter, for the bug report)</I>.
 	<LI>Added to scripting the heightfield.py Python program, which reads an image and creates a heightfield.mwscript (example also included). See <a href="https://youtu.be/nqLYO4qofcM">this video</a> for the process.
 	<LI>Improve register-Mineways-run-as-administrator.bat, which associates .mwscript files with Mineways. You're probably wiser to use the mineways.bat file for startup, but this bat at least highlights the .mwscripts with the Mineways icon.
 	</UL>
