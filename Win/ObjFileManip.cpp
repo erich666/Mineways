@@ -5106,12 +5106,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // since we erase "billboard" objects as we go, we need to test against origType.
 
         hasPost = 0;
-        // "covered" means the walls themselves should go all the way up. TODO:
-        // right now there's covered and not covered, only. In fact, of the four walls
-        // radiating from a post, each could be covered or not. For example, glass panes
-        // put along the top edge of a wall will cover just the parts of the wall that
-        // they are above. This is a lot of logic! So, the real fix is to move to a 16 bit
-        // field for dataVals, not just 8, so there's enough room to save all the states.
+        // "covered" means the walls themselves should go all the way up. This is the "up" characteristic.
         covered = 0;
         // if there's *anything* above the wall, put the post
         if (gBoxData[boxIndex + 1].origType != 0)
@@ -5157,7 +5152,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         }
         // did we find a post? If not (because it's 1.16, for example), test for one.
         // These rules are not quite right, e.g., fences next to walls are not neighbors.
-        // Really, the best fix is as above, that we should go 16 bits for types and for data values
+        // Really, the best fix is as above, that we should go 16 bits for types and for data values.
         if (!hasPost)
         {
             // else, test if there are neighbors and not across from one another.
@@ -22214,6 +22209,9 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                             // note in an array that this separate tile should be output as a material
                             gModel.tileList[CATEGORY_RGBA][prevSwatchLoc] = true;  // means has a texture
                             assert(gModel.mtlCount < NUM_SUBMATERIALS);
+
+                            // TODOTODO - at this point we could very much look at all the faces of the same material that we're
+                            // about to output and, instead, merge faces. Really, better to set a flag and check that flag below.
                         }
                         else if (gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK)
                         {

@@ -1340,7 +1340,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     if (gFullLow)
                     {
                         gFullLow = 0;
-                        swprintf_s(msgString, 1024, L"All blocks in your selection are below the current depth of %d.\n\nWhen you select, you're selecting in three dimensions, and there\nis a depth, displayed in the status bar at the bottom.\nYou can adjust this depth by using the lower slider or '[' & ']' keys.\n\nThe depth will be reset to %d to include all visible blocks.",
+                        swprintf_s(msgString, 1024, L"All blocks in your selection are below the current depth of %d.\n\nWhen you select, you're selecting in three dimensions, and there is a lower depth, displayed in the status bar at the bottom. You can adjust this depth by using the 'Depth' slider near the top or '[' & ']' keys.\n\nThe depth will be reset to %d to include all visible blocks.",
                             gTargetDepth, minHeightFound);
                     }
                     else
@@ -1381,12 +1381,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     if (gFullLow)
                     {
                         gFullLow = 0;
-                        swprintf_s(msgString, 1024, L"Some blocks in your selection are visible below the current depth of %d.\n\nWhen you select, you're selecting in three dimensions, and there\nis a depth, shown on the second slider at the top.\nYou can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to select all visible blocks?\nSelect 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
+                        swprintf_s(msgString, 1024, L"Some blocks in your selection are visible below the current depth of %d.\n\nWhen you select, you're selecting in three dimensions, and there is a depth, shown on the 'Depth' slider near the top. You can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to select all visible blocks?\nSelect 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
                             gTargetDepth, minHeightFound);
                     }
                     else
                     {
-                        swprintf_s(msgString, 1024, L"Some blocks in your selection are visible below the current depth of %d.\n\nDo you want to set the depth to %d to select all visible blocks?\nSelect 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
+                        swprintf_s(msgString, 1024, L"Some blocks in your selection are visible below the current depth of %d.\n\nDo you want to set the depth to %d to select all visible blocks? Select 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
                             gTargetDepth, minHeightFound);
                     }
                 }
@@ -1395,12 +1395,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     if (gFullLow)
                     {
                         gFullLow = 0;
-                        swprintf_s(msgString, 1024, L"The current selection's depth of %d contains hidden lower layers.\n\nWhen you select, you're selecting in three dimensions, and there\nis a depth, shown on the \"Lower\" slider.\nYou can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to minimize the underground? (\"Yes\" is probably what you want.)\nSelect 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
+                        swprintf_s(msgString, 1024, L"The current selection's depth of %d contains hidden lower layers.\n\nWhen you select, you're selecting in three dimensions, and there is a depth, shown on the 'Depth' slider near the top. You can adjust this depth by using this slider or '[' & ']' keys.\n\nDo you want to set the depth to %d to minimize the underground? (\"Yes\" is probably what you want.) Select 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
                             gTargetDepth, minHeightFound);
                     }
                     else
                     {
-                        swprintf_s(msgString, 1024, L"The current selection's depth of %d contains hidden lower layers.\n\nDo you want to set the depth to %d to minimize the underground?\nSelect 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
+                        swprintf_s(msgString, 1024, L"The current selection's depth of %d contains hidden lower layers.\n\nDo you want to set the depth to %d to minimize the underground? Select 'Cancel' to turn off this autocorrection system.\n\nUse the spacebar later if you want to make this type of correction for a given selection.",
                             gTargetDepth, minHeightFound);
                     }
                 }
