@@ -286,9 +286,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
         //CheckDlgButton(hDlg,IDC_MERGE_FLATTOP,epd.chkMergeFlattop);
         CheckDlgButton(hDlg, IDC_MAKE_Z_UP, epd.chkMakeZUp[epd.fileType]);
         // under certain conditions we need to make composite overlay uncheckable, i.e. if 3D printing is on, or if detailed output is off for rendering (or, below, if tiling textures are in use)
-        CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, ((epd.flags & EXPT_3DPRINT) || !epd.chkExportAll) ? BST_INDETERMINATE : epd.chkCompositeOverlay);
         // disallow composites if tile texture is on
-        CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, (epd.radioExportTileTextures[epd.fileType]) ? BST_INDETERMINATE : epd.chkCompositeOverlay);
+        CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, ((epd.flags & EXPT_3DPRINT) || !epd.chkExportAll || !epd.radioExportFullTexture[epd.fileType]) ? BST_INDETERMINATE : epd.chkCompositeOverlay);
 
         CheckDlgButton(hDlg, IDC_CENTER_MODEL, epd.chkCenterModel);
         // these next two options are only available for rendering
@@ -492,9 +491,9 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE, 0);
                 // kinda sleazy: if we go to anything but full textures, turn off exporting all objects
                 // - done because full blocks of the lesser objects usually looks dumb
-                CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
                 CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_UNCHECKED);
             }
+            CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
             goto ChangeMaterial;
 
         case IDC_RADIO_EXPORT_MTL_COLORS_ONLY:
@@ -514,9 +513,9 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 // set the combo box material to color (might already be that, which is fine)
                 SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
                 // kinda sleazy: if we go to anything but full textures, turn off exporting all objects
-                CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
                 CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_UNCHECKED);
             }
+            CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
             goto ChangeMaterial;
 
         case IDC_RADIO_EXPORT_SOLID_TEXTURES:
@@ -541,9 +540,9 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 // set the combo box material to color (might already be that, which is fine)
                 SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
                 // kinda sleazy: if we go to anything but full textures, turn off exporting all objects
-                CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
                 CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_UNCHECKED);
             }
+            CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
             goto ChangeMaterial;
 
         case IDC_RADIO_EXPORT_MOSAIC_TEXTURES:
@@ -561,7 +560,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 // set the combo box material to color (might already be that, which is fine)
                 // if this option is picked, assume colored output material
                 SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
-                CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, (epd.flags & EXPT_3DPRINT) ? BST_CHECKED : BST_UNCHECKED);
+                CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, ((epd.flags & EXPT_3DPRINT) || !epd.chkExportAll) ? BST_INDETERMINATE : epd.chkCompositeOverlay);
                 CheckDlgButton(hDlg, IDC_EXPORT_ALL, (epd.flags & EXPT_3DPRINT) ? BST_UNCHECKED : BST_CHECKED);
                 CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, (epd.chkSeparateTypes || ((epd.flags & EXPT_3DPRINT) ? false : epd.chkIndividualBlocks[epd.fileType])) ? epd.chkMaterialPerFamily : BST_INDETERMINATE);
             }
@@ -576,7 +575,6 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                     CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MOSAIC_TEXTURES, 1);
                     CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, 0);
                     SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
-                    CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_CHECKED);
                     CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_UNCHECKED);
                 }
                 else if (epd.fileType == FILE_TYPE_ASCII_STL) {
@@ -591,8 +589,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 }
                 // always - meaningless
                 CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_INDETERMINATE);
-                // make sure compositing is on when selected
-                CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_CHECKED);
+                // for 3d printing, make sure compositing is on when selected
                 //CheckDlgButton(hDlg, IDC_EXPORT_ALL, (epd.flags & EXPT_3DPRINT) ? BST_UNCHECKED : BST_CHECKED);
             }
             else {
@@ -617,10 +614,10 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                     // set the combo box material to color (might already be that, which is fine)
                     // not used in rendering, but still set it:
                     SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
-                    CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_UNCHECKED);
                     CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_CHECKED);
                 }
             }
+            CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
             goto ChangeMaterial;
 
         case IDC_TEXTURE_A:
@@ -997,8 +994,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 // for rendering
                 if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_CHECKED)
                 {
-                    // all objects export (i.e. lesser) is now on, so make compositing checkable, but off, which is the default for rendering
-                    CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_UNCHECKED);
+                    // all objects export (i.e. lesser) is now on, so for mosaics make compositing checkable, but off, which is the default for rendering
+                    CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_MOSAIC_TEXTURES) ? BST_UNCHECKED : BST_INDETERMINATE);
                 }
                 else if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_UNCHECKED)
                 {
@@ -1038,7 +1035,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
 
         case IDC_COMPOSITE_OVERLAY:
             // the indeterminate state is only for when the option is not available (i.e., 3d printing - where it's always on - or tile texture output - where it's not)
-            if ((epd.flags & EXPT_3DPRINT) || (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_UNCHECKED))
+            if ((epd.flags & EXPT_3DPRINT) || (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_UNCHECKED) || !IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_MOSAIC_TEXTURES))
             {
                 CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
             }
