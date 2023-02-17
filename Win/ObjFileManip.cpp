@@ -5108,19 +5108,38 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         hasPost = 0;
         // "covered" means the walls themselves should go all the way up. This is the "up" characteristic.
         covered = 0;
-        // if there's *anything* above the wall, put the post
+        // if there's *anything* above the wall, put the post, at least temporarily
         if (gBoxData[boxIndex + 1].origType != 0)
         {
             hasPost = 1;
             if (gMcVersion >= 16) {
                 // only in 1.16 on does coverage by something above pull the wall up, maybe.
+                // But the rules appear to have changed yet again! In 1.19, anything except carpet and upside-down stairs and upper slabs cause a post.
                 // Some rules:
-                // if a solid block is above, then it's covered and not necessarily a post (further testing below is done for the post) - the default.
+                // If a solid block is above, then it's covered and not necessarily a post (further testing below is done for the post) - the default.
                 covered = 1;
-                hasPost = 0;
                 neighborType = gBoxData[boxIndex + 1].origType;
+                if ((neighborType == BLOCK_CARPET) ||
+                    (neighborType == BLOCK_SCULK_SHRIEKER) ||
+                    (neighborType == BLOCK_SCULK_SENSOR) ||
+                    (neighborType == BLOCK_FROGLIGHT)
+                    ) {
+                    // carpets are particularly odd: it's considered covered, but no post. Same with skulk shrieker and sensor and froglight. More???
+                    covered = 1;
+                    hasPost = 0;
+                }
+                // if the block above is a slab or stairs that's "above" (upside down), it doesn't affect the wall at all;
+                // pointed dripstone doesn't, either. Nor does a hopper pointing any way but down.
+                else if (((gBlockDefinitions[neighborType].flags & BLF_STAIRS) && (gBoxData[boxIndex + 1].data & 0x4)) ||
+                    ((gBlockDefinitions[neighborType].flags & BLF_HALF) && (gBoxData[boxIndex + 1].data & 0x8)) ||
+                    ((neighborType == BLOCK_HOPPER) && (gBoxData[boxIndex + 1].data & 0x7)) ||  // pointing down is 0, other directions are values > 0
+                    (neighborType == BLOCK_POINTED_DRIPSTONE)
+                    ) {
+                    covered = 0;
+                    hasPost = 0;
+                }
                 // if a fence, pressure plate, sea pickle, or banner is above, then it has a post but is not covered
-                if ((gBlockDefinitions[neighborType].flags & BLF_FENCE) ||
+                else if ((gBlockDefinitions[neighborType].flags & BLF_FENCE) ||
                     (neighborType == BLOCK_SEA_PICKLE) ||
                     (neighborType == BLOCK_STONE_PRESSURE_PLATE) ||
                     (neighborType == BLOCK_WOODEN_PRESSURE_PLATE) ||
@@ -5136,21 +5155,23 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                     (neighborType == BLOCK_POLISHED_BLACKSTONE_PRESSURE_PLATE) ||
                     (neighborType == BLOCK_MANGROVE_PRESSURE_PLATE) ||
                     (neighborType == BLOCK_STANDING_BANNER) ||
-                    (neighborType >= BLOCK_ORANGE_BANNER && neighborType <= BLOCK_BLACK_BANNER)
+                    (neighborType >= BLOCK_ORANGE_BANNER && neighborType <= BLOCK_BLACK_BANNER) ||
+                    ((neighborType == BLOCK_HOPPER) && !(gBoxData[boxIndex + 1].data & 0x7)) ||  // pointing down is 0, which makes a post but no cover
+                    (neighborType == BLOCK_LADDER) ||
+                    (neighborType == BLOCK_VINES) ||
+                    (neighborType == BLOCK_CHAIN) ||
+                    (neighborType >= BLOCK_CANDLE && neighborType <= BLOCK_LIT_COLORED_CANDLE) ||
+                    (neighborType == BLOCK_LIGHTNING_ROD) ||
+                    (neighborType == BLOCK_CAVE_VINES) ||
+                    (neighborType == BLOCK_CAVE_VINES_LIT) ||
+                    (neighborType == BLOCK_GLOW_LICHEN)
                     ) {
                     covered = 0;
                     hasPost = 1;
                 }
-                // if the block above is a slab or stairs that's "above" (upside down), it doesn't affect the wall at all
-                else if (((gBlockDefinitions[neighborType].flags & BLF_STAIRS) && (gBoxData[boxIndex + 1].data & 0x4)) ||
-                    ((gBlockDefinitions[neighborType].flags & BLF_HALF) && (gBoxData[boxIndex + 1].data & 0x8))
-                    ) {
-                    covered = 0;
-                    hasPost = 0;
-                }
             }
         }
-        // did we find a post? If not (because it's 1.16, for example), test for one.
+        // Did we find a post? If not (because it's 1.16, for example), test for one.
         // These rules are not quite right, e.g., fences next to walls are not neighbors.
         // Really, the best fix is as above, that we should go 16 bits for types and for data values.
         if (!hasPost)
