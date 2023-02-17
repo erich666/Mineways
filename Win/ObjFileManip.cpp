@@ -5107,166 +5107,509 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
         hasPost = 0;
         // "covered" means the walls themselves should go all the way up. This is the "up" characteristic.
+        // Each wall can have this separately, just to make things exciting. But, a few items force
+        // "up" for all wall extensions, which is what "covered" is about here.
         covered = 0;
-        // if there's *anything* above the wall, put the post, at least temporarily
-        if (gBoxData[boxIndex + 1].origType != 0)
+
+        // brace here, so that we can declare local variables
         {
-            hasPost = 1;
-            if (gMcVersion >= 16) {
-                // only in 1.16 on does coverage by something above pull the wall up, maybe.
-                // But the rules appear to have changed yet again! In 1.19, anything except carpet and upside-down stairs and upper slabs cause a post.
-                // Some rules:
-                // If a solid block is above, then it's covered and not necessarily a post (further testing below is done for the post) - the default.
-                covered = 1;
-                neighborType = gBoxData[boxIndex + 1].origType;
-                if ((neighborType == BLOCK_CARPET) ||
-                    (neighborType == BLOCK_SCULK_SHRIEKER) ||
-                    (neighborType == BLOCK_SCULK_SENSOR) ||
-                    (neighborType == BLOCK_FROGLIGHT)
-                    ) {
-                    // carpets are particularly odd: it's considered covered, but no post. Same with skulk shrieker and sensor and froglight. More???
-                    covered = 1;
-                    hasPost = 0;
-                }
-                // if the block above is a slab or stairs that's "above" (upside down), it doesn't affect the wall at all;
-                // pointed dripstone doesn't, either. Nor does a hopper pointing any way but down.
-                else if (((gBlockDefinitions[neighborType].flags & BLF_STAIRS) && (gBoxData[boxIndex + 1].data & 0x4)) ||
-                    ((gBlockDefinitions[neighborType].flags & BLF_HALF) && (gBoxData[boxIndex + 1].data & 0x8)) ||
-                    ((neighborType == BLOCK_HOPPER) && (gBoxData[boxIndex + 1].data & 0x7)) ||  // pointing down is 0, other directions are values > 0
-                    (neighborType == BLOCK_POINTED_DRIPSTONE)
-                    ) {
-                    covered = 0;
-                    hasPost = 0;
-                }
-                // if a fence, pressure plate, sea pickle, or banner is above, then it has a post but is not covered
-                else if ((gBlockDefinitions[neighborType].flags & BLF_FENCE) ||
-                    (neighborType == BLOCK_SEA_PICKLE) ||
-                    (neighborType == BLOCK_STONE_PRESSURE_PLATE) ||
-                    (neighborType == BLOCK_WOODEN_PRESSURE_PLATE) ||
-                    (neighborType == BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT) ||
-                    (neighborType == BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY) ||
-                    (neighborType == BLOCK_SPRUCE_PRESSURE_PLATE) ||
-                    (neighborType == BLOCK_BIRCH_PRESSURE_PLATE) ||
-                    (neighborType == BLOCK_JUNGLE_PRESSURE_PLATE) ||
-                    (neighborType == BLOCK_ACACIA_PRESSURE_PLATE) ||
-                    (neighborType == BLOCK_DARK_OAK_PRESSURE_PLATE) ||
-                    (neighborType == BLOCK_CRIMSON_PRESSURE_PLATE) ||
-                    (neighborType == BLOCK_WARPED_PRESSURE_PLATE) ||
-                    (neighborType == BLOCK_POLISHED_BLACKSTONE_PRESSURE_PLATE) ||
-                    (neighborType == BLOCK_MANGROVE_PRESSURE_PLATE) ||
-                    (neighborType == BLOCK_STANDING_BANNER) ||
-                    (neighborType >= BLOCK_ORANGE_BANNER && neighborType <= BLOCK_BLACK_BANNER) ||
-                    ((neighborType == BLOCK_HOPPER) && !(gBoxData[boxIndex + 1].data & 0x7)) ||  // pointing down is 0, which makes a post but no cover
-                    (neighborType == BLOCK_LADDER) ||
-                    (neighborType == BLOCK_VINES) ||
-                    (neighborType == BLOCK_CHAIN) ||
-                    (neighborType >= BLOCK_CANDLE && neighborType <= BLOCK_LIT_COLORED_CANDLE) ||
-                    (neighborType == BLOCK_LIGHTNING_ROD) ||
-                    (neighborType == BLOCK_CAVE_VINES) ||
-                    (neighborType == BLOCK_CAVE_VINES_LIT) ||
-                    (neighborType == BLOCK_GLOW_LICHEN)
-                    ) {
-                    covered = 0;
-                    hasPost = 1;
+            // if there's *anything* above the wall, put the post, at least temporarily
+            if (gBoxData[boxIndex + 1].origType != 0)
+            {
+                hasPost = 1;
+                if (gMcVersion >= 16) {
+                    // only in 1.16 on does coverage by something above pull the wall up, maybe.
+                    // But the rules appear to have changed yet again! In 1.19, anything except carpet and upside-down stairs and upper slabs cause a post.
+                    // Some rules:
+                    // If a solid block is above, then it's covered and not necessarily a post (further testing below is done for the post) - the default.
+                    // So we leave hasPost == 1.
+                    // Most partial blocks above will create a post but not cover things
+
+                    neighborType = gBoxData[boxIndex + 1].origType;
+                    // Some things actually have no effect.
+                    // If the block above is a slab or stairs that's "above" (upside down), it doesn't affect the wall at all;
+                    // pointed dripstone doesn't, either. Nor does a hopper pointing any way but down.
+                    if (((gBlockDefinitions[neighborType].flags & BLF_STAIRS) && (gBoxData[boxIndex + 1].data & 0x4)) ||
+                        ((gBlockDefinitions[neighborType].flags & BLF_HALF) && (gBoxData[boxIndex + 1].data & 0x8)) ||
+                        ((neighborType == BLOCK_HOPPER) && (gBoxData[boxIndex + 1].data & 0x7)) ||  // pointing down is 0, other directions are values > 0
+                        (neighborType >= BLOCK_WATER && neighborType <= BLOCK_STATIONARY_LAVA) ||
+                        (neighborType == BLOCK_POINTED_DRIPSTONE)
+                        ) {
+                        covered = 0;
+                        hasPost = 0;
+                    }
+                    // Test for these exceptions, next, things that make a post but are not covered.
+                    // if a fence, pressure plate, sea pickle, or banner is above, then it has a post but is not covered
+                    else if ((gBlockDefinitions[neighborType].flags & BLF_FENCE) ||
+                        (neighborType == BLOCK_COBBLESTONE_WALL) || // yes, isolated walls above make just a post, not covered. But walls connected above will subtract a post and add covered; checked later.
+                        (neighborType == BLOCK_SEA_PICKLE) ||
+                        (neighborType == BLOCK_STONE_PRESSURE_PLATE) ||
+                        (neighborType == BLOCK_WOODEN_PRESSURE_PLATE) ||
+                        (neighborType == BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT) ||
+                        (neighborType == BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY) ||
+                        (neighborType == BLOCK_SPRUCE_PRESSURE_PLATE) ||
+                        (neighborType == BLOCK_BIRCH_PRESSURE_PLATE) ||
+                        (neighborType == BLOCK_JUNGLE_PRESSURE_PLATE) ||
+                        (neighborType == BLOCK_ACACIA_PRESSURE_PLATE) ||
+                        (neighborType == BLOCK_DARK_OAK_PRESSURE_PLATE) ||
+                        (neighborType == BLOCK_CRIMSON_PRESSURE_PLATE) ||
+                        (neighborType == BLOCK_WARPED_PRESSURE_PLATE) ||
+                        (neighborType == BLOCK_POLISHED_BLACKSTONE_PRESSURE_PLATE) ||
+                        (neighborType == BLOCK_MANGROVE_PRESSURE_PLATE) ||
+                        (neighborType == BLOCK_STANDING_BANNER) ||
+                        (neighborType >= BLOCK_ORANGE_BANNER && neighborType <= BLOCK_BLACK_BANNER) ||
+                        ((neighborType == BLOCK_HOPPER) && !(gBoxData[boxIndex + 1].data & 0x7)) ||  // pointing down is 0, which makes a post but no cover
+                        (neighborType == BLOCK_LADDER) ||
+                        (neighborType == BLOCK_VINES) ||
+                        (neighborType == BLOCK_CHAIN) ||
+                        (neighborType >= BLOCK_CANDLE && neighborType <= BLOCK_LIT_COLORED_CANDLE) ||
+                        (neighborType == BLOCK_LIGHTNING_ROD) ||
+                        (neighborType == BLOCK_CAVE_VINES) ||
+                        (neighborType == BLOCK_CAVE_VINES_LIT) ||
+                        (neighborType == BLOCK_GLOW_LICHEN)
+                        ) {
+                        covered = 0;
+                        hasPost = 1;
+                    }
+                    // Almost all blocks with a "full bottom" cover but do not create a post.
+                    else if ((gBlockDefinitions[neighborType].flags & (BLF_WHOLE| BLF_STAIRS| BLF_HALF)) ||
+                        (neighborType == BLOCK_CARPET) ||
+                        (neighborType == BLOCK_SCULK_SHRIEKER) ||
+                        (neighborType == BLOCK_SCULK_SENSOR) ||
+                        (neighborType == BLOCK_FROGLIGHT)
+                        ) {
+                        covered = 1;
+                        hasPost = 0;
+                    }
                 }
             }
-        }
-        // Did we find a post? If not (because it's 1.16, for example), test for one.
-        // These rules are not quite right, e.g., fences next to walls are not neighbors.
-        // Really, the best fix is as above, that we should go 16 bits for types and for data values.
-        if (!hasPost)
-        {
-            // else, test if there are neighbors and not across from one another.
-            int xCount = 0;
-            int zCount = 0;
+            // Did we find a post due to things being overhead? If not, there are other ways a post can occur.
+            // Basically, if there are any walls that extend from the post, AND the walls are not all paired up.
+            // That is, if both east and west extend, that will not make a post. Same with north-south, or all four directions.
+            // So what we want to figure out now is how many walls extend from the post.
+
+            // Test if there are neighbors that create a wall (and not across from one another).
+            float xLowWall = 0.0f;
+            float xHighWall = 0.0f;
+            float zLowWall = 0.0f;
+            float zHighWall = 0.0f;
             neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
-            if ((type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+            if ((neighborType == BLOCK_COBBLESTONE_WALL) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+                (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) || (neighborType == BLOCK_IRON_BARS) ||
+                ((gBlockDefinitions[neighborType].flags & BLF_STAIRS) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].data & 0x3)) == 0) ||
                 ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].data & 0x1)) == 0))
             {
-                xCount++;
+                xLowWall = 1 + covered;
             }
             neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
-            if ((type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+            if ((neighborType == BLOCK_COBBLESTONE_WALL) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+                (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) || (neighborType == BLOCK_IRON_BARS) ||
+                ((gBlockDefinitions[neighborType].flags & BLF_STAIRS) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].data & 0x3)) == 1) ||
                 ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].data & 0x1)) == 0))
             {
-                xCount++;
+                xHighWall = 1 + covered;
             }
             neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
-            if ((type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+            if ((neighborType == BLOCK_COBBLESTONE_WALL) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+                (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) || (neighborType == BLOCK_IRON_BARS) ||
+                ((gBlockDefinitions[neighborType].flags & BLF_STAIRS) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].data & 0x3)) == 2) ||
                 ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].data & 0x1)) == 1))
             {
-                zCount++;
+                zLowWall = 1 + covered;
             }
             neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
-            if ((type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+            if ((neighborType == BLOCK_COBBLESTONE_WALL) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+                (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) || (neighborType == BLOCK_IRON_BARS) ||
+                ((gBlockDefinitions[neighborType].flags & BLF_STAIRS) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].data & 0x3)) == 3) ||
                 ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].data & 0x1)) == 1))
             {
-                zCount++;
+                zHighWall = 1 + covered;
+            }
+
+            // Now, various extended walls can be "covered" even if the covered property was not set.
+            // Rules: iron/panes/walls/fences and fence gates directly above
+            if (!covered) {
+                bool upper_matches = true;
+                neighborType = gBoxData[boxIndex + 1].origType; // above
+
+                // OK, is it a wall above?
+                if (neighborType == BLOCK_COBBLESTONE_WALL) {
+                    // yes, so check all connections (similar to earlier code) to see how these walls *above* are connected.
+                    // If they connect exactly the same, then there's no post.
+                    neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X] + 1].origType;
+                    if ((neighborType == BLOCK_COBBLESTONE_WALL) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+                        (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) || (neighborType == BLOCK_IRON_BARS) ||
+                        ((gBlockDefinitions[neighborType].flags & BLF_STAIRS) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].data & 0x3)) == 0) ||
+                        ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].data & 0x1)) == 0))
+                    {
+                        if (xLowWall) {
+                            xLowWall += 1.0f;   // now covered after all
+                        }
+                        else {
+                            upper_matches = false;
+                        }
+                    }
+                    else {
+                        if (xLowWall) {
+                            upper_matches = false;
+                        }
+                    }
+
+                    neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X] + 1].origType;
+                    if ((neighborType == BLOCK_COBBLESTONE_WALL) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+                        (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) || (neighborType == BLOCK_IRON_BARS) ||
+                        ((gBlockDefinitions[neighborType].flags & BLF_STAIRS) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].data & 0x3)) == 1) ||
+                        ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].data & 0x1)) == 0))
+                    {
+                        if (xHighWall) {
+                            xHighWall += 1.0f;   // now covered after all
+                        }
+                        else {
+                            upper_matches = false;
+                        }
+                    }
+                    else {
+                        if (xHighWall) {
+                            upper_matches = false;
+                        }
+                    }
+                    neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z] + 1].origType;
+                    if ((neighborType == BLOCK_COBBLESTONE_WALL) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+                        (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) || (neighborType == BLOCK_IRON_BARS) ||
+                        ((gBlockDefinitions[neighborType].flags & BLF_STAIRS) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].data & 0x3)) == 2) ||
+                        ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].data & 0x1)) == 1))
+                    {
+                        if (zLowWall) {
+                            zLowWall += 1.0f;   // now covered after all
+                        }
+                        else {
+                            upper_matches = false;
+                        }
+                    }
+                    else {
+                        if (zLowWall) {
+                            upper_matches = false;
+                        }
+                    }
+                    neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z] + 1].origType;
+                    if ((neighborType == BLOCK_COBBLESTONE_WALL) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
+                        (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) || (neighborType == BLOCK_IRON_BARS) ||
+                        ((gBlockDefinitions[neighborType].flags & BLF_STAIRS) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].data & 0x3)) == 3) ||
+                        ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].data & 0x1)) == 1))
+                    {
+                        if (zHighWall) {
+                            zHighWall += 1.0f;   // now covered after all
+                        }
+                        else {
+                            upper_matches = false;
+                        }
+                    }
+                    else {
+                        if (zHighWall) {
+                            upper_matches = false;
+                        }
+                    }
+                }
+                else if ((neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) || (neighborType == BLOCK_IRON_BARS)) {
+                    if (gIs13orNewer && neighborType != BLOCK_STAINED_GLASS_PANE) {
+                        // easy and dependable - neighbors marked by bits 0-3
+                        dataVal = gBoxData[boxIndex + 1].data;
+                        if (dataVal & 0x2)
+                        {
+                            if (xLowWall) {
+                                xLowWall += 1.0f;   // now covered after all
+                            }
+                            else {
+                                upper_matches = false;
+                            }
+                        }
+                        else {
+                            if (xLowWall) {
+                                upper_matches = false;
+                            }
+                        }
+                        if (dataVal & 0x8)
+                        {
+                            if (xHighWall) {
+                                xHighWall += 1.0f;   // now covered after all
+                            }
+                            else {
+                                upper_matches = false;
+                            }
+                        }
+                        else {
+                            if (xHighWall) {
+                                upper_matches = false;
+                            }
+                        }
+                        if (dataVal & 0x4)
+                        {
+                            if (zLowWall) {
+                                zLowWall += 1.0f;   // now covered after all
+                            }
+                            else {
+                                upper_matches = false;
+                            }
+                        }
+                        else {
+                            if (zLowWall) {
+                                upper_matches = false;
+                            }
+                        }
+                        if (dataVal & 0x1)
+                        {
+                            if (zHighWall) {
+                                zHighWall += 1.0f;   // now covered after all
+                            }
+                            else {
+                                upper_matches = false;
+                            }
+                        }
+                        else {
+                            if (zHighWall) {
+                                upper_matches = false;
+                            }
+                        }
+                    }
+                    else {
+                        // which neighboring blocks have something that attaches to a glass pane? Things that attach:
+                        // whole blocks, glass panes, iron bars, walls
+                        neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
+                        if ((neighborType == BLOCK_IRON_BARS) || (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) ||
+                            (neighborType == BLOCK_COBBLESTONE_WALL) ||
+                            (gBlockDefinitions[neighborType].flags & BLF_WHOLE))
+                        {
+                            if (xLowWall) {
+                                xLowWall += 1.0f;   // now covered after all
+                            }
+                            else {
+                                upper_matches = false;
+                            }
+                        }
+                        else {
+                            if (xLowWall) {
+                                upper_matches = false;
+                            }
+                        }
+
+                        neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X] + 1].origType;
+                        if ((neighborType == BLOCK_IRON_BARS) || (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) ||
+                            (neighborType == BLOCK_COBBLESTONE_WALL) ||
+                            (gBlockDefinitions[neighborType].flags & BLF_WHOLE))
+                        {
+                            if (xHighWall) {
+                                xHighWall += 1.0f;   // now covered after all
+                            }
+                            else {
+                                upper_matches = false;
+                            }
+                        }
+                        else {
+                            if (xHighWall) {
+                                upper_matches = false;
+                            }
+                        }
+                        neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z] + 1].origType;
+                        if ((neighborType == BLOCK_IRON_BARS) || (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) ||
+                            (neighborType == BLOCK_COBBLESTONE_WALL) ||
+                            (gBlockDefinitions[neighborType].flags & BLF_WHOLE))
+                        {
+                            if (zLowWall) {
+                                zLowWall += 1.0f;   // now covered after all
+                            }
+                            else {
+                                upper_matches = false;
+                            }
+                        }
+                        else {
+                            if (zLowWall) {
+                                upper_matches = false;
+                            }
+                        }
+                        neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z] + 1].origType;
+                        if ((neighborType == BLOCK_IRON_BARS) || (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) ||
+                            (neighborType == BLOCK_COBBLESTONE_WALL) ||
+                            (gBlockDefinitions[neighborType].flags & BLF_WHOLE))
+                        {
+                            if (zHighWall) {
+                                zHighWall += 1.0f;   // now covered after all
+                            }
+                            else {
+                                upper_matches = false;
+                            }
+                        }
+                        else {
+                            if (zHighWall) {
+                                upper_matches = false;
+                            }
+                        }
+                    }
+                }
+                else if (gBlockDefinitions[neighborType].flags & BLF_FENCE) {
+                    // If they connect exactly the same, then there's no post.
+                    if (fenceNeighbor(neighborType, boxIndex+1, DIRECTION_BLOCK_SIDE_LO_X))
+                    {
+                        if (xLowWall) {
+                            xLowWall += 1.0f;   // now covered after all
+                        }
+                        else {
+                            upper_matches = false;
+                        }
+                    }
+                    else {
+                        if (xLowWall) {
+                            upper_matches = false;
+                        }
+                    }
+                    if (fenceNeighbor(neighborType, boxIndex + 1, DIRECTION_BLOCK_SIDE_HI_X))
+                    {
+                        if (xHighWall) {
+                            xHighWall += 1.0f;   // now covered after all
+                        }
+                        else {
+                            upper_matches = false;
+                        }
+                    }
+                    else {
+                        if (xHighWall) {
+                            upper_matches = false;
+                        }
+                    }
+                    if (fenceNeighbor(neighborType, boxIndex + 1, DIRECTION_BLOCK_SIDE_LO_Z))
+                    {
+                        if (zLowWall) {
+                            zLowWall += 1.0f;   // now covered after all
+                        }
+                        else {
+                            upper_matches = false;
+                        }
+                    }
+                    else {
+                        if (zLowWall) {
+                            upper_matches = false;
+                        }
+                    }
+                    if (fenceNeighbor(neighborType, boxIndex + 1, DIRECTION_BLOCK_SIDE_HI_Z))
+                    {
+                        if (zHighWall) {
+                            zHighWall += 1.0f;   // now covered after all
+                        }
+                        else {
+                            upper_matches = false;
+                        }
+                    }
+                    else {
+                        if (zHighWall) {
+                            upper_matches = false;
+                        }
+                    }
+                }
+                else if ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && !(gBoxData[boxIndex + 1].data & 0x4)) {
+                    // if fence gate is overhead and not open (weirdly, when the gate closes, the wall below is covered), it covers EW or NS, odd or even
+                    if (gBoxData[boxIndex + 1].data & 0x1) {
+                        if (zLowWall) {
+                            zLowWall += 1.0f;   // now covered after all
+                        }
+                        else {
+                            upper_matches = false;
+                        }
+                        if (zHighWall) {
+                            zHighWall += 1.0f;   // now covered after all
+                        }
+                        else {
+                            upper_matches = false;
+                        }
+                        if (xLowWall) {
+                            upper_matches = false;
+                        }
+                        if (xHighWall) {
+                            upper_matches = false;
+                        }
+                    }
+                    else {
+                        if (xLowWall) {
+                            xLowWall += 1.0f;   // now covered after all
+                        }
+                        else {
+                            upper_matches = false;
+                        }
+                        if (xHighWall) {
+                            xHighWall += 1.0f;   // now covered after all
+                        }
+                        else {
+                            upper_matches = false;
+                        }
+                        if (zLowWall) {
+                            upper_matches = false;
+                        }
+                        if (zHighWall) {
+                            upper_matches = false;
+                        }
+
+                    }
+                }
+                else {
+                    // for everything else, leave hasPost alone by setting this to false
+                    upper_matches = false;
+                }
+
+                // if upper pattern matches the lower pattern of walls, then no post is needed
+                if (upper_matches) {
+                    hasPost = 0;
+                }
             }
 
             // for walls, if the count is anything but 2 and both along an axis, put the post
-            if (!(((xCount == 2) && (zCount == 0)) || ((xCount == 0) && (zCount == 2))))
+            if (!((((xLowWall > 0.0f) + (xHighWall > 0.0f) == 2) && ((zLowWall > 0.0f) + (zHighWall > 0.0f) == 0)) ||
+                (((xLowWall > 0.0f) + (xHighWall > 0.0f) == 0) && ((zLowWall > 0.0f) + (zHighWall > 0.0f) == 2))))
             {
-                // special case for 1.16 and newer: if it's a four way, no post
-                if (gMcVersion < 16 || !(((xCount == 2) && (zCount == 2)))) {
-                    // cobblestone post
+                // special case for 1.16 and newer: if it's a four way, no post; else, post at corner or end of wall
+                if (gMcVersion < 16 || !((((xLowWall > 0.0f) + (xHighWall > 0.0f) == 2) && ((zLowWall > 0.0f) + (zHighWall > 0.0f) == 2)))) {
+                    // post at corner or end of wall
                     hasPost = 1;
                 }
             }
-        }
 
-        // test texturing with a 2x2 grid
-        //saveBoxTileGeometry( boxIndex, type, swatchLoc, 1, 0x0, 0,7, 16,16, 0,7 );
-        //saveBoxTileGeometry( boxIndex, type, swatchLoc, 0, 0x0, 0,7, 16,16, 9,16 );
-        //saveBoxTileGeometry( boxIndex, type, swatchLoc, 0, 0x0, 9,16, 16,16, 0,7 );
-        //saveBoxTileGeometry( boxIndex, type, swatchLoc, 0, 0x0, 9,16, 16,16, 9,16 );
+            if (hasPost)
+            {
+                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1, 0x0, 4, 12, 0, 16, 4, 12);
+                firstFace = 0;
+            }
+            else
+            {
+                firstFace = 1;
+            }
 
-        if (hasPost)
-        {
-            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1, 0x0, 4, 12, 0, 16, 4, 12);
-            firstFace = 0;
-        }
-        else
-        {
-            firstFace = 1;
-        }
-
-        neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
-        if ((type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
-            ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].data & 0x1)) == 0))
-        {
-            // this fence connects to the neighboring block, so output the fence pieces
-            // if the neighbor is transparent, or a different type, or individual blocks are made, we'll output the face facing the neighbor (important if we connect to a fence, for example)
-            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType) || covered;
-            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_HI_X_BIT) | (transNeighbor ? 0x0 : DIR_LO_X_BIT), 0, 8 - hasPost * 4, 0, 14 + covered * 2, 5, 11);
-            firstFace = 0;
-        }
-        neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
-        if ((type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
-            ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].data & 0x1)) == 0))
-        {
-            // this fence connects to the neighboring block, so output the fence pieces
-            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType) || covered;
-            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_LO_X_BIT) | (transNeighbor ? 0x0 : DIR_HI_X_BIT), 8 + hasPost * 4, 16, 0, 14 + covered * 2, 5, 11);
-            firstFace = 0;
-        }
-        neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
-        if ((type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
-            ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].data & 0x1)) == 1))
-        {
-            // this fence connects to the neighboring block, so output the fence pieces
-            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType) || covered;
-            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_HI_Z_BIT) | (transNeighbor ? 0x0 : DIR_LO_Z_BIT), 5, 11, 0, 14 + covered * 2, 0, 8 - hasPost * 4);
-            firstFace = 0;
-        }
-        neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
-        if ((type == neighborType) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
-            ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].data & 0x1)) == 1))
-        {
-            // this fence connects to the neighboring block, so output the fence pieces
-            transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType) || covered;
-            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_LO_Z_BIT) | (transNeighbor ? 0x0 : DIR_HI_Z_BIT), 5, 11, 0, 14 + covered * 2, 8 + hasPost * 4, 16);
-            firstFace = 0;	// not necessary, but for consistency in case code is added below  // cppcheck-suppress 563
+            // which walls to output?
+            if (xLowWall > 0.0f) {
+                // this wall connects to the neighboring block, so output the wall piece
+                // if the neighbor is transparent, or a different type, or individual blocks are made, we'll output the face facing the neighbor (important if we connect to a fence, for example)
+                neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
+                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType) || (xLowWall == 2.0f);
+                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_HI_X_BIT) | (transNeighbor ? 0x0 : DIR_LO_X_BIT), 0, 8 - hasPost * 4, 0, 12 + xLowWall * 2, 5, 11);
+                firstFace = 0;
+            }
+            if (xHighWall > 0.0f) {
+                // this wall connects to the neighboring block, so output the wall piece
+                neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
+                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType) || (xHighWall == 2.0f);
+                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_LO_X_BIT) | (transNeighbor ? 0x0 : DIR_HI_X_BIT), 8 + hasPost * 4, 16, 0, 12 + xHighWall * 2, 5, 11);
+                firstFace = 0;
+            }
+            if (zLowWall > 0.0f) {
+                // this wall connects to the neighboring block, so output the wall piece
+                neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
+                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType) || (zLowWall == 2.0f);
+                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_HI_Z_BIT) | (transNeighbor ? 0x0 : DIR_LO_Z_BIT), 5, 11, 0, 12 + zLowWall * 2, 0, 8 - hasPost * 4);
+                firstFace = 0;
+            }
+            if (zHighWall > 0.0f) {
+                // this wall connects to the neighboring block, so output the wall piece
+                neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
+                transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType) || (zHighWall == 2.0f);
+                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_LO_Z_BIT) | (transNeighbor ? 0x0 : DIR_HI_Z_BIT), 5, 11, 0, 12 + zHighWall * 2, 8 + hasPost * 4, 16);
+                firstFace = 0;	// not necessary, but for safety in case new code is added below  // cppcheck-suppress 563
+            }
         }
         break; // saveBillboardOrGeometry
 
@@ -8451,9 +8794,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         }
         else {
             // which neighboring blocks have something that attaches to a glass pane? Things that attach:
-            // whole blocks, glass panes, iron bars
+            // whole blocks, glass panes, iron bars, walls
             neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
             if ((neighborType == BLOCK_IRON_BARS) || (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) ||
+                (neighborType == BLOCK_COBBLESTONE_WALL) ||
                 (gBlockDefinitions[neighborType].flags & BLF_WHOLE))
             {
                 // north
@@ -8462,6 +8806,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             }
             neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
             if ((neighborType == BLOCK_IRON_BARS) || (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) ||
+                (neighborType == BLOCK_COBBLESTONE_WALL) ||
                 (gBlockDefinitions[neighborType].flags & BLF_WHOLE))
             {
                 // east
@@ -8470,6 +8815,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             }
             neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
             if ((neighborType == BLOCK_IRON_BARS) || (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) ||
+                (neighborType == BLOCK_COBBLESTONE_WALL) ||
                 (gBlockDefinitions[neighborType].flags & BLF_WHOLE))
             {
                 // south
@@ -8478,6 +8824,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             }
             neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
             if ((neighborType == BLOCK_IRON_BARS) || (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) ||
+                (neighborType == BLOCK_COBBLESTONE_WALL) ||
                 (gBlockDefinitions[neighborType].flags & BLF_WHOLE))
             {
                 // west

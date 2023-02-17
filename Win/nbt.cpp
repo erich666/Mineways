@@ -3918,6 +3918,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             lit = false;
             break;
         case STAIRS_PROP:
+            // subtract one from the dataVal, which is the "facing" property, so that south == 0, west == 1, north == 2, east == 3
             dataVal = (dataVal - 1) | (half ? 4 : 0) | stairs;
             break;
         case RAIL_PROP:
