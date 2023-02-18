@@ -44,7 +44,7 @@
 #define SWATCH_REPEAT_ALL                   (SBIT_REPEAT_SIDES|SBIT_REPEAT_TOP_BOTTOM)
 // Repeat sides else clamp is for tiles like the sides of grass, where top and bottom should be clamped.
 #define SWATCH_REPEAT_SIDES_ELSE_CLAMP      (SBIT_REPEAT_SIDES|SBIT_CLAMP_BOTTOM|SBIT_CLAMP_TOP)
-// Repeat top and bottom is for cactus sides and rails
+// Repeat top and bottom is for cactus sides and rails, also some vines, kelp
 #define SWATCH_TILE_BOTTOM_AND_TOP          SBIT_REPEAT_TOP_BOTTOM
 // Bottom and right is for the curved rail
 #define SWATCH_CLAMP_BOTTOM_AND_RIGHT       (SBIT_CLAMP_BOTTOM|SBIT_CLAMP_RIGHT)
@@ -226,7 +226,7 @@ static struct {
     { 12,  8,  25, 0, L"note_block", L"noteblock", SWATCH_REPEAT_ALL },
     { 13,  8, 100, 0, L"mushroom_stem", L"mushroom_block_skin_stem", SWATCH_REPEAT_ALL },
     { 14,  8, 100, 0, L"mushroom_block_inside", L"", SWATCH_REPEAT_ALL },
-    { 15,  8, 106, 0, L"vine", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYNTHESIZED },	// grayscale
+    { 15,  8, 106, 0, L"vine", L"", SWATCH_TILE_BOTTOM_AND_TOP | SBIT_DECAL | SBIT_SYNTHESIZED },	// grayscale; just tops and bottoms match up
     {  0,  9,  22, 0, L"lapis_block", L"", SWATCH_REPEAT_ALL },
     {  1,  9,  35, 0, L"green_wool", L"wool_colored_green", SWATCH_REPEAT_ALL },
     {  2,  9,  35, 0, L"lime_wool", L"wool_colored_lime", SWATCH_REPEAT_ALL },
@@ -622,11 +622,11 @@ static struct {
     {  8, 33, 313, 0, L"dried_kelp_side", L"dried_kelp_side_a", SWATCH_REPEAT_ALL },    // alt bedrock; there's also a side_b
     {  9, 33, 313, 0, L"dried_kelp_bottom", L"", SWATCH_REPEAT_ALL },
     { 10, 33, 314, 0, L"kelp", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    { 11, 33, 314, 0, L"kelp_plant", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    { 11, 33, 314, 0, L"kelp_plant", L"", SWATCH_TILE_BOTTOM_AND_TOP | SBIT_DECAL },
     { 12, 33, 323, 0, L"sea_pickle", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 13, 33, 312, 0, L"blue_ice", L"", SWATCH_REPEAT_ALL },
     { 14, 33, 309, 0, L"tall_seagrass_bottom", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL }, // seagrass_doubletall_bottom in Muddle, but in TGA
-    { 15, 33, 310, 0, L"tall_seagrass_top", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 15, 33, 310, 0, L"tall_seagrass_top", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },  // just clamp bottom. Not clamping the top lets it properly be transparent and taper off
     {  0, 34, 277, 0, L"stripped_oak_log", L"", SWATCH_REPEAT_ALL },
     {  1, 34, 277, 0, L"stripped_spruce_log", L"", SWATCH_REPEAT_ALL },
     {  2, 34, 277, 0, L"stripped_birch_log", L"", SWATCH_REPEAT_ALL },
@@ -786,7 +786,7 @@ static struct {
     { 12, 43, 276, 0, L"stripped_crimson_stem_top", L"", SWATCH_REPEAT_ALL },
     { 13, 43, 276, 0, L"stripped_crimson_stem", L"stripped_crimson_stem_side", SWATCH_REPEAT_ALL },	// more like wood
     { 14, 43, 363, 0, L"weeping_vines", L"weeping_vines_bottom", SBIT_CLAMP_TOP | SBIT_DECAL },	// bizarrely, upside down
-    { 15, 43, 363, 0, L"weeping_vines_plant", L"weeping_vines_base", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    { 15, 43, 363, 0, L"weeping_vines_plant", L"weeping_vines_base", SWATCH_TILE_BOTTOM_AND_TOP | SBIT_DECAL },
     {  0, 44, 162, 0, L"warped_stem_top", L"", SWATCH_REPEAT_ALL },	// more like a log
     {  1, 44, 162, 0, L"warped_stem", L"warped_stem_side", SWATCH_REPEAT_ALL },	// more like a log				
     {  2, 44,   3, 0, L"warped_nylium", L"warped_nylium_top", SWATCH_REPEAT_ALL },  // alternate from Homa
@@ -802,7 +802,7 @@ static struct {
     { 12, 44, 276, 0, L"stripped_warped_stem_top", L"", SWATCH_REPEAT_ALL },	// more like wood?
     { 13, 44, 276, 0, L"stripped_warped_stem", L"stripped_warped_stem_side", SWATCH_REPEAT_ALL },	// more like wood
     { 14, 44, 363, 0, L"twisting_vines", L"twisting_vines_bottom", SBIT_CLAMP_BOTTOM | SBIT_DECAL },  // alternate from Homa
-    { 15, 44, 363, 0, L"twisting_vines_plant", L"twisting_vines_base", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },  // alternate from Homa
+    { 15, 44, 363, 0, L"twisting_vines_plant", L"twisting_vines_base", SWATCH_TILE_BOTTOM_AND_TOP | SBIT_DECAL },  // alternate from Homa
     {  0, 45,   1, 0, L"ancient_debris_top", L"", SWATCH_REPEAT_ALL },
     {  1, 45,   1, 0, L"ancient_debris_side", L"", SWATCH_REPEAT_ALL },
     {  2, 45, 344, 0, L"crying_obsidian", L"", SWATCH_REPEAT_ALL },

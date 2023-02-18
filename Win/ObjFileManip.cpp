@@ -818,6 +818,8 @@ static double myrand();
 
 static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, int mapMinHeight, int mapMaxHeight, bool ignoreTransparent, int mcVersion, int versionID);
 
+static void decimateMesh();
+
 static wchar_t gSeparator[3];
 
 void SetSeparatorObj(const wchar_t* separator)
@@ -892,7 +894,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     gModel.options->cost = 0.0f;
 
     gModel.exportTexture = (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE) ? 1 : 0;
-    gModel.exportTiles = (gModel.options->exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES) ? 1 : 0;
+    gModel.exportTiles = (gModel.options->exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES) ? 1 : 0;    // aka "individual"
     gModel.customMaterial = (gModel.options->exportFlags & EXPT_OUTPUT_CUSTOM_MATERIAL) ? 1 : 0;
     gModel.exportMDL = (gModel.options->exportFlags & EXPT_EXPORT_MDL) ? 1 : 0;
 
@@ -979,6 +981,11 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     else {
         // Needed for gTextureDirectoryPath later
         wcscpy_s(gMaterialDirectoryPath, MAX_PATH_AND_FILE, gOutputFilePath);
+    }
+
+    // If UVs used, initialize with the "popular" ones to make searching for previous UVs much faster
+    if (gModel.exportTexture)
+    {
     }
 
     // start exporting for real - this should be the same value as above, in the first call of UPDATE_PROGRESS,
@@ -16294,7 +16301,13 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
             qsort_s(gModel.faceList, gModel.faceCount, sizeof(FaceRecord*), faceIdCompare, NULL);
         }
     }
-    // else we are exporting by block, so 
+    // else we are exporting by block, so no sorting is done.
+
+    // At this point we could apply decimation, if desired (and valid, etc.)
+    static bool decimate = true;    // TODOTODO
+    if (decimate) {
+        decimateMesh();
+    }
 
     return retCode;
 }
@@ -22577,9 +22590,6 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                             // note in an array that this separate tile should be output as a material
                             gModel.tileList[CATEGORY_RGBA][prevSwatchLoc] = true;  // means has a texture
                             assert(gModel.mtlCount < NUM_SUBMATERIALS);
-
-                            // TODOTODO - at this point we could very much look at all the faces of the same material that we're
-                            // about to output and, instead, merge faces. Really, better to set a flag and check that flag below.
                         }
                         else if (gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK)
                         {
@@ -31250,4 +31260,45 @@ static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int 
         }
     }
     return minHeight;
+}
+
+static void decimateMesh()
+{
+    // Decimation is possibly only when: not using any mosaic texture, not using composite overlays.
+    // Should warn if exporting to 3D printing, as this can cause T-junctions.
+    // Strategy: set up a separate list of records that point to faces.
+    // Only faces with any of the first six normals for indices are saved.
+    // Only full faces (UV's 0-1) are saved (if vertex coordinates are used at all). Need to check vertices locations
+    // to ensure they're truly full.
+    //   May want to use a similar thing to uvGridList, perhaps 33x33, to keep track of the "expanded" UVs.
+    //   Means we'll have an upper limit of how far to expand a grid out, which is probably good.
+
+    // Walk through faces, for each material group (if materials are used). Ignore materials such as log faces and columns, where orientation matters.
+    // Probably need to add a flag to each tile noting that it is "rotatable".
+    // (Oh, and when outputting, want to turn off randomization of direction when decimation is on.)
+    // For each face, point to the "real" face, store the index in the original facecount list.
+    // Use a byte to flag which of the 6 directions it faces,
+    // and store the minimum X and Y of the face, for sorting. X and Y is in relation to the normal, e.g.,
+    // if normal is +X, store normal "distance" X (sort key), then stored X = Z, stored Y = Y, something like that.
+    
+    // Sort by normal direction sort key value, then by X, then by Y.
+    // Walk through matching normals and matching X's and attach the neighboring Y's together in single-linked lists, ascending.
+    // (That is: this record points at the next record if the next record's normal dir, normal distance, X match and Y is +1.)
+
+    // Now sort again: ..., but then by *Y*, then by X. Now the Y's are connected (by the previous sort) and the X's are adjacent
+
+    // Start walking groups that match in some way. If this quad has a neighbor, walk one in the X direction.
+    // Then alternate: look in Y direction, all along next row over. If they're all there, expand in Y.
+    // Keep alternating, stop when we either don't hit a filled row/column or we hit the maximum (say 32 total).
+
+    // We now have some extent that's all the same. Make a new entry, a new type of face, for this tile type, with the proper vertex indices (nothing new there),
+    // normal direction (nothing new), and texture coordinates (probably something new - mark in UV table). Mark the old faces as
+    // no longer needing output - probably set normal index to -1 or something...
+    // 
+    // Now walk the next face in our sorted list. Did it already get merged with something else? Continue. Else try to merge as above.
+
+    // Once we've walked through all faces like this, we're done! We've made all the replacements we could, and marked ones that
+    // are used along the way.
+
+    // During output we export all the merged faces. I'd recommend writing them out first.
 }
