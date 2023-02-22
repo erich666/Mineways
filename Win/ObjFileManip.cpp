@@ -672,6 +672,8 @@ static void saveInstanceLocation(float* anchorPt, int instanceID);
 static int makeInstanceHash(int type, int dataVal);
 static int tileIdCompare(void* context, const void* str1, const void* str2);
 static int tileUSDIdCompare(void* context, const void* str1, const void* str2);
+static int tileIdDeleteAndCompare(void* context, const void* str1, const void* str2);
+static int tileUSDIdDeleteAndCompare(void* context, const void* str1, const void* str2);
 static int faceIdCompare(void* context, const void* str1, const void* str2);
 static int chunkUSDCompare(void* context, const void* str1, const void* str2);
 static int instanceUSDCompare(void* context, const void* str1, const void* str2);
@@ -1025,7 +1027,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     {
         // only for separate tile output are the tiles exported, because with the "unified single texture" there would be a lot of stupid
         // empty textures doing nothing to modify materials. Could still be done, but not a priority. TODOBONUS
-        if (gModel.options->exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES) {
+        if (gModel.exportTiles) {
             // For individual tile export, try to read all possible terrainExt file names and process each. RGBA/normals/M/E/R
             if ((fileType == FILE_TYPE_WAVEFRONT_REL_OBJ) || (fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ)) {
                 gTotalInputTextures = 5; // was RGBA and normals, the first two; now export all, as available
@@ -16345,7 +16347,7 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
     if ((gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MTL_PER_TYPE) && !(gModel.options->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
     {
         // Check if we are exporting per tile
-        if (gModel.options->exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES) {
+        if (gModel.exportTiles) {
             // for USD, group by actual tile, as we don't care about groups so much
             if (gModel.options->pEFD->fileType == FILE_TYPE_USD) {
                 qsort_s(gModel.faceList, gModel.faceCount, sizeof(FaceRecord*), tileUSDIdCompare, NULL);
@@ -16500,6 +16502,95 @@ static int tileUSDIdCompare(void* context, const void* str1, const void* str2)
     f1 = *(FaceRecord**)str1;
     f2 = *(FaceRecord**)str2;
     context;    // make a useless reference to the unused variable, to avoid C4100 warning
+    // compare swatchLocs
+    int swatchLoc1 = gModel.uvIndexList[f1->uvIndex[0]].swatchLoc;
+    int swatchLoc2 = gModel.uvIndexList[f2->uvIndex[0]].swatchLoc;
+    if (swatchLoc1 == swatchLoc2) {
+        if (f1->materialType == f2->materialType)
+        {
+            // tie break of the data value
+            // TODO: do this test only if we really want sub-materials; would have to pass in some context
+            if (f1->materialDataVal == f2->materialDataVal) {
+                // Not necessary, but...
+                // Tie break is face loop starting vertex, so that data is
+                // output with some coherence. May help mesh caching and memory access.
+                // Also, the data just looks more tidy in the file.
+                return ((f1->faceIndex < f2->faceIndex) ? -1 : ((f1->faceIndex == f2->faceIndex)) ? 0 : 1);
+            }
+            else {
+                return ((f1->materialDataVal < f2->materialDataVal) ? -1 : 1);
+            }
+        }
+        else return ((f1->materialType < f2->materialType) ? -1 : 1);
+    }
+    else return ((swatchLoc1 < swatchLoc2) ? -1 : 1);
+}
+
+// As above, but put deleted faces at end
+// sort by type and subtype, then compare swatch locations, which are separate materials within a block, then by face index.
+// Sorting by swatch location allows better grouping and less material switching (can't do this for individual block output).
+static int tileIdDeleteAndCompare(void* context, const void* str1, const void* str2)
+{
+    FaceRecord* f1;
+    FaceRecord* f2;
+    f1 = *(FaceRecord**)str1;
+    f2 = *(FaceRecord**)str2;
+    context;    // make a useless reference to the unused variable, to avoid C4100 warning
+    if (f1->normalIndex == HAS_BEEN_MERGED || f2->normalIndex == HAS_BEEN_MERGED)
+    {
+        // one or both faces deleted, walking dead, so put at end of list and be done
+        if (f1->normalIndex == f2->normalIndex) {
+            // match - both deleted, so continue on
+            return 0;
+        }
+        // if first is deleted, return 1, it's considered later; else second is later, end of list
+        else return ((f1->normalIndex == HAS_BEEN_MERGED) ? 1 : -1);
+    }
+    // both are valid, sort normally
+    if (f1->materialType == f2->materialType)
+    {
+        // tie break of the data value
+        // TODO: do this test only if we really want sub-materials; would have to pass in some context
+        if (f1->materialDataVal == f2->materialDataVal) {
+            // compare swatchLocs
+            int swatchLoc1 = gModel.uvIndexList[f1->uvIndex[0]].swatchLoc;
+            int swatchLoc2 = gModel.uvIndexList[f2->uvIndex[0]].swatchLoc;
+            if (swatchLoc1 == swatchLoc2) {
+                // Not necessary, but...
+                // Tie break is face loop starting vertex, so that data is
+                // output with some coherence. May help mesh caching and memory access.
+                // Also, the data just looks more tidy in the file.
+                return ((f1->faceIndex < f2->faceIndex) ? -1 : ((f1->faceIndex == f2->faceIndex)) ? 0 : 1);
+            }
+            else {
+                return ((swatchLoc1 < swatchLoc2) ? -1 : 1);
+            }
+        }
+        else return ((f1->materialDataVal < f2->materialDataVal) ? -1 : 1);
+    }
+    else return ((f1->materialType < f2->materialType) ? -1 : 1);
+}
+
+// As above, but put deleted faces at end
+// sort by type and subtype, then compare swatch locations, which are separate materials within a block, then by face index.
+// Sorting by swatch location allows better grouping and less material switching (can't do this for individual block output).
+static int tileUSDIdDeleteAndCompare(void* context, const void* str1, const void* str2)
+{
+    FaceRecord* f1;
+    FaceRecord* f2;
+    f1 = *(FaceRecord**)str1;
+    f2 = *(FaceRecord**)str2;
+    context;    // make a useless reference to the unused variable, to avoid C4100 warning
+    if (f1->normalIndex == HAS_BEEN_MERGED || f2->normalIndex == HAS_BEEN_MERGED)
+    {
+        // one or both faces deleted, walking dead, so put at end of list and be done
+        if (f1->normalIndex == f2->normalIndex) {
+            // match - both deleted, so continue on
+            return 0;
+        }
+        // if first is deleted, return 1, it's considered later; else second is later, end of list
+        else return ((f1->normalIndex == HAS_BEEN_MERGED) ? 1 : -1);
+    }
     // compare swatchLocs
     int swatchLoc1 = gModel.uvIndexList[f1->uvIndex[0]].swatchLoc;
     int swatchLoc2 = gModel.uvIndexList[f2->uvIndex[0]].swatchLoc;
@@ -21788,6 +21879,7 @@ static int saveTextureUV(int swatchLoc, int type, float u, float v)
 {
     int i;
     assert(swatchLoc < NUM_MAX_SWATCHES);
+    // uvSwatches is used ONLY to see if the UV pair coming in has been saved before. If not, room is made to save the new UV.
     int count = gModel.uvSwatches[swatchLoc].count;
     UVRecord* uvr = gModel.uvSwatches[swatchLoc].records;
 
@@ -22313,6 +22405,7 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
     return (float)pow(emission / 15.0f, power);
 }
 
+// done for OBJ, when getting ready to export unified list of texture coordinates
 static int mosaicUVtoSeparateUV()
 {
     int retCode = MW_NO_ERROR;
@@ -22498,6 +22591,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
     {
         pFace = gModel.faceList[i];
         // if face has been merged, we ignore it for output - TODOTODO: test everywhere, well, at least USD
+        // TODOTODO get rid of this - we will clean this up before this point
         if (pFace->normalIndex != HAS_BEEN_MERGED) {
 
             // every 4% or so check on progress
@@ -29363,7 +29457,7 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
     {
         if (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES)
             radio = 2;
-        else if (gModel.options->exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES)
+        else if (gModel.exportTiles)
             radio = 4;
         else if (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES)
             radio = 3;
@@ -31410,6 +31504,29 @@ static void decimateMesh()
         pSFRPool = pNext;
     }
     gModel.simplifyFaceRecordPool = gModel.headSimplifyFaceRecordPool = NULL;
+
+    // Now that everything's in the main database list, sort again, with a slight difference:
+    // Put deleted faces at end (so we don't have to deal with them on output)
+    if ((gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MTL_PER_TYPE) && !(gModel.options->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
+    {
+        // Check if we are exporting per tile
+        if (gModel.exportTiles) {
+            // for USD, group by actual tile, as we don't care about groups so much
+            if (gModel.options->pEFD->fileType == FILE_TYPE_USD) {
+                qsort_s(gModel.faceList, gModel.faceCount, sizeof(FaceRecord*), tileUSDIdDeleteAndCompare, NULL);
+            }
+            else {
+                // group by tile type; minimizes material changes
+                qsort_s(gModel.faceList, gModel.faceCount, sizeof(FaceRecord*), tileIdDeleteAndCompare, NULL);
+            }
+            // go from end of list until we find a face that is not deleted.
+            for (i = gModel.faceCount - 1; i >= 0 && gModel.faceList[i]->normalIndex == HAS_BEEN_MERGED; i--) {}
+
+            gModel.faceCount = i+1;
+
+            // TODOTODO - adjust stats generated?
+        }
+    }
  }
 
 static bool faceCanTile(int faceId)

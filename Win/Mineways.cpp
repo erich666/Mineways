@@ -5359,7 +5359,7 @@ static void initializeViewExportData(ExportFileData& viewData)
     INIT_ALL_FILE_TYPES(viewData.chkCustomMaterial, 1, 1, 1, 0, 0, 0, 0, 0);
     viewData.chkCompositeOverlay = 0;
     viewData.chkBlockFacesAtBorders = 1;
-    viewData.chkDecimate = 0;   // sure, let's use this as the default
+    viewData.chkDecimate = 1;   // sure, let's use this as the default
     viewData.chkLeavesSolid = 0;
     viewData.chkExportMDL = 1;
     viewData.scaleLightsVal = 30.0f;

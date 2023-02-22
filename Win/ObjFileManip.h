@@ -226,7 +226,6 @@ typedef struct Model {
     int vertexListSize;
 
     // One for each SwatchLoc - each UVList potentially contains a list of UVs associated with this particular swatch.
-    // During output of the 
     UVList uvSwatches[NUM_MAX_SWATCHES];
     int uvIndexCount;
     // points into uv Records actually stored at the swatch locations
