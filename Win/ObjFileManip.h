@@ -67,7 +67,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define MW_CANNOT_CREATE_DIRECTORY                  (1<<20)
 #define MW_INTERNAL_ERROR							(1<<21)
 
-#define MW_BEGIN_PNG_ERRORS                        (1<<22)
+#define MW_BEGIN_PNG_ERRORS                       (1<<22)
 
 #define MW_CANNOT_READ_SELECTED_TERRAIN_FILE        (1<<22)
 #define MW_CANNOT_CREATE_PNG_FILE                   (1<<23)
@@ -164,6 +164,25 @@ typedef struct FaceRecordPool {
     int count;
 } FaceRecordPool;
 
+typedef struct SimplifyFaceRecord {
+    FaceRecord* pFace;  // original record with most of the data; the rest is really for sorting faster
+    // TODO: we could cut way down on this data below and derive it on the fly each sort compare, but that sounds super-slow...
+    int normalDirection;
+    float normalDistance;
+    float xll;
+    float yll;
+    SimplifyFaceRecord* pXneighborSFR;
+    SimplifyFaceRecord* pYneighborSFR;
+} SimplifyFaceRecord;
+
+#define SIMPLIFY_FACE_RECORD_POOL_SIZE 10000
+
+typedef struct SimplifyFaceRecordPool {
+    SimplifyFaceRecord sfr[SIMPLIFY_FACE_RECORD_POOL_SIZE];
+    struct SimplifyFaceRecordPool* pNext;
+    int count;
+} SimplifyFaceRecordPool;
+
 typedef struct SwatchComposite {
     int swatchLoc;
     int backgroundSwatchLoc;
@@ -243,7 +262,8 @@ typedef struct Model {
     int textureResolution;  // size of output texture
     float invTextureResolution; // inverse, commonly used
     int terrainWidth;   // width of input image (needed for noisy textures, when an image is not actually read in)
-    int tileSize;    // number of pixels in a tile, e.g. 16
+    int tileSize;    // number of pixels in a tile, e.g. 16 by default, could be 64, 256, or other power of two
+    float resScale;     // scale factor, 16 divided by tile size
     int verticalTiles;	// number of rows of tiles, e.g. a 16x19 set of tiles gives 19
     int swatchSize;  // number of pixels in a swatch, e.g. 18
     int swatchesPerRow;  // a swatch is a tile with a +1 border (or SWATCH_BORDER) around it
@@ -258,6 +278,8 @@ typedef struct Model {
     int usesRGBA;   // 1 if the RGBA texture is used
     int usesAlpha;   // 1 if the Alpha-only texture is used
     FaceRecordPool* faceRecordPool;
+    SimplifyFaceRecordPool* simplifyFaceRecordPool;
+    SimplifyFaceRecordPool* headSimplifyFaceRecordPool;
     bool alreadyAskedForComposite;
     int mcVersion;	// 12 for 1.12.2 and earlier, 13 for 1.13 and later
 

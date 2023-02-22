@@ -82,6 +82,7 @@ static struct {
     // at this point, which the TileMaker normally reads specially from the chests directory and writes to these locations, or Mineways
     // creates on the fly internally.
     // TODO: someday, just read from the unzipped texture pack itself, using the proper paths.
+    // NOTE! If you change anything here, you'll have to change faceCanTile's swatchLoc exception list.
 } gTilesTable[TOTAL_TILES] = {
     {  0,  0,   2, 0, L"grass_block_top", L"grass_top", SWATCH_REPEAT_ALL | SBIT_SYNTHESIZED },	// tinted by grass color
     {  1,  0,   1, 0, L"stone", L"", SWATCH_REPEAT_ALL },

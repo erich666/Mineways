@@ -355,7 +355,8 @@ typedef struct ExportFileData
 
     UINT chkCenterModel;
     UINT chkLeavesSolid;    // should tree leaves be output as solid or semitransparent? Normally false, i.e., semitransparent for rendering. Doesn't affect 3D printing
-    UINT chkBlockFacesAtBorders;    // should block faces be generated at the borders of the export? False for rendering. Doesn't affect 3D printing.
+    UINT chkBlockFacesAtBorders;    // should block faces be generated at the borders of the export? True for rendering. Doesn't affect 3D printing.
+    UINT chkDecimate;    // Decimate meshes as possible
     UINT chkBiome;
     UINT chkCompositeOverlay;	// true means we'll make a composite texture of anything such as redstone wire that overlays a tile; false means make a separate floating object above the tile.
 

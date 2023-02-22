@@ -5228,6 +5228,7 @@ static void initializePrintExportData(ExportFileData& printData)
     printData.chkBiome = 0;
     printData.chkCompositeOverlay = 1;	// never allow 0 for 3D printing, as this would create tiles floating above the surface
     printData.chkBlockFacesAtBorders = 1; // never allow 0 for 3D printing, as this would make the surface non-manifold
+    printData.chkDecimate = 0; // never allow 0 for 3D printing, as this would make the surface potentially have T-junctions
     printData.chkLeavesSolid = 1; // never allow 0 for 3D printing, as this would make the surface non-manifold 
 
     printData.radioRotate0 = 1;
@@ -5358,6 +5359,7 @@ static void initializeViewExportData(ExportFileData& viewData)
     INIT_ALL_FILE_TYPES(viewData.chkCustomMaterial, 1, 1, 1, 0, 0, 0, 0, 0);
     viewData.chkCompositeOverlay = 0;
     viewData.chkBlockFacesAtBorders = 1;
+    viewData.chkDecimate = 0;   // sure, let's use this as the default
     viewData.chkLeavesSolid = 0;
     viewData.chkExportMDL = 1;
     viewData.scaleLightsVal = 30.0f;
@@ -6973,6 +6975,8 @@ static int interpretImportLine(char* line, ImportedSet& is)
             is.pEFD->chkBlockFacesAtBorders = interpretBoolean(string1);
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
+
+    // TODOTODO add for decimates
 
     strPtr = findLineDataNoCase(line, "Make tree leaves solid:");
     if (strPtr != NULL) {

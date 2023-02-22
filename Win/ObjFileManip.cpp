@@ -48,9 +48,14 @@ THE POSSIBILITY OF SUCH DAMAGE.
 // feature currently disabled, G3D was fixed so this is no longer an issue.
 #define STOP_Z_FIGHTING	0.0f
 
+// Maximum size of a simplified area. We could crank this higher...
+#define SIMPLIFY_MAX_DIMENSION 32
+
 // If the model is going to undergo a transform, we don't know the normal of the surface,
 // so figure out the normal at the end of the run.
 #define COMPUTE_NORMAL  -1
+// marker for a face's normalIndex to note it's been merged and so should be ignored for output
+#define HAS_BEEN_MERGED -2
 
 static PORTAFILE gModelFile;
 static PORTAFILE gMtlFile;
@@ -278,6 +283,7 @@ static int gUsingTransform = 0;
 // these spots are used for compositing, as temporary places to put swatches to edit
 // TODO - make separate hunks of memory that don't get output.
 #define SWATCH_WORKSPACE        SWATCH_INDEX( 8, 2 )
+
 
 // say we save to c:\temp\Buildings\Eiffel.usda
 wchar_t gOutputFilePath[MAX_PATH_AND_FILE]; // this is then "c:\\temp\\Buildings\\"
@@ -596,6 +602,7 @@ static bool badNeighborTest(int& neighborIndex, int boxIndex, int offset);
 static unsigned int getStairMask(int boxIndex, int dataVal);
 static void setDefaultUVs(Point2 uvs[3], int skip);
 static FaceRecord* allocFaceRecordFromPool();
+static SimplifyFaceRecord* allocSimplifyFaceRecordFromPool();
 static unsigned short getSignificantMaterial(int type, int dataVal);
 static int saveTriangleFace(int boxIndex, int swatchLoc, int type, int dataVal, int faceDirection, int startVertexIndex, int vindex[3], Point2 uvs[3]);
 static int saveCandle(int type, int dataVal, int boxIndex, float height, float xLoc, float yLoc, float zLoc);
@@ -725,7 +732,7 @@ static int writeCommentUSD(char* commentString);
 static int finishCommentsUSD(char* defaultPrim);
 static int addCameraUSD();
 static int createMeshesUSD(wchar_t* blockLibraryPath, char* materialLibrary, bool singleTerrainFile);
-static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int numVerts, char* prefixLook, char* mtlName, float resScale, int progressTick, int progressIncrement, bool singleTerrainFile);
+static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int numVerts, char* prefixLook, char* mtlName, int progressTick, int progressIncrement, bool singleTerrainFile);
 static boolean allocOutData(int vertsize, int facesize);
 static void freeOutData();
 static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t* mtlLibraryFile, bool singleTerrainFile);
@@ -819,6 +826,12 @@ static double myrand();
 static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, int mapMinHeight, int mapMaxHeight, bool ignoreTransparent, int mcVersion, int versionID);
 
 static void decimateMesh();
+static bool faceCanTile(int faceId);
+static void extractZXYfromNormalAndBounds(FaceRecord* pFace, SimplifyFaceRecord* pSimplifyFace);
+static void simplifySetOfFaces(int faceCount, SimplifyFaceRecord** ppSFR);
+static int simplifyFaceCompareYminor(void* context, const void* str1, const void* str2);
+static int simplifyFaceCompareXminor(void* context, const void* str1, const void* str2);
+static void mergeSimplifySet(SimplifyFaceRecord** ppSFR, int faceCount);
 
 static wchar_t gSeparator[3];
 
@@ -981,11 +994,6 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     else {
         // Needed for gTextureDirectoryPath later
         wcscpy_s(gMaterialDirectoryPath, MAX_PATH_AND_FILE, gOutputFilePath);
-    }
-
-    // If UVs used, initialize with the "popular" ones to make searching for previous UVs much faster
-    if (gModel.exportTexture)
-    {
     }
 
     // start exporting for real - this should be the same value as above, in the first call of UPDATE_PROGRESS,
@@ -1160,6 +1168,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         }
         // there are always 16 tiles wide in terrainExt.png, so we divide by this.
         gModel.tileSize = gModel.terrainWidth / 16;
+        gModel.resScale = 16.0f / (float)gModel.tileSize;
         gModel.swatchSize = 2 + gModel.tileSize;
         gModel.invTextureResolution = 1.0f / (float)gModel.textureResolution;
         gModel.swatchesPerRow = (int)(gModel.textureResolution / gModel.swatchSize);
@@ -1243,6 +1252,15 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     // Ready the normals for direct output 0 - any undefined (-1 index) get set now
     // It's possible the output format doesn't include normals, but this process is almost always needed (and easily missed)
     resolveFaceNormals();
+
+    // At this point we could apply decimation, if desired (and valid, etc.).
+    // Faces that get merged into new, larger faces are "deleted" by marking the normalIndex to HAS_BEEN_MERGED,
+    // just to save room that would be needed for a flag
+    static bool decimate = true;    // TODOTODO
+    if (gModel.options->pEFD->chkDecimate) {
+        assert(gModel.exportTiles);
+        decimateMesh();
+    }
 
     switch (fileType)
     {
@@ -1710,27 +1728,27 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
                                     case 241: // redstone torch top
                                     case 683: // soul torch
                                     case 751: // soul torch top - TODO USD: is this still needed? Can't we now just trim the polygon itself?
-                                    case 3 * 16 + 13: // furnace front on - misses a few darker bits, but avoids lots of bright furnace surfaces
+                                    case 3*16 + 13: // furnace front on - misses a few darker bits, but avoids lots of bright furnace surfaces
                                         clampLevel = 226;
                                         break;
-                                    case 7 * 16 + 8: // jack o' lantern
+                                    case 7*16 + 8: // jack o' lantern
                                         clampLevel = 230;
                                         break;
-                                    case 9 * 16 + 13: // brewing stand
+                                    case 9*16 + 13: // brewing stand
                                         clampLevel = 167;
                                         break;
-                                    case 13 * 16 + 4: // redstone lamp
+                                    case 13*16 + 4: // redstone lamp
                                         clampLevel = 110;
                                         break;
-                                    case 37 * 16 + 11: // lantern
-                                    case 42 * 16 + 13: // soul lantern
+                                    case 37*16 + 11: // lantern
+                                    case 42*16 + 13: // soul lantern
                                         clampLevel = 115;
                                         break;
-                                    case 23 * 16 + 12: // end rod
-                                    case 38 * 16 + 10: // blast furnace front on
+                                    case 23*16 + 12: // end rod
+                                    case 38*16 + 10: // blast furnace front on
                                         clampLevel = 203;
                                         break;
-                                    case 40 * 16 + 15: // smoker front on - not quite right, as the top edge of the cover is higher than this
+                                    case 40*16 + 15: // smoker front on - not quite right, as the top edge of the cover is higher than this
                                         clampLevel = 187;
                                         break;
                                     case 626:   // campfire log lit
@@ -1746,7 +1764,7 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
                                     case 730: // respawn anchor faces
                                         clampLevel = 147;
                                         break;
-                                    case 9 * 16 + 12: // brewing stand base - should emit no light.
+                                    case 9*16 + 12: // brewing stand base - should emit no light.
                                         clampLevel = 255;
                                         break;
                                     default:
@@ -2042,7 +2060,8 @@ static int initializeModelData()
     gModel.faceRecordPool = (FaceRecordPool*)malloc(sizeof(FaceRecordPool));
     gModel.faceRecordPool->count = 0;
     gModel.faceRecordPool->pPrev = NULL;
-
+    // note simplify pool is not allocated, since it's not always used. Allocated on demand
+    
     VecScalar(gModel.billboardBounds.min, =, INT_MAX);
     VecScalar(gModel.billboardBounds.max, =, INT_MIN);
 
@@ -2145,6 +2164,7 @@ static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* 
         return MW_IMAGE_WRONG_WIDTH;
 
     gModel.tileSize = gModel.pInputTerrainImage[CATEGORY_RGBA]->width / 16;
+    gModel.resScale = 16.0f / (float)gModel.tileSize;
     // note vertical tile limit for texture. We will save all these tiles away.
     gModel.verticalTiles = gModel.pInputTerrainImage[CATEGORY_RGBA]->height / gModel.tileSize;
 
@@ -11311,6 +11331,35 @@ static FaceRecord* allocFaceRecordFromPool()
     return &(gModel.faceRecordPool->fr[gModel.faceRecordPool->count++]);
 }
 
+static SimplifyFaceRecord* allocSimplifyFaceRecordFromPool()
+{
+    if (gModel.simplifyFaceRecordPool->count >= SIMPLIFY_FACE_RECORD_POOL_SIZE)
+    {
+        SimplifyFaceRecordPool* pSFRP = gModel.simplifyFaceRecordPool->pNext;
+        // allocate new pool if there isn't one already
+        if (pSFRP == NULL) {
+            // no previous pool to reuse, so add a new pool
+            pSFRP = (SimplifyFaceRecordPool*)malloc(sizeof(SimplifyFaceRecordPool));
+            if (pSFRP) {
+                pSFRP->count = 0;
+                gModel.simplifyFaceRecordPool->pNext = pSFRP;
+                gModel.simplifyFaceRecordPool = pSFRP;
+            }
+            else {
+                // out of memory! Not sure what to do...
+                assert(pSFRP);
+            }
+        }
+        else {
+            // go to next (already allocated) pool and use it
+            gModel.simplifyFaceRecordPool = pSFRP;
+            gModel.simplifyFaceRecordPool->count = 0;
+        }
+    }
+    return &(gModel.simplifyFaceRecordPool->sfr[gModel.simplifyFaceRecordPool->count++]);
+}
+
+
 static unsigned short getSignificantMaterial(int type, int dataVal)
 {
     // Return only the "material-related" bits of the data value. That is, only those bits
@@ -11349,7 +11398,7 @@ static int saveTriangleFace(int boxIndex, int swatchLoc, int type, int dataVal, 
 {
     FaceRecord* face;
     int retCode = MW_NO_ERROR;
-    float rect[4];
+    //float rect[4];
 
     // If we're doing a 3D print, we must always output the triangle - we don't currently
     // check for an exact neighbor match (which is going to very rare anyway).
@@ -11358,9 +11407,14 @@ static int saveTriangleFace(int boxIndex, int swatchLoc, int type, int dataVal, 
     // method, the face *always* touches the voxel's face, since it's a full block, but
     // it's still good to test, as it sets rect and also this method may someday change).
     // Or, if a lesser neighbor doesn't cover this face fully, then output it.
-    if (gModel.print3D || gUsingTransform || !findFaceDimensions(rect, faceDirection, 0, 16, 0, 16, 0, 16) ||
-        !lesserNeighborCoversRectangle(faceDirection, boxIndex, rect))
-    {
+    
+    // These tests are not needed - triangles are only used for rails for 3D printing
+    //if (gModel.print3D || gUsingTransform || 
+    //    !findFaceDimensions(rect, faceDirection, 0, 16, 0, 16, 0, 16) ||
+    //    !lesserNeighborCoversRectangle(faceDirection, boxIndex, rect))
+    //{
+    boxIndex;   // here purely to avoid compilation error - needed in commented code above
+
         // output the triangle
         int uvIndices[3];
         if (gModel.exportTexture)
@@ -11406,7 +11460,7 @@ static int saveTriangleFace(int boxIndex, int swatchLoc, int type, int dataVal, 
         if (retCode >= MW_BEGIN_ERRORS) return retCode;
 
         gModel.faceList[gModel.faceCount++] = face;
-    }
+    //}
 
     return retCode;
 }
@@ -11631,7 +11685,8 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
             // or doesn't touch the voxel's face, 
             // or it touches the voxel's face and its neighbor doesn't cover the geometry in rect,
             // then output the face. Whew!
-            if (gUsingTransform || !findFaceDimensions(rect, faceDirection, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ) ||
+            if (gUsingTransform ||
+                !findFaceDimensions(rect, faceDirection, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ) ||
                 !lesserNeighborCoversRectangle(faceDirection, boxIndex, rect))
             {
 
@@ -11878,10 +11933,13 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
     return retCode;
 }
 
-// find if the specified face touches its voxel's face (i.e., is up against the voxel), and get the dimensions found.
+// Find if the specified face touches its voxel's face (i.e., is up against the voxel), and get the dimensions found.
+// Assumes gHasTransform is false
 // Return 0 if the face is not against the voxel (and so cannot possibly be culled).
 static int findFaceDimensions(float rect[4], int faceDirection, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ)
 {
+    assert(!gUsingTransform);
+
     switch (faceDirection)
     {
     default:
@@ -12374,6 +12432,7 @@ static int saveBoxFaceUVs(int type, int dataVal, int faceDirection, int markFirs
     face = allocFaceRecordFromPool();
     if (face == NULL)
     {
+        // out of memory!
         return retCode | MW_WORLD_EXPORT_TOO_LARGE;
     }
 
@@ -13357,7 +13416,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
                 assert(billCount <= 5);
                 break;
             }
-}
+        }
         break;
     case BB_BOTTOM:
         // lily pad or frogspawn
@@ -16303,12 +16362,6 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
     }
     // else we are exporting by block, so no sorting is done.
 
-    // At this point we could apply decimation, if desired (and valid, etc.)
-    static bool decimate = true;    // TODOTODO
-    if (decimate) {
-        decimateMesh();
-    }
-
     return retCode;
 }
 
@@ -16621,6 +16674,20 @@ static int checkAndCreateFaces(int boxIndex, IPoint loc)
     {
         int neighborBoxIndex = boxIndex + gFaceOffset[faceDirection];
         neighborType = gBoxData[neighborBoxIndex].type;
+
+        // Could be added someday - really affects ONLY the Block Test World, which is only one block thick.
+        // Check here if the face faces down and is on the border.
+        // If so, don't output it.
+        // Note that this works only for full blocks - bottoms of other blocks will not be deleted.
+        // This is fine, as the point of this option is to save on terrain, not viewed from the bottom;
+        // some other partial blocks (slabs, stairs) could have their bottom faces deleted also, but these are very few.
+        //if (!gModel.options->pEFD->chkBlockFacesAtBorders && (faceDirection == DIRECTION_BLOCK_BOTTOM)) {
+        //    // OK, right direction. Is it at the bottom of the selected volume?
+        //    if (boxIndex % gBoxSize[Y] <= 1) {
+        //        // culled out, at bottom of volume
+        //        continue;
+        //    }
+        //}
 
         // If neighbor is air, or if we're outputting a model for viewing
         // (not printing) and it is transparent and our object is not transparent,
@@ -16995,14 +17062,26 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
             }
             break;
 
-        case BLOCK_CARPET:						// lesserBlockCoversWholeFace
+        // if these are above, the bottom is always a full face
+        case BLOCK_LAVA:
+        case BLOCK_STATIONARY_LAVA:			        // lesserBlockCoversWholeFace
+        case BLOCK_SNOW:
+        case BLOCK_CARPET:
+        case BLOCK_END_PORTAL_FRAME:
+        case BLOCK_FARMLAND:
+        case BLOCK_REDSTONE_REPEATER_OFF:
+        case BLOCK_REDSTONE_REPEATER_ON:
+        case BLOCK_REDSTONE_COMPARATOR:
+        case BLOCK_REDSTONE_COMPARATOR_DEPRECATED:
+        case BLOCK_DAYLIGHT_SENSOR:
+        case BLOCK_INVERTED_DAYLIGHT_SENSOR:
+        case BLOCK_ENCHANTING_TABLE:
+        case BLOCK_STONECUTTER:
+        case BLOCK_SCULK_SENSOR:
+        case BLOCK_SCULK_SHRIEKER:
+            // blocks top of block below
             return (faceDirection == DIRECTION_BLOCK_TOP);
 
-        case BLOCK_END_PORTAL_FRAME:						// lesserBlockCoversWholeFace
-            return (faceDirection == DIRECTION_BLOCK_TOP);
-
-        case BLOCK_FARMLAND:						// lesserBlockCoversWholeFace
-            return (faceDirection == DIRECTION_BLOCK_TOP);
 
         case BLOCK_TRAPDOOR:						// lesserBlockCoversWholeFace
         case BLOCK_IRON_TRAPDOOR:
@@ -17048,27 +17127,12 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
             }
             break;
 
-        case BLOCK_SNOW:						// lesserBlockCoversWholeFace
-            return (faceDirection == DIRECTION_BLOCK_TOP);
-
         case BLOCK_CAULDRON:						// lesserBlockCoversWholeFace
             if (!view3D)
             {
                 return (faceDirection == DIRECTION_BLOCK_TOP);
             }
             break;
-
-        case BLOCK_REDSTONE_REPEATER_OFF:						// lesserBlockCoversWholeFace
-        case BLOCK_REDSTONE_REPEATER_ON:
-        case BLOCK_REDSTONE_COMPARATOR:
-        case BLOCK_REDSTONE_COMPARATOR_DEPRECATED:
-        case BLOCK_DAYLIGHT_SENSOR:
-        case BLOCK_INVERTED_DAYLIGHT_SENSOR:
-        case BLOCK_ENCHANTING_TABLE:
-        case BLOCK_STONECUTTER:
-        case BLOCK_SCULK_SHRIEKER:
-            // blocks top of block below
-            return (faceDirection == DIRECTION_BLOCK_TOP);
 
         case BLOCK_HOPPER:						// lesserBlockCoversWholeFace
             // blocks bottom of cube above
@@ -17139,15 +17203,8 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
             }
             break;
 
-        case BLOCK_LAVA:
-        case BLOCK_STATIONARY_LAVA:			        // lesserBlockCoversWholeFace
-            // if these are above, the bottom is always a full face
-            if (faceDirection == DIRECTION_BLOCK_TOP)
-                return 1;
-            break;
-
         case BLOCK_COMPOSTER:						// lesserBlockCoversWholeFace
-            // really, covers whole block on all sides, in a sense
+            // really, covers whole block on all sides, even on its top.
             return 1;
             break;
 
@@ -21846,11 +21903,11 @@ static void freeModel(Model* pModel)
     if (pModel->faceList)
     {
         FaceRecordPool* pPool = gModel.faceRecordPool;
-        int i = 0;
+        //int i = 0;
         while (pPool)
         {
             //UPDATE_PROGRESS(PG_CLEANUP + 0.9f * (PG_END - PG_CLEANUP) * ((float)i / (float)pModel->faceCount));
-            i += FACE_RECORD_POOL_SIZE;
+            //i += FACE_RECORD_POOL_SIZE;
             FaceRecordPool* pPrev = pPool->pPrev;
             free(pPool);
             pPool = pPrev;
@@ -22266,19 +22323,18 @@ static int mosaicUVtoSeparateUV()
     // We use a 17x17 array of all the possible UV coords, then just whip through list and mark the ones used, then use this to output the valid ones.
     // This list then gets filled with the new index to use, 0 if not used, i.e., if count is >=1, then give it the next ID (start at 1, since that's what we'll actually output).
     // Then as we go through the face list we translate again, find the loc, and in the array we find the new UV index to us
-    float resScale = 16.0f / gModel.tileSize;
     for (int i = 0; i < gModel.uvIndexCount; i++)
     {
-        // Unscramble the eggs. Given a UV, multiply by the resolution of the map. This give 0-512 or whatever, really 1-511.
+        // Unscramble the eggs. Given a UV, multiply by the resolution of the map. This give 0-512 or whatever, really 1-511 for OBJ output, which starts counting at 1.
         // Modulo the swatchSize. This gives 0-18 inclusive (or whatever the swatch size is), really 1-17.
         // Subtract 1 to give 0-16 or whatever. Divide by tileSize and multiply by 16 to get the 0-16 index location
-        // the minus one is to get rid of the guard band and keep the numbers inside the 0-17 range
-        index = (int)((((int)(gModel.uvIndexList[i].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * resScale) +
-            (NUM_UV_GRID_RESOLUTION + 1) * (int)(16 - ((((int)((1.0f - gModel.uvIndexList[i].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * resScale));
-        assert((int)((((int)(gModel.uvIndexList[i].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * resScale) >= 0);
-        assert((int)((((int)(gModel.uvIndexList[i].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * resScale) <= 16);
-        assert((int)(16 - ((((int)((1.0f - gModel.uvIndexList[i].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * resScale)) >= 0);
-        assert((int)(16 - ((((int)((1.0f - gModel.uvIndexList[i].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * resScale)) <= 16);
+        // the minus one is to get rid of the guard band and keep the numbers inside the 0-16 range
+        index = (int)((((int)(gModel.uvIndexList[i].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale) +
+            (NUM_UV_GRID_RESOLUTION + 1) * (int)(16 - ((((int)((1.0f - gModel.uvIndexList[i].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale));
+        assert((int)((((int)(gModel.uvIndexList[i].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale) >= 0);
+        assert((int)((((int)(gModel.uvIndexList[i].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale) <= 16);
+        assert((int)(16 - ((((int)((1.0f - gModel.uvIndexList[i].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale)) >= 0);
+        assert((int)(16 - ((((int)((1.0f - gModel.uvIndexList[i].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale)) <= 16);
         gModel.uvGridList[index]++;
     }
     // Now go through grid and output the vt values that are used.
@@ -22295,6 +22351,8 @@ static int mosaicUVtoSeparateUV()
             index++;
         }
     }
+    // if simplification is used, add any extended UVs
+
     return retCode;
 }
 
@@ -22436,89 +22494,143 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
     // how often to update progress? # of faces per 4%
     noteProgress = 1 + (int)((float)gModel.faceCount / (0.5f * gProgress.absolute.output / 0.04f));
 
-    float resScale = 16.0f / gModel.tileSize;
-
     for (i = 0; i < gModel.faceCount; i++)
     {
-        // every 4% or so check on progress
-        if (i % noteProgress == 0) {
-            UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * 0.5f * (1.0f + ((float)i / (float)gModel.faceCount)));
-        }
+        pFace = gModel.faceList[i];
+        // if face has been merged, we ignore it for output - TODOTODO: test everywhere, well, at least USD
+        if (pFace->normalIndex != HAS_BEEN_MERGED) {
 
-        if (exportMaterials)
-        {
-            // should there be more than one material or group output in this OBJ file?
-            if ((gModel.options->exportFlags & (EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK | EXPT_OUTPUT_OBJ_SEPARATE_TYPES)) || gModel.exportTiles )
+            // every 4% or so check on progress
+            if (i % noteProgress == 0) {
+                UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * 0.5f * (1.0f + ((float)i / (float)gModel.faceCount)));
+            }
+
+            if (exportMaterials)
             {
-                // if the material type has changed, or the material subtype has changed, a new group is possible.
-                bool newGroupPossible = (prevType != gModel.faceList[i]->materialType) ||
-                    (subtypeGroup && (prevDataVal != gModel.faceList[i]->materialDataVal));
-                bool newMaterialPossible = (prevType != gModel.faceList[i]->materialType) ||
-                    (subtypeMaterial && (prevDataVal != gModel.faceList[i]->materialDataVal)) ||
-                    (gModel.exportTiles && (prevSwatchLoc != gModel.uvIndexList[gModel.faceList[i]->uvIndex[0]].swatchLoc));
-                // did we reach a new material?
-                if (newMaterialPossible)
+                // should there be more than one material or group output in this OBJ file?
+                if ((gModel.options->exportFlags & (EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK | EXPT_OUTPUT_OBJ_SEPARATE_TYPES)) || gModel.exportTiles)
                 {
-                    // New material definitely found, so make a new one to be output.
-                    prevType = gModel.faceList[i]->materialType;
-                    prevDataVal = gModel.faceList[i]->materialDataVal;
-                    prevSwatchLoc = gModel.uvIndexList[gModel.faceList[i]->uvIndex[0]].swatchLoc;
-                    // New ID encountered, so output it: material name, and group.
-                    // Group isn't really required, but can be useful.
-                    // Output group only if we're not already using it for individual blocks.
-                    strcpy_s(mtlName, 256, gBlockDefinitions[prevType].name);
-
-                    if (subtypeMaterial && IsASubblock(prevType, prevDataVal)) {
-                        // use subtype name or add a dataval suffix.
-                        // If possible, turn these data values into the actual sub-material type names.
-                        const char* subName = RetrieveBlockSubname(prevType, prevDataVal);
-                        if (strcmp(subName, mtlName) == 0) {
-                            // No unique subname found for this data value, so use the data value.
-                            // Shouldn't ever hit here, actually; all things should be named by now.
-                            char tempString[MAX_PATH_AND_FILE];
-                            sprintf_s(tempString, 256, "%s__%d", mtlName, prevDataVal);
-                            strcpy_s(mtlName, 256, tempString);
-                        }
-                        else {
-                            // Name does not match, so use it
-                            // was: sprintf_s(tempString, 256, "%s__%s", mtlName, subName);
-                            strcpy_s(mtlName, 256, subName);
-                        }
-                    }
-
-                    // substitute ' ' to '_'
-                    changeCharToUnderline(' ', mtlName);
-                    // export by individual blocks
-                    // usemtl materialName
-                    if ((gModel.options->exportFlags & EXPT_INDIVIDUAL_BLOCKS)) // && !gModel.exportTiles)
+                    // if the material type has changed, or the material subtype has changed, a new group is possible.
+                    bool newGroupPossible = (prevType != gModel.faceList[i]->materialType) ||
+                        (subtypeGroup && (prevDataVal != gModel.faceList[i]->materialDataVal));
+                    bool newMaterialPossible = (prevType != gModel.faceList[i]->materialType) ||
+                        (subtypeMaterial && (prevDataVal != gModel.faceList[i]->materialDataVal)) ||
+                        (gModel.exportTiles && (prevSwatchLoc != gModel.uvIndexList[gModel.faceList[i]->uvIndex[0]].swatchLoc));
+                    // did we reach a new material?
+                    if (newMaterialPossible)
                     {
-                        if (gModel.exportTiles) {
-                            if (!(gModel.options->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
-                            {
-                                // Since the material can vary and repeat, use block names.
-                                // New group for each block (materials not sorted)
-                                if (mkGroupsObjs) {
-                                    sprintf_s(outputString, 256, "o block_%05d\n", groupCount + 1);   // don't increment it here
+                        // New material definitely found, so make a new one to be output.
+                        prevType = gModel.faceList[i]->materialType;
+                        prevDataVal = gModel.faceList[i]->materialDataVal;
+                        prevSwatchLoc = gModel.uvIndexList[gModel.faceList[i]->uvIndex[0]].swatchLoc;
+                        // New ID encountered, so output it: material name, and group.
+                        // Group isn't really required, but can be useful.
+                        // Output group only if we're not already using it for individual blocks.
+                        strcpy_s(mtlName, 256, gBlockDefinitions[prevType].name);
+
+                        if (subtypeMaterial && IsASubblock(prevType, prevDataVal)) {
+                            // use subtype name or add a dataval suffix.
+                            // If possible, turn these data values into the actual sub-material type names.
+                            const char* subName = RetrieveBlockSubname(prevType, prevDataVal);
+                            if (strcmp(subName, mtlName) == 0) {
+                                // No unique subname found for this data value, so use the data value.
+                                // Shouldn't ever hit here, actually; all things should be named by now.
+                                char tempString[MAX_PATH_AND_FILE];
+                                sprintf_s(tempString, 256, "%s__%d", mtlName, prevDataVal);
+                                strcpy_s(mtlName, 256, tempString);
+                            }
+                            else {
+                                // Name does not match, so use it
+                                // was: sprintf_s(tempString, 256, "%s__%s", mtlName, subName);
+                                strcpy_s(mtlName, 256, subName);
+                            }
+                        }
+
+                        // substitute ' ' to '_'
+                        changeCharToUnderline(' ', mtlName);
+                        // export by individual blocks
+                        // usemtl materialName
+                        if ((gModel.options->exportFlags & EXPT_INDIVIDUAL_BLOCKS)) // && !gModel.exportTiles)
+                        {
+                            if (gModel.exportTiles) {
+                                if (!(gModel.options->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
+                                {
+                                    // Since the material can vary and repeat, use block names.
+                                    // New group for each block (materials not sorted)
+                                    if (mkGroupsObjs) {
+                                        sprintf_s(outputString, 256, "o block_%05d\n", groupCount + 1);   // don't increment it here
+                                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                                    }
+                                    sprintf_s(outputString, 256, "g block_%05d\n", ++groupCount);
                                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                                 }
-                                sprintf_s(outputString, 256, "g block_%05d\n", ++groupCount);
-                                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                            }
 
-                            // new material per tile ID
-                            // swatch locations exactly correspond with tiles.h names
-                            assert(prevSwatchLoc < TOTAL_TILES);
-                            // TODO: could someday store mtlName in this same table; no need to convert every time
-                            WcharToChar(gTilesTable[prevSwatchLoc].filename, mtlName, MAX_PATH_AND_FILE);
-                            sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
-                            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                            // note in an array that this separate tile should be output as a material
-                            gModel.tileList[CATEGORY_RGBA][prevSwatchLoc] = true;  // means has a texture
-                            assert(gModel.mtlCount < NUM_SUBMATERIALS);
+                                // new material per tile ID
+                                // swatch locations exactly correspond with tiles.h names
+                                assert(prevSwatchLoc < TOTAL_TILES);
+                                // TODO: could someday store mtlName in this same table; no need to convert every time
+                                WcharToChar(gTilesTable[prevSwatchLoc].filename, mtlName, MAX_PATH_AND_FILE);
+                                sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
+                                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                                // note in an array that this separate tile should be output as a material
+                                gModel.tileList[CATEGORY_RGBA][prevSwatchLoc] = true;  // means has a texture
+                                assert(gModel.mtlCount < NUM_SUBMATERIALS);
+                            }
+                            else {
+                                // output every block individually, single texture is shared, so by material
+                                if (!(gModel.options->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
+                                {
+                                    // new group for objects of same type (which are sorted)
+                                    if (mkGroupsObjs) {
+                                        sprintf_s(outputString, 256, "o %s\n", mtlName);
+                                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                                    }
+                                    sprintf_s(outputString, 256, "g %s\n", mtlName);
+                                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                                }
+                                sprintf_s(outputString, 256, "\nusemtl %s\n", mtlName);
+                                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                                if (subtypeMaterial) {
+                                    // We can't use outputMaterial, a simple array of types. We need to
+                                    // instead check the whole previous list and see if the material's
+                                    // already on it. Check from last to first for speed, I hope.
+                                    // NODO: slightly better (though slower) would be to add by name, vs. typeData;
+                                    // there are materials with different typeData's but that actually have the same name,
+                                    // such as Purpur Block, but these show up only in the test world, so don't bother.
+                                    int curCount = gModel.mtlCount - 1;
+                                    unsigned int typeData = prevType << 8 | prevDataVal;
+                                    while (curCount >= 0) {
+                                        if (gModel.mtlList[curCount--] == typeData) {
+                                            // found it; exit loop
+                                            curCount = -999;
+                                        }
+                                    }
+                                    // did we find it?
+                                    if (curCount != -999) {
+                                        // did not find type/data combinationTOD - add it to list
+                                        gModel.mtlList[gModel.mtlCount++] = typeData;
+                                        assert(gModel.mtlCount < NUM_SUBMATERIALS);
+                                    }
+                                }
+                                else {
+                                    // note which material is to be output, if not output already
+                                    if (outputMaterial[prevType] == 0)
+                                    {
+                                        gModel.mtlList[gModel.mtlCount++] = prevType << 8 | prevDataVal;
+                                        assert(gModel.mtlCount < NUM_SUBMATERIALS);
+                                        outputMaterial[prevType] = 1;
+                                    }
+                                }
+                            }
                         }
-                        else {
-                            // output every block individually, single texture is shared, so by material
-                            if (!(gModel.options->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
+                        else
+                        {
+                            // don't output by individual block: output by group, and/or by material, or by tile, or none at all (one material for scene)
+                            strcpy_s(outputString, 256, "\n");
+                            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+                            // don't output group if just the tile ID differed and the block type didn't
+                            if ((gModel.options->exportFlags & EXPT_OUTPUT_OBJ_SEPARATE_TYPES) && newGroupPossible)
                             {
                                 // new group for objects of same type (which are sorted)
                                 if (mkGroupsObjs) {
@@ -22528,327 +22640,275 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                                 sprintf_s(outputString, 256, "g %s\n", mtlName);
                                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                             }
-                            sprintf_s(outputString, 256, "\nusemtl %s\n", mtlName);
-                            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                            if (subtypeMaterial) {
-                                // We can't use outputMaterial, a simple array of types. We need to
-                                // instead check the whole previous list and see if the material's
-                                // already on it. Check from last to first for speed, I hope.
-                                // NODO: slightly better (though slower) would be to add by name, vs. typeData;
-                                // there are materials with different typeData's but that actually have the same name,
-                                // such as Purpur Block, but these show up only in the test world, so don't bother.
-                                int curCount = gModel.mtlCount - 1;
-                                unsigned int typeData = prevType << 8 | prevDataVal;
-                                while (curCount >= 0) {
-                                    if (gModel.mtlList[curCount--] == typeData) {
-                                        // found it; exit loop
-                                        curCount = -999;
-                                    }
-                                }
-                                // did we find it?
-                                if (curCount != -999) {
-                                    // did not find type/data combinationTOD - add it to list
-                                    gModel.mtlList[gModel.mtlCount++] = typeData;
-                                    assert(gModel.mtlCount < NUM_SUBMATERIALS);
-                                }
+                            if (gModel.exportTiles) {
+                                // new material per tile ID
+                                // swatch locations exactly correspond with tiles.h names
+                                assert(prevSwatchLoc < TOTAL_TILES);
+                                WcharToChar(gTilesTable[prevSwatchLoc].filename, mtlName, MAX_PATH_AND_FILE);
+                                sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
+                                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                                // note in an array that this separate tile should be output as a material
+                                gModel.tileList[CATEGORY_RGBA][prevSwatchLoc] = true;  // means has a texture
+                                assert(gModel.mtlCount < NUM_SUBMATERIALS);
                             }
-                            else {
-                                // note which material is to be output, if not output already
-                                if (outputMaterial[prevType] == 0)
-                                {
-                                    gModel.mtlList[gModel.mtlCount++] = prevType << 8 | prevDataVal;
-                                    assert(gModel.mtlCount < NUM_SUBMATERIALS);
-                                    outputMaterial[prevType] = 1;
-                                }
+                            else if (gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK)
+                            {
+                                // new material per family
+                                sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
+                                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                                gModel.mtlList[gModel.mtlCount++] = prevType << 8 | prevDataVal;
+                                assert(gModel.mtlCount < NUM_SUBMATERIALS);
                             }
+                            // else don't output material, there's only one for the whole scene
                         }
+                    }
+                }
+            }
+
+            // output the actual face
+
+            // if we're outputting each individual block in its own group, set a unique group name here.
+            // TODO: slightly annoying, this means the material gets output before the group for tiled textures.
+            // Doesn't matter for functionality, just looks a bit odd.
+            if ((gModel.options->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP) && (pFace->faceIndex <= 0))
+            {
+                if (mkGroupsObjs) {
+                    sprintf_s(outputString, 256, "o block_%05d\n", groupCount + 1);   // don't increment it here
+                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                }
+                sprintf_s(outputString, 256, "g block_%05d\n", ++groupCount);
+                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+            }
+
+#ifdef OUTPUT_NORMALS
+            assert(pFace->normalIndex >= 0);
+            if (absoluteIndices)
+            {
+                outputFaceDirection = pFace->normalIndex + 1;
+            }
+            else
+            {
+                outputFaceDirection = pFace->normalIndex - gModel.normalListCount;
+            }
+#endif
+
+            // first, are there texture coordinates?
+            if (gModel.exportTexture)
+            {
+#ifdef OUTPUT_NORMALS
+                // if output per tile, then we use the UV values to find the index to the new index in the grid
+                if (gModel.exportTiles) {
+                    for (j = 0; j < 4; j++) {
+                        index = (int)((((int)(gModel.uvIndexList[pFace->uvIndex[j]].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale) +
+                            (NUM_UV_GRID_RESOLUTION + 1) * (int)(16 - ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale));
+                        vt[j] = gModel.uvGridList[index];
+                    }
+                }
+                else {
+                    // else just get the UVs
+                    for (j = 0; j < 4; j++) {
+                        vt[j] = pFace->uvIndex[j] + 1;
+                    }
+                }
+
+                // with normals - not really needed by most renderers, but good to include;
+                // GLC, for example, does smoothing if normals are not present.
+                // Check if last two vertices match - if so, output a triangle instead 
+                if (pFace->vertexIndex[2] == pFace->vertexIndex[3])
+                {
+                    // triangle
+                    if (absoluteIndices)
+                    {
+                        sprintf_s(outputString, 256, "f %d/%d/%d %d/%d/%d %d/%d/%d\n",
+                            pFace->vertexIndex[0] + 1, vt[0], outputFaceDirection,
+                            pFace->vertexIndex[1] + 1, vt[1], outputFaceDirection,
+                            pFace->vertexIndex[2] + 1, vt[2], outputFaceDirection
+                        );
                     }
                     else
                     {
-                        // don't output by individual block: output by group, and/or by material, or by tile, or none at all (one material for scene)
-                        strcpy_s(outputString, 256, "\n");
-                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-
-                        // don't output group if just the tile ID differed and the block type didn't
-                        if ((gModel.options->exportFlags & EXPT_OUTPUT_OBJ_SEPARATE_TYPES) && newGroupPossible)
-                        {
-                            // new group for objects of same type (which are sorted)
-                            if (mkGroupsObjs) {
-                                sprintf_s(outputString, 256, "o %s\n", mtlName);
-                                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                            }
-                            sprintf_s(outputString, 256, "g %s\n", mtlName);
-                            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                        }
-                        if (gModel.exportTiles) {
-                            // new material per tile ID
-                            // swatch locations exactly correspond with tiles.h names
-                            assert(prevSwatchLoc < TOTAL_TILES);
-                            WcharToChar(gTilesTable[prevSwatchLoc].filename, mtlName, MAX_PATH_AND_FILE);
-                            sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
-                            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                            // note in an array that this separate tile should be output as a material
-                            gModel.tileList[CATEGORY_RGBA][prevSwatchLoc] = true;  // means has a texture
-                            assert(gModel.mtlCount < NUM_SUBMATERIALS);
-                        }
-                        else if (gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK)
-                        {
-                            // new material per family
-                            sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
-                            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                            gModel.mtlList[gModel.mtlCount++] = prevType << 8 | prevDataVal;
-                            assert(gModel.mtlCount < NUM_SUBMATERIALS);
-                        }
-                        // else don't output material, there's only one for the whole scene
+                        sprintf_s(outputString, 256, "f %d/%d/%d %d/%d/%d %d/%d/%d\n",
+                            pFace->vertexIndex[0] - gModel.vertexCount, vt[0] - gModel.uvIndexCount - 1, outputFaceDirection,
+                            pFace->vertexIndex[1] - gModel.vertexCount, vt[1] - gModel.uvIndexCount - 1, outputFaceDirection,
+                            pFace->vertexIndex[2] - gModel.vertexCount, vt[2] - gModel.uvIndexCount - 1, outputFaceDirection
+                        );
                     }
                 }
-            }
-        }
+                else
+                {
+                    // Output a quad
+                    // if normal sums negative, rotate order by one so that dumb tessellators
+                    // match up the faces better, which should make matching face removal work better. I hope.
+                    int offset = 0;
+                    assert(pFace->normalIndex >= 0);
+                    int idx = pFace->normalIndex;
+                    if (gModel.normals[idx][X] + gModel.normals[idx][Y] + gModel.normals[idx][Z] < 0.0f)
+                        offset = 1;
 
-        // output the actual face
-        pFace = gModel.faceList[i];
-
-        // if we're outputting each individual block in its own group, set a unique group name here.
-        // TODO: slightly annoying, this means the material gets output before the group for tiled textures.
-        // Doesn't matter for functionality, just looks a bit odd.
-        if ((gModel.options->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP) && (pFace->faceIndex <= 0))
-        {
-            if (mkGroupsObjs) {
-                sprintf_s(outputString, 256, "o block_%05d\n", groupCount + 1);   // don't increment it here
-                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                    if (absoluteIndices)
+                    {
+                        sprintf_s(outputString, 256, "f %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d\n",
+                            pFace->vertexIndex[offset] + 1, vt[offset], outputFaceDirection,
+                            pFace->vertexIndex[offset + 1] + 1, vt[offset + 1], outputFaceDirection,
+                            pFace->vertexIndex[offset + 2] + 1, vt[offset + 2], outputFaceDirection,
+                            pFace->vertexIndex[(offset + 3) % 4] + 1, vt[(offset + 3) % 4], outputFaceDirection
+                        );
+                    }
+                    else
+                    {
+                        sprintf_s(outputString, 256, "f %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d\n",
+                            pFace->vertexIndex[offset] - gModel.vertexCount, vt[offset] - gModel.uvIndexCount - 1, outputFaceDirection,
+                            pFace->vertexIndex[offset + 1] - gModel.vertexCount, vt[offset + 1] - gModel.uvIndexCount - 1, outputFaceDirection,
+                            pFace->vertexIndex[offset + 2] - gModel.vertexCount, vt[offset + 2] - gModel.uvIndexCount - 1, outputFaceDirection,
+                            pFace->vertexIndex[(offset + 3) % 4] - gModel.vertexCount, vt[(offset + 3) % 4] - gModel.uvIndexCount - 1, outputFaceDirection
+                        );
+                    }
+                }
+#else
+                // check if last two vertices match - if so, output a triangle instead 
+                if (pFace->vertexIndex[2] == pFace->vertexIndex[3])
+                {
+                    // triangle
+                    if (absoluteIndices)
+                    {
+                        sprintf_s(outputString, 256, "f %d/%d %d/%d %d/%d\n",
+                            pFace->vertexIndex[0] + 1, vt[0],
+                            pFace->vertexIndex[1] + 1, vt[1],
+                            pFace->vertexIndex[2] + 1, vt[2]
+                        );
+                    }
+                    else
+                    {
+                        sprintf_s(outputString, 256, "f %d/%d %d/%d %d/%d\n",
+                            pFace->vertexIndex[0] - gModel.vertexCount, vt[0] - gModel.uvIndexCount - 1,
+                            pFace->vertexIndex[1] - gModel.vertexCount, vt[1] - gModel.uvIndexCount - 1,
+                            pFace->vertexIndex[2] - gModel.vertexCount, vt[2] - gModel.uvIndexCount - 1
+                        );
+                    }
+                }
+                else
+                {
+                    if (absoluteIndices)
+                    {
+                        sprintf_s(outputString, 256, "f %d/%d %d/%d %d/%d %d/%d\n",
+                            pFace->vertexIndex[0] + 1, vt[0],
+                            pFace->vertexIndex[1] + 1, vt[1],
+                            pFace->vertexIndex[2] + 1, vt[2],
+                            pFace->vertexIndex[3] + 1, vt[3]
+                        );
+                    }
+                    else
+                    {
+                        sprintf_s(outputString, 256, "f %d/%d %d/%d %d/%d %d/%d\n",
+                            pFace->vertexIndex[0] - gModel.vertexCount, vt[0] - gModel.uvIndexCount - 1,
+                            pFace->vertexIndex[1] - gModel.vertexCount, vt[1] - gModel.uvIndexCount - 1,
+                            pFace->vertexIndex[2] - gModel.vertexCount, vt[2] - gModel.uvIndexCount - 1,
+                            pFace->vertexIndex[3] - gModel.vertexCount, vt[3] - gModel.uvIndexCount - 1
+                        );
+                    }
+                }
+#endif
             }
-            sprintf_s(outputString, 256, "g block_%05d\n", ++groupCount);
+            else
+            {
+#ifdef OUTPUT_NORMALS
+                // check if last two vertices match - if so, output a triangle instead 
+                if (pFace->vertexIndex[2] == pFace->vertexIndex[3])
+                {
+                    // triangle
+                    if (absoluteIndices)
+                    {
+                        sprintf_s(outputString, 256, "f %d//%d %d//%d %d//%d\n",
+                            pFace->vertexIndex[0] + 1, outputFaceDirection,
+                            pFace->vertexIndex[1] + 1, outputFaceDirection,
+                            pFace->vertexIndex[2] + 1, outputFaceDirection
+                        );
+                    }
+                    else
+                    {
+                        sprintf_s(outputString, 256, "f %d//%d %d//%d %d//%d\n",
+                            pFace->vertexIndex[0] - gModel.vertexCount, outputFaceDirection,
+                            pFace->vertexIndex[1] - gModel.vertexCount, outputFaceDirection,
+                            pFace->vertexIndex[2] - gModel.vertexCount, outputFaceDirection
+                        );
+                    }
+                }
+                else
+                {
+                    // Output a quad
+                    // if normal sums negative, rotate order by one so that dumb tessellators
+                    // match up the faces better, which should make matching face removal work better. I hope.
+                    int offset = 0;
+                    assert(pFace->normalIndex >= 0);
+                    int idx = pFace->normalIndex;
+                    if (gModel.normals[idx][X] + gModel.normals[idx][Y] + gModel.normals[idx][Z] < 0.0f)
+                        offset = 1;
+                    if (absoluteIndices)
+                    {
+                        sprintf_s(outputString, 256, "f %d//%d %d//%d %d//%d %d//%d\n",
+                            pFace->vertexIndex[offset] + 1, outputFaceDirection,
+                            pFace->vertexIndex[offset + 1] + 1, outputFaceDirection,
+                            pFace->vertexIndex[offset + 2] + 1, outputFaceDirection,
+                            pFace->vertexIndex[(offset + 3) % 4] + 1, outputFaceDirection
+                        );
+                    }
+                    else
+                    {
+                        sprintf_s(outputString, 256, "f %d//%d %d//%d %d//%d %d//%d\n",
+                            pFace->vertexIndex[offset] - gModel.vertexCount, outputFaceDirection,
+                            pFace->vertexIndex[offset + 1] - gModel.vertexCount, outputFaceDirection,
+                            pFace->vertexIndex[offset + 2] - gModel.vertexCount, outputFaceDirection,
+                            pFace->vertexIndex[(offset + 3) % 4] - gModel.vertexCount, outputFaceDirection
+                        );
+                    }
+                }
+#else
+                // check if last two vertices match - if so, output a triangle instead 
+                if (pFace->vertexIndex[2] == pFace->vertexIndex[3])
+                {
+                    // triangle
+                    if (absoluteIndices)
+                    {
+                        sprintf_s(outputString, 256, "f %d %d %d\n",
+                            pFace->vertexIndex[0] + 1,
+                            pFace->vertexIndex[1] + 1,
+                            pFace->vertexIndex[2] + 1
+                        );
+                    }
+                    else
+                    {
+                        sprintf_s(outputString, 256, "f %d %d %d\n",
+                            pFace->vertexIndex[0] - gModel.vertexCount,
+                            pFace->vertexIndex[1] - gModel.vertexCount,
+                            pFace->vertexIndex[2] - gModel.vertexCount
+                        );
+                    }
+                }
+                else
+                {
+                    if (absoluteIndices)
+                    {
+                        sprintf_s(outputString, 256, "f %d %d %d %d\n",
+                            pFace->vertexIndex[0] + 1,
+                            pFace->vertexIndex[1] + 1,
+                            pFace->vertexIndex[2] + 1,
+                            pFace->vertexIndex[3] + 1
+                        );
+                    }
+                    else
+                    {
+                        sprintf_s(outputString, 256, "f %d %d %d %d\n",
+                            pFace->vertexIndex[0] - gModel.vertexCount,
+                            pFace->vertexIndex[1] - gModel.vertexCount,
+                            pFace->vertexIndex[2] - gModel.vertexCount,
+                            pFace->vertexIndex[3] - gModel.vertexCount
+                        );
+                    }
+                }
+#endif
+            }
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         }
-
-#ifdef OUTPUT_NORMALS
-        assert(pFace->normalIndex >= 0);
-        if (absoluteIndices)
-        {
-            outputFaceDirection = pFace->normalIndex + 1;
-        }
-        else
-        {
-            outputFaceDirection = pFace->normalIndex - gModel.normalListCount;
-        }
-#endif
-
-        // first, are there texture coordinates?
-        if (gModel.exportTexture)
-        {
-#ifdef OUTPUT_NORMALS
-            // if output per tile, then we use the UV values to find the index to the new index in the grid
-            if (gModel.exportTiles) {
-                for (j = 0; j < 4; j++) {
-                    index = (int)((((int)(gModel.uvIndexList[pFace->uvIndex[j]].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * resScale) +
-                        (NUM_UV_GRID_RESOLUTION + 1) * (int)(16 - ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * resScale));
-                    vt[j] = gModel.uvGridList[index];
-                }
-            }
-            else {
-                // else just get the UVs
-                for (j = 0; j < 4; j++) {
-                    vt[j] = pFace->uvIndex[j] + 1;
-                }
-            }
-
-            // with normals - not really needed by most renderers, but good to include;
-            // GLC, for example, does smoothing if normals are not present.
-            // Check if last two vertices match - if so, output a triangle instead 
-            if (pFace->vertexIndex[2] == pFace->vertexIndex[3])
-            {
-                // triangle
-                if (absoluteIndices)
-                {
-                    sprintf_s(outputString, 256, "f %d/%d/%d %d/%d/%d %d/%d/%d\n",
-                        pFace->vertexIndex[0] + 1, vt[0], outputFaceDirection,
-                        pFace->vertexIndex[1] + 1, vt[1], outputFaceDirection,
-                        pFace->vertexIndex[2] + 1, vt[2], outputFaceDirection
-                    );
-                }
-                else
-                {
-                    sprintf_s(outputString, 256, "f %d/%d/%d %d/%d/%d %d/%d/%d\n",
-                        pFace->vertexIndex[0] - gModel.vertexCount, vt[0] - gModel.uvIndexCount - 1, outputFaceDirection,
-                        pFace->vertexIndex[1] - gModel.vertexCount, vt[1] - gModel.uvIndexCount - 1, outputFaceDirection,
-                        pFace->vertexIndex[2] - gModel.vertexCount, vt[2] - gModel.uvIndexCount - 1, outputFaceDirection
-                    );
-                }
-            }
-            else
-            {
-                // Output a quad
-                // if normal sums negative, rotate order by one so that dumb tessellators
-                // match up the faces better, which should make matching face removal work better. I hope.
-                int offset = 0;
-                assert(pFace->normalIndex >= 0);
-                int idx = pFace->normalIndex;
-                if (gModel.normals[idx][X] + gModel.normals[idx][Y] + gModel.normals[idx][Z] < 0.0f)
-                    offset = 1;
-
-                if (absoluteIndices)
-                {
-                    sprintf_s(outputString, 256, "f %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d\n",
-                        pFace->vertexIndex[offset] + 1, vt[offset], outputFaceDirection,
-                        pFace->vertexIndex[offset + 1] + 1, vt[offset + 1], outputFaceDirection,
-                        pFace->vertexIndex[offset + 2] + 1, vt[offset + 2], outputFaceDirection,
-                        pFace->vertexIndex[(offset + 3) % 4] + 1, vt[(offset + 3) % 4], outputFaceDirection
-                    );
-                }
-                else
-                {
-                    sprintf_s(outputString, 256, "f %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d\n",
-                        pFace->vertexIndex[offset] - gModel.vertexCount, vt[offset] - gModel.uvIndexCount - 1, outputFaceDirection,
-                        pFace->vertexIndex[offset + 1] - gModel.vertexCount, vt[offset + 1] - gModel.uvIndexCount - 1, outputFaceDirection,
-                        pFace->vertexIndex[offset + 2] - gModel.vertexCount, vt[offset + 2] - gModel.uvIndexCount - 1, outputFaceDirection,
-                        pFace->vertexIndex[(offset + 3) % 4] - gModel.vertexCount, vt[(offset + 3) % 4] - gModel.uvIndexCount - 1, outputFaceDirection
-                    );
-                }
-            }
-#else
-            // check if last two vertices match - if so, output a triangle instead 
-            if (pFace->vertexIndex[2] == pFace->vertexIndex[3])
-            {
-                // triangle
-                if (absoluteIndices)
-                {
-                    sprintf_s(outputString, 256, "f %d/%d %d/%d %d/%d\n",
-                        pFace->vertexIndex[0] + 1, vt[0],
-                        pFace->vertexIndex[1] + 1, vt[1],
-                        pFace->vertexIndex[2] + 1, vt[2]
-                    );
-                }
-                else
-                {
-                    sprintf_s(outputString, 256, "f %d/%d %d/%d %d/%d\n",
-                        pFace->vertexIndex[0] - gModel.vertexCount, vt[0] - gModel.uvIndexCount - 1,
-                        pFace->vertexIndex[1] - gModel.vertexCount, vt[1] - gModel.uvIndexCount - 1,
-                        pFace->vertexIndex[2] - gModel.vertexCount, vt[2] - gModel.uvIndexCount - 1
-                    );
-                }
-            }
-            else
-            {
-                if (absoluteIndices)
-                {
-                    sprintf_s(outputString, 256, "f %d/%d %d/%d %d/%d %d/%d\n",
-                        pFace->vertexIndex[0] + 1, vt[0],
-                        pFace->vertexIndex[1] + 1, vt[1],
-                        pFace->vertexIndex[2] + 1, vt[2],
-                        pFace->vertexIndex[3] + 1, vt[3]
-                    );
-                }
-                else
-                {
-                    sprintf_s(outputString, 256, "f %d/%d %d/%d %d/%d %d/%d\n",
-                        pFace->vertexIndex[0] - gModel.vertexCount, vt[0] - gModel.uvIndexCount - 1,
-                        pFace->vertexIndex[1] - gModel.vertexCount, vt[1] - gModel.uvIndexCount - 1,
-                        pFace->vertexIndex[2] - gModel.vertexCount, vt[2] - gModel.uvIndexCount - 1,
-                        pFace->vertexIndex[3] - gModel.vertexCount, vt[3] - gModel.uvIndexCount - 1
-                    );
-                }
-            }
-#endif
-        }
-        else
-        {
-#ifdef OUTPUT_NORMALS
-            // check if last two vertices match - if so, output a triangle instead 
-            if (pFace->vertexIndex[2] == pFace->vertexIndex[3])
-            {
-                // triangle
-                if (absoluteIndices)
-                {
-                    sprintf_s(outputString, 256, "f %d//%d %d//%d %d//%d\n",
-                        pFace->vertexIndex[0] + 1, outputFaceDirection,
-                        pFace->vertexIndex[1] + 1, outputFaceDirection,
-                        pFace->vertexIndex[2] + 1, outputFaceDirection
-                    );
-                }
-                else
-                {
-                    sprintf_s(outputString, 256, "f %d//%d %d//%d %d//%d\n",
-                        pFace->vertexIndex[0] - gModel.vertexCount, outputFaceDirection,
-                        pFace->vertexIndex[1] - gModel.vertexCount, outputFaceDirection,
-                        pFace->vertexIndex[2] - gModel.vertexCount, outputFaceDirection
-                    );
-                }
-            }
-            else
-            {
-                // Output a quad
-                // if normal sums negative, rotate order by one so that dumb tessellators
-                // match up the faces better, which should make matching face removal work better. I hope.
-                int offset = 0;
-                assert(pFace->normalIndex >= 0);
-                int idx = pFace->normalIndex;
-                if (gModel.normals[idx][X] + gModel.normals[idx][Y] + gModel.normals[idx][Z] < 0.0f)
-                    offset = 1;
-                if (absoluteIndices)
-                {
-                    sprintf_s(outputString, 256, "f %d//%d %d//%d %d//%d %d//%d\n",
-                        pFace->vertexIndex[offset] + 1, outputFaceDirection,
-                        pFace->vertexIndex[offset + 1] + 1, outputFaceDirection,
-                        pFace->vertexIndex[offset + 2] + 1, outputFaceDirection,
-                        pFace->vertexIndex[(offset + 3) % 4] + 1, outputFaceDirection
-                    );
-                }
-                else
-                {
-                    sprintf_s(outputString, 256, "f %d//%d %d//%d %d//%d %d//%d\n",
-                        pFace->vertexIndex[offset] - gModel.vertexCount, outputFaceDirection,
-                        pFace->vertexIndex[offset + 1] - gModel.vertexCount, outputFaceDirection,
-                        pFace->vertexIndex[offset + 2] - gModel.vertexCount, outputFaceDirection,
-                        pFace->vertexIndex[(offset + 3) % 4] - gModel.vertexCount, outputFaceDirection
-                    );
-                }
-            }
-#else
-            // check if last two vertices match - if so, output a triangle instead 
-            if (pFace->vertexIndex[2] == pFace->vertexIndex[3])
-            {
-                // triangle
-                if (absoluteIndices)
-                {
-                    sprintf_s(outputString, 256, "f %d %d %d\n",
-                        pFace->vertexIndex[0] + 1,
-                        pFace->vertexIndex[1] + 1,
-                        pFace->vertexIndex[2] + 1
-                    );
-                }
-                else
-                {
-                    sprintf_s(outputString, 256, "f %d %d %d\n",
-                        pFace->vertexIndex[0] - gModel.vertexCount,
-                        pFace->vertexIndex[1] - gModel.vertexCount,
-                        pFace->vertexIndex[2] - gModel.vertexCount
-                    );
-                }
-            }
-            else
-            {
-                if (absoluteIndices)
-                {
-                    sprintf_s(outputString, 256, "f %d %d %d %d\n",
-                        pFace->vertexIndex[0] + 1,
-                        pFace->vertexIndex[1] + 1,
-                        pFace->vertexIndex[2] + 1,
-                        pFace->vertexIndex[3] + 1
-                    );
-                }
-                else
-                {
-                    sprintf_s(outputString, 256, "f %d %d %d %d\n",
-                        pFace->vertexIndex[0] - gModel.vertexCount,
-                        pFace->vertexIndex[1] - gModel.vertexCount,
-                        pFace->vertexIndex[2] - gModel.vertexCount,
-                        pFace->vertexIndex[3] - gModel.vertexCount
-                    );
-                }
-            }
-#endif
-        }
-        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     }
 
 Exit:
@@ -25886,8 +25946,6 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary, boo
     int nextStart = 0;
     int numVerts, numFaces;
 
-    float resScale = 16.0f / gModel.tileSize;
-
     gOutData.vertsize = gOutData.facesize = 0;
 
     // update progress bar every 4%
@@ -25977,7 +26035,7 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary, boo
 
             startRun = firstFaceNumber;
             while (findEndOfGroup(startRun, firstFaceNumber+numFaces, mtlName, nextStart, numVerts) && nextStart <= nextFaceNumber) {
-                outputUSDMesh(blockFile, startRun, nextStart - startRun, numVerts, "/Blocks", mtlName, resScale, progressTick, progressIncrement, singleTerrainFile);
+                outputUSDMesh(blockFile, startRun, nextStart - startRun, numVerts, "/Blocks", mtlName, progressTick, progressIncrement, singleTerrainFile);
                 // go to next group
                 startRun = nextStart;
             }
@@ -25999,7 +26057,7 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary, boo
         //SM char useMtlName[MAX_PATH_AND_FILE];
         while (findEndOfGroup(startRun, gModel.faceCount, mtlName, nextStart, numVerts)) {
 
-            outputUSDMesh(gModelFile, startRun, nextStart - startRun, numVerts, NULL, mtlName, resScale, progressTick, progressIncrement, singleTerrainFile);
+            outputUSDMesh(gModelFile, startRun, nextStart - startRun, numVerts, NULL, mtlName, progressTick, progressIncrement, singleTerrainFile);
             // go to next group
             startRun = nextStart;
         }
@@ -26011,7 +26069,7 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary, boo
     return retCode;
 }
 
-static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int numVerts, char *prefixLook, char *mtlName, float resScale, int progressTick, int progressIncrement, bool singleTerrainFile)
+static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int numVerts, char *prefixLook, char *mtlName, int progressTick, int progressIncrement, bool singleTerrainFile)
 {
     // Go through data and make arrays
 //SM if (firstName) {
@@ -26069,8 +26127,8 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
             // if output per tile, then we use the UV values to find the index to the new index in the grid
             float uc, vc;
             if (gModel.exportTiles) {
-                uc = (float)((((int)(gModel.uvIndexList[pFace->uvIndex[j]].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * resScale) / (float)NUM_UV_GRID_RESOLUTION;
-                vc = (float)(16 - ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * resScale)) / (float)NUM_UV_GRID_RESOLUTION;
+                uc = (float)((((int)(gModel.uvIndexList[pFace->uvIndex[j]].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale) / (float)NUM_UV_GRID_RESOLUTION;
+                vc = (float)(16 - ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale)) / (float)NUM_UV_GRID_RESOLUTION;
             }
             else {
                 int vt = pFace->uvIndex[j];
@@ -31273,23 +31331,607 @@ static void decimateMesh()
     //   May want to use a similar thing to uvGridList, perhaps 33x33, to keep track of the "expanded" UVs.
     //   Means we'll have an upper limit of how far to expand a grid out, which is probably good.
 
-    // Walk through faces, for each material group (if materials are used). Ignore materials such as log faces and columns, where orientation matters.
+    // Walk through faces, for each material group (if materials are used).
+    // Ignore materials such as log faces and columns, where orientation matters.
     // Probably need to add a flag to each tile noting that it is "rotatable".
     // (Oh, and when outputting, want to turn off randomization of direction when decimation is on.)
     // For each face, point to the "real" face, store the index in the original facecount list.
     // Use a byte to flag which of the 6 directions it faces,
     // and store the minimum X and Y of the face, for sorting. X and Y is in relation to the normal, e.g.,
     // if normal is +X, store normal "distance" X (sort key), then stored X = Z, stored Y = Y, something like that.
-    
+    int i;
+    int prevSwatchLoc = -1;
+    // TODOTODO: allow only export tiles OR no material export at all as possible modes; update export dialog, allow ONLY for rendering, etc.
+    assert(gModel.exportTiles);
+
+    // first use of this pool, normally not needed, so allocate it now
+    gModel.simplifyFaceRecordPool = (SimplifyFaceRecordPool*)malloc(sizeof(SimplifyFaceRecordPool));
+    gModel.simplifyFaceRecordPool->count = 0;
+    gModel.simplifyFaceRecordPool->pNext = NULL;
+    gModel.headSimplifyFaceRecordPool = gModel.simplifyFaceRecordPool;
+
+    int sameFaceCount = 0;
+    int simplifyFaceListSize = min(gModel.faceCount, SIMPLIFY_FACE_RECORD_POOL_SIZE);   // TODO: tune this initial size?
+    SimplifyFaceRecord** simplifyFaceList = (SimplifyFaceRecord**)malloc(simplifyFaceListSize * sizeof(SimplifyFaceRecord*));
+    for (i = 0; i < gModel.faceCount; i++)
+    {
+        // every 4% or so check on progress
+        // TODOTODO: we must add to the preprocess time, here and elsewhere
+        //if (i % noteProgress == 0) {
+        //    UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * 0.5f * (1.0f + ((float)i / (float)gModel.faceCount)));
+        //}
+        if (faceCanTile(i)) {
+
+            // if the material type has changed, or the material subtype has changed, a new group is possible
+            FaceRecord* pFace = gModel.faceList[i];
+            bool newMaterialPossible = (prevSwatchLoc != gModel.uvIndexList[pFace->uvIndex[0]].swatchLoc);
+            // did we reach a new material?
+            if (newMaterialPossible)
+            {
+                // New material definitely found. Process list of previous records, as possible.
+                simplifySetOfFaces(sameFaceCount, simplifyFaceList);
+                // restart simplification
+                sameFaceCount = 0;
+
+                // get next swatch to output
+                prevSwatchLoc = gModel.uvIndexList[gModel.faceList[i]->uvIndex[0]].swatchLoc;
+            }
+
+            // When outputting, want to turn off randomization of direction when decimation is on. TODOTODO
+            // For each face, point to the "real" face, store the index in the original facecount list.
+            // Store the normal direction, normal distance minimum X and Y of the face, for faster sorting. X and Y is in relation to the normal, e.g.,
+            // if normal is +X, store normal "distance" X (sort key), then stored X = Z, stored Y = Y, something like that.
+            SimplifyFaceRecord* pSFR = allocSimplifyFaceRecordFromPool();
+            pSFR->pFace = pFace;
+            pSFR->normalDirection = pFace->normalIndex;
+            pSFR->pXneighborSFR = NULL;
+            pSFR->pYneighborSFR = NULL;
+            extractZXYfromNormalAndBounds(pFace, pSFR);
+
+            // allocate a list of the proper size, or grow previous list
+            sameFaceCount++;
+            if (simplifyFaceListSize < sameFaceCount) {
+                simplifyFaceListSize = 2 * sameFaceCount;
+                simplifyFaceList = (SimplifyFaceRecord**)realloc(simplifyFaceList, simplifyFaceListSize * sizeof(SimplifyFaceRecord*));
+            }
+            simplifyFaceList[sameFaceCount-1] = pSFR;
+        }
+    }
+    simplifySetOfFaces(sameFaceCount, simplifyFaceList);
+
+    // delete SFRs
+    free(simplifyFaceList);
+
+    SimplifyFaceRecordPool* pSFRPool = gModel.headSimplifyFaceRecordPool;
+    while (pSFRPool)
+    {
+        SimplifyFaceRecordPool* pNext = pSFRPool->pNext;
+        free(pSFRPool);
+        pSFRPool = pNext;
+    }
+    gModel.simplifyFaceRecordPool = gModel.headSimplifyFaceRecordPool = NULL;
+ }
+
+static bool faceCanTile(int faceId)
+{
+    FaceRecord* pFace = gModel.faceList[faceId];
+
+    // check if last two vertices match - if so, output a triangle instead 
+    if (pFace->vertexIndex[2] == pFace->vertexIndex[3])
+    {
+        return false;
+    }
+
+    int j;
+    // Simple checks for if this is a useful face:
+    // Is the normal 0-7 ID? Lava and water with tilted tops won't have this
+    if (pFace->normalIndex >= 6) {
+        return false;
+    }
+
+    // Is the type forbidden, for whatever reason?
+    // TODO: could make these block property "BLF_NO_SIMPLIFY"
+    switch (pFace->materialType) {
+    // Forbidden because they do have UV's that go 0-1 and aligned normals, but don't actually align by their coordinates
+    case BLOCK_WHEAT:
+    case BLOCK_NETHER_WART:
+    case BLOCK_CARROTS:
+    case BLOCK_POTATOES:
+    case BLOCK_HEAD:
+    case BLOCK_RESERVED_MOB_HEAD:   // should never be used, but just in case...
+    case BLOCK_BEETROOT_SEEDS:
+    case BLOCK_TALL_SEAGRASS:
+    case BLOCK_BAMBOO:
+    case BLOCK_BIG_DRIPLEAF:
+    case BLOCK_SMALL_DRIPLEAF:
+
+    // blocks can be rotated (from above) and so may not tile
+    case BLOCK_POWERED_RAIL:
+    case BLOCK_DETECTOR_RAIL:
+    case BLOCK_RAIL:
+    case BLOCK_ACTIVATOR_RAIL:
+
+    // Could be aligned by normal, but nip it in the bud here (would fail UV test later anyway).
+    // Faster to test here than have to inquire all four pairs of UV coordinates.
+    case BLOCK_STONE_PRESSURE_PLATE:
+    case BLOCK_WOODEN_PRESSURE_PLATE:
+    case BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT:
+    case BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY:
+    case BLOCK_SPRUCE_PRESSURE_PLATE:
+    case BLOCK_BIRCH_PRESSURE_PLATE:
+    case BLOCK_JUNGLE_PRESSURE_PLATE:
+    case BLOCK_ACACIA_PRESSURE_PLATE:
+    case BLOCK_DARK_OAK_PRESSURE_PLATE:
+    case BLOCK_CRIMSON_PRESSURE_PLATE:
+    case BLOCK_WARPED_PRESSURE_PLATE:
+    case BLOCK_POLISHED_BLACKSTONE_PRESSURE_PLATE:
+    case BLOCK_MANGROVE_PRESSURE_PLATE:
+    case BLOCK_STONE_BUTTON:
+    case BLOCK_WOODEN_BUTTON:
+    case BLOCK_SPRUCE_BUTTON:
+    case BLOCK_BIRCH_BUTTON:
+    case BLOCK_JUNGLE_BUTTON:
+    case BLOCK_ACACIA_BUTTON:
+    case BLOCK_DARK_OAK_BUTTON:
+    case BLOCK_CRIMSON_BUTTON:
+    case BLOCK_WARPED_BUTTON:
+    case BLOCK_POLISHED_BLACKSTONE_BUTTON:
+    case BLOCK_MANGROVE_BUTTON:
+    case BLOCK_FENCE_GATE:
+    case BLOCK_SPRUCE_FENCE_GATE:
+    case BLOCK_BIRCH_FENCE_GATE:
+    case BLOCK_JUNGLE_FENCE_GATE:
+    case BLOCK_DARK_OAK_FENCE_GATE:
+    case BLOCK_ACACIA_FENCE_GATE:
+    case BLOCK_SPRUCE_FENCE:
+    case BLOCK_BIRCH_FENCE:
+    case BLOCK_JUNGLE_FENCE:
+    case BLOCK_DARK_OAK_FENCE:
+    case BLOCK_ACACIA_FENCE:
+    case BLOCK_CRIMSON_FENCE:
+    case BLOCK_WARPED_FENCE:
+    case BLOCK_CRIMSON_FENCE_GATE:
+    case BLOCK_WARPED_FENCE_GATE:
+    case BLOCK_MANGROVE_FENCE:
+    case BLOCK_MANGROVE_FENCE_GATE:
+    case BLOCK_SIGN_POST:
+    case BLOCK_WALL_SIGN:
+    case BLOCK_ACACIA_SIGN_POST:
+    case BLOCK_MANGROVE_SIGN_POST:
+    case BLOCK_MANGROVE_WALL_SIGN:
+    case BLOCK_TORCH:
+    case BLOCK_REDSTONE_TORCH_OFF:
+    case BLOCK_REDSTONE_TORCH_ON:
+    case BLOCK_SOUL_TORCH:
+    case BLOCK_CHEST:
+    case BLOCK_ENDER_CHEST:
+    case BLOCK_TRAPPED_CHEST:
+    case BLOCK_CAKE:
+    case BLOCK_CACTUS:
+    case BLOCK_LEVER:
+    case BLOCK_BREWING_STAND:
+    case BLOCK_DRAGON_EGG:
+    case BLOCK_ANVIL:
+    case BLOCK_CHORUS_FLOWER:
+    case BLOCK_CHORUS_PLANT:
+    case BLOCK_COMMAND_BLOCK:   // rotates
+    case BLOCK_REPEATING_COMMAND_BLOCK:
+    case BLOCK_CHAIN_COMMAND_BLOCK:
+    case BLOCK_JIGSAW:
+    case BLOCK_COBBLESTONE_WALL:
+    case BLOCK_FLOWER_POT:
+    case BLOCK_STANDING_BANNER:
+    case BLOCK_WALL_BANNER:
+    case BLOCK_STRUCTURE_VOID:
+    case BLOCK_ORANGE_BANNER:
+    case BLOCK_MAGENTA_BANNER:
+    case BLOCK_LIGHT_BLUE_BANNER:
+    case BLOCK_YELLOW_BANNER:
+    case BLOCK_LIME_BANNER:
+    case BLOCK_PINK_BANNER:
+    case BLOCK_GRAY_BANNER:
+    case BLOCK_LIGHT_GRAY_BANNER:
+    case BLOCK_CYAN_BANNER:
+    case BLOCK_PURPLE_BANNER:
+    case BLOCK_BLUE_BANNER:
+    case BLOCK_BROWN_BANNER:
+    case BLOCK_GREEN_BANNER:
+    case BLOCK_RED_BANNER:
+    case BLOCK_BLACK_BANNER:
+    case BLOCK_ORANGE_WALL_BANNER:
+    case BLOCK_MAGENTA_WALL_BANNER:
+    case BLOCK_LIGHT_BLUE_WALL_BANNER:
+    case BLOCK_YELLOW_WALL_BANNER:
+    case BLOCK_LIME_WALL_BANNER:
+    case BLOCK_PINK_WALL_BANNER:
+    case BLOCK_GRAY_WALL_BANNER:
+    case BLOCK_LIGHT_GRAY_WALL_BANNER:
+    case BLOCK_CYAN_WALL_BANNER:
+    case BLOCK_PURPLE_WALL_BANNER:
+    case BLOCK_BLUE_WALL_BANNER:
+    case BLOCK_BROWN_WALL_BANNER:
+    case BLOCK_GREEN_WALL_BANNER:
+    case BLOCK_RED_WALL_BANNER:
+    case BLOCK_BLACK_WALL_BANNER:
+    case BLOCK_CONDUIT:
+    case BLOCK_SEA_PICKLE:
+    case BLOCK_TURTLE_EGG:
+    case BLOCK_BELL:
+    case BLOCK_GRINDSTONE:
+    case BLOCK_CHAIN:
+    case BLOCK_CANDLE:
+    case BLOCK_LIT_CANDLE:
+    case BLOCK_COLORED_CANDLE:
+    case BLOCK_LIT_COLORED_CANDLE:
+    case BLOCK_AMETHYST_BUD:
+    case BLOCK_LIGHTNING_ROD:
+    case BLOCK_SPORE_BLOSSOM:
+    case BLOCK_FROGSPAWN:
+        return false;
+
+    default:
+        break;
+    }
+
+    // rule out anything based on swatch location. Again, many swatch locs will be ruled out by
+    // earlier rules above.
+    // Faster to test here than have to inquire all four pairs of UV coordinates.
+    // TODO: could make these tile property, TILE_DONT_SIMPLIFY
+    switch (gModel.uvIndexList[gModel.faceList[faceId]->uvIndex[0]].swatchLoc) {
+    case 4 + 1 * 16:        //logs
+    case 4 + 7 * 16:        //logs
+    case 5 + 7 * 16:        //logs
+    case 9 + 9 * 16:        //logs
+    case 5 + 11 * 16:       //logs
+    case 14 + 19 * 16:      //logs
+    case 0 + 34 * 16:       //stripped logs
+    case 1 + 34 * 16:       //stripped logs
+    case 2 + 34 * 16:       //stripped logs
+    case 3 + 34 * 16:       //stripped logs
+    case 4 + 34 * 16:       //stripped logs
+    case 5 + 34 * 16:       //stripped logs
+    case 13 + 54 * 16:      //logs
+    case 15 + 54 * 16:      //stripped logs
+    case 12 + 6 * 16:       //piston side
+    case 6 + 8 * 16:        //bed top
+    case 7 + 8 * 16:        //bed top
+    case 11 + 8 * 16:       //cauldron inner
+    case 4 + 9 * 16:        //glass pane top
+    case 15 + 9 * 16:       //end portal side
+    case 6 + 11 * 16:       //enchanting table side
+    case 11 + 14 * 16:      //beacon
+    case 5 + 15 * 16:       //daylight_detector_side
+    case 9 + 15 * 16:       //hay_block_side
+    case 11 + 15 * 16:      //hopper_inside
+    case 12 + 15 * 16:      //hopper_outside
+    case 0 + 21 * 16:       //stained glass tops
+    case 1 + 21 * 16:       //stained glass tops
+    case 2 + 21 * 16:       //stained glass tops
+    case 3 + 21 * 16:       //stained glass tops
+    case 4 + 21 * 16:       //stained glass tops
+    case 5 + 21 * 16:       //stained glass tops
+    case 6 + 21 * 16:       //stained glass tops
+    case 7 + 21 * 16:       //stained glass tops
+    case 8 + 21 * 16:       //stained glass tops
+    case 9 + 21 * 16:       //stained glass tops
+    case 10 + 21 * 16:      //stained glass tops
+    case 11 + 21 * 16:      //stained glass tops
+    case 12 + 21 * 16:      //stained glass tops
+    case 13 + 21 * 16:      //stained glass tops
+    case 14 + 21 * 16:      //stained glass tops
+    case 15 + 21 * 16:      //stained glass tops
+
+    case 1 + 24 * 16:       //purpur pillar side
+    case 9 + 24 * 16:       //dirt path side
+    case 3 + 26 * 16:       //bone block side
+    case 4 + 33 * 16:       //observer top
+    case 1 + 38 * 16:       //barrel side
+    case 0 + 40 * 16:       //lectern
+    case 1 + 40 * 16:       //lectern
+    case 3 + 40 * 16:       //lectern
+    case 5 + 41 * 16:       //stonecutter side
+    case 7 + 41 * 16:       //stonecutter saw
+    case 2 + 42 * 16:       //honey block inside only
+    case 3 + 42 * 16:       //honey block inside only (note honey block bottom could tile, since it also makes up the outer layer)
+    case 7 + 51 * 16:       //azalea side
+    case 8 + 51 * 16:       //azalea side
+    case 9 + 51 * 16:       //azalea side
+    case 12 + 51 * 16:      //azalea side
+    case 13 + 51 * 16:      //azalea side
+    case 14 + 51 * 16:      //azalea side
+    case 15 + 51 * 16:      //azalea side
+    case 0 + 53 * 16:       //sculk sensor
+    case 2 + 53 * 16:       //sculk sensor
+    case 3 + 53 * 16:       //sculk sensor
+    case 9 + 55 * 16:       //muddy mangrove roots side - hard to see, but these really do have a directionality
+    case 12 + 55 * 16:      //froglight sides
+    case 14 + 55 * 16:      //froglight sides
+    case 0 + 56 * 16:       //froglight sides
+    case 8 + 56 * 16:       //sculk shrieker side
+        return false;
+
+    default:
+        break;
+    }
+        
+    // are the UVs from edge to edge, so we know it's a full face?
+    for (j = 0; j < 4; j++) {
+        // X texture coordinate, unscrambled, range 0-16 (divided by 16. These are the texel locations in the standard 16x16 grid)
+        int itc = (int)((((int)(gModel.uvIndexList[pFace->uvIndex[j]].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale);
+        if (itc != 0 && itc != 16) {
+            return false;
+        }
+        // full, true unscramble - not needed: itc = ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale));
+        //itc = (int)(16 - ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale));
+        itc =   (int)      ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale);
+        if (itc != 0 && itc != 16) {
+            return false;
+        }
+    }
+#ifdef _DEBUG
+    // Final check, just for debug to make sure we didn't let anything through: are all coordinates (not in normal direction) non-fractional, 0-1'ish? Chests, I believe, get their texture squished to their dimension.
+    // Things like wheat, nether wart, etc. do not go fully across the tile, OR may get randomized and so won't line up.
+    Vector loc;
+    for (j = 0; j < 4; j++) {
+        Vec3Scalar(loc, =, gModel.vertices[pFace->vertexIndex[j]][X], gModel.vertices[pFace->vertexIndex[j]][Y], gModel.vertices[pFace->vertexIndex[j]][Z]);
+        switch(pFace->normalIndex % 3) {
+        case X:
+            if (float(int(loc[Y])) != loc[Y] || float(int(loc[Z])) != loc[Z]) {
+                assert(0);
+                return false;
+            }
+            break;
+        case Y:
+            if (float(int(loc[X])) != loc[X] || float(int(loc[Z])) != loc[Z]) {
+                assert(0);
+                return false;
+            }
+            break;
+        case Z:
+            if (float(int(loc[X])) != loc[X] || float(int(loc[Y])) != loc[Y]) {
+                assert(0);
+                return false;
+            }
+            break;
+        default:
+            assert(0);
+        }
+    }
+#endif
+    return true;
+}
+
+static void extractZXYfromNormalAndBounds(FaceRecord* pFace, SimplifyFaceRecord* pSimplifyFace)
+{
+    // TODOTODO likely needs adjustment
+    switch (pSimplifyFace->normalDirection % 3) {
+    default:
+        assert(0);
+    case X:
+        pSimplifyFace->normalDistance = gModel.vertices[pFace->vertexIndex[0]][X];
+        // diagonally opposite corners!
+        pSimplifyFace->xll = min(gModel.vertices[pFace->vertexIndex[0]][Z], gModel.vertices[pFace->vertexIndex[2]][Z]);
+        pSimplifyFace->yll = min(gModel.vertices[pFace->vertexIndex[0]][Y], gModel.vertices[pFace->vertexIndex[2]][Y]);
+        break;
+    case Y:
+        pSimplifyFace->normalDistance = gModel.vertices[pFace->vertexIndex[0]][Y];
+        // Note that the northwest corner of the top down view is considered the "lower left" corner
+        pSimplifyFace->xll = min(gModel.vertices[pFace->vertexIndex[0]][Z], gModel.vertices[pFace->vertexIndex[2]][Z]);
+        pSimplifyFace->yll = min(gModel.vertices[pFace->vertexIndex[0]][X], gModel.vertices[pFace->vertexIndex[2]][X]);
+        break;
+    case Z:
+        pSimplifyFace->normalDistance = gModel.vertices[pFace->vertexIndex[0]][Z];
+        // diagonally opposite corners!
+        pSimplifyFace->xll = min(gModel.vertices[pFace->vertexIndex[0]][X], gModel.vertices[pFace->vertexIndex[2]][X]);
+        pSimplifyFace->yll = min(gModel.vertices[pFace->vertexIndex[0]][Y], gModel.vertices[pFace->vertexIndex[2]][Y]);
+        break;
+    }
+}
+
+static void simplifySetOfFaces(int faceCount, SimplifyFaceRecord **ppSFR)
+{
+    if (faceCount == 0) {
+        // nothing to simplify
+        return;
+    }
+
+    qsort_s(ppSFR, faceCount, sizeof(SimplifyFaceRecord*), simplifyFaceCompareYminor, NULL);
     // Sort by normal direction sort key value, then by X, then by Y.
     // Walk through matching normals and matching X's and attach the neighboring Y's together in single-linked lists, ascending.
     // (That is: this record points at the next record if the next record's normal dir, normal distance, X match and Y is +1.)
+    int i;
+    SimplifyFaceRecord** ppStartSFR = ppSFR;
+    SimplifyFaceRecord* pCurSFR = ppSFR[0];
+    int subCount = 1;
+    for (i = 1; i < faceCount; i++) {
+        SimplifyFaceRecord* pNextSFR = ppSFR[i];
+        if ((pCurSFR->normalDirection == pNextSFR->normalDirection) && (pCurSFR->normalDistance == pNextSFR->normalDistance)) {
+            // current and next are in same plane, so note this
+            subCount++;
+            // check neighbor situation
+            if (pCurSFR->xll == pNextSFR->xll) {
+                // x's match; do the y's neighbor each other?
+                if (pCurSFR->yll == pNextSFR->yll - 1) {
+                    // the two neighbor in Y, so mark it
+                    pCurSFR->pYneighborSFR = pNextSFR;
+                }
+            }
+        }
+        else {
+            // subsort - end of a group sharing a plane, so sort all the elements and try to link these up.
+            mergeSimplifySet(ppStartSFR, subCount);
 
-    // Now sort again: ..., but then by *Y*, then by X. Now the Y's are connected (by the previous sort) and the X's are adjacent
+            // start new set
+            ppStartSFR = &ppSFR[i];
+            // include the quad that is next as the first on the new plane
+            subCount = 1;
+        }
+        pCurSFR = pNextSFR;
+    }
+    mergeSimplifySet(ppStartSFR, subCount);
+
+    // TODOTODO:
+    // During output we export all the merged faces. I'd recommend writing them out first.
+}
+
+static int simplifyFaceCompareYminor(void* context, const void* str1, const void* str2)
+{
+    SimplifyFaceRecord* f1 = *(SimplifyFaceRecord**)str1;
+    SimplifyFaceRecord* f2 = *(SimplifyFaceRecord**)str2;
+    context;    // make a useless reference to the unused variable, to avoid C4100 warning
+    // compare normal directions and distances
+    if (f1->normalDirection == f2->normalDirection) {
+        if (f1->normalDistance == f2->normalDistance) {
+            if (f1->xll == f2->xll) {
+                if (f1->yll == f2->yll) {
+                    assert(0);  // they should never all match
+                    return 0;
+                }
+                else return ((f1->yll < f2->yll) ? -1 : 1);
+            }
+            else return ((f1->xll < f2->xll) ? -1 : 1);
+        }
+        else return ((f1->normalDistance < f2->normalDistance) ? -1 : 1);
+    }
+    else return ((f1->normalDirection < f2->normalDirection) ? -1 : 1);
+}
+static int simplifyFaceCompareXminor(void* context, const void* str1, const void* str2)
+{
+    SimplifyFaceRecord* f1 = *(SimplifyFaceRecord**)str1;
+    SimplifyFaceRecord* f2 = *(SimplifyFaceRecord**)str2;
+    context;    // make a useless reference to the unused variable, to avoid C4100 warning
+    // Not needed, should already match: compare normal directions and distances
+    //if (f1->normalDirection == f2->normalDirection) {
+        //if (f1->normalDistance == f2->normalDistance) {
+            if (f1->yll == f2->yll) {
+                if (f1->xll == f2->xll) {
+                    assert(0);  // they should never all match
+                    return 0;
+                }
+                else return ((f1->xll < f2->xll) ? -1 : 1);
+            }
+            else return ((f1->yll < f2->yll) ? -1 : 1);
+        //}
+        //else return ((f1->normalDistance < f2->normalDistance) ? -1 : 1);
+    //}
+    //else return ((f1->normalDirection < f2->normalDirection) ? -1 : 1);
+}
+
+static void mergeSimplifySet(SimplifyFaceRecord** ppSFR, int faceCount)
+{
+    if (faceCount <= 1) {
+        // just the one face, so let's get out of here
+        return;
+    }
+
+    // Now sort again: ..., but then by *Y*, then by X. Now the Y's are connected (by the previous sort) and the X's are adjacent.
+    // Note we know that the normals and normal distances match, so don't sort by them.
+    qsort_s(ppSFR, faceCount, sizeof(SimplifyFaceRecord*), simplifyFaceCompareXminor, NULL);
+
+    // We have to then link up the X's, as we'll walk from record to record (this is also easier to think about!).
+    SimplifyFaceRecord* pCurSFR = ppSFR[0];
+    int i, j, k;
+    for (i = 1; i < faceCount; i++) {
+        SimplifyFaceRecord* pNextSFR = ppSFR[i];
+        if (pCurSFR->yll == pNextSFR->yll) {
+            if (pCurSFR->xll == pNextSFR->xll - 1) {
+                // the two neighbor in X, so mark it
+                pCurSFR->pXneighborSFR = pNextSFR;
+            }
+        }
+        pCurSFR = pNextSFR;
+    }
 
     // Start walking groups that match in some way. If this quad has a neighbor, walk one in the X direction.
     // Then alternate: look in Y direction, all along next row over. If they're all there, expand in Y.
     // Keep alternating, stop when we either don't hit a filled row/column or we hit the maximum (say 32 total).
+    for (i = 0; i < faceCount; i++) {
+        SimplifyFaceRecord* pCornerSFR = ppSFR[i];
+        // All pFace get nulled out once a merge occurs, so skip when found in list that's left
+        if (pCornerSFR->pFace != NULL) {
+            bool testX = true;
+            bool testY = true;
+            int xlen = 1;
+            int ylen = 1;
+            // 0,0 is upper left, X increases right, Y goes down (mentally)
+            SimplifyFaceRecord* pUpperRightSFR = pCornerSFR;
+            // for extending in Y, we need the current record in the lower left
+            SimplifyFaceRecord* pLowerLeftSFR = pCornerSFR;
+
+            do {
+                if (testX) {
+                    // Walk through all records in current column, see if all have X+1 neighbors.
+                    SimplifyFaceRecord* pColSFR = pUpperRightSFR;
+                    for (j = 0; j < ylen && testX; j++) {
+                        if (pColSFR->pXneighborSFR == NULL || pColSFR->pXneighborSFR->pFace == NULL) {
+                            // No +1 X-neighbor or X-neighbor face already deleted, so we can't extend further in the X direction
+                            testX = false;
+                        }
+                        else {
+                            // There is a Y neighbor, yll's should align
+                            assert(pColSFR->xll == pColSFR->pXneighborSFR->xll - 1);
+                            // go to next record (Y+1) in list and test (in next loop iteration) if it has a Y neighbor
+                            pColSFR = pColSFR->pYneighborSFR;
+                        }
+                    }
+                    // did we find all X neighbors? Then we can move the UpperRight corner over by one
+                    if (testX) {
+                        // all the neighbors in X matched up, so move X column limit over
+                        xlen++;
+                        // The new Y column is the next in X, since the X's were found above to be +1 different (neighbors)
+                        pUpperRightSFR = pUpperRightSFR->pXneighborSFR;
+                    }
+                }
+                // OK, done with expanding in X, try expanding in Y
+                if (testY) {
+                    // Walk through all records in current row, see if all have Y+1 neighbors.
+                    SimplifyFaceRecord* pRowSFR = pLowerLeftSFR;
+                    for (j = 0; j < xlen && testY; j++) {
+                        if (pRowSFR->pYneighborSFR == NULL || pRowSFR->pYneighborSFR->pFace == NULL) {
+                            // No +1 Y-neighbor or it's been deleted (already merged earlier), so we can't extend further in the Y direction
+                            testY = false;
+                        }
+                        else {
+                            // There is a Y neighbor, yll's should align
+                            assert(pRowSFR->yll == pRowSFR->pYneighborSFR->yll - 1);
+                            // go to next record (X+1) in list and test (in next loop iteration) if it has a Y neighbor
+                            pRowSFR = pRowSFR->pXneighborSFR;
+                        }
+                    }
+                    // did we find all Y neighbors? Then we can move the LowerLeft corner over by one
+                    if (testY) {
+                        // all the neighbors in Y matched up, so move Y row down
+                        ylen++;
+                        // The new Y column is the next in X, since the X's were found above to be +1 different (neighbors)
+                        pLowerLeftSFR = pLowerLeftSFR->pYneighborSFR;
+                    }
+                }
+
+            // continue until we find no matches in either direction, or we've hit the maximum resolution we're willing to go
+            } while ((testX || testY) && (xlen < SIMPLIFY_MAX_DIMENSION) && (ylen < SIMPLIFY_MAX_DIMENSION));
+
+            // So, did we find any group?
+            if (xlen > 1 || ylen > 1) {
+                // We did - celebrate!
+
+                // Store away the new simplified face
+                // Get a face, add "normally"
+
+                // Delete the record faces that got "used up".
+                pLowerLeftSFR = pCornerSFR;
+                for (j = 0; j < ylen; j++) {
+                    SimplifyFaceRecord* pDelSFR = pLowerLeftSFR;
+                    for (k = 0; k < xlen; k++) {
+                        // mark records as "this one's now part of another record, so ignore it"
+                        pDelSFR->pFace->normalIndex = HAS_BEEN_MERGED;
+                        pDelSFR->pFace = NULL;
+                        pDelSFR = pDelSFR->pXneighborSFR;
+                    }
+                    pLowerLeftSFR = pLowerLeftSFR->pYneighborSFR;
+                }
+            }
+        }
+    }
 
     // We now have some extent that's all the same. Make a new entry, a new type of face, for this tile type, with the proper vertex indices (nothing new there),
     // normal direction (nothing new), and texture coordinates (probably something new - mark in UV table). Mark the old faces as
@@ -31300,5 +31942,4 @@ static void decimateMesh()
     // Once we've walked through all faces like this, we're done! We've made all the replacements we could, and marked ones that
     // are used along the way.
 
-    // During output we export all the merged faces. I'd recommend writing them out first.
 }
