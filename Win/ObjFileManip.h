@@ -284,6 +284,7 @@ typedef struct Model {
     SimplifyFaceRecordPool* headSimplifyFaceRecordPool;
     int *simplifyUVGridList;
     int simplifySavings;
+    bool dontRandomizeRotations;    // hidden variable, for testing simplification: if set, turns off random rotations/flips. TODO: expose in script someday?
     bool alreadyAskedForComposite;
     int mcVersion;	// 12 for 1.12.2 and earlier, 13 for 1.13 and later
 

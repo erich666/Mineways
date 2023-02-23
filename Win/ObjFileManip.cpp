@@ -2395,7 +2395,7 @@ static int populateBox(WorldGuide* pWorldGuide, ChangeBlockCommand* pCBC, IBox* 
     // It is useful to know what is above or below a block because of how neighbors can affect 2-high objects,
     // such as doors and sunflowers. See http://minecraft.gamepedia.com/Data_values#Door for example.
     // if we're not at the lower limit, and there's actually some solid stuff on that bottom level, get the stuff below
-    if (edgeWorldBox.min[Y] > 0 && (originalWorldBox.min[Y] == gSolidWorldBox.min[Y]))
+    if (edgeWorldBox.min[Y] > gMinHeight && (originalWorldBox.min[Y] == gSolidWorldBox.min[Y]))
     {
         edgeWorldBox.min[Y]--;
     }
@@ -3126,7 +3126,7 @@ static int filterBox(ChangeBlockCommand* pCBC)
         gSolidGroups = gAirGroups = 0;
 
         // normal mode: clear slabs above and below
-        // already done earlier now; code left just in case
+        // already done earlier now, but clearing just types, not original types; code left just in case
         //if (gModel.options->pEFD->chkBlockFacesAtBorders)
         //{
         //    // Clear upper and lower slabs. We don't need the slab data for here on in,
@@ -16775,7 +16775,7 @@ static int checkAndCreateFaces(int boxIndex, IPoint loc)
         int neighborBoxIndex = boxIndex + gFaceOffset[faceDirection];
         neighborType = gBoxData[neighborBoxIndex].type;
 
-        // Could be added someday - really affects ONLY the Block Test World, which is only one block thick.
+        // Could be added someday:
         // Check here if the face faces down and is on the border.
         // If so, don't output it.
         // Note that this works only for full blocks - bottoms of other blocks will not be deleted.
@@ -17859,7 +17859,7 @@ static int getMaterialUsingGroup(int groupID)
 
 static void randomlyRotateTopAndBottomFace(int faceDirection, int boxIndex, int* localIndices, bool halfOnly)
 {
-    if (gModel.instancing || gModel.options->pEFD->chkDecimate) {
+    if (gModel.instancing || gModel.options->pEFD->chkDecimate || gModel.dontRandomizeRotations) {
         // don't rotate when instancing, since only one grass block is going to be set.
         // An alternative would be to set a rotation value for the block.
         // Decimation also needs to avoid rotation, see https://github.com/erich666/Mineways/issues/60
@@ -32122,10 +32122,14 @@ static void mergeSimplifySet(SimplifyFaceRecord** ppSFR, int faceCount)
                 // normal direction (nothing new), and texture coordinates (probably something new - mark in UV table). Mark the old faces as
                 // no longer needing output - probably set normal index to -1 or something...
                 SimplifyFaceRecord* pLowerRightSFR = pLowerLeftSFR;
-                while (pLowerRightSFR->pXneighborSFR != NULL) {
-                    // walk over to the lower right corner; was too tricksy to do above
+                for (j = 1; j < xlen; j++ ) {
+                    // walk over the exact amount to the lower right corner; was too tricksy to do above while searching
                     pLowerRightSFR = pLowerRightSFR->pXneighborSFR;
                 }
+                assert(pCornerSFR);
+                assert(pLowerLeftSFR);
+                assert(pUpperRightSFR);
+                assert(pLowerRightSFR);
 
                 // Store away the new simplified face.
                 // Where we'll put the new merged face is the corner, since this face won't get revisited later in the loop
