@@ -48,9 +48,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 // feature currently disabled, G3D was fixed so this is no longer an issue.
 #define STOP_Z_FIGHTING	0.0f
 
-// Maximum size of a simplified area. We could crank this higher...
-#define SIMPLIFY_MAX_DIMENSION 32
-
 // If the model is going to undergo a transform, we don't know the normal of the surface,
 // so figure out the normal at the end of the run.
 #define COMPUTE_NORMAL  -1
@@ -672,8 +669,11 @@ static void saveInstanceLocation(float* anchorPt, int instanceID);
 static int makeInstanceHash(int type, int dataVal);
 static int tileIdCompare(void* context, const void* str1, const void* str2);
 static int tileUSDIdCompare(void* context, const void* str1, const void* str2);
+#ifdef SIMPLIFY_RESORT
+// at one point it seemed necessary to re-sort the whole set of faces
 static int tileIdDeleteAndCompare(void* context, const void* str1, const void* str2);
 static int tileUSDIdDeleteAndCompare(void* context, const void* str1, const void* str2);
+#endif
 static int faceIdCompare(void* context, const void* str1, const void* str2);
 static int chunkUSDCompare(void* context, const void* str1, const void* str2);
 static int instanceUSDCompare(void* context, const void* str1, const void* str2);
@@ -834,6 +834,8 @@ static void simplifySetOfFaces(int faceCount, SimplifyFaceRecord** ppSFR);
 static int simplifyFaceCompareYminor(void* context, const void* str1, const void* str2);
 static int simplifyFaceCompareXminor(void* context, const void* str1, const void* str2);
 static void mergeSimplifySet(SimplifyFaceRecord** ppSFR, int faceCount);
+static short findUVinIndex(FaceRecord* pFace, float bx, float by);
+static int getVertexIDmatching(FaceRecord* pFace, float xnx, float yny);
 
 static wchar_t gSeparator[3];
 
@@ -1250,19 +1252,6 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     if (retCode >= MW_BEGIN_ERRORS) return retCode;
 
     UPDATE_PROGRESS(gProgress.start.output);
-
-    // Ready the normals for direct output 0 - any undefined (-1 index) get set now
-    // It's possible the output format doesn't include normals, but this process is almost always needed (and easily missed)
-    resolveFaceNormals();
-
-    // At this point we could apply decimation, if desired (and valid, etc.).
-    // Faces that get merged into new, larger faces are "deleted" by marking the normalIndex to HAS_BEEN_MERGED,
-    // just to save room that would be needed for a flag
-    static bool decimate = true;    // TODOTODO
-    if (gModel.options->pEFD->chkDecimate) {
-        assert(gModel.exportTiles);
-        decimateMesh();
-    }
 
     switch (fileType)
     {
@@ -2171,7 +2160,8 @@ static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* 
     gModel.verticalTiles = gModel.pInputTerrainImage[CATEGORY_RGBA]->height / gModel.tileSize;
 
 #ifdef _DEBUG
-    static int markTiles = 0;	// to put R on each tile for debugging, set to 1
+    // add letter R to every tile, to see orientation of tiles
+    static int markTiles = 1;	// to put R on each tile for debugging, set to 1 TODOTODOTODO turn this back to 0 for release
     if (markTiles && category == CATEGORY_RGBA)
     {
         int row, col;
@@ -2179,7 +2169,7 @@ static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* 
         {
             for (col = 0; col < 16; col++)
             {
-                drawPNGTileLetterR(pITI, row, col, pITI->width / 16);
+                drawPNGTileLetterR(pITI, col, row, pITI->width / 16);
             }
         }
     }
@@ -16324,23 +16314,6 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
         }
     }
 
-    //UPDATE_PROGRESS(pgFaceStart + pgFaceOffset);
-    // now that we have the scale and world offset, and all vertices are now generated, transform all points to their proper locations
-    if (!gModel.instancing) {
-        for (i = 0; i < gModel.vertexCount; i++)
-        {
-            float* pt = (float*)gModel.vertices[i];
-            float anchor[3];
-            Vec2Op(anchor, =, gModel.vertices[i]);
-            pt[X] = (float)(anchor[X] - gModel.center[X]) * gModel.scale * gUnitsScale;
-            pt[Y] = (float)(anchor[Y] - gModel.center[Y]) * gModel.scale * gUnitsScale;
-            pt[Z] = (float)(anchor[Z] - gModel.center[Z]) * gModel.scale * gUnitsScale;
-
-            // rotate location as needed
-            rotateLocation(pt);
-        }
-    }
-
     UPDATE_PROGRESS(gProgress.start.makeFaces + gProgress.absolute.makeFaces * 0.75f);
 
     // If we are grouping by material (e.g., STL does not need this), and we are not outputting per block, then we need to sort by material
@@ -16363,6 +16336,40 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
         }
     }
     // else we are exporting by block, so no sorting is done.
+
+    // TODOTODOTODO - SERIOUS BUG: we really want to resolve normals, decimate, THEN scale and translate and rotate.
+    // Right now we do the order translate, scale, then rotate to place. And the normals themselves get rotated earlier in this subroutine. Ugh.
+    // I think the best bet is to do the sort, decimate. Some normals will not be set and so don't get used when sorting, etc.
+
+    // Do the scaling and rotations to place
+    //UPDATE_PROGRESS(pgFaceStart + pgFaceOffset);
+    // now that we have the scale and world offset, and all vertices are now generated, transform all points to their proper locations
+    if (!gModel.instancing) {
+        for (i = 0; i < gModel.vertexCount; i++)
+        {
+            float* pt = (float*)gModel.vertices[i];
+            float anchor[3];
+            Vec2Op(anchor, =, gModel.vertices[i]);
+            pt[X] = (float)(anchor[X] - gModel.center[X]) * gModel.scale * gUnitsScale;
+            pt[Y] = (float)(anchor[Y] - gModel.center[Y]) * gModel.scale * gUnitsScale;
+            pt[Z] = (float)(anchor[Z] - gModel.center[Z]) * gModel.scale * gUnitsScale;
+
+            // rotate location as needed
+            rotateLocation(pt);
+        }
+    }
+
+    // Ready the normals for direct output - any undefined (-1 index) get set now
+    // It's possible the output format doesn't include normals, but this process is almost always needed (and easily missed)
+    resolveFaceNormals();
+
+    // At this point we could apply decimation, if desired (and valid, etc.).
+    // Faces that get merged into new, larger faces are "deleted" by marking the normalIndex to HAS_BEEN_MERGED,
+    // just to save room that would be needed for a flag
+    if (gModel.options->pEFD->chkDecimate) {
+        assert(gModel.exportTiles);
+        decimateMesh();
+    }
 
     return retCode;
 }
@@ -16526,6 +16533,8 @@ static int tileUSDIdCompare(void* context, const void* str1, const void* str2)
     else return ((swatchLoc1 < swatchLoc2) ? -1 : 1);
 }
 
+#ifdef SIMPLIFY_RESORT
+
 // As above, but put deleted faces at end
 // sort by type and subtype, then compare swatch locations, which are separate materials within a block, then by face index.
 // Sorting by swatch location allows better grouping and less material switching (can't do this for individual block output).
@@ -16614,7 +16623,7 @@ static int tileUSDIdDeleteAndCompare(void* context, const void* str1, const void
     }
     else return ((swatchLoc1 < swatchLoc2) ? -1 : 1);
 }
-
+#endif
 
 // sort by block type, then by data value using submaterial mask, then by face index
 static int faceIdCompare(void* context, const void* str1, const void* str2)
@@ -17850,9 +17859,10 @@ static int getMaterialUsingGroup(int groupID)
 
 static void randomlyRotateTopAndBottomFace(int faceDirection, int boxIndex, int* localIndices, bool halfOnly)
 {
-    if (gModel.instancing) {
+    if (gModel.instancing || gModel.options->pEFD->chkDecimate) {
         // don't rotate when instancing, since only one grass block is going to be set.
         // An alternative would be to set a rotation value for the block.
+        // Decimation also needs to avoid rotation, see https://github.com/erich666/Mineways/issues/60
         return;
     }
     int angle;  // cppcheck-suppress 398
@@ -22056,6 +22066,12 @@ static void freeModel(Model* pModel)
         pSwatch = pSwatchNext;
     }
     gModel.swatchCompositeList = gModel.swatchCompositeListEnd = NULL;
+
+    // simplify
+    if (gModel.simplifyUVGridList)
+    {
+        free(gModel.simplifyUVGridList);
+    }
 }
 
 static int findMatchingNormal(FaceRecord* pFace, Vector normal, Vector* normalList, int normalListCount)
@@ -22432,8 +22448,10 @@ static int mosaicUVtoSeparateUV()
     }
     // Now go through grid and output the vt values that are used.
     index = 0;
-    for (int y = 0; y < NUM_UV_GRID_RESOLUTION + 1; y++) {
-        for (int x = 0; x < NUM_UV_GRID_RESOLUTION + 1; x++) {
+    int x, y;
+    for (y = 0; y < NUM_UV_GRID_RESOLUTION + 1; y++) {
+        for (x = 0; x < NUM_UV_GRID_RESOLUTION + 1; x++) {
+            // did this particular UV location in the 17x17 grid of possible values get used by any quad or triangle?
             if (gModel.uvGridList[index] > 0) {
                 // with this location noted as used, now set it to the UV index the face lists will use, starting with 1.
                 gModel.uvGridList[index] = ++gModel.uvGridListCount;
@@ -22445,6 +22463,27 @@ static int mosaicUVtoSeparateUV()
         }
     }
     // if simplification is used, add any extended UVs
+    int indexID = gModel.uvGridListCount;
+    index = 0;  // count up from here
+    if (gModel.options->pEFD->chkDecimate) {
+        assert(gModel.simplifyUVGridList);
+        for (y = 0; y < SIMPLIFY_MAX_DIMENSION + 1; y++) {
+            for (x = 0; x < SIMPLIFY_MAX_DIMENSION + 1; x++) {
+                if (gModel.simplifyUVGridList[index] > 0) {
+                    // NOTE: if we want to get a bit more efficient, we should check for 0,0; 0,1; 1,1; 1,0 and handle them separately, as these are likely already output
+                    // and have indices. TODOTODO.
+
+                    // with this location noted as used, now set it to the UV index the face lists will use.
+                    // (could use gModel.uvGridListCount here directly, but let's leave that value alone)
+                    gModel.simplifyUVGridList[index] = ++indexID;
+                    retCode |= writeOBJTextureUV((float)x, (float)y, false, 0);
+                    if (retCode >= MW_BEGIN_ERRORS)
+                        return retCode;
+                }
+                index++;
+            }
+        }
+    }
 
     return retCode;
 }
@@ -22590,141 +22629,92 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
     for (i = 0; i < gModel.faceCount; i++)
     {
         pFace = gModel.faceList[i];
-        // if face has been merged, we ignore it for output - TODOTODO: test everywhere, well, at least USD
-        // TODOTODO get rid of this - we will clean this up before this point
-        if (pFace->normalIndex != HAS_BEEN_MERGED) {
 
-            // every 4% or so check on progress
-            if (i % noteProgress == 0) {
-                UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * 0.5f * (1.0f + ((float)i / (float)gModel.faceCount)));
-            }
+#ifndef SIMPLIFY_RESORT
+        // ignore all faces that have been marked as deleted
+        if (pFace->normalIndex == HAS_BEEN_MERGED)
+            continue;
+#endif
 
-            if (exportMaterials)
+        // every 4% or so check on progress
+        if (i % noteProgress == 0) {
+            UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * 0.5f * (1.0f + ((float)i / (float)gModel.faceCount)));
+        }
+
+        if (exportMaterials)
+        {
+            // should there be more than one material or group output in this OBJ file?
+            if ((gModel.options->exportFlags & (EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK | EXPT_OUTPUT_OBJ_SEPARATE_TYPES)) || gModel.exportTiles)
             {
-                // should there be more than one material or group output in this OBJ file?
-                if ((gModel.options->exportFlags & (EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK | EXPT_OUTPUT_OBJ_SEPARATE_TYPES)) || gModel.exportTiles)
+                // if the material type has changed, or the material subtype has changed, a new group is possible.
+                bool newGroupPossible = (prevType != gModel.faceList[i]->materialType) ||
+                    (subtypeGroup && (prevDataVal != gModel.faceList[i]->materialDataVal));
+                bool newMaterialPossible = (prevType != gModel.faceList[i]->materialType) ||
+                    (subtypeMaterial && (prevDataVal != gModel.faceList[i]->materialDataVal)) ||
+                    (gModel.exportTiles && (prevSwatchLoc != gModel.uvIndexList[gModel.faceList[i]->uvIndex[0]].swatchLoc));
+                // did we reach a new material?
+                if (newMaterialPossible)
                 {
-                    // if the material type has changed, or the material subtype has changed, a new group is possible.
-                    bool newGroupPossible = (prevType != gModel.faceList[i]->materialType) ||
-                        (subtypeGroup && (prevDataVal != gModel.faceList[i]->materialDataVal));
-                    bool newMaterialPossible = (prevType != gModel.faceList[i]->materialType) ||
-                        (subtypeMaterial && (prevDataVal != gModel.faceList[i]->materialDataVal)) ||
-                        (gModel.exportTiles && (prevSwatchLoc != gModel.uvIndexList[gModel.faceList[i]->uvIndex[0]].swatchLoc));
-                    // did we reach a new material?
-                    if (newMaterialPossible)
+                    // New material definitely found, so make a new one to be output.
+                    prevType = gModel.faceList[i]->materialType;
+                    prevDataVal = gModel.faceList[i]->materialDataVal;
+                    prevSwatchLoc = gModel.uvIndexList[gModel.faceList[i]->uvIndex[0]].swatchLoc;
+                    // New ID encountered, so output it: material name, and group.
+                    // Group isn't really required, but can be useful.
+                    // Output group only if we're not already using it for individual blocks.
+                    strcpy_s(mtlName, 256, gBlockDefinitions[prevType].name);
+
+                    if (subtypeMaterial && IsASubblock(prevType, prevDataVal)) {
+                        // use subtype name or add a dataval suffix.
+                        // If possible, turn these data values into the actual sub-material type names.
+                        const char* subName = RetrieveBlockSubname(prevType, prevDataVal);
+                        if (strcmp(subName, mtlName) == 0) {
+                            // No unique subname found for this data value, so use the data value.
+                            // Shouldn't ever hit here, actually; all things should be named by now.
+                            char tempString[MAX_PATH_AND_FILE];
+                            sprintf_s(tempString, 256, "%s__%d", mtlName, prevDataVal);
+                            strcpy_s(mtlName, 256, tempString);
+                        }
+                        else {
+                            // Name does not match, so use it
+                            // was: sprintf_s(tempString, 256, "%s__%s", mtlName, subName);
+                            strcpy_s(mtlName, 256, subName);
+                        }
+                    }
+
+                    // substitute ' ' to '_'
+                    changeCharToUnderline(' ', mtlName);
+                    // export by individual blocks
+                    // usemtl materialName
+                    if ((gModel.options->exportFlags & EXPT_INDIVIDUAL_BLOCKS)) // && !gModel.exportTiles)
                     {
-                        // New material definitely found, so make a new one to be output.
-                        prevType = gModel.faceList[i]->materialType;
-                        prevDataVal = gModel.faceList[i]->materialDataVal;
-                        prevSwatchLoc = gModel.uvIndexList[gModel.faceList[i]->uvIndex[0]].swatchLoc;
-                        // New ID encountered, so output it: material name, and group.
-                        // Group isn't really required, but can be useful.
-                        // Output group only if we're not already using it for individual blocks.
-                        strcpy_s(mtlName, 256, gBlockDefinitions[prevType].name);
-
-                        if (subtypeMaterial && IsASubblock(prevType, prevDataVal)) {
-                            // use subtype name or add a dataval suffix.
-                            // If possible, turn these data values into the actual sub-material type names.
-                            const char* subName = RetrieveBlockSubname(prevType, prevDataVal);
-                            if (strcmp(subName, mtlName) == 0) {
-                                // No unique subname found for this data value, so use the data value.
-                                // Shouldn't ever hit here, actually; all things should be named by now.
-                                char tempString[MAX_PATH_AND_FILE];
-                                sprintf_s(tempString, 256, "%s__%d", mtlName, prevDataVal);
-                                strcpy_s(mtlName, 256, tempString);
-                            }
-                            else {
-                                // Name does not match, so use it
-                                // was: sprintf_s(tempString, 256, "%s__%s", mtlName, subName);
-                                strcpy_s(mtlName, 256, subName);
-                            }
-                        }
-
-                        // substitute ' ' to '_'
-                        changeCharToUnderline(' ', mtlName);
-                        // export by individual blocks
-                        // usemtl materialName
-                        if ((gModel.options->exportFlags & EXPT_INDIVIDUAL_BLOCKS)) // && !gModel.exportTiles)
-                        {
-                            if (gModel.exportTiles) {
-                                if (!(gModel.options->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
-                                {
-                                    // Since the material can vary and repeat, use block names.
-                                    // New group for each block (materials not sorted)
-                                    if (mkGroupsObjs) {
-                                        sprintf_s(outputString, 256, "o block_%05d\n", groupCount + 1);   // don't increment it here
-                                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                                    }
-                                    sprintf_s(outputString, 256, "g block_%05d\n", ++groupCount);
+                        if (gModel.exportTiles) {
+                            if (!(gModel.options->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
+                            {
+                                // Since the material can vary and repeat, use block names.
+                                // New group for each block (materials not sorted)
+                                if (mkGroupsObjs) {
+                                    sprintf_s(outputString, 256, "o block_%05d\n", groupCount + 1);   // don't increment it here
                                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                                 }
+                                sprintf_s(outputString, 256, "g block_%05d\n", ++groupCount);
+                                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                            }
 
-                                // new material per tile ID
-                                // swatch locations exactly correspond with tiles.h names
-                                assert(prevSwatchLoc < TOTAL_TILES);
-                                // TODO: could someday store mtlName in this same table; no need to convert every time
-                                WcharToChar(gTilesTable[prevSwatchLoc].filename, mtlName, MAX_PATH_AND_FILE);
-                                sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
-                                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                                // note in an array that this separate tile should be output as a material
-                                gModel.tileList[CATEGORY_RGBA][prevSwatchLoc] = true;  // means has a texture
-                                assert(gModel.mtlCount < NUM_SUBMATERIALS);
-                            }
-                            else {
-                                // output every block individually, single texture is shared, so by material
-                                if (!(gModel.options->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
-                                {
-                                    // new group for objects of same type (which are sorted)
-                                    if (mkGroupsObjs) {
-                                        sprintf_s(outputString, 256, "o %s\n", mtlName);
-                                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                                    }
-                                    sprintf_s(outputString, 256, "g %s\n", mtlName);
-                                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                                }
-                                sprintf_s(outputString, 256, "\nusemtl %s\n", mtlName);
-                                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                                if (subtypeMaterial) {
-                                    // We can't use outputMaterial, a simple array of types. We need to
-                                    // instead check the whole previous list and see if the material's
-                                    // already on it. Check from last to first for speed, I hope.
-                                    // NODO: slightly better (though slower) would be to add by name, vs. typeData;
-                                    // there are materials with different typeData's but that actually have the same name,
-                                    // such as Purpur Block, but these show up only in the test world, so don't bother.
-                                    int curCount = gModel.mtlCount - 1;
-                                    unsigned int typeData = prevType << 8 | prevDataVal;
-                                    while (curCount >= 0) {
-                                        if (gModel.mtlList[curCount--] == typeData) {
-                                            // found it; exit loop
-                                            curCount = -999;
-                                        }
-                                    }
-                                    // did we find it?
-                                    if (curCount != -999) {
-                                        // did not find type/data combinationTOD - add it to list
-                                        gModel.mtlList[gModel.mtlCount++] = typeData;
-                                        assert(gModel.mtlCount < NUM_SUBMATERIALS);
-                                    }
-                                }
-                                else {
-                                    // note which material is to be output, if not output already
-                                    if (outputMaterial[prevType] == 0)
-                                    {
-                                        gModel.mtlList[gModel.mtlCount++] = prevType << 8 | prevDataVal;
-                                        assert(gModel.mtlCount < NUM_SUBMATERIALS);
-                                        outputMaterial[prevType] = 1;
-                                    }
-                                }
-                            }
-                        }
-                        else
-                        {
-                            // don't output by individual block: output by group, and/or by material, or by tile, or none at all (one material for scene)
-                            strcpy_s(outputString, 256, "\n");
+                            // new material per tile ID
+                            // swatch locations exactly correspond with tiles.h names
+                            assert(prevSwatchLoc < TOTAL_TILES);
+                            // TODO: could someday store mtlName in this same table; no need to convert every time
+                            WcharToChar(gTilesTable[prevSwatchLoc].filename, mtlName, MAX_PATH_AND_FILE);
+                            sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
                             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-
-                            // don't output group if just the tile ID differed and the block type didn't
-                            if ((gModel.options->exportFlags & EXPT_OUTPUT_OBJ_SEPARATE_TYPES) && newGroupPossible)
+                            // note in an array that this separate tile should be output as a material
+                            gModel.tileList[CATEGORY_RGBA][prevSwatchLoc] = true;  // means has a texture
+                            assert(gModel.mtlCount < NUM_SUBMATERIALS);
+                        }
+                        else {
+                            // output every block individually, single texture is shared, so by material
+                            if (!(gModel.options->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
                             {
                                 // new group for objects of same type (which are sorted)
                                 if (mkGroupsObjs) {
@@ -22734,27 +22724,78 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                                 sprintf_s(outputString, 256, "g %s\n", mtlName);
                                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                             }
-                            if (gModel.exportTiles) {
-                                // new material per tile ID
-                                // swatch locations exactly correspond with tiles.h names
-                                assert(prevSwatchLoc < TOTAL_TILES);
-                                WcharToChar(gTilesTable[prevSwatchLoc].filename, mtlName, MAX_PATH_AND_FILE);
-                                sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
-                                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                                // note in an array that this separate tile should be output as a material
-                                gModel.tileList[CATEGORY_RGBA][prevSwatchLoc] = true;  // means has a texture
-                                assert(gModel.mtlCount < NUM_SUBMATERIALS);
+                            sprintf_s(outputString, 256, "\nusemtl %s\n", mtlName);
+                            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                            if (subtypeMaterial) {
+                                // We can't use outputMaterial, a simple array of types. We need to
+                                // instead check the whole previous list and see if the material's
+                                // already on it. Check from last to first for speed, I hope.
+                                // NODO: slightly better (though slower) would be to add by name, vs. typeData;
+                                // there are materials with different typeData's but that actually have the same name,
+                                // such as Purpur Block, but these show up only in the test world, so don't bother.
+                                int curCount = gModel.mtlCount - 1;
+                                unsigned int typeData = prevType << 8 | prevDataVal;
+                                while (curCount >= 0) {
+                                    if (gModel.mtlList[curCount--] == typeData) {
+                                        // found it; exit loop
+                                        curCount = -999;
+                                    }
+                                }
+                                // did we find it?
+                                if (curCount != -999) {
+                                    // did not find type/data combinationTOD - add it to list
+                                    gModel.mtlList[gModel.mtlCount++] = typeData;
+                                    assert(gModel.mtlCount < NUM_SUBMATERIALS);
+                                }
                             }
-                            else if (gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK)
-                            {
-                                // new material per family
-                                sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
-                                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                                gModel.mtlList[gModel.mtlCount++] = prevType << 8 | prevDataVal;
-                                assert(gModel.mtlCount < NUM_SUBMATERIALS);
+                            else {
+                                // note which material is to be output, if not output already
+                                if (outputMaterial[prevType] == 0)
+                                {
+                                    gModel.mtlList[gModel.mtlCount++] = prevType << 8 | prevDataVal;
+                                    assert(gModel.mtlCount < NUM_SUBMATERIALS);
+                                    outputMaterial[prevType] = 1;
+                                }
                             }
-                            // else don't output material, there's only one for the whole scene
                         }
+                    }
+                    else
+                    {
+                        // don't output by individual block: output by group, and/or by material, or by tile, or none at all (one material for scene)
+                        strcpy_s(outputString, 256, "\n");
+                        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
+                        // don't output group if just the tile ID differed and the block type didn't
+                        if ((gModel.options->exportFlags & EXPT_OUTPUT_OBJ_SEPARATE_TYPES) && newGroupPossible)
+                        {
+                            // new group for objects of same type (which are sorted)
+                            if (mkGroupsObjs) {
+                                sprintf_s(outputString, 256, "o %s\n", mtlName);
+                                WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                            }
+                            sprintf_s(outputString, 256, "g %s\n", mtlName);
+                            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                        }
+                        if (gModel.exportTiles) {
+                            // new material per tile ID
+                            // swatch locations exactly correspond with tiles.h names
+                            assert(prevSwatchLoc < TOTAL_TILES);
+                            WcharToChar(gTilesTable[prevSwatchLoc].filename, mtlName, MAX_PATH_AND_FILE);
+                            sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
+                            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                            // note in an array that this separate tile should be output as a material
+                            gModel.tileList[CATEGORY_RGBA][prevSwatchLoc] = true;  // means has a texture
+                            assert(gModel.mtlCount < NUM_SUBMATERIALS);
+                        }
+                        else if (gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK)
+                        {
+                            // new material per family
+                            sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
+                            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+                            gModel.mtlList[gModel.mtlCount++] = prevType << 8 | prevDataVal;
+                            assert(gModel.mtlCount < NUM_SUBMATERIALS);
+                        }
+                        // else don't output material, there's only one for the whole scene
                     }
                 }
             }
@@ -22792,10 +22833,19 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
 #ifdef OUTPUT_NORMALS
                 // if output per tile, then we use the UV values to find the index to the new index in the grid
                 if (gModel.exportTiles) {
+                    // decode swatch coordinates into a canonical index
                     for (j = 0; j < 4; j++) {
-                        index = (int)((((int)(gModel.uvIndexList[pFace->uvIndex[j]].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale) +
-                            (NUM_UV_GRID_RESOLUTION + 1) * (int)(16 - ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale));
-                        vt[j] = gModel.uvGridList[index];
+                        // is it a swatch value, or a simplify extended value? [2] is always a non- [0,1] range UV index. So confusing... :)
+                        if (pFace->uvIndex[j] >= 0) {
+                            index = (int)((((int)(gModel.uvIndexList[pFace->uvIndex[j]].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale) +
+                                (NUM_UV_GRID_RESOLUTION + 1) * (int)(16 - ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale));
+                            vt[j] = gModel.uvGridList[index];
+                        }
+                        else {
+                            // super-simple: we have the index already, encoded as a negative number minus one. Just negate and subtract one from it.
+                            index = -pFace->uvIndex[j] - 1;
+                            vt[j] = gModel.simplifyUVGridList[index];
+                        }
                     }
                 }
                 else {
@@ -26221,8 +26271,17 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
             // if output per tile, then we use the UV values to find the index to the new index in the grid
             float uc, vc;
             if (gModel.exportTiles) {
-                uc = (float)((((int)(gModel.uvIndexList[pFace->uvIndex[j]].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale) / (float)NUM_UV_GRID_RESOLUTION;
-                vc = (float)(16 - ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale)) / (float)NUM_UV_GRID_RESOLUTION;
+                // is it a swatch value, or a simplify extended value?
+                if (pFace->uvIndex[j] >= 0) {
+                    uc = (float)((((int)(gModel.uvIndexList[pFace->uvIndex[j]].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale) / (float)NUM_UV_GRID_RESOLUTION;
+                    vc = (float)(16 - ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale)) / (float)NUM_UV_GRID_RESOLUTION;
+                }
+                else {
+                    // simplified direct indices, negated and -1
+                    int uvDecode = -pFace->uvIndex[j] - 1;
+                    uc = (float)(uvDecode % (SIMPLIFY_MAX_DIMENSION + 1));
+                    vc = (float)int(uvDecode / (SIMPLIFY_MAX_DIMENSION + 1));
+                }
             }
             else {
                 int vt = pFace->uvIndex[j];
@@ -27542,8 +27601,8 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 strcpy_s(outputString, 256, "            )\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
 
-                // opacity threshold is 0.5 for cutouts (not used when glass?) TODOTODOUSD
-                // only available in generic OmniPBR_Opacity.mdl, not in Minecraft.mdl currently - TODOUSD
+                // opacity threshold is 0.5 for cutouts (not used when glass?)
+                // only available in generic OmniPBR_Opacity.mdl, not in Minecraft.mdl currently
                 //if (!gModel.customMaterial) {
                 if (!gModel.customMaterial && isCutout) {
                     strcpy_s(outputString, 256, "            float inputs:opacity_threshold = 0.5 (\n");
@@ -27965,7 +28024,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     // the emissive texture is a grayscale texture, so we (sadly) need to "add the color back in". This is a limitation of Minecraft's texture
                     // pack system, where the emissive texture is expected to be a grayscale image. We could take corrective actions, e.g.,
                     // offer the option to multiply the emissive texture by the hue (not intensity) of the diffuse texture. TODO - that's not a terrible idea.
-                    // TODOTODOUSD - don't use rgb color and don't divide by 255 here - should just use emission value for all three, once emitter texture is fixed.
+                    // Perhaps: don't use rgb color and don't divide by 255 here - should just use emission value for all three, once emitter texture is fixed.
                     float escale = gModel.options->pEFD->scaleEmittersVal * emission * 0.02f;   // UsdPrevSurface was rebalanced to be about 20 as a good scale for lava.
                     sprintf_s(outputString, 256, "            float4 inputs:scale = (%g, %g, %g, 1.0)\n", escale, escale, escale);
                     // for when emitter textures are grayscale:
@@ -29426,12 +29485,22 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
     // write out a summary, useful for various reasons
     if (gExportBillboards)
     {
-        sprintf_s(outputString, 256, "\n# %d vertices, %d faces (%d triangles), %d blocks, %d billboards/bits\n", gModel.vertexCount, gModel.faceCount, 2 * gModel.faceCount, gModel.blockCount, gModel.billboardCount);
+        if (gModel.options->pEFD->chkDecimate) {
+            sprintf_s(outputString, 256, "\n# %d vertices, %d faces (%d triangles), %d blocks, %d billboards/bits. Simplification saved %d faces.\n", gModel.vertexCount, gModel.faceCount - gModel.simplifySavings, 2 * (gModel.faceCount - gModel.simplifySavings), gModel.blockCount, gModel.billboardCount, gModel.simplifySavings);
+        }
+        else {
+            sprintf_s(outputString, 256, "\n# %d vertices, %d faces (%d triangles), %d blocks, %d billboards/bits\n", gModel.vertexCount, gModel.faceCount, 2 * gModel.faceCount, gModel.blockCount, gModel.billboardCount);
+        }
         WRITE_STAT;
     }
     else
     {
-        sprintf_s(outputString, 256, "\n# %d vertices, %d faces (%d triangles), %d blocks\n", gModel.vertexCount, gModel.faceCount, 2 * gModel.faceCount, gModel.blockCount);
+        if (gModel.options->pEFD->chkDecimate) {
+            sprintf_s(outputString, 256, "\n# %d vertices, %d faces (%d triangles), %d blocks. Simplification saved %d faces.\n", gModel.vertexCount, (gModel.faceCount - gModel.simplifySavings), 2 * (gModel.faceCount - gModel.simplifySavings), gModel.blockCount, gModel.simplifySavings);
+        }
+        else {
+            sprintf_s(outputString, 256, "\n# %d vertices, %d faces (%d triangles), %d blocks\n", gModel.vertexCount, (gModel.faceCount - gModel.simplifySavings), 2 * (gModel.faceCount - gModel.simplifySavings), gModel.blockCount);
+        }
         WRITE_STAT;
     }
     gModel.options->totalBlocks = gModel.blockCount;
@@ -29537,11 +29606,15 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
     sprintf_s(outputString, 256, "# Make Z the up direction instead of Y: %s\n", gModel.options->pEFD->chkMakeZUp[gModel.options->pEFD->fileType] ? "YES" : "no");
     WRITE_STAT;
 
-    // option only available when rendering - always true when 3D printing.
+    // option only available when rendering
     if (!gModel.print3D)
     {
-        // note that we output gModel.options->pEFD->chkCompositeOverlay even if gModel.exportTiles is true
+        // note that we output gModel.options->pEFD->chkCompositeOverlay even if gModel.exportTiles is true. Always true when 3D printing.
         sprintf_s(outputString, 256, "# Create composite overlay faces: %s\n", gModel.options->pEFD->chkCompositeOverlay ? "YES" : "no");
+        WRITE_STAT;
+
+        // not allowed for 3d printing, as it can cause manifold headaches
+        sprintf_s(outputString, 256, "# Simplify mesh: %s\n", gModel.options->pEFD->chkDecimate ? "YES" : "no");
         WRITE_STAT;
     }
 
@@ -30013,11 +30086,12 @@ static void copyPNGTile(progimage_info* dst, int dst_x, int dst_y, int tileSize,
 #ifdef _DEBUG
 static void drawPNGTileLetterR(progimage_info* dst, int x, int y, int tileSize)
 {
-    int row[12] = { 1,1,1,2,2,3,3,3,4,4,5,5 };
-    int col[12] = { 1,2,3,1,4,1,2,3,1,4,1,4 };
+#define NUM_R_LETTER_PIXELS 12
+    int row[NUM_R_LETTER_PIXELS] = { 1,1,1,2,2,3,3,3,4,4,5,5 };
+    int col[NUM_R_LETTER_PIXELS] = { 1,2,3,1,4,1,2,3,1,4,1,4 };
 
     int i;
-    for (i = 0; i < 12; i++)
+    for (i = 0; i < NUM_R_LETTER_PIXELS; i++)
     {
         unsigned int* di = ((unsigned int*)(&dst->image_data[0])) + ((y * tileSize + 8 + row[i]) * dst->width + x * tileSize + col[i]);
         *di = 0xffff00ff;
@@ -31416,13 +31490,18 @@ static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int 
 
 static void decimateMesh()
 {
+    // test just in case someone sets a script command to force decimation, which will make the world end
+    if (!gModel.exportTiles || gModel.print3D) {
+        assert(0);
+        return; // no can do
+    }
     // Decimation is possibly only when: not using any mosaic texture, not using composite overlays.
     // Should warn if exporting to 3D printing, as this can cause T-junctions.
     // Strategy: set up a separate list of records that point to faces.
     // Only faces with any of the first six normals for indices are saved.
     // Only full faces (UV's 0-1) are saved (if vertex coordinates are used at all). Need to check vertices locations
     // to ensure they're truly full.
-    //   May want to use a similar thing to uvGridList, perhaps 33x33, to keep track of the "expanded" UVs.
+    //   Use a similar thing to uvGridList, 33x33, to keep track of the "expanded" UVs.
     //   Means we'll have an upper limit of how far to expand a grid out, which is probably good.
 
     // Walk through faces, for each material group (if materials are used).
@@ -31435,14 +31514,17 @@ static void decimateMesh()
     // if normal is +X, store normal "distance" X (sort key), then stored X = Z, stored Y = Y, something like that.
     int i;
     int prevSwatchLoc = -1;
-    // TODOTODO: allow only export tiles OR no material export at all as possible modes; update export dialog, allow ONLY for rendering, etc.
-    assert(gModel.exportTiles);
 
     // first use of this pool, normally not needed, so allocate it now
     gModel.simplifyFaceRecordPool = (SimplifyFaceRecordPool*)malloc(sizeof(SimplifyFaceRecordPool));
     gModel.simplifyFaceRecordPool->count = 0;
     gModel.simplifyFaceRecordPool->pNext = NULL;
     gModel.headSimplifyFaceRecordPool = gModel.simplifyFaceRecordPool;
+    // only needed for OBJ export; USD keeps its own UV coordinates per mesh
+    if ((gModel.options->pEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ) || (gModel.options->pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ)) {
+        gModel.simplifyUVGridList = (int*)malloc((SIMPLIFY_MAX_DIMENSION + 1) * (SIMPLIFY_MAX_DIMENSION + 1) * sizeof(int));
+        memset(gModel.simplifyUVGridList, 0, (SIMPLIFY_MAX_DIMENSION + 1) * (SIMPLIFY_MAX_DIMENSION + 1) * sizeof(int));
+    }
 
     int sameFaceCount = 0;
     int simplifyFaceListSize = min(gModel.faceCount, SIMPLIFY_FACE_RECORD_POOL_SIZE);   // TODO: tune this initial size?
@@ -31471,7 +31553,7 @@ static void decimateMesh()
                 prevSwatchLoc = gModel.uvIndexList[gModel.faceList[i]->uvIndex[0]].swatchLoc;
             }
 
-            // When outputting, want to turn off randomization of direction when decimation is on. TODOTODO
+            // When outputting, we turn off randomization of direction when decimation is on.
             // For each face, point to the "real" face, store the index in the original facecount list.
             // Store the normal direction, normal distance minimum X and Y of the face, for faster sorting. X and Y is in relation to the normal, e.g.,
             // if normal is +X, store normal "distance" X (sort key), then stored X = Z, stored Y = Y, something like that.
@@ -31493,9 +31575,9 @@ static void decimateMesh()
     }
     simplifySetOfFaces(sameFaceCount, simplifyFaceList);
 
-    // delete SFRs
     free(simplifyFaceList);
 
+    // delete SFRs
     SimplifyFaceRecordPool* pSFRPool = gModel.headSimplifyFaceRecordPool;
     while (pSFRPool)
     {
@@ -31505,28 +31587,33 @@ static void decimateMesh()
     }
     gModel.simplifyFaceRecordPool = gModel.headSimplifyFaceRecordPool = NULL;
 
+
+#ifdef SIMPLIFY_RESORT
+    // This is actually optional. Since I now replace faces with the merged simplified faces in place, the sort order is still valid as-is.
+    // The one nice thing it does is gets the proper faceCount out of it.
+
     // Now that everything's in the main database list, sort again, with a slight difference:
     // Put deleted faces at end (so we don't have to deal with them on output)
     if ((gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MTL_PER_TYPE) && !(gModel.options->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP))
     {
         // Check if we are exporting per tile
-        if (gModel.exportTiles) {
-            // for USD, group by actual tile, as we don't care about groups so much
-            if (gModel.options->pEFD->fileType == FILE_TYPE_USD) {
-                qsort_s(gModel.faceList, gModel.faceCount, sizeof(FaceRecord*), tileUSDIdDeleteAndCompare, NULL);
-            }
-            else {
-                // group by tile type; minimizes material changes
-                qsort_s(gModel.faceList, gModel.faceCount, sizeof(FaceRecord*), tileIdDeleteAndCompare, NULL);
-            }
-            // go from end of list until we find a face that is not deleted.
-            for (i = gModel.faceCount - 1; i >= 0 && gModel.faceList[i]->normalIndex == HAS_BEEN_MERGED; i--) {}
+        assert(gModel.exportTiles);
 
-            gModel.faceCount = i+1;
-
-            // TODOTODO - adjust stats generated?
+        // for USD, group by actual tile, as we don't care about groups so much
+        if (gModel.options->pEFD->fileType == FILE_TYPE_USD) {
+            qsort_s(gModel.faceList, gModel.faceCount, sizeof(FaceRecord*), tileUSDIdDeleteAndCompare, NULL);
         }
+        else {
+            // group by tile type; minimizes material changes
+            qsort_s(gModel.faceList, gModel.faceCount, sizeof(FaceRecord*), tileIdDeleteAndCompare, NULL);
+        }
+        // go from end of list until we find a face that is not deleted.
+        for (i = gModel.faceCount - 1; i >= 0 && gModel.faceList[i]->normalIndex == HAS_BEEN_MERGED; i--) {}
+
+       gModel.faceCount = i+1;
+
     }
+#endif
  }
 
 static bool faceCanTile(int faceId)
@@ -31821,6 +31908,7 @@ static bool faceCanTile(int faceId)
 static void extractZXYfromNormalAndBounds(FaceRecord* pFace, SimplifyFaceRecord* pSimplifyFace)
 {
     // TODOTODO likely needs adjustment
+    // needs to match getVertexIDmatching
     switch (pSimplifyFace->normalDirection % 3) {
     default:
         assert(0);
@@ -31833,8 +31921,8 @@ static void extractZXYfromNormalAndBounds(FaceRecord* pFace, SimplifyFaceRecord*
     case Y:
         pSimplifyFace->normalDistance = gModel.vertices[pFace->vertexIndex[0]][Y];
         // Note that the northwest corner of the top down view is considered the "lower left" corner
-        pSimplifyFace->xll = min(gModel.vertices[pFace->vertexIndex[0]][Z], gModel.vertices[pFace->vertexIndex[2]][Z]);
-        pSimplifyFace->yll = min(gModel.vertices[pFace->vertexIndex[0]][X], gModel.vertices[pFace->vertexIndex[2]][X]);
+        pSimplifyFace->xll = min(gModel.vertices[pFace->vertexIndex[0]][X], gModel.vertices[pFace->vertexIndex[2]][X]);
+        pSimplifyFace->yll = min(gModel.vertices[pFace->vertexIndex[0]][Z], gModel.vertices[pFace->vertexIndex[2]][Z]);
         break;
     case Z:
         pSimplifyFace->normalDistance = gModel.vertices[pFace->vertexIndex[0]][Z];
@@ -32030,33 +32118,152 @@ static void mergeSimplifySet(SimplifyFaceRecord** ppSFR, int faceCount)
             // So, did we find any group?
             if (xlen > 1 || ylen > 1) {
                 // We did - celebrate!
+                // We now have some extent that's all the same. Make a new entry, a new type of face, for this tile type, with the proper vertex indices (nothing new there),
+                // normal direction (nothing new), and texture coordinates (probably something new - mark in UV table). Mark the old faces as
+                // no longer needing output - probably set normal index to -1 or something...
+                SimplifyFaceRecord* pLowerRightSFR = pLowerLeftSFR;
+                while (pLowerRightSFR->pXneighborSFR != NULL) {
+                    // walk over to the lower right corner; was too tricksy to do above
+                    pLowerRightSFR = pLowerRightSFR->pXneighborSFR;
+                }
 
-                // Store away the new simplified face
-                // Get a face, add "normally"
+                // Store away the new simplified face.
+                // Where we'll put the new merged face is the corner, since this face won't get revisited later in the loop
+                FaceRecord* pFace = pCornerSFR->pFace;
+
+                // Simply reuse the first record face we point at, no need to get a new one.
+                // Most of its fields are identical to the new merged quad. All that needs
+                // to change are the vertex indices and UV indices.
+                // Done locally, as otherwise the vertexIndex data we have could get wiped out
+                int vertexIndex[4];
+                // Typical vertex location order is 0,1 / 1,1 / 1,0 / 0,0 for X,Z looking down along Y
+                vertexIndex[0] = getVertexIDmatching(pLowerLeftSFR->pFace, pLowerLeftSFR->xll, pLowerLeftSFR->yll + 1.0f);
+                vertexIndex[1] = getVertexIDmatching(pLowerRightSFR->pFace, pLowerRightSFR->xll + 1.0f, pLowerRightSFR->yll + 1.0f);
+                vertexIndex[2] = getVertexIDmatching(pUpperRightSFR->pFace, pUpperRightSFR->xll + 1.0f, pUpperRightSFR->yll);
+                vertexIndex[3] = getVertexIDmatching(pCornerSFR->pFace, pCornerSFR->xll, pCornerSFR->yll);   // MUST do this one first, since it uses the vertexIndex of the original face!
+
+                // The new UV indices are 0,0 to xlen,ylen. TODOTODO there may be (and likely are)
+                // reversals in X that may be needed.
+                // Negative indices means "use this value+1 as an X & Y location
+                // Typical UV order is 0,0 / 1,0 / 1,1 / 1,0 (basically, V = 1 - Y above in order
+                short uvIndex[4];
+                uvIndex[0] = findUVinIndex(pCornerSFR->pFace,0.0f,0.0f); // is always 0,0
+                if (xlen == 1) {
+                    uvIndex[1] = findUVinIndex(pCornerSFR->pFace, 1.0f, 0.0f);
+                } else {
+                    uvIndex[1] = (short)(-1 - xlen);
+                }
+                // this one cannot be 1,1:
+                uvIndex[2] = (short)(-1 - ylen * (SIMPLIFY_MAX_DIMENSION+1) - xlen);
+                if (ylen == 1) {
+                    uvIndex[3] = findUVinIndex(pCornerSFR->pFace, 0.0f, 1.0f);
+                } 
+                else {
+                    uvIndex[3] = (short)(-1 - ylen * (SIMPLIFY_MAX_DIMENSION + 1));
+                }
+                // all set, so copy them over
+                if (pFace->normalIndex < 3) {
+                    // facing downwards, so reverse the order, starting from 0.
+                    // That is, 1 <-->3 should swap places
+                    for (j = 0; j < 4; j++) {
+                        int swapj = (j == 1) ? 3 : ((j == 3) ? 1 : j);
+                        pFace->vertexIndex[j] = vertexIndex[swapj];
+                        pFace->uvIndex[j] = uvIndex[swapj];
+                    }
+                }
+                else {
+                    for (j = 0; j < 4; j++) {
+                        pFace->vertexIndex[j] = vertexIndex[j];
+                        pFace->uvIndex[j] = uvIndex[j];
+                    }
+                }
+
+                // record the four UV coordinates in the giant grid as being used (for OBJ unified output only)
+                if (gModel.simplifyUVGridList != NULL) {
+                    //gModel.simplifyUVGridList[0]++; - not needed, 0,0 is always available already
+                    if (xlen > 1)
+                        gModel.simplifyUVGridList[xlen]++;
+                    gModel.simplifyUVGridList[ylen * (SIMPLIFY_MAX_DIMENSION + 1) + xlen]++;
+                    if (ylen > 1)
+                        gModel.simplifyUVGridList[ylen * (SIMPLIFY_MAX_DIMENSION + 1)]++;
+                }
+
+                // not needed - we added it in place:
+                //gModel.faceList[gModel.faceCount++] = pFace;
 
                 // Delete the record faces that got "used up".
-                pLowerLeftSFR = pCornerSFR;
+                // For saving the last corner of the merged quad
+                SimplifyFaceRecord* pYSFR = pCornerSFR;
                 for (j = 0; j < ylen; j++) {
-                    SimplifyFaceRecord* pDelSFR = pLowerLeftSFR;
+                    SimplifyFaceRecord* pDelSFR = pYSFR;
                     for (k = 0; k < xlen; k++) {
-                        // mark records as "this one's now part of another record, so ignore it"
-                        pDelSFR->pFace->normalIndex = HAS_BEEN_MERGED;
-                        pDelSFR->pFace = NULL;
+                        // don't wipe out the one we just filled
+                        if (j > 0 || k > 0) {
+                            // mark records as "this one's now part of another record, so ignore it"
+                            pDelSFR->pFace->normalIndex = HAS_BEEN_MERGED;
+                            // done so that we ignore this face looking through the quads left to search
+                            pDelSFR->pFace = NULL;
+                        }
                         pDelSFR = pDelSFR->pXneighborSFR;
                     }
-                    pLowerLeftSFR = pLowerLeftSFR->pYneighborSFR;
+                    pYSFR = pYSFR->pYneighborSFR;
                 }
+
+                // adjust statistics on count of quads - reduce it.
+                gModel.simplifySavings += xlen * ylen - 1;
             }
         }
     }
-
-    // We now have some extent that's all the same. Make a new entry, a new type of face, for this tile type, with the proper vertex indices (nothing new there),
-    // normal direction (nothing new), and texture coordinates (probably something new - mark in UV table). Mark the old faces as
-    // no longer needing output - probably set normal index to -1 or something...
-    // 
-    // Now walk the next face in our sorted list. Did it already get merged with something else? Continue. Else try to merge as above.
-
     // Once we've walked through all faces like this, we're done! We've made all the replacements we could, and marked ones that
     // are used along the way.
 
+    // TODOTODO - some vertices may get orphaned by this simplification process. Should delete these. Have fun with that...
+}
+
+static short findUVinIndex(FaceRecord* pFace, float bx, float by)
+{
+    int i;
+    for (i = 0; i < 4; i++) {
+        // must convert from swatch to normal values, annoyingly
+        float uc = (float)((((int)(gModel.uvIndexList[pFace->uvIndex[i]].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale) / (float)NUM_UV_GRID_RESOLUTION;
+        float vc = (float)(16 - ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[i]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale)) / (float)NUM_UV_GRID_RESOLUTION;
+
+        if ((uc == bx) && (vc == by)) {
+            return pFace->uvIndex[i];
+        }
+    }
+    assert(0);
+    return 0;
+}
+
+static int getVertexIDmatching(FaceRecord* pFace, float xnx, float yny)
+{
+    // Given an X and Y relative to the plane, convert to world X and Y values
+    int indexX, indexY;
+    // needs to match extractZXYfromNormalAndBounds()
+    switch (pFace->normalIndex % 3) {
+    default:
+    case X:
+        indexX = Z;
+        indexY = Y;
+        break;
+    case Y:
+        indexX = X;
+        indexY = Z;
+        break;
+    case Z:
+        indexX = X;
+        indexY = Y;
+        break;
+    }
+
+    // Find these X and Y pairs in the corner face give - must be there. Return that vertex index value, so that we reuse it
+    int i;
+    for (i = 0; i < 4; i++) {
+        if ((gModel.vertices[pFace->vertexIndex[i]][indexX] == xnx) && (gModel.vertices[pFace->vertexIndex[i]][indexY] == yny)) {
+            return pFace->vertexIndex[i];
+        }
+    }
+    assert(0);  // should always get a match or something's out of whack, like a wrong face or index value
+    return 0;
 }

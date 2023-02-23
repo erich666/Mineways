@@ -124,6 +124,8 @@ static const char* gCatStrSuffixes[TOTAL_CATEGORIES] = { "", "_n", "_m", "_e", "
 #define NORMAL_LIST_SIZE (26+30+400)
 // the UVs appears in the range [0-16],[0-16] within the 16x16 tiles.
 #define NUM_UV_GRID_RESOLUTION	16
+// Maximum size of a simplified area. We could crank this higher...
+#define SIMPLIFY_MAX_DIMENSION  32
 
 typedef struct UVRecord
 {
@@ -226,6 +228,7 @@ typedef struct Model {
     int vertexListSize;
 
     // One for each SwatchLoc - each UVList potentially contains a list of UVs associated with this particular swatch.
+
     UVList uvSwatches[NUM_MAX_SWATCHES];
     int uvIndexCount;
     // points into uv Records actually stored at the swatch locations
@@ -279,6 +282,8 @@ typedef struct Model {
     FaceRecordPool* faceRecordPool;
     SimplifyFaceRecordPool* simplifyFaceRecordPool;
     SimplifyFaceRecordPool* headSimplifyFaceRecordPool;
+    int *simplifyUVGridList;
+    int simplifySavings;
     bool alreadyAskedForComposite;
     int mcVersion;	// 12 for 1.12.2 and earlier, 13 for 1.13 and later
 

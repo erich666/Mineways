@@ -39,7 +39,7 @@ static int curPhysMaterial;
 static HINSTANCE g_hInst;
 
 // OBJ, OBJ, USD, MAGICS STL, VISCAM STL, ASCII STL, VRML2, SCHEMATIC
-#define EP_TOOLTIP_COUNT 55
+#define EP_TOOLTIP_COUNT 56
 TooltipDefinition g_epTT[EP_TOOLTIP_COUNT] = {
     { IDC_WORLD_MIN_X,      {1,1,1,1,1,1,1,1}, L"Western edge of volume exported", L""},
     { IDC_WORLD_MIN_Y,      {1,1,1,1,1,1,1,1}, L"Lower bound of volume exported", L""},
@@ -68,7 +68,7 @@ TooltipDefinition g_epTT[EP_TOOLTIP_COUNT] = {
     { IDC_G3D_MATERIAL,     {1,1,2,0,0,0,0,0}, L"Output extended PBR materials and textures, such as roughness, normals, and emission, as available", L"Use custom 'blocky' shaders for MDL. Uncheck if your textures are high resolution."},
     { IDC_EXPORT_MDL,       {0,0,1,0,0,0,0,0}, L"Export MDL shaders. Unchecked means export only UsdPreviewSurface materials.", L""},
     { IDC_MAKE_Z_UP,        {1,1,1,1,1,1,1,1}, L"The Y axis is up by default; check to instead use Z as the up direction", L""},
-    { IDC_COMPOSITE_OVERLAY,{1,1,1,0,0,0,1,0}, L"If checked, vines, ladders, rails, etc. are composited onto the underlying texture, creating a new texture. Mostly needed for 3D printing.", L""},
+    { IDC_SIMPLIFY_MESH,    {1,1,1,0,0,0,0,0}, L"Check to reduce the polygon count when rendering. Downside is that textures are not randomly rotated on grass, etc., to break up pattern repetition.", L""},
     { IDC_CENTER_MODEL,     {1,1,1,1,1,1,1,1}, L"Checked means model is roughly centered around (0,0,0); unchecked means use the world's coordinates", L""},
     { IDC_BIOME,            {1,1,1,1,1,1,1,0}, L"The biome at the center of the model is applied to the whole model, likely changing its coloration", L""},
     { IDC_BLOCKS_AT_BORDERS,{1,1,1,1,1,1,1,0}, L"Unchecked means the bottoms and sides of blocks at the edge of the volume selected are not exported, reducing polygon count", L""},
@@ -94,6 +94,7 @@ TooltipDefinition g_epTT[EP_TOOLTIP_COUNT] = {
     { IDC_MELT_SNOW,      {1,1,1,1,1,1,1,0}, L"For 3D printing, melt snow blocks (for sealing entrances)", L""},
     { IDC_EXPORT_ALL,     {1,1,1,1,1,1,1,0}, L"For 3D printing, export more precise versions of partial blocks", L""},
     { IDC_FATTEN,         {1,1,1,1,1,1,1,0}, L"Suboption to make the partial blocks thicker, to print better", L""},
+    { IDC_COMPOSITE_OVERLAY,{1,1,1,0,0,0,1,0}, L"If checked, vines, ladders, rails, etc. are composited onto the underlying texture, creating a new texture. Mostly needed for 3D printing.", L""},
     { IDC_SHOW_PARTS,     {1,1,1,1,1,0,1,0}, L"For 3D printing, show separated parts in different colors", L""},
     { IDC_SHOW_WELDS,     {1,1,1,1,1,0,1,0}, L"For 3D printing, show blocks Mineways adds to connect objects", L""},
 };
@@ -288,6 +289,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
         // under certain conditions we need to make composite overlay uncheckable, i.e. if 3D printing is on, or if detailed output is off for rendering (or, below, if tiling textures are in use)
         // disallow composites if tile texture is on
         CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, ((epd.flags & EXPT_3DPRINT) || !epd.chkExportAll || !epd.radioExportFullTexture[epd.fileType]) ? BST_INDETERMINATE : epd.chkCompositeOverlay);
+        CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, ((epd.flags & EXPT_3DPRINT) || !epd.radioExportTileTextures[epd.fileType]) ? BST_INDETERMINATE : epd.chkDecimate);
 
         CheckDlgButton(hDlg, IDC_CENTER_MODEL, epd.chkCenterModel);
         // these next two options are only available for rendering
@@ -494,6 +496,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_UNCHECKED);
             }
             CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
+            CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, BST_INDETERMINATE);
             goto ChangeMaterial;
 
         case IDC_RADIO_EXPORT_MTL_COLORS_ONLY:
@@ -516,6 +519,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_UNCHECKED);
             }
             CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
+            CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, BST_INDETERMINATE);
             goto ChangeMaterial;
 
         case IDC_RADIO_EXPORT_SOLID_TEXTURES:
@@ -543,6 +547,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_UNCHECKED);
             }
             CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
+            CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, BST_INDETERMINATE);
             goto ChangeMaterial;
 
         case IDC_RADIO_EXPORT_MOSAIC_TEXTURES:
@@ -564,6 +569,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 CheckDlgButton(hDlg, IDC_EXPORT_ALL, (epd.flags & EXPT_3DPRINT) ? BST_UNCHECKED : BST_CHECKED);
                 CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, (epd.chkSeparateTypes || ((epd.flags & EXPT_3DPRINT) ? false : epd.chkIndividualBlocks[epd.fileType])) ? epd.chkMaterialPerFamily : BST_INDETERMINATE);
             }
+            CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, BST_INDETERMINATE);
             goto ChangeMaterial;
 
         case IDC_RADIO_EXPORT_SEPARATE_TILES:
@@ -615,6 +621,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                     // not used in rendering, but still set it:
                     SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
                     CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_CHECKED);
+                    CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, epd.chkDecimate);
                 }
             }
             CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
@@ -1048,6 +1055,21 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             }
             break;
 
+        case IDC_SIMPLIFY_MESH:
+            // the indeterminate state is only for when the option is not available (i.e., 3d printing - where it's always on - or single texture output - where it's not)
+            if ((epd.flags & EXPT_3DPRINT) || !IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES))
+            {
+                CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
+            }
+            else
+            {
+                // always go to the next state, if we'd normally go to the indeterminate (tri-value) state
+                UINT isIndeterminate = (IsDlgButtonChecked(hDlg, IDC_SIMPLIFY_MESH) == BST_INDETERMINATE);
+                if (isIndeterminate)
+                    CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, BST_UNCHECKED);
+            }
+            break;
+
         case IDC_TREE_LEAVES_SOLID:
             // the indeterminate state is only for when the option is not available (i.e., 3d printing)
             if (epd.flags & EXPT_3DPRINT)
@@ -1243,6 +1265,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             // if 3D printing, or if lesser blocks is off, do composite overlay, where we make a new tile (things break otherwise)
             lepd.chkCompositeOverlay = (epd.flags & EXPT_3DPRINT) ? 1 :
                 ((IsDlgButtonChecked(hDlg, IDC_COMPOSITE_OVERLAY) == BST_CHECKED) || (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) != BST_CHECKED));
+            lepd.chkDecimate = (IsDlgButtonChecked(hDlg, IDC_SIMPLIFY_MESH) == BST_CHECKED);
 
             // solid leaves and faces at borders always true for 3D printing.
             lepd.chkLeavesSolid = (epd.flags & EXPT_3DPRINT) ? 1 : (IsDlgButtonChecked(hDlg, IDC_TREE_LEAVES_SOLID) == BST_CHECKED);

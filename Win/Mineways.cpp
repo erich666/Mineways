@@ -4516,6 +4516,7 @@ static wchar_t gCommaString2[100];
 static wchar_t gCommaString3[100];
 static wchar_t gCommaString4[100];
 static wchar_t gCommaString5[100];
+static wchar_t gCommaString6[100];
 static wchar_t* formatWithCommas(int value, wchar_t *str)
 {
     if (value < 1000) {
@@ -5010,24 +5011,50 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                     int retval;
                     wchar_t msgString[2000];
                     if (gBiomeSelected >= 0) {
-                        swprintf_s(msgString, 2000, L"Export Statistics:\n\n%s solid blocks and %s billboard blocks converted to %s quad faces (%s triangles) with %s vertices.\nBiome used: #%d - %S.\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
-                            formatWithCommas(gModel.blockCount, gCommaString1),
-                            formatWithCommas(gModel.billboardCount, gCommaString2),
-                            formatWithCommas(gModel.faceCount, gCommaString3),
-                            formatWithCommas(2 * gModel.faceCount, gCommaString4),
-                            formatWithCommas(gModel.vertexCount, gCommaString5),
-                            gBiomeSelected,
-                            gBiomes[gBiomeSelected].name
-                        );
+                        if (gModel.options->pEFD->chkDecimate ) {
+                            swprintf_s(msgString, 2000, L"Export Statistics:\n\n%s solid blocks and %s billboard blocks converted to %s quad faces (%s triangles) with %s vertices. Simplification saved %s quads.\nBiome used: #%d - %S.\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
+                                formatWithCommas(gModel.blockCount, gCommaString1),
+                                formatWithCommas(gModel.billboardCount, gCommaString2),
+                                formatWithCommas(gModel.faceCount, gCommaString3),
+                                formatWithCommas(2 * gModel.faceCount, gCommaString4),
+                                formatWithCommas(gModel.vertexCount, gCommaString5),
+                                formatWithCommas(gModel.simplifySavings, gCommaString6),
+                                gBiomeSelected,
+                                gBiomes[gBiomeSelected].name
+                            );
+                        }
+                        else {
+                            swprintf_s(msgString, 2000, L"Export Statistics:\n\n%s solid blocks and %s billboard blocks converted to %s quad faces (%s triangles) with %s vertices.\nBiome used: #%d - %S.\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
+                                formatWithCommas(gModel.blockCount, gCommaString1),
+                                formatWithCommas(gModel.billboardCount, gCommaString2),
+                                formatWithCommas(gModel.faceCount, gCommaString3),
+                                formatWithCommas(2 * gModel.faceCount, gCommaString4),
+                                formatWithCommas(gModel.vertexCount, gCommaString5),
+                                gBiomeSelected,
+                                gBiomes[gBiomeSelected].name
+                            );
+                        }
                     }
                     else {
-                        swprintf_s(msgString, 2000, L"Export Statistics:\n\n%s solid blocks and %s billboard blocks converted to %s quad faces (%s triangles) with %s vertices.\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
-                            formatWithCommas(gModel.blockCount, gCommaString1),
-                            formatWithCommas(gModel.billboardCount, gCommaString2),
-                            formatWithCommas(gModel.faceCount, gCommaString3),
-                            formatWithCommas(2 * gModel.faceCount, gCommaString4),
-                            formatWithCommas(gModel.vertexCount, gCommaString5)
-                        );
+                        if (gModel.options->pEFD->chkDecimate) {
+                            swprintf_s(msgString, 2000, L"Export Statistics:\n\n%s solid blocks and %s billboard blocks converted to %s quad faces (%s triangles) with %s vertices. Simplification saved %s quads.\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
+                                formatWithCommas(gModel.blockCount, gCommaString1),
+                                formatWithCommas(gModel.billboardCount, gCommaString2),
+                                formatWithCommas(gModel.faceCount, gCommaString3),
+                                formatWithCommas(2 * gModel.faceCount, gCommaString4),
+                                formatWithCommas(gModel.vertexCount, gCommaString5),
+                                formatWithCommas(gModel.simplifySavings, gCommaString6)
+                                );
+                        }
+                        else {
+                            swprintf_s(msgString, 2000, L"Export Statistics:\n\n%s solid blocks and %s billboard blocks converted to %s quad faces (%s triangles) with %s vertices.\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
+                                formatWithCommas(gModel.blockCount, gCommaString1),
+                                formatWithCommas(gModel.billboardCount, gCommaString2),
+                                formatWithCommas(gModel.faceCount, gCommaString3),
+                                formatWithCommas(2 * gModel.faceCount, gCommaString4),
+                                formatWithCommas(gModel.vertexCount, gCommaString5)
+                            );
+                        }
                     }
                     retval = FilterMessageBox(NULL, msgString,
                         _T("Informational"), MB_YESNO | MB_ICONINFORMATION | MB_DEFBUTTON1 | MB_TOPMOST);
@@ -6920,6 +6947,19 @@ static int interpretImportLine(char* line, ImportedSet& is)
 
         if (is.processData)
             is.pEFD->chkCompositeOverlay = interpretBoolean(string1);
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Simplify mesh:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for 'Simplify mesh' command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData)
+            is.pEFD->chkDecimate = interpretBoolean(string1);
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 
