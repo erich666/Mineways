@@ -5015,10 +5015,10 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                             swprintf_s(msgString, 2000, L"Export Statistics:\n\n%s solid blocks and %s billboard blocks converted to %s quad faces (%s triangles) with %s vertices. Simplification saved %s quads.\nBiome used: #%d - %S.\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
                                 formatWithCommas(gModel.blockCount, gCommaString1),
                                 formatWithCommas(gModel.billboardCount, gCommaString2),
-                                formatWithCommas(gModel.faceCount - gModel.simplifySavings, gCommaString3),
-                                formatWithCommas(2 * (gModel.faceCount- gModel.simplifySavings), gCommaString4),
+                                formatWithCommas(gModel.faceCount, gCommaString3),
+                                formatWithCommas(2 * gModel.faceCount, gCommaString4),  // TODO: could actually get a better exact count of triangles; in 3D printing sloped rails produce triangles, which we don't account for
                                 formatWithCommas(gModel.vertexCount, gCommaString5),
-                                formatWithCommas(gModel.simplifySavings, gCommaString6),
+                                formatWithCommas(gModel.simplifyFaceSavings, gCommaString6),
                                 gBiomeSelected,
                                 gBiomes[gBiomeSelected].name
                             );
@@ -5040,10 +5040,10 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                             swprintf_s(msgString, 2000, L"Export Statistics:\n\n%s solid blocks and %s billboard blocks converted to %s quad faces (%s triangles) with %s vertices. Simplification saved %s quads.\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
                                 formatWithCommas(gModel.blockCount, gCommaString1),
                                 formatWithCommas(gModel.billboardCount, gCommaString2),
-                                formatWithCommas(gModel.faceCount - gModel.simplifySavings, gCommaString3),
-                                formatWithCommas(2 * (gModel.faceCount - gModel.simplifySavings), gCommaString4),
+                                formatWithCommas(gModel.faceCount, gCommaString3),
+                                formatWithCommas(2 * gModel.faceCount, gCommaString4),
                                 formatWithCommas(gModel.vertexCount, gCommaString5),
-                                formatWithCommas(gModel.simplifySavings, gCommaString6)
+                                formatWithCommas(gModel.simplifyFaceSavings, gCommaString6)
                                 );
                         }
                         else {
@@ -6924,16 +6924,16 @@ static int interpretImportLine(char* line, ImportedSet& is)
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 
-    strPtr = findLineDataNoCase(line, "Make Z the up direction instead of Y:");
+    strPtr = findLineDataNoCase(line, "Simplify mesh:");
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            saveErrorMessage(is, L"could not find boolean value for 'Make Z' command."); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"could not find boolean value for 'Simplify mesh' command."); return INTERPRETER_FOUND_ERROR;
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
         if (is.processData)
-            is.pEFD->chkMakeZUp[is.pEFD->fileType] = interpretBoolean(string1);
+            is.pEFD->chkDecimate = interpretBoolean(string1);
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 
@@ -6947,19 +6947,6 @@ static int interpretImportLine(char* line, ImportedSet& is)
 
         if (is.processData)
             is.pEFD->chkCompositeOverlay = interpretBoolean(string1);
-        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-    }
-
-    strPtr = findLineDataNoCase(line, "Simplify mesh:");
-    if (strPtr != NULL) {
-        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
-        {
-            saveErrorMessage(is, L"could not find boolean value for 'Simplify mesh' command."); return INTERPRETER_FOUND_ERROR;
-        }
-        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-
-        if (is.processData)
-            is.pEFD->chkDecimate = interpretBoolean(string1);
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 
@@ -7082,6 +7069,18 @@ static int interpretImportLine(char* line, ImportedSet& is)
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 
+    strPtr = findLineDataNoCase(line, "Make Z the up direction instead of Y:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for 'Make Z' command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData)
+            is.pEFD->chkMakeZUp[is.pEFD->fileType] = interpretBoolean(string1);
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
 
     strPtr = findLineDataNoCase(line, "Scale model by ");
     if (strPtr != NULL) {

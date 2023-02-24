@@ -437,6 +437,7 @@ typedef struct ProgressCategories {
     float readTextures;
     float readBlocks;
     float makeFaces;
+    float decimate;
     float output;
     float texture;
     float zip;
@@ -663,6 +664,7 @@ static void meltSnow();
 static void hollowSeed(int x, int y, int z, IPoint** seedList, int* seedSize, int* seedCount);
 
 static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox);
+static void removeUnusedFacesAndVertices();
 static void createInstance(int type, int dataVal, int faceIndex);
 static bool findInstance(int type, int dataVal, int& instanceID);
 static void saveInstanceLocation(float* anchorPt, int instanceID);
@@ -827,10 +829,10 @@ static double myrand();
 
 static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int bz, int minx, int miny, int minz, int maxx, int maxy, int maxz, int mapMinHeight, int mapMaxHeight, bool ignoreTransparent, int mcVersion, int versionID);
 
-static void decimateMesh();
+static int decimateMesh();
 static bool faceCanTile(int faceId);
 static void extractZXYfromNormalAndBounds(FaceRecord* pFace, SimplifyFaceRecord* pSimplifyFace);
-static void simplifySetOfFaces(int faceCount, SimplifyFaceRecord** ppSFR);
+static void simplifyFaceSet(int faceCount, SimplifyFaceRecord** ppSFR);
 static int simplifyFaceCompareYminor(void* context, const void* str1, const void* str2);
 static int simplifyFaceCompareXminor(void* context, const void* str1, const void* str2);
 static void mergeSimplifySet(SimplifyFaceRecord** ppSFR, int faceCount);
@@ -1346,6 +1348,7 @@ static void determineProgressValues(int fileType, int xdim, int zdim)
     gProgress.relative.readTextures = 100;
     gProgress.relative.readBlocks = 200;
     gProgress.relative.makeFaces = 650;
+    gProgress.relative.decimate = (gModel.options->pEFD->chkDecimate ? 650.0f : 0.0f);  // wild guess
     gProgress.relative.output = 11400;
     gProgress.relative.texture = 740;
     gProgress.relative.zip = 0;
@@ -1388,6 +1391,7 @@ static void determineProgressValues(int fileType, int xdim, int zdim)
     float scale = (float)((fabs((double)xdim) + 1) * (fabs((double)zdim) + 1)) / (float)(200 * 200);
     gProgress.relative.readBlocks *= scale;
     gProgress.relative.makeFaces *= scale;
+    gProgress.relative.decimate *= scale;
     gProgress.relative.output *= scale;
     // a wild guess - the textures should affect this, too, but less so, I suspect.
     gProgress.relative.zip *= scale;
@@ -1431,15 +1435,17 @@ static void determineProgressValues(int fileType, int xdim, int zdim)
     gProgress.absolute.readTextures = gProgress.relative.readTextures / total;
     gProgress.absolute.readBlocks = gProgress.relative.readBlocks / total;
     gProgress.absolute.makeFaces = gProgress.relative.makeFaces / total;
+    gProgress.absolute.decimate = gProgress.relative.decimate / total;
     gProgress.absolute.output = gProgress.relative.output / total;
     gProgress.absolute.texture = gProgress.relative.texture / total;
     gProgress.absolute.zip = gProgress.relative.zip / total;
 
     // starting points for progress, i.e., makefaces starts after the readTextures time is spent.
-    gProgress.start.readTextures = 1.0f - (gProgress.absolute.readTextures + gProgress.absolute.readBlocks + gProgress.absolute.makeFaces + gProgress.absolute.output + gProgress.absolute.texture + gProgress.absolute.zip);
+    gProgress.start.readTextures = 1.0f - (gProgress.absolute.readTextures + gProgress.absolute.readBlocks + gProgress.absolute.makeFaces + gProgress.absolute.decimate + gProgress.absolute.output + gProgress.absolute.texture + gProgress.absolute.zip);
     gProgress.start.readBlocks = gProgress.start.readTextures + gProgress.absolute.readTextures;
     gProgress.start.makeFaces = gProgress.start.readBlocks + gProgress.absolute.readBlocks;
-    gProgress.start.output = gProgress.start.makeFaces + gProgress.absolute.makeFaces;
+    gProgress.start.decimate = gProgress.start.makeFaces + gProgress.absolute.makeFaces;
+    gProgress.start.output = gProgress.start.decimate + gProgress.absolute.decimate;
     gProgress.start.texture = gProgress.start.output + gProgress.absolute.output;
     gProgress.start.zip = gProgress.start.texture + gProgress.absolute.texture;
 }
@@ -2161,7 +2167,7 @@ static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* 
 
 #ifdef _DEBUG
     // add letter R to every tile, to see orientation of tiles
-    static int markTiles = 0;	// to put R on each tile for debugging, set to 1 TODOTODOTODO turn this back to 0 for release
+    static int markTiles = 0;	// to put R on each tile for debugging, set to 1
     if (markTiles && category == CATEGORY_RGBA)
     {
         int row, col;
@@ -16340,12 +16346,20 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
  
     // At this point we could apply decimation, if desired (and valid, etc.). Easiest to do before translation/scaling/rotation.
     // Faces that get merged into new, larger faces are "deleted" by marking the normalIndex to HAS_BEEN_MERGED,
-    // just to save room that would be needed for a flag
-    if (gModel.options->pEFD->chkDecimate) {
+    // just to save room that would be needed for a flag.
+    // Guard rails added so that no one gets clever and tries to turn on decimation for 3D printing, or for mosaics, or for individual block export.
+    if (gModel.options->pEFD->chkDecimate && gModel.exportTiles && !gModel.print3D && !(gModel.options->exportFlags & EXPT_INDIVIDUAL_BLOCKS)) {
         assert(gModel.exportTiles);
-        decimateMesh();
+        retCode |= decimateMesh();
+        if (retCode & MW_WORLD_EXPORT_TOO_LARGE)
+            return retCode;
 
-        // remove extra stuff at this point, simplifies later code and saves time (I hope) TODOTODOTODO
+        // If we added any faces, remove extra stuff at this point.
+        if (gModel.simplifyFaceSavings > 0) {
+            // only really needed for OBJ, which has unified sets of vertices, but we clean up for USD anyway, just to make it easier to keep track of stats.
+            //((gModel.options->pEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ) || (gModel.options->pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ))) {
+            removeUnusedFacesAndVertices();
+        }
     }
 
     // Do the scaling and rotations to place
@@ -16371,6 +16385,72 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
     resolveFaceNormals();
 
     return retCode;
+}
+
+static void removeUnusedFacesAndVertices()
+{
+    // Look through all faces, remove those marked as deleted and move the others up.
+    int* vertexListUsed = (int*)malloc(gModel.vertexCount * sizeof(int));
+    memset(vertexListUsed, 0, gModel.vertexCount * sizeof(int));
+    int i, newi, j;
+    newi = 0;
+    for (i = 0; i < gModel.faceCount; i++)
+    {
+        FaceRecord* pFace = gModel.faceList[i];
+
+        // ignore all faces that have been marked as deleted
+        if (pFace->normalIndex != HAS_BEEN_MERGED_SO_IGNORE_IT) {
+            // real face, so move along
+            // and note which vertices it uses
+            for (j = 0; j < 4; j++) {
+                // note vertex is used
+                vertexListUsed[pFace->vertexIndex[j]]++;
+                // we could test here if a vertex is used for the first time and so keep a count.
+                // If same as the vertexCount, no vertices would be deleted. Rare case (I think)
+                // for simplification, extra testing, so not done.
+            }
+            if (newi != i) {
+                // move the used face to an earlier location, if need be
+                gModel.faceList[newi] = gModel.faceList[i];
+            }
+            newi++;
+        }
+    }
+    assert(gModel.simplifyFaceSavings == gModel.faceCount - newi);
+    gModel.faceCount = newi;
+
+    // shift to remove vertices, and note new index for given vertex, so we can renumber
+    newi = 0;
+    for (i = 0; i < gModel.vertexCount; i++)
+    {
+        if (vertexListUsed[i]) {
+            // real vertex, so move along
+            if (newi != i) {
+                // move the used face to an earlier location, if need be
+                Vec2Op(gModel.vertices[newi], =, gModel.vertices[i]);
+            }
+            // and now note how to remap the index
+            vertexListUsed[i] = newi;
+            newi++;
+        }
+    }
+
+    // did any vertices turn up as unused?
+    if (newi < gModel.vertexCount) {
+        gModel.vertexCount = newi;
+        for (i = 0; i < gModel.faceCount; i++) {
+            FaceRecord* pFace = gModel.faceList[i];
+            assert(pFace->normalIndex != HAS_BEEN_MERGED_SO_IGNORE_IT);
+            // change vertex indices of face
+            for (j = 0; j < 4; j++) {
+                // save new vertex location (might be the same, but it's more time to test than to just copy)
+                pFace->vertexIndex[j] = vertexListUsed[pFace->vertexIndex[j]];
+            }
+        }
+    }
+    // we don't bother to record how many vertices were saved, etc. - just output the new number of vertices.
+
+    free(vertexListUsed);
 }
 
 static void createInstance(int type, int dataVal, int faceIndex)
@@ -21981,11 +22061,6 @@ static void freeModel(Model* pModel)
         free(pModel->vertexIndices);
         pModel->vertexIndices = NULL;
     }
-    if (pModel->vertexIndices)
-    {
-        free(pModel->vertexIndices);
-        pModel->vertexIndices = NULL;
-    }
 
     if (pModel->uvIndexList)
     {
@@ -22134,11 +22209,9 @@ static void resolveFaceNormals()
     for (int i = 0; i < gModel.faceCount; i++)
     {
         FaceRecord* pFace = gModel.faceList[i];
-#ifndef SIMPLIFY_RESORT
-        // ignore all faces that have been marked as deleted
-        if (pFace->normalIndex == HAS_BEEN_MERGED_SO_IGNORE_IT)
-            continue;
-#endif
+
+        assert(pFace->normalIndex != HAS_BEEN_MERGED_SO_IGNORE_IT);
+
         if (pFace->normalIndex == COMPUTE_NORMAL)
         {
             // Object may have undergone a transform that changes its normal, so we need to compute
@@ -22474,10 +22547,7 @@ static int mosaicUVtoSeparateUV()
         for (y = 0; y < SIMPLIFY_MAX_DIMENSION + 1; y++) {
             for (x = 0; x < SIMPLIFY_MAX_DIMENSION + 1; x++) {
                 if (gModel.simplifyUVGridList[index] > 0) {
-                    // NOTE: if we want to get a bit more efficient, we should check for 0,0; 0,1; 1,1; 1,0 and handle them separately, as these are likely already output
-                    // and have indices. TODOTODO.
-
-                    // with this location noted as used, now set it to the UV index the face lists will use.
+                    // With this location noted as used, now set it to the UV index the face lists will use.
                     // (could use gModel.uvGridListCount here directly, but let's leave that value alone)
                     gModel.simplifyUVGridList[index] = ++indexID;
                     retCode |= writeOBJTextureUV((float)x, (float)y, false, 0);
@@ -22633,12 +22703,6 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
     for (i = 0; i < gModel.faceCount; i++)
     {
         pFace = gModel.faceList[i];
-
-#ifndef SIMPLIFY_RESORT
-        // ignore all faces that have been marked as deleted
-        if (pFace->normalIndex == HAS_BEEN_MERGED_SO_IGNORE_IT)
-            continue;
-#endif
 
         // every 4% or so check on progress
         if (i % noteProgress == 0) {
@@ -22840,6 +22904,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                     // decode swatch coordinates into a canonical index
                     for (j = 0; j < 4; j++) {
                         // is it a swatch value, or a simplify extended value? [2] is always a non- [0,1] range UV index. So confusing... :)
+                        // Negative indices means "negate and use this value-1 as an X & Y indexed location"
                         if (pFace->uvIndex[j] >= 0) {
                             index = (int)((((int)(gModel.uvIndexList[pFace->uvIndex[j]].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale) +
                                 (NUM_UV_GRID_RESOLUTION + 1) * (int)(16 - ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale));
@@ -26256,11 +26321,6 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
         }
 
         FaceRecord* pFace = gModel.faceList[startingFace + i];
-#ifndef SIMPLIFY_RESORT
-        // ignore all faces that have been marked as deleted
-        if (pFace->normalIndex == HAS_BEEN_MERGED_SO_IGNORE_IT)
-            continue;
-#endif
         int nvf = (pFace->vertexIndex[2] == pFace->vertexIndex[3]) ? 3 : 4;
 
         gOutData.faceVertexCounts[i] = nvf;
@@ -26281,6 +26341,7 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
             float uc, vc;
             if (gModel.exportTiles) {
                 // is it a swatch value, or a simplify extended value?
+                // Negative indices means "negate and use this value-1 as an X & Y indexed location"
                 if (pFace->uvIndex[j] >= 0) {
                     uc = (float)((((int)(gModel.uvIndexList[pFace->uvIndex[j]].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale) / (float)NUM_UV_GRID_RESOLUTION;
                     vc = (float)(16 - ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale)) / (float)NUM_UV_GRID_RESOLUTION;
@@ -29495,7 +29556,7 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
     if (gExportBillboards)
     {
         if (gModel.options->pEFD->chkDecimate) {
-            sprintf_s(outputString, 256, "\n# %d vertices, %d faces (%d triangles), %d blocks, %d billboards/bits. Simplification saved %d faces.\n", gModel.vertexCount, gModel.faceCount - gModel.simplifySavings, 2 * (gModel.faceCount - gModel.simplifySavings), gModel.blockCount, gModel.billboardCount, gModel.simplifySavings);
+            sprintf_s(outputString, 256, "\n# %d vertices, %d faces (%d triangles), %d blocks, %d billboards/bits. Simplification saved %d faces.\n", gModel.vertexCount, gModel.faceCount, 2 * gModel.faceCount, gModel.blockCount, gModel.billboardCount, gModel.simplifyFaceSavings);
         }
         else {
             sprintf_s(outputString, 256, "\n# %d vertices, %d faces (%d triangles), %d blocks, %d billboards/bits\n", gModel.vertexCount, gModel.faceCount, 2 * gModel.faceCount, gModel.blockCount, gModel.billboardCount);
@@ -29505,10 +29566,10 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
     else
     {
         if (gModel.options->pEFD->chkDecimate) {
-            sprintf_s(outputString, 256, "\n# %d vertices, %d faces (%d triangles), %d blocks. Simplification saved %d faces.\n", gModel.vertexCount, (gModel.faceCount - gModel.simplifySavings), 2 * (gModel.faceCount - gModel.simplifySavings), gModel.blockCount, gModel.simplifySavings);
+            sprintf_s(outputString, 256, "\n# %d vertices, %d faces (%d triangles), %d blocks. Simplification saved %d faces.\n", gModel.vertexCount, gModel.faceCount, 2 * gModel.faceCount, gModel.blockCount, gModel.simplifyFaceSavings);
         }
         else {
-            sprintf_s(outputString, 256, "\n# %d vertices, %d faces (%d triangles), %d blocks\n", gModel.vertexCount, (gModel.faceCount - gModel.simplifySavings), 2 * (gModel.faceCount - gModel.simplifySavings), gModel.blockCount);
+            sprintf_s(outputString, 256, "\n# %d vertices, %d faces (%d triangles), %d blocks\n", gModel.vertexCount, gModel.faceCount, 2 * gModel.faceCount, gModel.blockCount);
         }
         WRITE_STAT;
     }
@@ -29612,18 +29673,15 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
         WRITE_STAT;
     }
 
-    sprintf_s(outputString, 256, "# Make Z the up direction instead of Y: %s\n", gModel.options->pEFD->chkMakeZUp[gModel.options->pEFD->fileType] ? "YES" : "no");
-    WRITE_STAT;
-
     // option only available when rendering
     if (!gModel.print3D)
     {
-        // note that we output gModel.options->pEFD->chkCompositeOverlay even if gModel.exportTiles is true. Always true when 3D printing.
-        sprintf_s(outputString, 256, "# Create composite overlay faces: %s\n", gModel.options->pEFD->chkCompositeOverlay ? "YES" : "no");
-        WRITE_STAT;
-
         // not allowed for 3d printing, as it can cause manifold headaches
         sprintf_s(outputString, 256, "# Simplify mesh: %s\n", gModel.options->pEFD->chkDecimate ? "YES" : "no");
+        WRITE_STAT;
+
+        // note that we output gModel.options->pEFD->chkCompositeOverlay even if gModel.exportTiles is true. Always true when 3D printing.
+        sprintf_s(outputString, 256, "# Create composite overlay faces: %s\n", gModel.options->pEFD->chkCompositeOverlay ? "YES" : "no");
         WRITE_STAT;
     }
 
@@ -29674,6 +29732,9 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
     }
 
     sprintf_s(outputString, 256, "# Rotate model %f degrees\n", angle);
+    WRITE_STAT;
+
+    sprintf_s(outputString, 256, "# Make Z the up direction instead of Y: %s\n", gModel.options->pEFD->chkMakeZUp[gModel.options->pEFD->fileType] ? "YES" : "no");
     WRITE_STAT;
 
     if (gModel.options->pEFD->radioScaleByBlock)
@@ -31497,12 +31558,12 @@ static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int 
     return minHeight;
 }
 
-static void decimateMesh()
+static int decimateMesh()
 {
     // test just in case someone sets a script command to force decimation, which will make the world end
     if (!gModel.exportTiles || gModel.print3D) {
         assert(0);
-        return; // no can do
+        return 0x0; // no can do - should really give an error code, but we'll just blithely ignore it for now
     }
     // Decimation is possibly only when: not using any mosaic texture, not using composite overlays.
     // Should warn if exporting to 3D printing, as this can cause T-junctions.
@@ -31532,19 +31593,25 @@ static void decimateMesh()
     // only needed for OBJ export; USD keeps its own UV coordinates per mesh
     if ((gModel.options->pEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ) || (gModel.options->pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ)) {
         gModel.simplifyUVGridList = (int*)malloc((SIMPLIFY_MAX_DIMENSION + 1) * (SIMPLIFY_MAX_DIMENSION + 1) * sizeof(int));
+        if (gModel.simplifyUVGridList == NULL) {
+            return MW_WORLD_EXPORT_TOO_LARGE;
+        }
         memset(gModel.simplifyUVGridList, 0, (SIMPLIFY_MAX_DIMENSION + 1) * (SIMPLIFY_MAX_DIMENSION + 1) * sizeof(int));
     }
 
     int sameFaceCount = 0;
     int simplifyFaceListSize = min(gModel.faceCount, SIMPLIFY_FACE_RECORD_POOL_SIZE);   // TODO: tune this initial size?
     SimplifyFaceRecord** simplifyFaceList = (SimplifyFaceRecord**)malloc(simplifyFaceListSize * sizeof(SimplifyFaceRecord*));
+    if (simplifyFaceList == NULL) {
+        return MW_WORLD_EXPORT_TOO_LARGE;
+    }
+    int noteProgress = 1 + (int)((float)gModel.faceCount / (gProgress.absolute.decimate / 0.05f));
     for (i = 0; i < gModel.faceCount; i++)
     {
-        // every 4% or so check on progress
-        // TODOTODO: we must add to the preprocess time, here and elsewhere
-        //if (i % noteProgress == 0) {
-        //    UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * 0.5f * (1.0f + ((float)i / (float)gModel.faceCount)));
-        //}
+        // every 5% or so check on progress
+        if (i % noteProgress == 0) {
+            UPDATE_PROGRESS(gProgress.start.decimate + gProgress.absolute.decimate * 0.9f * (1.0f + ((float)i / (float)gModel.faceCount)));
+        }
         if (faceCanTile(i)) {
 
             // if the material type has changed, or the material subtype has changed, a new group is possible
@@ -31554,7 +31621,7 @@ static void decimateMesh()
             if (newMaterialPossible)
             {
                 // New material definitely found. Process list of previous records, as possible.
-                simplifySetOfFaces(sameFaceCount, simplifyFaceList);
+                simplifyFaceSet(sameFaceCount, simplifyFaceList);
                 // restart simplification
                 sameFaceCount = 0;
 
@@ -31582,7 +31649,7 @@ static void decimateMesh()
             simplifyFaceList[sameFaceCount-1] = pSFR;
         }
     }
-    simplifySetOfFaces(sameFaceCount, simplifyFaceList);
+    simplifyFaceSet(sameFaceCount, simplifyFaceList);
 
     free(simplifyFaceList);
 
@@ -31599,7 +31666,7 @@ static void decimateMesh()
 
 #ifdef SIMPLIFY_RESORT
     // This is actually optional. Since I now replace faces with the merged simplified faces in place, the sort order is still valid as-is.
-    // The one nice thing it does is gets the proper faceCount out of it.
+    // The one nice thing it does is gets the proper faceCount out of it, but we now do this with removeUnusedFacesAndVertices(), faster.
 
     // Now that everything's in the main database list, sort again, with a slight difference:
     // Put deleted faces at end (so we don't have to deal with them on output)
@@ -31623,6 +31690,7 @@ static void decimateMesh()
 
     }
 #endif
+    return 0x0;
  }
 
 static bool faceCanTile(int faceId)
@@ -31944,7 +32012,7 @@ static void extractZXYfromNormalAndBounds(FaceRecord* pFace, SimplifyFaceRecord*
     }
 }
 
-static void simplifySetOfFaces(int faceCount, SimplifyFaceRecord **ppSFR)
+static void simplifyFaceSet(int faceCount, SimplifyFaceRecord **ppSFR)
 {
     if (faceCount == 0) {
         // nothing to simplify
@@ -31985,9 +32053,6 @@ static void simplifySetOfFaces(int faceCount, SimplifyFaceRecord **ppSFR)
         pCurSFR = pNextSFR;
     }
     mergeSimplifySet(ppStartSFR, subCount);
-
-    // TODOTODO:
-    // During output we export all the merged faces. I'd recommend writing them out first.
 }
 
 static int simplifyFaceCompareYminor(void* context, const void* str1, const void* str2)
@@ -32157,9 +32222,8 @@ static void mergeSimplifySet(SimplifyFaceRecord** ppSFR, int faceCount)
                 vertexIndex[2] = getVertexIDmatching(pUpperRightSFR->pFace, pUpperRightSFR->xll + 1.0f, pUpperRightSFR->yll);
                 vertexIndex[3] = getVertexIDmatching(pCornerSFR->pFace, pCornerSFR->xll, pCornerSFR->yll);   // MUST do this one first, since it uses the vertexIndex of the original face!
 
-                // The new UV indices are 0,0 to xlen,ylen. TODOTODO there may be (and likely are)
-                // reversals in X that may be needed.
-                // Negative indices means "use this value+1 as an X & Y location
+                // The new UV indices are 0,0 to xlen,ylen.
+                // Negative indices means "negate and use this value-1 as an X & Y indexed location"
                 // Typical UV order is 0,0 / 1,0 / 1,1 / 1,0 (basically, V = 1 - Y above in order
                 short uvIndex[4];
                 uvIndex[0] = findUVinIndex(pCornerSFR->pFace,0.0f,0.0f); // is always 0,0
@@ -32240,14 +32304,12 @@ static void mergeSimplifySet(SimplifyFaceRecord** ppSFR, int faceCount)
                 }
 
                 // adjust statistics on count of quads - reduce it.
-                gModel.simplifySavings += xlen * ylen - 1;
+                gModel.simplifyFaceSavings += xlen * ylen - 1;
             }
         }
     }
     // Once we've walked through all faces like this, we're done! We've made all the replacements we could, and marked ones that
     // are used along the way.
-
-    // TODOTODO - some vertices may get orphaned by this simplification process. Should delete these. Have fun with that...
 }
 
 static short findUVinIndex(FaceRecord* pFace, float bx, float by)

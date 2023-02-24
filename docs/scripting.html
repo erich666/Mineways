@@ -154,7 +154,7 @@
 		
 <h2 id="mec">Model Export Commands</h2>
 
-		Here is the full list of model export commands. When found in a model file, each line is preceded by a "#"; in scripting files the "#" is not used. Text in italics is shown as an example. "[deprecated]" means this format is output by older versions of Mineways.
+		Here is the full list of model export commands. When found in a model file, each line is preceded by a "#"; in scripting files the "#" is not used. Text in italics is shown as an example. "[deprecated]" means this format is output by older versions of Mineways. <B>WARNING</B>: I currently don't do much checking of what options you set. Some options don't work with some modes, e.g., you can turn on "Simplify mesh" when exporting individual blocks but it will do nothing. I try to guard against illegal combinations (though you won't be warned). Still, you may get a weird crash if you ask for something impossible.
 		<P>
 		
 <TABLE id="modelExportTable" border="1">
@@ -321,7 +321,7 @@ G3D full material: <i>YES</i><br>
 Export MDL: <i>YES</i><br>
 Light scale: <i>30</i><br>
 Surface emit scale: <i>30</i><br>
-Make Z the up direction instead of Y: <i>no</i><br>
+Simplify mesh: <i>no</i><br>
 Create composite overlay faces: <i>no</i><br>
 Center model: <i>YES</i><br>
 Export lesser blocks: <i>YES</i><br>
@@ -329,6 +329,7 @@ Fatten lesser blocks: <i>no</i><br>
 Make tree leaves solid: <i>no</i><br>
 Create block faces at the borders: <i>YES</i><br>
 Use biomes: <i>YES</i><br>
+Make Z the up direction instead of Y: <i>no</i><br>
 Melt snow blocks: <i>no</i><br>
 Debug: show separate parts as colors: <i>no</i><br>
 Debug: show weld blocks in bright colors: <i>no</i>
@@ -948,7 +949,7 @@ On the Mac, follow <a href="http://osxdaily.com/2013/08/08/change-default-applic
 	
 <h1 id="default">Default Rendering Options</h1>
 
-What follows are the default rendering options when Export for Rendering is performed. This list was created by exporting a sample rendering from a world, editing the OBJ file, grabbing the header and removing the "#" character at the beginning of each line, and commenting out the lines that are purely comments. This is provided here as a guide to all the export options available.
+What follows are the default rendering options when Export for Rendering is performed. This list was created by exporting a sample rendering from a world, editing the OBJ file, grabbing the header and removing the "#" character at the beginning of each line, and commenting out the lines that are purely comments by using "//". This is provided here as a guide to all the export options available.
 <P>
 <div id="code">
 // Wavefront OBJ file made by Mineways version 4.18, http://mineways.com<br>
@@ -965,28 +966,35 @@ Units for the model vertex data itself: meters<br>
 <br>
 // 6249 vertices, 4998 faces (9996 triangles), 2732 blocks, 245 billboards/bits<br>
 // block dimensions: X=22 by Y=28 (height) by Z=22 blocks<br>
-File type: Export full color texture patterns<br>
+Elevation shading: no<br>
+Lighting: no<br>
+Transparent water: no<br>
+Map grid: no<br>
+File type: Export individual textures to directory tex<br>
 Texture output RGB: YES<br>
 Texture output A: YES<br>
 Texture output RGBA: YES<br>
 Export separate objects: YES<br>
 Individual blocks: no<br>
- Material per family: YES<br>
-  G3D full material: no<br>
-Make Z the up direction instead of Y: no<br>
+  Material per family: YES<br>
+  Split by block type: YES<br>
+G3D full material: no<br>
+Simplify mesh: no<br>
+Create composite overlay faces: no<br>
 Center model: YES<br>
 Export lesser blocks: YES<br>
 Fatten lesser blocks: no<br>
-Make tree leaves solid: no<br>
 Create block faces at the borders: YES<br>
+Make tree leaves solid: no<br>
 Use biomes: no<br>
 Rotate model 0.000000 degrees<br>
-Scale model by making each block 100 mm high<br>
+Make Z the up direction instead of Y: no<br>
+Scale model by making each block 1000 mm high<br>
 // Data operation options:<br>
   Fill air bubbles: no; Seal off entrances: no; Fill in isolated tunnels in base of model: no<br>
   Connect parts sharing an edge: no; Connect corner tips: no; Weld all shared edges: no<br>
   Delete floating objects: trees and parts smaller than 16 blocks: no<br>
-  Hollow out bottom of model, making the walls 10 mm thick: no; Superhollow: no<br>
+  Hollow out bottom of model, making the walls 1000 mm thick: no; Superhollow: no<br>
 Melt snow blocks: no<br>
   Debug: show separate parts as colors: no<br>
   Debug: show weld blocks in bright colors: no<br>
@@ -1041,7 +1049,7 @@ Running the script to set up the scene, then exporting (manually) to Sketchfab, 
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 2/9/2023</p>	</div>
+		<br id="lastUpdate">Last updated 2/24/2023</p>	</div>
 </div>
 
 </body>
