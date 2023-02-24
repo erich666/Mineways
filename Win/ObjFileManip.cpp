@@ -32165,21 +32165,34 @@ static void mergeSimplifySet(SimplifyFaceRecord** ppSFR, int faceCount)
                 else {
                     uvIndex[3] = (short)(-1 - ylen * (SIMPLIFY_MAX_DIMENSION + 1));
                 }
+
                 // all set, so copy them over
-                if (pFace->normalIndex < 3) {
-                    // facing downwards, so reverse the order, starting from 0.
-                    // That is, 1 <-->3 should swap places
-                    for (j = 0; j < 4; j++) {
-                        int swapj = (j == 1) ? 3 : ((j == 3) ? 1 : j);
-                        pFace->vertexIndex[j] = vertexIndex[swapj];
-                        pFace->uvIndex[j] = uvIndex[swapj];
-                    }
+                // key thing: uvIndex[0] must be 0,0 and never be moved around! It's used for retrieving the swatchLoc
+                int changeUVIndex[] = { 0,1,2,3 };
+                // flips are used to get the vertex order right for culling properly
+                switch (pFace->normalIndex) {
+                case DIRECTION_BLOCK_TOP:
+                    break;
+                case DIRECTION_BLOCK_BOTTOM:
+                    // flip
+                    flipIndicesLeftRight(vertexIndex);
+                    rotateIndices(vertexIndex, 90);
+                    changeUVIndex[1] = 3;
+                    changeUVIndex[3] = 1;
+                    break;
+                case DIRECTION_BLOCK_SIDE_LO_X:
+                case DIRECTION_BLOCK_SIDE_HI_Z:
+                    rotateIndices(vertexIndex, 180);
+                    flipIndicesLeftRight(vertexIndex);
+                    break;
+                case DIRECTION_BLOCK_SIDE_HI_X:
+                case DIRECTION_BLOCK_SIDE_LO_Z:
+                    rotateIndices(vertexIndex, 180);
+                    break;
                 }
-                else {
-                    for (j = 0; j < 4; j++) {
-                        pFace->vertexIndex[j] = vertexIndex[j];
-                        pFace->uvIndex[j] = uvIndex[j];
-                    }
+                for (j = 0; j < 4; j++) {
+                    pFace->vertexIndex[j] = vertexIndex[j];
+                    pFace->uvIndex[changeUVIndex[j]] = uvIndex[j];
                 }
 
                 // record the four UV coordinates in the giant grid as being used (for OBJ unified output only)
