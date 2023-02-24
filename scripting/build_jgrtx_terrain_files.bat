@@ -1,6 +1,6 @@
 @rem echo Script to make JG-RTX terrainExt files. By Eric Haines, 11/21/2022 
 
-@rem echo Setup: Create some subdirectory, say "MinewaysJGRTX". Copy the ChannelMixer.exe, TileMaker.exe, and terrainExt.png to this directory. Go to https://github.com/jasonjgardner/jg-rtx. Under the green Code button, Download ZIP. Unzip into MinewaysJGRTX, so that there's a directory called "jg-rtx-main" inside this directory (which has all the JG-RTX files in it). Then, run this script!
+@rem echo Setup: Create some subdirectory, say "MinewaysJGRTX". From the Mineways TileMaker directory copy the ChannelMixer.exe, TileMaker.exe, and terrainBase.png to MinewaysJGRTX. Go to https://github.com/jasonjgardner/jg-rtx. Under the green Code button, Download ZIP. Unzip into MinewaysJGRTX, so that there's a directory called "jg-rtx-main" inside this directory (which has all the JG-RTX files in it). Then, use CMD and go to MinewaysJGRTX and run this script!
 
 @rem echo The commands below encode tips from Jason Gardner: Use ./bedrock/pack/RP as your input path. Copy some of the missing textures from ./java/assets/minecraft/textures/block/ first. Then any remaining missing textures might be in ./mineways/textures/ – though some will be wonky.
 
@@ -28,8 +28,8 @@ del blocks\piston_top_sticky_n.png
 @rem echo there are a bunch of blocks with tiny mild flecks of metal in them - I wouldn't bother
 del blocks\deepslate_diamond_ore_m.png
 
-TileMaker.exe -v -m -i terrainExt.png -d blocks -o terrainExt_JG-RTX64.png -t 64 > tilemaker64.log
-TileMaker.exe -v -m -i terrainExt.png -d blocks -o terrainExt_JG-RTX256.png -t 256 > tilemaker256.log
+TileMaker.exe -v -m -i terrainBase.png -d blocks -o terrainExt_JG-RTX64.png -t 64 > tilemaker64.log
+TileMaker.exe -v -m -i terrainBase.png -d blocks -o terrainExt_JG-RTX256.png -t 256 > tilemaker256.log
 
 @rem echo ============= debug stuff
 @rem echo DEBUG: separate blocks to look through
