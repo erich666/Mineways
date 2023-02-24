@@ -31771,6 +31771,11 @@ static bool faceCanTile(int faceId)
     case BLOCK_LIGHTNING_ROD:
     case BLOCK_SPORE_BLOSSOM:
     case BLOCK_FROGSPAWN:
+    
+    // Ruled out because complex and used flipIndicesLeftRight
+    case BLOCK_BED:
+    case BLOCK_OBSERVER:
+    case BLOCK_DRIED_KELP:
         return false;
 
     default:
@@ -31797,8 +31802,6 @@ static bool faceCanTile(int faceId)
     case 13 + 54 * 16:      //logs
     case 15 + 54 * 16:      //stripped logs
     case 12 + 6 * 16:       //piston side
-    case 6 + 8 * 16:        //bed top
-    case 7 + 8 * 16:        //bed top
     case 11 + 8 * 16:       //cauldron inner
     case 4 + 9 * 16:        //glass pane top
     case 15 + 9 * 16:       //end portal side
@@ -31828,7 +31831,6 @@ static bool faceCanTile(int faceId)
     case 1 + 24 * 16:       //purpur pillar side
     case 9 + 24 * 16:       //dirt path side
     case 3 + 26 * 16:       //bone block side
-    case 4 + 33 * 16:       //observer top
     case 1 + 38 * 16:       //barrel side
     case 0 + 40 * 16:       //lectern
     case 1 + 40 * 16:       //lectern
@@ -32167,18 +32169,20 @@ static void mergeSimplifySet(SimplifyFaceRecord** ppSFR, int faceCount)
                 }
 
                 // all set, so copy them over
-                // key thing: uvIndex[0] must be 0,0 and never be moved around! It's used for retrieving the swatchLoc
-                int changeUVIndex[] = { 0,1,2,3 };
+                // key thing: uvIndex[0] must be 0,0 and never be moved around! It's used for retrieving the swatchLoc.
                 // flips are used to get the vertex order right for culling properly
                 switch (pFace->normalIndex) {
                 case DIRECTION_BLOCK_TOP:
                     break;
                 case DIRECTION_BLOCK_BOTTOM:
-                    // flip
-                    flipIndicesLeftRight(vertexIndex);
-                    rotateIndices(vertexIndex, 90);
-                    changeUVIndex[1] = 3;
-                    changeUVIndex[3] = 1;
+                    {
+                        // flip direction texture goes
+                        flipIndicesLeftRight(vertexIndex);
+                        rotateIndices(vertexIndex, 90);
+                        short tmp = uvIndex[1];
+                        uvIndex[1] = uvIndex[3];
+                        uvIndex[3] = tmp;
+                    }
                     break;
                 case DIRECTION_BLOCK_SIDE_LO_X:
                 case DIRECTION_BLOCK_SIDE_HI_Z:
@@ -32192,7 +32196,7 @@ static void mergeSimplifySet(SimplifyFaceRecord** ppSFR, int faceCount)
                 }
                 for (j = 0; j < 4; j++) {
                     pFace->vertexIndex[j] = vertexIndex[j];
-                    pFace->uvIndex[changeUVIndex[j]] = uvIndex[j];
+                    pFace->uvIndex[j] = uvIndex[j];
                 }
 
                 // record the four UV coordinates in the giant grid as being used (for OBJ unified output only)
