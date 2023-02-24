@@ -2161,7 +2161,7 @@ static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* 
 
 #ifdef _DEBUG
     // add letter R to every tile, to see orientation of tiles
-    static int markTiles = 1;	// to put R on each tile for debugging, set to 1 TODOTODOTODO turn this back to 0 for release
+    static int markTiles = 0;	// to put R on each tile for debugging, set to 1 TODOTODOTODO turn this back to 0 for release
     if (markTiles && category == CATEGORY_RGBA)
     {
         int row, col;
@@ -11334,6 +11334,7 @@ static SimplifyFaceRecord* allocSimplifyFaceRecordFromPool()
             pSFRP = (SimplifyFaceRecordPool*)malloc(sizeof(SimplifyFaceRecordPool));
             if (pSFRP) {
                 pSFRP->count = 0;
+                pSFRP->pNext = NULL;
                 gModel.simplifyFaceRecordPool->pNext = pSFRP;
                 gModel.simplifyFaceRecordPool = pSFRP;
             }
