@@ -52,7 +52,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 // so figure out the normal at the end of the run.
 #define COMPUTE_NORMAL  -1
 // marker for a face's normalIndex to note it's been merged and so should be ignored for output
-#define HAS_BEEN_MERGED -2
+#define HAS_BEEN_MERGED_SO_IGNORE_IT -2
 
 static PORTAFILE gModelFile;
 static PORTAFILE gMtlFile;
@@ -16337,10 +16337,16 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
         }
     }
     // else we are exporting by block, so no sorting is done.
+ 
+    // At this point we could apply decimation, if desired (and valid, etc.). Easiest to do before translation/scaling/rotation.
+    // Faces that get merged into new, larger faces are "deleted" by marking the normalIndex to HAS_BEEN_MERGED,
+    // just to save room that would be needed for a flag
+    if (gModel.options->pEFD->chkDecimate) {
+        assert(gModel.exportTiles);
+        decimateMesh();
 
-    // TODOTODOTODO - SERIOUS BUG: we really want to resolve normals, decimate, THEN scale and translate and rotate.
-    // Right now we do the order translate, scale, then rotate to place. And the normals themselves get rotated earlier in this subroutine. Ugh.
-    // I think the best bet is to do the sort, decimate. Some normals will not be set and so don't get used when sorting, etc.
+        // remove extra stuff at this point, simplifies later code and saves time (I hope) TODOTODOTODO
+    }
 
     // Do the scaling and rotations to place
     //UPDATE_PROGRESS(pgFaceStart + pgFaceOffset);
@@ -16363,14 +16369,6 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
     // Ready the normals for direct output - any undefined (-1 index) get set now
     // It's possible the output format doesn't include normals, but this process is almost always needed (and easily missed)
     resolveFaceNormals();
-
-    // At this point we could apply decimation, if desired (and valid, etc.).
-    // Faces that get merged into new, larger faces are "deleted" by marking the normalIndex to HAS_BEEN_MERGED,
-    // just to save room that would be needed for a flag
-    if (gModel.options->pEFD->chkDecimate) {
-        assert(gModel.exportTiles);
-        decimateMesh();
-    }
 
     return retCode;
 }
@@ -22136,6 +22134,11 @@ static void resolveFaceNormals()
     for (int i = 0; i < gModel.faceCount; i++)
     {
         FaceRecord* pFace = gModel.faceList[i];
+#ifndef SIMPLIFY_RESORT
+        // ignore all faces that have been marked as deleted
+        if (pFace->normalIndex == HAS_BEEN_MERGED_SO_IGNORE_IT)
+            continue;
+#endif
         if (pFace->normalIndex == COMPUTE_NORMAL)
         {
             // Object may have undergone a transform that changes its normal, so we need to compute
@@ -22633,7 +22636,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
 
 #ifndef SIMPLIFY_RESORT
         // ignore all faces that have been marked as deleted
-        if (pFace->normalIndex == HAS_BEEN_MERGED)
+        if (pFace->normalIndex == HAS_BEEN_MERGED_SO_IGNORE_IT)
             continue;
 #endif
 
@@ -26253,6 +26256,11 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
         }
 
         FaceRecord* pFace = gModel.faceList[startingFace + i];
+#ifndef SIMPLIFY_RESORT
+        // ignore all faces that have been marked as deleted
+        if (pFace->normalIndex == HAS_BEEN_MERGED_SO_IGNORE_IT)
+            continue;
+#endif
         int nvf = (pFace->vertexIndex[2] == pFace->vertexIndex[3]) ? 3 : 4;
 
         gOutData.faceVertexCounts[i] = nvf;
@@ -31621,18 +31629,19 @@ static bool faceCanTile(int faceId)
 {
     FaceRecord* pFace = gModel.faceList[faceId];
 
-    // check if last two vertices match - if so, output a triangle instead 
+    // Simple checks for if this is a useful face:
+    // Is the normal 0-5 ID? We check only on the 6 major axes. Rotated stuff is likely to be bad at aligning anyway
+    if (pFace->normalIndex < 0 || pFace->normalIndex >= 6) {
+        return false;
+    }
+
+    // check if last two vertices match - if so, it's a triangle, so can be ignored
     if (pFace->vertexIndex[2] == pFace->vertexIndex[3])
     {
         return false;
     }
 
-    int j;
-    // Simple checks for if this is a useful face:
-    // Is the normal 0-7 ID? Lava and water with tilted tops won't have this
-    if (pFace->normalIndex >= 6) {
-        return false;
-    }
+    int i;
 
     // Is the type forbidden, for whatever reason?
     // TODO: could make these block property "BLF_NO_SIMPLIFY"
@@ -31862,15 +31871,15 @@ static bool faceCanTile(int faceId)
     }
         
     // are the UVs from edge to edge, so we know it's a full face?
-    for (j = 0; j < 4; j++) {
+    for (i = 0; i < 4; i++) {
         // X texture coordinate, unscrambled, range 0-16 (divided by 16. These are the texel locations in the standard 16x16 grid)
-        int itc = (int)((((int)(gModel.uvIndexList[pFace->uvIndex[j]].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale);
+        int itc = (int)((((int)(gModel.uvIndexList[pFace->uvIndex[i]].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale);
         if (itc != 0 && itc != 16) {
             return false;
         }
         // full, true unscramble - not needed: itc = ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale));
         //itc = (int)(16 - ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale));
-        itc =   (int)      ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale);
+        itc =   (int)      ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[i]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale);
         if (itc != 0 && itc != 16) {
             return false;
         }
@@ -31879,8 +31888,8 @@ static bool faceCanTile(int faceId)
     // Final check, just for debug to make sure we didn't let anything through: are all coordinates (not in normal direction) non-fractional, 0-1'ish? Chests, I believe, get their texture squished to their dimension.
     // Things like wheat, nether wart, etc. do not go fully across the tile, OR may get randomized and so won't line up.
     Vector loc;
-    for (j = 0; j < 4; j++) {
-        Vec3Scalar(loc, =, gModel.vertices[pFace->vertexIndex[j]][X], gModel.vertices[pFace->vertexIndex[j]][Y], gModel.vertices[pFace->vertexIndex[j]][Z]);
+    for (i = 0; i < 4; i++) {
+        Vec3Scalar(loc, =, gModel.vertices[pFace->vertexIndex[i]][X], gModel.vertices[pFace->vertexIndex[i]][Y], gModel.vertices[pFace->vertexIndex[i]][Z]);
         switch(pFace->normalIndex % 3) {
         case X:
             if (float(int(loc[Y])) != loc[Y] || float(int(loc[Z])) != loc[Z]) {
@@ -31910,8 +31919,7 @@ static bool faceCanTile(int faceId)
 
 static void extractZXYfromNormalAndBounds(FaceRecord* pFace, SimplifyFaceRecord* pSimplifyFace)
 {
-    // TODOTODO likely needs adjustment
-    // needs to match getVertexIDmatching
+    // If any changes are made, needs to match getVertexIDmatching
     switch (pSimplifyFace->normalDirection % 3) {
     default:
         assert(0);
@@ -32222,7 +32230,7 @@ static void mergeSimplifySet(SimplifyFaceRecord** ppSFR, int faceCount)
                         // don't wipe out the one we just filled
                         if (j > 0 || k > 0) {
                             // mark records as "this one's now part of another record, so ignore it"
-                            pDelSFR->pFace->normalIndex = HAS_BEEN_MERGED;
+                            pDelSFR->pFace->normalIndex = HAS_BEEN_MERGED_SO_IGNORE_IT;
                             // done so that we ignore this face looking through the quads left to search
                             pDelSFR->pFace = NULL;
                         }
