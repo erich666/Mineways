@@ -841,6 +841,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                             CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_INDETERMINATE);
                             CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, BST_INDETERMINATE);
                         }
+                        // unchecked, so go back to whatever state we came in with for decimation
+                        CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, epd.chkDecimate);
                     }
                     else
                     {
@@ -859,6 +861,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                         // uncheck the box
                         // go from the indeterminate tristate to unchecked - indeterminate is not selectable
                         CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, BST_UNCHECKED);
+                        // unchecked, so go back to whatever state we came in with for decimation
+                        CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, epd.chkDecimate);
                     }
                 }
                 else
@@ -869,6 +873,10 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             // make sure, no matter what, that material block per family stays indeterminate when individual textures is on:
             if (IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES)) {
                 CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_INDETERMINATE);
+            }
+            // and make sure decimation is not available if the individual blocks box is checked.
+            if (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS)) {
+                CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, BST_INDETERMINATE);
             }
             break;
         case IDC_MATERIAL_PER_BLOCK_FAMILY:

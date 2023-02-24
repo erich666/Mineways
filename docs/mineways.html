@@ -112,7 +112,7 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
  </UL>
  <LI><a href="#opt_globals">Global Model Options</a> - modify block coordinates and textures for output
  <UL>
-   <LI><a href="#z_up">Make Z the up direction instead of Y</a>
+   <LI><a href="#simplify">Simplify mesh</a>
    <LI><a href="#composite">Create composite overlay faces</a>
    <LI><a href="#center_model">Center model around the origin</a>
    <LI><a href="#biome_center">Use biome in center of export area</a>
@@ -122,6 +122,7 @@ Normally you can just hit "OK" on the export dialog and things will work fine. R
  </UL>
  <LI><a href="#print">Exporting to 3D print</a> - 3D print options.
  <UL>
+   <LI><a href="#z_up">Make Z the up direction instead of Y</a>
    <LI><a href="#opt_size">Model Size</a>
    <LI><a href="#opt_fill">Filling and Hollowing Options</a>
    <LI><a href="#opt_debug">Debugging Visualization</a>
@@ -479,7 +480,7 @@ If you find you want your model data to be arranged a bit differently for your r
 <LI>Export separate types: on by default, this option says each type of block - stone, logs, fences, and so on - are put in a separate group. Turning this option off means no groups are created, which can be useful for simplifying import into rendering packages but can make editing more difficult. This option does not affect how many materials are generated.
 <LI id="individual" class="ib">Export individual blocks: This option is mutually exclusive with the previous option, "Export separate types." Normally Mineways exports only those faces that are visible. By checking this box, <i>all</i> faces of <i>every</i> block are output, allowing you to animate such operations as mining or explosions. This considerably increases file size and render time, so use it only if you need it. You may also want to check the <a href="#make_groups_objects">Make groups objects</a> option, e.g., for Blender export, as each group will then be a separate object you can manipulate. For Blender you'll also want to make sure "Material per family" is checked. Note that the individual blocks option will change the appearance of some blocks, such as water and glass blocks, as all faces now have sides, which are visible. Normally Minecraft removes these interior sides (e.g., where two glass blocks share a face), but this option makes them visible. This option works for OBJ and <a href="#usd_export_options">USD export</a>.
 <LI>Material per family: on by default. <i>Only affects export when exporting the three large mosaic textures</i>. When on, the default, blocks in a family (or type; see next option) have their own material. If turned off, a single material is used for all objects. When exporting individual blocks, this checkbox affects whether each block is in its own group (making it easier to edit: move, delete, etc.) or whether individual blocks are grouped by material. To reiterate, this option does not affect anything when exporting individual textures, as each individual texture needs its own material and so materials cannot be grouped.
-<LI><a id="material_subtypes">Split by block type</a>: Blocks have a family and a type. When checked (the default), the individual types are used for grouping and materials. If you find you are editing too many materials, turn it off and materials will be exported per family. You can see many of the families <a href="https://minecraft-ids.grahamedgecombe.com/">on this page</a>, e.g., Stone, Granite, Polished Granite..., through Polished Andesite are a family. New materials are limited to those where there's a physical difference in the material itself, not just geometric changes. For example, a cake being sliced will not give it a separate material and group. Crops are given separate materials for each growth level, and farmland for each wetness level. Redstone wire is given separate materials for its 16 levels of power, even though Mineways itself differentiates only between off and on states. Campfires, sea pickles, and respawn anchors will be given <a href="https://minecraft.gamepedia.com/Light">separate emission levels</a> when this box is checked; else the maximum light level is assumed.
+<LI><a id="material_subtypes">Split by block type</a>: Blocks have a family and a type. When checked (the default), the individual types are used for grouping polygons and, for mosaics, generating materials. You can see many of the families <a href="https://minecraft-ids.grahamedgecombe.com/">on this page</a>, e.g., Stone, Granite, Polished Granite..., through Polished Andesite are a family. New groups are generated when there's a physical difference in the material itself, not just geometric changes. For example, campfires, sea pickles, and respawn anchors will be given <a href="https://minecraft.gamepedia.com/Light">separate emission levels</a> when this box is checked; else the maximum light level is assumed. Usually you'll want this box checked, unless you're finding you would rather have fewer groups (and fewer materials, for mosaics).
 </UL>
 <P>
 Confused yet? There are non-obvious interactions among the various settings. A table follows, describing the results when using this 2x3 set of blocks - two grass blocks, two stone, two diorite - as the exported volume, and when using the large mosaic texture option. Recall that diorite is part of the stone family. This table fully applies when using the "three mosaic image" material output option. For individual texture output, the "Material per family" option is grayed out, since it has no effect. Results are described as "For mosaics" when materials are output using "three large, mosaic images" mode and "For individuals" when using "individual textures" mode. Note that for individual texture output, it is always the case that different textures will need different materials.
@@ -504,7 +505,7 @@ Confused yet? There are non-obvious interactions among the various settings. A t
 <B>Effect on objects</B>
 </td>
 <td>
-<B>Material library produced</B>
+<B>Material library produced for mosaics (only!)</B>
 </td>
 </tr>
 
@@ -522,31 +523,10 @@ SELECTED
 unchecked
 </td>
 <td>
-Polygons are grouped by block family. For mosaics, result is one Grass_Block group using the Grass_Block material applied to 8 block faces (the visible faces of the two grass blocks) and one Stone group using the Stone material applied to 14 faces (the visible faces of the four stone-related blocks, Stone and Diorite). Similarly, for individuals, one group is made for Grass, one for Stone that includes both the stone and granite blocks.
+Polygons are grouped by block family. For individual textures, one group is made for Grass, one for Stone that includes both the stone and granite blocks. Similarly, for mosaics, result is one Grass_Block group using the Grass_Block material applied to 8 block faces (the visible faces of the two grass blocks) and one Stone group using the Stone material applied to 14 faces (the visible faces of the four stone-related blocks, Stone and Diorite).
 </td>
 <td>
-Each block <i>family</i> has a separate material. For mosaics, result is two materials, Grass_Block and Stone.
-</td>
-</tr>
-
-<tr>
-<td>
-SELECTED
-</td>
-<td>
-unchecked
-</td>
-<td>
-SELECTED
-</td>
-<td>
-SELECTED
-</td>
-<td>
-<b>Default for rendering:</b> Polygons are grouped by block type. For mosaics, result is one Grass_Block group using the Grass_Block material applied to the 8 visible block faces, one Stone group using the Stone material applied to the 6 visible faces, and one Diorite group using the Diorite material applied to its 8 visible block faces. For individuals, there are three groups: Grass_Block, Stone, and Diorite.
-</td>
-<td>
-Each block <i>type</i> has a separate material. For mosaics, result is three materials: Grass_Block, Stone, and Diorite.
+Each block <i>family</i> has a separate material. Result is two materials for mosaics, Grass_Block and Stone.
 </td>
 </tr>
 
@@ -558,16 +538,16 @@ SELECTED
 unchecked
 </td>
 <td>
-unchecked
+SELECTED
 </td>
 <td>
-unchecked
+SELECTED
 </td>
 <td>
-Polygons are grouped by block family. For mosaics, result is one Grass_Block group with 8 visible block faces and one Stone group with 14 visible faces. For individuals, since "Material per family" does not affect export in this mode, the result is the same as two lines above: one group is made for Grass, one for Stone that includes both the stone and granite blocks.
+<b>Default for rendering:</b> Polygons are grouped by block type. For individual textures, there are three groups: Grass_Block, Stone, and Diorite. For mosaics, result is one Grass_Block group using the Grass_Block material applied to the 8 visible block faces, one Stone group using the Stone material applied to the 6 visible faces, and one Diorite group using the Diorite material applied to its 8 visible block faces. 
 </td>
 <td>
-Single material. For mosaics, a default MC_material is created and applied to all polygons.
+Each block <i>type</i> has a separate material for mosaics. Result is three materials: Grass_Block, Stone, and Diorite.
 </td>
 </tr>
 
@@ -582,13 +562,34 @@ unchecked
 unchecked
 </td>
 <td>
+unchecked
+</td>
+<td>
+Polygons are grouped by block family. For individuals, since "Material per family" does not affect export in this mode, the result is the same as two rows above: one group is made for Grass, one for Stone that includes both the stone and granite blocks. For mosaics, result is one Grass_Block group with 8 visible block faces and one Stone group with 14 visible faces.
+</td>
+<td>
+Single material for mosaics. A default MC_material is created and applied to all polygons.
+</td>
+</tr>
+
+<tr>
+<td>
 SELECTED
 </td>
 <td>
-Polygons are grouped by block type. Result is one Grass_Block group with 8 visible block faces, one Stone group with 6 visible faces, and one Diorite group with 8 visible block faces. For individuals, since "Material per family" does not affect export in this mode, the result is the same as two lines above: three groups, Grass_Block, Stone, and Diorite.
+unchecked
 </td>
 <td>
-Single material. For mosaics, a default MC_material is created and applied to all polygons.
+unchecked
+</td>
+<td>
+SELECTED
+</td>
+<td>
+Polygons are grouped by block type. For individuals, since "Material per family" does not affect export in this mode, the result is the same as two lines above: three groups, Grass_Block, Stone, and Diorite. For mosaics, the result is one Grass_Block group with 8 visible block faces, one Stone group with 6 visible faces, and one Diorite group with 8 visible block faces.
+</td>
+<td>
+Single material for mosaics. A default MC_material is created and applied to all polygons.
 </td>
 </tr>
 
@@ -615,7 +616,7 @@ unchecked
 <B>Default for 3D printing:</B> No groups are created at all. Result is 22 visible block faces.
 </td>
 <td>
-Single material. For mosaics, a default MC_material is created and applied to all polygons.
+Single material for mosaics. A default MC_material is created and applied to all polygons.
 </td>
 </tr>
 
@@ -639,7 +640,7 @@ SELECTED
 unchecked
 </td>
 <td>
-Each individual block is in its own group. Result is 6 block faces in each of six groups (the six blocks): block_00001, block_00002, etc. For mosaics only, the related material <i>family</i>, Grass_Block or Stone, is assigned to each block in turn.
+Each individual block is in its own group. Result is 6 block faces in each of six groups (the six blocks): block_00001, block_00002, etc. For mosaics, the related material <i>family</i>, Grass_Block or Stone, is assigned to each block in turn.
 </td>
 <td>
 For mosaics, each block <i>family</i> has a separate material. Result is two materials, Grass_Block and Stone.
@@ -660,7 +661,7 @@ SELECTED
 SELECTED
 </td>
 <td>
-Each individual block is in its own group. Result is 6 block faces in each of six (block) groups: block_00001, block_00002, etc. For mosaics only, the related material <i>type</i>, Grass_Block, Stone, or Diorite, is assigned to each block in turn.
+Each individual block is in its own group. Result is 6 block faces in each of six (block) groups: block_00001, block_00002, etc. For mosaics, the related material <i>type</i>, Grass_Block, Stone, or Diorite, is assigned to each block in turn.
 </td>
 <td>
 For mosaics, each block <i>type</i> has a separate material. Result is three materials, Grass_Block, Stone, and Diorite.
@@ -681,7 +682,7 @@ unchecked
 unchecked
 </td>
 <td>
-Individual blocks are output, but grouped by block family. Result is one Grass_Block group, and for mosaics using the Grass_Block material applied to two blocks' 12 block faces and one Stone group and for mosaics using the Stone material applied to four blocks' 24 faces.
+Individual blocks are output, but grouped by block family. Result is one Grass_Block group and one Stone group. For mosaics, the Grass_Block material is applied to two blocks' 12 block faces and the Stone material is applied to four blocks' 24 faces.
 </td>
 <td>
 For mosaics, each block <i>family</i> has a separate material. Result is two materials, Grass_Block and Stone.
@@ -702,7 +703,7 @@ unchecked
 SELECTED
 </td>
 <td>
-Individual blocks are output, but grouped by block type. Result is one Grass_Block group (and for mosaics only) using the Grass_Block material applied to two blocks' 12 block faces, one Stone group (and for mosaics only) using the Stone material applied to two blocks' 12 faces, and one Diorite group (and for mosaics only) using the Diorite material applied to two blocks' 12 block faces.
+Individual blocks are output, but grouped by block type. The result is three groups: Grass_Block, Stone, and Diorite. Mosaics have the Grass_Block material applied to two blocks' 12 block faces, the Stone material applied to two blocks' 12 faces, and the Diorite material applied to two blocks' 12 block faces.
 </td>
 <td>
 For mosaics, each block <i>type</i> has a separate material. Result is three materials, Grass_Block, Stone, and Diorite.
@@ -764,14 +765,20 @@ What follows are how various options apply to USD export. Also, Mineways' "View 
 <H3>Global Model Options</H3></a>
 A few options change how blocks' coordinates and textures are output. If you want to change the overall scale of the model, use the <a href="#opt_size">"Make each block" option</a> in the upper right of the dialog.
 
-<a id="z_up">
-<H4>Make Z the up direction instead of Y</H4></a>
-Some graphics applications consider the Y direction to be "up", some Z. If your model imports sideways into your application, check (or uncheck) this box.
+<a id="simplify">
+<H4>Simplify mesh</H4></a>
+
+This option merges neighboring squares to create larger rectangles. This can significantly reduce the model's size. However, it has the drawback of turning off randomized texture rotation. Normally grass and other blocks are rotated randomly by Mineways (and Minecraft) to break up the patterned look of a single texture being repeated over a large area. Simplify mesh is only available when exporting individual textures (but not individual blocks) for OBJ and USD export, and only for rendering. It is not available for 3D printing, as doing so can cause T-junctions, which can in turn cause 3D printers to fail. It is also currently not available for untextured model export, since there are better simplification systems available (some of which do work better for 3D prints), such as <a href="https://meshmixer.com/">Meshmixer</a>, <a href="https://www.meshlab.net/">MeshLab</a>, and <a href="https://docs.blender.org/manual/en/latest/modeling/modifiers/generate/decimate.html">inside Blender</a>.
+
+<P>
+Here is a side by side comparison of a mesh's look normally and simplified, without and with wireframe for the grass. This (admittedly near-optimal for simplification) export from the built-in "[Block Test World]" went from 142,428 to 15,726 triangles when simplified. Note the pattern repetition on the grass in the upper right.
+<P>
+<img src="images/simplification.jpg">
 
 <a id="composite">
 <H4>Create composite overlay faces</H4></a>
 
-For 3D printing there cannot be "floating" cutout textures such as vines, ladders, rails, torches, and so on. These block types are overlaid atop the underlying block and a new "composite" texture is saved and used. This process must be done for 3D printing. For rendering it is an option. The advantage of leaving this option off is that the result more closely matches Minecraft itself, and that each object has its own material. It also means that all render files exported could use single set of PNG textures, since no composite textures are created. The main drawback of having this option off is that you may encounter z-fighting problems, stray shadows, or other artifacts in your renderings.
+For 3D printing there cannot be "floating" cutout textures such as vines, ladders, rails, torches, and so on. These block types are overlaid atop the underlying block and a new "composite" texture is saved and used. This process must be done for 3D printing. For rendering with mosaics it is an option. The advantage of leaving this option off is that the result more closely matches Minecraft itself, and that each object has its own material. It also means that all render files exported could use single set of PNG textures, since no composite textures are created. The main drawback of having this option off is that you may encounter z-fighting problems, stray shadows, or other artifacts in your renderings.
 <P>
 This option was on by default for rendering up to version 5.00 of Mineways (in truth, it could not be turned off); as of 5.01 this option is off by default.
 <P>
@@ -839,6 +846,10 @@ As background, view the <a href="http://www.youtube.com/watch?v=hHxp9Ail6MY&feat
 <P>
 There are other potential pitfalls with 3D printing, such as <a href="http://www.shapeways.com/tutorials/3dprintingminimumwallthicknesstutorial">thin wall problems</a> (more <a href="http://www.shapeways.com/tutorials/thin_walls_tutorial">here</a>), and <a href="https://support.shapeways.com/hc/en-us/sections/360004437873-Software-Tutorials">too many polygons</a> (rare for a Minecraft model), to name just two. Shapeways' <a href="https://support.shapeways.com/hc/en-us/categories/360001855814-Tutorials">tutorial pages</a> and <a href="https://support.shapeways.com/hc/en-us/sections/360003550794-Materials">materials pages</a> give you a lot to chew on, <a href="http://www.sculpteo.com/en/help/">Sculpteo</a> also has a help section. The Mineways program tries to guide you past the major pitfalls, but it's always possible to generate something that's essentially unprintable: too weak, holes too small to clear out the dust, or some other problem. Browsing the tutorials there should help you understand what is possible. Options follow.
 <P>
+
+<a id="z_up">
+<H4>Make Z the up direction instead of Y</H4></a>
+Z up is the norm for 3D printing. Some graphics applications consider the Y direction to be "up", some Z. If your model imports sideways into your application, check (or uncheck) this box.
 
 <H4 id="opt_size">
 Model Size

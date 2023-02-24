@@ -5015,8 +5015,8 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                             swprintf_s(msgString, 2000, L"Export Statistics:\n\n%s solid blocks and %s billboard blocks converted to %s quad faces (%s triangles) with %s vertices. Simplification saved %s quads.\nBiome used: #%d - %S.\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
                                 formatWithCommas(gModel.blockCount, gCommaString1),
                                 formatWithCommas(gModel.billboardCount, gCommaString2),
-                                formatWithCommas(gModel.faceCount, gCommaString3),
-                                formatWithCommas(2 * gModel.faceCount, gCommaString4),
+                                formatWithCommas(gModel.faceCount - gModel.simplifySavings, gCommaString3),
+                                formatWithCommas(2 * (gModel.faceCount- gModel.simplifySavings), gCommaString4),
                                 formatWithCommas(gModel.vertexCount, gCommaString5),
                                 formatWithCommas(gModel.simplifySavings, gCommaString6),
                                 gBiomeSelected,
@@ -5040,8 +5040,8 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                             swprintf_s(msgString, 2000, L"Export Statistics:\n\n%s solid blocks and %s billboard blocks converted to %s quad faces (%s triangles) with %s vertices. Simplification saved %s quads.\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
                                 formatWithCommas(gModel.blockCount, gCommaString1),
                                 formatWithCommas(gModel.billboardCount, gCommaString2),
-                                formatWithCommas(gModel.faceCount, gCommaString3),
-                                formatWithCommas(2 * gModel.faceCount, gCommaString4),
+                                formatWithCommas(gModel.faceCount - gModel.simplifySavings, gCommaString3),
+                                formatWithCommas(2 * (gModel.faceCount - gModel.simplifySavings), gCommaString4),
                                 formatWithCommas(gModel.vertexCount, gCommaString5),
                                 formatWithCommas(gModel.simplifySavings, gCommaString6)
                                 );
