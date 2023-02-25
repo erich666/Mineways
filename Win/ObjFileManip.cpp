@@ -31714,7 +31714,9 @@ static bool faceCanTile(int faceId)
     int i;
 
     // Is the type forbidden, for whatever reason?
-    // TODO: could make these block property "BLF_NO_SIMPLIFY"
+    // Really, this is probably overkill. Anything made with gUsingTransform set to 1 is going to have no normal set, and so will be
+    // culled above, which is like just about all of these. But, we might as well explicitly note these, just in case. There are also
+    // likely a few where, for example, the face should be flipped when vertical and so doesn't fit the norms here.
     switch (pFace->materialType) {
     // Forbidden because they do have UV's that go 0-1 and aligned normals, but don't actually align by their coordinates
     case BLOCK_WHEAT:
