@@ -1922,6 +1922,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     //gTargetDepth = gMinHeight;
                     //gCurDepth = gMaxHeight;
 
+                    // needed for maxy
+                    GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz, gMinHeight);
                     // get screen coordinates, roughly
                     {
                         // gCurX/gCurZ is the center, so find the corners from that
@@ -1933,10 +1935,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                     // update target depth
                     gHighlightOn = TRUE;
+                    gTargetDepth = GetMinimumSelectionHeight(&gWorldGuide, &gOptions, minx, minz, maxx, maxz, gMinHeight, gMaxHeight, true, true, maxy);
                     SetHighlightState(gHighlightOn, minx, gTargetDepth, minz, maxx, gCurDepth, maxz, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_PUSH);
                     setSlider(hWnd, hwndBottomSlider, hwndBottomLabel, gTargetDepth, false);
                     enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
                     drawInvalidateUpdate(hWnd);
+                    //REDRAW_ALL;
                 }
                 break;
             case IDM_COLOR:
