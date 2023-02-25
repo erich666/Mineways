@@ -16914,7 +16914,9 @@ static int checkAndCreateFaces(int boxIndex, IPoint loc)
 
                     // note that there's a "transform", which really is just that the
                     // top of the block is different.
-                    gUsingTransform = 1;
+                    // But, if all four heights are the same, we don't have to mark this as TBD. Getting the
+                    // right normal now means we can simplify these meshes later. Also, don't have to compute a separate normal later.
+                    gUsingTransform = (heights[0] != heights[1]) || (heights[1] != heights[2]) || (heights[2] != heights[3]);
                     saveFaceLoop(boxIndex, faceDirection, heights, heightIndices, (faceDirection == 0));
                     gUsingTransform = 0;
                 }
