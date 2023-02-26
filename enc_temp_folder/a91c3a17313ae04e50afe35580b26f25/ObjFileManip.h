@@ -125,9 +125,8 @@ static const char* gCatStrSuffixes[TOTAL_CATEGORIES] = { "", "_n", "_m", "_e", "
 // the UVs appears in the range [0-16],[0-16] within the 16x16 tiles.
 #define NUM_UV_GRID_RESOLUTION	16
 // Maximum size of a simplified area. We could crank this higher, but doing so didn't gain much:
-// on a typical export, it cut 0.12% from the number of quads saved. Reducing to 16 caused 0.4% more
-// quads to be created. So 32 seems reasonable.
-#define SIMPLIFY_MAX_DIMENSION  32
+// on a typical export, it cut 0.12% from the number of quads created.
+#define SIMPLIFY_MAX_DIMENSION  16
 
 typedef struct UVRecord
 {
