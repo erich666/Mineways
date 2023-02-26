@@ -32143,33 +32143,9 @@ static void mergeSimplifySet(SimplifyFaceRecord** ppSFR, int faceCount)
             // for extending in Y, we need the current record in the lower left
             SimplifyFaceRecord* pLowerLeftSFR = pCornerSFR;
 
-            // quick out: if there's a neighbor in X but not Y, or vice versa, and there's a diagonally
-            // neighbor, then ignore this one and try to get a 2xN tile next time around.
-            SimplifyFaceRecord* pNextX = pCornerSFR->pXneighborSFR;
-            bool hasX = (pNextX != NULL && pNextX->pFace != NULL);
-            SimplifyFaceRecord* pNextY = pCornerSFR->pYneighborSFR;
-            bool hasY = (pNextY != NULL && pNextY->pFace != NULL);
-            if (!hasX && !hasY) {
-                // quick out
-                continue;
-            }
-            if (hasX != hasY) {
-                // has one neighbor, not the other. Does diagonal neighbor exist? If so,
-                // then don't search this one
-                if (hasX) {
-                    if (pNextX->pYneighborSFR != NULL && pNextX->pYneighborSFR->pFace != NULL) {
-                        // has neighbor
-                        continue;
-                    }
-                }
-                else {
-                    // hasY is true
-                    if (pNextY->pXneighborSFR != NULL && pNextY->pXneighborSFR->pFace != NULL) {
-                        // has neighbor
-                        continue;
-                    }
-                }
-            }
+            // Note: I tried some experiments, but they made things worse:
+            // 1) Skip this starting square if there's a neighbor at the corner but not neighbors on both edges. Lost 4% savings.
+            // 2) Alternate starting with X or Y based on x start location, y start location, or both added. Lost 0.17% savings.
 
             // now walk in X and Y directions, alternating, growing the rectangle
             do {
