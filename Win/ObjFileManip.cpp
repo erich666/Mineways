@@ -32203,6 +32203,18 @@ static void mergeSimplifySet(SimplifyFaceRecord** ppSFR, int faceCount)
             // So, did we find any group?
             if (xlen > 1 || ylen > 1) {
                 // We did - celebrate!
+                // One TODO idea: instead of going all the way to 32 in length if it's a 1xM or Mx1 strip, and if the next neighbor
+                // in the main direction exists (i.e., the strip could have gone further), try going only until some
+                // fixed X or Y coordinate. In this way we might stop at (essentially) a chunk boundary. When searching further,
+                // we then might find areas that could make larger MxN rectangles instead of more Mx1 rectangles.
+                // However, experimenting, there really are not that many strips like this. In a semi-ocean scene, there were 14 xlen and 518 ylen strips
+                // that were "full" like this. So, at best, if we could have instead trimmed back and merged, we'd save 532 strips. Not significant,
+                // when there are 472,000 quads getting saved normall.
+                //if (ylen == 1 && xlen == SIMPLIFY_MAX_DIMENSION && pUpperRightSFR->pXneighborSFR != NULL && pUpperRightSFR->pXneighborSFR->pFace != NULL) {
+                //}
+                //if (xlen == 1 && ylen == SIMPLIFY_MAX_DIMENSION && pLowerLeftSFR->pYneighborSFR != NULL && pLowerLeftSFR->pYneighborSFR->pFace != NULL) {
+                //}
+
                 // We now have some extent that's all the same. Make a new entry, a new type of face, for this tile type, with the proper vertex indices (nothing new there),
                 // normal direction (nothing new), and texture coordinates (probably something new - mark in UV table). Mark the old faces as
                 // no longer needing output - probably set normal index to -1 or something...

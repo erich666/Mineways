@@ -109,7 +109,7 @@ You can drag and drop many kinds of files on to Mineways to load them:
 Handy shortcut keys, for precision work:
 
 <UL>
-<li><b>[</b> and <b>]</b> changes the selected depth by one level up/down.
+<li><b>[</b> and <b>]</b> changes the selected depth by one level up/down. <b>Ctrl-mousewheel</b> does the same.
 </li><li><b>Space bar</b> selects a reasonable depth for your selection volume, based on visibility (water is considered invisible, so that the bottom of lakes will be solid). Holding shift while tapping the spacebar will treat water and glass as opaque, useful for 3D printing.
 </li><li><b>E</b>/<b>Q</b> and <b>PageUp</b>/<b>PageDn</b> and <b>+</b>/<b>-</b> zoom in/out one level. (Note the Shift key is not needed.)
 </li><li><b>Home</b> and <b>End</b> zoom all the way in and out.
@@ -278,23 +278,24 @@ For debugging startup problems, you'll normally never use this. Saves startup an
 </UL>
 
 <h1 id="shortcuts">Shortcut Keys</h1>
-All shortcut keys for Mineways.
+All shortcut keys for Mineways. Uppercase vs. lowercase does not matter.
 
 <ul>
-<li><b>[</b> and <b>]</b> changes the selected Depth slider by one level up/down.
-</li><li><b>&lt;</b> and <b>&gt;</b> (with or without holding Shift) changes the selected Height slider by one level up/down.
-</li><li><b>Space bar</b> selects a reasonable depth for your selection volume, based on visibility (water is considered invisible, so that the bottom of lakes will be solid). Holding shift while tapping the spacebar will treat water and glass as opaque, useful for 3D printing.
+<li><b>Space bar</b> selects a reasonable depth for your selection volume, based on visibility (water is considered invisible, so that the bottom of lakes will be solid). Holding shift while tapping the spacebar will treat water and glass as opaque, useful for 3D printing.
+</li><li><b>Ctrl-A</b> for worlds, selects the area visible on the screen; for schematics, selects the entire model.
+</li><li><b>[</b> and <b>]</b> changes the selected Depth slider by one level up/down. <b>Ctrl-mousewheel</b> does the same.
+</li><li><b>&lt;</b> and <b>&gt;</b> (with or without holding Shift) changes the selected Height slider by one level up/down. <b>Shift-mousewheel</b> does the same.
+</li><li><b>0</b>-<b>9</b> move the Height slider to fixed locations.
+</li><li><b>Escape</b> clears the selected area.
 </li><li><b>E</b>/<b>Q</b> and <b>PageUp</b>/<b>PageDn</b> and <b>+</b>/<b>-</b> zoom in/out one level. (Note the Shift key is not needed.)
 </li><li><b>Home</b> and <b>End</b> zoom all the way in and out.
 </li><li><b>WASD</b> and <b>the arrow keys</b> move around.
-</li><li><b>&lt;</b> and <b>&gt;</b> move the altitude slider up and down.
-</li><li><b>0</b>-<b>9</b> move the altitude slider to fixed locations.
-</li><li><b>Ctrl-O</b> opens a world file, for when the world file is in some non-standard place.
+</li><li><b>Ctrl-O</b> opens a world file, useful for when the world file is in some non-standard place.
 </li><li><b>Ctrl-R</b> saves a 3D model file for rendering, e.g., water is made transparent.
 </li><li><b>Ctrl-P</b> saves a 3D model file for 3D printing at <a href="http://www.shapeways.com/upload/">Shapeways</a>, <a href="http://sculpteo.com">Sculpteo</a>, or other 3D print service or printer.
-</li><li><b>Ctrl-X</b> saves the model again, without showing the file or export dialogs. Useful for when you are readjusting the bounds or color scheme of the model and simply want to redo your export otherwise.
+</li><li><b>Ctrl-X</b> saves the model again, without showing the file or export dialogs. Useful for when you are readjusting the bounds or color scheme of the model and simply want to redo your export.
 </li><li><b>Ctrl-Z</b> undoes the last selection change you made, to help you if you messed up. This feature will not undo height slider changes but undoes just about everything other selection modification.
-</li><li><b>F1</b> opens up the online <a href="reference.html">Mineways reference page</a> in your browser, as does the <b>?</b> key (with or without holding "Shift").
+</li><li><b>F1</b> opens up this online <a href="reference.html">Mineways reference page</a> in your browser, as does the <b>?</b> key (with or without holding "Shift").
 </li><li><b>F2</b> jumps to spawn.
 </li><li><b>F3</b> jumps to single-player player's location, if any, else spawn.
 </li><li><b>F4</b> jumps to selected area, if any.
@@ -308,8 +309,6 @@ All shortcut keys for Mineways.
 </li><li><b>H</b> hides obscured blocks. When you set a maximum altitude underground, this option discards all blocks at this altitude and lower, until an air pocket is hit. Try it with the slider set to 60 or lower, to see tunnels. On by default in the Nether.
 </li><li><b>R</b> reloads the world's map. This is useful for when you edit your world while Mineways is running, see <a href="http://www.youtube.com/watch?v=8I5K-nB86z4&t=5m3s">this tutorial</a>.
 </li><li><b>T</b> makes water fully transparent on the map. This setting does not affect export.
-</li><li><b>Escape</b> clears the selected area.
-</li><li><b>Ctrl-A</b> for worlds, selects the area visible on the screen; for schematics, selects the entire model.
 </li><li><b>Ctrl-Q</b> closes the program.
 </li></ul>
 
@@ -318,7 +317,7 @@ All shortcut keys for Mineways.
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 2/25/2023</p>	</div>
+		<br id="lastUpdate">Last updated 2/26/2023</p>	</div>
 </div>
 
 </body>
