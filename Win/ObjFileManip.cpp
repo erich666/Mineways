@@ -31717,6 +31717,8 @@ static bool faceCanTile(int faceId)
     // Really, this is probably overkill. Anything made with gUsingTransform set to 1 is going to have no normal set, and so will be
     // culled above, which is like just about all of these. But, we might as well explicitly note these, just in case. There are also
     // likely a few where, for example, the face should be flipped when vertical and so doesn't fit the norms here.
+    // Note that this check doesn't really check the block type itself, rather the "type" here is actually just for the material family
+    // or similar. For example, a beacon can have a glass material, beacon material, and obsidian base material.
     switch (pFace->materialType) {
     // Forbidden because they do have UV's that go 0-1 and aligned normals, but don't actually align by their coordinates
     case BLOCK_WHEAT:
@@ -31730,6 +31732,8 @@ static bool faceCanTile(int faceId)
     case BLOCK_BAMBOO:
     case BLOCK_BIG_DRIPLEAF:
     case BLOCK_SMALL_DRIPLEAF:
+    case BLOCK_CAULDRON:
+    case BLOCK_BEACON:
 
     // blocks can be rotated (from above) and so may not tile
     case BLOCK_POWERED_RAIL:
@@ -31884,11 +31888,9 @@ static bool faceCanTile(int faceId)
     case 13 + 54 * 16:      //logs
     case 15 + 54 * 16:      //stripped logs
     case 12 + 6 * 16:       //piston side
-    case 11 + 8 * 16:       //cauldron inner
     case 4 + 9 * 16:        //glass pane top
     case 15 + 9 * 16:       //end portal side
     case 6 + 11 * 16:       //enchanting table side
-    case 11 + 14 * 16:      //beacon
     case 5 + 15 * 16:       //daylight_detector_side
     case 9 + 15 * 16:       //hay_block_side
     case 11 + 15 * 16:      //hopper_inside
@@ -31941,7 +31943,22 @@ static bool faceCanTile(int faceId)
     default:
         break;
     }
-        
+
+    // if at this point it's a full block, then we can return true and save ourselves some UV searching.
+    // This provides a quick out, but is not so future-proof when new blocks use older textures for rendering them.
+    // In quick tests the timing seemed about the same between this quick out vs. the full UV test per face.
+    //if ((gBlockDefinitions[pFace->materialType].flags & BLF_WHOLE) &&
+    //    // beacons use obsidian, 
+    //    (pFace->materialType != BLOCK_OBSIDIAN) &&  // beacon has an obsidian base
+    //    (pFace->materialType != BLOCK_SLIME) &&     // inside of slime can be smaller
+    //    (pFace->materialType != BLOCK_HONEY) &&     // inside of honey can be smaller
+    //    (pFace->materialType != BLOCK_AMETHYST_BUD && pFace->materialDataVal != 25) // cauldron with powdered snow in it
+    //    ) {
+    //    return true;
+    //}
+
+    static int countTrue = 0;
+    static int countFalse = 0;
     // are the UVs from edge to edge, so we know it's a full face?
     for (i = 0; i < 4; i++) {
         // X texture coordinate, unscrambled, range 0-16 (divided by 16. These are the texel locations in the standard 16x16 grid)
@@ -31956,6 +31973,7 @@ static bool faceCanTile(int faceId)
             return false;
         }
     }
+
 #ifdef _DEBUG
     // Final check, just for debug to make sure we didn't let anything through: are all coordinates (not in normal direction) non-fractional, 0-1'ish? Chests, I believe, get their texture squished to their dimension.
     // Things like wheat, nether wart, etc. do not go fully across the tile, OR may get randomized and so won't line up.
