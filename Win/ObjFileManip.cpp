@@ -25377,6 +25377,21 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
     sprintf_s(outputString, 256, "\ndef Xform \"%s\"\n{\n", defaultPrim);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
+    // export extents; really should export these after rotation, too.
+    // Commented out for now, as it's not clear (to me) if the "extents" are in world space (as done here) or are meant to be transformed, too.
+    // Also, setting them doesn't do much. Not so important for non-animated scenes, I think.
+    //if (gModel.options->pEFD->chkMakeZUp[gModel.options->pEFD->fileType] == 0 && gModel.options->pEFD->radioRotate0 == 1) {
+    //    // no rotations
+    //    sprintf_s(outputString, 256, "    float3[] extent = [(%f, %f, %f), (%f, %f, %f)]\n",
+    //        (float)tightenedWorldBox->min[X] * gXformScale,
+    //        (float)tightenedWorldBox->min[Y] * gXformScale,
+    //        (float)tightenedWorldBox->min[Z] * gXformScale,
+    //        (float)tightenedWorldBox->max[X] * gXformScale,
+    //        (float)tightenedWorldBox->max[Y] * gXformScale,
+    //        (float)tightenedWorldBox->max[Z] * gXformScale );
+    //    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    //}
+
     if (gXformScale != 1.0f) {
         strcpy_s(outputString, 256, "    double3 xformOp:rotateXYZ = (0, 0, 0)\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
