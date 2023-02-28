@@ -256,7 +256,10 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_INDETERMINATE);
             }
             else {
-                CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, (epd.chkSeparateTypes || ((epd.flags & EXPT_3DPRINT) ? false : epd.chkIndividualBlocks[epd.fileType])) ? epd.chkMaterialPerFamily : BST_INDETERMINATE);
+                // if separate tiles are in use, indeterminate; else go ahead.
+                CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY,
+                    epd.radioExportTileTextures[epd.fileType] ? BST_INDETERMINATE :
+                        (epd.chkSeparateTypes || ((epd.flags & EXPT_3DPRINT) ? false : epd.chkIndividualBlocks[epd.fileType])) ? epd.chkMaterialPerFamily : BST_INDETERMINATE);
             }
             CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, (epd.chkSeparateTypes || ((epd.flags & EXPT_3DPRINT) ? false : epd.chkIndividualBlocks[epd.fileType])) ? epd.chkSplitByBlockType : BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_G3D_MATERIAL, epd.chkCustomMaterial[epd.fileType]);
@@ -567,7 +570,10 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
                 CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, ((epd.flags & EXPT_3DPRINT) || !epd.chkExportAll) ? BST_INDETERMINATE : epd.chkCompositeOverlay);
                 CheckDlgButton(hDlg, IDC_EXPORT_ALL, (epd.flags & EXPT_3DPRINT) ? BST_UNCHECKED : BST_CHECKED);
-                CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, (epd.chkSeparateTypes || ((epd.flags & EXPT_3DPRINT) ? false : epd.chkIndividualBlocks[epd.fileType])) ? epd.chkMaterialPerFamily : BST_INDETERMINATE);
+                CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ) &&
+                    (IsDlgButtonChecked(hDlg, IDC_SEPARATE_TYPES) == BST_CHECKED) || (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_CHECKED) ? epd.chkMaterialPerFamily : BST_INDETERMINATE);
+                CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ) &&
+                    (IsDlgButtonChecked(hDlg, IDC_SEPARATE_TYPES) == BST_CHECKED) || (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_CHECKED) ? epd.chkSplitByBlockType : BST_INDETERMINATE);
             }
             CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, BST_INDETERMINATE);
             goto ChangeMaterial;
@@ -593,9 +599,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                     CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, 0);
                     SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
                 }
-                // always - meaningless
-                CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_INDETERMINATE);
-                // for 3d printing, make sure compositing is on when selected
+                // for 3d printing, make sure compositing is on when selected - no; now we always show as indeterminate, since it can never be turned off
                 //CheckDlgButton(hDlg, IDC_EXPORT_ALL, (epd.flags & EXPT_3DPRINT) ? BST_UNCHECKED : BST_CHECKED);
             }
             else {
@@ -621,9 +625,12 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                     // not used in rendering, but still set it:
                     SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
                     CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_CHECKED);
-                    CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, epd.chkDecimate);
+                    // if individual blocks is on, this one's indeterminate
+                    CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_CHECKED) ? BST_INDETERMINATE : epd.chkDecimate);
                 }
             }
+            // meaningless whenever individual tiles is set
+            CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
             goto ChangeMaterial;
 
@@ -790,6 +797,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                     // now adjust sub-items. Material per type is indeterminate if multiple objects is unchecked,
                     // AND individual blocks is unchecked.
                     if (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) != BST_CHECKED) {
+                        // both separate types and individual blocks are unchecked, so these two are indeterminate (not used):
                         CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_INDETERMINATE);
                         CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, BST_INDETERMINATE);
                     }
@@ -797,8 +805,6 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 else
                 {
                     // check the box and set up state back to the default:
-                    CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_CHECKED);
-                    CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, BST_CHECKED);
                     if (epd.flags & EXPT_3DPRINT)
                     {
                         // for 3D printing we never allow individual blocks.
@@ -806,9 +812,21 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                     }
                     else
                     {
-                        // turn off individual blocks unless the user really really wants it
-                        // and turns it back on.
-                        CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, BST_UNCHECKED);
+                        // checked
+                        // turn materials and split by block type back on if indeterminate (which happens when both
+                        // individual and separate types were off).
+                        if (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_UNCHECKED) {
+                            CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_CHECKED);
+                            CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, BST_CHECKED);
+                        }
+                        else {
+                            // turn off individual blocks
+                            CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, BST_UNCHECKED);
+                            // and allow simplify again
+                            if (IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES)) {
+                                CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, epd.chkDecimate);
+                            }
+                        }
                     }
                 }
             }
@@ -822,7 +840,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             }
             break;
         case IDC_INDIVIDUAL_BLOCKS:
-            // the indeterminate state is only for when the option is not available (i.e., 3d printing)
+            // the indeterminate state is only for when the option is not available (i.e., 3d printing, simplify mesh)
             if (epd.flags & EXPT_3DPRINT) {
                 CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, BST_INDETERMINATE);
             }
@@ -832,26 +850,29 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 {
                     if (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_INDETERMINATE)
                     {
-                        // uncheck the box
                         // go from the indeterminate tristate to unchecked - indeterminate is not selectable
                         CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, BST_UNCHECKED);
                         // now adjust sub-items. Material per type is indeterminate if multiple objects is unchecked,
                         // AND individual blocks is unchecked.
                         if (IsDlgButtonChecked(hDlg, IDC_SEPARATE_TYPES) != BST_CHECKED) {
+                            // both separate types and individual blocks are unchecked, so these two are indeterminate (not used):
                             CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_INDETERMINATE);
                             CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, BST_INDETERMINATE);
                         }
                         // unchecked, so go back to whatever state we came in with for decimation
-                        CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, epd.chkDecimate);
+                        if (IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES)) {
+                            CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, epd.chkDecimate);
+                        }
                     }
                     else
                     {
-                        // checked, so the box below becomes active
+                        // checked, so the boxes below becomes active
+                        // turn separate types off - can't use both.
+                        CheckDlgButton(hDlg, IDC_SEPARATE_TYPES, BST_UNCHECKED);
+                        // these should both get turned on for this mode by default
                         CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_CHECKED);
                         CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, BST_CHECKED);
-                        // turn off multiple types unless the user really really wants it
-                        // and turns it back on.
-                        CheckDlgButton(hDlg, IDC_SEPARATE_TYPES, BST_UNCHECKED);
+                        CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, BST_INDETERMINATE);
                     }
                 }
                 else if (epd.fileType == FILE_TYPE_USD)
@@ -862,7 +883,12 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                         // go from the indeterminate tristate to unchecked - indeterminate is not selectable
                         CheckDlgButton(hDlg, IDC_INDIVIDUAL_BLOCKS, BST_UNCHECKED);
                         // unchecked, so go back to whatever state we came in with for decimation
-                        CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, epd.chkDecimate);
+                        if (IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES)) {
+                            CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, epd.chkDecimate);
+                        }
+                    }
+                    else {
+                        CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, BST_INDETERMINATE);
                     }
                 }
                 else
@@ -873,10 +899,6 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             // make sure, no matter what, that material block per family stays indeterminate when individual textures is on:
             if (IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES)) {
                 CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_INDETERMINATE);
-            }
-            // and make sure decimation is not available if the individual blocks box is checked.
-            if (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS)) {
-                CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, BST_INDETERMINATE);
             }
             break;
         case IDC_MATERIAL_PER_BLOCK_FAMILY:
@@ -1065,9 +1087,10 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
 
         case IDC_SIMPLIFY_MESH:
             // the indeterminate state is only for when the option is not available (i.e., 3d printing - where it's always on - or single texture output - where it's not)
-            if ((epd.flags & EXPT_3DPRINT) || !IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES))
+            if ((epd.flags & EXPT_3DPRINT) || !IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES) ||
+                IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_CHECKED)
             {
-                CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
+                CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, BST_INDETERMINATE);
             }
             else
             {

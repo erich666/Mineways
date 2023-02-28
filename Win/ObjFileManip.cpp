@@ -22869,261 +22869,262 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                     }
                 }
             }
+        }
 
-            // output the actual face
+        ///////////////////////////////////////
+        // Output the actual face
 
-            // if we're outputting each individual block in its own group, set a unique group name here.
-            // TODO: slightly annoying, this means the material gets output before the group for tiled textures.
-            // Doesn't matter for functionality, just looks a bit odd.
-            if ((gModel.options->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP) && (pFace->faceIndex <= 0))
-            {
-                if (mkGroupsObjs) {
-                    sprintf_s(outputString, 256, "o block_%05d\n", groupCount + 1);   // don't increment it here
-                    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                }
-                sprintf_s(outputString, 256, "g block_%05d\n", ++groupCount);
+        // if we're outputting each individual block in its own group, set a unique group name here.
+        // TODO: slightly annoying, this means the material gets output before the group for tiled textures.
+        // Doesn't matter for functionality, just looks a bit odd.
+        if ((gModel.options->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP) && (pFace->faceIndex <= 0))
+        {
+            if (mkGroupsObjs) {
+                sprintf_s(outputString, 256, "o block_%05d\n", groupCount + 1);   // don't increment it here
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             }
-
-#ifdef OUTPUT_NORMALS
-            assert(pFace->normalIndex >= 0);
-            if (absoluteIndices)
-            {
-                outputFaceDirection = pFace->normalIndex + 1;
-            }
-            else
-            {
-                outputFaceDirection = pFace->normalIndex - gModel.normalListCount;
-            }
-#endif
-
-            // first, are there texture coordinates?
-            if (gModel.exportTexture)
-            {
-#ifdef OUTPUT_NORMALS
-                // if output per tile, then we use the UV values to find the index to the new index in the grid
-                if (gModel.exportTiles) {
-                    // decode swatch coordinates into a canonical index
-                    for (j = 0; j < 4; j++) {
-                        // is it a swatch value, or a simplify extended value? [2] is always a non- [0,1] range UV index. So confusing... :)
-                        // Negative indices means "negate and use this value-1 as an X & Y indexed location"
-                        if (pFace->uvIndex[j] >= 0) {
-                            index = (int)((((int)(gModel.uvIndexList[pFace->uvIndex[j]].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale) +
-                                (NUM_UV_GRID_RESOLUTION + 1) * (int)(16 - ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale));
-                            vt[j] = gModel.uvGridList[index];
-                        }
-                        else {
-                            // super-simple: we have the index already, encoded as a negative number minus one. Just negate and subtract one from it.
-                            index = -pFace->uvIndex[j] - 1;
-                            vt[j] = gModel.simplifyUVGridList[index];
-                        }
-                    }
-                }
-                else {
-                    // else just get the UVs
-                    for (j = 0; j < 4; j++) {
-                        vt[j] = pFace->uvIndex[j] + 1;
-                    }
-                }
-
-                // with normals - not really needed by most renderers, but good to include;
-                // GLC, for example, does smoothing if normals are not present.
-                // Check if last two vertices match - if so, output a triangle instead 
-                if (pFace->vertexIndex[2] == pFace->vertexIndex[3])
-                {
-                    // triangle
-                    if (absoluteIndices)
-                    {
-                        sprintf_s(outputString, 256, "f %d/%d/%d %d/%d/%d %d/%d/%d\n",
-                            pFace->vertexIndex[0] + 1, vt[0], outputFaceDirection,
-                            pFace->vertexIndex[1] + 1, vt[1], outputFaceDirection,
-                            pFace->vertexIndex[2] + 1, vt[2], outputFaceDirection
-                        );
-                    }
-                    else
-                    {
-                        sprintf_s(outputString, 256, "f %d/%d/%d %d/%d/%d %d/%d/%d\n",
-                            pFace->vertexIndex[0] - gModel.vertexCount, vt[0] - gModel.uvIndexCount - 1, outputFaceDirection,
-                            pFace->vertexIndex[1] - gModel.vertexCount, vt[1] - gModel.uvIndexCount - 1, outputFaceDirection,
-                            pFace->vertexIndex[2] - gModel.vertexCount, vt[2] - gModel.uvIndexCount - 1, outputFaceDirection
-                        );
-                    }
-                }
-                else
-                {
-                    // Output a quad
-                    // if normal sums negative, rotate order by one so that dumb tessellators
-                    // match up the faces better, which should make matching face removal work better. I hope.
-                    int offset = 0;
-                    assert(pFace->normalIndex >= 0);
-                    int idx = pFace->normalIndex;
-                    if (gModel.normals[idx][X] + gModel.normals[idx][Y] + gModel.normals[idx][Z] < 0.0f)
-                        offset = 1;
-
-                    if (absoluteIndices)
-                    {
-                        sprintf_s(outputString, 256, "f %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d\n",
-                            pFace->vertexIndex[offset] + 1, vt[offset], outputFaceDirection,
-                            pFace->vertexIndex[offset + 1] + 1, vt[offset + 1], outputFaceDirection,
-                            pFace->vertexIndex[offset + 2] + 1, vt[offset + 2], outputFaceDirection,
-                            pFace->vertexIndex[(offset + 3) % 4] + 1, vt[(offset + 3) % 4], outputFaceDirection
-                        );
-                    }
-                    else
-                    {
-                        sprintf_s(outputString, 256, "f %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d\n",
-                            pFace->vertexIndex[offset] - gModel.vertexCount, vt[offset] - gModel.uvIndexCount - 1, outputFaceDirection,
-                            pFace->vertexIndex[offset + 1] - gModel.vertexCount, vt[offset + 1] - gModel.uvIndexCount - 1, outputFaceDirection,
-                            pFace->vertexIndex[offset + 2] - gModel.vertexCount, vt[offset + 2] - gModel.uvIndexCount - 1, outputFaceDirection,
-                            pFace->vertexIndex[(offset + 3) % 4] - gModel.vertexCount, vt[(offset + 3) % 4] - gModel.uvIndexCount - 1, outputFaceDirection
-                        );
-                    }
-                }
-#else
-                // check if last two vertices match - if so, output a triangle instead 
-                if (pFace->vertexIndex[2] == pFace->vertexIndex[3])
-                {
-                    // triangle
-                    if (absoluteIndices)
-                    {
-                        sprintf_s(outputString, 256, "f %d/%d %d/%d %d/%d\n",
-                            pFace->vertexIndex[0] + 1, vt[0],
-                            pFace->vertexIndex[1] + 1, vt[1],
-                            pFace->vertexIndex[2] + 1, vt[2]
-                        );
-                    }
-                    else
-                    {
-                        sprintf_s(outputString, 256, "f %d/%d %d/%d %d/%d\n",
-                            pFace->vertexIndex[0] - gModel.vertexCount, vt[0] - gModel.uvIndexCount - 1,
-                            pFace->vertexIndex[1] - gModel.vertexCount, vt[1] - gModel.uvIndexCount - 1,
-                            pFace->vertexIndex[2] - gModel.vertexCount, vt[2] - gModel.uvIndexCount - 1
-                        );
-                    }
-                }
-                else
-                {
-                    if (absoluteIndices)
-                    {
-                        sprintf_s(outputString, 256, "f %d/%d %d/%d %d/%d %d/%d\n",
-                            pFace->vertexIndex[0] + 1, vt[0],
-                            pFace->vertexIndex[1] + 1, vt[1],
-                            pFace->vertexIndex[2] + 1, vt[2],
-                            pFace->vertexIndex[3] + 1, vt[3]
-                        );
-                    }
-                    else
-                    {
-                        sprintf_s(outputString, 256, "f %d/%d %d/%d %d/%d %d/%d\n",
-                            pFace->vertexIndex[0] - gModel.vertexCount, vt[0] - gModel.uvIndexCount - 1,
-                            pFace->vertexIndex[1] - gModel.vertexCount, vt[1] - gModel.uvIndexCount - 1,
-                            pFace->vertexIndex[2] - gModel.vertexCount, vt[2] - gModel.uvIndexCount - 1,
-                            pFace->vertexIndex[3] - gModel.vertexCount, vt[3] - gModel.uvIndexCount - 1
-                        );
-                    }
-                }
-#endif
-            }
-            else
-            {
-#ifdef OUTPUT_NORMALS
-                // check if last two vertices match - if so, output a triangle instead 
-                if (pFace->vertexIndex[2] == pFace->vertexIndex[3])
-                {
-                    // triangle
-                    if (absoluteIndices)
-                    {
-                        sprintf_s(outputString, 256, "f %d//%d %d//%d %d//%d\n",
-                            pFace->vertexIndex[0] + 1, outputFaceDirection,
-                            pFace->vertexIndex[1] + 1, outputFaceDirection,
-                            pFace->vertexIndex[2] + 1, outputFaceDirection
-                        );
-                    }
-                    else
-                    {
-                        sprintf_s(outputString, 256, "f %d//%d %d//%d %d//%d\n",
-                            pFace->vertexIndex[0] - gModel.vertexCount, outputFaceDirection,
-                            pFace->vertexIndex[1] - gModel.vertexCount, outputFaceDirection,
-                            pFace->vertexIndex[2] - gModel.vertexCount, outputFaceDirection
-                        );
-                    }
-                }
-                else
-                {
-                    // Output a quad
-                    // if normal sums negative, rotate order by one so that dumb tessellators
-                    // match up the faces better, which should make matching face removal work better. I hope.
-                    int offset = 0;
-                    assert(pFace->normalIndex >= 0);
-                    int idx = pFace->normalIndex;
-                    if (gModel.normals[idx][X] + gModel.normals[idx][Y] + gModel.normals[idx][Z] < 0.0f)
-                        offset = 1;
-                    if (absoluteIndices)
-                    {
-                        sprintf_s(outputString, 256, "f %d//%d %d//%d %d//%d %d//%d\n",
-                            pFace->vertexIndex[offset] + 1, outputFaceDirection,
-                            pFace->vertexIndex[offset + 1] + 1, outputFaceDirection,
-                            pFace->vertexIndex[offset + 2] + 1, outputFaceDirection,
-                            pFace->vertexIndex[(offset + 3) % 4] + 1, outputFaceDirection
-                        );
-                    }
-                    else
-                    {
-                        sprintf_s(outputString, 256, "f %d//%d %d//%d %d//%d %d//%d\n",
-                            pFace->vertexIndex[offset] - gModel.vertexCount, outputFaceDirection,
-                            pFace->vertexIndex[offset + 1] - gModel.vertexCount, outputFaceDirection,
-                            pFace->vertexIndex[offset + 2] - gModel.vertexCount, outputFaceDirection,
-                            pFace->vertexIndex[(offset + 3) % 4] - gModel.vertexCount, outputFaceDirection
-                        );
-                    }
-                }
-#else
-                // check if last two vertices match - if so, output a triangle instead 
-                if (pFace->vertexIndex[2] == pFace->vertexIndex[3])
-                {
-                    // triangle
-                    if (absoluteIndices)
-                    {
-                        sprintf_s(outputString, 256, "f %d %d %d\n",
-                            pFace->vertexIndex[0] + 1,
-                            pFace->vertexIndex[1] + 1,
-                            pFace->vertexIndex[2] + 1
-                        );
-                    }
-                    else
-                    {
-                        sprintf_s(outputString, 256, "f %d %d %d\n",
-                            pFace->vertexIndex[0] - gModel.vertexCount,
-                            pFace->vertexIndex[1] - gModel.vertexCount,
-                            pFace->vertexIndex[2] - gModel.vertexCount
-                        );
-                    }
-                }
-                else
-                {
-                    if (absoluteIndices)
-                    {
-                        sprintf_s(outputString, 256, "f %d %d %d %d\n",
-                            pFace->vertexIndex[0] + 1,
-                            pFace->vertexIndex[1] + 1,
-                            pFace->vertexIndex[2] + 1,
-                            pFace->vertexIndex[3] + 1
-                        );
-                    }
-                    else
-                    {
-                        sprintf_s(outputString, 256, "f %d %d %d %d\n",
-                            pFace->vertexIndex[0] - gModel.vertexCount,
-                            pFace->vertexIndex[1] - gModel.vertexCount,
-                            pFace->vertexIndex[2] - gModel.vertexCount,
-                            pFace->vertexIndex[3] - gModel.vertexCount
-                        );
-                    }
-                }
-#endif
-            }
+            sprintf_s(outputString, 256, "g block_%05d\n", ++groupCount);
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
         }
+
+#ifdef OUTPUT_NORMALS
+        assert(pFace->normalIndex >= 0);
+        if (absoluteIndices)
+        {
+            outputFaceDirection = pFace->normalIndex + 1;
+        }
+        else
+        {
+            outputFaceDirection = pFace->normalIndex - gModel.normalListCount;
+        }
+#endif
+
+        // First, are there texture coordinates?
+        if (gModel.exportTexture)
+        {
+#ifdef OUTPUT_NORMALS
+            // if output per tile, then we use the UV values to find the index to the new index in the grid
+            if (gModel.exportTiles) {
+                // decode swatch coordinates into a canonical index
+                for (j = 0; j < 4; j++) {
+                    // is it a swatch value, or a simplify extended value? [2] is always a non- [0,1] range UV index. So confusing... :)
+                    // Negative indices means "negate and use this value-1 as an X & Y indexed location"
+                    if (pFace->uvIndex[j] >= 0) {
+                        index = (int)((((int)(gModel.uvIndexList[pFace->uvIndex[j]].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale) +
+                            (NUM_UV_GRID_RESOLUTION + 1) * (int)(16 - ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale));
+                        vt[j] = gModel.uvGridList[index];
+                    }
+                    else {
+                        // super-simple: we have the index already, encoded as a negative number minus one. Just negate and subtract one from it.
+                        index = -pFace->uvIndex[j] - 1;
+                        vt[j] = gModel.simplifyUVGridList[index];
+                    }
+                }
+            }
+            else {
+                // else just get the UVs
+                for (j = 0; j < 4; j++) {
+                    vt[j] = pFace->uvIndex[j] + 1;
+                }
+            }
+
+            // with normals - not really needed by most renderers, but good to include;
+            // GLC, for example, does smoothing if normals are not present.
+            // Check if last two vertices match - if so, output a triangle instead 
+            if (pFace->vertexIndex[2] == pFace->vertexIndex[3])
+            {
+                // triangle
+                if (absoluteIndices)
+                {
+                    sprintf_s(outputString, 256, "f %d/%d/%d %d/%d/%d %d/%d/%d\n",
+                        pFace->vertexIndex[0] + 1, vt[0], outputFaceDirection,
+                        pFace->vertexIndex[1] + 1, vt[1], outputFaceDirection,
+                        pFace->vertexIndex[2] + 1, vt[2], outputFaceDirection
+                    );
+                }
+                else
+                {
+                    sprintf_s(outputString, 256, "f %d/%d/%d %d/%d/%d %d/%d/%d\n",
+                        pFace->vertexIndex[0] - gModel.vertexCount, vt[0] - gModel.uvIndexCount - 1, outputFaceDirection,
+                        pFace->vertexIndex[1] - gModel.vertexCount, vt[1] - gModel.uvIndexCount - 1, outputFaceDirection,
+                        pFace->vertexIndex[2] - gModel.vertexCount, vt[2] - gModel.uvIndexCount - 1, outputFaceDirection
+                    );
+                }
+            }
+            else
+            {
+                // Output a quad
+                // if normal sums negative, rotate order by one so that dumb tessellators
+                // match up the faces better, which should make matching face removal work better. I hope.
+                int offset = 0;
+                assert(pFace->normalIndex >= 0);
+                int idx = pFace->normalIndex;
+                if (gModel.normals[idx][X] + gModel.normals[idx][Y] + gModel.normals[idx][Z] < 0.0f)
+                    offset = 1;
+
+                if (absoluteIndices)
+                {
+                    sprintf_s(outputString, 256, "f %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d\n",
+                        pFace->vertexIndex[offset] + 1, vt[offset], outputFaceDirection,
+                        pFace->vertexIndex[offset + 1] + 1, vt[offset + 1], outputFaceDirection,
+                        pFace->vertexIndex[offset + 2] + 1, vt[offset + 2], outputFaceDirection,
+                        pFace->vertexIndex[(offset + 3) % 4] + 1, vt[(offset + 3) % 4], outputFaceDirection
+                    );
+                }
+                else
+                {
+                    sprintf_s(outputString, 256, "f %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d\n",
+                        pFace->vertexIndex[offset] - gModel.vertexCount, vt[offset] - gModel.uvIndexCount - 1, outputFaceDirection,
+                        pFace->vertexIndex[offset + 1] - gModel.vertexCount, vt[offset + 1] - gModel.uvIndexCount - 1, outputFaceDirection,
+                        pFace->vertexIndex[offset + 2] - gModel.vertexCount, vt[offset + 2] - gModel.uvIndexCount - 1, outputFaceDirection,
+                        pFace->vertexIndex[(offset + 3) % 4] - gModel.vertexCount, vt[(offset + 3) % 4] - gModel.uvIndexCount - 1, outputFaceDirection
+                    );
+                }
+            }
+#else
+            // check if last two vertices match - if so, output a triangle instead 
+            if (pFace->vertexIndex[2] == pFace->vertexIndex[3])
+            {
+                // triangle
+                if (absoluteIndices)
+                {
+                    sprintf_s(outputString, 256, "f %d/%d %d/%d %d/%d\n",
+                        pFace->vertexIndex[0] + 1, vt[0],
+                        pFace->vertexIndex[1] + 1, vt[1],
+                        pFace->vertexIndex[2] + 1, vt[2]
+                    );
+                }
+                else
+                {
+                    sprintf_s(outputString, 256, "f %d/%d %d/%d %d/%d\n",
+                        pFace->vertexIndex[0] - gModel.vertexCount, vt[0] - gModel.uvIndexCount - 1,
+                        pFace->vertexIndex[1] - gModel.vertexCount, vt[1] - gModel.uvIndexCount - 1,
+                        pFace->vertexIndex[2] - gModel.vertexCount, vt[2] - gModel.uvIndexCount - 1
+                    );
+                }
+            }
+            else
+            {
+                if (absoluteIndices)
+                {
+                    sprintf_s(outputString, 256, "f %d/%d %d/%d %d/%d %d/%d\n",
+                        pFace->vertexIndex[0] + 1, vt[0],
+                        pFace->vertexIndex[1] + 1, vt[1],
+                        pFace->vertexIndex[2] + 1, vt[2],
+                        pFace->vertexIndex[3] + 1, vt[3]
+                    );
+                }
+                else
+                {
+                    sprintf_s(outputString, 256, "f %d/%d %d/%d %d/%d %d/%d\n",
+                        pFace->vertexIndex[0] - gModel.vertexCount, vt[0] - gModel.uvIndexCount - 1,
+                        pFace->vertexIndex[1] - gModel.vertexCount, vt[1] - gModel.uvIndexCount - 1,
+                        pFace->vertexIndex[2] - gModel.vertexCount, vt[2] - gModel.uvIndexCount - 1,
+                        pFace->vertexIndex[3] - gModel.vertexCount, vt[3] - gModel.uvIndexCount - 1
+                    );
+                }
+            }
+#endif
+        }
+        else
+        {
+#ifdef OUTPUT_NORMALS
+            // check if last two vertices match - if so, output a triangle instead 
+            if (pFace->vertexIndex[2] == pFace->vertexIndex[3])
+            {
+                // triangle
+                if (absoluteIndices)
+                {
+                    sprintf_s(outputString, 256, "f %d//%d %d//%d %d//%d\n",
+                        pFace->vertexIndex[0] + 1, outputFaceDirection,
+                        pFace->vertexIndex[1] + 1, outputFaceDirection,
+                        pFace->vertexIndex[2] + 1, outputFaceDirection
+                    );
+                }
+                else
+                {
+                    sprintf_s(outputString, 256, "f %d//%d %d//%d %d//%d\n",
+                        pFace->vertexIndex[0] - gModel.vertexCount, outputFaceDirection,
+                        pFace->vertexIndex[1] - gModel.vertexCount, outputFaceDirection,
+                        pFace->vertexIndex[2] - gModel.vertexCount, outputFaceDirection
+                    );
+                }
+            }
+            else
+            {
+                // Output a quad
+                // if normal sums negative, rotate order by one so that dumb tessellators
+                // match up the faces better, which should make matching face removal work better. I hope.
+                int offset = 0;
+                assert(pFace->normalIndex >= 0);
+                int idx = pFace->normalIndex;
+                if (gModel.normals[idx][X] + gModel.normals[idx][Y] + gModel.normals[idx][Z] < 0.0f)
+                    offset = 1;
+                if (absoluteIndices)
+                {
+                    sprintf_s(outputString, 256, "f %d//%d %d//%d %d//%d %d//%d\n",
+                        pFace->vertexIndex[offset] + 1, outputFaceDirection,
+                        pFace->vertexIndex[offset + 1] + 1, outputFaceDirection,
+                        pFace->vertexIndex[offset + 2] + 1, outputFaceDirection,
+                        pFace->vertexIndex[(offset + 3) % 4] + 1, outputFaceDirection
+                    );
+                }
+                else
+                {
+                    sprintf_s(outputString, 256, "f %d//%d %d//%d %d//%d %d//%d\n",
+                        pFace->vertexIndex[offset] - gModel.vertexCount, outputFaceDirection,
+                        pFace->vertexIndex[offset + 1] - gModel.vertexCount, outputFaceDirection,
+                        pFace->vertexIndex[offset + 2] - gModel.vertexCount, outputFaceDirection,
+                        pFace->vertexIndex[(offset + 3) % 4] - gModel.vertexCount, outputFaceDirection
+                    );
+                }
+            }
+#else
+            // check if last two vertices match - if so, output a triangle instead 
+            if (pFace->vertexIndex[2] == pFace->vertexIndex[3])
+            {
+                // triangle
+                if (absoluteIndices)
+                {
+                    sprintf_s(outputString, 256, "f %d %d %d\n",
+                        pFace->vertexIndex[0] + 1,
+                        pFace->vertexIndex[1] + 1,
+                        pFace->vertexIndex[2] + 1
+                    );
+                }
+                else
+                {
+                    sprintf_s(outputString, 256, "f %d %d %d\n",
+                        pFace->vertexIndex[0] - gModel.vertexCount,
+                        pFace->vertexIndex[1] - gModel.vertexCount,
+                        pFace->vertexIndex[2] - gModel.vertexCount
+                    );
+                }
+            }
+            else
+            {
+                if (absoluteIndices)
+                {
+                    sprintf_s(outputString, 256, "f %d %d %d %d\n",
+                        pFace->vertexIndex[0] + 1,
+                        pFace->vertexIndex[1] + 1,
+                        pFace->vertexIndex[2] + 1,
+                        pFace->vertexIndex[3] + 1
+                    );
+                }
+                else
+                {
+                    sprintf_s(outputString, 256, "f %d %d %d %d\n",
+                        pFace->vertexIndex[0] - gModel.vertexCount,
+                        pFace->vertexIndex[1] - gModel.vertexCount,
+                        pFace->vertexIndex[2] - gModel.vertexCount,
+                        pFace->vertexIndex[3] - gModel.vertexCount
+                    );
+                }
+            }
+#endif
+        }
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     }
 
 Exit:
