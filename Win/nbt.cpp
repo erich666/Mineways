@@ -3200,12 +3200,15 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 }
                 else {
                     // unknown type
-                    //  THIS IS WHERE TO PUT A DEBUG BREAK TO SEE WHAT NAME IS UNKNOWN: see thisBlockName
+                    //  THIS IS WHERE TO PUT A DEBUG BREAK TO SEE WHAT NAME IS UNKNOWN: see thisBlockName.
+                    // TODO: could add a more complex system here to convert from various unknown block names to other IDs.
+                    // Test if we care about knowing which block name is unknown.
                     if (unknownBlock) {
-                        // return unknown block's name to output
+                        // return unknown block's name to output; really, should return all block names, just add to the string until it's full,
+                        // if the name is not already in the list. Handy for people trying to make block conversions. Make string a lot longer.
                         strcpy_s(unknownBlock, 100, thisBlockName + 10);
                     }
-                    // Make unknown blocks air (0) by default
+                    // Make unknown blocks air (0) by default, or whatever the user has set with the script command "Set unknown block ID".
                     paletteBlockEntry[entryIndex] = (unsigned char)(unknownBlockID & 0xff);
 
                     // data value high bit set if needed
