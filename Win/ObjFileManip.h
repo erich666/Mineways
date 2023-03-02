@@ -173,6 +173,8 @@ typedef struct SimplifyFaceRecord {
     // TODO: we could cut way down on this data below and derive it on the fly each sort compare, but that sounds super-slow...
     int normalDirection;
     float normalDistance;
+    // Note: these could likely be shorts (have to be a little careful of the range, as some worlds are huge), but in a test
+    // of Block Test World I found it saved all of a megabyte to do so. Might be slightly faster with shorts, but leave it be.
     float xll;
     float yll;
     SimplifyFaceRecord* pXneighborSFR;
