@@ -31976,15 +31976,18 @@ static bool faceCanTile(int faceId)
     static int countTrue = 0;
     static int countFalse = 0;
     // are the UVs from edge to edge, so we know it's a full face?
-    for (i = 0; i < 4; i++) {
+    // Loop cleverness. We could go 0 through 3, to be safe, but we know that almost all (except triangles for sloped rails for 3d printing) quads in Mineways
+    // are rectangular. So, we can test just the opposite corners, i += 2, to make sure they have UVs that are 0.0 or 1.0 (which is 0 or 16 in the normalized set here).
+    for (i = 0; i < 4; i+=2) {
         // X texture coordinate, unscrambled, range 0-16 (divided by 16. These are the texel locations in the standard 16x16 grid)
         int itc = (int)((((int)(gModel.uvIndexList[pFace->uvIndex[i]].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale);
         if (itc != 0 && itc != 16) {
             return false;
         }
+        // Y texture coordinate
         // full, true unscramble - not needed: itc = ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale));
         //itc = (int)(16 - ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale));
-        itc =   (int)      ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[i]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale);
+        itc = (int)((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[i]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale);
         if (itc != 0 && itc != 16) {
             return false;
         }
