@@ -14,7 +14,7 @@ ChannelMixer.exe -i jg-rtx-main/bedrock -o blocks -v > bedrock.log
 
 ChannelMixer.exe -i jg-rtx-main/mineways -o blocks -v > mineways.log
 
-@rem echo Remove lava_still_e.png and lava_flow_e.png, I think, as they're too dim
+@rem echo Remove lava_still_e.png and lava_flow_e.png, as they're too dim. The color texture will get used instead.
 del blocks\lava_still_e.png
 del blocks\lava_flow_e.png
 del blocks\lava_still_r.png

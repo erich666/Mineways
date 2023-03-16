@@ -23483,13 +23483,13 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
     // If exporting tiles, check if normals texture is available
     if (gModel.exportTiles && gModel.customMaterial && (textureRoot != NULL)) {
         for (int i = 1; i < gTotalInputTextures; i++) {
-            // if texture exists and swatch is not black, is needed, then use it and note it.
+            // if texture exists and swatch is not all black (so, is needed), then use it and note it.
             // In theory we could check just the first pixel for a normal map, but there might be cutouts,
             // and who knows how those are handled in the normal map.
             //if (gModel.pInputTerrainImage[i] && !isTileBlack(i, swatchLoc, i != CATEGORY_NORMALS)) {
             if (gModel.pInputTerrainImage[i] && !isTileValue(i, swatchLoc, true, (i != CATEGORY_ROUGHNESS) ? 0 : 255)) {
                 gModel.tileList[i][swatchLoc] = true;  // means has a texture
-                // a bit lazy: normals have alternate names, so we go through twice to get both names
+                // a bit lazy: normals and specular have alternate names, so we go through twice to get both names
                 for (int alt = 0; alt < 2; alt++) {
                     // This line could be done once, actually, and reused. Slightly inefficient as done here.
                     formCategoryFileName(pbrFile, (i == CATEGORY_ROUGHNESS) ? CATEGORY_SPECULAR : i, textureRoot);

@@ -725,10 +725,12 @@ Checking this box causes a more elaborate illumination model to be output for OB
 <P>
 If you are using a <a href="textures.html">physically based terrain set</a>, the custom material will also include additional channels of information, such as textures for normal maps, shininess power, metallic, and emission textures. These attempt to follow <a href="http://exocortex.com/blog/extending_wavefront_mtl_to_support_pbr">this proposed specification</a>, also documented <a href="https://en.wikipedia.org/wiki/Wavefront_.obj_file#Physically-based_Rendering">here</a>. An example:
 <UL>
-<LI>map_Kn textures_jgrtx/nether_portal_n.png - the RGB normals map (<I>not</I> a heightmap, so "bump" or "norm" is not used)
-<LI>map_Pm textures_jgrtx/nether_portal_m.png - the grayscale metallic texture
-<LI>map_Ke textures_jgrtx/nether_portal_e.png - the grayscale emissive intensity texture
-<LI>map_Ns textures_jgrtx/nether_portal_s.png - the grayscale specular power texture, 0-255
+<LI>map_Kn block_world_tex/redstone_torch_n.png - the RGB normals map (<I>not</I> a heightmap, so "bump" or "norm" is not used)
+<LI>norm block_world_tex/redstone_torch_n.png - an alternate way to attach the normals texture
+<LI>map_Pm block_world_tex/redstone_torch_m.png - the grayscale metallic texture
+<LI>map_Ke block_world_tex/redstone_torch_e.png - color texture for the illuminant parts of the model
+<LI>map_ns block_world_tex/redstone_torch_s.png - the grayscale specular power texture, 0-255
+<LI>map_Ns block_world_tex/redstone_torch_s.png - an alternate way to attach the specular power texture
 </UL>
 If you want to use the custom material description for OBJ export but do not want these additional textures to be output, simply delete or rename the images in the set that you want to remove. For example, with the terrainExt_JGRTX64*.png set of terrain files, removing terrainExt_JGRTX64_e.png means no grayscale intensity emissive textures will be output. You may also find that the corresponding color texture is a better choice for the emissive texture in particular, if supported - this is true for the G3D viewer. Currently Mineways has no switch to use these colored textures instead. However, you can edit the MTL file produced and simply search for "_e.png" and replace with ".png" to point to the colored textures instead.
 
