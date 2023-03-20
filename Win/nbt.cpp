@@ -1362,6 +1362,8 @@ void makeHashTable()
     int i;
     // If we really wanted to super-optimize, we could take the "air" entry out of the hash table,
     // since we special-case that in findIndexFromName. Let's not...
+    // BTW, the hash table built has a maximum of 5 entries in the hashPerIndex table generated, from
+    // watching it (code's not here, not needed normally). This isn't too bad, I think.
     for (i = 0; i < NUM_TRANS; i++) {
         BlockTranslations[i].hashSum = computeHash(BlockTranslations[i].name);
         hashPerIndex[BlockTranslations[i].hashSum & HASH_MASK]++;
