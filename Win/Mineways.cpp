@@ -2601,6 +2601,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     splitToPathAndName(gSelectTerrainPathAndName, gSelectTerrainDir, NULL);
                     formTitle(&gWorldGuide, hWnd);
                 }
+                else {
+                    FilterMessageBox(NULL, _T("Mineways does not understand the type of the file you just dropped. You can drag and drop Mineways exported OBJ, USDA, and WRL files, the TXT files for Mineways STL exports, DAT world and old-school SCHEMATIC files, TerrainExt* PNG texture files, and MWSCRIPT scripting files."),
+                        _T("Read error"), MB_OK | MB_ICONWARNING);
+                }
             }
         }
         ExitDropfiles:

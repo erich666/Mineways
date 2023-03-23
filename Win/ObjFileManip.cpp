@@ -135,6 +135,8 @@ typedef struct FillAlpha {
     (c) = (s) % gModel.swatchesPerRow; \
     (r) = (s) / gModel.swatchesPerRow; \
 
+#define EXPORT_TEXTURE (gModel.options->pEFD->chkTextureRGBA || gModel.options->pEFD->chkTextureRGB || gModel.options->pEFD->chkTextureA)
+
 static int gSolidGroups = UNINITIALIZED_INT;
 static int gAirGroups = UNINITIALIZED_INT;
 
@@ -1079,7 +1081,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
                     goto Exit;
                 }
                 else {
-                    // try next image
+                    // some PBR texture does not exist (normal sort of case); try next image
                     continue;
                 }
             }
@@ -1182,7 +1184,9 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         gModel.textureUVPerTile = (float)gModel.tileSize / (float)gModel.textureResolution; // e.g. 16 / 256
         gModel.swatchListSize = gModel.swatchesPerRow * gModel.swatchesPerRow;
 
-        retCode |= createBaseMaterialTexture();
+        if (EXPORT_TEXTURE) {
+            retCode |= createBaseMaterialTexture();
+        }
     }
 
     // were there errors?
@@ -1460,194 +1464,199 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
     // this swatch manipulation takes little time, < ms, as it's all in memory, no disk
     if (gModel.pPNGtexture != NULL)
     {
+        int rc = 0;
+
         int col, row;
-        // For 3D printing detailed blocks, we specify the textures where we want to composite over something special, like black or stone.
-        // Otherwise, all alphas are set to the average color of the tile, to avoid bleeding black along the edges.
-        // if we're rendering all blocks, don't fill in cauldrons, beds, etc. as we want these cutouts for rendering; else use offset:
+
+        // Do this manipulation only if we're going to output any texture
+        if (EXPORT_TEXTURE) {
+
+            // For 3D printing detailed blocks, we specify the textures where we want to composite over something special, like black or stone.
+            // Otherwise, all alphas are set to the average color of the tile, to avoid bleeding black along the edges.
+            // if we're rendering all blocks, don't fill in cauldrons, beds, etc. as we want these cutouts for rendering; else use offset:
 #define FA_TABLE__RENDER_BLOCK_START 7
 #define FA_TABLE__VIEW_SIZE (1+FA_TABLE__RENDER_BLOCK_START)
 #define FA_TABLE_SIZE 61
-        static FillAlpha faTable[FA_TABLE_SIZE] =
-        {
-            // Stuff filled only if lesser (i.e. all blocks) is off for rendering, so that the cauldron is rendered as a solid block.
-            // Negative values for the underlay means "use this block's solid color", whatever it is.
-            // Incredible laziness: we use TRIPWIRE to mean black, since that's its "color". We can't use AIR because AIR is the same
-            // value as SWATCH_INDEX(0,0), which is grass.
-            { SWATCH_INDEX(10, 9), -BLOCK_TRIPWIRE }, // cauldron side
-            { SWATCH_INDEX(11, 9), -BLOCK_TRIPWIRE }, // cauldron bottom
-
-            { SWATCH_INDEX(5, 9), -BLOCK_TRIPWIRE }, // bed
-            { SWATCH_INDEX(6, 9), -BLOCK_TRIPWIRE }, // bed
-            { SWATCH_INDEX(7, 9), -BLOCK_TRIPWIRE }, // bed
-            { SWATCH_INDEX(8, 9), -BLOCK_TRIPWIRE }, // bed
-
-            { SWATCH_INDEX(6, 4), -BLOCK_CACTUS }, // cactus
-
-            // count is FA_TABLE__RENDER_BLOCK_START up to this point
-
-            /////////////////////////////////// always do:
-            // stuff that is put in always, fringes that need to be filled
-            { SWATCH_INDEX(10, 11), -BLOCK_FLOWER_POT }, // flower pot
-
-            // count is FA_TABLE__VIEW_SIZE up to this point
-
-            // stuff filled in for 3D printing only
-            { SWATCH_INDEX(11, 0), SWATCH_INDEX(6, 3) }, // spiderweb over stone block
-            { SWATCH_INDEX(12, 0), SWATCH_INDEX(0, 0) }, // red flower over grass
-            { SWATCH_INDEX(13, 0), SWATCH_INDEX(0, 0) }, // yellow flower over grass
-            { SWATCH_INDEX(15, 0), SWATCH_INDEX(0, 0) }, // sapling over grass
-            { SWATCH_INDEX(12, 1), SWATCH_INDEX(0, 0) }, // red mushroom over grass
-            { SWATCH_INDEX(13, 1), SWATCH_INDEX(0, 0) }, // brown mushroom over grass
-            { SWATCH_INDEX(1, 3), -BLOCK_GLASS }, // glass over glass color
-            { SWATCH_INDEX(4, 3), -BLOCK_TRIPWIRE }, // transparent leaves over air (black) - doesn't really matter, not used when printing anyway
-            { SWATCH_INDEX(7, 3), SWATCH_INDEX(2, 1) }, // dead bush over grass
-            { SWATCH_INDEX(8, 3), SWATCH_INDEX(0, 0) }, // sapling over grass
-            { SWATCH_INDEX(1, 4), SWATCH_INDEX(1, 0) }, // spawner over stone
-            { SWATCH_INDEX(9, 4), SWATCH_INDEX(0, 0) }, // reeds over grass
-            { SWATCH_INDEX(15, 4), SWATCH_INDEX(0, 0) }, // sapling over grass
-            { SWATCH_INDEX(14, 1), SWATCH_INDEX(0, 0) }, // jungle sapling over grass
-            { SWATCH_INDEX(1, 5), SWATCH_INDEX(10, 23) }, // wooden door top over slab top - was over 6, 0
-            { SWATCH_INDEX(2, 5), SWATCH_INDEX(10, 23) }, // door top over slab top - was over 6, 0
-            { SWATCH_INDEX(5, 5), SWATCH_INDEX(6, 3) }, // iron bars over stone block
-            { SWATCH_INDEX(8, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
-            { SWATCH_INDEX(9, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
-            { SWATCH_INDEX(10, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
-            { SWATCH_INDEX(11, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
-            { SWATCH_INDEX(12, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
-            { SWATCH_INDEX(13, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
-            { SWATCH_INDEX(14, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
-            { SWATCH_INDEX(15, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
-            { SWATCH_INDEX(0, 6), SWATCH_INDEX(1, 0) }, // lever over stone
-            { SWATCH_INDEX(15, 6), SWATCH_INDEX(6, 5) }, // melon stem over farmland
-            { SWATCH_INDEX(15, 7), SWATCH_INDEX(6, 5) }, // mature stem over farmland
-            { SWATCH_INDEX(4, 8), -BLOCK_TRIPWIRE }, // leaves over air (black) - doesn't really matter, not used
-            { SWATCH_INDEX(10, 8), -BLOCK_TRIPWIRE }, // cauldron over air (black)
-            { SWATCH_INDEX(4, 9), -BLOCK_GLASS }, // glass pane over glass color (more interesting than stone, and lets you choose)
-            { SWATCH_INDEX(13, 9), SWATCH_INDEX(1, 0) }, // brewing stand over stone
-            { SWATCH_INDEX(14,11), SWATCH_INDEX(6, 5) }, // pumpkin stem over farmland
-            { SWATCH_INDEX(15,11), SWATCH_INDEX(6, 5) }, // mature stem over farmland
-            { SWATCH_INDEX(4,12), -BLOCK_TRIPWIRE }, // jungle leaves over air (black) - doesn't really matter, not used
-            { SWATCH_INDEX(2,14), SWATCH_INDEX(8, 6) }, // nether wart over soul sand
-            { SWATCH_INDEX(3,14), SWATCH_INDEX(8, 6) }, // nether wart over soul sand
-            { SWATCH_INDEX(4,14), SWATCH_INDEX(8, 6) }, // nether wart over soul sand
-            { SWATCH_INDEX(11,14), -BLOCK_WOOL }, // beacon over white color - TODO!!! change to 9,2 once we're using terrain properly
-            { SWATCH_INDEX(8,10), -BLOCK_COCOA_PLANT }, // cocoa, so preview looks semi-OK
-            { SWATCH_INDEX(9,10), -BLOCK_COCOA_PLANT }, // cocoa, so preview looks OK
-            { SWATCH_INDEX(10,10), -BLOCK_COCOA_PLANT }, // cocoa, so preview looks OK
-            { SWATCH_INDEX(8,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
-            { SWATCH_INDEX(9,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
-            { SWATCH_INDEX(10,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
-            { SWATCH_INDEX(11,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
-            { SWATCH_INDEX(12,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
-            { SWATCH_INDEX(13,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
-            { SWATCH_INDEX(14,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
-            { SWATCH_INDEX(15,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
-            { SWATCH_INDEX(15, 1), -BLOCK_TRIPWIRE }, // fire over air (black)
-            { SWATCH_INDEX(7, 56), -BLOCK_TRIPWIRE }, // sculk shrieker top over air (black)
-            { SWATCH_INDEX(8, 56), -BLOCK_TRIPWIRE }, // sculk shrieker side over air (black)
-            // TODO: really, should add all the other cutouts that get flattened since then, but cross fingers that we don't run out of composite swatch room
-        };
-
-        int rc;
-
-        // do only if true textures used
-        if (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES)
-        {
-            int i;
-            int faTableCount;
-
-            // fill in all alphas that 3D export wants filled
-            // For printing we also then composite over other backgrounds as the defaults.
-            faTableCount = gModel.print3D ? FA_TABLE_SIZE : FA_TABLE__VIEW_SIZE;
-            // start at solid rendering vs. leave it transparent for true cutaway rendering;
-            // that is, go from 0 if printing or if we're rendering & not exporting true geometry (lesser)
-            for (i = (gModel.print3D || !gModel.options->pEFD->chkExportAll) ? 0 : FA_TABLE__RENDER_BLOCK_START; i < faTableCount; i++)
+            static FillAlpha faTable[FA_TABLE_SIZE] =
             {
-                // passing in a negative swatch location means "use the absolute value as the index into the color of the block".
-                // See faTable explanation above.
-                if (faTable[i].underlay >= 0)
+                // Stuff filled only if lesser (i.e. all blocks) is off for rendering, so that the cauldron is rendered as a solid block.
+                // Negative values for the underlay means "use this block's solid color", whatever it is.
+                // Incredible laziness: we use TRIPWIRE to mean black, since that's its "color". We can't use AIR because AIR is the same
+                // value as SWATCH_INDEX(0,0), which is grass.
+                { SWATCH_INDEX(10, 9), -BLOCK_TRIPWIRE }, // cauldron side
+                { SWATCH_INDEX(11, 9), -BLOCK_TRIPWIRE }, // cauldron bottom
+
+                { SWATCH_INDEX(5, 9), -BLOCK_TRIPWIRE }, // bed
+                { SWATCH_INDEX(6, 9), -BLOCK_TRIPWIRE }, // bed
+                { SWATCH_INDEX(7, 9), -BLOCK_TRIPWIRE }, // bed
+                { SWATCH_INDEX(8, 9), -BLOCK_TRIPWIRE }, // bed
+
+                { SWATCH_INDEX(6, 4), -BLOCK_CACTUS }, // cactus
+
+                // count is FA_TABLE__RENDER_BLOCK_START up to this point
+
+                /////////////////////////////////// always do:
+                // stuff that is put in always, fringes that need to be filled
+                { SWATCH_INDEX(10, 11), -BLOCK_FLOWER_POT }, // flower pot
+
+                // count is FA_TABLE__VIEW_SIZE up to this point
+
+                // stuff filled in for 3D printing only
+                { SWATCH_INDEX(11, 0), SWATCH_INDEX(6, 3) }, // spiderweb over stone block
+                { SWATCH_INDEX(12, 0), SWATCH_INDEX(0, 0) }, // red flower over grass
+                { SWATCH_INDEX(13, 0), SWATCH_INDEX(0, 0) }, // yellow flower over grass
+                { SWATCH_INDEX(15, 0), SWATCH_INDEX(0, 0) }, // sapling over grass
+                { SWATCH_INDEX(12, 1), SWATCH_INDEX(0, 0) }, // red mushroom over grass
+                { SWATCH_INDEX(13, 1), SWATCH_INDEX(0, 0) }, // brown mushroom over grass
+                { SWATCH_INDEX(1, 3), -BLOCK_GLASS }, // glass over glass color
+                { SWATCH_INDEX(4, 3), -BLOCK_TRIPWIRE }, // transparent leaves over air (black) - doesn't really matter, not used when printing anyway
+                { SWATCH_INDEX(7, 3), SWATCH_INDEX(2, 1) }, // dead bush over grass
+                { SWATCH_INDEX(8, 3), SWATCH_INDEX(0, 0) }, // sapling over grass
+                { SWATCH_INDEX(1, 4), SWATCH_INDEX(1, 0) }, // spawner over stone
+                { SWATCH_INDEX(9, 4), SWATCH_INDEX(0, 0) }, // reeds over grass
+                { SWATCH_INDEX(15, 4), SWATCH_INDEX(0, 0) }, // sapling over grass
+                { SWATCH_INDEX(14, 1), SWATCH_INDEX(0, 0) }, // jungle sapling over grass
+                { SWATCH_INDEX(1, 5), SWATCH_INDEX(10, 23) }, // wooden door top over slab top - was over 6, 0
+                { SWATCH_INDEX(2, 5), SWATCH_INDEX(10, 23) }, // door top over slab top - was over 6, 0
+                { SWATCH_INDEX(5, 5), SWATCH_INDEX(6, 3) }, // iron bars over stone block
+                { SWATCH_INDEX(8, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
+                { SWATCH_INDEX(9, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
+                { SWATCH_INDEX(10, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
+                { SWATCH_INDEX(11, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
+                { SWATCH_INDEX(12, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
+                { SWATCH_INDEX(13, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
+                { SWATCH_INDEX(14, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
+                { SWATCH_INDEX(15, 5), SWATCH_INDEX(6, 5) }, // crops over farmland
+                { SWATCH_INDEX(0, 6), SWATCH_INDEX(1, 0) }, // lever over stone
+                { SWATCH_INDEX(15, 6), SWATCH_INDEX(6, 5) }, // melon stem over farmland
+                { SWATCH_INDEX(15, 7), SWATCH_INDEX(6, 5) }, // mature stem over farmland
+                { SWATCH_INDEX(4, 8), -BLOCK_TRIPWIRE }, // leaves over air (black) - doesn't really matter, not used
+                { SWATCH_INDEX(10, 8), -BLOCK_TRIPWIRE }, // cauldron over air (black)
+                { SWATCH_INDEX(4, 9), -BLOCK_GLASS }, // glass pane over glass color (more interesting than stone, and lets you choose)
+                { SWATCH_INDEX(13, 9), SWATCH_INDEX(1, 0) }, // brewing stand over stone
+                { SWATCH_INDEX(14,11), SWATCH_INDEX(6, 5) }, // pumpkin stem over farmland
+                { SWATCH_INDEX(15,11), SWATCH_INDEX(6, 5) }, // mature stem over farmland
+                { SWATCH_INDEX(4,12), -BLOCK_TRIPWIRE }, // jungle leaves over air (black) - doesn't really matter, not used
+                { SWATCH_INDEX(2,14), SWATCH_INDEX(8, 6) }, // nether wart over soul sand
+                { SWATCH_INDEX(3,14), SWATCH_INDEX(8, 6) }, // nether wart over soul sand
+                { SWATCH_INDEX(4,14), SWATCH_INDEX(8, 6) }, // nether wart over soul sand
+                { SWATCH_INDEX(11,14), -BLOCK_WOOL }, // beacon over white color - TODO!!! change to 9,2 once we're using terrain properly
+                { SWATCH_INDEX(8,10), -BLOCK_COCOA_PLANT }, // cocoa, so preview looks semi-OK
+                { SWATCH_INDEX(9,10), -BLOCK_COCOA_PLANT }, // cocoa, so preview looks OK
+                { SWATCH_INDEX(10,10), -BLOCK_COCOA_PLANT }, // cocoa, so preview looks OK
+                { SWATCH_INDEX(8,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
+                { SWATCH_INDEX(9,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
+                { SWATCH_INDEX(10,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
+                { SWATCH_INDEX(11,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
+                { SWATCH_INDEX(12,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
+                { SWATCH_INDEX(13,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
+                { SWATCH_INDEX(14,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
+                { SWATCH_INDEX(15,12), SWATCH_INDEX(6, 5) }, // potato/carrot crops over farmland
+                { SWATCH_INDEX(15, 1), -BLOCK_TRIPWIRE }, // fire over air (black)
+                { SWATCH_INDEX(7, 56), -BLOCK_TRIPWIRE }, // sculk shrieker top over air (black)
+                { SWATCH_INDEX(8, 56), -BLOCK_TRIPWIRE }, // sculk shrieker side over air (black)
+                // TODO: really, should add all the other cutouts that get flattened since then, but cross fingers that we don't run out of composite swatch room
+            };
+
+            // do only if true textures used
+            if (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES)
+            {
+                int i;
+                int faTableCount;
+
+                // fill in all alphas that 3D export wants filled
+                // For printing we also then composite over other backgrounds as the defaults.
+                faTableCount = gModel.print3D ? FA_TABLE_SIZE : FA_TABLE__VIEW_SIZE;
+                // start at solid rendering vs. leave it transparent for true cutaway rendering;
+                // that is, go from 0 if printing or if we're rendering & not exporting true geometry (lesser)
+                for (i = (gModel.print3D || !gModel.options->pEFD->chkExportAll) ? 0 : FA_TABLE__RENDER_BLOCK_START; i < faTableCount; i++)
                 {
-                    compositePNGSwatches(gModel.pPNGtexture,
-                        faTable[i].cutout, faTable[i].cutout, faTable[i].underlay,
-                        gModel.swatchSize, gModel.swatchesPerRow/*, 0*/);
+                    // passing in a negative swatch location means "use the absolute value as the index into the color of the block".
+                    // See faTable explanation above.
+                    if (faTable[i].underlay >= 0)
+                    {
+                        compositePNGSwatches(gModel.pPNGtexture,
+                            faTable[i].cutout, faTable[i].cutout, faTable[i].underlay,
+                            gModel.swatchSize, gModel.swatchesPerRow/*, 0*/);
+                    }
+                    else {
+                        compositePNGSwatchOverColor(gModel.pPNGtexture,
+                            faTable[i].cutout, faTable[i].cutout, gBlockDefinitions[-faTable[i].underlay].color,
+                            gModel.swatchSize, gModel.swatchesPerRow);
+                    }
                 }
-                else {
-                    compositePNGSwatchOverColor(gModel.pPNGtexture,
-                        faTable[i].cutout, faTable[i].cutout, gBlockDefinitions[-faTable[i].underlay].color,
-                        gModel.swatchSize, gModel.swatchesPerRow);
-                }
-            }
 
-            // final swatch cleanup if textures are used and we're doing 3D printing
-            if (gModel.print3D)
-            {
+                // final swatch cleanup if textures are used and we're doing 3D printing
+                if (gModel.print3D)
+                {
 
 
 #define FA_FINAL_TABLE_SIZE 19
-                static FillAlpha faFinalTable[] =
-                {
-                    { SWATCH_INDEX(0, 8), SWATCH_INDEX(1, 0) }, // rail over stone
-                    { SWATCH_INDEX(0, 7), SWATCH_INDEX(1, 0) }, // curved rail over stone
-                    { SWATCH_INDEX(0, 5), SWATCH_INDEX(1, 0) }, // torch over stone
-                    { REDSTONE_WIRE_VERT,   SWATCH_INDEX(1, 0) }, // wire over stone
-                    { SWATCH_INDEX(3, 5), SWATCH_INDEX(1, 0) }, // ladder over stone
-                    { SWATCH_INDEX(3, 11), SWATCH_INDEX(1, 0) }, // powered rail over stone
-                    { SWATCH_INDEX(3, 10), SWATCH_INDEX(1, 0) }, // unpowered rail over stone
-                    { SWATCH_INDEX(3, 12), SWATCH_INDEX(1, 0) }, // detector rail over stone
-                    { SWATCH_INDEX(3, 6), SWATCH_INDEX(1, 0) }, // redstone torch on over stone
-                    { SWATCH_INDEX(3, 7), SWATCH_INDEX(1, 0) }, // redstone torch off over stone
-                    { SWATCH_INDEX(12, 4), SWATCH_INDEX(15, 13) }, // lily pad over stationary water
-                    { SWATCH_INDEX(4, 5), SWATCH_INDEX(1, 0) }, // trapdoor over stone
-                    { SWATCH_INDEX(15, 8), SWATCH_INDEX(0, 0) }, // vines over grass
+                    static FillAlpha faFinalTable[] =
+                    {
+                        { SWATCH_INDEX(0, 8), SWATCH_INDEX(1, 0) }, // rail over stone
+                        { SWATCH_INDEX(0, 7), SWATCH_INDEX(1, 0) }, // curved rail over stone
+                        { SWATCH_INDEX(0, 5), SWATCH_INDEX(1, 0) }, // torch over stone
+                        { REDSTONE_WIRE_VERT,   SWATCH_INDEX(1, 0) }, // wire over stone
+                        { SWATCH_INDEX(3, 5), SWATCH_INDEX(1, 0) }, // ladder over stone
+                        { SWATCH_INDEX(3, 11), SWATCH_INDEX(1, 0) }, // powered rail over stone
+                        { SWATCH_INDEX(3, 10), SWATCH_INDEX(1, 0) }, // unpowered rail over stone
+                        { SWATCH_INDEX(3, 12), SWATCH_INDEX(1, 0) }, // detector rail over stone
+                        { SWATCH_INDEX(3, 6), SWATCH_INDEX(1, 0) }, // redstone torch on over stone
+                        { SWATCH_INDEX(3, 7), SWATCH_INDEX(1, 0) }, // redstone torch off over stone
+                        { SWATCH_INDEX(12, 4), SWATCH_INDEX(15, 13) }, // lily pad over stationary water
+                        { SWATCH_INDEX(4, 5), SWATCH_INDEX(1, 0) }, // trapdoor over stone
+                        { SWATCH_INDEX(15, 8), SWATCH_INDEX(0, 0) }, // vines over grass
 
-                    // stuff we don't use, so don't need defaults for
-                    { REDSTONE_WIRE_HORIZ, SWATCH_INDEX(1, 0) }, // wire over stone
-                    { REDSTONE_WIRE_DOT, SWATCH_INDEX(1, 0) }, // wire over stone
+                        // stuff we don't use, so don't need defaults for
+                        { REDSTONE_WIRE_HORIZ, SWATCH_INDEX(1, 0) }, // wire over stone
+                        { REDSTONE_WIRE_DOT, SWATCH_INDEX(1, 0) }, // wire over stone
 
-                    { SWATCH_INDEX(0, 15), SWATCH_INDEX(1, 0) }, // torch top
-                    { SWATCH_INDEX(1, 15), SWATCH_INDEX(1, 0) }, // redstone torch on top
-                    { SWATCH_INDEX(2, 15), SWATCH_INDEX(1, 0) }, // redstone torch off top
-                    { SWATCH_INDEX(2, 22), SWATCH_INDEX(1, 0) }, // iron trapdoor over stone
-                };
+                        { SWATCH_INDEX(0, 15), SWATCH_INDEX(1, 0) }, // torch top
+                        { SWATCH_INDEX(1, 15), SWATCH_INDEX(1, 0) }, // redstone torch on top
+                        { SWATCH_INDEX(2, 15), SWATCH_INDEX(1, 0) }, // redstone torch off top
+                        { SWATCH_INDEX(2, 22), SWATCH_INDEX(1, 0) }, // iron trapdoor over stone
+                    };
 
-                // For 3D printing, now that we're totally done, fill in the main pieces which were left empty as templates;
-                // these won't actually get used, as far as I recall. I clean them up purely for tidiness, and just in case.
-                // We could register these as previously-existing swatches, knowing that here is where we'll actually fill them in.
-                // To do so, use createCompositeSwatch - call with specific swatch location, with negative meaning "add to end".
-                // But, not to bother, for now, until the day we're really desperate for the room (i.e., never, since I just
-                // made the output resolution 4* - see gModel.textureResolution).
-                for (i = 0; i < FA_FINAL_TABLE_SIZE; i++)
-                {
-                    compositePNGSwatches(gModel.pPNGtexture,
-                        faFinalTable[i].cutout, faFinalTable[i].cutout, faFinalTable[i].underlay,
-                        gModel.swatchSize, gModel.swatchesPerRow/*, 0*/);
+                    // For 3D printing, now that we're totally done, fill in the main pieces which were left empty as templates;
+                    // these won't actually get used, as far as I recall. I clean them up purely for tidiness, and just in case.
+                    // We could register these as previously-existing swatches, knowing that here is where we'll actually fill them in.
+                    // To do so, use createCompositeSwatch - call with specific swatch location, with negative meaning "add to end".
+                    // But, not to bother, for now, until the day we're really desperate for the room (i.e., never, since I just
+                    // made the output resolution 4* - see gModel.textureResolution).
+                    for (i = 0; i < FA_FINAL_TABLE_SIZE; i++)
+                    {
+                        compositePNGSwatches(gModel.pPNGtexture,
+                            faFinalTable[i].cutout, faFinalTable[i].cutout, faFinalTable[i].underlay,
+                            gModel.swatchSize, gModel.swatchesPerRow/*, 0*/);
+                    }
                 }
             }
+
+            // if we're debugging groups, make the largest group transparent and set it to red
+            if ((gModel.options->exportFlags & EXPT_DEBUG_SHOW_GROUPS) &&
+                gModel.exportTexture)
+            {
+                unsigned char a = (unsigned char)(DEBUG_DISPLAY_ALPHA * 255);
+                unsigned char r = 0xff;
+                unsigned char g = 0x00;
+                unsigned char b = 0x00;
+                unsigned int color = (a << 24) | (b << 16) | (g << 8) | r;
+
+                SWATCH_TO_COL_ROW(gDebugTransparentType, col, row);
+                setColorPNGTile(gModel.pPNGtexture, col, row, gModel.swatchSize, color);
+            }
+
+            // just to avoid confusion as to what gets used for what, clear out the workspace texture location with white
+            SWATCH_TO_COL_ROW(SWATCH_WORKSPACE, col, row);
+            setColorPNGTile(gModel.pPNGtexture, col, row, gModel.swatchSize, 0xffffffff);
         }
-
-        // if we're debugging groups, make the largest group transparent and set it to red
-        if ((gModel.options->exportFlags & EXPT_DEBUG_SHOW_GROUPS) &&
-            gModel.exportTexture)
-        {
-            unsigned char a = (unsigned char)(DEBUG_DISPLAY_ALPHA * 255);
-            unsigned char r = 0xff;
-            unsigned char g = 0x00;
-            unsigned char b = 0x00;
-            unsigned int color = (a << 24) | (b << 16) | (g << 8) | r;
-
-            SWATCH_TO_COL_ROW(gDebugTransparentType, col, row);
-            setColorPNGTile(gModel.pPNGtexture, col, row, gModel.swatchSize, color);
-        }
-
-        // just to avoid confusion as to what gets used for what, clear out the workspace texture location with white
-        SWATCH_TO_COL_ROW(SWATCH_WORKSPACE, col, row);
-        setColorPNGTile(gModel.pPNGtexture, col, row, gModel.swatchSize, 0xffffffff);
 
         // Exporting individual tiles?
         if (gModel.exportTiles)
         {
             // if any checkbox for texture output is on, then all textures are output - let's not get too clever here.
-            if (gModel.options->pEFD->chkTextureRGBA || gModel.options->pEFD->chkTextureRGB || gModel.options->pEFD->chkTextureA) {
+            if (EXPORT_TEXTURE) {
                 // create the directory for the textures subdirectory
                 if (strlen(gModel.options->pEFD->tileDirString) > 0) {
                     wchar_t subpath[MAX_PATH_AND_FILE];
@@ -2109,7 +2118,18 @@ static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* 
 
     if (wcslen(selectedTerrainFileName) > 0)
     {
-        rc = readpng(pITI, selectedTerrainFileName, gCatFormat[category]);
+        // If we're not going to output any textures, we really just need the size of the image, so that
+        // mosaic UVs are assigned. If I ever clean up the export tiles code so that we don't unscramble
+        // the mosaic UVs to individual texture tile UVs, we don't even need that for exporting tiles. TODO
+        if (category != CATEGORY_RGBA || EXPORT_TEXTURE) {
+            // Sadly, no, we must always read in the PBR textures, as we check them to see if the tiles are all black,
+            // for example. We *can* at least avoid reading in the RGBA texture, since we don't check isTileValue().
+            rc = readpng(pITI, selectedTerrainFileName, gCatFormat[category]);
+        }
+        else {
+            // texture export off; we don't care about reading in the RGB texture for its pixels, just want the size
+            rc = readpngheader(pITI, selectedTerrainFileName, gCatFormat[category]);
+        }
     }
     else
     {
@@ -2160,10 +2180,13 @@ static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* 
     if ((pITI->height % (pITI->width / 16)) != 0)
         return MW_IMAGE_WRONG_WIDTH;
 
-    gModel.tileSize = gModel.pInputTerrainImage[CATEGORY_RGBA]->width / 16;
-    gModel.resScale = 16.0f / (float)gModel.tileSize;
-    // note vertical tile limit for texture. We will save all these tiles away.
-    gModel.verticalTiles = gModel.pInputTerrainImage[CATEGORY_RGBA]->height / gModel.tileSize;
+    // should compute just once; CATEGORY_RGBA is assumed always read first
+    if (category == CATEGORY_RGBA) {
+        gModel.tileSize = gModel.pInputTerrainImage[CATEGORY_RGBA]->width / 16;
+        gModel.resScale = 16.0f / (float)gModel.tileSize;
+        // note vertical tile limit for texture. We will save all these tiles away.
+        gModel.verticalTiles = gModel.pInputTerrainImage[CATEGORY_RGBA]->height / gModel.tileSize;
+    }
 
 #ifdef _DEBUG
     // add letter R to every tile, to see orientation of tiles
@@ -25973,194 +25996,197 @@ static int addCameraUSD()
     return 0;
 }
 
-//static void reallocSplitSize(int splitsize)
-//{
-//    if (gOutData.splitsize < splitsize) {
-//
-//        if (gOutData.splitsize > 0) {
-//            // realloc
-//            gOutData.splitsize = splitsize * 2;
-//            int *splitMeshFaces = (int*)calloc(gOutData.splitsize, sizeof(int));
-//            memcpy(splitMeshFaces, gOutData.splitMeshFaces, gOutData.splitCount * sizeof(int));
-//            free(gOutData.splitMeshFaces);
-//            gOutData.splitMeshFaces = splitMeshFaces;
-//        }
-//        else {
-//            // alloc
-//            gOutData.splitsize = 100;
-//            gOutData.splitMeshFaces = (int*)calloc(gOutData.splitsize, sizeof(int));
-//        }
-//    }
-//}
-//
-//static void initializeBox(Box& b)
-//{
-//    Vec3Scalar(b.min, =, 1e20f, 1e20f, 1e20f);
-//    Vec3Scalar(b.max, =, -1e20f, -1e20f, -1e20f);
-//}
-//
-//static void increaseBoxByBox(Box& b, Box& binc)
-//{
-//    Vec3Scalar(b.min, =, (b.min[X] < binc.min[X]) ? b.min[X] : binc.min[X], (b.min[Y] < binc.min[Y]) ? b.min[Y] : binc.min[Y], (b.min[Z] < binc.min[Z]) ? b.min[Z] : binc.min[Z]);
-//    Vec3Scalar(b.max, =, (b.max[X] > binc.max[X]) ? b.max[X] : binc.max[X], (b.max[Y] > binc.max[Y]) ? b.max[Y] : binc.max[Y], (b.max[Z] > binc.max[Z]) ? b.max[Z] : binc.max[Z]);
-//}
-//
-//static void increaseBoxByVertex(Box& b, Point& p)
-//{
-//    Vec3Scalar(b.min, =, (b.min[X] < p[X]) ? b.min[X] : p[X], (b.min[Y] < p[Y]) ? b.min[Y] : p[Y], (b.min[Z] < p[Z]) ? b.min[Z] : p[Z]);
-//    Vec3Scalar(b.max, =, (b.max[X] > p[X]) ? b.max[X] : p[X], (b.max[Y] > p[Y]) ? b.max[Y] : p[Y], (b.max[Z] > p[Z]) ? b.max[Z] : p[Z]);
-//}
-//
-//static boolean boxesOverlapWithMargin(Box& b, Box& binc, float margin)
-//{
-//    // is either box empty? Auto overlap
-//    if (b.min[X] > b.max[X] || binc.min[X] > binc.max[X]) {
-//        return true;
-//    }
-//    if ((b.min[X] - margin <= binc.max[X]) &&
-//        (b.min[Y] - margin <= binc.max[Y]) &&
-//        (b.min[Z] - margin <= binc.max[Z]) &&
-//        (b.max[X] + margin >= binc.min[X]) &&
-//        (b.max[Y] + margin >= binc.min[Y]) &&
-//        (b.max[Z] + margin >= binc.min[Z])) {
-//        return true;
-//    }
-//    return false;
-//}
+//#define SPLIT_STRATEGY
+#ifdef SPLIT_STRATEGY
+static void reallocSplitSize(int splitsize)
+{
+    if (gOutData.splitsize < splitsize) {
+
+        if (gOutData.splitsize > 0) {
+            // realloc
+            gOutData.splitsize = splitsize * 2;
+            int *splitMeshFaces = (int*)calloc(gOutData.splitsize, sizeof(int));
+            memcpy(splitMeshFaces, gOutData.splitMeshFaces, gOutData.splitCount * sizeof(int));
+            free(gOutData.splitMeshFaces);
+            gOutData.splitMeshFaces = splitMeshFaces;
+        }
+        else {
+            // alloc
+            gOutData.splitsize = 100;
+            gOutData.splitMeshFaces = (int*)calloc(gOutData.splitsize, sizeof(int));
+        }
+    }
+}
+
+static void initializeBox(Box& b)
+{
+    Vec3Scalar(b.min, =, 1e20f, 1e20f, 1e20f);
+    Vec3Scalar(b.max, =, -1e20f, -1e20f, -1e20f);
+}
+
+static void increaseBoxByBox(Box& b, Box& binc)
+{
+    Vec3Scalar(b.min, =, (b.min[X] < binc.min[X]) ? b.min[X] : binc.min[X], (b.min[Y] < binc.min[Y]) ? b.min[Y] : binc.min[Y], (b.min[Z] < binc.min[Z]) ? b.min[Z] : binc.min[Z]);
+    Vec3Scalar(b.max, =, (b.max[X] > binc.max[X]) ? b.max[X] : binc.max[X], (b.max[Y] > binc.max[Y]) ? b.max[Y] : binc.max[Y], (b.max[Z] > binc.max[Z]) ? b.max[Z] : binc.max[Z]);
+}
+
+static void increaseBoxByVertex(Box& b, Point& p)
+{
+    Vec3Scalar(b.min, =, (b.min[X] < p[X]) ? b.min[X] : p[X], (b.min[Y] < p[Y]) ? b.min[Y] : p[Y], (b.min[Z] < p[Z]) ? b.min[Z] : p[Z]);
+    Vec3Scalar(b.max, =, (b.max[X] > p[X]) ? b.max[X] : p[X], (b.max[Y] > p[Y]) ? b.max[Y] : p[Y], (b.max[Z] > p[Z]) ? b.max[Z] : p[Z]);
+}
+
+static boolean boxesOverlapWithMargin(Box& b, Box& binc, float margin)
+{
+    // is either box empty? Auto overlap
+    if (b.min[X] > b.max[X] || binc.min[X] > binc.max[X]) {
+        return true;
+    }
+    if ((b.min[X] - margin <= binc.max[X]) &&
+        (b.min[Y] - margin <= binc.max[Y]) &&
+        (b.min[Z] - margin <= binc.max[Z]) &&
+        (b.max[X] + margin >= binc.min[X]) &&
+        (b.max[Y] + margin >= binc.min[Y]) &&
+        (b.max[Z] + margin >= binc.min[Z])) {
+        return true;
+    }
+    return false;
+}
 
 // return number of splits
-//static int strategizeMeshSplits(int strategy, int adjuster)
-//{
-//    gOutData.splitCount = 0;
-//    switch (strategy) {
-//    case 0:
-//        // do nothing
-//        return 0;
-//        break;
-//    case 1:
-//        {
-//            // constant number of faces split - split after N faces
-//            gOutData.splitCount = 1 + ((gOutData.faceCount - 1) / adjuster);
-//            if (gOutData.splitCount <= 1) {
-//                // don't split - not enough faces
-//                gOutData.splitCount = 0;
-//                return 0;
-//            }
-//            // make array of splits, i.e., array where each value stored is the number of faces to put in a mesh
-//            reallocSplitSize(gOutData.splitCount);
-//            int numLeft = gOutData.faceCount;
-//            for (int i = 0; i < gOutData.splitCount; i++) {
-//                gOutData.splitMeshFaces[i] = adjuster < numLeft ? adjuster : numLeft;
-//                numLeft -= adjuster;
-//            }
-//            return gOutData.splitCount;
-//        }
-//        break;
-//    case 2:
-//        {
-//            // if the next face is outside the bounding volume by more than the adjuster value, split there
-//            Box sumbvh, curbvh;
-//            initializeBox(sumbvh);
-//            // algorithm:
-//            // form a BVH from the first and from successive faces.
-//            // Does this BVH overlap the previous (possibly null) BVH? Include the "adjuster" tolerance.
-//            // If so, add face to list. If not, split and restart BVHs.
-//
-//            // make array of splits, i.e., array where each value stored is the number of faces to put in a mesh
-//            reallocSplitSize(gOutData.splitCount);
-//            int numFaces = 0;
-//            int splitCount = 0;
-//            int currentFaceIndex = 0;
-//            gOutData.splitCount = 0;
-//            for (int i = 0; i < gOutData.faceCount; i++) {
-//                initializeBox(curbvh);
-//                for (int f = 0; f < gOutData.faceVertexCounts[i]; f++) {
-//                    // add each vertex to the current box
-//                    increaseBoxByVertex(curbvh, gOutData.points[gOutData.indices[f+currentFaceIndex]]);
-//                }
-//                // does box for face overlap "summed" box (which could be emptry)?
-//                if (boxesOverlapWithMargin(sumbvh, curbvh, (float)adjuster)) {
-//                    // add face to list
-//                    numFaces++;
-//                    increaseBoxByBox(sumbvh, curbvh);
-//                }
-//                else {
-//                    assert(numFaces > 0);
-//                    reallocSplitSize(splitCount+1);
-//                    gOutData.splitMeshFaces[splitCount] = numFaces;
-//                    splitCount++;
-//                    gOutData.splitCount = splitCount;
-//                    numFaces = 1;
-//                    sumbvh = curbvh;
-//                }
-//                currentFaceIndex += gOutData.faceVertexCounts[i];
-//            }
-//            // final one, if there should be any
-//            if (splitCount>0) {
-//                reallocSplitSize(splitCount + 1);
-//                gOutData.splitMeshFaces[splitCount] = numFaces;
-//                splitCount++;
-//                gOutData.splitCount = splitCount;
-//            }
-//            gOutData.splitCount = splitCount;
-//            return gOutData.splitCount;
-//        }
-//        break;
-//    case 3:
-//        {
-//            // if the next face is outside the bounding volume by more than the adjuster value, split there,
-//            // but only if the count is >= 100
-//            Box sumbvh, curbvh;
-//            initializeBox(sumbvh);
-//            // algorithm:
-//            // form a BVH from the first and from successive faces.
-//            // Is the number of faces < 100 or does this BVH overlap the previous (possibly null) BVH? Include the tolerance.
-//            // If so, add face to list. If not, split and restart BVHs.
-//
-//            // make array of splits, i.e., array where each value stored is the number of faces to put in a mesh
-//            reallocSplitSize(gOutData.splitCount);
-//            int numFaces = 0;
-//            int splitCount = 0;
-//            int currentFaceIndex = 0;
-//            gOutData.splitCount = 0;
-//            for (int i = 0; i < gOutData.faceCount; i++) {
-//                initializeBox(curbvh);
-//                for (int f = 0; f < gOutData.faceVertexCounts[i]; f++) {
-//                    // add each vertex to the current box
-//                    increaseBoxByVertex(curbvh, gOutData.points[gOutData.indices[f + currentFaceIndex]]);
-//                }
-//                // does box for face overlap "summed" box (which could be emptry)?
-//                if (numFaces < adjuster || boxesOverlapWithMargin(sumbvh, curbvh, 1.0f)) {
-//                    // add face to list
-//                    numFaces++;
-//                    increaseBoxByBox(sumbvh, curbvh);
-//                }
-//                else {
-//                    assert(numFaces > 0);
-//                    reallocSplitSize(splitCount + 1);
-//                    gOutData.splitMeshFaces[splitCount] = numFaces;
-//                    splitCount++;
-//                    gOutData.splitCount = splitCount;
-//                    numFaces = 1;
-//                    sumbvh = curbvh;
-//                }
-//                currentFaceIndex += gOutData.faceVertexCounts[i];
-//            }
-//            // final one, if there should be any
-//            if (splitCount > 0) {
-//                reallocSplitSize(splitCount + 1);
-//                gOutData.splitMeshFaces[splitCount] = numFaces;
-//                splitCount++;
-//                gOutData.splitCount = splitCount;
-//            }
-//            gOutData.splitCount = splitCount;
-//            return gOutData.splitCount;
-//        }
-//        break;
-//    }
-//    assert(0);  // bad strategy number
-//    return 0;
-//}
+static int strategizeMeshSplits(int strategy, int adjuster)
+{
+    gOutData.splitCount = 0;
+    switch (strategy) {
+    case 0:
+        // do nothing
+        return 0;
+        break;
+    case 1:
+        {
+            // constant number of faces split - split after N faces
+            gOutData.splitCount = 1 + ((gOutData.faceCount - 1) / adjuster);
+            if (gOutData.splitCount <= 1) {
+                // don't split - not enough faces
+                gOutData.splitCount = 0;
+                return 0;
+            }
+            // make array of splits, i.e., array where each value stored is the number of faces to put in a mesh
+            reallocSplitSize(gOutData.splitCount);
+            int numLeft = gOutData.faceCount;
+            for (int i = 0; i < gOutData.splitCount; i++) {
+                gOutData.splitMeshFaces[i] = adjuster < numLeft ? adjuster : numLeft;
+                numLeft -= adjuster;
+            }
+            return gOutData.splitCount;
+        }
+        break;
+    case 2:
+        {
+            // if the next face is outside the bounding volume by more than the adjuster value, split there
+            Box sumbvh, curbvh;
+            initializeBox(sumbvh);
+            // algorithm:
+            // form a BVH from the first and from successive faces.
+            // Does this BVH overlap the previous (possibly null) BVH? Include the "adjuster" tolerance.
+            // If so, add face to list. If not, split and restart BVHs.
+
+            // make array of splits, i.e., array where each value stored is the number of faces to put in a mesh
+            reallocSplitSize(gOutData.splitCount);
+            int numFaces = 0;
+            int splitCount = 0;
+            int currentFaceIndex = 0;
+            gOutData.splitCount = 0;
+            for (int i = 0; i < gOutData.faceCount; i++) {
+                initializeBox(curbvh);
+                for (int f = 0; f < gOutData.faceVertexCounts[i]; f++) {
+                    // add each vertex to the current box
+                    increaseBoxByVertex(curbvh, gOutData.points[gOutData.indices[f+currentFaceIndex]]);
+                }
+                // does box for face overlap "summed" box (which could be emptry)?
+                if (boxesOverlapWithMargin(sumbvh, curbvh, (float)adjuster)) {
+                    // add face to list
+                    numFaces++;
+                    increaseBoxByBox(sumbvh, curbvh);
+                }
+                else {
+                    assert(numFaces > 0);
+                    reallocSplitSize(splitCount+1);
+                    gOutData.splitMeshFaces[splitCount] = numFaces;
+                    splitCount++;
+                    gOutData.splitCount = splitCount;
+                    numFaces = 1;
+                    sumbvh = curbvh;
+                }
+                currentFaceIndex += gOutData.faceVertexCounts[i];
+            }
+            // final one, if there should be any
+            if (splitCount>0) {
+                reallocSplitSize(splitCount + 1);
+                gOutData.splitMeshFaces[splitCount] = numFaces;
+                splitCount++;
+                gOutData.splitCount = splitCount;
+            }
+            gOutData.splitCount = splitCount;
+            return gOutData.splitCount;
+        }
+        break;
+    case 3:
+        {
+            // if the next face is outside the bounding volume by more than the adjuster value, split there,
+            // but only if the count is >= 100
+            Box sumbvh, curbvh;
+            initializeBox(sumbvh);
+            // algorithm:
+            // form a BVH from the first and from successive faces.
+            // Is the number of faces < 100 or does this BVH overlap the previous (possibly null) BVH? Include the tolerance.
+            // If so, add face to list. If not, split and restart BVHs.
+
+            // make array of splits, i.e., array where each value stored is the number of faces to put in a mesh
+            reallocSplitSize(gOutData.splitCount);
+            int numFaces = 0;
+            int splitCount = 0;
+            int currentFaceIndex = 0;
+            gOutData.splitCount = 0;
+            for (int i = 0; i < gOutData.faceCount; i++) {
+                initializeBox(curbvh);
+                for (int f = 0; f < gOutData.faceVertexCounts[i]; f++) {
+                    // add each vertex to the current box
+                    increaseBoxByVertex(curbvh, gOutData.points[gOutData.indices[f + currentFaceIndex]]);
+                }
+                // does box for face overlap "summed" box (which could be emptry)?
+                if (numFaces < adjuster || boxesOverlapWithMargin(sumbvh, curbvh, 1.0f)) {
+                    // add face to list
+                    numFaces++;
+                    increaseBoxByBox(sumbvh, curbvh);
+                }
+                else {
+                    assert(numFaces > 0);
+                    reallocSplitSize(splitCount + 1);
+                    gOutData.splitMeshFaces[splitCount] = numFaces;
+                    splitCount++;
+                    gOutData.splitCount = splitCount;
+                    numFaces = 1;
+                    sumbvh = curbvh;
+                }
+                currentFaceIndex += gOutData.faceVertexCounts[i];
+            }
+            // final one, if there should be any
+            if (splitCount > 0) {
+                reallocSplitSize(splitCount + 1);
+                gOutData.splitMeshFaces[splitCount] = numFaces;
+                splitCount++;
+                gOutData.splitCount = splitCount;
+            }
+            gOutData.splitCount = splitCount;
+            return gOutData.splitCount;
+        }
+        break;
+    }
+    assert(0);  // bad strategy number
+    return 0;
+}
+#endif
 
 // Multiplatform array size
 #define HW_ARRAY_COUNT(array) (sizeof(array) / sizeof(array[0]))
@@ -26386,14 +26412,20 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
     // rays pass through them without hitting anything. None of the simple strategies helped increase frame rate. A good clustering
     // strategy - find which polygons are connected and call those an object - might work well, but that's more coding than I wanted
     // to dedicate to the process. So, strategy is 0, none.
-    //int strategy = 0;
-    //int adjuster = 1000;
+#ifdef SPLIT_STRATEGY
+    // Strategy 1: constant number of faces split - split after N faces (set adjuster to set N)
+    // Strategy 2: if the next face is outside the bounding volume by more than the adjuster value, split there
+    // Strategy 3: if the next face is outside the bounding volume by more than the adjuster value, split there,
+    // but only if the count is >= 100
 
-    //// this method looks at the output data, allocates and sets starting face indices in splitMeshFaces
-    //(void)strategizeMeshSplits(strategy, adjuster);
+    static int strategy = 1;
+    static int adjuster = 1000; // set to 1 for strategies 2 and 3
 
-    //if (gOutData.splitCount <= 1) {
+    // this method looks at the output data, allocates and sets starting face indices in splitMeshFaces
+    (void)strategizeMeshSplits(strategy, adjuster);
 
+    if (gOutData.splitCount <= 1) {
+#endif
     // output mesh's arrays
     //SM sprintf_s(outputString, 256, "%s    def Mesh \"%s\"\n    {\n", startingFace ? "\n" : "", useMtlName);
     //sprintf_s(outputString, 256, "%s    def Mesh \"%s\"\n    {\n", startingFace ? "\n" : "", mtlName);
@@ -26454,76 +26486,78 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
     strcpy_s(outputString, 256, "    }\n");
     WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
 
-    //}
-    //else {
-    //    int startFace = 0;
-    //    int startVertex = 0;
+#ifdef SPLIT_STRATEGY
+    }
+    else {
+        int startFace = 0;
+        int startVertex = 0;
 
-    //    for (int m = 0; m < gOutData.splitCount; m++) {
+        for (int m = 0; m < gOutData.splitCount; m++) {
 
-    //        // get the number of faces and vertices that we'll output for this split
-    //        int numSegFaces = gOutData.splitMeshFaces[m];
-    //        int numSegVertices = 0;
+            // get the number of faces and vertices that we'll output for this split
+            int numSegFaces = gOutData.splitMeshFaces[m];
+            int numSegVertices = 0;
 
-    //        // output mesh's arrays
-    //        sprintf_s(outputString, 256, "%s    def Mesh \"%s__%d\"\n    {\n", startRun ? "\n" : "", mtlName, m);
-    //        WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+            // output mesh's arrays
+            sprintf_s(outputString, 256, "%s    def Mesh \"%s__%d\"\n    {\n", startingFace ? "\n" : "", mtlName, m);
+            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
 
-    //        strcpy_s(outputString, 256, "        int[] faceVertexCounts = [");
-    //        WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
-    //        for (i = 0; i < numSegFaces; i++) {
-    //            sprintf_s(outputString, 256, "%d%s", gOutData.faceVertexCounts[i + startFace], (i == numSegFaces - 1) ? "]\n" : ", ");
-    //            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+            strcpy_s(outputString, 256, "        int[] faceVertexCounts = [");
+            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+            for (i = 0; i < numSegFaces; i++) {
+                sprintf_s(outputString, 256, "%d%s", gOutData.faceVertexCounts[i + startFace], (i == numSegFaces - 1) ? "]\n" : ", ");
+                WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
 
-    //            // we also use this loop to count up how many vertices we'll output
-    //            numSegVertices += gOutData.faceVertexCounts[i];
-    //        }
+                // we also use this loop to count up how many vertices we'll output
+                numSegVertices += gOutData.faceVertexCounts[i];
+            }
 
-    //        strcpy_s(outputString, 256, "        int[] faceVertexIndices = [");
-    //        WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
-    //        for (i = 0; i < numSegVertices; i++) {
-    //            // we could really just substitute "i" for the whole gOutData.indices list, since this is always 0,1,2,3...
-    //            // but, do this way, just in case
-    //            sprintf_s(outputString, 256, "%d%s", gOutData.indices[i + startVertex] - startVertex, (i == numSegVertices - 1) ? "]\n" : ", ");
-    //            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
-    //        }
+            strcpy_s(outputString, 256, "        int[] faceVertexIndices = [");
+            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+            for (i = 0; i < numSegVertices; i++) {
+                // we could really just substitute "i" for the whole gOutData.indices list, since this is always 0,1,2,3...
+                // but, do this way, just in case
+                sprintf_s(outputString, 256, "%d%s", gOutData.indices[i + startVertex] - startVertex, (i == numSegVertices - 1) ? "]\n" : ", ");
+                WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+            }
 
-    //        sprintf_s(outputString, 256, "        rel material:binding = <%s/Looks/%s>\n", mtlName);
-    //        WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+            sprintf_s(outputString, 256, "        rel material:binding = <%s/Looks/%s>\n", (prefixLook == NULL) ? "" : prefixLook, mtlName);
+            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
 
-    //        strcpy_s(outputString, 256, "        normal3f[] normals = [");
-    //        WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
-    //        for (i = 0; i < numSegVertices; i++) {
-    //            sprintf_s(outputString, 256, "(%g, %g, %g)%s", gOutData.normals[i + startVertex][X], gOutData.normals[i + startVertex][Y], gOutData.normals[i + startVertex][Z], (i == numSegVertices - 1) ? "]\n" : ", ");
-    //            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
-    //        }
+            strcpy_s(outputString, 256, "        normal3f[] normals = [");
+            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+            for (i = 0; i < numSegVertices; i++) {
+                sprintf_s(outputString, 256, "(%g, %g, %g)%s", gOutData.normals[i + startVertex][X], gOutData.normals[i + startVertex][Y], gOutData.normals[i + startVertex][Z], (i == numSegVertices - 1) ? "]\n" : ", ");
+                WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+            }
 
-    //        // if we're writing out a huge array, take a moment and update the progress
-    //        if (nextStart - startRun > 10000)
-    //            UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)nextStart / (float)gModel.faceCount));
+            // if we're writing out a huge array, take a moment and update the progress
+            if (startFace > 10000)
+                UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)startFace / (float)gModel.faceCount));
 
-    //        strcpy_s(outputString, 256, "        point3f[] points = [");
-    //        WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
-    //        for (i = 0; i < numSegVertices; i++) {
-    //            sprintf_s(outputString, 256, "(%g, %g, %g)%s", gOutData.points[i + startVertex][X], gOutData.points[i + startVertex][Y], gOutData.points[i + startVertex][Z], (i == numSegVertices - 1) ? "]\n" : ", ");
-    //            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
-    //        }
+            strcpy_s(outputString, 256, "        point3f[] points = [");
+            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+            for (i = 0; i < numSegVertices; i++) {
+                sprintf_s(outputString, 256, "(%g, %g, %g)%s", gOutData.points[i + startVertex][X], gOutData.points[i + startVertex][Y], gOutData.points[i + startVertex][Z], (i == numSegVertices - 1) ? "]\n" : ", ");
+                WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+            }
 
-    //        strcpy_s(outputString, 256, "        texCoord2f[] primvars:st = [");
-    //        WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
-    //        for (i = 0; i < numSegVertices; i++) {
-    //            sprintf_s(outputString, 256, "(%g, %g)%s", gOutData.uvs[i + startVertex][X], gOutData.uvs[i + startVertex][Y], (i == numSegVertices - 1) ? "] (\n            interpolation = \"vertex\"\n        )\n" : ", ");
-    //            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
-    //        }
+            strcpy_s(outputString, 256, "        texCoord2f[] primvars:st = [");
+            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+            for (i = 0; i < numSegVertices; i++) {
+                sprintf_s(outputString, 256, "(%g, %g)%s", gOutData.uvs[i + startVertex][X], gOutData.uvs[i + startVertex][Y], (i == numSegVertices - 1) ? "] (\n            interpolation = \"vertex\"\n        )\n" : ", ");
+                WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+            }
 
-    //        strcpy_s(outputString, 256, "    }\n");
-    //        WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+            strcpy_s(outputString, 256, "    }\n");
+            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
 
-    //        // compute next starting locations
-    //        startVertex += numSegVertices;
-    //        startFace += numSegFaces;
-    //    }
-    //}
+            // compute next starting locations
+            startVertex += numSegVertices;
+            startFace += numSegFaces;
+        }
+    }
+#endif
     
     return 0;
 }

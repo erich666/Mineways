@@ -2760,6 +2760,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
  <LI>Version 10.13, */*/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1012.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
     <BR>
     <UL>
+	<LI>When all texture export is turned off, read just the header of the TerrainExt color terrain image and avoid all preprocessing for this file. (Sadly, the PBR textures still need to be read in, as we check whether various textures exist on output and adjust accordingly.) This change makes export for basic RGB a bit faster, especially when a large TerrainExt file is used.
 	<LI>Added a small speed optimization to the simplify mesh system.
 	</UL>
 
