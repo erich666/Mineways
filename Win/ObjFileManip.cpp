@@ -24355,14 +24355,17 @@ static int createBaseMaterialTexture()
         g = (unsigned char)(((color >> 8) & 0xff)* dim);
         b = (unsigned char)((color & 0xff) * dim);
         a = 255;
+        // MWO_redstone_dust_line0_off
         SWATCH_TO_COL_ROW(REDSTONE_WIRE_VERT_OFF, col, row);
         SWATCH_TO_COL_ROW(REDSTONE_WIRE_VERT, scol, srow);
         copyPNGTile(mainprog, col, row, gModel.swatchSize, mainprog, scol, srow);
         multiplyPNGTile(mainprog, col, row, gModel.swatchSize, r, g, b, a);
+        // MWO_redstone_dust_line1_off
         SWATCH_TO_COL_ROW(REDSTONE_WIRE_HORIZ_OFF, col, row);
         SWATCH_TO_COL_ROW(REDSTONE_WIRE_HORIZ, scol, srow);
         copyPNGTile(mainprog, col, row, gModel.swatchSize, mainprog, scol, srow);
         multiplyPNGTile(mainprog, col, row, gModel.swatchSize, r, g, b, a);
+        // MWO_redstone_dust_dot_off
         SWATCH_TO_COL_ROW(REDSTONE_WIRE_DOT_OFF, col, row);
         SWATCH_TO_COL_ROW(REDSTONE_WIRE_DOT, scol, srow);
         copyPNGTile(mainprog, col, row, gModel.swatchSize, mainprog, scol, srow);
