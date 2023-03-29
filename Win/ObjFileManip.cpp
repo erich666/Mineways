@@ -26429,7 +26429,9 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
     // output mesh's arrays
     //SM sprintf_s(outputString, 256, "%s    def Mesh \"%s\"\n    {\n", startingFace ? "\n" : "", useMtlName);
     //sprintf_s(outputString, 256, "%s    def Mesh \"%s\"\n    {\n", startingFace ? "\n" : "", mtlName);
-    sprintf_s(outputString, 256, "\n    def Mesh \"%s\"\n    {\n", mtlName);
+    // was: sprintf_s(outputString, 256, "\n    def Mesh \"%s\"\n    {\n", mtlName);
+    // Newer USD spec needs this:
+    sprintf_s(outputString, 256, "\n    def Mesh \"%s\" (\n\t\tprepend apiSchemas = [\"MaterialBindingAPI\"]\n\t)\n    {\n", mtlName);
     WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
 
     // is mesh two-sided? If it's interior to an opaque, it doesn't have to be, which can be a bit faster to render.
@@ -26455,8 +26457,17 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
         WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
     }
 
+// define SINGLE_MATERIAL to export a single white material
+// Alternately, define WHITE_MATERIAL to have each mesh have a separate material, each of which is white.
+//#define SINGLE_MATERIAL
+//#define WHITE_MATERIAL
+#ifdef SINGLE_MATERIAL
+    sprintf_s(outputString, 256, "        rel material:binding = <%s/Looks/basic>\n", (prefixLook == NULL) ? "" : prefixLook);
+    WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+#else
     sprintf_s(outputString, 256, "        rel material:binding = <%s/Looks/%s>\n", (prefixLook == NULL) ? "" : prefixLook, mtlName);
     WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+#endif
 
     strcpy_s(outputString, 256, "        normal3f[] normals = [");
     WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
@@ -26668,6 +26679,48 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
 
     // spin out all the shaders, one per tile.
+
+#ifdef SINGLE_MATERIAL
+    // make the debugger happy
+    singleTerrainFile;
+    mdlPath;
+    texturePath;
+    textureString;
+    tileIsAnEmitter(0, 0);
+    unsigned char value = 1;
+    isTileValueConstant(0, 0, value);
+    tileAlphaStatus(0);
+    strcpy_s(outputString, 256, "    def Material \"basic\"\n");
+    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "    {\n");
+    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "        token outputs:surface.connect = </Looks/basic/PreviewSurface.outputs:surface>\n");
+    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "        def Shader \"PreviewSurface\"\n");
+    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "        {\n");
+    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "            uniform token info:id = \"UsdPreviewSurface\"\n");
+    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "            color3f inputs:diffuseColor = (1.0, 1.0, 1.0)\n");
+    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "            float inputs:metallic = 0\n");
+    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "            float inputs:opacity = 1\n");
+    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "            float inputs:roughness = 1\n");
+    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "            int inputs:useSpecularWorkflow = 0\n");
+    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "            token outputs:out\n");
+    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "            token outputs:surface\n");
+    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "        }\n");
+    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+    strcpy_s(outputString, 256, "    }\n");
+    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+#else
     char mtlName[MAX_PATH_AND_FILE];
 
     int startRun = 0;
@@ -26821,6 +26874,40 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
         strcpy_s(outputString, 256, "    {\n");
         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+#ifdef WHITE_MATERIAL
+        // make compiler happy
+        mdlPath;
+        texturePath;
+        usePreviewSurface;
+        emission;
+        textureString;
+        tileIsAnEmitter(0, 0);
+
+        sprintf_s(outputString, 256, "        token outputs:surface.connect = </Looks/%s/PreviewSurface.outputs:surface>\n", mtlName);
+        WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "        def Shader \"PreviewSurface\"\n");
+        WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "        {\n");
+        WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "            uniform token info:id = \"UsdPreviewSurface\"\n");
+        WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "            color3f inputs:diffuseColor = (1.0, 1.0, 1.0)\n");
+        WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "            float inputs:metallic = 0\n");
+        WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "            float inputs:opacity = 1\n");
+        WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "            float inputs:roughness = 1\n");
+        WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "            int inputs:useSpecularWorkflow = 0\n");
+        WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "            token outputs:out\n");
+        WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "            token outputs:surface\n");
+        WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+        strcpy_s(outputString, 256, "        }\n");
+        WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+#else
         if (usePreviewSurface) {
             sprintf_s(outputString, 256, "        token outputs:surface.connect = <%s/Looks/%s/PreviewSurface.outputs:surface>\n", prefixPath, mtlName);
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -28163,13 +28250,14 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 }
             }
         }
-
+#endif
         strcpy_s(outputString, 256, "    }\n");
         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
 
         // go to next group
         startRun = nextStart;
     }
+#endif
 
     strcpy_s(outputString, 256, "}\n");
     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
