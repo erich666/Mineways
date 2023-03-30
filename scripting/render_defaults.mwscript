@@ -10,37 +10,43 @@
 
 //=============================================================================================
 //// Wavefront OBJ file made by Mineways version 7.00, http://mineways.com
-Minecraft world: 1.14 test new blocks   // or whatever your world is
+World: 1_19 test world                 // or whatever your world is
 Terrain file name: terrainExt.png      // it's usually wiser to give the full path here; "default" uses the built-in terrain
 Color scheme: Standard
-//// Sat Jun  8 12:05:21 2019
+//// Thu Mar 30 15:49:01 2023
 
-Selection location min to max: -97, 71, -26 to -76, 255, -5     // or whatever your volume is
-////  Non-empty selection location min to max: -97, 71, -26 to -76, 97, -5
+Selection location min to max: -1, -61, 4 to 7, 319, 7     // or whatever your volume is
+////  Non-empty selection location min to max: -1, -61, 4 to 7, -50, 7
 
 Set render type: Wavefront OBJ absolute indices
 Units for the model vertex data itself: meters
 
-//// 917 vertices, 535 faces (1070 triangles), 466 blocks, 104 billboards/bits
-//// block dimensions: X=28 by Y=4 (height) by Z=8 blocks
-File type: Export full color texture patterns
-Texture output RGB: YES
-Texture output A: YES
-Texture output RGBA: YES
-Export separate objects: YES
-Individual blocks: no
+//// 1417 vertices, 1005 faces (2010 triangles), 146 blocks, 149 billboards/bits
+//// block dimensions: X=10 by Y=13 (height) by Z=5 blocks
+Elevation shading: no
+Lighting: no
+Transparent water: no
+Map grid: no
+File type: Export individual textures to directory tex
+Texture output RGB: no
+Texture output A: no
+Texture output RGBA: no
+Export separate types: YES
+Export individual blocks: no
   Material per family: YES
-  Split by block type: no
-G3D full material: no
-Make Z the up direction instead of Y: no
-Create composite overlay faces: no
-Center model: YES
+  Split by block type: YES
+Make groups objects: NO
+Custom material: YES
 Export lesser blocks: YES
 Fatten lesser blocks: no
-Create block faces at the borders: YES
-Make tree leaves solid: no
+Simplify mesh: no
+Create composite overlay faces: no
+Center model: YES
 Use biomes: no
+Create block faces at the borders: YES
+Tree leaves solid: no
 Rotate model 0.000000 degrees
+Make Z the up direction instead of Y: no
 Scale model by making each block 1000 mm high
 //// Data operation options:
   Fill air bubbles: no; Seal off entrances: no; Fill in isolated tunnels in base of model: no
@@ -50,6 +56,7 @@ Scale model by making each block 1000 mm high
 Melt snow blocks: no
   Debug: show separate parts as colors: no
   Debug: show weld blocks in bright colors: no
-//// Full world path: C:\Users\erich\AppData\Roaming\.minecraft\saves\1.14 test new blocks
-//// Full terrainExt.png path: default
-//// Full current path: C:\Users\erich\Documents\_Documents\Github\Mineways\Win
+
+//// Full world path: C:\Users\erich\AppData\Roaming\.minecraft\saves\1_19 test world
+//// Full terrainExt.png path: C:\Users\erich\Github\Mineways\TileMaker\TileMaker\terrainExt.png
+//// Full current path: C:\Users\erich\Github\Mineways\x64\Release

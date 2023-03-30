@@ -5295,11 +5295,11 @@ static void initializePrintExportData(ExportFileData& printData)
     printData.chkShowWelds = 0;
 
     // should normally just have one material and group
-    printData.chkMakeGroupsObjects = 0;
     printData.chkSeparateTypes = 0;
     INIT_ALL_FILE_TYPES(printData.chkIndividualBlocks, 0, 0, 0, 0, 0, 0, 0, 0);
     printData.chkMaterialPerFamily = 0;
     printData.chkSplitByBlockType = 0;
+    printData.chkMakeGroupsObjects = 0;
     // shouldn't really matter, now that both versions don't use the diffuse color when texturing
     INIT_ALL_FILE_TYPES(printData.chkCustomMaterial, 0, 0, 1, 0, 0, 0, 0, 0);
     printData.chkExportMDL = 1;
@@ -5385,12 +5385,12 @@ static void initializeViewExportData(ExportFileData& viewData)
     viewData.chkDeleteFloaters = 0;
     INIT_ALL_FILE_TYPES(viewData.chkHollow,      0, 0, 0, 0, 0, 0, 0, 0);
     INIT_ALL_FILE_TYPES(viewData.chkSuperHollow, 0, 0, 0, 0, 0, 0, 0, 0);
-    // G3D material off by default for rendering
-    viewData.chkMakeGroupsObjects = 0;
+
     viewData.chkSeparateTypes = 1;
     INIT_ALL_FILE_TYPES(viewData.chkIndividualBlocks, 0, 0, 0, 0, 0, 0, 0, 0);
     viewData.chkMaterialPerFamily = 1;
     viewData.chkSplitByBlockType = 1;
+    viewData.chkMakeGroupsObjects = 0;  // keeping the training wheels on for Blender. Setting to 1 can be "surprising".
     INIT_ALL_FILE_TYPES(viewData.chkCustomMaterial, 1, 1, 1, 0, 0, 0, 0, 0);
     viewData.chkCompositeOverlay = 0;
     viewData.chkBlockFacesAtBorders = 1;
@@ -6811,6 +6811,10 @@ static int interpretImportLine(char* line, ImportedSet& is)
     }
 
     strPtr = findLineDataNoCase(line, "Export separate objects:");
+    if (strPtr == NULL) {
+        // new name to match export dialog's text, as of 10.13
+        strPtr = findLineDataNoCase(line, "Export separate types:");
+    }
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
@@ -6824,6 +6828,10 @@ static int interpretImportLine(char* line, ImportedSet& is)
     }
 
     strPtr = findLineDataNoCase(line, "Individual blocks:");
+    if (strPtr == NULL) {
+        // new name to match export dialog's text, as of 10.13
+        strPtr = findLineDataNoCase(line, "Export individual blocks:");
+    }
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
@@ -6871,6 +6879,10 @@ static int interpretImportLine(char* line, ImportedSet& is)
     }
 
     strPtr = findLineDataNoCase(line, "G3D full material:");
+    if (strPtr == NULL) {
+        // new name to match export dialog's text, as of 10.13
+        strPtr = findLineDataNoCase(line, "Custom material:");
+    }
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
@@ -6932,6 +6944,32 @@ static int interpretImportLine(char* line, ImportedSet& is)
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 
+    strPtr = findLineDataNoCase(line, "Export lesser blocks:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for 'Export lesser blocks' command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData)
+            is.pEFD->chkExportAll = interpretBoolean(string1);
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Fatten lesser blocks:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for 'Fatten lesser blocks' command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData)
+            is.pEFD->chkFatten = interpretBoolean(string1);
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
     strPtr = findLineDataNoCase(line, "Simplify mesh:");
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
@@ -6971,33 +7009,6 @@ static int interpretImportLine(char* line, ImportedSet& is)
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 
-
-    strPtr = findLineDataNoCase(line, "Export lesser blocks:");
-    if (strPtr != NULL) {
-        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
-        {
-            saveErrorMessage(is, L"could not find boolean value for 'Export lesser blocks' command."); return INTERPRETER_FOUND_ERROR;
-        }
-        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-
-        if (is.processData)
-            is.pEFD->chkExportAll = interpretBoolean(string1);
-        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-    }
-
-    strPtr = findLineDataNoCase(line, "Fatten lesser blocks:");
-    if (strPtr != NULL) {
-        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
-        {
-            saveErrorMessage(is, L"could not find boolean value for 'Fatten lesser blocks' command."); return INTERPRETER_FOUND_ERROR;
-        }
-        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-
-        if (is.processData)
-            is.pEFD->chkFatten = interpretBoolean(string1);
-        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
-    }
-
     strPtr = findLineDataNoCase(line, "Create block faces at the borders:");
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
@@ -7014,6 +7025,10 @@ static int interpretImportLine(char* line, ImportedSet& is)
     // TODOTODO add for decimates
 
     strPtr = findLineDataNoCase(line, "Make tree leaves solid:");
+    if (strPtr == NULL) {
+        // new name to match export dialog's text, as of 10.13
+        strPtr = findLineDataNoCase(line, "Tree leaves solid:");
+    }
     if (strPtr != NULL) {
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {

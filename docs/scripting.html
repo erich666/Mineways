@@ -314,21 +314,19 @@ Typically used for 3D printing export. See <a href="mineways.html#options">the e
 Texture output RGB: <i>YES</i><br>
 Texture output A: <i>YES</i><br>
 Texture output RGBA: <i>YES</i><br>
-Export separate objects: <i>YES</i><br>
-Individual blocks: <i>no</i><br>
+Export separate types: <i>YES</i><br>
+Export individual blocks: <i>no</i><br>
 Material per family: <i>YES</i><br>
-G3D full material: <i>YES</i><br>
-Export MDL: <i>YES</i><br>
-Light scale: <i>30</i><br>
-Surface emit scale: <i>30</i><br>
+Split by block type: <i>YES</i><br>
+Make groups objects: <i>no</i><br>
+Custom material: <i>YES</i><br>
+Export lesser blocks: <i>YES</i><br>
+Fatten lesser blocks: <i>no</i><br>
 Simplify mesh: <i>no</i><br>
 Create composite overlay faces: <i>no</i><br>
 Center model: <i>YES</i><br>
-Export lesser blocks: <i>YES</i><br>
-Fatten lesser blocks: <i>no</i><br>
-Make tree leaves solid: <i>no</i><br>
 Create block faces at the borders: <i>YES</i><br>
-Use biomes: <i>YES</i><br>
+Tree leaves solid: <i>no</i><br>
 Make Z the up direction instead of Y: <i>no</i><br>
 Melt snow blocks: <i>no</i><br>
 Debug: show separate parts as colors: <i>no</i><br>
@@ -904,7 +902,7 @@ Import the settings for the previously-exported model MyCastle.obj, its renderin
 mineways.exe scripting/startup.mwscript
 </div>
 <P>
-Run the script "startup.mwscript" at startup. This file must be in the same directory as Mineways (probably won't work on Mac); give the path if it's somewhere else. 
+Run the script "startup.mwscript" in the scripting directory at startup. Useful for setting default export options or other things you prefer.
 <P>
 <div id="code">
 mineways.exe "C:\Mineways\My House.obj" C:\Mineways\modify.mwscript
@@ -952,20 +950,20 @@ On the Mac, follow <a href="http://osxdaily.com/2013/08/08/change-default-applic
 What follows are the default rendering options when Export for Rendering is performed. This list was created by exporting a sample rendering from a world, editing the OBJ file, grabbing the header and removing the "#" character at the beginning of each line, and commenting out the lines that are purely comments by using "//". This is provided here as a guide to all the export options available.
 <P>
 <div id="code">
-// Wavefront OBJ file made by Mineways version 4.18, http://mineways.com<br>
-Minecraft world: Voxelia_2016-01-13<br>
+// Wavefront OBJ file made by Mineways version 10.13, http://mineways.com<br>
+World: 1_19 test world<br>
 Terrain file name: terrainExt.png<br>
 Color scheme: Standard<br>
-// Sun Jun 05 08:32:21 2016<br>
+// Thu Mar 30 15:49:01 2023<br>
 <br>
-Selection location min to max: -97, 71, -26 to -76, 255, -5<br>
-//  Non-empty selection location min to max: -97, 71, -26 to -76, 97, -5<br>
+Selection location min to max: -1, -61, 4 to 7, 319, 7<br>
+//  Non-empty selection location min to max: -1, -61, 4 to 7, -50, 7<br>
 <br>
 Set render type: Wavefront OBJ absolute indices<br>
 Units for the model vertex data itself: meters<br>
 <br>
-// 6249 vertices, 4998 faces (9996 triangles), 2732 blocks, 245 billboards/bits<br>
-// block dimensions: X=22 by Y=28 (height) by Z=22 blocks<br>
+// 917 vertices, 535 faces (1070 triangles), 466 blocks, 104 billboards/bits
+// block dimensions: X=28 by Y=4 (height) by Z=8 blocks
 Elevation shading: no<br>
 Lighting: no<br>
 Transparent water: no<br>
@@ -974,18 +972,19 @@ File type: Export individual textures to directory tex<br>
 Texture output RGB: YES<br>
 Texture output A: YES<br>
 Texture output RGBA: YES<br>
-Export separate objects: YES<br>
-Individual blocks: no<br>
+Export separate types: YES<br>
+Export individual blocks: no<br>
   Material per family: YES<br>
   Split by block type: YES<br>
-G3D full material: no<br>
+Make groups objects: NO<br>
+Custom material: YES<br>
+Export lesser blocks: YES<br>
+Fatten lesser blocks: no<br>
 Simplify mesh: no<br>
 Create composite overlay faces: no<br>
 Center model: YES<br>
-Export lesser blocks: YES<br>
-Fatten lesser blocks: no<br>
 Create block faces at the borders: YES<br>
-Make tree leaves solid: no<br>
+Tree leaves solid: no<br>
 Use biomes: no<br>
 Rotate model 0.000000 degrees<br>
 Make Z the up direction instead of Y: no<br>
@@ -1049,7 +1048,7 @@ Running the script to set up the scene, then exporting (manually) to Sketchfab, 
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 2/24/2023</p>	</div>
+		<br id="lastUpdate">Last updated 3/30/2023</p>	</div>
 </div>
 
 </body>

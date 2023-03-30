@@ -29771,12 +29771,11 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
             WRITE_STAT;
         }
 
-        sprintf_s(outputString, 256, "# Make groups objects: %s\n", gModel.options->pEFD->chkMakeGroupsObjects ? "YES" : "no");
+        // was sprintf_s(outputString, 256, "# Export separate objects: %s\n", gModel.options->pEFD->chkSeparateTypes ? "YES" : "no");
+        sprintf_s(outputString, 256, "# Export separate types: %s\n", gModel.options->pEFD->chkSeparateTypes ? "YES" : "no");
         WRITE_STAT;
-
-        sprintf_s(outputString, 256, "# Export separate objects: %s\n", gModel.options->pEFD->chkSeparateTypes ? "YES" : "no");
-        WRITE_STAT;
-        sprintf_s(outputString, 256, "# Individual blocks: %s\n", gModel.options->pEFD->chkIndividualBlocks[gModel.options->pEFD->fileType] ? "YES" : "no");
+        // was sprintf_s(outputString, 256, "# Individual blocks: %s\n", gModel.options->pEFD->chkIndividualBlocks[gModel.options->pEFD->fileType] ? "YES" : "no");
+        sprintf_s(outputString, 256, "# Export individual blocks: %s\n", gModel.options->pEFD->chkIndividualBlocks[gModel.options->pEFD->fileType] ? "YES" : "no");
         WRITE_STAT;
 
         if (gModel.options->pEFD->chkSeparateTypes || gModel.options->pEFD->chkIndividualBlocks[gModel.options->pEFD->fileType])
@@ -29788,17 +29787,22 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
         // was, pre-7.0, "Split materials into subtypes"
         sprintf_s(outputString, 256, "#   Split by block type: %s\n", gModel.options->pEFD->chkSplitByBlockType ? "YES" : "no");
         WRITE_STAT;
+
+        sprintf_s(outputString, 256, "# Make groups objects: %s\n", gModel.options->pEFD->chkMakeGroupsObjects ? "YES" : "no");
+        WRITE_STAT;
     }
     else if (gModel.options->pEFD->fileType == FILE_TYPE_USD)
     {
-        sprintf_s(outputString, 256, "# Individual blocks: %s\n", gModel.options->pEFD->chkIndividualBlocks[gModel.options->pEFD->fileType] ? "YES" : "no");
+        // was sprintf_s(outputString, 256, "# Individual blocks: %s\n", gModel.options->pEFD->chkIndividualBlocks[gModel.options->pEFD->fileType] ? "YES" : "no");
+        sprintf_s(outputString, 256, "# Export individual blocks: %s\n", gModel.options->pEFD->chkIndividualBlocks[gModel.options->pEFD->fileType] ? "YES" : "no");
         WRITE_STAT;
     }
 
     if ((gModel.options->pEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ) || (gModel.options->pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ) ||
         (gModel.options->pEFD->fileType == FILE_TYPE_USD)) {
 
-        sprintf_s(outputString, 256, "# G3D full material: %s\n", gModel.options->pEFD->chkCustomMaterial[gModel.options->pEFD->fileType] ? "YES" : "no");
+        // was sprintf_s(outputString, 256, "# G3D full material: %s\n", gModel.options->pEFD->chkCustomMaterial[gModel.options->pEFD->fileType] ? "YES" : "no");
+        sprintf_s(outputString, 256, "# Custom material: %s\n", gModel.options->pEFD->chkCustomMaterial[gModel.options->pEFD->fileType] ? "YES" : "no");
         WRITE_STAT;
     }
 
@@ -29810,6 +29814,15 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
         WRITE_STAT;
 
         sprintf_s(outputString, 256, "# Surface emit scale: %f\n", gModel.options->pEFD->scaleEmittersVal);
+        WRITE_STAT;
+    }
+
+    sprintf_s(outputString, 256, "# Export lesser blocks: %s\n", gModel.options->pEFD->chkExportAll ? "YES" : "no");
+    WRITE_STAT;
+
+    if (gModel.options->pEFD->chkExportAll)
+    {
+        sprintf_s(outputString, 256, "# Fatten lesser blocks: %s\n", gModel.options->pEFD->chkFatten ? "YES" : "no");
         WRITE_STAT;
     }
 
@@ -29828,25 +29841,6 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
     sprintf_s(outputString, 256, "# Center model: %s\n", gModel.options->pEFD->chkCenterModel ? "YES" : "no");
     WRITE_STAT;
 
-    sprintf_s(outputString, 256, "# Export lesser blocks: %s\n", gModel.options->pEFD->chkExportAll ? "YES" : "no");
-    WRITE_STAT;
-
-    if (gModel.options->pEFD->chkExportAll)
-    {
-        sprintf_s(outputString, 256, "# Fatten lesser blocks: %s\n", gModel.options->pEFD->chkFatten ? "YES" : "no");
-        WRITE_STAT;
-    }
-
-    // options only available when rendering.
-    if (!gModel.print3D)
-    {
-        sprintf_s(outputString, 256, "# Create block faces at the borders: %s\n", gModel.options->pEFD->chkBlockFacesAtBorders ? "YES" : "no");
-        WRITE_STAT;
-
-        sprintf_s(outputString, 256, "# Make tree leaves solid: %s\n", gModel.options->pEFD->chkLeavesSolid ? "YES" : "no");
-        WRITE_STAT;
-    }
-
     if (gModel.options->pEFD->chkBiome) {
         sprintf_s(outputString, 256, "# Use biomes: YES - index %d, %s\n", gModel.biomeIndex, gBiomes[gModel.biomeIndex].name);
     }
@@ -29854,6 +29848,16 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
         sprintf_s(outputString, 256, "# Use biomes: no\n");
     }
     WRITE_STAT;
+
+    // options only available when rendering.
+    if (!gModel.print3D)
+    {
+        sprintf_s(outputString, 256, "# Create block faces at the borders: %s\n", gModel.options->pEFD->chkBlockFacesAtBorders ? "YES" : "no");
+        WRITE_STAT;
+
+        sprintf_s(outputString, 256, "# Tree leaves solid: %s\n", gModel.options->pEFD->chkLeavesSolid ? "YES" : "no");
+        WRITE_STAT;
+    }
 
     // now always on by default
     //sprintf_s(outputString,256,"# Merge flat blocks with neighbors: %s\n", gModel.options->pEFD->chkMergeFlattop ? "YES" : "no" );

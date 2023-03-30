@@ -8,6 +8,7 @@
 //
 // Read more at http://mineways.com/scripting.html
 
+
 // If you want to load a particular world on startup, choose the directory you want in your %appdata%\.minecraft\saves
 // or if you store your world elsewhere, give the whole path.
 // Examples:
@@ -23,3 +24,9 @@
 // Uncomment this line to enable (you'll also need to load a world first):
 
 //Jump to Player
+
+
+// Blender 3.5 and newer has much improved USD import. If you want to export to USD by default:
+//Set render type: USD 1.0
+// And this setting is recommended if you are using Omniverse and a high-resolution texture set such as JG-RTX, so don't need the blocky look:
+//Custom material: NO
