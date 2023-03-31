@@ -1076,7 +1076,7 @@ Rendering Tips
 <H4 id="blender">Blender</H4><p>
 <a href="https://www.blender.org"><img id="productLogo" src="images/blender_icon.jpg" alt="Blender icon"></a>
 <P>
-These instructions assume Blender version 3.5 or newer.
+These instructions assume Blender version 3.5 or newer. I've made <a href="https://youtu.be/uVogzXQ6UKs">a 13-minute video of different ways to import into Blender 3.5</a> and perform rendering, which covers most of the first nine steps below.
 <P>
 Alternative Minecraft exporters for Blender include <a href="http://www.jmc2obj.net/">jmc2obj</a>, a general-purpose and full-featured exporter, and <a href="http://randomsamples.info/project/mineblend/">Mineblend</a>, which is dated, but is tailored specifically for Minecraft to Blender import. There are tons of other Blender+Minecraft things out there. For example, <a href="https://www.replaymod.com/">the Replay Mod</a> lets you create an animation path in Minecraft and export the camera moves. You can then import the .GLB animation file into Blender.
 <P>
@@ -1112,6 +1112,8 @@ You should now see a textured view of your model.
 <P>
 For USD, a camera comes with the file. Nothing great, but it can be used, and sometimes will work when the model disappears due to Blender weirdness. You can pick it in the upper right, "Camera.001", then in the second row of menus in the upper left pick View -> Cameras -> Set Active Object as Camera.
 <P>
+Another way to move around the scene is to turn on Walk or Fly navigation. Hit F3 and type "walk" and pick the "View -> Navigation -> Walk" line. Now the WASD keys will work like they do in games, Q and E go down and up, spacebar will take you to where you're pointing, Shift will increase the speed of any letter key. Fly is similar, but you're setting the velocity. If you click somewhere you leave this mode. Just press F3 and Enter to return to it.
+<P>
 <b>7) Lighting:</b> For OBJ, change the default light to be more useful. Click on the Sun setting, then I'd also crank the Strength down to 8.0 or so, as shown:
 <p class="center">
 <img src="images/b28_sunlight.jpg">
@@ -1122,21 +1124,23 @@ To adjust the direction of any light, select it, press Shift-T, and move your mo
 <P>
 Frankly, an easier way to control the light's direction is to choose the orange box icon ("Object Properties") a few up from the lightbulb icon in the vertical strip of icons. Then play with the Rotation angles: if you set these to 0,0,0 for XYZ you'll have a light directly overhead. Go from there (and there's probably some good "Mode" to set the light to, but I haven't figured one out yet...).
 <P>
-<b>8) Rendering:</b> You are now ready to do a first render of your model. Once you like the view, click Control-Alt-"Numpad 0" (the zero in the lower right of your keyboard) to set the render camera to your view (or at least the center of it). If you move your view of the world, you can go back to this saved view by hitting "Numpad 0" again, or Control-Alt-"Numpad 0" to set the render camera again. Personally, I can't figure out for the life of me why just the middle portion of the view is selected (and mousewheel will dolly in and out, maintaining this rectangle - mysterious). Be the first to explain to me this relationship and how I can predictably select the render area and I'll send you a box of Girl Scout cookies (if you're in the US).
+<b>8) Rendering:</b> You are now ready to do a first render of your model. Once you like the view, click Control-Alt-"Numpad 0" (the zero in the lower right of your keyboard) to set the render camera to your view (or at least the center of it). If you move your view of the world, you can go back to this saved view by hitting "Numpad 0" again, or Control-Alt-"Numpad 0" to set the render camera again.
 <P>
-Now press "F12" or select "Render | Render Image" from the menu and have a look.
+However, there's a better way. In the upper right corner of the viewport there's an "Options v" menu. Just below that there's a little "&lt;" symbol. Click that and you'll see more menus appear: Item, Tool, View (and MCprep, if you add this). Alternately, click the "N" key, which toggles the display of these. Now click on View, open up the dialog that appears, and click the box that says "Camera to View" under View Lock. This makes it so that what you see in the rectangle is what you get. You might want to first use the mouse wheel to adjust this rendered view's rectangle, then turn this on.
 <P>
-The distant part of the model might not appear, as the Clip End distance of the camera is too small. Adjust this by selecting the camera object in the Scene Collection in the upper right of the screen, select the camera icon, then click on the "End" value box and type in a new value such as 1000 m or simply drag your mouse:
-<p class="center">
-<img src="images/b28_camera.jpg">
-<P>
-But wait, there's more. Mysteriously (to me), there's a separate clip range for the interactive camera. In the upper part of the right edge of the viewport there's a vertical list of menus: Item Tool View (and MCprep, if you add this). Click on View, open up the dialog that appears, and change the "End" value from 1000 m to something larger, e.g.:
+But wait, there's more. If you find some or none of your model appears when you dolly out, you need to adjust the clip range. In this same View dialog change the "End" value from 1000 m to something larger, e.g.:
 <p class="center">
 <img src="images/b36_view_end.jpg">
 <P>
 If you do change this, I've found it's good to then change Clip Start to 1 m or higher, else you'll get strange z-fighting artifacts around the edges of blocks.
 <P>
-Another alternative is, when exporting from Mineways, make the model smaller. In the upper right of Mineways' export dialog you'll see "Make each block 1000 mm high." If you change "1000" to "10" or similar, the exported blocks will be smaller. You can also change the scale on import, and there's probably a way to change it in Blender once imported. But I'm a Blender beginner, so I leave that to you.
+Now press "F12" or select "Render | Render Image" from the menu and have a look.
+<P>
+The distant part of the model might not appear, as the Clip End distance of the camera might still be too small, which somehow (if you didn't click "Camera to View" is a separate clip range. Adjust this distance by selecting the camera object in the Scene Collection in the upper right of the screen, select the camera icon, then click on the "End" value box and type in a new value such as 1000 m or simply drag your mouse:
+<p class="center">
+<img src="images/b28_camera.jpg">
+<P>
+Another alternative is, when exporting from Mineways, make the model smaller. In the upper right of Mineways' export dialog you'll see "Make each block 1000 mm high." If you change "1000" to "10" or similar, the exported blocks will be smaller. You can also change the scale on import to Blender, which is even simpler. Making the model smaller will also often make shadows work again with the Eevee renderer; these disappear if the model is large, for some reason.
 <P>
 To get back to rendering, the render will look pretty much like what you already see on the screen. To use a higher-quality, but slower, renderer, do this: Along the top of the program click on the gray "Rendering" (<i>not</i> white "Render") menu item, towards the middle. In the upper right, under "Scene," you'll see "Render Engine". Pick "Cycles" instead of "Eevee." Now on the top edge click on "Layout", which is what was selected originally. Things will look nicer, but interaction will be laggy. If you want faster interaction, in the upper right corner of the viewport select the second-from-the-right sphere icon, the material preview mode. What F12 does is uses the renderer you select. If you chose Cycles, it will progressively improve the result, by default running 4096 passes to give a nice final image. You can see the Sample counter along the upper edge of the image for progress. Save your image using the Image menu along the top. Close this window when you're done.
 <P>
