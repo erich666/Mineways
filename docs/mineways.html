@@ -1133,7 +1133,9 @@ The distant part of the model might not appear, as the Clip End distance of the 
 But wait, there's more. Mysteriously (to me), there's a separate clip range for the interactive camera. In the upper part of the right edge of the viewport there's a vertical list of menus: Item Tool View (and MCprep, if you add this). Click on View, open up the dialog that appears, and change the "End" value from 1000 m to something larger, e.g.:
 <p class="center">
 <img src="images/b36_view_end.jpg">
-</p>
+<P>
+If you do change this, I've found it's good to then change Clip Start to 1 m or higher, else you'll get strange z-fighting artifacts around the edges of blocks.
+<P>
 Another alternative is, when exporting from Mineways, make the model smaller. In the upper right of Mineways' export dialog you'll see "Make each block 1000 mm high." If you change "1000" to "10" or similar, the exported blocks will be smaller. You can also change the scale on import, and there's probably a way to change it in Blender once imported. But I'm a Blender beginner, so I leave that to you.
 <P>
 To get back to rendering, the render will look pretty much like what you already see on the screen. To use a higher-quality, but slower, renderer, do this: Along the top of the program click on the gray "Rendering" (<i>not</i> white "Render") menu item, towards the middle. In the upper right, under "Scene," you'll see "Render Engine". Pick "Cycles" instead of "Eevee." Now on the top edge click on "Layout", which is what was selected originally. Things will look nicer, but interaction will be laggy. If you want faster interaction, in the upper right corner of the viewport select the second-from-the-right sphere icon, the material preview mode. What F12 does is uses the renderer you select. If you chose Cycles, it will progressively improve the result, by default running 4096 passes to give a nice final image. You can see the Sample counter along the upper edge of the image for progress. Save your image using the Image menu along the top. Close this window when you're done.
