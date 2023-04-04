@@ -2790,6 +2790,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 	<LI>Updated USD output to new USD format that includes "prepend apiSchemas = ["MaterialBindingAPI"]" for each mesh. Why? I don't know.
 	<LI>When all texture export is turned off, read just the header of the TerrainExt color terrain image and avoid all preprocessing for this file. (Sadly, the PBR textures still need to be read in, as we check whether various textures exist on output and adjust accordingly.) This change makes export for basic RGB a bit faster, especially when a large TerrainExt file is used.
 	<LI>Added a small speed optimization to the simplify mesh system.
+	<LI>Improved warning and error systems for when worlds do not load into Mineways <I>(Thanks, SeaJay, for noting the old message was confusing)</I>.
 	<LI>Clarified the documentation for how to use the map annotation scripts.
 	</UL>
 

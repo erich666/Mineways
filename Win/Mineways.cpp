@@ -480,6 +480,7 @@ static void showLoadWorldError(int loadErr);
 static void checkMapDrawErrorCode(int retCode);
 static bool saveMapFile(int xmin, int zmin, int xmax, int ymax, int zmax, wchar_t* mapFileName);
 static int FilterMessageBox(HWND hWnd, LPCTSTR lpText, LPCTSTR lpCaption, UINT uType);
+static void GoToBedrockHelpOnOK(int retcode);
 
 
 int APIENTRY _tWinMain(
@@ -890,8 +891,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             if (loadWorldList(GetMenu(hWnd)))
             {
                 LOG_INFO(gExecutionLogfile, "   world not converted\n");
-                FilterMessageBox(NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format. These worlds will be shown as disabled in the Open World menu. To make a world readable by Mineways, install Minecraft 1.9 and open the world in it, then quit. Doing so will convert your world to a format Mineways understands."),
                     _T("Warning"), MB_OK | MB_ICONWARNING | MB_TOPMOST);
+                int retcode = FilterMessageBox(NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format. These worlds will be shown as disabled in the Open World menu.\n\nYou might be trying to read a world from Minecraft for Windows 10. Mineways cannot read this type of world, as it is in a different ('Bedrock') format. Go to https://bit.ly/mcbedrock and follow the instructions there to convert your world to the 'Classic' Java format, which Mineways can read. If instead this world is from an early version of Classic Minecraft, load it into the latest Minecraft to convert it. A third possibility is that this is some modded world in a format that Mineways does not support. There's not a lot that can be done about that, but feel free to contact me on Discord or by email. See the http://mineways.com site for support information."),
+                    _T("Warning"), MB_OKCANCEL | MB_ICONWARNING | MB_TOPMOST);
+                GoToBedrockHelpOnOK(retcode);
             }
         }
         wcscpy_s(gWorldPathCurrent, MAX_PATH_AND_FILE, gWorldPathDefault);
@@ -3658,7 +3661,7 @@ void flagUnreadableWorld(wchar_t* wcWorld, char* charWorld, int errCode)
 
     if (errCode < 0) {
         wchar_t msgString[1024];
-        swprintf_s(msgString, 1024, L"Warning: The level.dat of world file %s appears to be missing important information; it might be corrupt. World ignored, error code %d.", wcWorld, errCode);
+        wsprintf(msgString, _T("Warning: The level.dat of world file %s appears to be missing important information. World ignored, error code %d."), wcWorld, errCode);
         FilterMessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
     }
     //else {
@@ -3714,6 +3717,7 @@ static int loadWorldList(HMENU menu)
     if (wcslen(gWorldPathDefault) > 0) {
         // Avoid infinite loop when searching directory. This shouldn't happen, but let us be absolutely sure.
         int count = 0;
+        int failedLoads = 0;
         do
         {
             // Yes, we could really count the number of actual worlds found, but just in case this is a crazy-large directory
@@ -3758,6 +3762,7 @@ static int loadWorldList(HMENU menu)
                 if (errCode != 0) {
                     // unreadable world, for some reason - couldn't read version and LevelName
                     flagUnreadableWorld(testAnvil, pConverted, errCode);
+                    failedLoads++;
                     continue;
                 }
                 LOG_INFO(gExecutionLogfile, "        try to get file level name\n");
@@ -3765,6 +3770,7 @@ static int loadWorldList(HMENU menu)
                 if (errCode != 0) {
                     // unreadable world, for some reason - couldn't read version and LevelName
                     flagUnreadableWorld(testAnvil, pConverted, errCode);
+                    failedLoads++;
                     continue;
                 }
 
@@ -3853,6 +3859,17 @@ static int loadWorldList(HMENU menu)
                 }
             }
         } while (((worldFound = FindNextFile(hFind, &ffd)) != 0) && (gNumWorlds < MAX_WORLDS));
+
+        // Any bad worlds detected? Give advice
+        if (failedLoads) {
+            // prints the line in the code where the error was returned via (a negated) LINE_ERROR.
+            wsprintf(msgString, _T("The world%s not loaded may be in a different ('Bedrock') format, used by Minecraft for Windows 10. Click 'OK' to go to https://bit.ly/mcbedrock and follow the instructions there to convert this type of world to the 'Classic' Java format, which Mineways can read. If instead this world is from an early version of Classic Minecraft, load it into the latest Minecraft to convert it. A third possibility is that this is some modded world in a format that Mineways does not support. There's not a lot that can be done about that, but feel free to contact me on Discord or by email. See the http://mineways.com site for support information."), (failedLoads > 1) ? "s" : "");
+
+            int retcode = FilterMessageBox(NULL, msgString,
+                _T("Read error"), MB_OKCANCEL | MB_ICONWARNING | MB_TOPMOST);
+            GoToBedrockHelpOnOK(retcode);
+
+        }
     }
     FindClose(hFind);
 
@@ -9247,37 +9264,31 @@ static void showLoadWorldError(int loadErr)
     // world not loaded properly
     wchar_t fullbuf[2048];
     wchar_t extrabuf[1024];
+    int retcode;
     wsprintf(extrabuf, _T("Sub-error code %d. Please write me at erich@acm.org and, as best you can, tell me the error message, sub-error code, and what directories your world and mineways.exe is located in."), gSubError);
     switch (loadErr) {
     case 1:
         if (gSubError > 0) {
-            wsprintf(fullbuf, _T("Error: cannot read or find your world for some reason. Path attempted: \"%s\". If yours is a Java (Classic) world, one idea: try copying your world save directory to some simple location such as C:\\temp and use File | Open...\n\n%s"), gFileOpened, extrabuf);
+            wsprintf(fullbuf, _T("Error: cannot read or find your world for some reason. Path attempted: \"%s\". If yours is a Java (Classic) world, one idea: try copying your world save directory to some simple location such as C:\\temp and use File | Open...\n\n%s\n\nIf that doesn't work, the world may be in a different ('Bedrock') format, used by Minecraft for Windows 10. Click 'OK' to go to https://bit.ly/mcbedrock and follow the instructions there to convert this type of world to the 'Classic' Java format, which Mineways can read. If instead this world is from an early version of Classic Minecraft, load it into the latest Minecraft to convert it. A third possibility is that this is some modded world in a format that Mineways does not support. There's not a lot that can be done about that, but feel free to contact me on Discord or by email. See the http://mineways.com site for support information."), gFileOpened, extrabuf);
         }
         // To be honest, I'm not sure how -3 could ever be set here, but it evidently can be...
         else if (gSubError == ERROR_GET_FILE_VERSION_DATA || gSubError == ERROR_GET_FILE_VERSION_VERSION ) {
-            wsprintf(fullbuf, _T("Error: cannot read world's file version. You might be trying to read a world from Minecraft for Windows 10. Mineways cannot read this type of world, as it is in a different ('Bedrock') format. Click 'OK' to go to http://bit.ly/mcbedrock and follow the instructions there to convert your world to the 'Classic' Java format, which Mineways can read."));
-            int retcode = FilterMessageBox(NULL, fullbuf,
-                _T("Read error"), MB_OKCANCEL | MB_ICONERROR | MB_TOPMOST);
-            if (retcode == IDOK)
-            {
-                std::string bedrockUrl = "http://bit.ly/mcbedrock";
-                wchar_t* wcharBedrockUrl = new wchar_t[4096];
-                MultiByteToWideChar(CP_ACP, 0, bedrockUrl.c_str(), (int)(bedrockUrl.size() + 1), wcharBedrockUrl, 4096);
-                ShellExecute(NULL, L"open", wcharBedrockUrl, NULL, NULL, SW_SHOWNORMAL);
-            }
-            return;
+            wsprintf(fullbuf, _T("Error: cannot read world's file version.\n\nThe world may be in a different ('Bedrock') format, used by Minecraft for Windows 10. Click 'OK' to go to https://bit.ly/mcbedrock and follow the instructions there to convert this type of world to the 'Classic' Java format, which Mineways can read. If instead this world is from an early version of Classic Minecraft, load it into the latest Minecraft to convert it. A third possibility is that this is some modded world in a format that Mineways does not support. There's not a lot that can be done about that, but feel free to contact me on Discord or by email. See the http://mineways.com site for support information."));
         }
         else {
             // prints the line in the code where the error was returned via (a negated) LINE_ERROR.
-            wsprintf(fullbuf, _T("Error: cannot load world for some reason (maybe it's a Bedrock world, or modded, or corrupt?). Path attempted: \"%s\".\n\n%s"), gFileOpened, extrabuf);
+            wsprintf(fullbuf, _T("Error: cannot load world for some reason. Path attempted: \"%s\".\n\n%s\n\nThe world may be in a different ('Bedrock') format, used by Minecraft for Windows 10. Click 'OK' to go to https://bit.ly/mcbedrock and follow the instructions there to convert this type of world to the 'Classic' Java format, which Mineways can read. If instead this world is from an early version of Classic Minecraft, load it into the latest Minecraft to convert it. A third possibility is that this is some modded world in a format that Mineways does not support. There's not a lot that can be done about that, but feel free to contact me on Discord or by email. See the http://mineways.com site for support information."), gFileOpened, extrabuf);
         }
-        FilterMessageBox(NULL, fullbuf,
-            _T("Read error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
+        retcode = FilterMessageBox(NULL, fullbuf,
+            _T("Read error"), MB_OKCANCEL | MB_ICONERROR | MB_TOPMOST);
+        GoToBedrockHelpOnOK(retcode);
         break;
     case 2:
-        wsprintf(fullbuf, _T("Error: world has not been converted to the Anvil format. To convert a world, run Minecraft 1.9 and open the world in it to convert the world, then quit.\nAlternately, download Version 1.15 of Mineways from the http://mineways.com site, but I don't recommend this route."));
-        FilterMessageBox(NULL, fullbuf,
-            _T("Read error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
+        wsprintf(fullbuf, _T("Error: world has not been converted to the Anvil format.\n\nTo make a world readable by Mineways, install the latest Classic (Java) Minecraft you can, load the world in it, then quit. Doing so will convert your world to a format Mineways understands.\n\nIf this does not work, the world may be in a different ('Bedrock') format, used in Minecraft for Windows 10. Click 'OK' to go to https://bit.ly/mcbedrock and follow the instructions there to convert this type of world to the 'Classic' Java format, which Mineways can read. A third possibility is that this is some modded world in a format that Mineways does not support. There's not a lot that can be done about that, but feel free to contact me on Discord or by email. See the http://mineways.com site for support information."));
+
+        retcode = FilterMessageBox(NULL, fullbuf,
+            _T("Read error"), MB_OKCANCEL | MB_ICONERROR | MB_TOPMOST);
+        GoToBedrockHelpOnOK(retcode);
         break;
     case 3:
         wsprintf(fullbuf, _T("Error: cannot read world's spawn location - every world should have one.\n\n%s"), extrabuf);
@@ -9395,4 +9406,15 @@ static int FilterMessageBox(HWND hWnd, LPCTSTR lpText, LPCTSTR lpCaption, UINT u
     }
     // note: we make all these message boxes system modal - they should always be in the user's face until dismissed.
     return MessageBox(hWnd, lpText, lpCaption, uType | MB_TOPMOST);
+}
+
+static void GoToBedrockHelpOnOK( int retcode )
+{
+    if (retcode == IDOK)
+    {
+        std::string bedrockUrl = "https://bit.ly/mcbedrock";
+        wchar_t* wcharBedrockUrl = new wchar_t[4096];
+        MultiByteToWideChar(CP_ACP, 0, bedrockUrl.c_str(), (int)(bedrockUrl.size() + 1), wcharBedrockUrl, 4096);
+        ShellExecute(NULL, L"open", wcharBedrockUrl, NULL, NULL, SW_SHOWNORMAL);
+    }
 }
