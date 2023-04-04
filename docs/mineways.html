@@ -2785,7 +2785,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 		<LI>"Individual blocks" is now "Export individual blocks
 		<LI>"G3D full material" is now "Custom material
 		<LI>"Make tree leaves solid" is now "Tree leaves solid"
-	<UL>
+	</UL>
 	Note that the old names will still read into this new version, i.e., it's backward compatible. The scripting documentation and render_defaults.mwscript have been updated accordingly.
 	<LI>Updated USD output to new USD format that includes "prepend apiSchemas = ["MaterialBindingAPI"]" for each mesh. Why? I don't know.
 	<LI>When all texture export is turned off, read just the header of the TerrainExt color terrain image and avoid all preprocessing for this file. (Sadly, the PBR textures still need to be read in, as we check whether various textures exist on output and adjust accordingly.) This change makes export for basic RGB a bit faster, especially when a large TerrainExt file is used.
