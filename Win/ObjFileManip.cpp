@@ -380,6 +380,7 @@ static int gFaceDirectionVector[6][3] =
     { 1,0,0},{0, 1,0},{0,0, 1}
 };
 
+// I wish file writing was faster. Don't know why it seems so slow. TODO. Relevant? https://stackoverflow.com/questions/64795981/how-to-make-fs-writefile-faster-for-an-image
 #define WERROR_MODEL(x) if(x) { assert(0); PortaClose(gModelFile); return MW_CANNOT_WRITE_TO_FILE; }
 #define WERROR_FH(x) if(x) { assert(0); PortaClose(fh); return MW_CANNOT_WRITE_TO_FILE; }
 #define WERROR_SPECIFY(x,FHANDLE) if(x) { assert(0); PortaClose(FHANDLE); return MW_CANNOT_WRITE_TO_FILE; }
@@ -410,12 +411,16 @@ static int gFaceDirectionVector[6][3] =
     (((z)-(bz)*16)*16) + \
     ((x)-(bx)*16)  )
 
+#define UPDATE_STATUS(p,s)		{                               \
+if (*gpCallback) { (*gpCallback)((float)(p),s); }               \
+}
+
 #ifdef _DEBUG
 clock_t gStartTimeStamp;
 clock_t gTimeStamp;
 
 #define UPDATE_PROGRESS(p)		{                               \
-if (*gpCallback) { (*gpCallback)((float)(p)); }                 \
+if (*gpCallback) { (*gpCallback)((float)(p),NULL); }            \
 clock_t now = clock();                                          \
 double diffTime = (now-gTimeStamp)/(CLOCKS_PER_SEC/1000);       \
 gTimeStamp = now;                                               \
@@ -426,7 +431,7 @@ OutputDebugStringA(progString);                                 \
 #else
 
 #define UPDATE_PROGRESS(p)		{                               \
-if (*gpCallback) { (*gpCallback)((float)(p)); }                 \
+if (*gpCallback) { (*gpCallback)((float)(p),NULL); }            \
 }
 
 #endif
@@ -576,7 +581,7 @@ static void convertCharPathUnderlined(char* worldNameUnderlined, char* worldChar
 static void initializeWorldData(IBox* worldBox, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax);
 static int initializeModelData();
 
-static int readTerrainPNG(const wchar_t* curDir, progimage_info* pII, wchar_t* terrainFileName, int category);
+static int readTerrainPNG(const wchar_t* curDir, progimage_info* pII, wchar_t* terrainFileName, int category, int exportFileType);
 static void invertImage(progimage_info* dst);
 
 static int populateBox(WorldGuide* pWorldGuide, ChangeBlockCommand* pCBC, IBox* box);
@@ -738,7 +743,7 @@ static int writeCommentUSD(char* commentString);
 static int finishCommentsUSD(char* defaultPrim);
 static int addCameraUSD();
 static int createMeshesUSD(wchar_t* blockLibraryPath, char* materialLibrary, bool singleTerrainFile);
-static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int numVerts, char* prefixLook, char* mtlName, int progressTick, int progressIncrement, bool singleTerrainFile);
+static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int numVerts, char* prefixLook, char* mtlName, int & progressTick, int progressIncrement, bool singleTerrainFile);
 static boolean allocOutData(int vertsize, int facesize);
 static void freeOutData();
 static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t* mtlLibraryFile, bool singleTerrainFile);
@@ -819,12 +824,14 @@ static void removeSuffix(wchar_t* dst, const wchar_t* src, const wchar_t* suffix
 static const char* removePathChar(const char* src);
 
 static void charToWchar(char* inString, wchar_t* outWString);
+static wchar_t* getFilename(wchar_t* src);
 static void getPathAndRoot(const wchar_t* src, int fileType, wchar_t* path, wchar_t* root);
 static void concatFileName2(wchar_t* dst, const wchar_t* src1, const wchar_t* src2);
 static void concatFileName3(wchar_t* dst, const wchar_t* src1, const wchar_t* src2, const wchar_t* src3);
 static void concatFileName4(wchar_t* dst, const wchar_t* src1, const wchar_t* src2, const wchar_t* src3, const wchar_t* src4);
 //static void concatFileName5(wchar_t* dst, const wchar_t* src1, const wchar_t* src2, const wchar_t* src3, const wchar_t* src4, const wchar_t* src5);
 static void wcharCleanse(wchar_t* wstring);
+static void prettifyNumber(int i, wchar_t* wstring);
 
 static void myseedrand(long seed);
 static double myrand();
@@ -896,7 +903,8 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     gpCallback = &callback;
 
     // show "progress" (not much, really), just so the progress bar shows something, so that the user knows that something is happening.
-    UPDATE_PROGRESS(0.05 / 1.05); // 1.05 is used in determineProgressValues to kick past this point
+    UPDATE_STATUS(0.05 / 1.05, L"Begin export");
+    //UPDATE_PROGRESS(0.05 / 1.05); // 1.05 is used in determineProgressValues to kick past this point
 
     gMinewaysMajorVersion = majorVersion;
     gMinewaysMinorVersion = minorVersion;
@@ -1042,6 +1050,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
                 gTotalInputTextures = 5;
             }
         }
+
         // try reading each category's file type
         for (catIndex = 0; catIndex < gTotalInputTextures; catIndex++) {
             // TODO - this is a (small) memory leak. should clean up later
@@ -1066,7 +1075,11 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
             wcscat_s(terrainFileCat, MAX_PATH, L".png");
 
             // attempt to read image
-            int localRetCode = readTerrainPNG(curDir, gModel.pInputTerrainImage[catIndex], terrainFileCat, catIndex);
+            wchar_t statusString[1024];
+            swprintf_s(statusString, 1024, L"Reading terrain file %s", getFilename(terrainFileCat));
+            UPDATE_STATUS(-999.0f, statusString);
+
+            int localRetCode = readTerrainPNG(curDir, gModel.pInputTerrainImage[catIndex], terrainFileCat, catIndex, fileType);
             if (localRetCode >= MW_BEGIN_ERRORS)
             {
                 // really, I believe it'll always be NULL if no file is read successfully, but let's be sure
@@ -1137,7 +1150,8 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         determineProgressValues(fileType, xmax - xmin, zmax - zmin);
     }
 
-    UPDATE_PROGRESS(gProgress.start.readBlocks);
+    UPDATE_STATUS(gProgress.start.readBlocks, L"Read selected blocks");
+    //UPDATE_PROGRESS(gProgress.start.readBlocks);
 
     initializeWorldData(&worldBox, xmin, ymin, zmin, xmax, ymax, zmax);
     tightenedWorldBox = worldBox;
@@ -1237,7 +1251,8 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         // problem found
         goto Exit;
     }
-    UPDATE_PROGRESS(gProgress.start.makeFaces);
+    UPDATE_STATUS(gProgress.start.makeFaces,L"Make faces to output");
+    //UPDATE_PROGRESS(gProgress.start.makeFaces);
 
     // if we have matrix transforms available, transfer the unit and model scale to that scale factor instead
     if (fileType == FILE_TYPE_USD) {
@@ -1257,7 +1272,8 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     retCode |= generateBlockDataAndStatistics(&tightenedWorldBox, &worldBox);
     if (retCode >= MW_BEGIN_ERRORS) return retCode;
 
-    UPDATE_PROGRESS(gProgress.start.output);
+    UPDATE_STATUS(gProgress.start.output, L"Output files");
+    // UPDATE_PROGRESS(gProgress.start.output);
 
     switch (fileType)
     {
@@ -1312,8 +1328,9 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     // done!
 Exit:
 
-    UPDATE_PROGRESS(gProgress.start.zip);
+    //UPDATE_PROGRESS(gProgress.start.zip);
 
+    UPDATE_STATUS(gProgress.start.zip, L"Cleanup");
     freeModel(&gModel);
 
     if (gBoxData)
@@ -1343,6 +1360,7 @@ Exit:
     // return biome selected, if any (else -1)
     biomeIndex = (gModel.options->exportFlags & EXPT_BIOME) ? gModel.biomeIndex : -1;
 
+    // not needed - happens in Mineways after zipping up files: UPDATE_STATUS(1.0f, L"Export completed");
     return retCode;
 }
 
@@ -1456,7 +1474,8 @@ static void determineProgressValues(int fileType, int xdim, int zdim)
 
 static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
 {
-    UPDATE_PROGRESS(gProgress.start.texture);
+    UPDATE_STATUS(gProgress.start.texture, L"Output textures");
+    //UPDATE_PROGRESS(gProgress.start.texture);
 
     int retCode = MW_NO_ERROR;
     wcscpy_s(gTextureDirectoryPath, MAX_PATH_AND_FILE, L"");
@@ -1691,7 +1710,7 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
                 assert(gModel.tileListCount);   // should be computed before calling this function
                 bool isOBJ = (fileType == FILE_TYPE_WAVEFRONT_REL_OBJ) || (fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ);
                 int outputCount = 0;
-                int frequency = (int)(1 + (gModel.tileListCount / 16));
+                int frequency = (int)(1 + (gModel.tileListCount / 5));
                 for (int i = 0; i < TOTAL_TILES; i++) {
                     // tile name is material name, period
                     if (gModel.tileList[CATEGORY_RGBA][i]) {
@@ -1800,8 +1819,8 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
                         }
 
                         // update status
-                        if (outputCount % frequency == 0)
-                            UPDATE_PROGRESS(gProgress.start.texture + gProgress.absolute.texture * (float)i / (float)gModel.tileListCount);
+                        if (outputCount % frequency == frequency-1)
+                            UPDATE_PROGRESS(gProgress.start.texture + gProgress.absolute.texture * (float)outputCount / (float)gModel.tileListCount);
 
                         outputCount++;
                     }
@@ -1827,6 +1846,7 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
             if (gModel.usesRGBA && gModel.options->pEFD->chkTextureRGBA)
             {
                 // output RGBA version
+                UPDATE_STATUS(gProgress.start.texture + gProgress.absolute.texture * 0.10f, L"Output RGBA mosaic texture");
                 rc = writepng(gModel.pPNGtexture, 4, textureRGBA);
                 assert(rc == 0);
                 addOutputFilenameToList(textureRGBA);
@@ -1837,6 +1857,7 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
             if (gModel.usesRGB && gModel.options->pEFD->chkTextureRGB)
             {
                 // output RGB version
+                UPDATE_STATUS(gProgress.start.texture + gProgress.absolute.texture * 0.45f, L"Output RGB mosaic texture");
                 rc = convertRGBAtoRGBandWrite(gModel.pPNGtexture, textureRGB);
                 assert(rc == 0);
                 // not needed, as convertRGBAtoRGBandWrite does this: addOutputFilenameToList(textureRGB);
@@ -1847,6 +1868,7 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
             if (gModel.usesAlpha && gModel.options->pEFD->chkTextureA)
             {
                 // output Alpha version, which is actually RGBA, to make 3DS MAX happy
+                UPDATE_STATUS(gProgress.start.texture + gProgress.absolute.texture * 0.80f, L"Output Alpha mosaic texture");
                 convertAlphaToGrayscale(gModel.pPNGtexture);
                 rc = writepng(gModel.pPNGtexture, 4, textureAlpha);
                 assert(rc == 0);
@@ -2111,7 +2133,7 @@ static int initializeModelData()
     return MW_NO_ERROR;
 }
 
-static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* selectedTerrainFileName, int category)
+static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* selectedTerrainFileName, int category, int exportFileType)
 {
     // file should be in same directory as .exe, sort of
     int rc = 0;
@@ -2121,7 +2143,8 @@ static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* 
         // If we're not going to output any textures, we really just need the size of the image, so that
         // mosaic UVs are assigned. If I ever clean up the export tiles code so that we don't unscramble
         // the mosaic UVs to individual texture tile UVs, we don't even need that for exporting tiles. TODO
-        if (category != CATEGORY_RGBA || EXPORT_TEXTURE) {
+        // And we need to read this file for USD because of tileAlphaStatus(), 
+        if (category != CATEGORY_RGBA || exportFileType == FILE_TYPE_USD || EXPORT_TEXTURE ) {
             // Sadly, no, we must always read in the PBR textures, as we check them to see if the tiles are all black,
             // for example. We *can* at least avoid reading in the RGBA texture, since we don't check isTileValue().
             rc = readpng(pITI, selectedTerrainFileName, gCatFormat[category]);
@@ -16352,6 +16375,7 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
         // Check if we are exporting per tile
         if (gModel.exportTiles) {
             // for USD, group by actual tile, as we don't care about groups so much
+            UPDATE_STATUS(-999.0f, L"Sort by tile IDs");
             if (gModel.options->pEFD->fileType == FILE_TYPE_USD) {
                 qsort_s(gModel.faceList, gModel.faceCount, sizeof(FaceRecord*), tileUSDIdCompare, NULL);
             }
@@ -16362,6 +16386,7 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
         }
         else {
             // don't bother with swatchLoc sorting
+            UPDATE_STATUS(-999.0f, L"Sort by face IDs");
             qsort_s(gModel.faceList, gModel.faceCount, sizeof(FaceRecord*), faceIdCompare, NULL);
         }
     }
@@ -22230,6 +22255,8 @@ static int addNormalToList(Vector normal, Vector* normalList, int* normalListCou
 // go through all face normals and, if not set, find the proper face normal (or add it to the list)
 static void resolveFaceNormals()
 {
+    UPDATE_STATUS(-999.0f, L"Resolving face normals");
+
     //int maxFaceNormalIndex = -1;
     for (int i = 0; i < gModel.faceCount; i++)
     {
@@ -22627,6 +22654,10 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
     if (gModelFile == INVALID_HANDLE_VALUE)
         return retCode | MW_CANNOT_CREATE_FILE;
 
+    wchar_t statusString[1024];
+    swprintf_s(statusString, 1024, L"Writing OBJ file %s", getFilename(objFileNameWithSuffix));
+    UPDATE_STATUS(-999.0f, statusString);
+
     sprintf_s(outputString, 256, "# Wavefront OBJ file made by Mineways version %d.%02d, http://mineways.com\n", gMinewaysMajorVersion, gMinewaysMinorVersion);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
@@ -22687,12 +22718,17 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
         }
     }
 
-    // every 4% update the progress
-    int noteProgress = 1 + (int)((float)gModel.vertexCount / (0.5f * gProgress.absolute.output / 0.04f));
+    // every 5% update the progress
+    int noteProgress = 1 + (int)((float)gModel.vertexCount / (0.5f * gProgress.absolute.output / 0.05f));
+    wchar_t numString1[100];
+    wchar_t numString2[100];
+    prettifyNumber(gModel.vertexCount, numString2);
     for (i = 0; i < gModel.vertexCount; i++)
     {
-        if (i % noteProgress == 0) {
-            UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * 0.5f * ((float)i / (float)gModel.vertexCount));
+        if (i % noteProgress == noteProgress-1) {
+            prettifyNumber(i + 1, numString1);
+            swprintf_s(statusString, 1024, L"Writing %s of %s vertices", numString1, numString2);
+            UPDATE_STATUS(gProgress.start.output + gProgress.absolute.output * 0.5f * ((float)i / (float)gModel.vertexCount), statusString);
         }
 
         sprintf_s(outputString, 256, "v %g %g %g\n", gModel.vertices[i][X], gModel.vertices[i][Y], gModel.vertices[i][Z]);
@@ -22722,16 +22758,19 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
     // for whether to search for a material change (but not necessarily make a group)
     bool subtypeMaterial = subtypeGroup || gModel.exportTiles;
 
-    // how often to update progress? # of faces per 4%
-    noteProgress = 1 + (int)((float)gModel.faceCount / (0.5f * gProgress.absolute.output / 0.04f));
+    // how often to update progress? # of faces per 5%
+    noteProgress = 1 + (int)((float)gModel.faceCount / (0.5f * gProgress.absolute.output / 0.05f));
 
+    prettifyNumber(gModel.faceCount, numString2);
     for (i = 0; i < gModel.faceCount; i++)
     {
         pFace = gModel.faceList[i];
 
         // every 4% or so check on progress
-        if (i % noteProgress == 0) {
-            UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * 0.5f * (1.0f + ((float)i / (float)gModel.faceCount)));
+        if (i % noteProgress == noteProgress-1) {
+            prettifyNumber(i + 1, numString1);
+            swprintf_s(statusString, 1024, L"Writing %s of %s faces", numString1, numString2);
+            UPDATE_STATUS(gProgress.start.output + gProgress.absolute.output * 0.5f * (1.0f + ((float)i / (float)gModel.faceCount)), statusString);
         }
 
         if (exportMaterials)
@@ -23216,6 +23255,10 @@ static int writeOBJMtlFile()
     char mtlName[MAX_PATH_AND_FILE];
 
     concatFileName3(mtlFileName, gOutputFilePath, gOutputFileRootClean, L".mtl");
+
+    wchar_t statusString[1024];
+    swprintf_s(statusString, 1024, L"Writing MTL file %s", getFilename(mtlFileName));
+    UPDATE_STATUS(-999.0f, statusString);
 
     gMtlFile = PortaCreate(mtlFileName);
     addOutputFilenameToList(mtlFileName);
@@ -24642,13 +24685,21 @@ static int writeBinarySTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tigh
 
     int noteProgress = 1 + (int)((float)gModel.faceCount / (gProgress.absolute.output / 0.04f));
 
+    wchar_t numString1[100];
+    wchar_t numString2[100];
+    wchar_t statusString[1024];
+    prettifyNumber(gModel.faceCount, numString2);
+
     // write out the faces, it's just that simple
     for (faceNo = 0; faceNo < gModel.faceCount; faceNo++)
     {
         int faceTriCount;
 
-        if (faceNo % noteProgress == 0)
-            UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)faceNo / (float)gModel.faceCount));
+        if (faceNo % noteProgress == 0) {
+            prettifyNumber(faceNo + 1, numString1);
+            swprintf_s(statusString, 1024, L"Writing %s of %s faces", numString1, numString2);
+            UPDATE_STATUS(gProgress.start.output + gProgress.absolute.output * ((float)faceNo / (float)gModel.faceCount), statusString);
+        }
 
         pFace = gModel.faceList[faceNo];
         // get four face indices for the four corners
@@ -24775,13 +24826,21 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
 
     int noteProgress = 1 + (int)((float)gModel.faceCount / (gProgress.absolute.output / 0.04f));
 
+    wchar_t numString1[100];
+    wchar_t numString2[100];
+    wchar_t statusString[1024];
+    prettifyNumber(gModel.faceCount, numString2);
+
     // write out the faces, it's just that simple
     for (faceNo = 0; faceNo < gModel.faceCount; faceNo++)
     {
         int faceTriCount;
 
-        if (faceNo % noteProgress == 0)
-            UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)i / (float)gModel.faceCount));
+        if (faceNo % noteProgress == 0) {
+            prettifyNumber(faceNo + 1, numString1);
+            swprintf_s(statusString, 1024, L"Writing %s of %s faces", numString1, numString2);
+            UPDATE_STATUS(gProgress.start.output + gProgress.absolute.output * ((float)i / (float)gModel.faceCount), statusString);
+        }
 
         pFace = gModel.faceList[faceNo];
         // get four face indices for the four corners
@@ -25462,6 +25521,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
 
         // material library creation assumes everything's sorted by material, so do that now
         // TODO USD - may not really be needed, but could be more efficient
+        UPDATE_STATUS(-999.0f, L"Sort by tile IDs");
         qsort_s(gModel.faceList, gModel.faceCount, sizeof(FaceRecord*), tileUSDIdCompare, NULL);
 
         // create material library
@@ -25546,6 +25606,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
             // The more involved "by chunk" instancer output
 
             // sort by chunk
+            UPDATE_STATUS(-999.0f, L"Sort by chunk");
             qsort_s(gModel.instanceLoc, gModel.instanceLocCount, sizeof(InstanceLocation), chunkUSDCompare, NULL);
 
             strcpy_s(outputString, 256, "    def Xform \"VoxelMap\" (\n");
@@ -26291,6 +26352,7 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary, boo
             int nextFaceNumber = firstFaceNumber + numFaces;
 
             // sort
+            UPDATE_STATUS(-999.0f, L"Sort by ID");
             qsort_s(&gModel.faceList[firstFaceNumber], numFaces, sizeof(FaceRecord*), tileUSDIdCompare, NULL);
 
             startRun = firstFaceNumber;
@@ -26329,7 +26391,7 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary, boo
     return retCode;
 }
 
-static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int numVerts, char *prefixLook, char *mtlName, int progressTick, int progressIncrement, bool singleTerrainFile)
+static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int numVerts, char *prefixLook, char *mtlName, int & progressTick, int progressIncrement, bool singleTerrainFile)
 {
     // Go through data and make arrays
 //SM if (firstName) {
@@ -26358,12 +26420,18 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
     // change spaces to _ to be valid USD
     changeCharToUnderline(' ', mtlName);
 
+    wchar_t numString1[100];
+    wchar_t numString2[100];
+    wchar_t statusString[1024];
+    prettifyNumber(gModel.faceCount, numString2);
     for (i = 0; i < numFaces; i++)
     {
         // do progress only when not instancing
         if (prefixLook == NULL && (i + startingFace > progressTick)) {
             // there are unlikely to be *that* many groups, so just update on each found
-            UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)(i + startingFace) / (float)gModel.faceCount));
+            prettifyNumber(i + startingFace + 1, numString1);
+            swprintf_s(statusString, 1024, L"Writing %s of %s faces", numString1, numString2);
+            UPDATE_STATUS(gProgress.start.output + gProgress.absolute.output * ((float)(i + startingFace) / (float)gModel.faceCount), statusString);
             progressTick += progressIncrement;
         }
 
@@ -31434,6 +31502,30 @@ static const char* removePathChar(const char* src)
     return strPtr;
 }
 
+static wchar_t* getFilename(wchar_t* src)
+{
+    wchar_t* rootPtr;
+
+    // find last \ in string
+    rootPtr = wcsrchr(src, (wchar_t)'\\');
+    if (rootPtr)
+        // found a \, so move up past it
+        rootPtr++;
+    else
+    {
+        // look for /
+        rootPtr = wcsrchr(src, (wchar_t)'/');
+        if (rootPtr)
+            // found a /, so move up past it
+            rootPtr++;
+        else
+            // no \ or / found, just return string itself
+            rootPtr = src;
+    }
+
+    return rootPtr;
+}
+
 static void getPathAndRoot(const wchar_t* src, int fileType, wchar_t* path, wchar_t* root)
 {
     wchar_t* rootPtr;
@@ -31527,6 +31619,21 @@ static void wcharCleanse(wchar_t* wstring)
     char tempString[MAX_PATH_AND_FILE];
     WcharToChar(wstring, tempString, MAX_PATH_AND_FILE);
     charToWchar(tempString, wstring);
+}
+
+static void prettifyNumber(int i, wchar_t* wstring)
+{
+    wchar_t tailstring[100];
+    swprintf_s(tailstring, 100, L"%d", i);
+    int addcomma = 100 - (int)wcslen(tailstring);
+    wchar_t* walkstring = tailstring;
+    do {
+        *wstring++ = *walkstring++;
+        if (*walkstring && (addcomma++ % 3 == 0)) {
+            *wstring++ = L',';
+        }
+    } while (*walkstring);
+    *wstring = (wchar_t)0;
 }
 
 // for noise on textures, only - not really trustworthy otherwise
@@ -31731,6 +31838,8 @@ static int decimateMesh()
     // if normal is +X, store normal "distance" X (sort key), then stored X = Z, stored Y = Y, something like that.
     int i;
     int prevSwatchLoc = -1;
+
+    UPDATE_STATUS(-999.0f, L"Simplify meshes");
 
     // first use of this pool, normally not needed, so allocate it now
     gModel.simplifyFaceRecordPool = (SimplifyFaceRecordPool*)malloc(sizeof(SimplifyFaceRecordPool));

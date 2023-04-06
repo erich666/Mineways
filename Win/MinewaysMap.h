@@ -50,7 +50,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define TRANSPARENT_WATER	0x0200
 #define MAP_GRID        	0x0400
 
-typedef void (*ProgressCallback)(float progress);
+typedef void (*ProgressCallback)(float progress, wchar_t* buf);
 
 #define WORLD_UNLOADED_TYPE		0
 #define WORLD_LEVEL_TYPE		1

@@ -73,7 +73,9 @@
 	<div id="content" class="clearfix">
 <h1>Using Textures in Mineways</h1>
 
-You can apply <a href="https://minecraft.gamepedia.com/Resource_Pack">resource packs</a> that modders have developed to models you export from Mineways. To select a terrain file, use "Open | Choose Terrain File" or "Open Terrain File" and pick a PNG of the form "terrainExt_*.png". Read more about this program feature (and how to set a default terrain file on startup) <a href="mineways.html#texture_output">here</a>. If you want to make your own terrain file(s) from some resource pack, <a href="#own_terrain">start here</a>.
+If you want to make your own terrain file(s) from some resource pack, <a href="#own_terrain">start here</a>.
+<P>
+You can apply <a href="https://minecraft.gamepedia.com/Resource_Pack">resource packs</a> that modders have developed to models you export from Mineways. To select a terrain file, use "Open | Choose Terrain File" or "Open Terrain File" and pick a PNG of the form "terrainExt_*.png". Read more about this program feature (and how to set a default terrain file on startup) <a href="mineways.html#texture_output">here</a>.
 
 <H2>Pre-Built Terrain Files</H2>
 
@@ -156,29 +158,17 @@ So as to not bloat the Mineways distribution too much, we've put more pre-made t
 <b>Specialized files (you will need to right click and select "Save link as..."):</b> The <b><a href="http://erich.realtimerendering.com/minecraft/public/mineways/downloads/terrainExt1024.png">terrainExt1024.png</a></b> and <b><a href="http://erich.realtimerendering.com/minecraft/public/mineways/downloads/terrainExt8192.png">terrainExt8192.png</a></b> files can be used to make the default Minecraft textures look sharp and pixel-like, in renderer that do not support "nearest neighbor" filtering. See <a href="mineways.html#blurry">here</a> for more information. If you don't know what I'm talking about, you likely don't need these.
 
 
-<H2 id="own_terrain">Creating Your Own Terrain Files</H2>
+<H2 id="own_terrain">Introduction to Terrain Files</H2>
 
 Don't like reading? <B><a href="https://youtu.be/RpN1grOLocg">Here's a video</a></B> showing how to most easily use ChannelMixer and TileMaker to make your own terrain file(s) and how to then use it.
 
 <P>
-You can go farther, though, and use your own favorite resource pack to models you export. You can even add special "physically based" resources, such as surface normal textures for bumpiness, as well as roughness, metallic, and emissive (light) textures. These can then be used by any program that supports them. As a first step, Mineways supports export to the Pixar USD format that can be directly read into the <a href="mineways.html#ovcreate">Omniverse Create</a> program.
+Mineways relies on a single, giant texture (the "terrain file") that contains all the block face textures ("tiles"). This single "terrain file" image has roots in the early design of Minecraft itself, which used to use the same exact single texture. Minecraft now uses a separate texture tile for each block face; Mineways has kept with the single, giant texture of doom for input, but can output separate textures by using the "Export individual textures" option.
 
 <P>
-In a perfect world, you would just point Mineways at a resource pack (also once known as a texture pack). Mineways would then apply the textures in that pack to the models you export. If it didn't find a new texture in the resource pack, it would get the basic Minecraft texture instead and use that.
+This terrain file that Mineways reads has some advantages, such as being a single PNG image vs. a giant set of individual texture images. By looking at one image, and knowing where to look, you can see all the textures Mineways will use. (Where to look? <a href="https://github.com/erich666/Mineways/blob/master/Win/tiles.h#L87">Here</a>. All the tiles are listed by their column and row positions, e.g., gravel is at column 3, row 1 of the terrain image, starting counting from the upper left as 0,0.)
 
-<P>
-Alas, life is not perfect. One problem is that mod makers use non-standard names for block face tiles, sometimes even making spelling errors. Untangling exactly the intent of the thousands of resource packs out there is tough to automate, and difficult to understand where things are going wrong.
-
-<P>
-Instead, Mineways relies on a single, giant texture (the "terrain file") that contains all the block face textures ("tiles"). This single "terrain file" image has roots in the early design of Minecraft itself, which used to use the same exact single texture. Minecraft now uses a separate texture tile for each block face; Mineways has kept with the single, giant texture of doom for input, but can output separate textures by using the "Export individual textures" option.
-
-<P>
-This terrain file that Mineways reads has some advantages, such as being a single PNG image vs. a giant set of individual texture images. By looking at one image, and knowing where to look, you can see all the textures Mineways will use. (Where to look? <a href="https://github.com/erich666/Mineways/blob/master/Win/tiles.h#L77">Here</a>. All the tiles are listed by their column and row positions, e.g., gravel is at column 3, row 1 of the terrain image, starting counting from the upper left as 0,0.)
-
-<P>
-The single image file also guarantees that there is <i>some</i> tile image available for every Minecraft block face. For example, if a resource pack does not have a replacement for a sea lantern, then the terrain file will use the default Minecraft sea lantern tile.
-
-<h2>Making Terrain Files</h2>
+<h2>Making Your Own Terrain Files</h2>
 <P>
 Making your own terrain file for Mineways takes only a few steps. You do have to know how to use <a href="https://www.computerhope.com/issues/chusedos.htm">the command line</a>, but that's not hard. Knowing how to create a <a href="https://www.windowscentral.com/how-create-and-run-batch-file-windows-10">batch file</a> is also useful and easy enough. A batch file can store and rerun your commands to Mineways' tools.
 
@@ -186,22 +176,24 @@ Making your own terrain file for Mineways takes only a few steps. You do have to
 All set? <B><a href="https://youtu.be/RpN1grOLocg">Watch the video</a></B> for the process or follow the instructions below.
 
 <P>
-Here's the quickstart/refresher for the two ways to make a terrainExt image file of your own. One is to use just TileMaker. You put all the block textures you want into some directory, e.g., <I>your_block_directory</I> (putting the chest textures in the "chests" subdirectory) and then simply do in a <a href="https://www.computerhope.com/issues/chusedos.htm">command window</a> in the Mineways TileMaker subdirectory:
+There are two ways to make a terrainExt image file of your own. One is to use just TileMaker. To start, unzip your resource pack into the Mineways "TileMaker" directory into a subdirectory, let's call it <I>resource_pack_directory</I>. Then, in a <a href="https://www.computerhope.com/issues/chusedos.htm">command window</a>, go to the Mineways TileMaker subdirectory, then run TileMaker.exe itself:
 
 <PRE>
-cd c:\temp\mineways\TileMaker
-TileMaker.exe -d your_block_directory -o terrainExtYours.png
+cd c:\...wherever you put mineways...\mineways\TileMaker
+TileMaker.exe -d resource_pack_directory -o terrainExtYours.png
 </PRE>
-Running it produces a <i>terrainExtYours.png</I> terrain file, which you can then use in Mineways. The program looks for terrainBase.png being in the same directory you are running from. If it's missing, you can copy the terrainExt.png from the directory above TileMaker's to this directory and rename it terrainBase.png (terrainBase.png and terrainExt.png are the same file).
+Running TileMaker produces a <i>terrainExtYours.png</I> terrain file, which you can then use in Mineways. The program looks for terrainBase.png being in the same directory you are running from. If it's missing, you can copy the terrainExt.png from the directory above TileMaker's to this directory and rename it terrainBase.png (terrainBase.png and terrainExt.png are the same file).
 <P>
-If you would rather not have to hand-copy images, or are using physically-based textures (i.e., more than just colored textures), do the following process instead. Unzip your resource pack into a directory, e.g., <I>resource_pack_directory</I>, then:
+However, you'll often get warnings about textures or you'll want to check things over and modify them before making your terrainExtYours.png file. To do this, use ChannelMixer, which copies all the images from your resource pack into a directory for processing, check over that directory's contents, then use TileMaker to read that directory and make your terrainExt image file.
+<P>
+As before, unzip your resource pack into some directory under the TileMaker directory, then in the TileMaker directory run:
 
 <PRE>
-ChannelMixer.exe -i resource_pack_directory -o your_block_directory
-TileMaker.exe -d your_block_directory -o terrainExtYours.png
+ChannelMixer.exe -i resource_pack_directory -o blocks_of_yours
+TileMaker.exe -d blocks_of_yours -o terrainExtYours.png
 </PRE>
 
-That's it! Read over any warnings and decide how you want to fix them. For example, if ChannelMixer says it's not using a texture you think it should, you may need to rename your version so that the program will find it.
+That's it! Read over any warnings and decide how you want to fix them. For example, if ChannelMixer says it's not using a texture you think it should, look for that file in the <I>resource_pack_directory</I> and copy to your <i>blocks_of_yours</i> directory, which is created and filled by ChannelMixer.
 
 <P>
 What follows are more detailed instructions, in case these didn't make sense or didn't work for you.
@@ -525,7 +517,7 @@ on the command line.
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 1/4/2023</p>	</div>
+		<br id="lastUpdate">Last updated 4/5/2023</p>	</div>
 </div>
 
 </body>

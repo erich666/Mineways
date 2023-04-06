@@ -772,6 +772,7 @@ static unsigned char* map = NULL;
 static int bitWidth = 0;
 static int bitHeight = 0;
 static HWND progressBar = NULL;
+static HWND statusWindow = NULL;
 static HBRUSH ctlBrush = NULL;
 // TODO: Warning	C6262	Function uses '16576' bytes of stack.Consider moving some data to heap.
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -974,7 +975,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         SetWindowText(hwndInfoBottomLabel, L"Depth");
         EnableWindow(hwndInfoBottomLabel, FALSE);
 
-        hwndStatus = CreateWindowEx(
+        statusWindow = hwndStatus = CreateWindowEx(
             0, STATUSCLASSNAME, NULL,
             WS_CHILD | WS_VISIBLE | WS_BORDER,
             -100, -100, 10, 10,
@@ -3325,9 +3326,16 @@ static int findColorScheme(wchar_t* name)
     return -1;
 }
 
-static void updateProgress(float progress)
+static void updateProgress(float progress, wchar_t* buf)
 {
-    SendMessage(progressBar, PBM_SETPOS, (int)(progress * 100), 0);
+    // pass in -999.0f or similar to avoid updating the progress bar itself
+    if (progress >= 0.0f) {
+        SendMessage(progressBar, PBM_SETPOS, (int)(progress * 100), 0);
+    }
+    // change status only if there's text input
+    if (buf != NULL && wcslen(buf) > 0) {
+        sendStatusMessage(statusWindow, buf);
+    }
 }
 
 static void drawTheMap()
@@ -4387,7 +4395,7 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileNa
 
             if (updateProgress != NULL)
             {
-                (*updateProgress)(0.90f + 0.10f * (float)i / (float)outputFileList.count);
+                (*updateProgress)(0.90f + 0.10f * (float)i / (float)outputFileList.count, NULL);
             }
 
             ZipAdd(hz, nameOnly, outputFileList.name[i], 0, ZIP_FILENAME);
@@ -4402,7 +4410,7 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileNa
     }
 
     if (updateProgress != NULL)
-        (*updateProgress)(1.0f);
+        (*updateProgress)(1.0f,NULL);
 
     if (errCode != MW_NO_ERROR)
     {
@@ -4500,14 +4508,14 @@ static int publishToSketchfab(HWND hWnd, wchar_t* objFileName, wchar_t* terrainF
             else {
                 // finish progress meter early
                 if (updateProgress != NULL)
-                    (*updateProgress)(0.0f);
+                    (*updateProgress)(0.0f,NULL);
                 return retCode;
             }
         }
 
         uploadToSketchfab(hInst, hWnd);
         if (updateProgress != NULL)
-            (*updateProgress)(0.0f);
+            (*updateProgress)(0.0f,NULL);
     }
 
     return retCode;
@@ -4917,6 +4925,11 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
 
             // zip it up - test that there's something to zip, in case of errors. Note that the first
             // file saved in ObjManip.c is the one used as the zip file's name.
+            if (updateProgress != NULL)
+            {
+                (*updateProgress)(-999.0f, L"Output zip");
+            }
+
             if (gpEFD->chkCreateZip[gpEFD->fileType] && (outputFileList.count > 0))
             {
                 wchar_t wcZip[MAX_PATH_AND_FILE];
@@ -4959,7 +4972,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                     }
                     if (updateProgress != NULL)
                     {
-                        (*updateProgress)(0.90f + 0.10f * (float)i / (float)outputFileList.count);
+                        (*updateProgress)(0.90f + 0.10f * (float)i / (float)outputFileList.count,NULL);
                     }
 
                     // was AddFolderContent(hz, path, piece );
@@ -4984,7 +4997,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         }
         if (updateProgress != NULL)
         {
-            (*updateProgress)(1.0f);
+            (*updateProgress)(1.0f,NULL);
         }
 
         // check if world is 1.12 or earlier, USD export, and instancing - warn once per world
@@ -5092,7 +5105,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
 
         // clear progress bar
         if (updateProgress != NULL)
-            (*updateProgress)(0.0f);
+            (*updateProgress)(0.0f,NULL);
     }
     freeOutputFileList(outputFileList);
 

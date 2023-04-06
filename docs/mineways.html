@@ -2760,6 +2760,7 @@ Find the latest Mac port on the <a href="downloads.html#mac">downloads/quick sta
 <P>
 The textures and rules used in Minecraft for how blocks appear and connect have changed over time, such as how stairs and chests are formed. If you want the closest fidelity, for a given version of Minecraft use the following version of Mineways. That said, older versions may have bugs fixed in newer versions. So, for texture consistency, you could also go the route of using the Minecraft textures of your world's version and make a special terrainExt file for Mineways, as explained on <a href="textures.html">the textures page</a>.
 <UL>
+<LI>Minecraft 1.19: Mineways version 10.00 or newer
 <LI>Minecraft 1.18: Mineways version 9.08 or newer
 <LI>Minecraft 1.17: Mineways version 9.00
 <LI>Minecraft 1.16: Mineways version 8.08
@@ -2774,11 +2775,12 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 
 <UL>
 
- <LI>Version 10.13, */*/2023 - NOT YET OUT <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1013.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+ <LI>Version 10.13, 4/6/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1013.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
     <BR>
     <UL>
-	<LI>TODO: *When no default TerrainExt.png is found, properly find the data.
-	<LI>With Blender 3.5 adding much-improved USD import and better OBJ import, I've updated <a href="mineways.html#blender">the Blender documentation for Mineways</a>.
+	<LI>Add status updates when exporting. Operations are now shown in the lower left corner of the application during large exports.
+	<LI>Fix bug in USDA output where progress bar updates were being sent for every mesh. Small improvement in speed.
+	<LI>With Blender 3.5 adding much-improved USD import and better OBJ import (and 3.6 looking better still, so far), I've updated <a href="mineways.html#blender">the Blender documentation for Mineways</a>.
 	<LI>Scripting command names for some export options have changed in order to match the wording on the export dialog and documentation:
 	<UL>
 		<LI>"Export separate objects" is now "Export separate types"
@@ -2791,7 +2793,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 	<LI>When all texture export is turned off, read just the header of the TerrainExt color terrain image and avoid all preprocessing for this file. (Sadly, the PBR textures still need to be read in, as we check whether various textures exist on output and adjust accordingly.) This change makes export for basic RGB a bit faster, especially when a large TerrainExt file is used.
 	<LI>Added a small speed optimization to the simplify mesh system.
 	<LI>Improved warning and error systems for when worlds do not load into Mineways <I>(Thanks, SeaJay, for noting the old message was confusing)</I>.
-	<LI>Clarified the documentation for how to use the map annotation scripts.
+	<LI>Clarified the documentation for how to make custom terrain textures and for how to use the map annotation scripts.
 	</UL>
 
  <LI>Version 10.12, 2/28/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1012.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
@@ -3997,7 +3999,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 3/31/2023</p>
+		<br id="lastUpdate">Last updated 4/6/2023</p>
 	</div>
 </div>
 

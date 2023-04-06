@@ -39,7 +39,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 static void clearUndoHighlight();
 static void copyHighlightState(HighlightBox& destBox, HighlightBox& srcBox);
 static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int topy, int mapMaxY, Options* pOpts,
-    ProgressCallback callback, float percent, int* hitsFound, int mcVersion, int versionID, int& retCode);
+    ProgressCallback callback, float percent, float & pctprogress, int* hitsFound, int mcVersion, int versionID, int& retCode);
 static void blit(unsigned char* block, unsigned char* bits, int px, int py, double zoom, int w, int h);
 static WorldBlock* determineMaxFilledHeight(WorldBlock* block);
 static int createBlockFromSchematic(WorldGuide* pWorldGuide, int cx, int cz, WorldBlock* block);
@@ -93,6 +93,8 @@ static wchar_t gSeparator[3];
 static int gBx = 0;
 static int gBz = 0;
 
+// when reading in a map and drawing, 1/x how often to update the progress bar
+#define DRAW_PROGRESS_INCREMENT 0.05f
 
 void SetSeparatorMap(const wchar_t* separator)
 {
@@ -317,13 +319,14 @@ int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int mapMaxY
     if (!gColorsInited)
         initColors();
 
+    float pctprogress = DRAW_PROGRESS_INCREMENT;
     // x increases south, decreases north
     for (z = 0, py = -shifty; z <= vBlocks; z++, py += blockScale)
     {
         // z increases west, decreases east
         for (x = 0, px = -shiftx; x <= hBlocks; x++, px += blockScale)
         {
-            blockbits = draw(pWorldGuide, startxblock + x, startzblock + z, topy, mapMaxY, pOpts, callback, (float)(z * hBlocks + x) / (float)(vBlocks * hBlocks), hitsFound, mcVersion, versionID, retCode);
+            blockbits = draw(pWorldGuide, startxblock + x, startzblock + z, topy, mapMaxY, pOpts, callback, (float)(z * hBlocks + x) / (float)(vBlocks * hBlocks), pctprogress, hitsFound, mcVersion, versionID, retCode);
             if (retCode < 0) {
                 // preserve the error code, which will (mysteriously) be displayed
                 sumRetCode = retCode;
@@ -431,9 +434,10 @@ int DrawMapToArray(unsigned char* image, WorldGuide* pWorldGuide, int cx, int cz
         int nextLine = zoom * w * 3;
 
         // z increases west, decreases east
+        float pctprogress = 0.1f;
         for (x = 0, px = -shiftx; x < hBlocks; x++, px += chunkSize)
         {
-            blockbits = draw(pWorldGuide, startxblock + x, startzblock + z, topy, mapMaxY, pOpts, callback, (float)(z * hBlocks + x) / (float)(vBlocks * hBlocks), hitsFound, mcVersion, versionID, retCode);
+            blockbits = draw(pWorldGuide, startxblock + x, startzblock + z, topy, mapMaxY, pOpts, callback, (float)(z * hBlocks + x) / (float)(vBlocks * hBlocks), pctprogress, hitsFound, mcVersion, versionID, retCode);
             sumRetCode |= retCode;
 
             // world space of block:
@@ -4073,7 +4077,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
 // opts is a bitmask representing render options (see MinewaysMap.h)
 // returns 16x16 set of block colors to use to render map.
 // colors are adjusted by height, transparency, etc.
-static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAlloc, int mapMaxY, Options* pOpts, ProgressCallback callback, float percent, int* hitsFound, int mcVersion, int versionID, int& retCode)
+static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAlloc, int mapMaxY, Options* pOpts, ProgressCallback callback, float percent, float & pctprogress, int* hitsFound, int mcVersion, int versionID, int& retCode)
 {
     WorldBlock* block, * prevblock;
     int ofs = 0, prevy, prevSely, blockSolid, saveHeight;
@@ -4140,8 +4144,10 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
         Cache_Add(bx, bz, block);
 
         //let's only update the progress bar if we're loading
-        if (callback)
-            callback(percent);
+        if (callback && (percent > pctprogress) ) {
+            callback(percent, NULL);
+            pctprogress += DRAW_PROGRESS_INCREMENT;
+        }
 
         if ((block == NULL) || (block->blockType == NBT_NO_SECTIONS)) //blank tile
         {
