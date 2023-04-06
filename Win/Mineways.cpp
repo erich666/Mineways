@@ -3769,7 +3769,9 @@ static int loadWorldList(HMENU menu)
                 if (errCode != 0) {
                     // unreadable world, for some reason - couldn't read version and LevelName
                     flagUnreadableWorld(testAnvil, pConverted, errCode);
-                    failedLoads++;
+                    // If error code >= 0, no popup is generated; it means something like "there's no level.dat", for example, so we ignore it.
+                    if (errCode < 0)
+                        failedLoads++;
                     continue;
                 }
                 LOG_INFO(gExecutionLogfile, "        try to get file level name\n");
@@ -3777,7 +3779,8 @@ static int loadWorldList(HMENU menu)
                 if (errCode != 0) {
                     // unreadable world, for some reason - couldn't read version and LevelName
                     flagUnreadableWorld(testAnvil, pConverted, errCode);
-                    failedLoads++;
+                    if (errCode < 0)
+                        failedLoads++;
                     continue;
                 }
 
@@ -3870,7 +3873,7 @@ static int loadWorldList(HMENU menu)
         // Any bad worlds detected? Give advice
         if (failedLoads) {
             // prints the line in the code where the error was returned via (a negated) LINE_ERROR.
-            wsprintf(msgString, _T("The world%s not loaded may be in a different ('Bedrock') format, used by Minecraft for Windows 10. Click 'OK' to go to https://bit.ly/mcbedrock and follow the instructions there to convert this type of world to the 'Classic' Java format, which Mineways can read. If instead this world is from an early version of Classic Minecraft, load it into the latest Minecraft to convert it. A third possibility is that this is some modded world in a format that Mineways does not support. There's not a lot that can be done about that, but feel free to contact me on Discord or by email. See the http://mineways.com site for support information."), (failedLoads > 1) ? "s" : "");
+            wsprintf(msgString, L"The world%S not loaded may be in a different ('Bedrock') format, used by Minecraft for Windows 10. Click 'OK' to go to https://bit.ly/mcbedrock and follow the instructions there to convert this type of world to the 'Classic' Java format, which Mineways can read. If instead this world is from an early version of Classic Minecraft, load it into the latest Minecraft to convert it. A third possibility is that this is some modded world in a format that Mineways does not support. There's not a lot that can be done about that, but feel free to contact me on Discord or by email. See the http://mineways.com site for support information.", (failedLoads > 1) ? L"s" : L"");
 
             int retcode = FilterMessageBox(NULL, msgString,
                 _T("Read error"), MB_OKCANCEL | MB_ICONWARNING | MB_TOPMOST);
