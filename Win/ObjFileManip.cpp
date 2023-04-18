@@ -548,14 +548,32 @@ typedef struct TouchRecord {
 #define TYPE_IS_LEAF(x)  ((x) == BLOCK_LEAVES || (x) == BLOCK_AD_LEAVES || (x) == BLOCK_MANGROVE_LEAVES)
 
 // for USD
+// This #define means we want to minimize the number of vertices, removing duplicates, per mesh
+#define WELD_USD_VERTICES
+#ifdef WELD_USD_VERTICES
+typedef struct VertexHash
+{
+    int id; // the index ID this vertex has; matching vertices will use this ID
+    Point* point;   // the point here
+    VertexHash* pvh;    // the next unique vertex with the same hash, if any.
+} VertexHash;
+#endif
+
 typedef struct OutDataArrays
 {
     int vertsize; // size of arrays that follow, x3 or x2 as needed
-    Point* points;
+    Point* points;  // list of points to output
     Point* normals;
     Point2* uvs;
     int vertCount;  // actual number of vertices currently stored
-    int* indices;
+    int* indices;   // indices to vertices
+#ifdef WELD_USD_VERTICES
+    int vertCountWelded;  // number of vertices needed, in list below, i.e., unique vertices; list size is vertCount
+    int* indicesWelded; // indices to vertices, removing duplicates
+    VertexHash** vhashLocation; // pointers to hashes for the vertex locations - indexed by hash location computed
+    VertexHash* vhashPool; // pool of hashes for the vertices. vertCountWelded gives the next one we can "allocate"
+    Point** pointsWelded; // list of pointers to unique vertices
+#endif
     int facesize; // size of array
     int* faceVertexCounts;
     int faceCount;  // actual number of faces currently stored
@@ -743,13 +761,15 @@ static int writeCommentUSD(char* commentString);
 static int finishCommentsUSD(char* defaultPrim);
 static int addCameraUSD();
 static int createMeshesUSD(wchar_t* blockLibraryPath, char* materialLibrary, bool singleTerrainFile);
-static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int numVerts, char* prefixLook, char* mtlName, int & progressTick, int progressIncrement, bool singleTerrainFile);
+static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int numVerts, char* prefixLook, char* mtlName, int & progressTick, int progressIncrement, bool singleTerrainFile, int type, int dataVal);
+static void removeDuplicateVertices();
+static unsigned int hashVertex(Point* point);
 static boolean allocOutData(int vertsize, int facesize);
 static void freeOutData();
 static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t* mtlLibraryFile, bool singleTerrainFile);
 static boolean tileIsAnEmitter(int type, int swatchLoc);
 static void setMetallicRoughnessByName(char* mtlName, float* metallic, float* roughness);
-static boolean findEndOfGroup(int startRun, int endCount, char* mtlName, int& nextStart, int& numVerts);
+static boolean findEndOfGroup(int startRun, int endCount, char* mtlName, int& nextStart, int& numVerts, int& prevType, int& prevDataVal);
 static int createLightingUSD(char* texturePath);
 static int writeMDLforUSD(wchar_t* filePath);
 static int closeUSDFile(PORTAFILE& modelFile);
@@ -952,22 +972,30 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         //(gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) &&
         gModel.options->pEFD->chkExportAll;
 
-    // normally we output both polygons for a billboard, assuming that backface culling is on.
-    // For USD polygons are double sided.
-    if (fileType != FILE_TYPE_USD) {
-        gModel.emitterSingleSided = gModel.singleSided = true;
-    }
-    else {
-        gModel.singleSided = false;
-        if (gModel.customMaterial) {
-            // custom material can use single sided for emitters
-            gModel.emitterSingleSided = true;
-        }
-        else {
-            // OmniPBR etc. cannot, as emitters emit from only one side, which is a bug, as this causes emitters to z-fight
-            gModel.emitterSingleSided = false;
-        }
-    }
+    // We now normally output a single polygon for a billboard, i.e., the polygon is expected to appear double-sided.
+    // This happens when singleSided is false. True means: "the single-sided polygon must be output twice, once reversed".
+    // For OBJ and USD polygons are usually double sided.
+
+    // note: all these options are now false!
+    gModel.emitterSingleSided = gModel.singleSided = false;
+    //if (fileType != FILE_TYPE_USD) {
+    //    // Blender thinks of OBJ faces as double-sided.
+    //    // In 10.14 we changed from true to false.
+    //    gModel.emitterSingleSided = gModel.singleSided = false;
+    //}
+    //else {
+    //    gModel.singleSided = false;
+    //    if (gModel.customMaterial) {
+    //        // custom material can use single sided for emitters - the fire block (#51) is a good example.
+    //        // In 10.14 we changes from true to false. Works fine.
+    //        gModel.emitterSingleSided = false;
+    //    }
+    //    else {
+    //        // OmniPBR etc. cannot, as emitters emit from only one side, which is a bug, as this causes emitters to z-fight
+    //        // UsdPreviewSurface has the same problem. TODO - outputting the proper "other side" fire faces could help
+    //        gModel.emitterSingleSided = false;
+    //    }
+    //}
 
     gPhysMtl = gModel.options->pEFD->comboPhysicalMaterial[gModel.options->pEFD->fileType];
 
@@ -13165,6 +13193,8 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     }
     break;
     case BB_GRID:
+    // TODOTODO: there's a flaw in Omniverse and UsdPreviewSurface with fire: it's single sided.
+    // It would be nice to fix the output so that the sides are pointing out on all sides.
     case BB_FIRE:
     {
         float texelWidth, texelLow, texelHigh;
@@ -25462,18 +25492,16 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
     sprintf_s(outputString, 256, "\ndef Xform \"%s\"\n{\n", defaultPrim);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
-    // export extents; really should export these after rotation, too.
-    // Commented out for now, as it's not clear (to me) if the "extents" are in world space (as done here) or are meant to be transformed, too.
-    // Also, setting them doesn't do much. Not so important for non-animated scenes, I think.
+    // export extents.
     //if (gModel.options->pEFD->chkMakeZUp[gModel.options->pEFD->fileType] == 0 && gModel.options->pEFD->radioRotate0 == 1) {
     //    // no rotations
     //    sprintf_s(outputString, 256, "    float3[] extent = [(%f, %f, %f), (%f, %f, %f)]\n",
-    //        (float)tightenedWorldBox->min[X] * gXformScale,
-    //        (float)tightenedWorldBox->min[Y] * gXformScale,
-    //        (float)tightenedWorldBox->min[Z] * gXformScale,
-    //        (float)tightenedWorldBox->max[X] * gXformScale,
-    //        (float)tightenedWorldBox->max[Y] * gXformScale,
-    //        (float)tightenedWorldBox->max[Z] * gXformScale );
+    //        (float)tightenedWorldBox->min[X],
+    //        (float)tightenedWorldBox->min[Y],
+    //        (float)tightenedWorldBox->min[Z],
+    //        (float)tightenedWorldBox->max[X],
+    //        (float)tightenedWorldBox->max[Y],
+    //        (float)tightenedWorldBox->max[Z] );
     //    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     //}
 
@@ -26266,6 +26294,7 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary, boo
     int startRun = 0;
     int nextStart = 0;
     int numVerts, numFaces;
+    int prevType, prevDataVal;
 
     gOutData.vertsize = gOutData.facesize = 0;
 
@@ -26356,8 +26385,8 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary, boo
             qsort_s(&gModel.faceList[firstFaceNumber], numFaces, sizeof(FaceRecord*), tileUSDIdCompare, NULL);
 
             startRun = firstFaceNumber;
-            while (findEndOfGroup(startRun, firstFaceNumber+numFaces, mtlName, nextStart, numVerts) && nextStart <= nextFaceNumber) {
-                outputUSDMesh(blockFile, startRun, nextStart - startRun, numVerts, "/Blocks", mtlName, progressTick, progressIncrement, singleTerrainFile);
+            while (findEndOfGroup(startRun, firstFaceNumber+numFaces, mtlName, nextStart, numVerts, prevType, prevDataVal) && nextStart <= nextFaceNumber) {
+                outputUSDMesh(blockFile, startRun, nextStart - startRun, numVerts, "/Blocks", mtlName, progressTick, progressIncrement, singleTerrainFile, prevType, prevDataVal);
                 // go to next group
                 startRun = nextStart;
             }
@@ -26377,9 +26406,9 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary, boo
         //SM code makes every mesh have the first material - for efficiency testing experiments
         //SM boolean firstName = true;
         //SM char useMtlName[MAX_PATH_AND_FILE];
-        while (findEndOfGroup(startRun, gModel.faceCount, mtlName, nextStart, numVerts)) {
+        while (findEndOfGroup(startRun, gModel.faceCount, mtlName, nextStart, numVerts, prevType, prevDataVal)) {
 
-            outputUSDMesh(gModelFile, startRun, nextStart - startRun, numVerts, NULL, mtlName, progressTick, progressIncrement, singleTerrainFile);
+            outputUSDMesh(gModelFile, startRun, nextStart - startRun, numVerts, NULL, mtlName, progressTick, progressIncrement, singleTerrainFile, prevType, prevDataVal);
             // go to next group
             startRun = nextStart;
         }
@@ -26391,7 +26420,7 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary, boo
     return retCode;
 }
 
-static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int numVerts, char *prefixLook, char *mtlName, int & progressTick, int progressIncrement, bool singleTerrainFile)
+static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int numVerts, char* prefixLook, char* mtlName, int& progressTick, int progressIncrement, bool singleTerrainFile, int type, int dataVal)
 {
     // Go through data and make arrays
 //SM if (firstName) {
@@ -26400,11 +26429,6 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
 //SM }
 
 // Create the geometry inside of "Root" (actually, whatever the user-defined name is)
-
-// Add all of the vertices
-// TODO: right now we do nothing to compress the number of duplicate points, where the location, normal, and UVs are all the same.
-// That said, I don't think there are a lot of these, if any, given that the UVs always go from 0 to 1, not 0 to 1, 1 to 2, etc.
-// and everything has UVs.
 
     char outputString[256];
     int iv = 0;
@@ -26444,10 +26468,7 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
         {
             gOutData.indices[iv] = iv;
 
-            // TODO this could be more compressed, in which we find which vertices are duplicates and index appropriately, reusing the vertices. Export a cube,
-            // for example, to see this reuse. Note that only vertex coordinates are actually indexed by gOutData.indices - normals and uv's are all listed out
-            // without any actual indexing. Not sure if consolidating vertex coordinates helps run speed (I would guess these meshes are expanded out so that each
-            // vertex has a coordinate, normal, and uv), and consolidating may result in slower export speeds, though would certainly give somewhat smaller files.
+            // TODO this could be more compressed, in which we find which vertices are duplicates and index appropriately, reusing the vertices.
             Vec3Scalar(gOutData.points[iv], =, gModel.vertices[pFace->vertexIndex[j]][X], gModel.vertices[pFace->vertexIndex[j]][Y], gModel.vertices[pFace->vertexIndex[j]][Z]);
             assert(pFace->normalIndex >= 0);
             Vec3Scalar(gOutData.normals[iv], =, gModel.normals[pFace->normalIndex][X], gModel.normals[pFace->normalIndex][Y], gModel.normals[pFace->normalIndex][Z]);
@@ -26502,7 +26523,12 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
     //sprintf_s(outputString, 256, "%s    def Mesh \"%s\"\n    {\n", startingFace ? "\n" : "", mtlName);
     // was: sprintf_s(outputString, 256, "\n    def Mesh \"%s\"\n    {\n", mtlName);
     // Newer USD spec needs this:
-    sprintf_s(outputString, 256, "\n    def Mesh \"%s\" (\n\t\tprepend apiSchemas = [\"MaterialBindingAPI\"]\n\t)\n    {\n", mtlName);
+    if (type >= 0) {
+        sprintf_s(outputString, 256, "\n    def Mesh \"%s_%d_%d\" (\n\t\tprepend apiSchemas = [\"MaterialBindingAPI\"]\n\t)\n    {\n", mtlName, type, dataVal);
+    }
+    else {
+        sprintf_s(outputString, 256, "\n    def Mesh \"%s\" (\n\t\tprepend apiSchemas = [\"MaterialBindingAPI\"]\n\t)\n    {\n", mtlName);
+    }
     WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
 
     // is mesh two-sided? If it's interior to an opaque, it doesn't have to be, which can be a bit faster to render.
@@ -26514,6 +26540,18 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
         WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
     }
 
+    // extents for mesh - why not?
+//    sprintf_s(outputString, 256, "    float3[] extent = [(%f, %f, %f), (%f, %f, %f)]\n",
+//        (float)tightenedWorldBox->min[X],
+//        (float)tightenedWorldBox->min[Y],
+//        (float)tightenedWorldBox->min[Z],
+//        (float)tightenedWorldBox->max[X],
+//        (float)tightenedWorldBox->max[Y],
+//        (float)tightenedWorldBox->max[Z] );
+//    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+//}
+
+
     strcpy_s(outputString, 256, "        int[] faceVertexCounts = [");
     WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
     for (i = 0; i < numFaces; i++) {
@@ -26521,12 +26559,23 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
         WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
     }
 
+#ifdef WELD_USD_VERTICES
+    removeDuplicateVertices();
+
+    strcpy_s(outputString, 256, "        int[] faceVertexIndices = [");
+    WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+    for (i = 0; i < numVerts; i++) {
+        sprintf_s(outputString, 256, "%d%s", gOutData.indicesWelded[i], (i == numVerts - 1) ? "]\n" : ", ");
+        WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+    }
+#else
     strcpy_s(outputString, 256, "        int[] faceVertexIndices = [");
     WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
     for (i = 0; i < numVerts; i++) {
         sprintf_s(outputString, 256, "%d%s", gOutData.indices[i], (i == numVerts - 1) ? "]\n" : ", ");
         WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
     }
+#endif
 
 // define SINGLE_MATERIAL to export a single white material
 // Alternately, define WHITE_MATERIAL to have each mesh have a separate material, each of which is white.
@@ -26543,7 +26592,11 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
     strcpy_s(outputString, 256, "        normal3f[] normals = [");
     WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
     for (i = 0; i < numVerts; i++) {
+#ifdef WELD_USD_VERTICES
+        sprintf_s(outputString, 256, "(%g, %g, %g)%s", gOutData.normals[i][X], gOutData.normals[i][Y], gOutData.normals[i][Z], (i == numVerts - 1) ? "]  (\n            interpolation = \"faceVarying\"\n        )\n" : ", ");
+#else
         sprintf_s(outputString, 256, "(%g, %g, %g)%s", gOutData.normals[i][X], gOutData.normals[i][Y], gOutData.normals[i][Z], (i == numVerts - 1) ? "]\n" : ", ");
+#endif
         WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
     }
 
@@ -26553,17 +26606,35 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
 
     strcpy_s(outputString, 256, "        point3f[] points = [");
     WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+#ifdef WELD_USD_VERTICES
+    for (i = 0; i < gOutData.vertCountWelded; i++) {
+        sprintf_s(outputString, 256, "(%g, %g, %g)%s", (gOutData.pointsWelded[i])[0][X], (gOutData.pointsWelded[i])[0][Y], (gOutData.pointsWelded[i])[0][Z], (i == gOutData.vertCountWelded - 1) ? "]\n" : ", ");
+        WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+    }
+#else
     for (i = 0; i < numVerts; i++) {
         sprintf_s(outputString, 256, "(%g, %g, %g)%s", gOutData.points[i][X], gOutData.points[i][Y], gOutData.points[i][Z], (i == numVerts - 1) ? "]\n" : ", ");
         WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
     }
+#endif
 
     strcpy_s(outputString, 256, "        texCoord2f[] primvars:st = [");
     WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
     for (i = 0; i < numVerts; i++) {
-        sprintf_s(outputString, 256, "(%g, %g)%s", gOutData.uvs[i][X], gOutData.uvs[i][Y], (i == numVerts - 1) ? "] (\n            interpolation = \"vertex\"\n        )\n" : ", ");
+        // "interpolation = "vertex"" is the default, see https://www.openusd.org/release/api/class_usd_geom_point_based.html#ae0ac6f60f8135799ba42a16fe466f89b 
+        //sprintf_s(outputString, 256, "(%g, %g)%s", gOutData.uvs[i][X], gOutData.uvs[i][Y], (i == numVerts - 1) ? "] (\n            interpolation = \"vertex\"\n        )\n" : ", ");
+#ifdef WELD_USD_VERTICES
+        sprintf_s(outputString, 256, "(%g, %g)%s", gOutData.uvs[i][X], gOutData.uvs[i][Y], (i == numVerts - 1) ? "] (\n            interpolation = \"faceVarying\"\n        )\n" : ", ");
+#else
+        sprintf_s(outputString, 256, "(%g, %g)%s", gOutData.uvs[i][X], gOutData.uvs[i][Y], (i == numVerts - 1) ? "]\n" : ", ");
+#endif
         WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
     }
+
+    // critical if you are not defining subdivision surfaces, which is what USD assumes you're using
+    // (I'm told 90% of the meshes in films are subdiv surfaces). See https://openusd.org/dev/api/class_usd_geom_mesh.html
+    strcpy_s(outputString, 256, "        uniform token subdivisionScheme = \"none\"\n");
+    WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
 
     strcpy_s(outputString, 256, "    }\n");
     WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
@@ -26644,6 +26715,119 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
     return 0;
 }
 
+static void removeDuplicateVertices()
+{
+    // input list is gOutData.indices. Output is gOutData.indicesWelded and vertCountWelded
+    gOutData.vertCountWelded = 0;
+    VertexHash* vhash;  // only used when a new hash is needed
+    // zero out the hash location list
+    memset(gOutData.vhashLocation, 0, gOutData.vertCount * sizeof(VertexHash**));
+
+    // Go through list, make a hash of the vertex. Does vertex match one already encountered? Use the index stored with the hash record. Else set the hash record.
+    for (int i = 0; i < gOutData.vertCount; i++) {
+        // find hash for vertex, compare vertex to previous vertices if any at that hash position
+        int vertexIndex = gOutData.indices[i];
+        int hashLoc = hashVertex(&gOutData.points[vertexIndex]) % gOutData.vertCount;
+        if (gOutData.vhashLocation[hashLoc]) {
+            // previous hash exists, test if it's the same location for this hash or any others
+            vhash = gOutData.vhashLocation[hashLoc];
+            while (vhash) {
+
+                //float x1 = (vhash->point)[0][X];
+                //float x2 = gOutData.points[vertexIndex][X];
+                //float y1 = (vhash->point)[0][Y];
+                //float y2 = gOutData.points[vertexIndex][Y];
+                //float z1 = (vhash->point)[0][Z];
+                //float z2 = gOutData.points[vertexIndex][Z];
+                //if ((x1 == x2) &&
+                //    (y1 == y2) &&
+                //    (z1 == z2)) {
+                if (((vhash->point)[0][X] == gOutData.points[vertexIndex][X]) &&
+                    ((vhash->point)[0][Y] == gOutData.points[vertexIndex][Y]) &&
+                    ((vhash->point)[0][Z] == gOutData.points[vertexIndex][Z]) ) {
+
+                    // match found, so note its matching index and move on
+                    gOutData.indicesWelded[i] = vhash->id;
+                    goto Done;
+                }
+                else {
+                    // points don't match, so go to next hash, if any
+                    vhash = vhash->pvh;
+                }
+            }
+        }
+        // end of list and no match found, add the new hash at this location, to the front of the list
+        // (I figure that, with locality, if a new vertex is found for the location, we should test it first in the linked list from now on)
+        vhash = &gOutData.vhashPool[gOutData.vertCountWelded];
+        vhash->id = gOutData.vertCountWelded;
+        gOutData.pointsWelded[gOutData.vertCountWelded++] = vhash->point = &gOutData.points[i]; // TODO I think we can remove vhash->point - get with ID
+        vhash->pvh = gOutData.vhashLocation[hashLoc];
+        gOutData.vhashLocation[hashLoc] = vhash;
+
+        // whatever happens, the vhash will have the ID.
+    Done:
+        gOutData.indicesWelded[i] = vhash->id;
+    }
+}
+
+static unsigned int hashVertex(Point* point)
+{
+    // An old hash, maybe good enough? Could use murmur or maybe something from https://www.jcgt.org/published/0009/03/02/
+
+    // from http://www.burtleburtle.net/bob/c/lookup3.c
+/*
+-------------------------------------------------------------------------------
+final -- final mixing of 3 32-bit values (a,b,c) into c
+
+Pairs of (a,b,c) values differing in only a few bits will usually
+produce values of c that look totally different.  This was tested for
+* pairs that differed by one bit, by two bits, in any combination
+  of top bits of (a,b,c), or in any combination of bottom bits of
+  (a,b,c).
+* "differ" is defined as +, -, ^, or ~^.  For + and -, I transformed
+  the output delta to a Gray code (a^(a>>1)) so a string of 1's (as
+  is commonly produced by subtraction) look like a single 1-bit
+  difference.
+* the base values were pseudorandom, all zero but one bit set, or
+  all zero plus a counter that starts at zero.
+
+These constants passed:
+ 14 11 25 16 4 14 24
+ 12 14 25 16 4 14 24
+and these came close:
+  4  8 15 26 3 22 24
+ 10  8 15 26 3 22 24
+ 11  8 15 26 3 22 24
+-------------------------------------------------------------------------------
+*/
+#define JENKINS_ROT(x,k) (((x)<<(k)) | ((x)>>(32-(k))))
+#define JENKINS_FINAL(a,b,c) \
+{ \
+  c ^= b; c -= JENKINS_ROT(b,14); \
+  a ^= c; a -= JENKINS_ROT(c,11); \
+  b ^= a; b -= JENKINS_ROT(a,25); \
+  c ^= b; c -= JENKINS_ROT(b,16); \
+  a ^= c; a -= JENKINS_ROT(c,4);  \
+  b ^= a; b -= JENKINS_ROT(a,14); \
+  c ^= b; c -= JENKINS_ROT(b,24); \
+}
+
+    union {
+        float f;
+        uint32_t u;
+    } fu;
+
+    fu.f = point[0][X];
+    unsigned int a = fu.u;
+    fu.f = point[0][Y];
+    unsigned int b = fu.u;
+    fu.f = point[0][Z];
+    unsigned int c = fu.u;
+    JENKINS_FINAL(a, b, c);
+
+    return c;
+}
+
 // TODO: we return false when out of memory, but don't do anything about it (really, a problem throughout the code...)
 static boolean allocOutData(int numVerts, int numFaces)
 {
@@ -26653,16 +26837,36 @@ static boolean allocOutData(int numVerts, int numFaces)
             free(gOutData.normals);
             free(gOutData.uvs);
             free(gOutData.indices);
+#ifdef WELD_USD_VERTICES
+            free(gOutData.indicesWelded);
+            free(gOutData.vhashLocation);
+            free(gOutData.vhashPool);
+            free(gOutData.pointsWelded);
+#endif
             gOutData.points = NULL;
             gOutData.normals = NULL;
             gOutData.uvs = NULL;
             gOutData.indices = NULL;
+#ifdef WELD_USD_VERTICES
+            gOutData.indicesWelded = NULL;
+            gOutData.vhashLocation = NULL;
+            gOutData.vhashPool = NULL;
+            gOutData.pointsWelded = NULL;
+#endif
         }
         gOutData.vertsize = 2 * numVerts + 100;
         gOutData.points = (Point*)malloc(gOutData.vertsize * sizeof(Point));
         gOutData.normals = (Point*)malloc(gOutData.vertsize * sizeof(Point));
         gOutData.uvs = (Point2*)malloc(gOutData.vertsize * sizeof(Point2));
         gOutData.indices = (int*)malloc(gOutData.vertsize * sizeof(int));
+#ifdef WELD_USD_VERTICES
+        gOutData.indicesWelded = (int*)malloc(gOutData.vertsize * sizeof(int));
+        // TODO: could make location list smaller, since we expect vertices to be shared, but then we need a
+        // different size number than vertsize.
+        gOutData.vhashLocation = (VertexHash**)malloc(gOutData.vertsize * sizeof(VertexHash*));
+        gOutData.vhashPool = (VertexHash*)malloc(gOutData.vertsize * sizeof(VertexHash));
+        gOutData.pointsWelded = (Point**)malloc(gOutData.vertsize * sizeof(Point*));
+#endif
     }
     if (gOutData.facesize < numFaces) {
         if (gOutData.facesize > 0) {
@@ -26675,10 +26879,18 @@ static boolean allocOutData(int numVerts, int numFaces)
     // store the number of verts and faces now - we'll fill them in right after
     gOutData.vertCount = numVerts;
     gOutData.faceCount = numFaces;
+
+    // check that allocations all worked
     return ((gOutData.points != NULL) &&
         (gOutData.normals != NULL) &&
         (gOutData.uvs != NULL) &&
         (gOutData.indices != NULL) &&
+#ifdef WELD_USD_VERTICES
+        (gOutData.indicesWelded != NULL) &&
+        (gOutData.vhashLocation != NULL) &&
+        (gOutData.vhashPool != NULL) &&
+        (gOutData.pointsWelded != NULL) &&
+#endif
         (gOutData.faceVertexCounts != NULL));
 }
 
@@ -26689,10 +26901,22 @@ static void freeOutData()
         free(gOutData.normals);
         free(gOutData.uvs);
         free(gOutData.indices);
+#ifdef WELD_USD_VERTICES
+        free(gOutData.indicesWelded);
+        free(gOutData.vhashLocation);
+        free(gOutData.vhashPool);
+        free(gOutData.pointsWelded);
+#endif
         gOutData.points = NULL;
         gOutData.normals = NULL;
         gOutData.uvs = NULL;
         gOutData.indices = NULL;
+#ifdef WELD_USD_VERTICES
+        gOutData.indicesWelded = NULL;
+        gOutData.vhashLocation = NULL;
+        gOutData.vhashPool = NULL;
+        gOutData.pointsWelded = NULL;
+#endif
     }
     gOutData.vertsize = 0;
     if (gOutData.facesize > 0) {
@@ -26797,6 +27021,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
     int startRun = 0;
     int nextStart = 0;
     int numVerts;
+    int prevType, prevDataVal;
 
     static bool outputCustomData = false;
     float emission = 0.0f;
@@ -26804,7 +27029,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
     // Assume we always want this on, but pre-emptively added to allow export toggle
     bool usePreviewSurface = true;
 
-    while (findEndOfGroup(startRun, gModel.faceCount, mtlName, nextStart, numVerts)) {
+    while (findEndOfGroup(startRun, gModel.faceCount, mtlName, nextStart, numVerts, prevType, prevDataVal)) {
         changeCharToUnderline(' ', mtlName);
 
         if (singleTerrainFile) {
@@ -28505,7 +28730,7 @@ static void setMetallicRoughnessByName(char *mtlName, float *metallic, float *ro
     // Block of Copper is about the only one I'll try.
 }
 
-static boolean findEndOfGroup(int startRun, int endCount, char* mtlName, int& nextStart, int& numVerts)
+static boolean findEndOfGroup(int startRun, int endCount, char* mtlName, int& nextStart, int& numVerts, int& prevType, int& prevDataVal)
 {
     numVerts = 0;
     nextStart = startRun;
@@ -28522,8 +28747,8 @@ static boolean findEndOfGroup(int startRun, int endCount, char* mtlName, int& ne
     bool subtypeMaterial = subtypeGroup || gModel.exportTiles;
 
     // Initialize material
-    int prevType = gModel.faceList[startRun]->materialType;
-    int prevDataVal = gModel.faceList[startRun]->materialDataVal;
+    prevType = gModel.faceList[startRun]->materialType;
+    prevDataVal = gModel.faceList[startRun]->materialDataVal;
     int prevSwatchLoc = gModel.uvIndexList[gModel.faceList[startRun]->uvIndex[0]].swatchLoc;
     // New ID encountered, so output it: material name, and group.
     // Group isn't really required, but can be useful.
