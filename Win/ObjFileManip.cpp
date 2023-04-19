@@ -760,6 +760,8 @@ static int openUSDFile(wchar_t* destination, PORTAFILE& modelFile);
 static int writeCommentUSD(char* commentString);
 static int finishCommentsUSD(char* defaultPrim);
 static int addCameraUSD();
+static void initializeBox(Box& b);
+static void increaseBoxByVertex(Box& b, Point& p);
 static int createMeshesUSD(wchar_t* blockLibraryPath, char* materialLibrary, bool singleTerrainFile);
 static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int numVerts, char* prefixLook, char* mtlName, int & progressTick, int progressIncrement, bool singleTerrainFile, int type, int dataVal);
 static void removeDuplicateVertices();
@@ -26088,6 +26090,19 @@ static int addCameraUSD()
     return 0;
 }
 
+static void initializeBox(Box& b)
+{
+    Vec3Scalar(b.min, =, 1e20f, 1e20f, 1e20f);
+    Vec3Scalar(b.max, =, -1e20f, -1e20f, -1e20f);
+}
+
+static void increaseBoxByVertex(Box& b, Point& p)
+{
+    Vec3Scalar(b.min, =, (b.min[X] < p[X]) ? b.min[X] : p[X], (b.min[Y] < p[Y]) ? b.min[Y] : p[Y], (b.min[Z] < p[Z]) ? b.min[Z] : p[Z]);
+    Vec3Scalar(b.max, =, (b.max[X] > p[X]) ? b.max[X] : p[X], (b.max[Y] > p[Y]) ? b.max[Y] : p[Y], (b.max[Z] > p[Z]) ? b.max[Z] : p[Z]);
+}
+
+
 //#define SPLIT_STRATEGY
 #ifdef SPLIT_STRATEGY
 static void reallocSplitSize(int splitsize)
@@ -26110,22 +26125,10 @@ static void reallocSplitSize(int splitsize)
     }
 }
 
-static void initializeBox(Box& b)
-{
-    Vec3Scalar(b.min, =, 1e20f, 1e20f, 1e20f);
-    Vec3Scalar(b.max, =, -1e20f, -1e20f, -1e20f);
-}
-
 static void increaseBoxByBox(Box& b, Box& binc)
 {
     Vec3Scalar(b.min, =, (b.min[X] < binc.min[X]) ? b.min[X] : binc.min[X], (b.min[Y] < binc.min[Y]) ? b.min[Y] : binc.min[Y], (b.min[Z] < binc.min[Z]) ? b.min[Z] : binc.min[Z]);
     Vec3Scalar(b.max, =, (b.max[X] > binc.max[X]) ? b.max[X] : binc.max[X], (b.max[Y] > binc.max[Y]) ? b.max[Y] : binc.max[Y], (b.max[Z] > binc.max[Z]) ? b.max[Z] : binc.max[Z]);
-}
-
-static void increaseBoxByVertex(Box& b, Point& p)
-{
-    Vec3Scalar(b.min, =, (b.min[X] < p[X]) ? b.min[X] : p[X], (b.min[Y] < p[Y]) ? b.min[Y] : p[Y], (b.min[Z] < p[Z]) ? b.min[Z] : p[Z]);
-    Vec3Scalar(b.max, =, (b.max[X] > p[X]) ? b.max[X] : p[X], (b.max[Y] > p[Y]) ? b.max[Y] : p[Y], (b.max[Z] > p[Z]) ? b.max[Z] : p[Z]);
 }
 
 static boolean boxesOverlapWithMargin(Box& b, Box& binc, float margin)
@@ -26540,17 +26543,20 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
         WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
     }
 
-    // extents for mesh - why not?
-//    sprintf_s(outputString, 256, "    float3[] extent = [(%f, %f, %f), (%f, %f, %f)]\n",
-//        (float)tightenedWorldBox->min[X],
-//        (float)tightenedWorldBox->min[Y],
-//        (float)tightenedWorldBox->min[Z],
-//        (float)tightenedWorldBox->max[X],
-//        (float)tightenedWorldBox->max[Y],
-//        (float)tightenedWorldBox->max[Z] );
-//    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-//}
-
+    // extents for mesh - why not? TODOTODO could get the box while simplifying vertex list - should definitely do it then.
+    Box box;
+    initializeBox(box);
+    for (i = 0; i < numVerts; i++) {
+        increaseBoxByVertex(box, gOutData.points[i]);
+    }
+    sprintf_s(outputString, 256, "        float3[] extent = [(%f, %f, %f), (%f, %f, %f)]\n",
+        (float)box.min[X],
+        (float)box.min[Y],
+        (float)box.min[Z],
+        (float)box.max[X],
+        (float)box.max[Y],
+        (float)box.max[Z] );
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     strcpy_s(outputString, 256, "        int[] faceVertexCounts = [");
     WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
