@@ -13200,7 +13200,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     }
     break;
     case BB_GRID:
-    // TODOTODO: there's a flaw in Omniverse and UsdPreviewSurface with fire: it's single sided.
+    // TODO: there's a flaw in Omniverse and UsdPreviewSurface with fire: it's single sided.
     // It would be nice to fix the output so that the sides are pointing out on all sides.
     case BB_FIRE:
     {
@@ -26553,7 +26553,7 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
         WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
     }
 
-    // extents for mesh - why not? TODOTODO could get the box while simplifying vertex list - should definitely do it then.
+    // extents for mesh - why not?
     Box box;
     initializeBox(box);
     removeDuplicateVertices(box);

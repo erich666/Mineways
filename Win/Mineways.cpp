@@ -7054,8 +7054,6 @@ static int interpretImportLine(char* line, ImportedSet& is)
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 
-    // TODOTODO add for decimates
-
     strPtr = findLineDataNoCase(line, "Make tree leaves solid:");
     if (strPtr == NULL) {
         // new name to match export dialog's text, as of 10.13

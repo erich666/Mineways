@@ -1992,7 +1992,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
             //       Y: -4 (some integer)
             //       BlockLight: 2048 bytes (I guess same as SkyLight)
 
-            // TODOTODO biomes
+            // TODO biomes
 
             // if not a 1.17 or earlier "Level" see if it's a newly-converted "sections" type
             //if (bfseek(pbf, 1, SEEK_CUR) < 0)
@@ -2008,7 +2008,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
             //if (nbtFindElement(pbf, "sections") != 9)
             //    return LINE_ERROR;
 
-            // clear biomes for now TODOTODOTODO - really, if at end and needBiome is still true, then do this
+            // clear biomes for now TODO - really, if at end and needBiome is still true, then do this
             memset(biome, 0, 256);
 
             goto SectionsCode;
@@ -2084,7 +2084,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
         //     DataVersion: what format is the data in https://minecraft.fandom.com/wiki/Data_version#List_of_data_versions
         // 
         // How data is structured in 1.18 BETAS (only!) of various sorts:
-        // TODOTODO: figure out when this changed yet again
+        // TODO: figure out when this changed yet again
         // /region: a directory of "regular" world region files
         // r.0.0.mca: a typical region file of 32x32 chunks, each 16x16
         //   Chunk [0, 0]: chunks go up to [31,31]
@@ -2533,7 +2533,7 @@ SectionsCode:
                         // compute number of bits for each palette entry. For example, 21 entries is 5 bits, which can access 17-32 entries.
                         int biomebitlength = biomebufflen;
 
-                        // Not so sure about this... uncompressed? or not? Need to find an example TODOTODOTODO
+                        // Not so sure about this... uncompressed? or not? Need to find an example TODO
                         bool uncompressed = (biomebufflen > 64 * biomebitlength);
                         unsigned long int biomebitmask = (1 << biomebitlength) - 1;
 
@@ -2619,7 +2619,7 @@ SectionsCode:
                     // compute number of bits for each palette entry. For example, 21 entries is 5 bits, which can access 17-32 entries.
                     int biomebitlength = biomebufflen;
 
-                    // Not so sure about this... uncompressed? or not? Need to find an example TODOTODOTODO
+                    // Not so sure about this... uncompressed? or not? Need to find an example TODO
                     bool uncompressed = (biomebufflen > 64 * biomebitlength);
                     unsigned long int biomebitmask = (1 << biomebitlength) - 1;
 
