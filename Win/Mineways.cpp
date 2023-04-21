@@ -377,6 +377,7 @@ ATOM				MyRegisterClass(HINSTANCE hInstance);
 BOOL				InitInstance(HINSTANCE, int);
 LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
+static boolean badFileSuffix(int fileType, TCHAR* filePath);
 static void closeMineways();
 static bool startExecutionLogFile(const LPWSTR* argList, int argCount);
 static int modifyWindowSizeFromCommandLine(int* x, int* y, const LPWSTR* argList, int argCount);
@@ -2163,21 +2164,33 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     ofn.lpstrTitle = gPrintModel ? L"Export for 3D Printing" : L"Export for Rendering";
                     ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
+                    GetFileName:
                     saveOK = GetSaveFileName(&ofn);
+
                     // save file type selected, no matter what (even on cancel); we
                     // always set it because even if someone cancels a save, he probably still
                     // wanted the file type chosen.
+                    int fileType;
                     if (gPrintModel)
                     {
-                        gExportPrintData.fileType = ofn.nFilterIndex - 1;
+                        fileType = gExportPrintData.fileType = ofn.nFilterIndex - 1;
                     }
                     else
                     {
-                        gExportViewData.fileType = ofn.nFilterIndex - 1;
+                        fileType = gExportViewData.fileType = ofn.nFilterIndex - 1;
                     }
+
+                    if (saveOK) {
+                        // check that file suffix matches the file type
+                        if (badFileSuffix(fileType, gExportPath)) {
+                            goto GetFileName;
+                        }
+                    }
+
                 }
                 if (saveOK)
                 {
+
                     // if we got this far, then previous export is off, and we also want to ask for export dialog itself.
                     gExported = 0;
                     // TODO: this whole export file name and path stuff could use some work.
@@ -2630,6 +2643,94 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
     return 0;
 }
+
+static boolean badFileSuffix(int fileType, TCHAR *filePath)
+{
+    // if the suffix on the file name does not match an expected suffix, give warning
+
+    // from end of string, move back to find the place where the filename starts without a path
+    TCHAR* wstrPtr = wcsrchr(filePath, (int)'\\');
+    if (wstrPtr)
+        // found a \, so move up past it
+        wstrPtr++;
+    else
+        wstrPtr = filePath;
+
+    // also look for final /
+    TCHAR* wstrfPtr = wcsrchr(wstrPtr, (int)'/');
+    if (wstrfPtr)
+        // found a /, so move up past it
+        wstrPtr = wstrfPtr + 1;
+
+    if (wstrPtr == NULL)
+        // no \ or / found, just use string itself
+        wstrPtr = filePath;
+
+    // OK, we have the file name itself. Is there a period in it?
+    TCHAR* wstrPeriodPtr = wcsrchr(wstrPtr, (int)'.');
+
+    if (wstrPeriodPtr == NULL) {
+        // no suffix, so we'll add one automatically later
+        return false;
+    }
+
+    // get past the period, here's the suffix
+    wstrPeriodPtr++;
+
+    // compare to the file type
+    boolean mismatch = false;
+    TCHAR fileString[10];
+    switch (fileType)
+    {
+    case FILE_TYPE_WAVEFRONT_ABS_OBJ:
+    case FILE_TYPE_WAVEFRONT_REL_OBJ:
+        wcscpy_s(fileString, 10, L"obj");
+        break;
+    case FILE_TYPE_USD:
+        wcscpy_s(fileString, 10, L"usda");
+        break;
+    case FILE_TYPE_VRML2:
+        wcscpy_s(fileString, 10, L"wrl");
+        break;
+    case FILE_TYPE_BINARY_MAGICS_STL:
+    case FILE_TYPE_BINARY_VISCAM_STL:
+    case FILE_TYPE_ASCII_STL:
+        wcscpy_s(fileString, 10, L"stl");
+        break;
+    case FILE_TYPE_SCHEMATIC:
+        // just check that first character is "s"
+        mismatch = !((*wstrPeriodPtr == (int)'s') || (*wstrPeriodPtr == (int)'S'));
+        goto CheckMismatch;
+        break;
+    default:
+        // unknown, don't sweat it
+        assert(0);
+        return false;
+    }
+
+    mismatch = (_wcsicmp(wstrPeriodPtr, fileString) != 0);
+
+    CheckMismatch:
+    if (mismatch) {
+        // warn that suffix doesn't match
+        wchar_t msgString[1024];
+        swprintf_s(msgString, 1024, L"The file '%s' has a suffix that does not match the type of file (%s) selected for output. You may want to leave the suffix off or change it to '.%s'. Do you want to try again?\n\nIf you click 'no', the proper suffix will be added to the name, giving '%s.%s'.",
+            wstrPtr, fileString, fileString, wstrPtr, fileString);
+
+        // System modal puts it topmost, and task modal stops things from continuing without an answer. Unfortunately, task modal does not force the dialog on top.
+        // We force it here, as it's OK if it gets ignored, but we want people to see it.
+        int retval = FilterMessageBox(NULL, msgString,
+            _T("Suffix mismatch"), MB_YESNO | MB_ICONINFORMATION | MB_DEFBUTTON1 | MB_TOPMOST);
+        if (retval == IDYES)
+        {
+            // try again
+            return true;
+        }
+    }
+
+    return false;
+}
+
 
 static void closeMineways()
 {
