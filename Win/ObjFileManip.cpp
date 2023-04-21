@@ -26560,87 +26560,145 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
         WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
     }
 
-    // extents for mesh - why not?
-    Box box;
-    initializeBox(box);
-    removeDuplicateVertices(box);
-
-    sprintf_s(outputString, 256, "        float3[] extent = [(%f, %f, %f), (%f, %f, %f)]\n",
-        (float)box.min[X],
-        (float)box.min[Y],
-        (float)box.min[Z],
-        (float)box.max[X],
-        (float)box.max[Y],
-        (float)box.max[Z] );
-    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-
-    strcpy_s(outputString, 256, "        int[] faceVertexCounts = [");
-    WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
-    for (i = 0; i < numFaces; i++) {
-        sprintf_s(outputString, 256, "%d%s", gOutData.faceVertexCounts[i], (i == numFaces - 1) ? "]\n" : ", ");
+    if (gModel.instancing) {
+        strcpy_s(outputString, 256, "        int[] faceVertexCounts = [");
         WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
-    }
+        for (i = 0; i < numFaces; i++) {
+            sprintf_s(outputString, 256, "%d%s", gOutData.faceVertexCounts[i], (i == numFaces - 1) ? "]\n" : ", ");
+            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+        }
 
-    strcpy_s(outputString, 256, "        int[] faceVertexIndices = [");
-    WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
-    for (i = 0; i < numVerts; i++) {
-        sprintf_s(outputString, 256, "%d%s", gOutData.indicesWelded[i], (i == numVerts - 1) ? "]\n" : ", ");
+        strcpy_s(outputString, 256, "        int[] faceVertexIndices = [");
         WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
-    }
+        for (i = 0; i < numVerts; i++) {
+            sprintf_s(outputString, 256, "%d%s", gOutData.indices[i], (i == numVerts - 1) ? "]\n" : ", ");
+            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+        }
 
-    strcpy_s(outputString, 256, "        point3f[] points = [");
-    WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
-    for (i = 0; i < gOutData.vertCountWelded; i++) {
-        sprintf_s(outputString, 256, "(%g, %g, %g)%s", (gOutData.welded[i])[0][X], (gOutData.welded[i])[0][Y], (gOutData.welded[i])[0][Z], (i == gOutData.vertCountWelded - 1) ? "]\n" : ", ");
-        WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
-    }
-
-// define SINGLE_MATERIAL to export a single white material
-// Alternately, define WHITE_MATERIAL to have each mesh have a separate material, each of which is white.
-//#define SINGLE_MATERIAL
-//#define WHITE_MATERIAL
+        // define SINGLE_MATERIAL to export a single white material
+        // Alternately, define WHITE_MATERIAL to have each mesh have a separate material, each of which is white.
+        //#define SINGLE_MATERIAL
+        //#define WHITE_MATERIAL
 #ifdef SINGLE_MATERIAL
-    sprintf_s(outputString, 256, "        rel material:binding = <%s/Looks/basic>\n", (prefixLook == NULL) ? "" : prefixLook);
-    WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+        sprintf_s(outputString, 256, "        rel material:binding = <%s/Looks/basic>\n", (prefixLook == NULL) ? "" : prefixLook);
+        WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
 #else
-    sprintf_s(outputString, 256, "        rel material:binding = <%s/Looks/%s>\n", (prefixLook == NULL) ? "" : prefixLook, mtlName);
-    WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+        sprintf_s(outputString, 256, "        rel material:binding = <%s/Looks/%s>\n", (prefixLook == NULL) ? "" : prefixLook, mtlName);
+        WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
 #endif
 
-    removeDuplicateNormals();
-
-    strcpy_s(outputString, 256, "        normal3f[] primvars:normals = [");
-    WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
-    for (i = 0; i < gOutData.vertCountWelded; i++) {
-        sprintf_s(outputString, 256, "(%g, %g, %g)%s", (gOutData.welded[i])[0][X], (gOutData.welded[i])[0][Y], (gOutData.welded[i])[0][Z], (i == gOutData.vertCountWelded - 1) ? "]  (\n            interpolation = \"faceVarying\"\n        )\n" : ", ");
+        strcpy_s(outputString, 256, "        normal3f[] normals = [");
         WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+        for (i = 0; i < numVerts; i++) {
+            sprintf_s(outputString, 256, "(%g, %g, %g)%s", gOutData.normals[i][X], gOutData.normals[i][Y], gOutData.normals[i][Z], (i == numVerts - 1) ? "]\n" : ", ");
+            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+        }
+
+        // if we're writing out a huge array, take a moment and update the progress
+        if (numFaces > 10000)
+            UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)(startingFace + numFaces) / (float)gModel.faceCount));
+
+        strcpy_s(outputString, 256, "        point3f[] points = [");
+        WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+        for (i = 0; i < numVerts; i++) {
+            sprintf_s(outputString, 256, "(%g, %g, %g)%s", gOutData.points[i][X], gOutData.points[i][Y], gOutData.points[i][Z], (i == numVerts - 1) ? "]\n" : ", ");
+            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+        }
+
+        strcpy_s(outputString, 256, "        texCoord2f[] primvars:st = [");
+        WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+        for (i = 0; i < numVerts; i++) {
+            // "interpolation = "vertex"" is the default, see https://www.openusd.org/release/api/class_usd_geom_point_based.html#ae0ac6f60f8135799ba42a16fe466f89b 
+            sprintf_s(outputString, 256, "(%g, %g)%s", gOutData.uvs[i][X], gOutData.uvs[i][Y], (i == numVerts - 1) ? "] (\n            interpolation = \"vertex\"\n        )\n" : ", ");
+            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+        }
+
     }
-    strcpy_s(outputString, 256, "        int[] primvars:normals:indices = [");
-    WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
-    for (i = 0; i < numVerts; i++) {
-        sprintf_s(outputString, 256, "%d%s", gOutData.indicesWelded[i], (i == numVerts - 1) ? "]\n" : ", ");
-        WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
-    }
+    else {
+        // squeeze out the extra data that's not needed
 
-    // if we're writing out a huge array, take a moment and update the progress
-    if (numFaces > 10000)
-        UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)(startingFace + numFaces) / (float)gModel.faceCount));
+        // extents for mesh - why not?
+        Box box;
+        initializeBox(box);
+        removeDuplicateVertices(box);
 
-    removeDuplicateTextureSTs();
+        sprintf_s(outputString, 256, "        float3[] extent = [(%f, %f, %f), (%f, %f, %f)]\n",
+            (float)box.min[X],
+            (float)box.min[Y],
+            (float)box.min[Z],
+            (float)box.max[X],
+            (float)box.max[Y],
+            (float)box.max[Z] );
+        WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
-    strcpy_s(outputString, 256, "        texCoord2f[] primvars:st = [");
-    WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
-    for (i = 0; i < gOutData.vertCountWelded; i++) {
-        // "interpolation = "vertex"" is the default, see https://www.openusd.org/release/api/class_usd_geom_point_based.html#ae0ac6f60f8135799ba42a16fe466f89b 
-        //sprintf_s(outputString, 256, "(%g, %g)%s", gOutData.uvs[i][X], gOutData.uvs[i][Y], (i == numVerts - 1) ? "] (\n            interpolation = \"vertex\"\n        )\n" : ", ");
-        sprintf_s(outputString, 256, "(%g, %g)%s", (gOutData.welded[i])[0][X], (gOutData.welded[i])[0][Y], (i == gOutData.vertCountWelded - 1) ? "] (\n            interpolation = \"faceVarying\"\n        )\n" : ", ");
+        strcpy_s(outputString, 256, "        int[] faceVertexCounts = [");
         WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
-    }
-    strcpy_s(outputString, 256, "        int[] primvars:st:indices = [");
-    WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
-    for (i = 0; i < numVerts; i++) {
-        sprintf_s(outputString, 256, "%d%s", gOutData.indicesWelded[i], (i == numVerts - 1) ? "]\n" : ", ");
+        for (i = 0; i < numFaces; i++) {
+            sprintf_s(outputString, 256, "%d%s", gOutData.faceVertexCounts[i], (i == numFaces - 1) ? "]\n" : ", ");
+            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+        }
+
+        strcpy_s(outputString, 256, "        int[] faceVertexIndices = [");
         WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+        for (i = 0; i < numVerts; i++) {
+            sprintf_s(outputString, 256, "%d%s", gOutData.indicesWelded[i], (i == numVerts - 1) ? "]\n" : ", ");
+            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+        }
+
+        strcpy_s(outputString, 256, "        point3f[] points = [");
+        WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+        for (i = 0; i < gOutData.vertCountWelded; i++) {
+            sprintf_s(outputString, 256, "(%g, %g, %g)%s", (gOutData.welded[i])[0][X], (gOutData.welded[i])[0][Y], (gOutData.welded[i])[0][Z], (i == gOutData.vertCountWelded - 1) ? "]\n" : ", ");
+            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+        }
+
+    // define SINGLE_MATERIAL to export a single white material
+    // Alternately, define WHITE_MATERIAL to have each mesh have a separate material, each of which is white.
+    //#define SINGLE_MATERIAL
+    //#define WHITE_MATERIAL
+    #ifdef SINGLE_MATERIAL
+        sprintf_s(outputString, 256, "        rel material:binding = <%s/Looks/basic>\n", (prefixLook == NULL) ? "" : prefixLook);
+        WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+    #else
+        sprintf_s(outputString, 256, "        rel material:binding = <%s/Looks/%s>\n", (prefixLook == NULL) ? "" : prefixLook, mtlName);
+        WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+    #endif
+
+        removeDuplicateNormals();
+
+        strcpy_s(outputString, 256, "        normal3f[] primvars:normals = [");
+        WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+        for (i = 0; i < gOutData.vertCountWelded; i++) {
+            sprintf_s(outputString, 256, "(%g, %g, %g)%s", (gOutData.welded[i])[0][X], (gOutData.welded[i])[0][Y], (gOutData.welded[i])[0][Z], (i == gOutData.vertCountWelded - 1) ? "]  (\n            interpolation = \"faceVarying\"\n        )\n" : ", ");
+            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+        }
+        strcpy_s(outputString, 256, "        int[] primvars:normals:indices = [");
+        WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+        for (i = 0; i < numVerts; i++) {
+            sprintf_s(outputString, 256, "%d%s", gOutData.indicesWelded[i], (i == numVerts - 1) ? "]\n" : ", ");
+            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+        }
+
+        // if we're writing out a huge array, take a moment and update the progress
+        if (numFaces > 10000)
+            UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)(startingFace + numFaces) / (float)gModel.faceCount));
+
+        removeDuplicateTextureSTs();
+
+        strcpy_s(outputString, 256, "        texCoord2f[] primvars:st = [");
+        WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+        for (i = 0; i < gOutData.vertCountWelded; i++) {
+            // "interpolation = "vertex"" is the default, see https://www.openusd.org/release/api/class_usd_geom_point_based.html#ae0ac6f60f8135799ba42a16fe466f89b 
+            //sprintf_s(outputString, 256, "(%g, %g)%s", gOutData.uvs[i][X], gOutData.uvs[i][Y], (i == numVerts - 1) ? "] (\n            interpolation = \"vertex\"\n        )\n" : ", ");
+            sprintf_s(outputString, 256, "(%g, %g)%s", (gOutData.welded[i])[0][X], (gOutData.welded[i])[0][Y], (i == gOutData.vertCountWelded - 1) ? "] (\n            interpolation = \"faceVarying\"\n        )\n" : ", ");
+            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+        }
+        strcpy_s(outputString, 256, "        int[] primvars:st:indices = [");
+        WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+        for (i = 0; i < numVerts; i++) {
+            sprintf_s(outputString, 256, "%d%s", gOutData.indicesWelded[i], (i == numVerts - 1) ? "]\n" : ", ");
+            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+        }
     }
 
     // critical if you are not defining subdivision surfaces, which is what USD assumes you're using
