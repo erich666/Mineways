@@ -5052,7 +5052,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                     wchar_t msgString[2000];
                     if (gBiomeSelected >= 0) {
                         if (gModel.options->pEFD->chkDecimate ) {
-                            swprintf_s(msgString, 2000, L"Export Statistics:\n\n%s solid blocks and %s billboard blocks converted to %s quad faces (%s triangles) with %s vertices. Simplification saved %s quads.\nBiome used: #%d - %S.\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
+                            swprintf_s(msgString, 2000, L"Export Statistics:\n\n%s full-voxel blocks and %s smaller blocks converted to %s quad faces (%s triangles) with %s vertices. Simplification saved %s quads.\nBiome used: #%d - %S.\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
                                 formatWithCommas(gModel.blockCount, gCommaString1),
                                 formatWithCommas(gModel.billboardCount, gCommaString2),
                                 formatWithCommas(gModel.faceCount, gCommaString3),
@@ -5064,7 +5064,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                             );
                         }
                         else {
-                            swprintf_s(msgString, 2000, L"Export Statistics:\n\n%s solid blocks and %s billboard blocks converted to %s quad faces (%s triangles) with %s vertices.\nBiome used: #%d - %S.\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
+                            swprintf_s(msgString, 2000, L"Export Statistics:\n\n%s full-voxel blocks and %s smaller blocks converted to %s quad faces (%s triangles) with %s vertices.\nBiome used: #%d - %S.\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
                                 formatWithCommas(gModel.blockCount, gCommaString1),
                                 formatWithCommas(gModel.billboardCount, gCommaString2),
                                 formatWithCommas(gModel.faceCount, gCommaString3),
@@ -5077,7 +5077,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                     }
                     else {
                         if (gModel.options->pEFD->chkDecimate) {
-                            swprintf_s(msgString, 2000, L"Export Statistics:\n\n%s solid blocks and %s billboard blocks converted to %s quad faces (%s triangles) with %s vertices. Simplification saved %s quads.\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
+                            swprintf_s(msgString, 2000, L"Export Statistics:\n\n%s full-voxel blocks and %s smaller blocks converted to %s quad faces (%s triangles) with %s vertices. Simplification saved %s quads.\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
                                 formatWithCommas(gModel.blockCount, gCommaString1),
                                 formatWithCommas(gModel.billboardCount, gCommaString2),
                                 formatWithCommas(gModel.faceCount, gCommaString3),
