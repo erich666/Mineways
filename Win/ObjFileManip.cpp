@@ -568,9 +568,9 @@ typedef struct OutDataArrays
     int vertCount;  // actual number of vertices currently stored
     int* indices;   // indices to vertices
 //#ifdef WELD_USD_VERTICES
+    int* indicesWelded; // indices to vertices, removing duplicates; size of this is different than the vhashes, it's the list of indices
     int weldedHashSize;    // the number or hashes and locations allocated for hashing
     int vertCountWelded;  // number of vertices needed, in list below, i.e., unique vertices; list size is vertCount
-    int* indicesWelded; // indices to vertices, removing duplicates; size of this is different than the vhashes, it's the list of indices
     VertexHash** vhashLocation; // pointers to hashes for the vertex locations - indexed by hash location computed
     VertexHash* vhashPool; // pool of hashes for the vertices/normals/st's. vertCountWelded gives the next one we can "allocate"
     Point** welded; // list of pointers to unique vertices, normals, or st's, dependeing
@@ -26311,8 +26311,6 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary, boo
     int progressTick = progressIncrement;
 
     // allocate the number of hashes needed, etc.
-    // TODO here and allocOutHashData should be checked for out of memory
-    allocOutHashData();
 
     //if (gModel.instancing) {
     if (blockLibraryPath != NULL) {
@@ -26397,6 +26395,7 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary, boo
             qsort_s(&gModel.faceList[firstFaceNumber], numFaces, sizeof(FaceRecord*), tileUSDIdCompare, NULL);
 
             startRun = firstFaceNumber;
+            // output meshes for the given block
             while (findEndOfGroup(startRun, firstFaceNumber+numFaces, mtlName, nextStart, numVerts, prevType, prevDataVal) && nextStart <= nextFaceNumber) {
                 outputUSDMesh(blockFile, startRun, nextStart - startRun, numVerts, "/Blocks", mtlName, progressTick, progressIncrement, singleTerrainFile, prevType, prevDataVal);
                 // go to next group
@@ -26415,12 +26414,17 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary, boo
         }
     }
     else {
+        // We compress meshes only when not instancing. Allocate that storage now.
+        // TODO here and allocOutHashData should be checked for out of memory
+        allocOutHashData();
+
         //SM code makes every mesh have the first material - for efficiency testing experiments
         //SM boolean firstName = true;
         //SM char useMtlName[MAX_PATH_AND_FILE];
+        // output meshes by material
         while (findEndOfGroup(startRun, gModel.faceCount, mtlName, nextStart, numVerts, prevType, prevDataVal)) {
-
-            outputUSDMesh(gModelFile, startRun, nextStart - startRun, numVerts, NULL, mtlName, progressTick, progressIncrement, singleTerrainFile, prevType, prevDataVal);
+            // we do not pass in the type and dataVal here, as they are not needed.
+            outputUSDMesh(gModelFile, startRun, nextStart - startRun, numVerts, NULL, mtlName, progressTick, progressIncrement, singleTerrainFile, -1, -1);
             // go to next group
             startRun = nextStart;
         }
@@ -26481,7 +26485,7 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
         {
             gOutData.indices[iv] = iv;
 
-            // TODO this could be more compressed, in which we find which vertices are duplicates and index appropriately, reusing the vertices.
+            // We expand here, only to then turn around and compress these lists later on output. A bit wasteful, could be done better? TODO
             Vec3Scalar(gOutData.points[iv], =, gModel.vertices[pFace->vertexIndex[j]][X], gModel.vertices[pFace->vertexIndex[j]][Y], gModel.vertices[pFace->vertexIndex[j]][Z]);
             assert(pFace->normalIndex >= 0);
             Vec3Scalar(gOutData.normals[iv], =, gModel.normals[pFace->normalIndex][X], gModel.normals[pFace->normalIndex][Y], gModel.normals[pFace->normalIndex][Z]);
@@ -26535,11 +26539,14 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
     //SM sprintf_s(outputString, 256, "%s    def Mesh \"%s\"\n    {\n", startingFace ? "\n" : "", useMtlName);
     //sprintf_s(outputString, 256, "%s    def Mesh \"%s\"\n    {\n", startingFace ? "\n" : "", mtlName);
     // was: sprintf_s(outputString, 256, "\n    def Mesh \"%s\"\n    {\n", mtlName);
-    // Newer USD spec needs this:
+    // Newer USD spec needs the MaterialBindingAPI.
+    // Are we outputting an instance? If so, save mesh with an extended name scheme
     if (type >= 0) {
+        // instancing
         sprintf_s(outputString, 256, "\n    def Mesh \"%s_%d_%d\" (\n\t\tprepend apiSchemas = [\"MaterialBindingAPI\"]\n\t)\n    {\n", mtlName, type, dataVal);
     }
     else {
+        // consolidated mesh - just use the name of the texture associated with the material
         sprintf_s(outputString, 256, "\n    def Mesh \"%s\" (\n\t\tprepend apiSchemas = [\"MaterialBindingAPI\"]\n\t)\n    {\n", mtlName);
     }
     WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
@@ -26602,7 +26609,7 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
 
     removeDuplicateNormals();
 
-    strcpy_s(outputString, 256, "        normal3f[] normals = [");
+    strcpy_s(outputString, 256, "        normal3f[] primvars:normals = [");
     WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
     for (i = 0; i < gOutData.vertCountWelded; i++) {
         sprintf_s(outputString, 256, "(%g, %g, %g)%s", (gOutData.welded[i])[0][X], (gOutData.welded[i])[0][Y], (gOutData.welded[i])[0][Z], (i == gOutData.vertCountWelded - 1) ? "]  (\n            interpolation = \"faceVarying\"\n        )\n" : ", ");
