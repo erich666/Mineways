@@ -548,7 +548,8 @@ typedef struct TouchRecord {
 #define TYPE_IS_LEAF(x)  ((x) == BLOCK_LEAVES || (x) == BLOCK_AD_LEAVES || (x) == BLOCK_MANGROVE_LEAVES)
 
 // for USD
-// This #define means we want to minimize the number of vertices, removing duplicates, per mesh
+// This #define means we want to minimize the number of vertices, removing duplicates, per mesh.
+// Now part of the system, but left in here to show what's related to welding.
 //#define WELD_USD_VERTICES
 //#ifdef WELD_USD_VERTICES
 typedef struct VertexHash
@@ -776,7 +777,7 @@ static void freeOutAndHashData();
 static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t* mtlLibraryFile, bool singleTerrainFile);
 static boolean tileIsAnEmitter(int type, int swatchLoc);
 static void setMetallicRoughnessByName(char* mtlName, float* metallic, float* roughness);
-static boolean findEndOfGroup(int startRun, int endCount, char* mtlName, int& nextStart, int& numVerts, int& prevType, int& prevDataVal);
+static boolean findEndOfGroup(int startRun, int endCount, char* mtlName, int& nextStart, int& numVerts);
 static int createLightingUSD(char* texturePath);
 static int writeMDLforUSD(wchar_t* filePath);
 static int closeUSDFile(PORTAFILE& modelFile);
@@ -26302,7 +26303,6 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary, boo
     int startRun = 0;
     int nextStart = 0;
     int numVerts, numFaces;
-    int prevType, prevDataVal;
 
     gOutData.vertsize = gOutData.facesize = 0;
 
@@ -26396,8 +26396,8 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary, boo
 
             startRun = firstFaceNumber;
             // output meshes for the given block
-            while (findEndOfGroup(startRun, firstFaceNumber+numFaces, mtlName, nextStart, numVerts, prevType, prevDataVal) && nextStart <= nextFaceNumber) {
-                outputUSDMesh(blockFile, startRun, nextStart - startRun, numVerts, "/Blocks", mtlName, progressTick, progressIncrement, singleTerrainFile, prevType, prevDataVal);
+            while (findEndOfGroup(startRun, firstFaceNumber+numFaces, mtlName, nextStart, numVerts) && nextStart <= nextFaceNumber) {
+                outputUSDMesh(blockFile, startRun, nextStart - startRun, numVerts, "/Blocks", mtlName, progressTick, progressIncrement, singleTerrainFile, type, dataVal);
                 // go to next group
                 startRun = nextStart;
             }
@@ -26421,8 +26421,8 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary, boo
         //SM code makes every mesh have the first material - for efficiency testing experiments
         //SM boolean firstName = true;
         //SM char useMtlName[MAX_PATH_AND_FILE];
-        // output meshes by material
-        while (findEndOfGroup(startRun, gModel.faceCount, mtlName, nextStart, numVerts, prevType, prevDataVal)) {
+        // output meshes by material; note that prevType and prevDataVal are here as dummy values, not used.
+        while (findEndOfGroup(startRun, gModel.faceCount, mtlName, nextStart, numVerts)) {
             // we do not pass in the type and dataVal here, as they are not needed.
             outputUSDMesh(gModelFile, startRun, nextStart - startRun, numVerts, NULL, mtlName, progressTick, progressIncrement, singleTerrainFile, -1, -1);
             // go to next group
@@ -27241,7 +27241,6 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
     int startRun = 0;
     int nextStart = 0;
     int numVerts;
-    int prevType, prevDataVal;
 
     static bool outputCustomData = false;
     float emission = 0.0f;
@@ -27249,7 +27248,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
     // Assume we always want this on, but pre-emptively added to allow export toggle
     bool usePreviewSurface = true;
 
-    while (findEndOfGroup(startRun, gModel.faceCount, mtlName, nextStart, numVerts, prevType, prevDataVal)) {
+    while (findEndOfGroup(startRun, gModel.faceCount, mtlName, nextStart, numVerts)) {
         changeCharToUnderline(' ', mtlName);
 
         if (singleTerrainFile) {
@@ -28950,7 +28949,7 @@ static void setMetallicRoughnessByName(char *mtlName, float *metallic, float *ro
     // Block of Copper is about the only one I'll try.
 }
 
-static boolean findEndOfGroup(int startRun, int endCount, char* mtlName, int& nextStart, int& numVerts, int& prevType, int& prevDataVal)
+static boolean findEndOfGroup(int startRun, int endCount, char* mtlName, int& nextStart, int& numVerts)
 {
     numVerts = 0;
     nextStart = startRun;
@@ -28967,8 +28966,8 @@ static boolean findEndOfGroup(int startRun, int endCount, char* mtlName, int& ne
     bool subtypeMaterial = subtypeGroup || gModel.exportTiles;
 
     // Initialize material
-    prevType = gModel.faceList[startRun]->materialType;
-    prevDataVal = gModel.faceList[startRun]->materialDataVal;
+    int prevType = gModel.faceList[startRun]->materialType;
+    int prevDataVal = gModel.faceList[startRun]->materialDataVal;
     int prevSwatchLoc = gModel.uvIndexList[gModel.faceList[startRun]->uvIndex[0]].swatchLoc;
     // New ID encountered, so output it: material name, and group.
     // Group isn't really required, but can be useful.
