@@ -555,7 +555,7 @@ typedef struct TouchRecord {
 typedef struct VertexHash
 {
     int id; // the index ID this vertex has; matching vertices will use this ID
-    Point* point;   // the point here
+    int dataLoc;    // the index in gOutData for the corresponding data for this hash: point, normal, or st (UV)
     VertexHash* pvh;    // the next unique vertex with the same hash, if any.
 } VertexHash;
 //#endif
@@ -25910,6 +25910,10 @@ static int finishCommentsUSD(char* defaultPrim)
     // render settings - could make a separate function
     strcpy_s(outputString, 256, "    customLayerData = {\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+    // Seen in one file, 
+    //strcpy_s(outputString, 256, "        string source = '''Converted to usd by Mineways''' = {\n");
+    //WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
     // A way to export a given camera. Maybe add a 3D camera description as a scripting option someday? TODO
     // Currently no 3D view within Mineways itself, of course. This view works well with QMAGNET's texture world
     static boolean exportCamera = true;
@@ -26598,6 +26602,7 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
         if (numFaces > 10000)
             UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)(startingFace + numFaces) / (float)gModel.faceCount));
 
+        // if ever needed: uniform token orientation = "rightHanded"
         strcpy_s(outputString, 256, "        point3f[] points = [");
         WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
         for (i = 0; i < numVerts; i++) {
@@ -26816,9 +26821,9 @@ static void removeDuplicateVertices(Box &box)
                 //if ((x1 == x2) &&
                 //    (y1 == y2) &&
                 //    (z1 == z2)) {
-                if (((vhash->point)[0][X] == gOutData.points[vertexIndex][X]) &&
-                    ((vhash->point)[0][Y] == gOutData.points[vertexIndex][Y]) &&
-                    ((vhash->point)[0][Z] == gOutData.points[vertexIndex][Z]) ) {
+                if ((gOutData.points[vhash->dataLoc][X] == gOutData.points[vertexIndex][X]) &&
+                    (gOutData.points[vhash->dataLoc][Y] == gOutData.points[vertexIndex][Y]) &&
+                    (gOutData.points[vhash->dataLoc][Z] == gOutData.points[vertexIndex][Z]) ) {
 
                     // match found, so note its matching index and move on
                     gOutData.indicesWelded[i] = vhash->id;
@@ -26834,8 +26839,8 @@ static void removeDuplicateVertices(Box &box)
         // (I figure that, with locality, if a new vertex is found for the location, we should test it first in the linked list from now on)
         vhash = &gOutData.vhashPool[gOutData.vertCountWelded];
         vhash->id = gOutData.vertCountWelded;
-        // TODOTODO get rid of vhash->point
-        gOutData.welded[gOutData.vertCountWelded] = vhash->point = &gOutData.points[i]; // TODO I think we can remove vhash->point - get with ID
+        vhash->dataLoc = i;
+        gOutData.welded[gOutData.vertCountWelded] = &gOutData.points[i];
         vhash->pvh = gOutData.vhashLocation[hashLoc];
         gOutData.vhashLocation[hashLoc] = vhash;
 
@@ -26882,9 +26887,9 @@ static void removeDuplicateNormals()
                 //if ((x1 == x2) &&
                 //    (y1 == y2) &&
                 //    (z1 == z2)) {
-                if (((vhash->point)[0][X] == gOutData.normals[vertexIndex][X]) &&
-                    ((vhash->point)[0][Y] == gOutData.normals[vertexIndex][Y]) &&
-                    ((vhash->point)[0][Z] == gOutData.normals[vertexIndex][Z])) {
+                if ((gOutData.normals[vhash->dataLoc][X] == gOutData.normals[vertexIndex][X]) && // ***
+                    (gOutData.normals[vhash->dataLoc][Y] == gOutData.normals[vertexIndex][Y]) &&
+                    (gOutData.normals[vhash->dataLoc][Z] == gOutData.normals[vertexIndex][Z])) {
 
                     // match found, so note its matching index and move on
                     gOutData.indicesWelded[i] = vhash->id;
@@ -26900,8 +26905,8 @@ static void removeDuplicateNormals()
         // (I figure that, with locality, if a new vertex is found for the location, we should test it first in the linked list from now on)
         vhash = &gOutData.vhashPool[gOutData.vertCountWelded];
         vhash->id = gOutData.vertCountWelded;
-        // TODOTODO get rid of vhash->point
-        gOutData.welded[gOutData.vertCountWelded] = vhash->point = &gOutData.normals[i]; // TODO I think we can remove vhash->point - get with ID
+        vhash->dataLoc = i;
+        gOutData.welded[gOutData.vertCountWelded] = &gOutData.normals[i]; // ***
         vhash->pvh = gOutData.vhashLocation[hashLoc];
         gOutData.vhashLocation[hashLoc] = vhash;
 
@@ -26943,8 +26948,8 @@ static void removeDuplicateTextureSTs()
                 //float y2 = gOutData.uv[vertexIndex][Y];
                 //if ((x1 == x2) &&
                 //    (y1 == y2)) {
-                if (((vhash->point)[0][X] == gOutData.uvs[vertexIndex][X]) &&
-                    ((vhash->point)[0][Y] == gOutData.uvs[vertexIndex][Y])) {
+                if ((gOutData.uvs[vhash->dataLoc][X] == gOutData.uvs[vertexIndex][X]) && // ***
+                    (gOutData.uvs[vhash->dataLoc][Y] == gOutData.uvs[vertexIndex][Y])) {
 
                     // match found, so note its matching index and move on
                     gOutData.indicesWelded[i] = vhash->id;
@@ -26960,10 +26965,8 @@ static void removeDuplicateTextureSTs()
         // (I figure that, with locality, if a new vertex is found for the location, we should test it first in the linked list from now on)
         vhash = &gOutData.vhashPool[gOutData.vertCountWelded];
         vhash->id = gOutData.vertCountWelded;
-        // TODOTODO get rid of vhash->point
-
-        // 
-        gOutData.welded[gOutData.vertCountWelded] = vhash->point = (Point *)&gOutData.uvs[i]; // TODO I think we can remove vhash->point - get with ID
+        vhash->dataLoc = i;
+        gOutData.welded[gOutData.vertCountWelded] = (Point *)&gOutData.uvs[i]; // ***
         vhash->pvh = gOutData.vhashLocation[hashLoc];
         gOutData.vhashLocation[hashLoc] = vhash;
 

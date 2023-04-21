@@ -5087,7 +5087,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                                 );
                         }
                         else {
-                            swprintf_s(msgString, 2000, L"Export Statistics:\n\n%s solid blocks and %s billboard blocks converted to %s quad faces (%s triangles) with %s vertices.\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
+                            swprintf_s(msgString, 2000, L"Export Statistics:\n\n%s full-voxel blocks and %s smaller blocks converted to %s quad faces (%s triangles) with %s vertices.\n\nDo you want to have statistics continue to be\ndisplayed on each export for this session?",
                                 formatWithCommas(gModel.blockCount, gCommaString1),
                                 formatWithCommas(gModel.billboardCount, gCommaString2),
                                 formatWithCommas(gModel.faceCount, gCommaString3),
