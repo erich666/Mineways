@@ -5323,7 +5323,7 @@ static const wchar_t* removePath(const wchar_t* src)
         strPtr++;
     else
     {
-        // look for /
+        // look for / - we assume there's either / or \ but not both
         strPtr = wcsrchr(src, (wchar_t)'/');
         if (strPtr)
             // found a /, so move up past it

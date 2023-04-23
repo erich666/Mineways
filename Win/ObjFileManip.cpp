@@ -22613,7 +22613,7 @@ static int mosaicUVtoSeparateUV()
         assert((int)(16 - ((((int)((1.0f - gModel.uvIndexList[i].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale)) <= 16);
         gModel.uvGridList[index]++;
     }
-    // Now go through grid and output the vt values that are used.
+    // Now go through grid and output the st values that are used.
     index = 0;
     int x, y;
     for (y = 0; y < NUM_UV_GRID_RESOLUTION + 1; y++) {
@@ -26847,6 +26847,7 @@ static void removeDuplicateVertices(Box &box)
         increaseBoxByVertex(box, (gOutData.welded[gOutData.vertCountWelded])[0]);
 
         gOutData.vertCountWelded++;
+        assert(gOutData.vertCountWelded <= gOutData.weldedHashSize);
 
         // whatever happens, the vhash will have the ID.
     Done:
@@ -26911,6 +26912,7 @@ static void removeDuplicateNormals()
         gOutData.vhashLocation[hashLoc] = vhash;
 
         gOutData.vertCountWelded++;
+        assert(gOutData.vertCountWelded <= gOutData.weldedHashSize);
 
         // whatever happens, the vhash will have the ID.
     Done:
@@ -26971,6 +26973,7 @@ static void removeDuplicateTextureSTs()
         gOutData.vhashLocation[hashLoc] = vhash;
 
         gOutData.vertCountWelded++;
+        assert(gOutData.vertCountWelded <= gOutData.weldedHashSize);
 
         // whatever happens, the vhash will have the ID.
     Done:
