@@ -2778,6 +2778,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
  <LI>Version 10.14, 4/23/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1014.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
     <BR>
     <UL>
+	<LI>Make all billboards (thin objects) export as only one quadrilateral, instead of two back-to-back quads. This avoids z-fighting seen in Blender 3.5's Cycles renderer. Looking at a range of other renderers, these all appear to now display billboards as two-sided, so only one quad is needed.
 	<LI>Output USDA files in a format that shares vertices when possible (i.e., when not exporting individual blocks). This results in files that are about half the size of previous exports. When saved as USD (non-ASCII) format, the new USDs are less than a fourth of the size of the previous USD files. May also result in faster performance and less memory usage, depending on the renderer.
 	<LI>Add extended naming for the Mesh instances in the BlockLibrary.usda when exporting individual blocks. (<i>thanks to zNight for the suggestion.</i>)
 	<LI>Added extents to all USDA meshes in the main output file. This information can help speed loading on some systems.
