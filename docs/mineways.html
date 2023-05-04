@@ -2774,13 +2774,18 @@ The textures and rules used in Minecraft for how blocks appear and connect have 
 From newest to oldest. The very newest is sometimes unreleased work in progress, with "*" meaning "to do" and "**" meaning "stretch goal."
 
 <UL>
-
+ <LI>Version 10.15, */*/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1015.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+    <BR>
+    <UL>
+	<LI>New export option: Billboard objects can now be exported as single-polygon or doubled-polygon for OBJ (USD has sidedness built in as an attribute). By default, just a single polygon is output per face. Most digital content creation apps I tested are fine with single polygons for cutouts such as saplings, flowers, etc. However, Unity (for one; there may be others) needs two polygons output back-to-back in order to display properly, as it (evidently) performs backface culling on these. (<i>Thanks to I C Y for this information.</i>)
+	</UL>
+	
  <LI>Version 10.14, 4/23/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1014.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
     <BR>
     <UL>
 	<LI>Make all billboards (thin objects) export as only one quadrilateral, instead of two back-to-back quads. This avoids z-fighting seen in Blender 3.5's Cycles renderer. Looking at a range of other renderers, these all appear to now display billboards as two-sided, so only one quad is needed.
 	<LI>Output USDA files in a format that shares vertices when possible (i.e., when not exporting individual blocks). This results in files that are about half the size of previous exports. When saved as USD (non-ASCII) format, the new USDs are less than a fourth of the size of the previous USD files. May also result in faster performance and less memory usage, depending on the renderer.
-	<LI>Add extended naming for the Mesh instances in the BlockLibrary.usda when exporting individual blocks. (<i>thanks to zNight for the suggestion.</i>)
+	<LI>Add extended naming for the Mesh instances in the BlockLibrary.usda when exporting individual blocks. (<i>Thanks to zNight for the suggestion.</i>)
 	<LI>Added extents to all USDA meshes in the main output file. This information can help speed loading on some systems.
 	<LI>Give a warning if the user types in a suffix for the export file and the file type selected does not match it.
 	<LI>Better statistics summary, differentiating between full voxels and smaller ones, instead of calling all smaller ones "billboards".
