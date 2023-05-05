@@ -11,8 +11,12 @@ Mineways supports most Minecraft versions and offers many settings and functiona
 
 # Download
 
-[Visit the project homepage](http://mineways.com) for executables for Windows and MacOS, documentation links, credits, etc.
+[Visit the project homepage](http://mineways.com) or the [Releases page](./releases) for executables for Windows and MacOS.
+
+Documentation links, credits, etc are also avaliable in the homepage.
 Much of the mapping and UI code is built on the open-source project [Minutor](http://seancode.com/minutor/).
+
+
 
 Mineways does not have a Linux build, but it runs well under WINE
 
