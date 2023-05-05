@@ -41,7 +41,6 @@ Sorry, other platforms are not directly supported, though Mineways runs fine und
 
 If you want to work on the mapping part of this program on another platform, see [Minutor](http://seancode.com/minutor/), which *is* supported on Mac and Linux.
 
-License
--------------
+# License
 
 Mineways uses the same [license](license.txt) as Minutor.
