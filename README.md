@@ -16,7 +16,7 @@ Mineways supports most Minecraft versions and offers many settings and functiona
 Documentation links, credits, etc are also avaliable in the homepage.
 Much of the mapping and UI code is built on the open-source project [Minutor](http://seancode.com/minutor/).
 
-Mineways does not have a Linux build, but it runs well under WINE
+Mineways does not have a Linux build, but it runs well under [WINE](http://www.winehq.org/)
 
 There are different major versions of Mineways. You usually want the latest version; version 1.15 can be used on older worlds.
 * **Version 6.** works on Minecraft 1.2 to 1.13 and beyond, but is 64-bit only.
