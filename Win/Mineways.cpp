@@ -5426,6 +5426,7 @@ static void initializePrintExportData(ExportFileData& printData)
 
     printData.chkShowParts = 0;
     printData.chkShowWelds = 0;
+    printData.chkDoubledBillboards = 0;
 
     // should normally just have one material and group
     printData.chkSeparateTypes = 0;
@@ -7113,6 +7114,19 @@ static int interpretImportLine(char* line, ImportedSet& is)
 
         if (is.processData)
             is.pEFD->chkDecimate = interpretBoolean(string1);
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Double all billboard faces:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for 'Double all billboard faces' command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData)
+            is.pEFD->chkDoubledBillboards = interpretBoolean(string1);
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 

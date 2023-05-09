@@ -252,7 +252,7 @@ extern UnitType gUnitTypeTable[];
 #define EXPT_OUTPUT_OBJ_MAKE_GROUPS_OBJECTS		0x04000000
 
 // export MDL or not for USD (affects custom material display, too)
-#define EXPT_EXPORT_MDL                     0x08000000
+#define EXPT_EXPORT_MDL                         0x08000000
 
 // string length for export dialog, etc.
 #define EP_FIELD_LENGTH 20
@@ -389,6 +389,7 @@ typedef struct ExportFileData
     UINT chkSplitByBlockType;	// "Split by block type"
     UINT chkCustomMaterial[FILE_TYPE_TOTAL];
     UINT chkExportMDL;  // applies only to USD files
+    UINT chkDoubledBillboards;  // "Doubled billboards" means two (single-sided) billboards are output, back to back
 
     char scaleLightsString[EP_FIELD_LENGTH];
     float scaleLightsVal;

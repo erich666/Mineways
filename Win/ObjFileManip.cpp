@@ -985,25 +985,24 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     // For OBJ and USD polygons are usually double sided.
 
     // note: all these options are now false!
-    gModel.emitterSingleSided = gModel.singleSided = false;
-    //if (fileType != FILE_TYPE_USD) {
-    //    // Blender thinks of OBJ faces as double-sided.
-    //    // In 10.14 we changed from true to false.
-    //    gModel.emitterSingleSided = gModel.singleSided = false;
-    //}
-    //else {
-    //    gModel.singleSided = false;
-    //    if (gModel.customMaterial) {
-    //        // custom material can use single sided for emitters - the fire block (#51) is a good example.
-    //        // In 10.14 we changes from true to false. Works fine.
-    //        gModel.emitterSingleSided = false;
-    //    }
-    //    else {
-    //        // OmniPBR etc. cannot, as emitters emit from only one side, which is a bug, as this causes emitters to z-fight
-    //        // UsdPreviewSurface has the same problem. TODO - outputting the proper "other side" fire faces could help
-    //        gModel.emitterSingleSided = false;
-    //    }
-    //}
+    if (fileType != FILE_TYPE_USD) {
+        // Blender and most other DCC apps think of OBJ faces as double-sided. Unity doesn't.
+        // In 10.14 we changed from true to false.
+        gModel.emitterSingleSided = gModel.singleSided = gModel.options->pEFD->chkDoubledBillboards;
+    }
+    else {
+        gModel.singleSided = false;
+        if (gModel.customMaterial) {
+            // custom material can use single sided for emitters - the fire block (#51) is a good example.
+            // In 10.14 we changed from true to false. Works fine.
+            gModel.emitterSingleSided = false;
+        }
+        else {
+            // OmniPBR etc. cannot, as emitters emit from only one side, which is a bug, as this causes emitters to z-fight
+            // UsdPreviewSurface has the same problem. TODO - outputting the proper "other side" fire faces could help
+            gModel.emitterSingleSided = false;
+        }
+    }
 
     gPhysMtl = gModel.options->pEFD->comboPhysicalMaterial[gModel.options->pEFD->fileType];
 
@@ -30352,6 +30351,10 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
     {
         // not allowed for 3d printing, as it can cause manifold headaches
         sprintf_s(outputString, 256, "# Simplify mesh: %s\n", gModel.options->pEFD->chkDecimate ? "YES" : "no");
+        WRITE_STAT;
+
+        // 3D printing should not have billboard faces, so it's kinda ignored for that
+        sprintf_s(outputString, 256, "# Double all billboard faces: %s\n", gModel.options->pEFD->chkDoubledBillboards ? "YES" : "no");
         WRITE_STAT;
 
         // note that we output gModel.options->pEFD->chkCompositeOverlay even if gModel.exportTiles is true. Always true when 3D printing.

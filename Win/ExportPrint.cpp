@@ -244,6 +244,16 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
         CheckDlgButton(hDlg, IDC_TEXTURE_A, (epd.flags & EXPT_3DPRINT) ? BST_INDETERMINATE : epd.chkTextureA);
         CheckDlgButton(hDlg, IDC_TEXTURE_RGBA, (epd.flags & EXPT_3DPRINT) ? BST_INDETERMINATE : epd.chkTextureRGBA);
 
+        // USD options: gray out if USD in use
+        if (epd.fileType == FILE_TYPE_USD)
+        {
+            // billboard button has no effect for USD
+            CheckDlgButton(hDlg, IDC_DOUBLED_BILLBOARD, BST_INDETERMINATE);
+        }
+        else {
+            CheckDlgButton(hDlg, IDC_DOUBLED_BILLBOARD, epd.chkDoubledBillboards);
+        }
+
         // OBJ options: enable, or gray out if OBJ not in use
         if (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ)
         {
@@ -1101,6 +1111,20 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             }
             break;
 
+        case IDC_DOUBLED_BILLBOARD:
+            // the indeterminate state is only for when the option is not available, i.e., USD
+            if (epd.fileType == FILE_TYPE_USD)
+            {
+                CheckDlgButton(hDlg, IDC_DOUBLED_BILLBOARD, BST_INDETERMINATE);
+            }
+            else
+            {
+                UINT isIndeterminate = (IsDlgButtonChecked(hDlg, IDC_DOUBLED_BILLBOARD) == BST_INDETERMINATE);
+                if (isIndeterminate)
+                    CheckDlgButton(hDlg, IDC_DOUBLED_BILLBOARD, BST_UNCHECKED);
+            }
+            break;
+
         case IDC_TREE_LEAVES_SOLID:
             // the indeterminate state is only for when the option is not available (i.e., 3d printing)
             if (epd.flags & EXPT_3DPRINT)
@@ -1298,6 +1322,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 ((IsDlgButtonChecked(hDlg, IDC_COMPOSITE_OVERLAY) == BST_CHECKED) || (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) != BST_CHECKED));
             lepd.chkDecimate = (IsDlgButtonChecked(hDlg, IDC_SIMPLIFY_MESH) == BST_CHECKED);
 
+            // state doesn't really matter for USD, but set it anyway
+            lepd.chkDoubledBillboards = (lepd.fileType == FILE_TYPE_USD) ? false : (IsDlgButtonChecked(hDlg, IDC_DOUBLED_BILLBOARD) == BST_CHECKED);
             // solid leaves and faces at borders always true for 3D printing.
             lepd.chkLeavesSolid = (epd.flags & EXPT_3DPRINT) ? 1 : (IsDlgButtonChecked(hDlg, IDC_TREE_LEAVES_SOLID) == BST_CHECKED);
             lepd.chkBlockFacesAtBorders = (epd.flags & EXPT_3DPRINT) ? 1 : (IsDlgButtonChecked(hDlg, IDC_BLOCKS_AT_BORDERS) == BST_CHECKED);

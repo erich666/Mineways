@@ -2774,10 +2774,10 @@ The textures and rules used in Minecraft for how blocks appear and connect have 
 From newest to oldest. The very newest is sometimes unreleased work in progress, with "*" meaning "to do" and "**" meaning "stretch goal."
 
 <UL>
- <LI>Version 10.15, */*/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1015.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+ <LI>Version 10.15, 5/9/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1015.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
     <BR>
     <UL>
-	<LI>New export option: Billboard objects can now be exported as single-polygon or doubled-polygon for OBJ (USD has sidedness built in as an attribute). By default, just a single polygon is output per face. Most digital content creation apps I tested are fine with single polygons for cutouts such as saplings, flowers, etc. However, Unity (for one; there may be others) needs two polygons output back-to-back in order to display properly, as it (evidently) performs backface culling on these. (<i>Thanks to I C Y for this information.</i>)
+	<LI>New export option: Billboard objects can now be exported as single-polygon or doubled-polygon for OBJ (USD has sidedness built in as an attribute). By default, just a single polygon is output per face, "Double all billboard faces" is unchecked. Most digital content creation apps I tested are fine with single polygons for cutouts such as saplings, flowers, etc. However, Unity (for one; there may be others) needs two polygons output back-to-back in order to display properly, as it (evidently) performs backface culling on these. Checking the box will double these. This option is available for all file formats except USD, which has its own flag for sidedness. (<i>Thanks to I C Y for this information.</i>)
 	</UL>
 	
  <LI>Version 10.14, 4/23/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1014.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
@@ -4015,7 +4015,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 4/23/2023</p>
+		<br id="lastUpdate">Last updated 5/9/2023</p>
 	</div>
 </div>
 
