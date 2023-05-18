@@ -34,7 +34,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #include "vector.h"
-#include "blockinfo.h"
+#include "blockInfo.h"
 #include "rwpng.h"
 
 // If you change something here, you must also change gPopupInfo array in Mineways.cpp
