@@ -51,6 +51,7 @@
 		<li class='has-sub'><a href="community.html"><span>Galleries</span></a>
 			<ul>
 				<li><a href="community.html"><span>Showcase</span></a></li>
+				<li><a href="https://www.youtube.com/playlist?list=PL3AE7AB94E9114715"><span>YouTube</span></a></li>
 				<li><a href='http://www.flickr.com/groups/mineways/pool/'><span>Flickr</span></a></li>
 				<li><a href='https://www.google.com/search?q=mineways&newwindow=1&source=lnms&tbm=isch'><span>Google Images</span></a></li>
 				<li><a href='https://www.shapeways.com/search?q=mineways'><span>Shapeways</span></a></li>
@@ -127,6 +128,7 @@ Read on if you want to understand how to make your models less expensive, use di
    <LI><a href="#z_up">Make Z the up direction instead of Y</a>
    <LI><a href="#opt_size">Model Size</a>
    <LI><a href="#opt_fill">Filling and Hollowing Options</a>
+   <LI><a href="#lesser">Detailed Blocks</a>
    <LI><a href="#opt_debug">Debugging Visualization</a>
  </UL>
  <LI><a href="#tilemaker">ChannelMixer and TileMaker</a> - how to make your own custom texture terrainExt.png files.
@@ -850,7 +852,7 @@ Exporting to 3D print
 
 As background, view the <a href="http://www.youtube.com/watch?v=hHxp9Ail6MY&feature=player_embedded">Shapeways 3D color printing process video</a>. Layers of material are laid down and solidified at the appropriate spots. Unsolidified "sand" is vacuumed away. You pay by volume, not by complexity. What this means to you is: avoid making enclosed spaces with tiny entrances. Unfortunately, most buildings are just that: large rooms with small doors. Your job is to make sure your model has either no openings at all, in which case the Hollow option can clear out the inside, leaving just a shell. Alternately, make escape holes yourself using snow blocks, which you then melt after all processing of your model. I'll explain these options below.
 <P>
-There are other potential pitfalls with 3D printing, such as <a href="http://www.shapeways.com/tutorials/3dprintingminimumwallthicknesstutorial">thin wall problems</a> (more <a href="http://www.shapeways.com/tutorials/thin_walls_tutorial">here</a>), and <a href="https://support.shapeways.com/hc/en-us/sections/360004437873-Software-Tutorials">too many polygons</a> (rare for a Minecraft model), to name just two. Shapeways' <a href="https://support.shapeways.com/hc/en-us/categories/360001855814-Tutorials">tutorial pages</a> and <a href="https://support.shapeways.com/hc/en-us/sections/360003550794-Materials">materials pages</a> give you a lot to chew on, <a href="http://www.sculpteo.com/en/help/">Sculpteo</a> also has a help section. The Mineways program tries to guide you past the major pitfalls, but it's always possible to generate something that's essentially unprintable: too weak, holes too small to clear out the dust, or some other problem. Browsing the tutorials there should help you understand what is possible. Options follow.
+There are other potential pitfalls with 3D printing, such as <a href="http://www.shapeways.com/tutorials/3dprintingminimumwallthicknesstutorial">thin wall problems</a> (more <a href="http://www.shapeways.com/tutorials/thin_walls_tutorial">here</a>), and <a href="https://support.shapeways.com/hc/en-us/sections/360004437873-Software-Tutorials">too many polygons</a> (rare for a Minecraft model), to name just two. Shapeways' <a href="https://support.shapeways.com/hc/en-us/categories/360001855814-Tutorials">tutorial pages</a> and <a href="https://support.shapeways.com/hc/en-us/sections/360003550794-Materials">materials pages</a> give you a lot to chew on, <a href="http://www.sculpteo.com/en/help/">Sculpteo</a> also has a help section. The Mineways program tries to guide you past the major pitfalls, but it's always possible to generate something that's essentially unprintable: too weak, holes too small to clear out the dust, or some other problem. Browsing the tutorials there should help you understand what is possible. <a href="https://www.reddit.com/r/3Dprinting/comments/13u0boy/printing_my_mc_world_with_mineways/">This post</a> might help you with 3D printer settings. Options follow.
 <P>
 
 <a id="z_up">
@@ -1518,10 +1520,10 @@ Related Resources
 </H2>
 Here are some related (free) tools that are handy, collected in one spot:
 <UL>
-<LI><a href="http://meshlab.sourceforge.net/">MeshLab</a> for viewing exported models for 3D printing.
 <LI>The <a href="#g3d">G3D viewer</a> is excellent for previewing 3D OBJ files for rendering (sorry, not VRML or STL), as its support for cutouts is superior to the <a href="http://meshlab.sourceforge.net/">MeshLab</a> viewer. It also includes real-time shadows and reflection-mapped water, as well as built-in screen and movie capture (only the viewer32.exe version has video capture). Models also load faster. Downside: on weaker GPUs it can be slow, and it doesn't work when <a href="#fcst">exporting individual textures</a>. Some examples <a href="http://imgur.com/a/B8DuU">here</a>.
 <LI><a href="http://meshlab.sourceforge.net/">MeshLab</a> helps you convert, simplify, and smooth meshes, among a huge number of other operations. It's not the best for displaying textures.
 <LI><a href="https://www.amuletmc.com/">Amulet</a> lets you convert from and to Bedrock and Java worlds, and lets you edit them. Also, open source, and actively maintained. For example, you could trim away objects near your model to make a cleaner export. You can also read in model schematic files you've downloaded. To use a schematic with Mineways, import the schematic into an empty world and save the world, then use Mineways on that world. (Supercedes <a href="http://www.mcedit-unified.net/">MCEdit Unified</a>.)
+<LI>Use the <a href="https://github.com/mircokroon/minecraft-world-downloader">Minecraft World Downloader</a> to download chunks from multiplayer worlds, which you can then use with Mineways.
 <LI><a href="https://minecraft.curseforge.com/projects/worldedit">WorldEdit</a> is another mod that lets you make large edits to your world. It can load and save .schematic files, allowing you to export a model from Mineways and move it to a separate world. It also allows a huge number of modeling operations, including <a href="http://www.reddit.com/r/Minecraft/comments/12lzmb/my_first_hour_with_worldedit/">procedurally-generated models</a>. It differs from Amulet in that it is a plug-in to Minecraft, while Amulet is standalone.
 <LI><a href="https://intellectualsites.github.io/download/fawe.html">FAWE</a> is an alternate to WorldEdit, part of the Spigot system.
 <LI>There is also a browser-based utility to <a href="https://puregero.github.io/SchemToSchematic/">convert old schematic files to new ones</a>, if that's a help.
@@ -4015,7 +4017,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 5/9/2023</p>
+		<br id="lastUpdate">Last updated 5/29/2023</p>
 	</div>
 </div>
 
