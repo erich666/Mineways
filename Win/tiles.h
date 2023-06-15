@@ -59,7 +59,7 @@
 
 
 // If this number changes, also change warning #7 in gPopupInfo (see TerrainExt.png in that message) in Mineways.cpp
-#define VERTICAL_TILES 57
+#define VERTICAL_TILES 61
 #define TOTAL_TILES (VERTICAL_TILES*16)
 static struct {
     int txrX;   // column and row, from upper left, of 16x16+ tiles in terrain.png, for top view of block
@@ -476,7 +476,7 @@ static struct {
     {  5, 24, 207, 0, L"beetroots_stage1", L"beetroots_stage_1", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  6, 24, 207, 0, L"beetroots_stage2", L"beetroots_stage_2", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  7, 24, 207, 0, L"beetroots_stage3", L"beetroots_stage_3", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  8, 24, 208, 0, L"dirt_path_top", L"grass_path_top", SWATCH_REPEAT_ALL }, // note that in 1.16 and earlier this was called grass_path_top. Name and texture changed for some reason
+    {  8, 24, 208, 0, L"dirt_path_top", L"grass_path_top", SWATCH_REPEAT_ALL }, // note that in 1.16 and earlier this was called grass_path_top. Name and texture changed for some reason. In 1.20 these are new textures, but are identical.
     {  9, 24, 208, 0, L"dirt_path_side", L"grass_path_side", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_ALPHA_OVERLAY }, // ditto
     { 10, 24, 137, 0, L"command_block_front", L"", SWATCH_REPEAT_ALL },
     { 11, 24, 210, 0, L"command_block_back", L"", SWATCH_REPEAT_ALL },  // also "commandBlock", but no room...
@@ -996,6 +996,70 @@ static struct {
     { 13, 56, 388, 0, L"reinforced_deepslate_top", L"", SWATCH_REPEAT_ALL },
     { 14, 56, 388, 0, L"reinforced_deepslate_side", L"", SWATCH_REPEAT_ALL },
     { 15, 56, 388, 0, L"reinforced_deepslate_bottom", L"", SWATCH_REPEAT_ALL },
+    {  0, 57, 436, 0, L"calibrated_sculk_sensor_amethyst", L"", SWATCH_REPEAT_ALL },    // start of 1.20
+    {  1, 57, 388, 0, L"calibrated_sculk_sensor_input_side", L"", SWATCH_REPEAT_ALL },
+    {  2, 57,   3, 0, L"calibrated_sculk_sensor_top", L"", SWATCH_REPEAT_ALL },
+    {  3, 57,   3, 0, L"cherry_door_bottom", L"", SWATCH_REPEAT_ALL },
+    {  4, 57,   3, 0, L"cherry_door_top", L"", SWATCH_REPEAT_ALL },
+    {  5, 57,   3, 0, L"cherry_leaves", L"", SWATCH_REPEAT_ALL },
+    {  6, 57,   3, 0, L"cherry_log", L"", SWATCH_REPEAT_ALL },
+    {  7, 57, 433, 0, L"cherry_log_top", L"", SWATCH_REPEAT_ALL },
+    {  8, 57, 433, 0, L"cherry_planks", L"", SWATCH_REPEAT_ALL },
+    {  9, 57, 433, 0, L"cherry_sapling", L"", SWATCH_REPEAT_ALL },
+    { 10, 57, 433, 0, L"cherry_trapdoor", L"", SWATCH_REPEAT_ALL },
+    { 11, 57, 433, 0, L"pink_petals", L"", SWATCH_REPEAT_ALL },
+    { 12, 57, 434, 0, L"pink_petals_stem", L"", SWATCH_REPEAT_ALL },
+    { 13, 57, 388, 0, L"pitcher_crop_bottom", L"", SWATCH_REPEAT_ALL },
+    { 14, 57, 388, 0, L"pitcher_crop_bottom_stage_1", L"", SWATCH_REPEAT_ALL },
+    { 15, 57, 388, 0, L"pitcher_crop_bottom_stage_2", L"", SWATCH_REPEAT_ALL },
+    {  0, 58, 436, 0, L"pitcher_crop_bottom_stage_3", L"", SWATCH_REPEAT_ALL },    // start of 1.20
+    {  1, 58, 388, 0, L"pitcher_crop_bottom_stage_4", L"", SWATCH_REPEAT_ALL },
+    {  2, 58,   3, 0, L"pitcher_crop_side", L"", SWATCH_REPEAT_ALL },
+    {  3, 58,   3, 0, L"pitcher_crop_top", L"", SWATCH_REPEAT_ALL },
+    {  4, 58,   3, 0, L"pitcher_crop_top_stage_3", L"", SWATCH_REPEAT_ALL },
+    {  5, 58,   3, 0, L"pitcher_crop_top_stage_4", L"", SWATCH_REPEAT_ALL },
+    {  6, 58,   3, 0, L"sniffer_egg_not_cracked_bottom", L"", SWATCH_REPEAT_ALL },
+    {  7, 58, 433, 0, L"sniffer_egg_not_cracked_east", L"", SWATCH_REPEAT_ALL },
+    {  8, 58, 433, 0, L"sniffer_egg_not_cracked_north", L"", SWATCH_REPEAT_ALL },
+    {  9, 58, 433, 0, L"sniffer_egg_not_cracked_south", L"", SWATCH_REPEAT_ALL },
+    { 10, 58, 433, 0, L"sniffer_egg_not_cracked_top", L"", SWATCH_REPEAT_ALL },
+    { 11, 58, 433, 0, L"sniffer_egg_not_cracked_west", L"", SWATCH_REPEAT_ALL },
+    { 12, 58, 434, 0, L"sniffer_egg_slightly_cracked_bottom", L"", SWATCH_REPEAT_ALL },
+    { 13, 58, 388, 0, L"sniffer_egg_slightly_cracked_east", L"", SWATCH_REPEAT_ALL },
+    { 14, 58, 388, 0, L"sniffer_egg_slightly_cracked_north", L"", SWATCH_REPEAT_ALL },
+    { 15, 58, 388, 0, L"sniffer_egg_slightly_cracked_south", L"", SWATCH_REPEAT_ALL },
+    {  0, 59, 436, 0, L"sniffer_egg_slightly_cracked_top", L"", SWATCH_REPEAT_ALL },    // start of 1.20
+    {  1, 59, 388, 0, L"sniffer_egg_slightly_cracked_west", L"", SWATCH_REPEAT_ALL },
+    {  2, 59,   3, 0, L"sniffer_egg_very_cracked_bottom", L"", SWATCH_REPEAT_ALL },
+    {  3, 59,   3, 0, L"sniffer_egg_very_cracked_east", L"", SWATCH_REPEAT_ALL },
+    {  4, 59,   3, 0, L"sniffer_egg_very_cracked_north", L"", SWATCH_REPEAT_ALL },
+    {  5, 59,   3, 0, L"sniffer_egg_very_cracked_south", L"", SWATCH_REPEAT_ALL },
+    {  6, 59,   3, 0, L"sniffer_egg_very_cracked_top", L"", SWATCH_REPEAT_ALL },
+    {  7, 59, 433, 0, L"sniffer_egg_very_cracked_west", L"", SWATCH_REPEAT_ALL },
+    {  8, 59, 433, 0, L"stripped_cherry_log", L"", SWATCH_REPEAT_ALL },
+    {  9, 59, 433, 0, L"stripped_cherry_log_top", L"", SWATCH_REPEAT_ALL },
+    { 10, 59, 433, 0, L"suspicious_gravel_0", L"", SWATCH_REPEAT_ALL },
+    { 11, 59, 433, 0, L"suspicious_gravel_1", L"", SWATCH_REPEAT_ALL },
+    { 12, 59, 434, 0, L"suspicious_gravel_2", L"", SWATCH_REPEAT_ALL },
+    { 13, 59, 388, 0, L"suspicious_gravel_3", L"", SWATCH_REPEAT_ALL },
+    { 14, 59, 388, 0, L"suspicious_sand_0", L"", SWATCH_REPEAT_ALL },
+    { 15, 59, 388, 0, L"suspicious_sand_1", L"", SWATCH_REPEAT_ALL },
+    {  0, 60, 436, 0, L"suspicious_sand_2", L"", SWATCH_REPEAT_ALL },    // start of 1.20
+    {  1, 60, 388, 0, L"suspicious_sand_3", L"", SWATCH_REPEAT_ALL },
+    {  2, 60,   3, 0, L"torchflower", L"", SWATCH_REPEAT_ALL },
+    {  3, 60,   3, 0, L"torchflower_crop_stage0", L"", SWATCH_REPEAT_ALL },
+    {  4, 60,   3, 0, L"torchflower_crop_stage1", L"", SWATCH_REPEAT_ALL },
+    {  5, 60,   3, 0, L"bamboo_block", L"", SWATCH_REPEAT_ALL },
+    {  6, 60,   3, 0, L"bamboo_block_top", L"", SWATCH_REPEAT_ALL },
+    {  7, 60,   0, 0, L"bamboo_door_bottom", L"", SWATCH_REPEAT_ALL },
+    {  8, 60,   0, 0, L"bamboo_door_top", L"", SWATCH_REPEAT_ALL },
+    {  9, 60,   0, 0, L"bamboo_fence", L"", SWATCH_REPEAT_ALL },
+    { 10, 60,   0, 0, L"bamboo_fence_gate", L"", SWATCH_REPEAT_ALL },
+    { 11, 60,   0, 0, L"bamboo_fence_gate_particle", L"", SWATCH_REPEAT_ALL },
+    { 12, 60,   0, 0, L"bamboo_fence_particle", L"", SWATCH_REPEAT_ALL },
+    { 13, 60,   0, 0, L"bamboo_mosaic", L"", SWATCH_REPEAT_ALL },
+    { 14, 60,   0, 0, L"bamboo_planks", L"", SWATCH_REPEAT_ALL },
+    { 15, 60,   0, 0, L"bamboo_trapdoor", L"", SWATCH_REPEAT_ALL },
 };
 
 // There is more than one alternate name, so test more of them
