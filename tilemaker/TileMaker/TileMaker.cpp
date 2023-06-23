@@ -237,6 +237,7 @@ int wmain(int argc, wchar_t* argv[])
 
 	int overlayTileSize = 0;
 	int overlayChestSize = 0;
+	int overlayDecoratedPotSize = 0;
 	int forcedTileSize = 0;
 	int chosenTile = 0;
 
@@ -257,11 +258,14 @@ int wmain(int argc, wchar_t* argv[])
 	bool allChests = true;
 	bool anyChests = false;
 
+	bool anyPots = false;
+
 	bool terrainBaseSet = false;
 	bool warnUnused = false;
 
 	initializeFileGrid(&gFG);
 	initializeChestGrid(&gCG);
+	initializeDecoratedPotGrid(&gPG);
 
 	wcscpy_s(terrainBase, MAX_PATH_AND_FILE, BASE_INPUT_FILENAME);
 	wcscpy_s(terrainExtOutputTemplate, MAX_PATH_AND_FILE, OUTPUT_FILENAME);
@@ -483,9 +487,10 @@ int wmain(int argc, wchar_t* argv[])
 		// If so, categorize the directory. If it's
 		//  "block" or "blocks" - look through it for block names
 		//  "chest" or "chests" - look for chest names and fill in
+		//  "decorated_pot" or "decorated_pots" - look for decorated pot names and fill in
 		//  "item" or "items" - look for barrier.png, only
 		// If it's none of these, then look through it for directories. Ignore '.' and '..'. Recursively search directories for more directories.
-		int fileCount = searchDirectoryForTiles(&gFG, &gCG, *inputDirectoryPtr, wcslen(*inputDirectoryPtr), verbose, alternate, true, warnUnused, warnDups);
+		int fileCount = searchDirectoryForTiles(&gFG, &gCG, &gPG, *inputDirectoryPtr, wcslen(*inputDirectoryPtr), verbose, alternate, true, warnUnused, warnDups);
 		warnDups = false;
 		if (fileCount < 0) {
 			wsprintf(gErrorString, L"***** ERROR: cannot access the directory '%s' (Windows error code # %d). Ignoring directory.\n", *inputDirectoryPtr, GetLastError());
@@ -499,7 +504,7 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
 	// any data found? Not needed if forcing a tile size (resizing the base texture).
-	if ((forcedTileSize == 0) && (gFG.fileCount <= 0 && gCG.chestCount <= 0)) {
+	if ((forcedTileSize == 0) && (gFG.fileCount <= 0 && gCG.chestCount <= 0 && gPG.decoratedPotCount <= 0)) {
 		wprintf(L"***** ERROR: no textures were read in for replacing. Nothing to do!\n  Put your new textures in the 'blocks' directory, or use\n  the '-d directory' command line option to say where your new textures are.\n");
 		return 1;
 	}
@@ -539,6 +544,23 @@ int wmain(int argc, wchar_t* argv[])
 			}
 		}
 	}
+
+	// check over decorated pot tiles' power of twos, to see if any are in error
+	for (catIndex = 0; catIndex < gPG.totalCategories; catIndex++) {
+		for (index = 0; index < gPG.totalTiles; index++) {
+			fullIndex = catIndex * gPG.totalTiles + index;
+			if (gPG.pr[fullIndex].exists) {
+				size = checkFileWidth(&gPG.pr[fullIndex], overlayDecoratedPotSize, false, false, -1, 0, 0);
+				if (size == 0) {
+					deleteDecoratedPotFromGrid(&gPG, fullIndex / gPG.totalTiles, fullIndex);
+				}
+				else {
+					overlayDecoratedPotSize = size;
+				}
+			}
+		}
+	}
+
 	if (verbose) {
 		wprintf(L"Largest input image found was %d pixels wide.\n", overlayTileSize);
 	}
@@ -772,7 +794,7 @@ int wmain(int argc, wchar_t* argv[])
 	// write out tiles found
 	for (catIndex = 0; catIndex < gFG.totalCategories; catIndex++) {
 		// always export RGBA image, and others if there's content
-		if ((catIndex == CATEGORY_RGBA || gFG.categories[catIndex] > 0 || gCG.categories[catIndex] > 0) &&
+		if ((catIndex == CATEGORY_RGBA || gFG.categories[catIndex] > 0 || gCG.categories[catIndex] > 0 || gPG.categories[catIndex] > 0) &&
 			((catIndex == CATEGORY_RGBA) ||
 				(catIndex == CATEGORY_NORMALS) ||	// note that, above, all _normals (LONG) versions have been moved over
 				(catIndex == CATEGORY_METALLIC) ||
@@ -1032,7 +1054,7 @@ int wmain(int argc, wchar_t* argv[])
 			}
 
 			////////////////////////
-			// Special stuff - shulker boxes, and chests
+			// Special stuff - shulker boxes, and chests, and decorated pot
 			if (catIndex == CATEGORY_RGBA) {
 				// Compute shulker box sides and bottoms, if not input
 
@@ -1223,6 +1245,137 @@ int wmain(int argc, wchar_t* argv[])
 					}
 				}
 
+				// Note: done for all categories
+				// Test if any decorated pot exists for this category.
+				// Really, there's just one tile which makes four textures, MW_decorated_pot_base[1-4], so do things manually
+				if ((gPG.decoratedPotCount > 0) && gPG.pr[catIndex * gPG.totalTiles].exists ) {
+
+					if (gPG.pr[catIndex * gPG.totalTiles].exists) {
+
+						// read decorated pot and process
+
+						// decorated pots are normally found in \assets\minecraft\textures\entity\decorated_pot
+						wchar_t potFile[MAX_PATH_AND_FILE];
+						wcscpy_s(potFile, MAX_PATH_AND_FILE, gPG.pr[catIndex * gPG.totalTiles].path);
+						wcscat_s(potFile, MAX_PATH_AND_FILE, gPG.pr[catIndex * gPG.totalTiles].fullFilename);
+
+						// note: we really do need to declare this each time, otherwise you get odd leftovers for some reason.
+						progimage_info potImage;
+						rc = readImage(&potImage, potFile, gCatFormat[catIndex], isImageFile(potFile));
+						if (rc != 0)
+						{
+							// file not found
+							reportReadError(rc, potFile);
+							// It's important to note the count is down,
+							// as this determines whether anything was done for the category.
+							deleteDecoratedPotFromGrid(&gPG, catIndex, index + catIndex * gPG.totalTiles);
+						}
+						// decorated pots must be powers of two
+						else if (testFileForPowerOfTwo(potImage.width, potImage.height, potFile, false)) {
+							readImage_cleanup(1, &potImage);
+							// It's important to note the count is down,
+							// as this determines whether anything was done for the category.
+							deleteDecoratedPotFromGrid(&gPG, catIndex, index + catIndex * gPG.totalTiles);
+						}
+						else {
+
+							// if we got this far, at least one pot was found
+							anyPots = true;
+
+							// from size figure out scaling factor from pot to terrainExt.png
+
+							// clear tiles if it's a new one (don't wipe out previous copies). Not sure this is needed, but we
+							// did it for chests for some reason, so let's do it here.
+							if (catIndex == CATEGORY_RGBA) {
+								makePNGTileEmpty(destination_ptr, 1, 61);
+								makePNGTileEmpty(destination_ptr, 2, 61);
+								makePNGTileEmpty(destination_ptr, 3, 61);
+								makePNGTileEmpty(destination_ptr, 4, 61);
+							}
+
+							// copy from area to area, scaling as needed; pot tile is 32x32 default
+							float zoom = (float)destination_ptr->width / (256.0f * (float)potImage.width / 32.0f);
+
+							// copy bits:
+							// MW_decorated_pot_base1
+							//   8,0 to 15,7 -> 0,0 to 7,7
+							//   0,8 to 15,10 -> 0,8 to 15,10
+							//   0,11 to 11,11 -> 0,11 to 11,11
+							copyPNGTile(destination_ptr, channels, 1, 61, 0,
+								&potImage,
+								0, 0, 8, 8,	// to rectangle
+								8, 0,		// from upper left
+								0x0,
+								zoom);	// default is 256 / 64 * 4 or 128 * 2
+							copyPNGTile(destination_ptr, channels, 1, 61, 0,
+								&potImage,
+								0, 8, 16, 11,	// to rectangle
+								0, 8,		// from upper left
+								0x0,
+								zoom);	// default is 256 / 64 * 4 or 128 * 2
+							copyPNGTile(destination_ptr, channels, 1, 61, 0,
+								&potImage,
+								0, 11, 12, 12,	// to rectangle
+								0, 11,		// from upper left
+								0x0,
+								zoom);	// default is 256 / 64 * 4 or 128 * 2
+
+							// MW_decorated_pot_base2
+							//   16,0 to 23,7 -> 0,0 to 7,7
+							//   16,8 to 31,10 -> 0,8 to 15,10
+							//   12,11 to 23,11 -> 0,11 to 11,11
+							copyPNGTile(destination_ptr, channels, 2, 61, 0,
+								&potImage,
+								0, 0, 8, 8,	// to rectangle
+								16, 0,		// from upper left
+								0x0,
+								zoom);	// default is 256 / 64 * 4 or 128 * 2
+							copyPNGTile(destination_ptr, channels, 2, 61, 0,
+								&potImage,
+								0, 8, 16, 11,	// to rectangle
+								16, 8,		// from upper left
+								0x0,
+								zoom);	// default is 256 / 64 * 4 or 128 * 2
+							copyPNGTile(destination_ptr, channels, 2, 61, 0,
+								&potImage,
+								0, 11, 12, 12,	// to rectangle
+								12, 11,		// from upper left
+								0x0,
+								zoom);	// default is 256 / 64 * 4 or 128 * 2
+
+							// MW_decorated_pot_base3
+							//   0,13 to 13,26 -> 1,1 to 14,14
+							copyPNGTile(destination_ptr, channels, 3, 61, 0,
+								&potImage,
+								1, 1, 15, 15,	// to rectangle
+								0, 13,		// from upper left
+								0x0,
+								zoom);	// default is 256 / 64 * 4 or 128 * 2
+
+							// MW_decorated_pot_base4
+							//   14,13 to 13,26 -> 1,1 to 14,14
+							copyPNGTile(destination_ptr, channels, 4, 61, 0,
+								&potImage,
+								1, 1, 15, 15,	// to rectangle
+								14, 13,		// from upper left
+								0x0,
+								zoom);	// default is 256 / 64 * 4 or 128 * 2
+
+							if (zoom != 1.0f && catIndex == CATEGORY_NORMALS) {
+								normalsZoom = true;
+							}
+
+							filesProcessed++;
+							//wprintf(L"%s\n", gPG.pr[index + catIndex * gPG.totalTiles].fullFilename);
+							if (verbose)
+								wprintf(L"Decorated pot file '%s' merged.\n", potFile);
+
+							// clean up
+							readImage_cleanup(1, &potImage);
+						}
+					}
+				}
+
 				// if solid is desired, blend final result and replace in-place
 				if (solid || solidcutout)
 				{
@@ -1247,7 +1400,7 @@ int wmain(int argc, wchar_t* argv[])
 				wprintf(L"Opening '%s' for output.\n", terrainExtOutput);
 
 			// write out the result if anything was actually written
-			if (catIndex == CATEGORY_RGBA || gFG.categories[catIndex] > 0 || gCG.categories[catIndex] > 0) {
+			if (catIndex == CATEGORY_RGBA || gFG.categories[catIndex] > 0 || gCG.categories[catIndex] > 0 || gPG.categories[catIndex] > 0) {
 				rc = writepng(destination_ptr, channels, terrainExtOutput);
 				if (rc != 0)
 				{
@@ -1293,7 +1446,7 @@ int wmain(int argc, wchar_t* argv[])
 
 	// warn user that nothing was done
 	// 3 is the number of MW_*.png files that are sometimes used with TileMaker
-	if (gFG.fileCount <= 3 && !anyChests) {
+	if (gFG.fileCount <= 3 && !anyChests && !anyPots) {
 		wprintf(L"SERIOUS WARNING: It's likely no real work was done. To use TileMaker, you need to put\n  all the images from your resource pack's 'assets\\minecraft\\textures'\n  block and entity\\chest directories into TileMaker's 'blocks' and\n  'blocks\\chest' directories. See http://mineways.com for more about TileMaker.\n");
 		gWarningCount++;
 	}
@@ -1591,7 +1744,7 @@ static int setBlackToNearlyBlack(progimage_info* src)
 
 
 // Give the destination image, the tile location on that destination (multiplied by destination width/16),
-// the source image, the upper left and lower right destination pixels, the upper left source location, any flags,
+// the source image, the upper left and lower right destination pixels, the upper left source location + 1 (limit), any flags,
 // and the zoom factor for going from source to destination - zoom > 1 means destination is larger, zoom < 1 means source is larger
 static int copyPNGTile(progimage_info* dst, int channels, unsigned long dst_x, unsigned long dst_y, unsigned long chosenTile, progimage_info* src,
 	unsigned long dst_x_lo, unsigned long dst_y_lo, unsigned long dst_x_hi, unsigned long dst_y_hi, unsigned long src_x_lo, unsigned long src_y_lo, unsigned long flags, float zoom)

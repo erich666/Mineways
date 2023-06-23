@@ -41,6 +41,24 @@ void initializeChestGrid(ChestGrid* pcg)
 	}
 }
 
+void initializeDecoratedPotGrid(DecoratedPotGrid* ppg)
+{
+	int i;
+	ppg->decoratedPotCount = 0;
+	ppg->totalCategories = TOTAL_CATEGORIES;
+	ppg->totalTiles = TOTAL_DECORATED_POT_TILES;
+	for (i = 0; i < TOTAL_CATEGORIES; i++) {
+		ppg->categories[i] = 0;
+	}
+	for (i = 0; i < TOTAL_CATEGORIES * TOTAL_DECORATED_POT_TILES; i++) {
+		ppg->pr[i].rootName = NULL;
+		ppg->pr[i].fullFilename = NULL;
+		ppg->pr[i].path = NULL;
+		ppg->pr[i].exists = false;
+		ppg->pr[i].alternateExtensionFound = 0;
+	}
+}
+
 void addBackslashIfNeeded(wchar_t* dir)
 {
 	if (wcslen(dir) > 0 && 
@@ -53,7 +71,7 @@ void addBackslashIfNeeded(wchar_t* dir)
 // return negative number for error type;
 // otherwise returns number of files that we care about, i.e., ones that we'll want to read in later. Note: this number includes duplicates,
 // but does not include tiles that we simply don't care about (on the gUnneeded list).
-int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, bool topmost, bool warnUnused, bool warnDups)
+int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, bool topmost, bool warnUnused, bool warnDups)
 {
 	int filesProcessed = 0;
 	int filesSubProcessed = 0;
@@ -69,9 +87,10 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 	wcscat_s(tileSearch, MAX_PATH_AND_FILE, L"*");
 	hFind = FindFirstFile(tileSearch, &ffd);
 
-	// make sure initializeFileGrid and initializeChestGrid were already called
+	// make sure initializeFileGrid, initializeChestGrid, initializeDecoratedPotGrid were already called
 	assert(pfg->totalTiles > 0);
 	assert(pcg->totalTiles > 0);
+	assert(ppg->totalTiles > 0);
 
 	if (hFind == INVALID_HANDLE_VALUE)
 	{
@@ -82,6 +101,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 	}
 	else {
 		bool chestFound = false;
+		bool decoratedPotFound = false;
 		do {
 			if (verbose) {
 				wprintf(L"File %s in directory %s being examined.\n", ffd.cFileName, tilePath);
@@ -99,7 +119,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 				wcscat_s(subdir, MAX_PATH_AND_FILE, ffd.cFileName);
 				addBackslashIfNeeded(subdir);
 
-				int fileCount = searchDirectoryForTiles(pfg, pcg, subdir, origTPLen, verbose, alternate, false, warnUnused, warnDups);
+				int fileCount = searchDirectoryForTiles(pfg, pcg, ppg, subdir, origTPLen, verbose, alternate, false, warnUnused, warnDups);
 				if (fileCount < 0) {
 					// error, cannot read subdirectory for some reason - we just ignore it for now; main test is the top directory test, above.
 					//return -2;
@@ -126,6 +146,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 						used = 1;
 					}
 				}
+				// chest
 				if (used == 0) {
 					if (topmost || wcsstr(tilePathAppended + origTPLen, L"chest") != NULL) {
 						used = testIfChestFile(pcg, tilePathAppended, ffd.cFileName, verbose) ? 1 : 0;
@@ -135,13 +156,23 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePa
 						}
 					}
 				}
+				// pot
+				if (used == 0) {
+					if (topmost || wcsstr(tilePathAppended + origTPLen, L"decorated_pot") != NULL) {
+						used = testIfDecoratedPotFile(ppg, tilePathAppended, ffd.cFileName, verbose) ? 1 : 0;
+						if (used) {
+							filesProcessed++;
+							decoratedPotFound = true;
+						}
+					}
+				}
 
-				// squirrelly: have we already found some useful PNG in this directory, and is this not a chest directory?
+				// squirrelly: have we already found some useful PNG in this directory, and is this not a chest or decorated pot directory?
 				// 
 				if (!used) {
 					int flag = 0x0;
 					int imageFileType = isImageFile(ffd.cFileName);
-					if (filesProcessed > 0 && !chestFound && (imageFileType == PNG_EXTENSION_FOUND || imageFileType == TGA_EXTENSION_FOUND)) {
+					if (filesProcessed > 0 && !chestFound && !decoratedPotFound && (imageFileType == PNG_EXTENSION_FOUND || imageFileType == TGA_EXTENSION_FOUND)) {
 						// we already found some good files in this directory, so don't use this unused one.
 						//wprintf(L"WARNING: The file '%s' in directory '%s' is not recognized and so is not used.\n", ffd.cFileName, tilePath);
 					}
@@ -393,6 +424,64 @@ int testIfChestFile(ChestGrid* pcg, const wchar_t* tilePath, const wchar_t* orig
 	return FILE_NOT_FOUND;
 }
 
+// returns true if file exists and is usable (not a duplicate, alternate name of something already in use)
+int testIfDecoratedPotFile(DecoratedPotGrid* ppg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose)
+{
+	wchar_t tileName[MAX_PATH_AND_FILE];
+
+	wcscpy_s(tileName, MAX_PATH_AND_FILE, origTileName);
+
+	int imageFileType = isImageFile(tileName);
+	if (imageFileType == PNG_EXTENSION_FOUND || imageFileType == TGA_EXTENSION_FOUND) {
+		removeFileType(tileName);
+		// has a suffix, now removed, so test if it's a file name type we understand.
+		int type = stripTypeSuffix(tileName, gCatSuffixes, TOTAL_CATEGORIES, NULL);
+
+		// the four PNG/TGA files we care about
+		bool found = false;
+		int index = 0;
+		for (int i = 0; i < TOTAL_DECORATED_POT_TILES && !found; i++) {
+			if (_wcsicmp(tileName, gDecoratedPotNames[i]) == 0) {
+				index = i;
+				found = true;
+			}
+			else if (_wcsicmp(tileName, gDecoratedPotNamesAlt[i]) == 0) {
+				index = i;
+				found = true;
+			}
+		}
+
+		if (found) {
+			int fullIndex = type * ppg->totalTiles + index;
+			if (ppg->pr[fullIndex].exists) {
+				// duplicate, so warn and exit
+				if (wcscmp(origTileName, ppg->pr[fullIndex].fullFilename) == 0) {
+					wprintf(L"DUP WARNING: Duplicate decorated pot file ignored. File '%s' in directory '%s' is in a different location for the same texture '%s' in '%s'.\n", origTileName, tilePath, ppg->pr[fullIndex].fullFilename, ppg->pr[fullIndex].path);
+				}
+				else if (verbose) {
+					wprintf(L"DUP WARNING: Duplicate decorated pot file ignored. File '%s' in directory '%s' is a different name for the same texture '%s' in '%s'.\n", origTileName, tilePath, ppg->pr[fullIndex].fullFilename, ppg->pr[fullIndex].path);
+				}
+				else {
+					wprintf(L"DUP WARNING: Duplicate decorated pot file ignored. File '%s' is a different name for the same texture '%s'.\n", origTileName, ppg->pr[fullIndex].fullFilename);
+				}
+				return FILE_NOT_FOUND;
+			}
+			else {
+				// it's new and unique
+				ppg->decoratedPotCount++;
+				ppg->categories[type]++;
+				ppg->pr[fullIndex].rootName = _wcsdup(tileName);
+				ppg->pr[fullIndex].fullFilename = _wcsdup(origTileName);
+				ppg->pr[fullIndex].path = _wcsdup(tilePath);
+				ppg->pr[fullIndex].exists = true;
+				//wprintf(L"%s\n", origTileName);
+				return FILE_FOUND;
+			}
+		}
+	}
+	return FILE_NOT_FOUND;
+}
+
 bool removeFileType(wchar_t* name)
 {
 	wchar_t *loc = wcsrchr(name, L'.');
@@ -552,6 +641,19 @@ void deleteChestFromGrid(ChestGrid* pcg, int category, int fullIndex)
 		pcg->chestCount--;
 		pcg->categories[category]--;
 		pcg->cr[fullIndex].exists = false;
+	}
+	else {
+		assert(0);
+	}
+}
+
+void deleteDecoratedPotFromGrid(DecoratedPotGrid* ppg, int category, int fullIndex)
+{
+	// shouldn't be calling this otherwise, but let's be safe:
+	if (ppg->pr[fullIndex].exists) {
+		ppg->decoratedPotCount--;
+		ppg->categories[category]--;
+		ppg->pr[fullIndex].exists = false;
 	}
 	else {
 		assert(0);

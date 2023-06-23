@@ -64,6 +64,11 @@ static const wchar_t* gChestNames[] = { L"normal", L"normal_double", L"normal_le
 // OfTemplesAndTotems and RazzleCore use this alternate name, sigh
 static const wchar_t* gChestNamesAlt[] = { L"", L"double_normal", L"", L"", L"" };
 
+#define	TOTAL_DECORATED_POT_TILES	1
+static const wchar_t* gDecoratedPotNames[] = { L"decorated_pot_base" };
+// OfTemplesAndTotems and RazzleCore use this alternate name, sigh
+static const wchar_t* gDecoratedPotNamesAlt[] = { L"" };
+
 typedef struct ChestGrid {
 	int chestCount;
 	int totalCategories;
@@ -74,15 +79,27 @@ typedef struct ChestGrid {
 
 static ChestGrid gCG;
 
+typedef struct DecoratedPotGrid {
+	int decoratedPotCount;
+	int totalCategories;
+	int totalTiles;
+	int categories[TOTAL_CATEGORIES];
+	FileRecord pr[TOTAL_CATEGORIES * TOTAL_DECORATED_POT_TILES];
+} DecoratedPotGrid;
+
+static DecoratedPotGrid gPG;
+
 void initializeFileGrid(FileGrid* pfg);
 void initializeChestGrid(ChestGrid* pcg);
+void initializeDecoratedPotGrid(DecoratedPotGrid* ppg);
 void addBackslashIfNeeded(wchar_t* dir);
-int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, bool topmost, bool warnUnused, bool warnDups);
+int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, bool topmost, bool warnUnused, bool warnDups);
 bool dirExists(const wchar_t* path);
 bool createDir(const wchar_t* path);
 int checkTilesInDirectory(FileGrid* pfg, const wchar_t* tilePath, int verbose, int alternate);
 int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose, int alternate, bool warnDNE, bool warnDups);
 int testIfChestFile(ChestGrid* pcg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose);
+int testIfDecoratedPotFile(DecoratedPotGrid* ppg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose);
 bool removeFileType(wchar_t* name);
 int isImageFile(wchar_t* name);
 int stripTypeSuffix(wchar_t* tileName, const wchar_t** suffixes, int numSuffixes, FileGrid* pfg);
@@ -91,3 +108,4 @@ void clearFileRecordStorage(FileRecord* pfr);
 void copyFileRecord(FileGrid* pfg, int category, int destFullIndex, FileRecord* srcFR);
 void deleteFileFromGrid(FileGrid* pfg, int category, int fullIndex);
 void deleteChestFromGrid(ChestGrid* pcg, int category, int fullIndex);
+void deleteDecoratedPotFromGrid(DecoratedPotGrid* ppg, int category, int fullIndex);
