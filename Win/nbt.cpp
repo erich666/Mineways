@@ -288,7 +288,7 @@ static bool makeBiomeHash = true;
 #define HEAD_PROP			 44
 // facing: north|south|east|west
 #define HEAD_WALL_PROP		 45
-// clear out dataVal, which might get "age" etc. before saving
+// clear out dataVal, which might get "age" etc. dataVals before saving
 #define TRULY_NO_PROP		 46
 // waterlogged: true|false, 1 HIGH bit
 // facing: south|north|west|east - 2 HIGH bits
@@ -358,8 +358,11 @@ static bool makeBiomeHash = true;
 #define AGE_PROP			60
 // age and stage will eventually be ignored, hanging will not
 #define PROPAGULE_PROP      61
+// facing: SWNE 0x3
+// sculk_sensor_phase: 0x10 (16 bit)
+#define CALIBRATED_SCULK_SENSOR_PROP    62
 
-#define NUM_TRANS 941
+#define NUM_TRANS 975
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1250,7 +1253,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 107,   HIGH_BIT | 2, "hanging_roots", TRULY_NO_PROP },  // weeping vines
     { 0, 132,  HIGH_BIT | 25, "powder_snow", NO_PROP },
     { 0, 154,       HIGH_BIT, "glow_lichen", FENCE_AND_VINE_PROP },
-    { 0, 155,       HIGH_BIT, "sculk_sensor", NO_PROP },    // datavals do it all
+    { 0, 155,       HIGH_BIT, "sculk_sensor", CALIBRATED_SCULK_SENSOR_PROP },   // doesn't really need facing for this one, but sculk_sensor_phase is used
     { 0, 216,              3, "deepslate", AXIS_PROP }, // with bone block, basalt, etc.
     { 0, 132,  HIGH_BIT | 26, "cobbled_deepslate", NO_PROP },
     { 0, 142,	HIGH_BIT | BIT_16 | 0, "cobbled_deepslate_slab", SLAB_PROP },    // double slab is 136, traditional (and a waste)
@@ -1299,7 +1302,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, BLOCK_FLOWER_POT,        SAPLING_FIELD | 6, "potted_mangrove_propagule", NO_PROP },
     { 0, 165,       HIGH_BIT, "mangrove_roots", NO_PROP },
     { 0, 166,       HIGH_BIT, "muddy_mangrove_roots", AXIS_PROP },
-    { 0, 167,   HIGH_BIT | 1, "stripped_mangrove_log", AXIS_PROP },
+    { 0, 167,   HIGH_BIT | 0, "stripped_mangrove_log", AXIS_PROP },
     { 0, 168,   HIGH_BIT | 0, "stripped_mangrove_wood", AXIS_PROP },
     { 0, 181,       HIGH_BIT, "mangrove_leaves", LEAF_PROP },
     { 0,  74,	HIGH_BIT | 6, "mangrove_slab", SLAB_PROP },
@@ -1325,8 +1328,42 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 180,       HIGH_BIT, "ochre_froglight", AXIS_PROP },
     { 0, 180,   HIGH_BIT | 1, "verdant_froglight", AXIS_PROP },
     { 0, 180,   HIGH_BIT | 2, "pearlescent_froglight", AXIS_PROP },
-        //{ 0, 160,       HIGH_BIT, "light", NO_PROP },   // has just the level property, and waterlogged; normally invisible, https://minecraft.fandom.com/wiki/Light_Block
-    // last used was 160 | HIGH_BIT
+
+    // 1.20 - starts at 182 + HIGH_BIT
+    { 0, 155, HIGH_BIT | 0x4, "calibrated_sculk_sensor", CALIBRATED_SCULK_SENSOR_PROP }, // also power and sculk_sensor_phase, but not needed so not saved
+    { 0, 182,       HIGH_BIT, "cherry_button", BUTTON_PROP },
+    { 0, 183,       HIGH_BIT, "cherry_door", DOOR_PROP },
+    { 0, 184,       HIGH_BIT, "cherry_fence", FENCE_AND_VINE_PROP },
+    { 0, 185,       HIGH_BIT, "cherry_fence_gate", FENCE_GATE_PROP },
+    { 0, 181,   HIGH_BIT | 1, "cherry_leaves", LEAF_PROP },
+    { 0, 160,   HIGH_BIT | 1, "cherry_log", AXIS_PROP },
+    { 0,   5,              8, "cherry_planks", NO_PROP },
+    { 0, 186,       HIGH_BIT, "cherry_pressure_plate", PRESSURE_PROP },
+    { 0,   6,	           7, "cherry_sapling", SAPLING_PROP },	// put with the other saplings
+    { 0, 171, HIGH_BIT | BIT_16, "cherry_sign", STANDING_SIGN_PROP },
+    { 0, 105,   HIGH_BIT | 5, "cherry_slab", SLAB_PROP },
+    { 0, 187,	    HIGH_BIT, "cherry_stairs", STAIRS_PROP },
+    { 0, 188,       HIGH_BIT, "cherry_trapdoor", TRAPDOOR_PROP },
+    { 0, 172, HIGH_BIT | BIT_16, "cherry_wall_sign", WALL_SIGN_PROP },
+    { 0, 160, HIGH_BIT | BIT_16 | 1, "cherry_wood", AXIS_PROP },
+    { 0, 167,   HIGH_BIT | 1, "stripped_cherry_log", AXIS_PROP },
+    { 0, 168,   HIGH_BIT | 1, "stripped_cherry_wood", AXIS_PROP },
+    { 0, BLOCK_FLOWER_POT,        SAPLING_FIELD | 7, "potted_cherry_sapling", NO_PROP },
+    { 0,   1,             16, "bamboo_block", NO_PROP },
+    { 0, 189,       HIGH_BIT, "bamboo_button", BUTTON_PROP },
+    { 0, 180,       HIGH_BIT, "bamboo_door", DOOR_PROP },
+    { 0, 191,       HIGH_BIT, "bamboo_fence", FENCE_AND_VINE_PROP },
+    { 0, 192,       HIGH_BIT, "bamboo_fence_gate", FENCE_GATE_PROP },
+    { 0,   5,              9, "bamboo_planks", NO_PROP },
+    { 0, 193,       HIGH_BIT, "bamboo_pressure_plate", PRESSURE_PROP },
+    { 0, 171, HIGH_BIT | BIT_32, "bamboo_sign", STANDING_SIGN_PROP },
+    { 0, 105,   HIGH_BIT | 6, "bamboo_slab", SLAB_PROP },
+    { 0, 194,	    HIGH_BIT, "bamboo_stairs", STAIRS_PROP },
+    { 0, 195,       HIGH_BIT, "bamboo_trapdoor", TRAPDOOR_PROP },
+    { 0, 172, HIGH_BIT | BIT_32, "bamboo_wall_sign", WALL_SIGN_PROP },
+    { 0,   1,             17, "bamboo_mosaic", NO_PROP },
+    { 0, 105,   HIGH_BIT | 7, "bamboo_mosaic_slab", SLAB_PROP },
+    { 0, 196,	    HIGH_BIT, "bamboo_mosaic_stairs", STAIRS_PROP },
 
  // Note: 140, 144 are reserved for the extra bit needed for BLOCK_FLOWER_POT and BLOCK_HEAD, so don't use these HIGH_BIT values
 };
@@ -3205,6 +3242,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                     //  THIS IS WHERE TO PUT A DEBUG BREAK TO SEE WHAT NAME IS UNKNOWN: see thisBlockName.
                     // TODO: could add a more complex system here to convert from various unknown block names to other IDs.
                     // Test if we care about knowing which block name is unknown.
+                    typeIndex = BLOCK_AIR;  // to avoid problems interpreting this blocck
                     if (unknownBlock) {
                         // return unknown block's name to output; really, should return all block names, just add to the string until it's full,
                         // if the name is not already in the list. Handy for people trying to make block conversions. Make string a lot longer.
@@ -3787,6 +3825,10 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         else if (strcmp(token, "can_summon") == 0) {
                             dataVal = (strcmp(value, "true") == 0) ? 1 : 0;
                         }
+                        // for suspicious gravel and sand
+                        else if (strcmp(token, "dusted") == 0) {
+                            dataVal |= atoi(value);
+                        }
 
 #ifdef _DEBUG
                         else {
@@ -3800,6 +3842,9 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             else if (strcmp(token, "unstable") == 0) {}	// does TNT blow up when punched? I don't care
                             else if (strcmp(token, "shrieking") == 0) {}	// non-visual sculk shrieker prop
                             else if (strcmp(token, "bloom") == 0) {}	// for sculk catalyst
+
+                            // TODOTODOTODO
+                            else if (strcmp(token, "cracked") == 0) {}	// for sniffer egg
                             else {
                                 // unknown property - look at token and value
                                 assert(0);
@@ -4090,6 +4135,12 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
         case SWNE_FACING_PROP:
             // south/west/north/east == 0/1/2/3
             dataVal = (door_facing + 3) % 4;
+            break;
+        case CALIBRATED_SCULK_SENSOR_PROP:
+            // south/west/north/east == 0/1/2/3
+            // counts in the sculk_sensor_phase which has been put in BIT_16.
+            // We don't want power, but we do want to know if it's calibrated and if it's sculk_sensor_phase is active
+            dataVal = ((door_facing + 3) % 4) | (dataVal & (0x4|BIT_16));
             break;
         case BED_PROP:
             // south/west/north/east == 0/1/2/3

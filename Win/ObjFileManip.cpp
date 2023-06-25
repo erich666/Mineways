@@ -10747,16 +10747,66 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break;
 
     case BLOCK_SCULK_SENSOR:						// saveBillboardOrGeometry
-        swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc+1, swatchLoc+2, 1, 0x0, 0, 0, 16, 0, 8, 0, 16);
-        if (!gModel.print3D) {
-            // active or inactive tendril
+        // BIT_16 is active or inactive
+        // bits 0x3 is facing for the calibrated sculk sensor only
+        // bit 0x4 is whether it's a calibrated sculk sensor
+        if (dataVal & 0x4) {
+            // calibrated
+            swatchLoc = SWATCH_INDEX(1, 57);    // calibrated_sculk_sensor_input_side
+            int baseSwatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = baseSwatchLoc + 1;
+            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = baseSwatchLoc + 1;
+            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = baseSwatchLoc + 1;
+            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc;
+            swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc+1; // calibrated_sculk_sensor_top
+            swatchLocSet[DIRECTION_BLOCK_BOTTOM] = baseSwatchLoc+2;
             gUsingTransform = 1;
+            totalVertexCount = gModel.vertexCount;
+            saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, 0x0, 0, 0, 0, 16, 0, 8, 0, 16);
+            
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            // rotate into place - the only thing that is affected by direction
+            rotateMtx(mtx, 0.0f, 180.0f + 90.0f * (dataVal & 0x3), 0.0f);
+            translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(totalVertexCount, mtx);
+            gUsingTransform = 0;
+
+            if (!gModel.print3D) {
+                // add amethyst jewels
+                gUsingTransform = 1;
+                for (i = 0; i < 2; i++) {
+                    littleTotalVertexCount = gModel.vertexCount;
+                    saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc - 1, swatchLoc - 1, swatchLoc - 1, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 12, 8, 8);
+                    littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+                    identityMtx(mtx);
+                    translateToOriginMtx(mtx, boxIndex);
+                    // move up above slab (yes, it extends 4 pixels above its own block)
+                    translateMtx(mtx, 0.0f, 0.5f, 0.0f);
+                    rotateMtx(mtx, 0.0f, 45.0f + 90.0f * (float)i, 0.0f);
+                    translateFromOriginMtx(mtx, boxIndex);
+                    transformVertices(littleTotalVertexCount, mtx);
+                }
+                gUsingTransform = 0;
+            }
+            
+            // now set swatchLoc so that the sculk tendrils are accessed
+            swatchLoc = baseSwatchLoc;
+        }
+        else {
+            // just a sculk sensor
+            swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc + 2, 1, 0x0, 0, 0, 16, 0, 8, 0, 16);
+        }
+        if (!gModel.print3D) {
+            gUsingTransform = 1;
+            // active or inactive tendril
             swatchLoc += (dataVal & BIT_16) ? 3 : 4;
             for (i = 0; i < 4; i++) {
                 littleTotalVertexCount = gModel.vertexCount;
                 // tendril
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 0, 0);
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 0, 0);
                 littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
                 identityMtx(mtx);
                 translateToOriginMtx(mtx, boxIndex);
@@ -21824,8 +21874,61 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             SWATCH_SWITCH_SIDE(faceDirection, 6 + (dataVal & 0x1), 51);
             break;
 
-        case BLOCK_SCULK_SENSOR:
+        case BLOCK_SCULK_SENSOR: // getSwatch
             SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 0, 53, 1, 53);
+            if (dataVal & 0x4) {
+                // calibrated - change top and one side?
+                switch (faceDirection)
+                {
+                case DIRECTION_BLOCK_TOP:
+                    swatchLoc = SWATCH_INDEX(2, 57);
+                case DIRECTION_BLOCK_BOTTOM:
+                    // fine as is, but might be rotated
+                    switch (((dataVal & 0x3)+1)%4)
+                    {
+                    case 3: // North -Z
+                        // no rotation needed
+                        break;
+                    case 1: // South +Z
+                        if (uvIndices) {
+                            rotateIndices(localIndices, 180);
+                        }
+                        break;
+                    case 2: // West
+                        if (uvIndices) {
+                            rotateIndices(localIndices, 270);
+                        }
+                        break;
+                    case 0: // East
+                    default:
+                        if (uvIndices) {
+                            rotateIndices(localIndices, 90);
+                        }
+                        break;
+                    }
+                    break;
+                case DIRECTION_BLOCK_SIDE_LO_X:
+                    if ((dataVal & 0x3) == 3) {
+                        swatchLoc = SWATCH_INDEX(1, 57);
+                    }
+                    break;
+                case DIRECTION_BLOCK_SIDE_HI_X:
+                    if ((dataVal & 0x3) == 1) {
+                        swatchLoc = SWATCH_INDEX(1, 57);
+                    }
+                    break;
+                case DIRECTION_BLOCK_SIDE_LO_Z:
+                    if ((dataVal & 0x3) == 0) {
+                        swatchLoc = SWATCH_INDEX(1, 57);
+                    }
+                    break;
+                case DIRECTION_BLOCK_SIDE_HI_Z:
+                    if ((dataVal & 0x3) == 2) {
+                        swatchLoc = SWATCH_INDEX(1, 57);
+                    }
+                    break;
+                }
+            }
             break;
 
         case BLOCK_MANGROVE_ROOTS:
@@ -24004,9 +24107,20 @@ static int createBaseMaterialTexture()
             // exporting whole block - stretch to top
             stretchSwatchToTop(mainprog, SWATCH_INDEX(gBlockDefinitions[BLOCK_DIRT_PATH].txrX + 1, gBlockDefinitions[BLOCK_DIRT_PATH].txrY),
                 (float)(gModel.swatchSize * (1.0 / 16.0) + (float)SWATCH_BORDER) / (float)gModel.swatchSize);
+            
             // sculk: repeat bottom half to top - this is kinda bad, since the texture fades from light to dark,
-            // but is better than just being black
+            // but is better than just being black.
             SWATCH_TO_COL_ROW(SWATCH_INDEX(gBlockDefinitions[BLOCK_SCULK_SENSOR].txrX, gBlockDefinitions[BLOCK_SCULK_SENSOR].txrY) + 1, dstCol, dstRow);
+            copyPNGArea(mainprog,
+                gModel.swatchSize* dstCol + SWATCH_BORDER,    // copy to middle
+                gModel.swatchSize* dstRow + SWATCH_BORDER,
+                gModel.tileSize, gModel.tileSize / 2,
+                mainprog,
+                gModel.swatchSize* dstCol + SWATCH_BORDER,
+                gModel.swatchSize* dstRow + SWATCH_BORDER + (gModel.tileSize / 2) + 1
+            );
+            // and calibrated sculk sensor, too
+            SWATCH_TO_COL_ROW(SWATCH_INDEX(1,57), dstCol, dstRow);
             copyPNGArea(mainprog,
                 gModel.swatchSize* dstCol + SWATCH_BORDER,    // copy to middle
                 gModel.swatchSize* dstRow + SWATCH_BORDER,
@@ -24037,6 +24151,16 @@ static int createBaseMaterialTexture()
                 mainprog,
                 gModel.swatchSize* dstCol + SWATCH_BORDER,
                 gModel.swatchSize* dstRow + SWATCH_BORDER + (gModel.tileSize / 2) + 1
+            );
+            // calibrated, too
+            SWATCH_TO_COL_ROW(SWATCH_INDEX(1,57), dstCol, dstRow);
+            copyPNGArea(mainprog,
+                gModel.swatchSize * dstCol + SWATCH_BORDER,    // copy to middle
+                gModel.swatchSize * dstRow + SWATCH_BORDER + (gModel.tileSize / 2),
+                gModel.tileSize, 1,  // just 1 pixel border
+                mainprog,
+                gModel.swatchSize * dstCol + SWATCH_BORDER,
+                gModel.swatchSize * dstRow + SWATCH_BORDER + (gModel.tileSize / 2) + 1
             );
             // TODO: if we want to really go nuts, stretch the sculk shrieker's top half out to the edges. Me, I think it looks kinda cool with the black edging when printed as blocks.
         }

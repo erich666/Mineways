@@ -299,7 +299,7 @@ typedef struct Model {
     int exportTiles;
     bool customMaterial;
     bool exportMDL;
-    bool singleSided;
+    bool singleSided; // True means : "the single-sided polygon must be output twice, once reversed".
     bool emitterSingleSided;
     int blockCount;
     bool instancing; // true for USDA with instancing output enabled

@@ -2138,6 +2138,13 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         }
         break;
 
+    case BLOCK_SCULK_SENSOR:
+        if (dataVal & 0x4)
+        {
+            return "Calibrated Sculk Sensor";
+        }
+        break;
+
     }
 
     return gBlockDefinitions[type].name;
@@ -2927,6 +2934,18 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         affectedByBiome = 1;
         if (dataVal & SNOWY_BIT) {
             color = 0xFCFFFF;
+        }
+        else {
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+        }
+        break;
+
+    case BLOCK_SCULK_SENSOR:
+        dataVal = block->data[voxel];
+        if (dataVal & 0x4) {
+            // calibrated top
+            color = 0xCEA9E2;
         }
         else {
             lightComputed = true;
@@ -4669,7 +4688,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
     case BLOCK_FIRE:
-    case BLOCK_SCULK_SENSOR:
         // uses 0-1, with 1 meaning bit 16
         if (dataVal < 2)
         {
@@ -4678,6 +4696,28 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 // soul fire
                 finalDataVal = BIT_16;
             }
+        }
+        break;
+    case BLOCK_SCULK_SENSOR:
+        // uses 0-4 and 8-12, 0 is the sculk, 1-4 calibrated rotated, 8 bit activated
+        switch (dataVal & 0x7)
+        {
+        case 0:
+            // sculk_sensor, fine as-is
+            addBlock = 1;
+            break;
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+            // calibrated, four rotations
+            finalDataVal = 0x4 | ((dataVal&0x7) - 1);
+            addBlock = 1;
+            break;
+        }
+        if ( dataVal > 7 ) {
+            // add sculk_sensor_phase on
+            finalDataVal |= BIT_16;
         }
         break;
     case BLOCK_SPORE_BLOSSOM:
