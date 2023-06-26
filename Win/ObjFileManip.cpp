@@ -233,6 +233,7 @@ static int gUsingTransform = 0;
 #define ROTATE_TOP_AND_BOTTOM	0x04
 #define REVOLVE_INDICES			0x08
 #define ROTATE_X_FACE_90		0x10
+#define FLIP_TOP_V_VALUES   	0x20
 
 #define OSQRT2 0.707106781f
 #define OCOS22P5DEG 0.92387953251f
@@ -7073,7 +7074,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // the door faces (and maybe open/closed). Minecraft appears to grab a strip from the left edge of the bottom tile, or something.
         // We always use the bottomSwatchLoc for the door's top *and* bottom, as the top piece can look bad.
         gUsingTransform = 1;
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, swatchLoc, bottomSwatchLoc, 1, 0x0, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 13 - fatten, 16);
+        saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, swatchLoc, bottomSwatchLoc, 1, 0x0,
+            FLIP_Z_FACE_VERTICALLY | FLIP_TOP_V_VALUES,
+            0, 16, 0, 16, 13 - fatten, 16);
         gUsingTransform = 0;
 
         identityMtx(mtx);
@@ -11965,6 +11968,18 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
                         maxu = (float)maxPixZ / 16.0f;
                         minv = (float)minPixX / 16.0f;
                         maxv = (float)maxPixX / 16.0f;
+                    }
+                    else if (rotUVs & FLIP_TOP_V_VALUES)
+                    {
+                        // use Z not reversed, as below, but also flipped. Used for door tops.
+                        // This still isn't exactly right - sometimes the minv and maxv should be switched
+                        // to match door tops perfectly. But the "rules" of when the top of the door switches are unclear.
+                        // something about which way the door swings open, I believe. But if we get into this, we should
+                        // also fix which sides the hinges are on. TODO
+                        minu = (float)minPixX / 16.0f;
+                        maxu = (float)maxPixX / 16.0f;
+                        minv = (float)maxPixZ / 16.0f;
+                        maxv = (float)minPixZ / 16.0f;
                     }
                     else
                     {
