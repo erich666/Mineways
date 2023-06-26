@@ -1570,7 +1570,7 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
                 { SWATCH_INDEX(1, 4), SWATCH_INDEX(1, 0) }, // spawner over stone
                 { SWATCH_INDEX(9, 4), SWATCH_INDEX(0, 0) }, // reeds over grass
                 { SWATCH_INDEX(15, 4), SWATCH_INDEX(0, 0) }, // sapling over grass
-                { SWATCH_INDEX(14, 1), SWATCH_INDEX(0, 0) }, // jungle sapling over grass
+                { SWATCH_INDEX(14, 1), SWATCH_INDEX(0, 0) }, // jungle sapling over grass - we don't currently add any other saplings
                 { SWATCH_INDEX(1, 5), SWATCH_INDEX(10, 23) }, // wooden door top over slab top - was over 6, 0
                 { SWATCH_INDEX(2, 5), SWATCH_INDEX(10, 23) }, // door top over slab top - was over 6, 0
                 { SWATCH_INDEX(5, 5), SWATCH_INDEX(6, 3) }, // iron bars over stone block
@@ -3923,6 +3923,8 @@ static int computeFlatFlags(int boxIndex)
     case BLOCK_CRIMSON_TRAPDOOR:
     case BLOCK_WARPED_TRAPDOOR:
     case BLOCK_MANGROVE_TRAPDOOR:
+    case BLOCK_CHERRY_TRAPDOOR:
+    case BLOCK_BAMBOO_TRAPDOOR:
         if (gBoxData[boxIndex].data & 0x4)
         {
             // trapdoor is open, so is against a wall
@@ -4378,7 +4380,7 @@ static void outputPickleTop(int boxIndex, int swatchLoc, float shift)
 }
 
 // Some growing objects get "wobbled" by +/- 3/16, moving them horizontally in the block, depending on position.
-// Bamboo sapling - yes, other saplings - no
+// Bamboo sapling - yes, all other saplings - no
 // Grass, fern, flowers - yes, dead bush - no
 // Tall grass and other tall flowers - yes
 // Seagrass - yes
@@ -5043,6 +5045,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_CRIMSON_FENCE:
     case BLOCK_WARPED_FENCE:
     case BLOCK_MANGROVE_FENCE:
+    case BLOCK_CHERRY_FENCE:
+    case BLOCK_BAMBOO_FENCE:
         //groupByBlock = (gModel.options->exportFlags & EXPT_GROUP_BY_BLOCK);
         // if fence is to be fattened, instead make it like a brick wall - stronger
         if (fatten)
@@ -5265,6 +5269,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                         (neighborType == BLOCK_WARPED_PRESSURE_PLATE) ||
                         (neighborType == BLOCK_POLISHED_BLACKSTONE_PRESSURE_PLATE) ||
                         (neighborType == BLOCK_MANGROVE_PRESSURE_PLATE) ||
+                        (neighborType == BLOCK_CHERRY_PRESSURE_PLATE) ||
+                        (neighborType == BLOCK_BAMBOO_PRESSURE_PLATE) ||
                         (neighborType == BLOCK_STANDING_BANNER) ||
                         (neighborType >= BLOCK_ORANGE_BANNER && neighborType <= BLOCK_BLACK_BANNER) ||
                         ((neighborType == BLOCK_HOPPER) && !(gBoxData[boxIndex + 1].data & 0x7)) ||  // pointing down is 0, which makes a post but no cover
@@ -5890,6 +5896,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_WARPED_PRESSURE_PLATE:
     case BLOCK_POLISHED_BLACKSTONE_PRESSURE_PLATE:
     case BLOCK_MANGROVE_PRESSURE_PLATE:
+    case BLOCK_CHERRY_PRESSURE_PLATE:
+    case BLOCK_BAMBOO_PRESSURE_PLATE:
         // if printing and the location below the plate is empty, then don't make plate (it'll be too thin)
         if (gModel.print3D &&
             (gBoxData[boxIndex - 1].origType == BLOCK_AIR))
@@ -5979,6 +5987,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_DEEPSLATE_TILES_STAIRS:
     case BLOCK_MANGROVE_STAIRS:
     case BLOCK_MUD_BRICK_STAIRS:
+    case BLOCK_CHERRY_STAIRS:
+    case BLOCK_BAMBOO_STAIRS:
         // set texture
         switch (type)
         {
@@ -6289,11 +6299,11 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             case 5: // dark oak
                 topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(1, 22);
                 break;
-            case 6: // crimson
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(8, 43);
+            case 6: // cherry
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(8, 57);
                 break;
-            case 7: // warped
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(8, 44);
+            case 7: // bamboo
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(14, 60);
                 break;
             }
             break;
@@ -6593,8 +6603,22 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             }
         }
         else {
-            // mangrove sign - just the one type
-            swatchLoc = SWATCH_INDEX(0, 55);
+            // mangrove sign
+            switch (dataVal & (BIT_32 | BIT_16 | BIT_8)) {
+            default:
+            case 0:
+                // mangrove
+                swatchLoc = SWATCH_INDEX(0, 55);
+                break;
+            case BIT_8:
+                // cherry
+                swatchLoc = SWATCH_INDEX(8, 57);
+                break;
+            case BIT_16:
+                // bamboo
+                swatchLoc = SWATCH_INDEX(14, 60);
+                break;
+            }
         }
         switch (dataVal & 0x7)
         {
@@ -6756,6 +6780,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_CRIMSON_TRAPDOOR:
     case BLOCK_WARPED_TRAPDOOR:
     case BLOCK_MANGROVE_TRAPDOOR:
+    case BLOCK_CHERRY_TRAPDOOR:
+    case BLOCK_BAMBOO_TRAPDOOR:
         // On second thought, in testing it worked fine.
         //if ( gModel.print3D && !(dataVal & 0x4) )
         //{
@@ -7217,6 +7243,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_CRIMSON_FENCE_GATE:
     case BLOCK_WARPED_FENCE_GATE:
     case BLOCK_MANGROVE_FENCE_GATE:
+    case BLOCK_CHERRY_FENCE_GATE:
+    case BLOCK_BAMBOO_FENCE_GATE:
         gUsingTransform = 1;
         totalVertexCount = gModel.vertexCount;
         // Check if open
@@ -7580,6 +7608,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         jungle sapling	sapling			3
         acacia sapling	sapling			4
         dark oak sapling	sapling		5
+        mangrove      	sapling 		6 - type is mangrove propagule, though
+        cherry sapling	sapling 		7
         dead bush		deadbush		0
         fern			tallgrass		2
         cactus			cactus			0
@@ -7704,6 +7734,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 // mangrove propagule
                 typeB = BLOCK_MANGROVE_PROPAGULE;
                 dataValB = 0;
+                //scale = 0.75f;
+                break;
+            case SAPLING_FIELD | 0x7:
+                // cherry sapling
+                typeB = BLOCK_SAPLING;
+                dataValB = 7;
                 //scale = 0.75f;
                 break;
             case RED_FLOWER_FIELD | 0x1:
@@ -10890,7 +10926,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
      // END saveBillboardOrGeometry
 
     default:
-        // something tagged as billboard or geometry, but no case here!
+        // something tagged as billboard or geometry, but no case here! Examine "type"
         assert(0);
         gMinorBlockCount--;
         return 0;
@@ -12412,6 +12448,8 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
             case BLOCK_DEEPSLATE_TILES_STAIRS:
             case BLOCK_MANGROVE_STAIRS:
             case BLOCK_MUD_BRICK_STAIRS:
+            case BLOCK_CHERRY_STAIRS:
+            case BLOCK_BAMBOO_STAIRS:
                 // TODO: Right now stairs are dumb: only the large rectangle of the base is returned.
                 // Returning the little block, which can further be trimmed to a cube, is a PAIN.
                 // This does mean the little stair block sides won't be deleted. Ah well.
@@ -12507,6 +12545,8 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
             case BLOCK_CRIMSON_TRAPDOOR:
             case BLOCK_WARPED_TRAPDOOR:
             case BLOCK_MANGROVE_TRAPDOOR:
+            case BLOCK_CHERRY_TRAPDOOR:
+            case BLOCK_BAMBOO_TRAPDOOR:
                 if (!(dataVal & 0x4))
                 {
                     // trapdoor is flat on ground
@@ -12713,6 +12753,10 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
             // bamboo
             swatchLoc = SWATCH_INDEX(9, 37);
             wobbleIt = true;
+            break;
+        case 7:
+            // cherry
+            swatchLoc = SWATCH_INDEX(9, 57);
             break;
         }
         break;
@@ -17342,6 +17386,8 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_DEEPSLATE_TILES_STAIRS:
         case BLOCK_MANGROVE_STAIRS:
         case BLOCK_MUD_BRICK_STAIRS:
+        case BLOCK_CHERRY_STAIRS:
+        case BLOCK_BAMBOO_STAIRS:
             switch (neighborDataVal & 0x3)
             {
             default:    // make compiler happy
@@ -17435,6 +17481,8 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_CRIMSON_TRAPDOOR:
         case BLOCK_WARPED_TRAPDOOR:
         case BLOCK_MANGROVE_TRAPDOOR:
+        case BLOCK_CHERRY_TRAPDOOR:
+        case BLOCK_BAMBOO_TRAPDOOR:
             if (!view3D)
             {
                 // rotate as needed
@@ -18294,6 +18342,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_CRIMSON_TRAPDOOR:
         case BLOCK_WARPED_TRAPDOOR:
         case BLOCK_MANGROVE_TRAPDOOR:
+        case BLOCK_CHERRY_TRAPDOOR:
+        case BLOCK_BAMBOO_TRAPDOOR:
         case BLOCK_DAYLIGHT_SENSOR:
         case BLOCK_INVERTED_DAYLIGHT_SENSOR:
         case BLOCK_LADDER:
@@ -18719,7 +18769,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     // it's wood, not a log - always switch
                     switch (dataVal & 0x3)
                     {
-                    default: // normal wood
+                    default:
                     case 0: // acacia
                         swatchLoc = SWATCH_XY_TO_INDEX(5, 11);
                         break;
@@ -18738,7 +18788,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     // log - set everything to side unless it's a top or bottom
                     switch (dataVal & 0x3)
                     {
-                    default: // normal log
+                    default:
                     case 0: // acacia
                         SWATCH_SWITCH_SIDE(newFaceDirection, 5, 11);
                         break;
@@ -18756,12 +18806,32 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case BLOCK_MANGROVE_LOG:
                 if (dataVal & BIT_16) {
-                    // it's wood, not a log - always switch to side
-                    swatchLoc = SWATCH_XY_TO_INDEX(13, 54);
+                    // it's wood, not a log - always switch
+                    switch (dataVal & 0x3)
+                    {
+                    default:
+                        assert(0);
+                    case 0: // mangrove
+                        swatchLoc = SWATCH_XY_TO_INDEX(13, 54);
+                        break;
+                    case 1: // cherry
+                        swatchLoc = SWATCH_XY_TO_INDEX(6, 57);
+                        break;
+                    }
                 }
                 else {
                     // log - set everything to side unless it's a top or bottom
-                    SWATCH_SWITCH_SIDE(newFaceDirection, 13, 54);
+                    switch (dataVal & 0x3)
+                    {
+                    default:
+                        assert(0);
+                    case 0: // mangrove
+                        SWATCH_SWITCH_SIDE(newFaceDirection, 13, 54);
+                        break;
+                    case 1: // cherry
+                        SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 6, 57, 7, 57);
+                        break;
+                    }
                 }
                 break;
             case BLOCK_STRIPPED_OAK:
@@ -18800,6 +18870,19 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     break;
                 }
                 break;
+            case BLOCK_STRIPPED_MANGROVE:
+                switch (dataVal & 0x3)
+                {
+                default:
+                    assert(0);
+                case 0: // mangrove
+                    SWATCH_SWITCH_SIDE(newFaceDirection, 15, 54);
+                    break;
+                case 1: // cherry
+                    SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 8, 59, 9, 59);
+                    break;
+                }
+                break;
             case BLOCK_STRIPPED_OAK_WOOD:
                 switch (dataVal & 0x3)
                 {
@@ -18834,12 +18917,21 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     break;
                 }
                 break;
+            case BLOCK_STRIPPED_MANGROVE_WOOD:
+                switch (dataVal & 0x3)
+                {
+                default:
+                    assert(0);
+                case 0: // mangrove
+                    break;
+                case 1: // cherry
+                    swatchLoc = SWATCH_INDEX(8, 59);
+                    break;
+                }
+                break;
             case BLOCK_MUDDY_MANGROVE_ROOTS:
                 // roots - set everything to side unless it's a top or bottom
                 SWATCH_SWITCH_SIDE(newFaceDirection, 9, 55);
-                break;
-            case BLOCK_STRIPPED_MANGROVE:   // note we don't need BLOCK_STRIPPED_MANGROVE_WOOD, since that's always the same tile
-                SWATCH_SWITCH_SIDE(newFaceDirection, 15, 54);
                 break;
             case BLOCK_FROGLIGHT:
                 switch (dataVal & 0x3)
@@ -18864,13 +18956,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 flipIndicesLeftRight(localIndices);
             break;
         case BLOCK_OAK_PLANKS:						// getSwatch
-        case BLOCK_WOODEN_DOUBLE_SLAB:
-        case BLOCK_WOODEN_SLAB:
-            // The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
-            // Since we're exporting full blocks, we don't care, and so mask off this 0x8 bit.
             // This bit is unused for WOODEN_PLANKS, so masking doesn't hurt - we can share code here.
             // See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
-            switch (dataVal & 0x7)
+            switch (dataVal & 0xf)
             {
             default: // normal log
                 assert(0);
@@ -18897,6 +18985,50 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case 7: // warped
                 swatchLoc = SWATCH_INDEX(8, 44);
+                break;
+            case 8: // mangrove
+                swatchLoc = SWATCH_INDEX(0, 55);
+                break;
+            case 9: // cherry
+                swatchLoc = SWATCH_INDEX(8, 57);
+                break;
+            case 10: // bamboo
+                swatchLoc = SWATCH_INDEX(14, 60);
+                break;
+            }
+            break;
+        case BLOCK_WOODEN_DOUBLE_SLAB:
+        case BLOCK_WOODEN_SLAB:
+            // The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
+            // Since we're exporting full blocks, we don't care, and so mask off this 0x8 bit.
+            // See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
+            switch (dataVal & 0x7)
+            {
+            default: // normal log
+                assert(0);
+            case 0:
+                // no change, default plank is fine
+                break;
+            case 1: // spruce (dark)
+                swatchLoc = SWATCH_INDEX(6, 12);
+                break;
+            case 2: // birch
+                swatchLoc = SWATCH_INDEX(6, 13);
+                break;
+            case 3: // jungle
+                swatchLoc = SWATCH_INDEX(7, 12);
+                break;
+            case 4: // acacia
+                swatchLoc = SWATCH_INDEX(0, 22);
+                break;
+            case 5: // dark oak
+                swatchLoc = SWATCH_INDEX(1, 22);
+                break;
+            case 6: // cherry
+                swatchLoc = SWATCH_INDEX(8, 57);
+                break;
+            case 7: // bamboo
+                swatchLoc = SWATCH_INDEX(14, 60);
                 break;
             }
             break;
@@ -19040,9 +19172,17 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             break;
         case BLOCK_MANGROVE_LEAVES:						// getSwatch
-            // Not actually needed - rare! It's processed and composited earlier on, and
-            // there is only one type of this leaf, so we don't do anything
-            //swatchLoc = SWATCH_INDEX(11, 54);
+            switch (dataVal & 0x3)
+            {
+            default:
+                assert(0);
+            case 0: // mangrove
+                swatchLoc = SWATCH_INDEX(11, 54);
+                break;
+            case 1: // cherry
+                swatchLoc = SWATCH_INDEX(5, 57);
+                break;
+            }
             break;
         case BLOCK_SAND:						// getSwatch
             switch (dataVal & 0x1)
@@ -20605,6 +20745,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             case 6:
                 // bamboo sapling
                 swatchLoc = SWATCH_INDEX(9, 37);
+                break;
+            case 7:
+                // cherry
+                swatchLoc = SWATCH_INDEX(9, 57);
                 break;
             }
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
@@ -32623,6 +32767,8 @@ static bool faceCanTile(int faceId)
     case BLOCK_WARPED_PRESSURE_PLATE:
     case BLOCK_POLISHED_BLACKSTONE_PRESSURE_PLATE:
     case BLOCK_MANGROVE_PRESSURE_PLATE:
+    case BLOCK_CHERRY_PRESSURE_PLATE:
+    case BLOCK_BAMBOO_PRESSURE_PLATE:
     case BLOCK_STONE_BUTTON:
     case BLOCK_WOODEN_BUTTON:
     case BLOCK_SPRUCE_BUTTON:
@@ -32653,6 +32799,10 @@ static bool faceCanTile(int faceId)
     case BLOCK_WARPED_FENCE_GATE:
     case BLOCK_MANGROVE_FENCE:
     case BLOCK_MANGROVE_FENCE_GATE:
+    case BLOCK_CHERRY_FENCE:
+    case BLOCK_CHERRY_FENCE_GATE:
+    case BLOCK_BAMBOO_FENCE:
+    case BLOCK_BAMBOO_FENCE_GATE:
     case BLOCK_SIGN_POST:
     case BLOCK_WALL_SIGN:
     case BLOCK_ACACIA_SIGN_POST:

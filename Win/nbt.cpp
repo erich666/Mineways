@@ -1295,7 +1295,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     // 1.19
     { 0, 160,       HIGH_BIT, "mangrove_log", AXIS_PROP },
     { 0, 160, HIGH_BIT | BIT_16, "mangrove_wood", AXIS_PROP },	// same as log, but with a high bit set to mean that it's "wood" texture on the endcaps. 
-    { 0, 161,       HIGH_BIT, "mangrove_planks", NO_PROP },
+    { 0,   5,              8, "mangrove_planks", NO_PROP },
     { 0, 162,       HIGH_BIT, "mangrove_door", DOOR_PROP },
     { 0, 163,       HIGH_BIT, "mangrove_trapdoor", TRAPDOOR_PROP },
     { 0, 164,       HIGH_BIT, "mangrove_propagule", PROPAGULE_PROP },   // also has hanging property, waterlogged prop
@@ -1337,11 +1337,11 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 185,       HIGH_BIT, "cherry_fence_gate", FENCE_GATE_PROP },
     { 0, 181,   HIGH_BIT | 1, "cherry_leaves", LEAF_PROP },
     { 0, 160,   HIGH_BIT | 1, "cherry_log", AXIS_PROP },
-    { 0,   5,              8, "cherry_planks", NO_PROP },
+    { 0,   5,              9, "cherry_planks", NO_PROP },
     { 0, 186,       HIGH_BIT, "cherry_pressure_plate", PRESSURE_PROP },
     { 0,   6,	           7, "cherry_sapling", SAPLING_PROP },	// put with the other saplings
     { 0, 171, HIGH_BIT | BIT_16, "cherry_sign", STANDING_SIGN_PROP },
-    { 0, 105,   HIGH_BIT | 5, "cherry_slab", SLAB_PROP },
+    { 0, 126,              6, "cherry_slab", SLAB_PROP },
     { 0, 187,	    HIGH_BIT, "cherry_stairs", STAIRS_PROP },
     { 0, 188,       HIGH_BIT, "cherry_trapdoor", TRAPDOOR_PROP },
     { 0, 172, HIGH_BIT | BIT_16, "cherry_wall_sign", WALL_SIGN_PROP },
@@ -1354,15 +1354,15 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 190,       HIGH_BIT, "bamboo_door", DOOR_PROP },
     { 0, 191,       HIGH_BIT, "bamboo_fence", FENCE_AND_VINE_PROP },
     { 0, 192,       HIGH_BIT, "bamboo_fence_gate", FENCE_GATE_PROP },
-    { 0,   5,              9, "bamboo_planks", NO_PROP },
+    { 0,   5,             10, "bamboo_planks", NO_PROP },
     { 0, 193,       HIGH_BIT, "bamboo_pressure_plate", PRESSURE_PROP },
     { 0, 171, HIGH_BIT | BIT_32, "bamboo_sign", STANDING_SIGN_PROP },
-    { 0, 105,   HIGH_BIT | 6, "bamboo_slab", SLAB_PROP },
+    { 0, 126,              7, "bamboo_slab", SLAB_PROP },
     { 0, 194,	    HIGH_BIT, "bamboo_stairs", STAIRS_PROP },
     { 0, 195,       HIGH_BIT, "bamboo_trapdoor", TRAPDOOR_PROP },
     { 0, 172, HIGH_BIT | BIT_32, "bamboo_wall_sign", WALL_SIGN_PROP },
     { 0,   1,             17, "bamboo_mosaic", NO_PROP },
-    { 0, 105,   HIGH_BIT | 7, "bamboo_mosaic_slab", SLAB_PROP },
+    { 0, 105,   HIGH_BIT | 5, "bamboo_mosaic_slab", SLAB_PROP },
     { 0, 196,	    HIGH_BIT, "bamboo_mosaic_stairs", STAIRS_PROP },
 
  // Note: 140, 144 are reserved for the extra bit needed for BLOCK_FLOWER_POT and BLOCK_HEAD, so don't use these HIGH_BIT values
@@ -3018,6 +3018,8 @@ SectionsCode:
                             jungle sapling	sapling			3
                             acacia sapling	sapling			4
                             dark oak sapling	sapling		5
+                            mangrove sapling	sapling	    6
+                            cherry sapling	sapling		    7
                             dead bush		deadbush		0
                             fern			tallgrass		2
                             cactus			cactus			0

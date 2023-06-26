@@ -962,7 +962,7 @@ enum block_types {
     //BLOCK_LIGHT = 416,
 
     BLOCK_MANGROVE_LOG = 416,
-    BLOCK_MANGROVE_PLANKS = 417,
+    BLOCK_DECORATED_POT = 417,    // goofy numbering, I know. Was MANGROVE_PLANKS, but that's not needed.
     BLOCK_MANGROVE_DOOR = 418,
     BLOCK_MANGROVE_TRAPDOOR = 419,
     BLOCK_MANGROVE_PROPAGULE = 420,
