@@ -31,9 +31,14 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 // IDs here: https://minecraft.fandom.com/wiki/Biome/ID (ignore the ID numbers there) and https://minecraft.fandom.com/wiki/Biome#Temperature
 // Note new biomes and new biome names here in 1.18: https://minecraft.fandom.com/wiki/Java_Edition_1.18
+// To add a new biome: pick an "Unknown" slot, they no longer use numbers but we do. Find the temperature and precipitation
+// in the ...\data\minecraft\worldgen\biome file in the jar. The "temperature" is just that, the "downfall" is rainfall.
+// For grass color, search "grass_color" (if any) and convert to hex e.g. https://www.rapidtables.com/convert/number/decimal-to-hex.html
+// Same with foliage color, search "foliage_color".
+// There's something called "grass_color_modifier" for swamp, dark_forest, mangrove_swamp
 
 Biome gBiomes[256] = {	// IMPORTANT: do not change 256 size here.
-    //    ID    Name             Temperature, rainfall, grass, foliage colors
+    //    ID    Name                Temperature, rainfall, grass, foliage colors
     //                                                  - note: the colors here are just placeholders, they are computed in the program
     { /*   0 */ "Ocean",					0.5f, 0.5f, 0x92BD59, 0x77AB2F },	// default values of temp and rain
     { /*   1 */ "Plains",					0.8f, 0.4f, 0x92BD59, 0x77AB2F },
@@ -41,7 +46,7 @@ Biome gBiomes[256] = {	// IMPORTANT: do not change 256 size here.
     { /*   3 */ "Windswept Hills",			0.2f, 0.3f, 0x92BD59, 0x77AB2F },
     { /*   4 */ "Forest",					0.7f, 0.8f, 0x92BD59, 0x77AB2F },
     { /*   5 */ "Taiga",				   0.25f, 0.8f, 0x92BD59, 0x77AB2F },
-    { /*   6 */ "Swamp",					0.8f, 0.9f, 0x92BD59, 0x77AB2F },
+    { /*   6 */ "Swamp",					0.8f, 0.9f, 0x92BD59, 0x6A7039 },
     { /*   7 */ "River",					0.5f, 0.5f, 0x92BD59, 0x77AB2F },	// default values of temp and rain
     { /*   8 */ "Nether Wastes",			2.0f, 0.0f, 0x92BD59, 0x77AB2F },
     { /*   9 */ "The End",					0.5f, 0.5f, 0x92BD59, 0x77AB2F },	// default values of temp and rain
@@ -72,9 +77,9 @@ Biome gBiomes[256] = {	// IMPORTANT: do not change 256 size here.
     { /*  34 */ "Windswept Forest",			0.2f, 0.3f, 0x92BD59, 0x77AB2F },
     { /*  35 */ "Savanna",					1.2f, 0.0f, 0x92BD59, 0x77AB2F },
     { /*  36 */ "Savanna Plateau",			1.0f, 0.0f, 0x92BD59, 0x77AB2F },
-    { /*  37 */ "Badlands",					2.0f, 0.0f, 0x92BD59, 0x77AB2F },
-    { /*  38 */ "Wooded Badlands Plateau",	2.0f, 0.0f, 0x92BD59, 0x77AB2F },
-    { /*  39 */ "Badlands Plateau",			2.0f, 0.0f, 0x92BD59, 0x77AB2F },
+    { /*  37 */ "Badlands",					2.0f, 0.0f, 0x90814D, 0x9E814D },   // color affected; we put this here, but really, it needs to be put in ComputeBiomeColor()
+    { /*  38 */ "Wooded Badlands Plateau",	2.0f, 0.0f, 0x90814D, 0x9E814D },   // color affected, but not really part of Java set
+    { /*  39 */ "Badlands Plateau",			2.0f, 0.0f, 0x90814D, 0x9E814D },   // color affected, but not really part of Java set
     { /*  40 */ "Small End Islands",		0.5f, 0.5f, 0x92BD59, 0x77AB2F },
     { /*  41 */ "End Midlands",				0.5f, 0.5f, 0x92BD59, 0x77AB2F },
     { /*  42 */ "End Highlands",			0.5f, 0.5f, 0x92BD59, 0x77AB2F },
@@ -87,10 +92,10 @@ Biome gBiomes[256] = {	// IMPORTANT: do not change 256 size here.
     { /*  49 */ "Deep Cold Ocean",			0.5f, 0.5f, 0x92BD59, 0x77AB2F },
     { /*  50 */ "Deep Frozen Ocean",		0.5f, 0.5f, 0x92BD59, 0x77AB2F },
     { /*  51 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
-    { /*  52 */ "Wooded Badlands",			2.0f, 0.0f, 0x92BD59, 0x77AB2F },  // not actually this number, added in 1.18, have to put it somewhere
-    { /*  53 */ "Mangrove Swamp",				0.8f, 0.9f, 0x92BD59, 0x77AB2F },  // not actually this number, added in 1.19, have to put it somewhere - rainfall is a guess
-    { /*  54 */ "Deep Dark",    				0.8f, 0.5f, 0x92BD59, 0x77AB2F },  // not actually this number, added in 1.19, have to put it somewhere - matches Plains
-    { /*  55 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
+    { /*  52 */ "Wooded Badlands",			2.0f, 0.0f, 0x90814D, 0x9E814D },  // not actually this number, added in 1.18, have to put it somewhere
+    { /*  53 */ "Mangrove Swamp",			0.8f, 0.9f, 0x92BD59, 0x8DB127 },  // not actually this number, added in 1.19, have to put it somewhere; foliage color changed via JSON file, but really, change happens in ComputeBiomeColor()
+    { /*  54 */ "Deep Dark",    			0.8f, 0.4f, 0x92BD59, 0x77AB2F },  // not actually this number, added in 1.19, have to put it somewhere
+    { /*  55 */ "Cherry Grove",				0.5f, 0.8f, 0xB6DB61, 0xB6DB61 },  // not actually this number, added in 1.19, have to put it somewhere; color for plants from https://minecraft.fandom.com/wiki/Biome#Temperature, confirmed with JSON file. but really, change happens in ComputeBiomeColor()
     { /*  56 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /*  57 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /*  58 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
@@ -200,11 +205,11 @@ Biome gBiomes[256] = {	// IMPORTANT: do not change 256 size here.
     { /* 162 */ "Gravelly Mountains+",			0.2f, 0.3f, 0x92BD59, 0x77AB2F },
     { /* 163 */ "Windswept Savanna",			1.1f, 0.0f, 0x92BD59, 0x77AB2F },
     { /* 164 */ "Shattered Savanna Plateau",    1.0f, 0.0f, 0x92BD59, 0x77AB2F },
-    { /* 165 */ "Eroded Badlands",				2.0f, 0.0f, 0x92BD59, 0x77AB2F },
-    { /* 166 */ "Modified Wooded Badlands Plateau",    2.0f, 0.0f, 0x92BD59, 0x77AB2F },
-    { /* 167 */ "Modified Badlands Plateau",    2.0f, 0.0f, 0x92BD59, 0x77AB2F },
+    { /* 165 */ "Eroded Badlands",				2.0f, 0.0f, 0x90814D, 0x9E814D },   // color affected
+    { /* 166 */ "Modified Wooded Badlands Plateau",    2.0f, 0.0f, 0x90814D, 0x9E814D },   // color affected, but not really part of Java set
+    { /* 167 */ "Modified Badlands Plateau",    2.0f, 0.0f, 0x90814D, 0x9E814D },   // color affected, but not really part of Java set
     { /* 168 */ "Bamboo Jungle",			   0.95f, 0.9f, 0x92BD59, 0x77AB2F },
-    { /* 168 */ "Bamboo Jungle Hills",		   0.95f, 0.9f, 0x92BD59, 0x77AB2F },
+    { /* 168 */ "Bamboo Jungle Hills",		   0.95f, 0.9f, 0x92BD59, 0x77AB2F },   // no longer exists, no json file
     { /* 170 */ "Soul Sand Valley",				2.0f, 0.0f, 0x92BD59, 0x77AB2F },
     { /* 171 */ "Crimson Forest",				2.0f, 0.0f, 0x92BD59, 0x77AB2F },
     { /* 172 */ "Warped Forest",				2.0f, 0.0f, 0x92BD59, 0x77AB2F },
@@ -373,7 +378,6 @@ int ComputeBiomeColor(int biome, int elevation, int isGrass)
     switch (biome)
     {
     case SWAMPLAND_BIOME:
-    case MANGROVE_SWAMP_BIOME:
         // the fefefe makes it so that carries are copied to the low bit,
         // then their magic "go to green" color offset is added in, then
         // divide by two gives a carry that will nicely go away.
@@ -388,16 +392,17 @@ int ComputeBiomeColor(int biome, int elevation, int isGrass)
         //         return temperature < -0.1D ? 0x4c763c : 0x6a7039;
         // where temperature is varied by PerlinNoise, but I haven't recreated the
         // PerlinNoise function yet. Rich green vs. sickly swamp brown. I'm going with brown.
+        // More explanation of use of noise function here:
+        // In Swamp and Mangrove Swamp, the color for grass blocks, ferns in flower pots, grass, sugar canes, and the stems of pink petals
+        // is based on a noise on XZ plane. When the value of this noise is less than -0.1, it uses the color 
+        // #4c763c. Otherwise using #6a7039. The color for vines and leaves of oaks, jungles, acacias, dark oaks and mangroves is
+        // #6a7039 in Swamp and #8db127 in Mangrove Swamp, which are not affected by the colormap.
         return 0x6a7039;
 
-        // These are actually perfectly normal. Only sub-type 3, roofed forest, is different.
-        //case FOREST_BIOME:	// forestType 0
-        //case FOREST_HILLS_BIOME:	// forestType 0
-        //case BIRCH_FOREST_BIOME:	// forestType 2
-        //case BIRCH_FOREST_HILLS_BIOME:	// forestType 2
-        //	break;
+    case MANGROVE_SWAMP_BIOME:
+        return isGrass ? 0x6a7039 : 0x8db127;
 
-    case ROOFED_FOREST_BIOME:	// forestType 3
+    case DARK_FOREST_BIOME:	// forestType 3, see https://minecraft.fandom.com/wiki/Biome
         if (isGrass)
         {
             int color = BiomeGrassColor(gBiomes[biome].temperature, gBiomes[biome].rainfall, elevation);
@@ -411,11 +416,19 @@ int ComputeBiomeColor(int biome, int elevation, int isGrass)
             return BiomeFoliageColor(gBiomes[biome].temperature, gBiomes[biome].rainfall, elevation);
         }
 
-    case MESA_BIOME:
-    case MESA_PLATEAU_F_BIOME:
-    case MESA_PLATEAU_BIOME:
-        // yes, it's hard-wired
+    case BADLANDS_BIOME:
+    case WOODED_BADLANDS_PLATEAU_BIOME:
+    case BADLANDS_PLATEAU_BIOME:
+    case WOODED_BADLANDS_BIOME:
+    case 165:   // badlands, but really exists only in Bedrock Edition
+    case 166:
+    case 167:
+        // yes, it's hard-wired, see https://minecraft.fandom.com/wiki/Biome
         return isGrass ? 0x90814d : 0x9e814d;
+
+    case CHERRY_GROVE_BIOME:
+        // yes, it's hard-wired, same for both, brighter green, see https://minecraft.fandom.com/wiki/Biome
+        return isGrass ? 0xb6db61 : 0xb6db61;
 
     default:
         return isGrass ? BiomeGrassColor(gBiomes[biome].temperature, gBiomes[biome].rainfall, elevation) :

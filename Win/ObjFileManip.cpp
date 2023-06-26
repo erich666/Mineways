@@ -3861,6 +3861,8 @@ static int computeFlatFlags(int boxIndex)
     case BLOCK_WARPED_BUTTON:
     case BLOCK_POLISHED_BLACKSTONE_BUTTON:
     case BLOCK_MANGROVE_BUTTON:
+    case BLOCK_CHERRY_BUTTON:
+    case BLOCK_BAMBOO_BUTTON:
         switch (gBoxData[boxIndex].data & 0x7)
         {
         case 0: // at top of block, +Y
@@ -6476,6 +6478,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_WARPED_BUTTON:
     case BLOCK_POLISHED_BLACKSTONE_BUTTON:
     case BLOCK_MANGROVE_BUTTON:
+    case BLOCK_CHERRY_BUTTON:
+    case BLOCK_BAMBOO_BUTTON:
         // The bottom 3 bits is direction of button. Top bit is whether it's pressed.
         bitAdd = (dataVal & 0x8) ? 1.0f : 0.0f;
         miny = 6;
@@ -6997,16 +7001,21 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_CRIMSON_DOOR:
     case BLOCK_WARPED_DOOR:
     case BLOCK_MANGROVE_DOOR:
-        swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+    case BLOCK_CHERRY_DOOR:
+    case BLOCK_BAMBOO_DOOR:
+        // swatchLoc is the *top* facing part of the door
+        topSwatchLoc = swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
         // at top of door, so get bottom swatch loc, as we use this for the top and bottom faces
         if (type == BLOCK_WOODEN_DOOR || type == BLOCK_IRON_DOOR)
         {
             // top happens to be +16 further on
+            // so bottom swatch of door is:
             bottomSwatchLoc = swatchLoc + 16;
         }
         else
         {
             // bottom happens to be -1 back
+            // so bottom swatch of door is:
             bottomSwatchLoc = swatchLoc - 1;
         }
 
@@ -7021,6 +7030,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         }
         else
         {
+            // bottom of door - switch to that for sides
             swatchLoc = bottomSwatchLoc;
             topDataVal = gBoxData[boxIndex + 1].data;
             bottomDataVal = dataVal;
@@ -7061,8 +7071,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // TODO: note that Minecraft does not generate its doors like this. The difference is in the top (and bottom) of the door.
         // Their doors are oriented and so use different pieces of the texture for the tops and bottoms, depending on which direction
         // the door faces (and maybe open/closed). Minecraft appears to grab a strip from the left edge of the bottom tile, or something.
+        // We always use the bottomSwatchLoc for the door's top *and* bottom, as the top piece can look bad.
         gUsingTransform = 1;
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, bottomSwatchLoc, swatchLoc, bottomSwatchLoc, 1, 0x0, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 13 - fatten, 16);
+        saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, swatchLoc, bottomSwatchLoc, 1, 0x0, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 13 - fatten, 16);
         gUsingTransform = 0;
 
         identityMtx(mtx);
@@ -19811,6 +19822,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_CRIMSON_DOOR:
         case BLOCK_WARPED_DOOR:
         case BLOCK_MANGROVE_DOOR:
+        case BLOCK_CHERRY_DOOR:
+        case BLOCK_BAMBOO_DOOR:
             // top half is default
             if ((faceDirection == DIRECTION_BLOCK_TOP) ||
                 (faceDirection == DIRECTION_BLOCK_BOTTOM))
@@ -19820,16 +19833,16 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 default:
                     assert(0);
                 case BLOCK_WOODEN_DOOR:
-                    swatchLoc = SWATCH_INDEX(4, 0);
+                    swatchLoc = SWATCH_INDEX(4, 0); // planks
                     break;
                 case BLOCK_IRON_DOOR:
-                    swatchLoc = SWATCH_INDEX(6, 1);
+                    swatchLoc = SWATCH_INDEX(6, 1); // iron block
                     break;
                 case BLOCK_SPRUCE_DOOR:
-                    swatchLoc = SWATCH_INDEX(6, 12);
+                    swatchLoc = SWATCH_INDEX(6, 12); // spruce planks
                     break;
                 case BLOCK_BIRCH_DOOR:
-                    swatchLoc = SWATCH_INDEX(6, 13);
+                    swatchLoc = SWATCH_INDEX(6, 13); // birch planks
                     break;
                 case BLOCK_JUNGLE_DOOR:
                     swatchLoc = SWATCH_INDEX(7, 12);
@@ -19847,7 +19860,13 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     swatchLoc = SWATCH_INDEX(8, 44);
                     break;
                 case BLOCK_MANGROVE_DOOR:
-                    swatchLoc = SWATCH_INDEX(10, 54);
+                    swatchLoc = SWATCH_INDEX(0, 55);
+                    break;
+                case BLOCK_CHERRY_DOOR:
+                    swatchLoc = SWATCH_INDEX(8, 57);
+                    break;
+                case BLOCK_BAMBOO_DOOR:
+                    swatchLoc = SWATCH_INDEX(14, 60); // bamboo planks
                     break;
                 }
             }
@@ -19869,6 +19888,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 case BLOCK_CRIMSON_DOOR:
                 case BLOCK_WARPED_DOOR:
                 case BLOCK_MANGROVE_DOOR:
+                case BLOCK_CHERRY_DOOR:
+                case BLOCK_BAMBOO_DOOR:
                     // door tiles are in order bottom, top
                     swatchLoc--;
                     break;
@@ -23883,11 +23904,11 @@ static TypeTile multTable[MULT_TABLE_SIZE] = {
     { BLOCK_DOUBLE_FLOWER /* double flower, fern top */, 9,18, {0,0,0} },
 
     // affected by foliage biome - change MULT_TABLE_NUM_FOLIAGE definition to +1 more if you add any
-    { BLOCK_LEAVES /* leaves, fancy: oak_leaves */, 4, 3, {0,0,0} },
+    { BLOCK_LEAVES /* (oak) leaves, fancy: oak_leaves */, 4, 3, {0,0,0} },  // see https://minecraft.fandom.com/wiki/Biome
     { BLOCK_LEAVES /* jungle leaves, fancy */, 4, 12, {0,0,0} },
-    { BLOCK_LEAVES /* mangrove leaves, fancy */, 11, 54, {0,0,0} },
     { BLOCK_AD_LEAVES /* acacia leaves, fancy */,  9, 19, {0,0,0} },
     { BLOCK_AD_LEAVES /* dark oak leaves, fancy */, 11, 19, {0,0,0} },
+    { BLOCK_MANGROVE_LEAVES /* mangrove leaves, fancy */, 11, 54, {0,0,0} },
 
     // water - possibly affected by swampland
     { BLOCK_WATER /* water */, 15, 13, { 0, 0, 0 } },
@@ -23898,7 +23919,7 @@ static TypeTile multTable[MULT_TABLE_SIZE] = {
     // not affected by biomes
 
     // These two have fixed colors, unchangeable in Minecraft (and there are no controls in Mineways, because of this)
-    { BLOCK_LEAVES /* spruce leaves fancy */, 4, 8, {61,98,61} },	// 0x3D623D
+    { BLOCK_LEAVES /* spruce leaves fancy */, 4, 8, {61,98,61} },	// 0x3D623D. Not sure where these numbers came from, I think I back-solved.
     { BLOCK_LEAVES /* birch leaves, fancy */, 13,13, {107,141,70} },	// 0x6B8D46
 
     { BLOCK_LILY_PAD /* lily pad */, 12, 4, {0,0,0} },
@@ -32598,6 +32619,8 @@ static bool faceCanTile(int faceId)
     case BLOCK_WARPED_BUTTON:
     case BLOCK_POLISHED_BLACKSTONE_BUTTON:
     case BLOCK_MANGROVE_BUTTON:
+    case BLOCK_CHERRY_BUTTON:
+    case BLOCK_BAMBOO_BUTTON:
     case BLOCK_FENCE_GATE:
     case BLOCK_SPRUCE_FENCE_GATE:
     case BLOCK_BIRCH_FENCE_GATE:

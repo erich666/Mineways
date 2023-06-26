@@ -39,13 +39,17 @@ int BiomeSwampRiverColor(int color);
 #define FOREST_HILLS_BIOME			18
 #define BIRCH_FOREST_BIOME			27
 #define BIRCH_FOREST_HILLS_BIOME	28
-#define ROOFED_FOREST_BIOME			29
+#define DARK_FOREST_BIOME			29
 
-#define MESA_BIOME					37
-#define MESA_PLATEAU_F_BIOME		38
-#define MESA_PLATEAU_BIOME			39
+#define BADLANDS_BIOME					37
+#define WOODED_BADLANDS_PLATEAU_BIOME	38
+#define BADLANDS_PLATEAU_BIOME			39
 
-#define MANGROVE_SWAMP_BIOME        53        
+#define WOODED_BADLANDS_BIOME       52
+
+#define MANGROVE_SWAMP_BIOME        53   
+
+#define CHERRY_GROVE_BIOME          55
 
 // higher values theoretically possible if Bedrock conversion went bad, but this is the realistic value
 #define MAX_VALID_BIOME_ID          182
@@ -53,7 +57,7 @@ int BiomeSwampRiverColor(int color);
 typedef struct Biome {
     const char* name;
     float temperature;
-    float rainfall;
+    float rainfall; // now called "downfall" elsewhere
     unsigned int grass;	// r,g,b, NOT multiplied by alpha
     unsigned int foliage;	// r,g,b, NOT multiplied by alpha
     int hashSum;    // for lowercase name found in world, what's its hash sum?

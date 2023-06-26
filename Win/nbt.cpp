@@ -1351,7 +1351,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, BLOCK_FLOWER_POT,        SAPLING_FIELD | 7, "potted_cherry_sapling", NO_PROP },
     { 0,   1,             16, "bamboo_block", NO_PROP },
     { 0, 189,       HIGH_BIT, "bamboo_button", BUTTON_PROP },
-    { 0, 180,       HIGH_BIT, "bamboo_door", DOOR_PROP },
+    { 0, 190,       HIGH_BIT, "bamboo_door", DOOR_PROP },
     { 0, 191,       HIGH_BIT, "bamboo_fence", FENCE_AND_VINE_PROP },
     { 0, 192,       HIGH_BIT, "bamboo_fence_gate", FENCE_GATE_PROP },
     { 0,   5,              9, "bamboo_planks", NO_PROP },
@@ -3845,6 +3845,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
 
                             // TODOTODOTODO
                             else if (strcmp(token, "cracked") == 0) {}	// for sniffer egg
+                            else if (strcmp(token, "flower_amount") == 0) {}	// for pink flowers
                             else {
                                 // unknown property - look at token and value
                                 assert(0);

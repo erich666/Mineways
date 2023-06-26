@@ -5731,6 +5731,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_CRIMSON_DOOR:
     case BLOCK_WARPED_DOOR:
     case BLOCK_MANGROVE_DOOR:
+    case BLOCK_CHERRY_DOOR:
+    case BLOCK_BAMBOO_DOOR:
         bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
         block->grid[bi] = (unsigned char)type;
         block->data[bi] = (unsigned char)((dataVal & 0x7) | (finalDataVal & HIGH_BIT));
@@ -5792,6 +5794,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_WARPED_BUTTON:
     case BLOCK_POLISHED_BLACKSTONE_BUTTON:
     case BLOCK_MANGROVE_BUTTON:
+    case BLOCK_CHERRY_BUTTON:
+    case BLOCK_BAMBOO_BUTTON:
         trimVal = dataVal & 0x7;
         if (trimVal <= 5)
         {
