@@ -118,7 +118,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /*  44 */ "Stone Slab",             		0xa5a5a5, 1.000f, 0xff7711, 0xff7711, 0.12345f,  10,23, 0x07, BLF_HALF | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG},	//2c/44 - was 6,0, and 5,0 side
     { /*  45 */ "Bricks",                 		0x985542, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7, 0, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//2d 
     { /*  46 */ "TNT",                    		0xdb441a, 1.000f, 0xff7711, 0xff7711, 0.12345f,   9, 0, 0x01, BLF_WHOLE},	//2e 7,0 side, 9,0 under
-    { /*  47 */ "Bookshelf",              		0x795a39, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 0, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//2f 3,2
+    { /*  47 */ "Bookshelf",              		0x795a39, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 0, 0x10, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//2f 3,2
     { /*  48 */ "Mossy Cobblestone",      		0x627162, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 2, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//30
     { /*  49 */ "Obsidian",               		0x1b1729, 1.000f, 0xff7711, 0xff7711, 0.12345f,   5, 2, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//31
     { /*  50 */ "Torch",                  		0xfcfc00, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 5, 0x00, BLF_MIDDLER | BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_EMITTER | BLF_DNE_FLUID},	//32/50 - should be BLF_EMITTER, flatten torches only if sides get flattened, too
@@ -245,7 +245,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 167 */ "Iron Trapdoor",          		0xC0C0C0, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2,22, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_FLATTEN | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },	// A7/167 - 1.8
     { /* 168 */ "Prismarine",             		0x66ADA1, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12,22, 0x03, BLF_WHOLE | BLF_FENCE_NEIGHBOR },	// 1.8 add
     { /* 169 */ "Sea Lantern",            		0xD3DBD3, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14,22, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_EMITTER },   //59
-    { /* 170 */ "Hay Bale",               		0xB5970C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  10,15, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },	// AA/170
+    { /* 170 */ "Hay Bale",               		0xB5970C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  10,15, 0x03, BLF_WHOLE | BLF_FENCE_NEIGHBOR },	// AA/170
     { /* 171 */ "Carpet",                 		0xEAEDED, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, 0x1f, BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },	// AB/171
     { /* 172 */ "Terracotta",	         		0x945A41, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,17, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },	// same as 159, except that it doesn't have names
     { /* 173 */ "Block of Coal",          		0x191919, 1.000f, 0xff7711, 0xff7711, 0.12345f,  13,14, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	// AD/173

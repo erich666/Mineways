@@ -19983,7 +19983,39 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             break;
         case BLOCK_BOOKSHELF:						// getSwatch
-            SWATCH_SWITCH_SIDE(faceDirection, 3, 2);
+            if (dataVal & BIT_16)
+            {
+                // sides and top/bottom
+                SWATCH_SWITCH_SIDE_VERTICAL(faceDirection, 8, 61, 7, 61);
+                // now, for one of the side faces, put occupied or not
+                frontLoc = SWATCH_INDEX(9 + ((dataVal & 0x8) ? 1:0), 61);
+                // Look at direction, change that face. A bit inefficient.
+                switch (dataVal & 0x7)
+                {
+                default:
+                    assert(0);
+                case 4: // North
+                    if (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z)
+                        swatchLoc = frontLoc;
+                    break;
+                case 3: // South, which is really the west side, i.e. HI_Z
+                    if (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z)
+                        swatchLoc = frontLoc;
+                    break;
+                case 2: // West
+                    if (faceDirection == DIRECTION_BLOCK_SIDE_LO_X)
+                        swatchLoc = frontLoc;
+                    break;
+                case 1: // East
+                    if (faceDirection == DIRECTION_BLOCK_SIDE_HI_X)
+                        swatchLoc = frontLoc;
+                    break;
+                }
+            }
+            else {
+                // normal old bookshelf
+                SWATCH_SWITCH_SIDE(faceDirection, 3, 2);
+            }
             break;
         case BLOCK_WOODEN_DOOR:						// getSwatch
         case BLOCK_IRON_DOOR:
@@ -21206,8 +21238,23 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             default: // make compiler happy
                 assert(0);  // yes, fall-through
             case BLOCK_HAY:
-                xloc = 10;
-                yloc = 15;
+                switch (dataVal & 0x3) {
+                default:
+                    assert(0);
+                case 0:
+                    // top, minus 1 for side
+                    xloc = 10;
+                    yloc = 15;
+                    break;
+                case 1: // bamboo block
+                    xloc = 5;
+                    yloc = 60;
+                    break;
+                case 2: // stripped bamboo block
+                    xloc = 5;
+                    yloc = 61;
+                    break;
+                }
                 break;
             case BLOCK_PURPUR_PILLAR:
                 xloc = 2;

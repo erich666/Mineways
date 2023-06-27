@@ -1489,7 +1489,7 @@ void printHelp()
 	wprintf(L"  -s - take the average color of the incoming tile and output this solid color.\n");
 	wprintf(L"  -S - as above, but preserve the cutout transparent areas.\n");
 	wprintf(L"  -dcn - don't clean normals. Many normal maps are poorly formed, with normals pointing\n    down into the surface, or the normals are not normalized, or Z is always 255.\n    This option turns off the normal cleaning feature.\n");
-	wprintf(L"  -u - show all image files encountered that are not standard Minecraft block or chest names.\n");
+	wprintf(L"  -u - report all image files encountered that are not standard Minecraft block or chest names.\n");
 }
 
 // Shares textures found, as possible. If both or neither exist, nothing to do.

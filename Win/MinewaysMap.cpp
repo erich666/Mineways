@@ -1671,6 +1671,11 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Blast Furnace";
         }
         break;
+    case BLOCK_BOOKSHELF:
+        if (dataVal & BIT_16) {
+            return "Chiseled Bookshelf";
+        }
+        break;
     case BLOCK_CRAFTING_TABLE:
         switch (dataVal & 0xf)
         {
@@ -2176,7 +2181,6 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         {
         default:
             assert(0);
-            break;
         case 0:
             break;
         case 1:
@@ -2197,6 +2201,21 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         if (dataVal)
         {
             return "Cherry Leaves";
+        }
+        break;
+
+    case BLOCK_HAY:
+        switch (dataVal & 0x3)
+        {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case 1:
+            return "Block of Bamboo";
+        case 2:
+            return "Block of Stripped Bamboo";
         }
         break;
 
@@ -3778,6 +3797,17 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         }
         break;
 
+    case BLOCK_BOOKSHELF:
+        dataVal = block->data[voxel];
+        if (dataVal & BIT_16) {
+            color = 0xB3925A;
+        }
+        else {
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+        }
+        break;
+
     case BLOCK_CRAFTING_TABLE:
         dataVal = block->data[voxel];
         switch (dataVal & 0xf) {
@@ -4122,6 +4152,25 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             break;
         case 1:	// cherry
             color = 0xCA9C96;
+            break;
+        }
+        break;
+
+    case BLOCK_HAY:
+        dataVal = block->data[voxel];
+        switch (dataVal & 0x3)
+        {
+        default:
+            assert(0);
+        case 0:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 1:	// block of bamboo
+            color = 0x909143;
+            break;
+        case 2:	// block of stripped bamboo
+            color = 0xB8A44D;
             break;
         }
         break;
@@ -5563,6 +5612,16 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             finalDataVal = ((dataVal & 0xC) << 2) + (dataVal & 0x3) + 2;
         }
         break;
+    case BLOCK_BOOKSHELF:
+        // uses 0 and 2-5 and 10-13, remapping dataVal to the four facings of the chiseled bookshelf, empty and occupied
+        if (dataVal == 0) {
+            addBlock = 1;
+        }
+        else if ((dataVal & 0x7) >= 2 && (dataVal & 0x7) <= 5) {
+            addBlock = 1;
+            finalDataVal = dataVal | BIT_16;
+        }
+        break;
     case BLOCK_DISPENSER:
     case BLOCK_DROPPER:
         if (dataVal <= 5)
@@ -6411,6 +6470,12 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
 
     case BLOCK_HAY:
+        // uses 0-2,4-6,8-10
+        if (dataVal < 11 && (dataVal%4 != 3)) {
+            addBlock = 1;
+        }
+        break;
+
     case BLOCK_PURPUR_PILLAR:
         // uses 0,4,8
         if ((dataVal == 0) || (dataVal == 4) || (dataVal == 8)) {
