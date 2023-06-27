@@ -511,7 +511,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 425 */ "Mangrove Stairs",              0x773932, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 55, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 426 */ "Mud Brick Stairs",             0x8B6950, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 55, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 427 */ "Mangrove Sign",          		0x773932, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 55, 0x30, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
-    { /* 428 */ "Mangrove Wall Sign",           0x773932, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 55, 0x30, BLF_FLATTEN_SMALL | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG },
+    { /* 428 */ "Mangrove Wall Sign",           0x773932, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 55, 0x18, BLF_FLATTEN_SMALL | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG },
     { /* 429 */ "Mangrove Pressure Plate",   	0x773932, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 55, 0x00, BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_CONNECTS_REDSTONE },
     { /* 430 */ "Mangrove Button",        		0x773932, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 55, 0x00, BLF_FLATTEN_SMALL | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },
     { /* 431 */ "Mangrove Fence",           	0x773932, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 55, 0x00, BLF_MIDDLER | BLF_FENCE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },

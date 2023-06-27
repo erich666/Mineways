@@ -6897,10 +6897,28 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             }
         }
         else {
-            // mangrove sign
-            topSwatchLoc = SWATCH_INDEX(0, 55);   // planks
-            bottomSwatchLoc = SWATCH_INDEX(12, 54);   // end of log, for the post
-            sideSwatchLoc = SWATCH_INDEX(13, 54);    // log bark, for the post
+            // Mangrove, cherry, bamboo
+            switch (dataVal & (BIT_32 | BIT_16)) {
+            default:
+            case 0:
+                // mangrove
+                topSwatchLoc = SWATCH_INDEX(0, 55);   // planks
+                bottomSwatchLoc = SWATCH_INDEX(12, 54);   // end of log, for the post
+                sideSwatchLoc = SWATCH_INDEX(13, 54);    // log bark, for the post
+                break;
+            case BIT_16:
+                // cherry
+                topSwatchLoc = SWATCH_INDEX(8, 57);   // planks
+                bottomSwatchLoc = SWATCH_INDEX(7, 57);   // end of log, for the post
+                sideSwatchLoc = SWATCH_INDEX(6, 57);    // log bark, for the post
+                break;
+            case BIT_32:
+                // bamboo
+                topSwatchLoc = sideSwatchLoc = SWATCH_INDEX(14, 60);   // planks
+                bottomSwatchLoc = SWATCH_INDEX(6, 60);   // end of log, for the post
+                sideSwatchLoc = SWATCH_INDEX(5, 60);    // log bark, for the post
+                break;
+            }
         }
         // sign is two parts:
         // bottom post is output first, which saves one translation
