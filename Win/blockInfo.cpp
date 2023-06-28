@@ -500,7 +500,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 414 */ "Deepslate Brick Stairs",       0x4B4B4B, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 53, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 415 */ "Deepslate Tile Stairs",        0x39393A, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 53, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 416 */ "Mangrove Log",          		0x68342B, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 54, 0x11, BLF_WHOLE | BLF_TRUNK_PART | BLF_FENCE_NEIGHBOR },
-    { /* 417 */ "Decorated Pot",             	0x82493C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 61, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_MAYWATERLOG },
+    { /* 417 */ "Decorated Pot",                0x905142, 1.000f, 0xff7711, 0xff7711, 0.12345f,  3, 61, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_MAYWATERLOG },
     { /* 418 */ "Mangrove Door",            	0x723430, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 54, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
     { /* 419 */ "Mangrove Trapdoor",      		0x70332C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  5, 55, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_FLATTEN | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },   // tricky case: could be a flattop, or a flatside. For now, render it
     { /* 420 */ "Mangrove Propagule",           0x63B156, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 55, 0x00, BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_MAYWATERLOG },
@@ -536,7 +536,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 450 */ "Bamboo Stairs",                0xC4AF52, 1.000f, 0xff7711, 0xff7711, 0.12345f, 14, 60, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 451 */ "Bamboo Trapdoor",              0xC9B560, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 60, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_FLATTEN | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },   // tricky case: could be a flattop, or a flatside. For now, render it
     { /* 452 */ "Bamboo Mosaic Stairs",         0xC0AC4F, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13, 60, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
-
+ 
     // Important note: 396 is skipped, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
 };
 
