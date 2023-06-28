@@ -488,7 +488,7 @@ typedef struct Options {
 #define BLF_EMITTER         0x10000
 // this object attaches to fences; note that fences do not have this property themselves, so that nether & regular fence won't attach
 #define BLF_FENCE_NEIGHBOR	0x20000
-// this object outputs its true geometry (not just a block) for rendering
+// this object outputs its true geometry (not just a block) for rendering. Look at the next bit BLF_3D_BIT for 3D printing if it can output geometry as-is for that.
 #define BLF_TRUE_GEOMETRY	0x40000
 // this object outputs its special non-full-block geometry for 3D printing, if the printer can glue together the bits.
 // Slightly different than TRUE_GEOMETRY in that things that are just too thin don't have this bit set.

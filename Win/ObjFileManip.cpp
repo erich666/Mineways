@@ -22230,9 +22230,13 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             break;
 
-        case BLOCK_MANGROVE_ROOTS:
+        case BLOCK_MANGROVE_ROOTS:  // getSwatch
             // roots - set everything to side unless it's a top or bottom
             SWATCH_SWITCH_SIDE(faceDirection, 4, 55);
+            break;
+
+        case BLOCK_DECORATED_POT:   // getSwatch
+            SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 0, 61, 4, 61);
             break;
 
         default:
@@ -22287,7 +22291,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
     }
 
     return swatchLoc;
-}
+}   // endend
 
 // if we have a cutout swatch, we need to also add the swatch to the library
 // Note that currently we don't rotate the background texture properly compared to the swatch itself - tough.
@@ -24411,25 +24415,23 @@ static int createBaseMaterialTexture()
             // but is better than just being black.
             SWATCH_TO_COL_ROW(SWATCH_INDEX(gBlockDefinitions[BLOCK_SCULK_SENSOR].txrX, gBlockDefinitions[BLOCK_SCULK_SENSOR].txrY) + 1, dstCol, dstRow);
             copyPNGArea(mainprog,
-                gModel.swatchSize* dstCol + SWATCH_BORDER,    // copy to middle
-                gModel.swatchSize* dstRow + SWATCH_BORDER,
+                gModel.swatchSize * dstCol + SWATCH_BORDER,    // copy to middle
+                gModel.swatchSize * dstRow + SWATCH_BORDER,
                 gModel.tileSize, gModel.tileSize / 2,
                 mainprog,
-                gModel.swatchSize* dstCol + SWATCH_BORDER,
-                gModel.swatchSize* dstRow + SWATCH_BORDER + (gModel.tileSize / 2) + 1
+                gModel.swatchSize * dstCol + SWATCH_BORDER,
+                gModel.swatchSize * dstRow + SWATCH_BORDER + (gModel.tileSize / 2) + 1
             );
             // and calibrated sculk sensor, too
             SWATCH_TO_COL_ROW(SWATCH_INDEX(1,57), dstCol, dstRow);
             copyPNGArea(mainprog,
-                gModel.swatchSize* dstCol + SWATCH_BORDER,    // copy to middle
-                gModel.swatchSize* dstRow + SWATCH_BORDER,
+                gModel.swatchSize * dstCol + SWATCH_BORDER,    // copy to middle
+                gModel.swatchSize * dstRow + SWATCH_BORDER,
                 gModel.tileSize, gModel.tileSize / 2,
                 mainprog,
-                gModel.swatchSize* dstCol + SWATCH_BORDER,
-                gModel.swatchSize* dstRow + SWATCH_BORDER + (gModel.tileSize / 2) + 1
+                gModel.swatchSize * dstCol + SWATCH_BORDER,
+                gModel.swatchSize * dstRow + SWATCH_BORDER + (gModel.tileSize / 2) + 1
             );
-
-            // copy left and right edges of decorated pot side to edges. TODOTODO: also access sides and bottom when exporting 3d print full (get swatch)
         }
         else
         {
@@ -24475,6 +24477,25 @@ static int createBaseMaterialTexture()
             mainprog,
             gModel.swatchSize * dstCol + gModel.tileSize * 10 / 16 + SWATCH_BORDER,
             gModel.swatchSize * dstRow + gModel.tileSize * 3 / 16 + SWATCH_BORDER
+        );
+
+        // copy left and right edges of decorated pot side to edges. For 3D printing, needed for full block; otherwise, avoids any black bleed.
+        SWATCH_TO_COL_ROW(SWATCH_INDEX(0, 61), dstCol, dstRow);
+        copyPNGArea(mainprog,
+            gModel.swatchSize * dstCol + SWATCH_BORDER,    // copy left edge to edge
+            gModel.swatchSize * dstRow + SWATCH_BORDER,
+            1, gModel.tileSize,
+            mainprog,
+            gModel.swatchSize * dstCol + 1 + SWATCH_BORDER,
+            gModel.swatchSize * dstRow + SWATCH_BORDER
+        );
+        copyPNGArea(mainprog,
+            gModel.swatchSize * dstCol + gModel.tileSize - 1 + SWATCH_BORDER,    // copy right edge to edge
+            gModel.swatchSize * dstRow + SWATCH_BORDER,
+            1, gModel.tileSize,
+            mainprog,
+            gModel.swatchSize * dstCol + gModel.tileSize - 2 + SWATCH_BORDER,
+            gModel.swatchSize * dstRow + SWATCH_BORDER
         );
 
         // Don't need to do this for gTextureTile, since we don't output or otherwise use the fringes
@@ -25011,8 +25032,8 @@ static int createBaseMaterialTexture()
             stretchSwatchToFill(mainprog, SWATCH_INDEX(5, 41), 0, 7, 15, 15);
 
             // decorated pot top and bottom
-            stretchSwatchToFill(mainprog, SWATCH_INDEX(3, 61), 0, 7, 15, 15);
-            stretchSwatchToFill(mainprog, SWATCH_INDEX(4, 61), 0, 7, 15, 15);
+            stretchSwatchToFill(mainprog, SWATCH_INDEX(3, 61), 1, 1, 14, 14);
+            stretchSwatchToFill(mainprog, SWATCH_INDEX(4, 61), 1, 1, 14, 14);
         }
     }
 
