@@ -1057,7 +1057,7 @@ static struct {
     { 10, 60, 448, 0, L"bamboo_fence_gate", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
     { 11, 60, 448, 0, L"bamboo_fence_gate_particle", L"", SWATCH_REPEAT_ALL },
     { 12, 60, 447, 0, L"bamboo_fence_particle", L"", SWATCH_REPEAT_ALL },
-    { 13, 60,   0, 0, L"bamboo_mosaic", L"", SWATCH_REPEAT_ALL },
+    { 13, 60,   5, 0, L"bamboo_mosaic", L"", SWATCH_REPEAT_ALL },
     { 14, 60,   5, 0, L"bamboo_planks", L"", SWATCH_REPEAT_ALL },
     { 15, 60, 451, 0, L"bamboo_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
     {  0, 61, 417, 0, L"decorated_pot_side", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_CUTOUT_GEOMETRY },

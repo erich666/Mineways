@@ -5989,6 +5989,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_MUD_BRICK_STAIRS:
     case BLOCK_CHERRY_STAIRS:
     case BLOCK_BAMBOO_STAIRS:
+    case BLOCK_BAMBOO_MOSAIC_STAIRS:
         // set texture
         switch (type)
         {
@@ -6430,6 +6431,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 break;
             case 4: // polished_blackstone_brick_slab
                 topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(5, 46);
+                break;
+            case 5: // bamboo_mosaic_slab
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(13, 60);
                 break;
             }
             break;
@@ -12468,6 +12472,7 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
             case BLOCK_MUD_BRICK_STAIRS:
             case BLOCK_CHERRY_STAIRS:
             case BLOCK_BAMBOO_STAIRS:
+            case BLOCK_BAMBOO_MOSAIC_STAIRS:
                 // TODO: Right now stairs are dumb: only the large rectangle of the base is returned.
                 // Returning the little block, which can further be trimmed to a cube, is a PAIN.
                 // This does mean the little stair block sides won't be deleted. Ah well.
@@ -17406,6 +17411,7 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_MUD_BRICK_STAIRS:
         case BLOCK_CHERRY_STAIRS:
         case BLOCK_BAMBOO_STAIRS:
+        case BLOCK_BAMBOO_MOSAIC_STAIRS:
             switch (neighborDataVal & 0x3)
             {
             default:    // make compiler happy
@@ -19012,6 +19018,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case 10: // bamboo
                 swatchLoc = SWATCH_INDEX(14, 60);
+                break;
+            case 11: // bamboo mosaic
+                swatchLoc = SWATCH_INDEX(13, 60);
                 break;
             }
             break;
@@ -21246,12 +21255,12 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     xloc = 10;
                     yloc = 15;
                     break;
-                case 1: // bamboo block
-                    xloc = 5;
+                case 1: // bamboo block top
+                    xloc = 6;
                     yloc = 60;
                     break;
-                case 2: // stripped bamboo block
-                    xloc = 5;
+                case 2: // stripped bamboo block top
+                    xloc = 6;
                     yloc = 61;
                     break;
                 }
@@ -21262,8 +21271,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             }
             // use data to figure out direction of pillar
-            switch (dataVal & 0xf)
+            switch (dataVal & 0xc)  // bottom two bits are for different types of hay (bamboo)
             {
+            default:
+                assert(0);
             case 0: // pillar vertical
                 SWATCH_SWITCH_SIDE_VERTICAL(faceDirection, xloc - 1, yloc, xloc, yloc);
                 break;
@@ -21307,8 +21318,6 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     break;
                 }
                 break;
-            default:
-                assert(0);
             }
             break;
 
@@ -21659,6 +21668,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case 4: // polished_blackstone_brick_slab
                 swatchLoc = SWATCH_INDEX(5, 46);
+                break;
+            case 5: // bamboo_mosaic_slab
+                swatchLoc = SWATCH_INDEX(13, 60);
                 break;
             }
             break;

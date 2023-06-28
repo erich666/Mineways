@@ -975,6 +975,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Cherry Planks";
         case 10:
             return "Bamboo Planks";
+        case 11:
+            return "Bamboo Mosaic Planks";
         }
         break;
 
@@ -1249,6 +1251,30 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Stripped Warped Hyphae";
         }
         break;
+    case BLOCK_STRIPPED_MANGROVE:
+        switch (dataVal & 0x3)
+        {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case 1:	// dark oak
+            return "Stripped Cherry Log";
+        }
+        break;
+    case BLOCK_STRIPPED_MANGROVE_WOOD:
+        switch (dataVal & 0x3)
+        {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case 1:	// dark oak
+            return "Stripped Cherry Wood";
+        }
+        break;
     case BLOCK_SIGN_POST:
         switch (dataVal & (BIT_16 | BIT_32))
         {
@@ -1509,6 +1535,9 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             break;
         case 4:
             strcat_s(gConcatString, 100, "Polished Blackstone Brick Slab");
+            break;
+        case 5:
+            strcat_s(gConcatString, 100, "Bamboo Mosaic Slab");
             break;
         }
         return gConcatString;
@@ -2541,6 +2570,9 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case 10: // Bamboo Planks
             color = gBlockDefinitions[BLOCK_BAMBOO_STAIRS].pcolor;
             break;
+        case 11: // Bamboo Mosaic Planks
+            color = gBlockDefinitions[BLOCK_BAMBOO_MOSAIC_STAIRS].pcolor;
+            break;
         }
         break;
 
@@ -2603,6 +2635,9 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             break;
         case 4:	// polished blackstone brick
             color = 0x322E36;
+            break;
+        case 5:	// bamboo mosaic
+            color = 0xC0AC4F;
             break;
         }
         break;
@@ -5060,8 +5095,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
     case BLOCK_CRIMSON_SLAB:
-        // uses 0-4 and 8-12 for different slab types + lower or upper
-        if (dataVal < 5 || (dataVal >= 8 && dataVal <= 12))
+        // uses 0-5 and 8-13 for different slab types + lower or upper
+        if (dataVal < 6 || (dataVal >= 8 && dataVal <= 13))
         {
             addBlock = 1;
         }
@@ -5202,7 +5237,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
 
-    case BLOCK_OAK_PLANKS:
     case BLOCK_HUGE_BROWN_MUSHROOM:
     case BLOCK_HUGE_RED_MUSHROOM:
         // uses 0-10
@@ -5211,6 +5245,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             addBlock = 1;
         }
         break;
+    case BLOCK_OAK_PLANKS:
     case BLOCK_POPPY:
         // uses 0-11
         if (dataVal < 12)
@@ -5416,6 +5451,13 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 block->grid[neighborIndex] = (unsigned char)type;
                 block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16;
             }
+        }
+        break;
+    case BLOCK_STRIPPED_MANGROVE:
+    case BLOCK_STRIPPED_MANGROVE_WOOD:
+        // use 0-1,4-5,8-9,12-13
+        if ((dataVal & 0x03) < 2) {    // mangrove and cherry
+            addBlock = 1;
         }
         break;
     case BLOCK_STONE:

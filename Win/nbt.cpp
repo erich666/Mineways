@@ -1361,7 +1361,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 194,	    HIGH_BIT, "bamboo_stairs", STAIRS_PROP },
     { 0, 195,       HIGH_BIT, "bamboo_trapdoor", TRAPDOOR_PROP },
     { 0, 172, HIGH_BIT | BIT_16, "bamboo_wall_sign", WALL_SIGN_PROP },
-    { 0,   1,             17, "bamboo_mosaic", NO_PROP },
+    { 0,   5,             11, "bamboo_mosaic", NO_PROP },
     { 0, 105,   HIGH_BIT | 5, "bamboo_mosaic_slab", SLAB_PROP },
     { 0, 196,	    HIGH_BIT, "bamboo_mosaic_stairs", STAIRS_PROP },
     { 0, 170,              2, "stripped_bamboo_block", AXIS_PROP },
