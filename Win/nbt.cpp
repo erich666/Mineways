@@ -362,7 +362,7 @@ static bool makeBiomeHash = true;
 // sculk_sensor_phase: 0x10 (16 bit)
 #define CALIBRATED_SCULK_SENSOR_PROP    62
 
-#define NUM_TRANS 977
+#define NUM_TRANS 978
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1330,6 +1330,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 180,   HIGH_BIT | 2, "pearlescent_froglight", AXIS_PROP },
 
     // 1.20 - starts at 182 + HIGH_BIT
+    { 0, 161,       HIGH_BIT, "decorated_pot", TRULY_NO_PROP }, // well, waterlogged
     { 0, 155, HIGH_BIT | 0x4, "calibrated_sculk_sensor", CALIBRATED_SCULK_SENSOR_PROP }, // also power and sculk_sensor_phase, but not needed so not saved
     { 0, 182,       HIGH_BIT, "cherry_button", BUTTON_PROP },
     { 0, 183,       HIGH_BIT, "cherry_door", DOOR_PROP },

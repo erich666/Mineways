@@ -5562,7 +5562,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 }
                 else if (gBlockDefinitions[neighborType].flags & BLF_FENCE) {
                     // If they connect exactly the same, then there's no post.
-                    if (fenceNeighbor(neighborType, boxIndex+1, DIRECTION_BLOCK_SIDE_LO_X))
+                    if (fenceNeighbor(neighborType, boxIndex + 1, DIRECTION_BLOCK_SIDE_LO_X))
                     {
                         if (xLowWall) {
                             xLowWall += 1.0f;   // now covered after all
@@ -6700,7 +6700,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
             // upper banner
             swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT, 0, 1, 15, 0, 14, 2, 5);
+            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT, 0, 1, 15, 0, 14, 2, 5);
             identityMtx(mtx);
             translateToOriginMtx(mtx, boxIndex);
             rotateMtx(mtx, 0.0f, 180.0f, 0.0f);
@@ -9722,7 +9722,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             if (itemCount > 1) {
                 // pickle 2 - 4 high
                 totalVertexCount = gModel.vertexCount;
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 4, 6, 10, 4, 8);
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 4, 6, 10, 4, 8);
                 saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 4, 8, 4, 8, 1, 5);
                 saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 8, 12, 4, 8, 1, 5);
                 outputPickleTop(boxIndex, swatchLoc, -1.0f);
@@ -9740,7 +9740,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             if (itemCount > 2) {
                 // pickle 3 - 6 high
                 totalVertexCount = gModel.vertexCount;
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 4, 5, 11, 4, 8);
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 4, 5, 11, 4, 8);
                 saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 4, 8, 4, 8, 1, 5);
                 saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 8, 12, 4, 8, 1, 5);
                 outputPickleTop(boxIndex, swatchLoc, 0.0f);
@@ -9757,7 +9757,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             if (itemCount > 3) {
                 // pickle 4 - 7 high
                 totalVertexCount = gModel.vertexCount;
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 4, 4, 11, 4, 8);
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 4, 4, 11, 4, 8);
                 saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 4, 8, 4, 8, 1, 5);
                 saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 8, 12, 4, 8, 1, 5);
                 outputPickleTop(boxIndex, swatchLoc, 0.0f);
@@ -9785,7 +9785,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             // TODO: the egg textures are more or less right, but not really
 
             // make an egg
-            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 4, 4, 11, 0, 4);
+            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 4, 4, 11, 0, 4);
             saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 1, 5, 4, 11, 1, 5);
             // for the high X and Z, we need to use (1-u) for x and z
             saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 11, 15, 4, 11, 11, 15);
@@ -10944,6 +10944,48 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         }
         break;
 
+    case BLOCK_DECORATED_POT:						// saveBillboardOrGeometry
+        // get side
+        swatchLoc = SWATCH_INDEX(0, 61);
+        gUsingTransform = 1;
+
+        // TODOTODO 3d print version, full block. Just need to make side and top textures extend
+
+        // form body - 14 wide and 16 high
+        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc+3, swatchLoc, swatchLoc+4, 1, 0x0, 0x0, 1, 15, 0, 16, 1, 15);
+
+        // the top of the decorated pot goes into the cube above. If that cube is solid and opaque OR 3d printing is in use, don't make the pot top, since it will be hidden.
+        if (!(gBlockDefinitions[gBoxData[boxIndex + 1].type].flags & BLF_WHOLE) || (!gModel.print3D && (gBlockDefinitions[gBoxData[boxIndex + 1].type].flags & (BLF_TRANSPARENT | BLF_CUTOUTS | BLF_LEAF_PART)))) {
+            // output the top, since it's visible
+            gUsingTransform = 1;
+            totalVertexCount = gModel.vertexCount;
+
+            // the one place where we use the bits for the bottom part of the top box of the vase.
+            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc+1, swatchLoc + 1, swatchLoc + 2, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 8, 1, 4, 0, 8);
+            // two of four sides
+            //saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc + 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 8, 5, 8, 0, 8);
+            //saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc + 2, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, 0x0, 8, 16, 5, 8, 8, 16);
+            saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc + 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_LO_Z_BIT, 0x0, 0, 8, 5, 8, 0, 8);
+            saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc + 2, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_HI_Z_BIT, 0x0, 8, 16, 5, 8, 8, 16);
+            // move to middle
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            translateMtx(mtx, 4.0f / 16.0f, 1.0f, 4.0f / 16.0f);
+            transformVertices(totalVertexCount, mtx);
+
+            // stem of vase, two sides at a time
+            totalVertexCount = gModel.vertexCount;
+            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc + 1, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_LO_Z_BIT, 0, 6, 4, 5, 6, 12);
+            saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc + 2, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_HI_Z_BIT, 0x0, 6, 12, 4, 5, 0, 6);
+            // move below
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            translateMtx(mtx, 5.0f / 16.0f, 12.0f / 16.0f, -1.0f / 16.0f);
+            transformVertices(totalVertexCount, mtx);
+            gUsingTransform = 0;
+        }
+        break; // saveBillboardOrGeometry
+
 
      // END saveBillboardOrGeometry
 
@@ -10958,7 +11000,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     assert(gUsingTransform == 0);
 
     return 1;
-}
+}   // endend
 
 /* ===========================
  * Code structure for output of blocks:
@@ -13974,7 +14016,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
             int fireVertexCount = gModel.vertexCount;
             gUsingTransform = 1;
             // draw one face, or two.
-            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0,
+            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, (faceidx == 0) ? 1 : 0,
                 DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (singleSided ? 0x0 : DIR_LO_Z_BIT),
                 FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 16, 16);
             gUsingTransform = 0;
@@ -24386,6 +24428,8 @@ static int createBaseMaterialTexture()
                 gModel.swatchSize* dstCol + SWATCH_BORDER,
                 gModel.swatchSize* dstRow + SWATCH_BORDER + (gModel.tileSize / 2) + 1
             );
+
+            // copy left and right edges of decorated pot side to edges. TODOTODO: also access sides and bottom when exporting 3d print full (get swatch)
         }
         else
         {
@@ -24432,7 +24476,6 @@ static int createBaseMaterialTexture()
             gModel.swatchSize * dstCol + gModel.tileSize * 10 / 16 + SWATCH_BORDER,
             gModel.swatchSize * dstRow + gModel.tileSize * 3 / 16 + SWATCH_BORDER
         );
-
 
         // Don't need to do this for gTextureTile, since we don't output or otherwise use the fringes
         if (!gModel.exportTiles)
@@ -24966,6 +25009,10 @@ static int createBaseMaterialTexture()
 
             // stonecutter
             stretchSwatchToFill(mainprog, SWATCH_INDEX(5, 41), 0, 7, 15, 15);
+
+            // decorated pot top and bottom
+            stretchSwatchToFill(mainprog, SWATCH_INDEX(3, 61), 0, 7, 15, 15);
+            stretchSwatchToFill(mainprog, SWATCH_INDEX(4, 61), 0, 7, 15, 15);
         }
     }
 
