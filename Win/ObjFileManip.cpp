@@ -623,6 +623,7 @@ static void wobbleObjectLocation(int boxIndex, float& shiftX, float& shiftZ);
 static void randomRotation(int boxIndex, int& angle);
 static bool fenceNeighbor(int type, int boxIndex, int blockSide);
 static int saveBillboardOrGeometry(int boxIndex, int type);
+static void makePinkPetalFlowerStem(int boxIndex, int type, int dataVal, int swatchLoc, float x, float y, int height);
 static int saveTriangleGeometry(int type, int dataVal, int boxIndex, int typeBelow, int dataValBelow, int boxIndexBelow, int choppedSide);
 static bool badNeighborTest(int& neighborIndex, int boxIndex, int offset);
 static unsigned int getStairMask(int boxIndex, int dataVal);
@@ -8444,7 +8445,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             // Set angle and whether there is a bottle.
             // We don't look at (or have!) TileEntity data at this point. TODO
             gUsingTransform = 1;
-            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, FLIP_Z_FACE_VERTICALLY, 9 - (float)filled * 9, 16 - (float)filled * 9, 0, 16, 8, 8);
+            // need multi so we can flip Z vertically
+            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY, 9 - (float)filled * 9, 16 - (float)filled * 9, 0, 16, 8, 8);
             gUsingTransform = 0;
             totalVertexCount = gModel.vertexCount - totalVertexCount;
             identityMtx(mtx);
@@ -10974,7 +10976,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             translateMtx(mtx, 4.0f / 16.0f, 1.0f, 4.0f / 16.0f);
             transformVertices(totalVertexCount, mtx);
 
-            // stem of vase, two sides at a time
+            // narrow stem of vase, two sides at a time
             totalVertexCount = gModel.vertexCount;
             saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc + 1, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_LO_Z_BIT, 0, 6, 4, 5, 6, 12);
             saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc + 2, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_HI_Z_BIT, 0x0, 6, 12, 4, 5, 0, 6);
@@ -10988,7 +10990,53 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break; // saveBillboardOrGeometry
 
     case BLOCK_PINK_PETALS: // TODOTODO
-        // See something like brewing stand to cheat from.
+        assert(!gModel.print3D);
+        swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+
+        // generate all, then rotate
+        gUsingTransform = 1;
+        totalVertexCount = gModel.vertexCount;
+        angle = 90.0f * (dataVal & 0x3);
+        {
+            // go through the up to four amounts of flowers
+            int flower_amount = (dataVal >> 2) & 0x3;
+            int fheights[] = { 3, 1, 2, 2 };
+            for (i = 0; i < flower_amount; i++)
+            {
+                // flower tops
+                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, i==0 ? 1 : 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | (gModel.singleSided ? 0x0 : DIR_BOTTOM_BIT),
+                    (i < 2) ? 0.0f : 8.0f, (i < 2) ? 8.0f : 16.0f,
+                    0, (float)fheights[i],
+                    (((i+3)%4) < 2) ? 0.0f : 8.0f, ((i + 3) % 4) ? 8.0f : 16.0f);
+
+                // flower stems
+                switch (i) {
+                case 0:
+                    // 3 flower stems
+                    makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 1.5f, 10.5f, fheights[i]);
+                    //makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 6.5f, 9.5f, fheights[i]);
+                    //makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 4.5f, 14.5f, fheights[i]);
+                    break;
+                case 1:
+                    // 1 flower stems
+                    break;
+                case 2:
+                    // 3 flower stems
+                    break;
+                case 3:
+                    // 1 flower stems
+                    break;
+                }
+            }
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            //translateMtx(mtx, 0.0f, out_powered ? -3.0f/16.0f : -6.0f/16.0f, -5.0f/16.0f );
+            rotateMtx(mtx, 0.0f, angle, 0.0f);
+            translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(totalVertexCount, mtx);
+            gUsingTransform = 0;
+        }
         break;	// saveBillboardOrGeometry
 
      // END saveBillboardOrGeometry
@@ -11005,6 +11053,43 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
     return 1;
 }   // endend
+
+static void makePinkPetalFlowerStem(int boxIndex, int type, int dataVal, int swatchLoc, float x, float y, int height)
+{
+    boxIndex; type; dataVal; swatchLoc; x; y; height;
+    /*
+    // assume gUsingTransform is set
+    assert(gUsingTransform);
+    float mtx[4][4];
+    int totalVertexCount = gModel.vertexCount;
+
+    // move to location
+    for (int i = 0; i < 2; i++) {
+        int singleVertexCount = gModel.vertexCount;
+        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY,
+        8, 8, 9, 9 + height, 0, 1);
+
+        singleVertexCount = gModel.vertexCount - totalVertexCount;
+        identityMtx(mtx);
+        translateToOriginMtx(mtx, boxIndex);
+        //translateMtx(mtx, 0.0f, out_powered ? -3.0f/16.0f : -6.0f/16.0f, -5.0f/16.0f );
+        translateMtx(mtx, (8.0f-0.5f) / 16.0f, 0.0f, 0.0f);
+        rotateMtx(mtx, 0.0f, 45.0f + (float)i * 90.f, 0.0f);
+        translateFromOriginMtx(mtx, boxIndex);
+        transformVertices(singleVertexCount, mtx);
+    }
+
+    // final thing
+    totalVertexCount = gModel.vertexCount - totalVertexCount;
+    identityMtx(mtx);
+    translateToOriginMtx(mtx, boxIndex);
+    //translateMtx(mtx, 0.0f, out_powered ? -3.0f/16.0f : -6.0f/16.0f, -5.0f/16.0f );
+    translateMtx(mtx, y / 16.0f, -9.0f / 16.0f, y / 16.0f);
+    translateFromOriginMtx(mtx, boxIndex);
+    transformVertices(totalVertexCount, mtx);
+    */
+}
+
 
 /* ===========================
  * Code structure for output of blocks:
