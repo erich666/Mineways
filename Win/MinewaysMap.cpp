@@ -5504,6 +5504,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_PURPUR_SLAB:
     case BLOCK_CAMPFIRE:
     case BLOCK_MANGROVE_SIGN_POST:
+    case BLOCK_PINK_PETALS:
         // uses all bits, 0-15
         addBlock = 1;
         break;

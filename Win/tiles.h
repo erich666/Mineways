@@ -1007,8 +1007,8 @@ static struct {
     {  8, 57,   5, 0, L"cherry_planks", L"", SWATCH_REPEAT_ALL },
     {  9, 57,   6, 0, L"cherry_sapling", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 10, 57, 444, 0, L"cherry_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
-    { 11, 57,   0, 0, L"pink_petals", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
-    { 12, 57,   0, 0, L"pink_petals_stem", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },    // stem is along left edge
+    { 11, 57, 453, 0, L"pink_petals", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
+    { 12, 57, 453, 0, L"pink_petals_stem", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },    // stem is along left edge, grayscale
     { 13, 57,   0, 0, L"pitcher_crop_bottom", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
     { 14, 57,   0, 0, L"pitcher_crop_bottom_stage_1", L"", SBIT_CLAMP_TOP | SBIT_CUTOUT_GEOMETRY },
     { 15, 57,   0, 0, L"pitcher_crop_bottom_stage_2", L"", SBIT_CLAMP_TOP | SBIT_CUTOUT_GEOMETRY },

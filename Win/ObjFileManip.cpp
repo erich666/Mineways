@@ -3709,6 +3709,7 @@ static int computeFlatFlags(int boxIndex)
     case BLOCK_BIG_DRIPLEAF:
     case BLOCK_SMALL_DRIPLEAF:
     case BLOCK_FROGSPAWN:
+    case BLOCK_PINK_PETALS:
         //case BLOCK_CHAIN:   // questionable: should a chain (offset to the edge!) really be flattened onto the neighbor below?
         gBoxData[boxIndex - 1].flatFlags |= FLAT_FACE_ABOVE;
         break;
@@ -10986,6 +10987,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         }
         break; // saveBillboardOrGeometry
 
+    case BLOCK_PINK_PETALS: // TODOTODO
+        // See something like brewing stand to cheat from.
+        break;	// saveBillboardOrGeometry
 
      // END saveBillboardOrGeometry
 
@@ -13843,6 +13847,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         }
     }
     break;
+
     default:
         assert(0);
         return 0;
@@ -22239,6 +22244,30 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 0, 61, 4, 61);
             break;
 
+        case BLOCK_PINK_PETALS: // could get clever and composite the four flower amounts - nope, TODO
+            if (uvIndices)
+            {
+                switch (dataVal & 0x3)
+                {   // ESWN
+                default:
+                    assert(0);
+                case 0: // pointing east
+                    angle = 180;
+                    break;
+                case 1: // pointing south
+                    angle = 270;
+                    break;
+                case 2: // pointing west
+                    angle = 0;
+                    break;
+                case 3: // pointing north
+                    angle = 90;
+                    break;
+                }
+            }
+            swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, angle);
+            break;
+
         default:
             // if something has cutouts, it almost assuredly needs to have a case above with a call to getCompositeSwatch()
 #ifdef _DEBUG
@@ -24170,8 +24199,8 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
 
 // all the blocks that need premultiplication by a color.
 // See http://www.minecraftwiki.net/wiki/File:TerrainGuide.png
-#define MULT_TABLE_SIZE 27
-#define MULT_TABLE_NUM_GRASS	8
+#define MULT_TABLE_SIZE 28
+#define MULT_TABLE_NUM_GRASS	9
 #define MULT_TABLE_NUM_FOLIAGE	(MULT_TABLE_NUM_GRASS+5)
 #define MULT_TABLE_NUM_WATER	(MULT_TABLE_NUM_FOLIAGE+3)
 static TypeTile multTable[MULT_TABLE_SIZE] = {
@@ -24184,6 +24213,7 @@ static TypeTile multTable[MULT_TABLE_SIZE] = {
     { BLOCK_DOUBLE_FLOWER /* double flower, tallgrass top */, 7,18, {0,0,0} },
     { BLOCK_DOUBLE_FLOWER /* double flower, fern bottom */, 8,18, {0,0,0} },
     { BLOCK_DOUBLE_FLOWER /* double flower, fern top */, 9,18, {0,0,0} },
+    { BLOCK_PINK_PETALS /* double flower, fern top */, 12, 57, {0,0,0} },
 
     // affected by foliage biome - change MULT_TABLE_NUM_FOLIAGE definition to +1 more if you add any
     { BLOCK_LEAVES /* (oak) leaves, fancy: oak_leaves */, 4, 3, {0,0,0} },  // see https://minecraft.fandom.com/wiki/Biome

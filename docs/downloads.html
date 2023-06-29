@@ -89,6 +89,7 @@
 				<div id="getGoing">
 					<p>Problems?
 						<UL>
+							<LI><B><a href="downloads.html#troubleshooting">General problems</a></B></LI>
 							<LI><a href="downloads.html#windows">Windows</a></LI>
 							<LI><a href="downloads.html#mac">Mac</a></LI>
 							<LI><a href="downloads.html#linux">Linux</a></LI>
@@ -232,6 +233,7 @@
 					</UL>
 					<P>Here are some common problems:</p>
 					<UL>
+						<LI> "I tried to export a large area of my world but ran out of memory" - The way around this is to export smaller sections of your world in a series, then load the resulting files. You can precisely make a set of exports by using scripting. See <a href="https://www.realtimerendering.com/erich/minecraft/public/mineways/scripting.html#uie">this example script</a> for what to put. Better still, use the <B>hunk_maker.py</B> that comes with Mineways to generate the script for you. Just open that file in a text editor, then read it and follow the instructions there.
 						<LI> "I double-click on Mineways, it seems to run but doesn't appear" - This is often due to some (still mysterious to me) path problem with where your worlds are located. Instead of double-clicking on Mineways.exe, double-click on the file "mineways_without_worlds" (you might see it end in ".bat"). You'll have to open your worlds manually by finding the right directory. You can easily do this by using File | Open... and then pasting in this for the file name: <b>%appdata%\.minecraft\saves</b> - choose a world directory and select the level.dat file there to open it.
 						<LI> "I tried to export a large area but Mineways ran out of memory or otherwise failed" - First, use mineways.exe and not mineways32.exe (now "for_old_machines_Mineways32.exe"), if you can - the latter is for Windows 32, an old operating system with serious memory limits. Next, try selecting "Give more export memory!" under the "Help" menu and then export. If that fails, you can <a href="scripting.html#hunks">use scripting to export your world</a> as separate "hunks."
 						<LI> "I chose the map fine, but the screen is all gray" - first, try hitting F2 (jump to spawn) and F3 (jump to player) and see if that helps get you to the right spot on your map. Next, you <a href="https://erich.realtimerendering.com/minecraft/public/mineways/mineways.zip">have the latest version of Mineways</a>, right? The latest version is needed to support the newest version of Minecraft, and beta versions of Minecraft can cause problems.</LI>
@@ -276,7 +278,7 @@
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 1/7/2023</p>	</div>
+		<br id="lastUpdate">Last updated 6/29/2023</p>	</div>
 
 </body>
 </html>

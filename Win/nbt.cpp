@@ -361,8 +361,11 @@ static bool makeBiomeHash = true;
 // facing: SWNE 0x3
 // sculk_sensor_phase: 0x10 (16 bit)
 #define CALIBRATED_SCULK_SENSOR_PROP    62
+// facing: SWNE 0x3
+// flower_amount: 0xc 1-4
+#define PINK_PETALS_PROP    63
 
-#define NUM_TRANS 978
+#define NUM_TRANS 979
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1367,6 +1370,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 196,	    HIGH_BIT, "bamboo_mosaic_stairs", STAIRS_PROP },
     { 0, 170,              2, "stripped_bamboo_block", AXIS_PROP },
     { 0,  47,         BIT_16, "chiseled_bookshelf", NO_PROP },
+    { 0, 197,	    HIGH_BIT, "pink_petals", PINK_PETALS_PROP },
 
  // Note: 140, 144 are reserved for the extra bit needed for BLOCK_FLOWER_POT and BLOCK_HEAD, so don't use these HIGH_BIT values
 };
@@ -3845,6 +3849,11 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             strcmp(token, "slot_5_occupied") == 0 ) {
                             dataVal |= (strcmp(value, "true") == 0) ? 8 : 0;
                         }
+                        
+                        // for pink petals
+                        else if (strcmp(token, "flower_amount") == 0) {
+                            dataVal |= atoi(value);
+                        }
 
 #ifdef _DEBUG
                         else {
@@ -3861,7 +3870,6 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
 
                             // TODOTODOTODO
                             else if (strcmp(token, "cracked") == 0) {}	// for sniffer egg
-                            else if (strcmp(token, "flower_amount") == 0) {}	// for pink flowers
                             else {
                                 // unknown property - look at token and value
                                 assert(0);
@@ -4156,8 +4164,16 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
         case CALIBRATED_SCULK_SENSOR_PROP:
             // south/west/north/east == 0/1/2/3
             // counts in the sculk_sensor_phase which has been put in BIT_16.
-            // We don't want power, but we do want to know if it's calibrated and if it's sculk_sensor_phase is active
-            dataVal = ((door_facing + 3) % 4) | (dataVal & (0x4|BIT_16));
+            // We don't want power, but we do want to know if it's calibrated and if it's sculk_sensor_phase is active.
+            // Actually, we could leave off calibrated, 0x4 bit, as that should transmit at bottom
+            dataVal = ((door_facing + 3) % 4) | (dataVal & BIT_16); // (0x4 & BIT_16)
+            break;
+        case PINK_PETALS_PROP:
+            // south/west/north/east == 0/1/2/3
+            // flower_amount folded into 0xc
+            // We don't want power, but we do want to know if it's calibrated and if it's sculk_sensor_phase is active.
+            // Actually, we could leave off calibrated, 0x4 bit, as that should transmit at bottom
+            dataVal = (door_facing % 4) | ((dataVal & 0x3) << 2); // the 0x3 is just to be safe
             break;
         case BED_PROP:
             // south/west/north/east == 0/1/2/3
