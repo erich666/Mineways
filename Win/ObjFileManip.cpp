@@ -11057,49 +11057,51 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             firstFace = 1;
         }
 
-        // plant itself
-        age = (dataVal & 0x7);
+        // plant itself, if not 3d printing
+        if (!gModel.print3D) {
+            age = (dataVal & 0x7);
 
-        // if age > 1, there's a flower. Get the swatch to use, then output it
-        if (age > 0) {
-            // is this the upper or lower block?
-            if (dataVal & 0x8) {
-                // upper. Check that the age is 3 or 4
-                assert(age >= 3);
-                swatchLoc = SWATCH_INDEX(1, 58) + age;
-            }
-            else {
-                swatchLoc = SWATCH_INDEX(13, 57) + age;
-            }
+            // if age > 1, there's a flower. Get the swatch to use, then output it
+            if (age > 0) {
+                // is this the upper or lower block?
+                if (dataVal & 0x8) {
+                    // upper. Check that the age is 3 or 4
+                    assert(age >= 3);
+                    swatchLoc = SWATCH_INDEX(1, 58) + age;
+                }
+                else {
+                    swatchLoc = SWATCH_INDEX(13, 57) + age;
+                }
 
-            //output cross flower
-            gUsingTransform = 1;
-            totalVertexCount = gModel.vertexCount;
-            for (i = 0; i < 2; i++) {
-                littleTotalVertexCount = gModel.vertexCount;
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, firstFace, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY,
-                    0, 16, 0, 16, 8, 8);
-                firstFace = 0;
+                //output cross flower
+                gUsingTransform = 1;
+                totalVertexCount = gModel.vertexCount;
+                for (i = 0; i < 2; i++) {
+                    littleTotalVertexCount = gModel.vertexCount;
+                    saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, firstFace, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY,
+                        0, 16, 0, 16, 8, 8);
+                    firstFace = 0;
 
-                littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-                identityMtx(mtx);
-                translateToOriginMtx(mtx, boxIndex);
-                rotateMtx(mtx, 0.0f, 45.0f + ((float)i * 90.0f), 0.0f);
-                translateFromOriginMtx(mtx, boxIndex);
-                transformVertices(littleTotalVertexCount, mtx);
-            }
+                    littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+                    identityMtx(mtx);
+                    translateToOriginMtx(mtx, boxIndex);
+                    rotateMtx(mtx, 0.0f, 45.0f + ((float)i * 90.0f), 0.0f);
+                    translateFromOriginMtx(mtx, boxIndex);
+                    transformVertices(littleTotalVertexCount, mtx);
+                }
 
-            if (age < 3) {
-                // transform upwards for age 1 and 2 - goofy. Why'd they do that?
-                totalVertexCount = gModel.vertexCount - totalVertexCount;
-                identityMtx(mtx);
-                // for a pure translation, don't need to send it to origin
-                //translateToOriginMtx(mtx, boxIndex);
-                translateMtx(mtx, 0.0f, 6.0f / 16.0f, 0.0f);
-                //translateFromOriginMtx(mtx, boxIndex);
-                transformVertices(totalVertexCount, mtx);
+                if (age < 3) {
+                    // transform upwards for age 1 and 2 - goofy. Why'd they do that?
+                    totalVertexCount = gModel.vertexCount - totalVertexCount;
+                    identityMtx(mtx);
+                    // for a pure translation, don't need to send it to origin
+                    //translateToOriginMtx(mtx, boxIndex);
+                    translateMtx(mtx, 0.0f, 6.0f / 16.0f, 0.0f);
+                    //translateFromOriginMtx(mtx, boxIndex);
+                    transformVertices(totalVertexCount, mtx);
+                }
+                gUsingTransform = 0;
             }
-            gUsingTransform = 0;
         }
         break; // saveBillboardOrGeometry
 

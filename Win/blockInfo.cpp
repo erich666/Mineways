@@ -537,7 +537,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 451 */ "Bamboo Trapdoor",              0xC9B560, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 60, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_FLATTEN | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },   // tricky case: could be a flattop, or a flatside. For now, render it
     { /* 452 */ "Bamboo Mosaic Stairs",         0xC0AC4F, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13, 60, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 453 */ "Pink Petals",              	0xF7B9DC, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 57, 0x00, BLF_FLATTEN | BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID },
-    { /* 454 */ "Pitcher Crop",					0xC3A668, 1.000f, 0xff7711, 0xff7711, 0.12345f,  5, 58, 0x00, BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID },
+    { /* 454 */ "Pitcher Crop",					0xC3A668, 1.000f, 0xff7711, 0xff7711, 0.12345f,  5, 58, 0x00, BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_BILLBOARD | BLF_3D_BIT | BLF_CUTOUTS | BLF_DNE_FLUID },
 
     // Important note: 396 is skipped, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
 };
