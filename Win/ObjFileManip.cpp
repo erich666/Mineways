@@ -10989,42 +10989,47 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         }
         break; // saveBillboardOrGeometry
 
-    case BLOCK_PINK_PETALS: // TODOTODO
+    case BLOCK_PINK_PETALS:
         assert(!gModel.print3D);
         swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
 
         // generate all, then rotate
         gUsingTransform = 1;
         totalVertexCount = gModel.vertexCount;
-        angle = 90.0f * (dataVal & 0x3);
+        angle = 90.0f * (1.0f + (dataVal & 0x3));
         {
             // go through the up to four amounts of flowers
-            int flower_amount = (dataVal >> 2) & 0x3;
+            int flower_amount = 1 + ((dataVal >> 2) & 0x3);
             int fheights[] = { 3, 1, 2, 2 };
             for (i = 0; i < flower_amount; i++)
             {
                 // flower tops
                 saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, i==0 ? 1 : 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | (gModel.singleSided ? 0x0 : DIR_BOTTOM_BIT),
                     (i < 2) ? 0.0f : 8.0f, (i < 2) ? 8.0f : 16.0f,
-                    0, (float)fheights[i],
-                    (((i+3)%4) < 2) ? 0.0f : 8.0f, ((i + 3) % 4) ? 8.0f : 16.0f);
+                    (float)fheights[i], (float)fheights[i],
+                    (((i + 3) % 4) >= 2) ? 0.0f : 8.0f, (((i + 3) % 4) >= 2) ? 8.0f : 16.0f);
 
                 // flower stems
                 switch (i) {
                 case 0:
-                    // 3 flower stems
+                    // 3 flower stems, left to right
                     makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 1.5f, 10.5f, fheights[i]);
-                    //makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 6.5f, 9.5f, fheights[i]);
-                    //makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 4.5f, 14.5f, fheights[i]);
+                    makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 4.5f, 14.5f, fheights[i]);
+                    makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 6.5f, 9.5f, fheights[i]);
                     break;
                 case 1:
-                    // 1 flower stems
+                    // 1 flower stem
+                    makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 4.5f, 4.5f, fheights[i]);
                     break;
                 case 2:
                     // 3 flower stems
+                    makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 9.5f, 6.5f, fheights[i]);
+                    makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 12.0f, 2.0f, fheights[i]);
+                    makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 14.5f, 5.5f, fheights[i]);
                     break;
                 case 3:
-                    // 1 flower stems
+                    // 1 flower stem
+                    makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 11.5f, 12.5f, fheights[i]);
                     break;
                 }
             }
@@ -11056,8 +11061,6 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
 static void makePinkPetalFlowerStem(int boxIndex, int type, int dataVal, int swatchLoc, float x, float y, int height)
 {
-    boxIndex; type; dataVal; swatchLoc; x; y; height;
-    /*
     // assume gUsingTransform is set
     assert(gUsingTransform);
     float mtx[4][4];
@@ -11067,27 +11070,26 @@ static void makePinkPetalFlowerStem(int boxIndex, int type, int dataVal, int swa
     for (int i = 0; i < 2; i++) {
         int singleVertexCount = gModel.vertexCount;
         saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY,
-        8, 8, 9, 9 + height, 0, 1);
+            0, 1, 9, (float)(9 + height), 8, 8);
 
-        singleVertexCount = gModel.vertexCount - totalVertexCount;
+        singleVertexCount = gModel.vertexCount - singleVertexCount;
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
-        //translateMtx(mtx, 0.0f, out_powered ? -3.0f/16.0f : -6.0f/16.0f, -5.0f/16.0f );
         translateMtx(mtx, (8.0f-0.5f) / 16.0f, 0.0f, 0.0f);
-        rotateMtx(mtx, 0.0f, 45.0f + (float)i * 90.f, 0.0f);
+        rotateMtx(mtx, 0.0f, 45.0f + ((float)i * 90.0f), 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(singleVertexCount, mtx);
     }
 
-    // final thing
+    // final thing, both "vanes"
     totalVertexCount = gModel.vertexCount - totalVertexCount;
     identityMtx(mtx);
     translateToOriginMtx(mtx, boxIndex);
     //translateMtx(mtx, 0.0f, out_powered ? -3.0f/16.0f : -6.0f/16.0f, -5.0f/16.0f );
-    translateMtx(mtx, y / 16.0f, -9.0f / 16.0f, y / 16.0f);
+    translateMtx(mtx, (x - 8.0f) / 16.0f, -9.0f / 16.0f, (8.0f - y) / 16.0f);
+    //rotateMtx(mtx, 0.0f, -90.0f, 0.0f);
     translateFromOriginMtx(mtx, boxIndex);
     transformVertices(totalVertexCount, mtx);
-    */
 }
 
 
@@ -22332,21 +22334,22 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_PINK_PETALS: // could get clever and composite the four flower amounts - nope, TODO
             if (uvIndices)
             {
+                // brute force correlations through testing
                 switch (dataVal & 0x3)
-                {   // ESWN
+                {
                 default:
                     assert(0);
-                case 0: // pointing east
+                case 0:
+                    angle = 90;
+                    break;
+                case 1:
                     angle = 180;
                     break;
-                case 1: // pointing south
+                case 2:
                     angle = 270;
                     break;
-                case 2: // pointing west
+                case 3:
                     angle = 0;
-                    break;
-                case 3: // pointing north
-                    angle = 90;
                     break;
                 }
             }
@@ -24289,6 +24292,7 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
 #define MULT_TABLE_NUM_FOLIAGE	(MULT_TABLE_NUM_GRASS+5)
 #define MULT_TABLE_NUM_WATER	(MULT_TABLE_NUM_FOLIAGE+3)
 static TypeTile multTable[MULT_TABLE_SIZE] = {
+    // first value is what the type is that this object should be treated as, next two is the swatch location, last three is override color, if any
     { BLOCK_GRASS_BLOCK /* grass */, 0,0, {0,0,0} },
     { BLOCK_GRASS_BLOCK /* side grass overlay */, 6, 2, {0,0,0} },
     //{ BLOCK_GRASS_BLOCK /* unused grass, now a workspace */, 8, 2, {0,0,0} },
@@ -24298,7 +24302,7 @@ static TypeTile multTable[MULT_TABLE_SIZE] = {
     { BLOCK_DOUBLE_FLOWER /* double flower, tallgrass top */, 7,18, {0,0,0} },
     { BLOCK_DOUBLE_FLOWER /* double flower, fern bottom */, 8,18, {0,0,0} },
     { BLOCK_DOUBLE_FLOWER /* double flower, fern top */, 9,18, {0,0,0} },
-    { BLOCK_PINK_PETALS /* double flower, fern top */, 12, 57, {0,0,0} },
+    { BLOCK_GRASS /* pink petals stem */, 12, 57, {0,0,0} },
 
     // affected by foliage biome - change MULT_TABLE_NUM_FOLIAGE definition to +1 more if you add any
     { BLOCK_LEAVES /* (oak) leaves, fancy: oak_leaves */, 4, 3, {0,0,0} },  // see https://minecraft.fandom.com/wiki/Biome

@@ -3173,14 +3173,14 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
         conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall, signal_fire, has_book, up, hanging;
     int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age,
         delay, locked, sticky, hatch, leaves, single, attachment, honey_level, stairs, bites, tilt,
-        thickness, vertical_direction, berries;
+        thickness, vertical_direction, berries, flower_amount;
     // to avoid Release build warning, but should always be set by code in practice
     int typeIndex = 0;
     half = north = south = east = west = down = lit = powered = triggered = extended = attached = disarmed
         = conditional = inverted = enabled = doubleSlab = mode = in_wall = signal_fire = has_book = up = hanging = false; // waterlogged is always set false in loop
     axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
         delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt =
-        thickness = vertical_direction = berries = 0;
+        thickness = vertical_direction = berries = flower_amount = 0;
 
     // IMPORTANT: if any PROP field uses any of these:
     // triggered, extended, sticky, enabled, conditional, open, powered, face, has_book, powered, attachment, lit, signal_fire, honey_level
@@ -3852,7 +3852,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         
                         // for pink petals
                         else if (strcmp(token, "flower_amount") == 0) {
-                            dataVal |= atoi(value);
+                            flower_amount = atoi(value);
                         }
 
 #ifdef _DEBUG
@@ -4170,10 +4170,10 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             break;
         case PINK_PETALS_PROP:
             // south/west/north/east == 0/1/2/3
-            // flower_amount folded into 0xc
+            // flower_amount reduced from 1-4 to 0-3, then *4 and folded into 0xc
             // We don't want power, but we do want to know if it's calibrated and if it's sculk_sensor_phase is active.
             // Actually, we could leave off calibrated, 0x4 bit, as that should transmit at bottom
-            dataVal = (door_facing % 4) | ((dataVal & 0x3) << 2); // the 0x3 is just to be safe
+            dataVal = (door_facing % 4) | ((flower_amount-1) << 2);
             break;
         case BED_PROP:
             // south/west/north/east == 0/1/2/3
