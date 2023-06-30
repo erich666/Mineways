@@ -944,6 +944,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Rose Bush";
         case 5:	// peony
             return "Peony";
+        case 6:
+            return "Pitcher Plant";
         }
         break;
 
@@ -3389,6 +3391,9 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case 5:	// peony
             color = 0xE3BCF4;
             break;
+        case 6: // pitcher plant
+            color = 0x7D9BC2;
+            break;
         }
         break;
 
@@ -5120,8 +5125,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
     case BLOCK_DOUBLE_FLOWER:
-        // uses 0-5, put flower head above it
-        if (dataVal < 6)
+        // uses 0-6, put flower head above it
+        if (dataVal < 7)
         {
             addBlock = 1;
             // add flower above

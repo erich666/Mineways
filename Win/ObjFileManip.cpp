@@ -11044,7 +11044,66 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         }
         break;	// saveBillboardOrGeometry
 
-     // END saveBillboardOrGeometry
+    case BLOCK_PITCHER_CROP:						// saveBillboardOrGeometry
+        assert(!gModel.print3D);
+
+        if (!(dataVal & 0x8)) {
+            // bottom output base for bottom only
+            swatchLoc = SWATCH_INDEX(13, 57);   //bottom
+            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc + 6, swatchLoc + 5, swatchLoc, 1, 0x0, 0x0, 3, 12, 0, 6, 3, 12);
+            firstFace = 0;
+        }
+        else {
+            firstFace = 1;
+        }
+
+        // plant itself
+        age = (dataVal & 0x7);
+
+        // if age > 1, there's a flower. Get the swatch to use, then output it
+        if (age > 0) {
+            // is this the upper or lower block?
+            if (dataVal & 0x8) {
+                // upper. Check that the age is 3 or 4
+                assert(age >= 3);
+                swatchLoc = SWATCH_INDEX(1, 58) + age;
+            }
+            else {
+                swatchLoc = SWATCH_INDEX(13, 57) + age;
+            }
+
+            //output cross flower
+            gUsingTransform = 1;
+            totalVertexCount = gModel.vertexCount;
+            for (i = 0; i < 2; i++) {
+                littleTotalVertexCount = gModel.vertexCount;
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, firstFace, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY,
+                    0, 16, 0, 16, 8, 8);
+                firstFace = 0;
+
+                littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+                identityMtx(mtx);
+                translateToOriginMtx(mtx, boxIndex);
+                rotateMtx(mtx, 0.0f, 45.0f + ((float)i * 90.0f), 0.0f);
+                translateFromOriginMtx(mtx, boxIndex);
+                transformVertices(littleTotalVertexCount, mtx);
+            }
+
+            if (age < 3) {
+                // transform upwards for age 1 and 2 - goofy. Why'd they do that?
+                totalVertexCount = gModel.vertexCount - totalVertexCount;
+                identityMtx(mtx);
+                // for a pure translation, don't need to send it to origin
+                //translateToOriginMtx(mtx, boxIndex);
+                translateMtx(mtx, 0.0f, 6.0f / 16.0f, 0.0f);
+                //translateFromOriginMtx(mtx, boxIndex);
+                transformVertices(totalVertexCount, mtx);
+            }
+            gUsingTransform = 0;
+        }
+        break; // saveBillboardOrGeometry
+
+        // END saveBillboardOrGeometry
 
     default:
         // something tagged as billboard or geometry, but no case here! Examine "type"
@@ -12836,6 +12895,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     float height = 0.0f;
     int uvIndices[4];  // cppcheck-suppress 398
     int foundSunflowerTop = 0;
+    int foundPitcherPlant = 0;
     int swatchLocSet[6];
     int retCode = MW_NO_ERROR;
     int matchType;  // cppcheck-suppress 398
@@ -13048,7 +13108,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         {
             // fully mature, change height to 10 if the proper fruit is next door
             matchType = (type == BLOCK_PUMPKIN_STEM) ? BLOCK_PUMPKIN : BLOCK_MELON;
-            if ( (dataVal & 0x8) ||  // the new way - if there's an attachment, https://minecraft.fandom.com/wiki/Pumpkin_Seeds#Metadata
+            if ((dataVal & 0x8) ||  // the new way - if there's an attachment, https://minecraft.fandom.com/wiki/Pumpkin_Seeds#Metadata
                 (gBoxData[boxIndex - gBoxSizeYZ].origType == matchType) ||
                 (gBoxData[boxIndex + gBoxSizeYZ].origType == matchType) ||
                 (gBoxData[boxIndex - gBoxSize[Y]].origType == matchType) ||
@@ -13161,7 +13221,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
             swatchLoc++;
             vineUnderBlock = true;
             // move it up close. In game it's flush against bottom of block above, but that would lead to z-fighting
-            shiftY = 0.75f*ONE_PIXEL;
+            shiftY = 0.75f * ONE_PIXEL;
         }
         break;
     case BLOCK_LADDER:				// saveBillboardFacesExtraData
@@ -13240,26 +13300,40 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         break;
     case BLOCK_DOUBLE_FLOWER:				// saveBillboardFacesExtraData
         wobbleIt = true;
-        if (dataVal >= 8)
-        {
-            // top half of plant, so need data value of block below
-            // to know which sort of plant
-            // (could be zero if block is missing, in which case it'll be a sunflower, which is fine)
-            // row 19 (#18) has these
-            // old code, before we shoved the dataVal from the bottom half (if available) into the top half, in extractChunk.
-            // But, should work the same, so don't mess with it.
-            swatchLoc = SWATCH_INDEX(gBoxData[boxIndex - 1].data * 2 + 3, 18);
-            // for material differentiation set the dataVal to the bottom half
-            origDataVal = gBoxData[boxIndex - 1].data;
-            if (gBoxData[boxIndex - 1].data == 0)
-            {
-                foundSunflowerTop = 1;
+        if ((dataVal & 0x7) == 6) {
+            // pitcher plant special case
+            if (dataVal & 0x8) {
+                // top
+                swatchLoc = SWATCH_INDEX(5, 58);
             }
+            else {
+                // bottom
+                swatchLoc = SWATCH_INDEX(1, 58);
+            }
+            foundPitcherPlant = 1;
         }
-        else
-        {
-            // bottom half of plant, from row 19
-            swatchLoc = SWATCH_INDEX(dataVal * 2 + 2, 18);
+        else {
+            if (dataVal & 0x8)
+            {
+                // top half of plant, so need data value of block below
+                // to know which sort of plant
+                // (could be zero if block is missing, in which case it'll be a sunflower, which is fine)
+                // row 19 (#18) has these
+                // old code, before we shoved the dataVal from the bottom half (if available) into the top half (around line 2812), in extractChunk.
+                // But, should work the same, so don't mess with it.
+                swatchLoc = SWATCH_INDEX(gBoxData[boxIndex - 1].data * 2 + 3, 18);
+                // for material differentiation set the dataVal to the bottom half
+                origDataVal = gBoxData[boxIndex - 1].data;
+                if (gBoxData[boxIndex - 1].data == 0)
+                {
+                    foundSunflowerTop = 1;
+                }
+            }
+            else
+            {
+                // bottom half of plant, from row 19
+                swatchLoc = SWATCH_INDEX(dataVal * 2 + 2, 18);
+            }
         }
         break;
     case BLOCK_TALL_SEAGRASS:				// saveBillboardFacesExtraData
@@ -13432,8 +13506,9 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     if (dontWobbleOverride) {
         // wobbleIt may have been set above to true - turn it off
         wobbleIt = false;
+        shiftX = shiftY = 0.0f;
     }
-    if (wobbleIt) {
+    if (wobbleIt || foundPitcherPlant) {
         gUsingTransform = 1;
         metaVertexCount = gModel.vertexCount;
 
@@ -14255,11 +14330,13 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(totalVertexCount, mtx);
     }
-    if (wobbleIt) {
+
+    // this is a place where we can translate or shift the plant's location
+    if (wobbleIt || foundPitcherPlant) {
         gUsingTransform = 0;
         metaVertexCount = gModel.vertexCount - metaVertexCount;
         identityMtx(mtx);
-        translateMtx(mtx, shiftX / 16.0f, 0.0f / 16.0f, shiftZ / 16.0f);
+        translateMtx(mtx, shiftX / 16.0f, foundPitcherPlant ? -6.0f / 16.0f : 0.0f, shiftZ / 16.0f);
         transformVertices(metaVertexCount, mtx);
     }
 
@@ -20837,19 +20914,35 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             break;
         case BLOCK_DOUBLE_FLOWER:				// getSwatch
-            if ((dataVal & 0xf) < 8)
-            {
-                // bottom half of plant
-                if ((dataVal & 0xf) == 0)
+            // old-style data in Minecraft: Top half of sunflowers, etc., have just the 0x8 bit set, not the flower itself.
+            // bottom half has the flower type
+            // special case: is it a pitcher plant?
+            if ((dataVal & 0x7) == 6) {
+                // pitcher plant, both upper and lower have this set, so return it.
+                swatchLoc = SWATCH_INDEX(5, 58);
+            }
+            else {
+                // is this block the bottom half?
+                if ((dataVal & 0xf) < 8)
                 {
-                    // sunflower head
-                    swatchLoc = SWATCH_INDEX(1, 18);
+                    // bottom half of plant. We want the swatch for the top half, though, as a decal.
+                    // Is it a sunflower?
+                    if ((dataVal & 0xf) == 0)
+                    {
+                        // sunflower head instead of sunflower top
+                        swatchLoc = SWATCH_INDEX(1, 18);
+                    }
+                    else
+                    {
+                        // plants 1-5 are in order, give top half this way
+                        swatchLoc = SWATCH_INDEX(dataVal * 2 + 3, 18);
+                    }
                 }
-                else
-                {
-                    swatchLoc = SWATCH_INDEX(dataVal * 2 + 3, 18);
+                else {
+                    // else it's a flower top (weird), so just keep the default swatchLoc - we really should
+                    // never hit this normally.
                 }
-            } // else it's an unknown flower or flower top (weird), so just keep the default swatchLoc
+            }
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             break;
         case BLOCK_WHEAT:				        // getSwatch

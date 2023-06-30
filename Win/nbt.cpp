@@ -364,8 +364,11 @@ static bool makeBiomeHash = true;
 // facing: SWNE 0x3
 // flower_amount: 0xc 1-4
 #define PINK_PETALS_PROP    63
+// age: 0-4
+// half: upper/lower
+#define PITCHER_CROP_PROP   64
 
-#define NUM_TRANS 979
+#define NUM_TRANS 981
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1371,6 +1374,8 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 170,              2, "stripped_bamboo_block", AXIS_PROP },
     { 0,  47,         BIT_16, "chiseled_bookshelf", NO_PROP },
     { 0, 197,	    HIGH_BIT, "pink_petals", PINK_PETALS_PROP },
+    { 0, 198,       HIGH_BIT, "pitcher_crop", PITCHER_CROP_PROP },
+    { 0, 175,              6, "pitcher_plant", TALL_FLOWER_PROP },
 
  // Note: 140, 144 are reserved for the extra bit needed for BLOCK_FLOWER_POT and BLOCK_HEAD, so don't use these HIGH_BIT values
 };
@@ -4168,13 +4173,6 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             // Actually, we could leave off calibrated, 0x4 bit, as that should transmit at bottom
             dataVal = ((door_facing + 3) % 4) | (dataVal & BIT_16); // (0x4 & BIT_16)
             break;
-        case PINK_PETALS_PROP:
-            // south/west/north/east == 0/1/2/3
-            // flower_amount reduced from 1-4 to 0-3, then *4 and folded into 0xc
-            // We don't want power, but we do want to know if it's calibrated and if it's sculk_sensor_phase is active.
-            // Actually, we could leave off calibrated, 0x4 bit, as that should transmit at bottom
-            dataVal = (door_facing % 4) | ((flower_amount-1) << 2);
-            break;
         case BED_PROP:
             // south/west/north/east == 0/1/2/3
             // note that "occupied" will not be set if GRAPHICAL_ONLY is defined
@@ -4386,6 +4384,17 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
         case PROPAGULE_PROP:
             // use the age only if hanging. Age otherwise appears irrelevant?
             dataVal = (hanging ? (0x8 | age) : 0);
+            break;
+        case PINK_PETALS_PROP:
+            // south/west/north/east == 0/1/2/3
+            // flower_amount reduced from 1-4 to 0-3, then *4 and folded into 0xc
+            // We don't want power, but we do want to know if it's calibrated and if it's sculk_sensor_phase is active.
+            // Actually, we could leave off calibrated, 0x4 bit, as that should transmit at bottom
+            dataVal = (door_facing % 4) | ((flower_amount - 1) << 2);
+            break;
+        case PITCHER_CROP_PROP:
+            // age and upper/lower
+            dataVal = age | (half ? 0x8 : 0);
             break;
         }
         // make sure upper bits are not set - they should not be! Well, except for heads. So, comment out this test
