@@ -3673,6 +3673,8 @@ static int computeFlatFlags(int boxIndex)
     case BLOCK_WARPED_PRESSURE_PLATE:
     case BLOCK_POLISHED_BLACKSTONE_PRESSURE_PLATE:
     case BLOCK_MANGROVE_PRESSURE_PLATE:
+    case BLOCK_CHERRY_PRESSURE_PLATE:
+    case BLOCK_BAMBOO_PRESSURE_PLATE:
     case BLOCK_SNOW:
     case BLOCK_CARPET:
     case BLOCK_REDSTONE_REPEATER_OFF:
@@ -11102,6 +11104,43 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 }
                 gUsingTransform = 0;
             }
+        }
+        break; // saveBillboardOrGeometry
+
+    case BLOCK_SNIFFER_EGG:						// saveBillboardOrGeometry
+        // hatching causes swatchLoc to increment
+        swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+        // hatch value:
+        swatchLoc += ((dataVal >> 2) & 0x3) * 6;
+        {
+            // not needed: we're not rotating, and we do want to have the bottom be deleted if there's a solid block below it
+            //gUsingTransform = 1;
+            totalVertexCount = gModel.vertexCount;
+
+            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLoc + 1;
+            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc - 3;
+            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc - 2;
+            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc - 1;
+            swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc;
+            swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc - 4;
+
+            // make an egg
+            saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 0, 14, 0, 16, 4, 16);
+            // top
+            saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 14, 0, 16, 0, 12);
+            // north
+            saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc - 2, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_HI_Z_BIT, 0x0, 2, 16, 0, 16, 0, 12);
+            // west
+            saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc + 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 14, 0, 16, 0, 12);
+            // bottom
+            saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc - 4, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 14, 0, 16, 0, 12);
+
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            translateMtx(mtx, 1.0f / 16.0f, 0.0f, -2.0f/16.0f );
+            transformVertices(totalVertexCount, mtx);
+
+            //gUsingTransform = 0;
         }
         break; // saveBillboardOrGeometry
 
@@ -22451,6 +22490,58 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, angle);
             break;
 
+        case BLOCK_PITCHER_CROP:
+            // not sure what to do if there's none? TODOTODO
+            {
+                int age = (dataVal & 0x7);
+
+                // if age > 1, there's a flower. Get the swatch to use, then output it
+                if (age > 0) {
+                    // is this the upper or lower block?
+                    if (dataVal & 0x8) {
+                        // upper. Check that the age is 3 or 4
+                        assert(age >= 3);
+                        swatchLoc = SWATCH_INDEX(1, 58) + age;
+                    }
+                    else {
+                        swatchLoc = SWATCH_INDEX(13, 57) + age;
+                    }
+                }
+            }
+            break;
+
+        case BLOCK_SNIFFER_EGG:						// getSwatch
+            switch (faceDirection)
+            {
+            default:
+            case DIRECTION_BLOCK_SIDE_LO_X:
+                swatchLoc += 1;
+                break;
+            case DIRECTION_BLOCK_SIDE_HI_X:
+                swatchLoc -= 3;
+                break;
+            case DIRECTION_BLOCK_SIDE_LO_Z:
+                swatchLoc -= 2;
+                break;
+            case DIRECTION_BLOCK_SIDE_HI_Z:
+                swatchLoc -= 1;
+                break;
+            case DIRECTION_BLOCK_BOTTOM:
+                swatchLoc -= 4;
+                break;
+            case DIRECTION_BLOCK_TOP:
+                // no change, use default
+                break;
+            }
+            // and add in hatch value 0-2 offset
+            swatchLoc += ((dataVal >> 2) & 0x3) * 6;
+            break;
+
+        case BLOCK_SUSPICIOUS_GRAVEL:						// getSwatch
+            // the dusted amount is in the low 2 bits, 0x4 is sand. Simple walk through the swatches
+            swatchLoc += (dataVal & 0x7);
+            break;
+
         default:
             // if something has cutouts, it almost assuredly needs to have a case above with a call to getCompositeSwatch()
 #ifdef _DEBUG
@@ -24693,25 +24784,6 @@ static int createBaseMaterialTexture()
             gModel.swatchSize * dstRow + gModel.tileSize * 3 / 16 + SWATCH_BORDER
         );
 
-        // copy left and right edges of decorated pot side to edges. For 3D printing, needed for full block; otherwise, avoids any black bleed.
-        SWATCH_TO_COL_ROW(SWATCH_INDEX(0, 61), dstCol, dstRow);
-        copyPNGArea(mainprog,
-            gModel.swatchSize * dstCol + SWATCH_BORDER,    // copy left edge to edge
-            gModel.swatchSize * dstRow + SWATCH_BORDER,
-            1, gModel.tileSize,
-            mainprog,
-            gModel.swatchSize * dstCol + 1 + SWATCH_BORDER,
-            gModel.swatchSize * dstRow + SWATCH_BORDER
-        );
-        copyPNGArea(mainprog,
-            gModel.swatchSize * dstCol + gModel.tileSize - 1 + SWATCH_BORDER,    // copy right edge to edge
-            gModel.swatchSize * dstRow + SWATCH_BORDER,
-            1, gModel.tileSize,
-            mainprog,
-            gModel.swatchSize * dstCol + gModel.tileSize - 2 + SWATCH_BORDER,
-            gModel.swatchSize * dstRow + SWATCH_BORDER
-        );
-
         // Don't need to do this for gTextureTile, since we don't output or otherwise use the fringes
         if (!gModel.exportTiles)
         {
@@ -25248,6 +25320,25 @@ static int createBaseMaterialTexture()
             // decorated pot top and bottom
             stretchSwatchToFill(mainprog, SWATCH_INDEX(3, 61), 1, 1, 14, 14);
             stretchSwatchToFill(mainprog, SWATCH_INDEX(4, 61), 1, 1, 14, 14);
+
+            // decorated pot side
+            stretchSwatchToFill(mainprog, SWATCH_INDEX(0, 61), 1, 0, 14, 15);
+
+            // sniffer eggs galore
+            for (i = 0; i < 3; i++) {
+                // sniffer_egg_not_cracked_bottom
+                stretchSwatchToFill(mainprog, SWATCH_INDEX(6, 58) + i*6, 0, 0, 13, 11);
+                // sniffer_egg_not_cracked_east
+                stretchSwatchToFill(mainprog, SWATCH_INDEX(7, 58) + i * 6, 0, 0, 11, 15);
+                // sniffer_egg_not_cracked_north
+                stretchSwatchToFill(mainprog, SWATCH_INDEX(8, 58) + i * 6, 0, 0, 13, 15);
+                // sniffer_egg_not_cracked_south
+                stretchSwatchToFill(mainprog, SWATCH_INDEX(9, 58) + i * 6, 0, 0, 13, 15);
+                // sniffer_egg_not_cracked_top
+                stretchSwatchToFill(mainprog, SWATCH_INDEX(10, 58) + i * 6, 0, 0, 13, 11);
+                // sniffer_egg_not_cracked_west 
+                stretchSwatchToFill(mainprog, SWATCH_INDEX(11, 58) + i * 6, 0, 0, 11, 15);
+            }
         }
     }
 

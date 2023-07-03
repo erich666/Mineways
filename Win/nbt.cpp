@@ -297,6 +297,7 @@ static bool makeBiomeHash = true;
 // waterlogged: true|false
 #define PICKLE_PROP			 48
 // eggs: 1-4
+// hatch: 0-3?
 #define EGG_PROP			 49
 // for wall signs - basically a dropper, without the other stuff such as up, etc.
 #define WALL_SIGN_PROP		 EXTENDED_FACING_PROP
@@ -368,7 +369,7 @@ static bool makeBiomeHash = true;
 // half: upper/lower
 #define PITCHER_CROP_PROP   64
 
-#define NUM_TRANS 981
+#define NUM_TRANS 984
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1376,6 +1377,9 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 197,	    HIGH_BIT, "pink_petals", PINK_PETALS_PROP },
     { 0, 198,       HIGH_BIT, "pitcher_crop", PITCHER_CROP_PROP },
     { 0, 175,              6, "pitcher_plant", TALL_FLOWER_PROP },
+    { 0, 199,       HIGH_BIT, "sniffer_egg", EGG_PROP }, // hatch property is only one used, 0xC
+    { 0, 200,       HIGH_BIT, "suspicious_gravel", NO_PROP },   // dusted property
+    { 0, 200,   HIGH_BIT | 4, "suspicious_sand", NO_PROP },   // dusted property
 
  // Note: 140, 144 are reserved for the extra bit needed for BLOCK_FLOWER_POT and BLOCK_HEAD, so don't use these HIGH_BIT values
 };

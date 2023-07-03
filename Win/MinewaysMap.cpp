@@ -2235,6 +2235,13 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         }
         break;
 
+    case BLOCK_SUSPICIOUS_GRAVEL:
+        if (dataVal & 0x4)
+        {
+            return "Suspicious Sand";
+        }
+        break;
+
     case BLOCK_HAY:
         switch (dataVal & 0x3)
         {
@@ -2249,11 +2256,10 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Block of Stripped Bamboo";
         }
         break;
-
     }
 
     return gBlockDefinitions[type].name;
-}
+}   // endend
 
 //copy block to bits at px,py at zoom.  bits is wxh
 static void blit(unsigned char* block, unsigned char* bits, int px, int py,
@@ -4215,6 +4221,22 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         }
         break;
 
+    case BLOCK_SUSPICIOUS_GRAVEL:
+        dataVal = block->data[voxel];
+        switch (dataVal & 0x4)
+        {
+        default:
+            assert(0);
+        case 0:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 4:	// suspicious sand
+            color = 0xDACDA1;
+            break;
+        }
+        break;
+
     default:
         // Everything else
         lightComputed = true;
@@ -4329,7 +4351,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
     }
 
     return color;
-}
+}   // endend
 
 // Draw a block at chunk bx,bz
 // opts is a bitmask representing render options (see MinewaysMap.h)
@@ -4985,6 +5007,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_PRISMARINE:
     case BLOCK_NETHER_BRICKS:
     case BLOCK_RED_MUSHROOM:
+    case BLOCK_SNIFFER_EGG:
         // uses 0-2
         if (dataVal < 3)
         {
@@ -5216,6 +5239,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_BAMBOO_MOSAIC_STAIRS:
     case BLOCK_WOODEN_DOUBLE_SLAB:
     case BLOCK_CUT_COPPER_DOUBLE_SLAB:
+    case BLOCK_SUSPICIOUS_GRAVEL:
         // uses 0-7 - TODO we could someday add more blocks to neighbor the others, in order to show the stairs' "step block trim" feature of week 39
         if (dataVal < 8)
         {
@@ -6803,7 +6827,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
 #endif
     }
-}
+}   // endend
 
 void testNumeral(WorldBlock* block, int type, int y, int digitPlace, int outType)
 {
