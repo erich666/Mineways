@@ -4174,8 +4174,23 @@ static int computeFlatFlags(int boxIndex)
         gBoxData[boxIndex + 1].flatFlags |= FLAT_FACE_BELOW;
         break;
 
+    case BLOCK_PITCHER_CROP:
+        // flatten only if age is 0
+        {
+            int age = (gBoxData[boxIndex].data & 0x7);
+
+            // if age > 1, there's a flower. Get the swatch to use, then output it
+            if (age == 0) {
+                gBoxData[boxIndex - 1].flatFlags |= FLAT_FACE_ABOVE;
+            }
+            else {
+                return 0;
+            }
+        }
+        break;
+
     default:
-        // something needs to be added to the cases above!
+        // something needs to be added to the cases above! The gBoxData[boxIndex].type is not in the switch list
         assert(0);
         return 0;
 
@@ -22505,10 +22520,13 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     else {
                         swatchLoc = SWATCH_INDEX(13, 57) + age;
                     }
+                    // currently we composite against whatever it happens to be next to, which is meh.
+                    // TODO: could composite against farmland always, but would have to mess with code a bit.
                 }
                 else {
-                    // the container only - really, better to flatten TODOTODO
+                    // the container only, used when flattening
                     swatchLoc = SWATCH_INDEX(3, 58);
+                    swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
                 }
             }
             break;
