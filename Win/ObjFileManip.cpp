@@ -22491,7 +22491,6 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             break;
 
         case BLOCK_PITCHER_CROP:
-            // not sure what to do if there's none? TODOTODO
             {
                 int age = (dataVal & 0x7);
 
@@ -22506,6 +22505,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     else {
                         swatchLoc = SWATCH_INDEX(13, 57) + age;
                     }
+                }
+                else {
+                    // the container only - really, better to flatten TODOTODO
+                    swatchLoc = SWATCH_INDEX(3, 58);
                 }
             }
             break;
