@@ -3713,6 +3713,7 @@ static int computeFlatFlags(int boxIndex)
     case BLOCK_SMALL_DRIPLEAF:
     case BLOCK_FROGSPAWN:
     case BLOCK_PINK_PETALS:
+    case BLOCK_TORCHFLOWER_CROP:
         //case BLOCK_CHAIN:   // questionable: should a chain (offset to the edge!) really be flattened onto the neighbor below?
         gBoxData[boxIndex - 1].flatFlags |= FLAT_FACE_ABOVE;
         break;
@@ -4174,7 +4175,7 @@ static int computeFlatFlags(int boxIndex)
         gBoxData[boxIndex + 1].flatFlags |= FLAT_FACE_BELOW;
         break;
 
-    case BLOCK_PITCHER_CROP:
+    case BLOCK_PITCHER_CROP:						// computeFlatFlags
         // flatten only if age is 0
         {
             int age = (gBoxData[boxIndex].data & 0x7);
@@ -4618,6 +4619,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_POINTED_DRIPSTONE:
     case BLOCK_CAVE_VINES:
     case BLOCK_CAVE_VINES_LIT:
+    case BLOCK_TORCHFLOWER_CROP:
         return saveBillboardFaces(boxIndex, type, BB_FULL_CROSS);
         break;	// saveBillboardOrGeometry
 
@@ -7640,7 +7642,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         white tulip		red_flower		6
         pink tulip		red_flower		7
         oxeye daisy		red_flower		8
+        ... more
         dandelion		yellow_flower	0
+        torchflower		yellow_flower	1
         red mushroom	red_mushroom	0
         brown mushroom	brown_mushroom	0
         oak sapling		sapling			0
@@ -7800,6 +7804,11 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             case RED_FLOWER_FIELD | 0xF:
                 // blue orchid through wither rose through warped roots
                 typeB = BLOCK_POPPY;
+                dataValB = dataVal & 0xf;
+                break;
+            case YELLOW_FLOWER_FIELD | 0x1:
+                // torchflower
+                typeB = BLOCK_DANDELION;
                 dataValB = dataVal & 0xf;
                 break;
             case BAMBOO_FIELD:
@@ -13309,6 +13318,11 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         break;
     case BLOCK_DANDELION:
         wobbleIt = true;
+        if ((dataVal & 0xf) > 0)
+        {
+            // torchflower
+            swatchLoc = SWATCH_INDEX(2, 60);
+        }
         break;
     case BLOCK_POPPY:				// saveBillboardFacesExtraData
         wobbleIt = true;
@@ -13541,6 +13555,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         break;
 
     case BLOCK_SWEET_BERRY_BUSH:				// saveBillboardFacesExtraData
+    case BLOCK_TORCHFLOWER_CROP:				// saveBillboardFacesExtraData
         // adjust for growth
         swatchLoc += (dataVal & 0x3);
         break;
@@ -18638,7 +18653,6 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_DAYLIGHT_SENSOR:
         case BLOCK_INVERTED_DAYLIGHT_SENSOR:
         case BLOCK_LADDER:
-        case BLOCK_DANDELION:
         case BLOCK_BROWN_MUSHROOM:
         case BLOCK_RED_MUSHROOM:
         case BLOCK_DEAD_BUSH:
@@ -20969,6 +20983,14 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             break;
+        case BLOCK_DANDELION:						// getSwatch
+            if ((dataVal & 0xf) > 0)
+            {
+                // torchflower
+                swatchLoc = SWATCH_INDEX(2, 60);
+            }
+            swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
+            break;
         case BLOCK_DOUBLE_FLOWER:				// getSwatch
             // old-style data in Minecraft: Top half of sunflowers, etc., have just the 0x8 bit set, not the flower itself.
             // bottom half has the flower type
@@ -21005,6 +21027,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_NETHER_WART:				    // getSwatch
         case BLOCK_BEETROOT_SEEDS:				// getSwatch
         case BLOCK_SWEET_BERRY_BUSH:		    // getSwatch
+        case BLOCK_TORCHFLOWER_CROP:		    // getSwatch
+            // add age to swatch loc
             swatchLoc += (dataVal & 0x7);
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             break;
@@ -22480,7 +22504,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 0, 61, 4, 61);
             break;
 
-        case BLOCK_PINK_PETALS: // could get clever and composite the four flower amounts - nope, TODO
+        case BLOCK_PINK_PETALS: // could get clever and composite the four flower amounts - nope, too tricksy, TODO
             if (uvIndices)
             {
                 // brute force correlations through testing
@@ -22505,7 +22529,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, angle);
             break;
 
-        case BLOCK_PITCHER_CROP:
+        case BLOCK_PITCHER_CROP:   // getSwatch
             {
                 int age = (dataVal & 0x7);
 

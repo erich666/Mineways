@@ -369,7 +369,7 @@ static bool makeBiomeHash = true;
 // half: upper/lower
 #define PITCHER_CROP_PROP   64
 
-#define NUM_TRANS 984
+#define NUM_TRANS 987
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1380,6 +1380,9 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 199,       HIGH_BIT, "sniffer_egg", EGG_PROP }, // hatch property is only one used, 0xC
     { 0, 200,       HIGH_BIT, "suspicious_gravel", NO_PROP },   // dusted property
     { 0, 200,   HIGH_BIT | 4, "suspicious_sand", NO_PROP },   // dusted property
+    { 0, 201,       HIGH_BIT, "torchflower_crop", NO_PROP },    // just age
+    { 0,  37,              1, "torchflower", NO_PROP },
+    { 0, BLOCK_FLOWER_POT,  YELLOW_FLOWER_FIELD | 1, "potted_torchflower", NO_PROP },
 
  // Note: 140, 144 are reserved for the extra bit needed for BLOCK_FLOWER_POT and BLOCK_HEAD, so don't use these HIGH_BIT values
 };
@@ -3025,7 +3028,10 @@ SectionsCode:
                             white tulip		red_flower		6
                             pink tulip		red_flower		7
                             oxeye daisy		red_flower		8
+                            ...
+                            warped_roots    red_flower      15
                             dandelion		yellow_flower	0
+                            torchflower		yellow_flower	1
                             red mushroom	red_mushroom	0
                             brown mushroom	brown_mushroom	0
                             oak sapling		sapling			0

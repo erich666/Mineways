@@ -784,6 +784,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         case 2:
         case YELLOW_FLOWER_FIELD | 0:
             return "Potted Dandelion";
+        case YELLOW_FLOWER_FIELD | 1:
+            return "Potted Torchflower";
         case 1:
         case RED_FLOWER_FIELD | 0:
             return "Potted Poppy";
@@ -917,6 +919,19 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Crimson Root";
         case 15:
             return "Warped Root";
+        }
+        break;
+
+    case BLOCK_DANDELION:
+        switch (dataVal & 0xf)
+        {
+        default:
+            assert(0);
+            break;
+        case 0: // damdelion
+            break;
+        case 1:	// torchflower
+            return "Torchflower";
         }
         break;
 
@@ -3355,6 +3370,22 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         }
         break;
 
+    case BLOCK_DANDELION:
+        dataVal = block->data[voxel];
+        switch (dataVal & 0xf)
+        {
+        default:
+            assert(0);
+        case 0: // dandelion
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 1:	// torchflower
+            color = 0xF6B927;   // picked from the flower, instead of an average solid color, which was boring brown 0x887354
+            break;
+        }
+        break;
+
     case BLOCK_DOUBLE_FLOWER:
         // Subtract 256, one Y level, as we need to look at the bottom of the plant to ID its type.
         // Guard against a negative voxel value. Use the top half if the bottom half doesn't exist;
@@ -4947,6 +4978,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_CAVE_VINES_LIT:
     case BLOCK_AZALEA:
     case BLOCK_MANGROVE_LEAVES:
+    case BLOCK_TORCHFLOWER_CROP:
+    case BLOCK_DANDELION:
         // uses 0-1 
         if (dataVal < 2)
         {
@@ -5069,7 +5102,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_DEAD_CORAL_BLOCK:
     case BLOCK_CRIMSON_DOUBLE_SLAB:
     case BLOCK_RESPAWN_ANCHOR:
-        // uses 0-3
+    case BLOCK_PITCHER_CROP:
+        // uses 0-4
         if (dataVal < 5)
         {
             addBlock = 1;
@@ -5282,7 +5316,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
     case BLOCK_OAK_PLANKS:
-    case BLOCK_POPPY:
         // uses 0-11
         if (dataVal < 12)
         {
@@ -5329,6 +5362,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 block->data[neighborIndex] = SAPLING_FIELD | 2;
                 block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
                 block->data[neighborIndex2] = RED_MUSHROOM_FIELD | 0;
+                block->grid[neighborIndex3] = BLOCK_FLOWER_POT;  // torchflower
+                block->data[neighborIndex3] = YELLOW_FLOWER_FIELD | 1;  // torchflower
                 break;
             case 4:
                 block->grid[neighborIndex] = BLOCK_FLOWER_POT;
@@ -5534,6 +5569,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_CAMPFIRE:
     case BLOCK_MANGROVE_SIGN_POST:
     case BLOCK_PINK_PETALS:
+    case BLOCK_POPPY:
         // uses all bits, 0-15
         addBlock = 1;
         break;
