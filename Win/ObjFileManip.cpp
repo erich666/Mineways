@@ -11168,6 +11168,70 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         }
         break; // saveBillboardOrGeometry
 
+    case BLOCK_OAK_WALL_HANGING_SIGN:						// saveBillboardOrGeometry
+        // three main elements:
+        // sign itself - stripped logs are used
+        // chains - always vertical
+        // bar above sign - uses both stripped and iron bits from some tile...
+        // Sorry, we don't use the sign textures in textures\entity\signs
+        switch (dataVal & (0xC | BIT_16 | BIT_32))
+        {
+        default:
+            assert(0);
+        case 0:
+        case 1 << 2:	// spruce
+        case 2 << 2:	// birch
+        case 3 << 2:	// jungle
+        case 4 << 2:	// acacia
+        case 5 << 2:	// dark oak
+            swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + ((dataVal & (0xC | BIT_8 | BIT_16)) >> 2);
+            break;
+        case 6 << 2:   // crimson
+            swatchLoc = SWATCH_INDEX(13, 43);
+            break;
+        case 7 << 2:   // warped
+            swatchLoc = SWATCH_INDEX(13, 44);
+            break;
+        case 8 << 2:    // mangrove
+            swatchLoc = SWATCH_INDEX(15, 54);
+            break;
+        case 9 << 2:	// cherry
+            swatchLoc = SWATCH_INDEX(8, 59);
+            break;
+        case 10 << 2:	// bamboo - pick mosaic so it's less obviously wrong
+            swatchLoc = SWATCH_INDEX(11, 60);
+            break;
+        }
+
+        gUsingTransform = 1;
+        totalVertexCount = gModel.vertexCount;
+
+        if (gModel.print3D) {
+            // sign - easy enough
+            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1, 0x0, 1, 15, 0, 12, 7 - fatten, 9 + fatten);
+
+            // sign post above holding it up
+            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, 0x0, 0, 16, 14 - 2*fatten, 16, 6, 10);
+        }
+        else {
+            // sign - easy enough
+            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1, 0x0, 1, 15, 0, 10, 7, 9);
+            // chains TODOTODO
+            
+            // sign post above holding it up - TODOTODO really need to make it have two iron bands, series of boxes glued together
+            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, 0x0, 0, 16, 14, 16, 6, 10);
+        }
+        gUsingTransform = 0;
+        totalVertexCount = gModel.vertexCount - totalVertexCount;
+
+        identityMtx(mtx);
+        translateToOriginMtx(mtx, boxIndex);
+        rotateMtx(mtx, 0.0f, (dataVal & 0x3) * 90.0f, 0.0f);
+        translateFromOriginMtx(mtx, boxIndex);
+        transformVertices(totalVertexCount, mtx);
+
+        break; // saveBillboardOrGeometry
+
         // END saveBillboardOrGeometry
 
     default:
@@ -23147,6 +23211,8 @@ bool IsASubblock(int type, int dataVal)
     case BLOCK_PUMPKIN_STEM:
     case BLOCK_MELON_STEM:
         // so that the age is always shown
+    case BLOCK_OAK_WALL_HANGING_SIGN:   // TODOTODO added, but I'm not clear on the point of this function. Should logs etc. be added, too?
+    case BLOCK_OAK_HANGING_SIGN:
         return true;
 
     default:
@@ -23704,6 +23770,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                             // swatch locations exactly correspond with tiles.h names
                             assert(prevSwatchLoc < TOTAL_TILES);
                             WcharToChar(gTilesTable[prevSwatchLoc].filename, mtlName, MAX_PATH_AND_FILE);
+                            assert(strlen(mtlName));    // if hit, means a bad swatchLoc was assigned
                             sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
                             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                             // note in an array that this separate tile should be output as a material
@@ -33371,7 +33438,10 @@ static bool faceCanTile(int faceId)
     case BLOCK_LIGHTNING_ROD:
     case BLOCK_SPORE_BLOSSOM:
     case BLOCK_FROGSPAWN:
-    
+    case BLOCK_SNIFFER_EGG:
+    case BLOCK_OAK_WALL_HANGING_SIGN:
+    case BLOCK_OAK_HANGING_SIGN:
+
     // Ruled out because complex and used flipIndicesLeftRight
     case BLOCK_BED:
     case BLOCK_OBSERVER:
@@ -33401,6 +33471,9 @@ static bool faceCanTile(int faceId)
     case 5 + 34 * 16:       //stripped logs
     case 13 + 54 * 16:      //logs
     case 15 + 54 * 16:      //stripped logs
+    case 5 + 60 * 16:       //bamboo
+    case 13 + 60 * 16:      //bamboo mosaic
+    case 5 + 61 * 16:       //stripped bamboo
     case 12 + 6 * 16:       //piston side
     case 4 + 9 * 16:        //glass pane top
     case 15 + 9 * 16:       //end portal side

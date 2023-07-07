@@ -2271,6 +2271,44 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Block of Stripped Bamboo";
         }
         break;
+
+    case BLOCK_OAK_WALL_HANGING_SIGN:
+        switch (dataVal & (0xC | BIT_16 | BIT_32))
+        {
+        default:
+            assert(0);
+        case 0:
+            break;
+            // return "Oak Wall Hanging Sign";
+        case 1 << 2:	// spruce
+            return "Spruce Wall Hanging Sign";
+        case 2 << 2:	// birch
+            return "Birch Wall Hanging Sign";
+        case 3 << 2:	// jungle
+            return "Jungle Wall Hanging Sign";
+        case 4 << 2:	// acacia
+            return "Acacia Wall Hanging Sign";
+        case 5 << 2:	// dark oak
+            return "Dark Oak Wall Hanging Sign";
+        case 6 << 2:
+            return "Crimson Wall Hanging Sign";
+        case 7 << 2:
+            return "Warped Wall Hanging Sign";
+        case 8 << 2:
+            return "Mangrove Wall Hanging Sign";
+        case 9 << 2:
+            return "Cherry Wall Hanging Sign";
+        case 10 << 2:
+            return "Bamboo Wall Hanging Sign";
+        }
+        break;
+
+    case BLOCK_OAK_HANGING_SIGN:
+        if (dataVal & BIT_16)
+        {
+            return "Spruce Hanging Sign";
+        }
+        break;
     }
 
     return gBlockDefinitions[type].name;
@@ -4265,6 +4303,57 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case 4:	// suspicious sand
             color = 0xDACDA1;
             break;
+        }
+        break;
+
+    case BLOCK_OAK_WALL_HANGING_SIGN:
+        dataVal = block->data[voxel];
+        switch (dataVal & (0xC | BIT_16 | BIT_32))
+        {
+        default:
+            assert(0);
+        case 0:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 1 << 2:	// spruce
+            color = 0x745A35;
+            break;
+        case 2 << 2:	// birch
+            color = 0xC5B077;
+            break;
+        case 3 << 2:	// jungle
+            color = 0xAC8555;
+            break;
+        case 4 << 2:	// acacia
+            color = 0xAF5D3C;
+            break;
+        case 5 << 2:	// dark oak
+            color = 0x493924;
+            break;
+        case 6 << 2:   // crimson
+            color = 0x8A3A5A;
+            break;
+        case 7 << 2:   // warped
+            color = 0x3A9794;
+            break;
+        case 8 << 2:    // mangrove
+            color = 0x783730;
+            break;
+        case 9 << 2:	// cherry
+            color = 0xDDA7A0;
+            break;
+        case 10 << 2:	// bamboo
+            color = 0xC4AF52;
+            break;
+        }
+        break;
+
+    case BLOCK_OAK_HANGING_SIGN:
+        dataVal = block->data[voxel];
+        if (dataVal & BIT_16)
+        {
+            color = 0x745632;   // spruce
         }
         break;
 
@@ -6833,6 +6922,33 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         if (dataVal < 12 && (dataVal % 4) != 3)
         {
             addBlock = 1;
+        }
+        break;
+
+    case BLOCK_OAK_WALL_HANGING_SIGN:
+    case BLOCK_OAK_HANGING_SIGN:
+        // 0-64,
+        // add new style diagonally SE of original
+        {
+            neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
+            int neighborIndex2 = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
+            int neighborIndex3 = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
+
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)((dataVal + 16) | typeHighBit);
+            block->grid[neighborIndex2] = (unsigned char)type;
+            block->data[neighborIndex2] = (unsigned char)((dataVal + 32) | typeHighBit);
+            block->grid[neighborIndex3] = (unsigned char)type;
+            block->data[neighborIndex3] = (unsigned char)((dataVal + 48) | typeHighBit);
+
+            if (type == BLOCK_OAK_HANGING_SIGN) {
+                // add wood block or fence post overhead each hanging sign
+                bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
+                block->grid[bi] = BLOCK_STONE;
+                block->grid[neighborIndex+1] = BLOCK_STONE;
+                block->grid[neighborIndex2+1] = BLOCK_FENCE;
+                block->grid[neighborIndex3+1] = BLOCK_FENCE;
+            }
         }
         break;
 
