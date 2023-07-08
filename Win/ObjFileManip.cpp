@@ -11205,21 +11205,63 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
         gUsingTransform = 1;
         totalVertexCount = gModel.vertexCount;
+        sideSwatchLoc = SWATCH_INDEX(6, 1); // block of iron
 
         if (gModel.print3D) {
             // sign - easy enough
             saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1, 0x0, 1, 15, 0, 12, 7 - fatten, 9 + fatten);
 
             // sign post above holding it up
-            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, 0x0, 0, 16, 14 - 2*fatten, 16, 6, 10);
+            // two wood, two iron, 8 wood, two iron, two wood
+            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_HI_X_BIT, 0, 2, 14 - 2 * fatten, 16, 6, 10);
+            saveBoxTileGeometry(boxIndex, BLOCK_OF_IRON, 0x0, sideSwatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, 2, 4, 14 - 2 * fatten, 16, 6, 10);
+            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, 4, 12, 14 - 2 * fatten, 16, 6, 10);
+            saveBoxTileGeometry(boxIndex, BLOCK_OF_IRON, 0x0, sideSwatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, 12, 14, 14 - 2 * fatten, 16, 6, 10);
+            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_LO_X_BIT, 14, 16, 14 - 2 * fatten, 16, 6, 10);
         }
         else {
             // sign - easy enough
             saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1, 0x0, 1, 15, 0, 10, 7, 9);
-            // chains TODOTODO
-            
-            // sign post above holding it up - TODOTODO really need to make it have two iron bands, series of boxes glued together
-            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, 0x0, 0, 16, 14, 16, 6, 10);
+
+            // chains
+            bottomSwatchLoc = SWATCH_INDEX(12, 46); // chain
+            // left half
+            for (i = 0; i < 2; i++) {
+                uberTotalVertexCount = littleTotalVertexCount = gModel.vertexCount;
+                saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, 4, bottomSwatchLoc, bottomSwatchLoc, bottomSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 3, 8, 12, 8, 8);
+                littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+                identityMtx(mtx);
+                translateToOriginMtx(mtx, boxIndex);
+                translateMtx(mtx, 6.5f / 16.0f, 0.0f, 0.0f);
+                rotateMtx(mtx, 0.0f, 135.0f, 0.0f);
+                //rotateMtx(mtx, 0.0f, 0.0f, 90.0f);
+                translateFromOriginMtx(mtx, boxIndex);
+                transformVertices(littleTotalVertexCount, mtx);
+
+                // right half
+                littleTotalVertexCount = gModel.vertexCount;
+                saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, 4, bottomSwatchLoc, bottomSwatchLoc, bottomSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 3, 6, 8, 12, 8, 8);
+                littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+                identityMtx(mtx);
+                translateToOriginMtx(mtx, boxIndex);
+                translateMtx(mtx, 3.5f / 16.0f, 0.0f, 0.0f);
+                rotateMtx(mtx, 0.0f, 45.0f, 0.0f);
+                //rotateMtx(mtx, 0.0f, 0.0f, 90.0f);
+                translateFromOriginMtx(mtx, boxIndex);
+                transformVertices(littleTotalVertexCount, mtx);
+                
+                uberTotalVertexCount = gModel.vertexCount - uberTotalVertexCount;
+                identityMtx(mtx);
+                translateMtx(mtx, (8*i-4) * 1.0f/16.0f, 2.0f / 16.0f, 0.0f);
+                transformVertices(uberTotalVertexCount, mtx);
+            }
+
+            // sign post above holding it up
+            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_HI_X_BIT, 0, 2, 14, 16, 6, 10);
+            saveBoxTileGeometry(boxIndex, BLOCK_OF_IRON, 0x0, sideSwatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, 2, 4, 14, 16, 6, 10);
+            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, 4, 12, 14, 16, 6, 10);
+            saveBoxTileGeometry(boxIndex, BLOCK_OF_IRON, 0x0, sideSwatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, 12, 14, 14, 16, 6, 10);
+            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_LO_X_BIT, 14, 16, 14, 16, 6, 10);
         }
         gUsingTransform = 0;
         totalVertexCount = gModel.vertexCount - totalVertexCount;
