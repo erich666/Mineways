@@ -10339,7 +10339,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             // left half
             int rotationDV = dataVal & 0xf; // x-axis == 4, z-axis == 8
             littleTotalVertexCount = gModel.vertexCount;
-            saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, rotationDV, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 3, 0, 16, 8, 8);
+            saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, rotationDV, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), 0, 3, 0, 16, 8, 8);
             littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
             identityMtx(mtx);
             translateToOriginMtx(mtx, boxIndex);
@@ -10354,7 +10354,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
             // right half
             littleTotalVertexCount = gModel.vertexCount;
-            saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, rotationDV, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 3, 6, 0, 16, 8, 8);
+            saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, rotationDV, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), 3, 6, 0, 16, 8, 8);
             littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
             identityMtx(mtx);
             translateToOriginMtx(mtx, boxIndex);
@@ -11228,7 +11228,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             // left half
             for (i = 0; i < 2; i++) {
                 uberTotalVertexCount = littleTotalVertexCount = gModel.vertexCount;
-                saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, 4, bottomSwatchLoc, bottomSwatchLoc, bottomSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 3, 8, 12, 8, 8);
+                saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, 4, bottomSwatchLoc, bottomSwatchLoc, bottomSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY, 0, 3, 8, 12, 8, 8);
                 littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
                 identityMtx(mtx);
                 translateToOriginMtx(mtx, boxIndex);
@@ -11240,7 +11240,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
                 // right half
                 littleTotalVertexCount = gModel.vertexCount;
-                saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, 4, bottomSwatchLoc, bottomSwatchLoc, bottomSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 3, 6, 8, 12, 8, 8);
+                saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, 4, bottomSwatchLoc, bottomSwatchLoc, bottomSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY, 3, 6, 8, 12, 8, 8);
                 littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
                 identityMtx(mtx);
                 translateToOriginMtx(mtx, boxIndex);
