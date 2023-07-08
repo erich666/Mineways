@@ -11214,9 +11214,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             // sign post above holding it up
             // two wood, two iron, 8 wood, two iron, two wood
             saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_HI_X_BIT, 0, 2, 14 - 2 * fatten, 16, 6, 10);
-            saveBoxTileGeometry(boxIndex, BLOCK_OF_IRON, 0x0, sideSwatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, 2, 4, 14 - 2 * fatten, 16, 6, 10);
+            saveBoxTileGeometry(boxIndex, type, dataVal, sideSwatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, 2, 4, 14 - 2 * fatten, 16, 6, 10);
             saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, 4, 12, 14 - 2 * fatten, 16, 6, 10);
-            saveBoxTileGeometry(boxIndex, BLOCK_OF_IRON, 0x0, sideSwatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, 12, 14, 14 - 2 * fatten, 16, 6, 10);
+            saveBoxTileGeometry(boxIndex, type, dataVal, sideSwatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, 12, 14, 14 - 2 * fatten, 16, 6, 10);
             saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_LO_X_BIT, 14, 16, 14 - 2 * fatten, 16, 6, 10);
         }
         else {
