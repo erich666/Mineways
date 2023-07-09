@@ -11205,7 +11205,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
         gUsingTransform = 1;
         totalVertexCount = gModel.vertexCount;
-        sideSwatchLoc = SWATCH_INDEX(6, 1); // block of iron
+        //sideSwatchLoc = SWATCH_INDEX(6, 1); // block of iron
+        sideSwatchLoc = SWATCH_INDEX(1, 0); // stone, ugh - block of iron is too white
 
         if (gModel.print3D) {
             // sign - easy enough
@@ -11225,8 +11226,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
             // chains
             bottomSwatchLoc = SWATCH_INDEX(12, 46); // chain
-            // left half
             for (i = 0; i < 2; i++) {
+                // left half
                 uberTotalVertexCount = littleTotalVertexCount = gModel.vertexCount;
                 saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, 4, bottomSwatchLoc, bottomSwatchLoc, bottomSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY, 0, 3, 8, 12, 8, 8);
                 littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
@@ -11252,7 +11253,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 
                 uberTotalVertexCount = gModel.vertexCount - uberTotalVertexCount;
                 identityMtx(mtx);
-                translateMtx(mtx, (8*i-4) * 1.0f/16.0f, 2.0f / 16.0f, 0.0f);
+                translateMtx(mtx, (10 * i - 5) * 1.0f / 16.0f, 2.0f / 16.0f, 0.0f);
                 transformVertices(uberTotalVertexCount, mtx);
             }
 
@@ -11272,7 +11273,75 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(totalVertexCount, mtx);
 
-        break; // saveBillboardOrGeometry
+        break;
+
+    case BLOCK_OAK_HANGING_SIGN: // saveBillboardOrGeometry
+        // two main elements:
+        // sign itself - stripped logs are used
+        // chains - vertical or angled, depending on attached (which gives diagonal)
+        // Sorry, we don't use the sign textures in textures\entity\signs
+        swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+        if (dataVal & BIT_32) {
+            swatchLoc++;    // spruce
+        }
+
+        gUsingTransform = 1;
+        totalVertexCount = gModel.vertexCount;
+
+        if (gModel.print3D) {
+            // sign - easy enough, extend up
+            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1, 0x0, 1, 15, 0, 16, 7 - fatten, 9 + fatten);
+        }
+        else {
+            // sign
+            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1, 0x0, 1, 15, 0, 10, 7, 9);
+
+            // chains
+            bottomSwatchLoc = SWATCH_INDEX(12, 46); // chain
+            for (i = 0; i < 2; i++) {
+                // left half
+                uberTotalVertexCount = littleTotalVertexCount = gModel.vertexCount;
+                saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, 4, bottomSwatchLoc, bottomSwatchLoc, bottomSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY, 0, 3, 8, 14, 8, 8);
+                littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+                identityMtx(mtx);
+                translateToOriginMtx(mtx, boxIndex);
+                translateMtx(mtx, 6.5f / 16.0f, 0.0f, 0.0f);
+                rotateMtx(mtx, 0.0f, 135.0f, 0.0f);
+                //rotateMtx(mtx, 0.0f, 0.0f, 90.0f);
+                translateFromOriginMtx(mtx, boxIndex);
+                transformVertices(littleTotalVertexCount, mtx);
+
+                // right half
+                littleTotalVertexCount = gModel.vertexCount;
+                saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, 4, bottomSwatchLoc, bottomSwatchLoc, bottomSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY, 3, 6, 8, 14, 8, 8);
+                littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+                identityMtx(mtx);
+                translateToOriginMtx(mtx, boxIndex);
+                translateMtx(mtx, 3.5f / 16.0f, 0.0f, 0.0f);
+                rotateMtx(mtx, 0.0f, 45.0f, 0.0f);
+                //rotateMtx(mtx, 0.0f, 0.0f, 90.0f);
+                translateFromOriginMtx(mtx, boxIndex);
+                transformVertices(littleTotalVertexCount, mtx);
+
+                // TODOTODO rotate chain if attached
+                //if (dataVal & BIT_16) {}
+
+                uberTotalVertexCount = gModel.vertexCount - uberTotalVertexCount;
+                identityMtx(mtx);
+                translateMtx(mtx, (10 * i - 5) * 1.0f / 16.0f, 2.0f / 16.0f, 0.0f);
+                transformVertices(uberTotalVertexCount, mtx);
+            }
+        }
+        gUsingTransform = 0;
+        totalVertexCount = gModel.vertexCount - totalVertexCount;
+
+        identityMtx(mtx);
+        translateToOriginMtx(mtx, boxIndex);
+        rotateMtx(mtx, 0.0f, (dataVal & 0x3) * 90.0f, 0.0f);
+        translateFromOriginMtx(mtx, boxIndex);
+        transformVertices(totalVertexCount, mtx);
+
+        break;
 
         // END saveBillboardOrGeometry
 
