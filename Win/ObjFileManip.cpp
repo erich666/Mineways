@@ -11229,7 +11229,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             for (i = 0; i < 2; i++) {
                 // left half
                 uberTotalVertexCount = littleTotalVertexCount = gModel.vertexCount;
-                saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, 4, bottomSwatchLoc, bottomSwatchLoc, bottomSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY, 0, 3, 8, 12, 8, 8);
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, bottomSwatchLoc, bottomSwatchLoc, bottomSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY, 0, 3, 8, 12, 8, 8);
                 littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
                 identityMtx(mtx);
                 translateToOriginMtx(mtx, boxIndex);
@@ -11241,7 +11241,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
                 // right half
                 littleTotalVertexCount = gModel.vertexCount;
-                saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, 4, bottomSwatchLoc, bottomSwatchLoc, bottomSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY, 3, 6, 8, 12, 8, 8);
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, bottomSwatchLoc, bottomSwatchLoc, bottomSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY, 3, 6, 8, 12, 8, 8);
                 littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
                 identityMtx(mtx);
                 translateToOriginMtx(mtx, boxIndex);
@@ -11259,9 +11259,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
             // sign post above holding it up
             saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_HI_X_BIT, 0, 2, 14, 16, 6, 10);
-            saveBoxTileGeometry(boxIndex, BLOCK_OF_IRON, 0x0, sideSwatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, 2, 4, 14, 16, 6, 10);
+            saveBoxTileGeometry(boxIndex, type, dataVal, sideSwatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, 2, 4, 14, 16, 6, 10);
             saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, 4, 12, 14, 16, 6, 10);
-            saveBoxTileGeometry(boxIndex, BLOCK_OF_IRON, 0x0, sideSwatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, 12, 14, 14, 16, 6, 10);
+            saveBoxTileGeometry(boxIndex, type, dataVal, sideSwatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, 12, 14, 14, 16, 6, 10);
             saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_LO_X_BIT, 14, 16, 14, 16, 6, 10);
         }
         gUsingTransform = 0;
@@ -11332,38 +11332,55 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
             // chains
             bottomSwatchLoc = SWATCH_INDEX(12, 46); // chain
-            for (i = 0; i < 2; i++) {
-                // left half
-                uberTotalVertexCount = littleTotalVertexCount = gModel.vertexCount;
-                saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, 4, bottomSwatchLoc, bottomSwatchLoc, bottomSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY, 0, 3, 8, 14, 8, 8);
-                littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-                identityMtx(mtx);
-                translateToOriginMtx(mtx, boxIndex);
-                translateMtx(mtx, 6.5f / 16.0f, 0.0f, 0.0f);
-                rotateMtx(mtx, 0.0f, 135.0f, 0.0f);
-                //rotateMtx(mtx, 0.0f, 0.0f, 90.0f);
-                translateFromOriginMtx(mtx, boxIndex);
-                transformVertices(littleTotalVertexCount, mtx);
+            if (dataVal & BIT_16) {
+                // single, fake out flat "chain"
+                for (i = 0; i < 2; i++) {
+                    littleTotalVertexCount = gModel.vertexCount;
+                    // lower left
+                    saveBoxMultitileGeometry(boxIndex, type, dataVal, bottomSwatchLoc, bottomSwatchLoc, bottomSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY, 0, 3, 7, 10, 8, 8);
+                    // upper right
+                    saveBoxMultitileGeometry(boxIndex, type, dataVal, bottomSwatchLoc, bottomSwatchLoc, bottomSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY, 3, 6, 9, 13, 8, 8);
+                    littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
 
-                // right half
-                littleTotalVertexCount = gModel.vertexCount;
-                saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, 4, bottomSwatchLoc, bottomSwatchLoc, bottomSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY, 3, 6, 8, 14, 8, 8);
-                littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-                identityMtx(mtx);
-                translateToOriginMtx(mtx, boxIndex);
-                translateMtx(mtx, 3.5f / 16.0f, 0.0f, 0.0f);
-                rotateMtx(mtx, 0.0f, 45.0f, 0.0f);
-                //rotateMtx(mtx, 0.0f, 0.0f, 90.0f);
-                translateFromOriginMtx(mtx, boxIndex);
-                transformVertices(littleTotalVertexCount, mtx);
+                    identityMtx(mtx);
+                    translateToOriginMtx(mtx, boxIndex);
+                    translateMtx(mtx, 2.0f / 16.0f, 3.0f/16.0f, 0.0f);
+                    rotateMtx(mtx, 0.0f, i*180.0f, 0.0f);
+                    translateFromOriginMtx(mtx, boxIndex);
+                    transformVertices(littleTotalVertexCount, mtx);
+                }
+            }
+            else {
+                for (i = 0; i < 2; i++) {
+                    // left half
+                    uberTotalVertexCount = littleTotalVertexCount = gModel.vertexCount;
+                    saveBoxMultitileGeometry(boxIndex, type, dataVal, bottomSwatchLoc, bottomSwatchLoc, bottomSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY, 0, 3, 8, 14, 8, 8);
+                    littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+                    identityMtx(mtx);
+                    translateToOriginMtx(mtx, boxIndex);
+                    translateMtx(mtx, 6.5f / 16.0f, 0.0f, 0.0f);
+                    rotateMtx(mtx, 0.0f, 135.0f, 0.0f);
+                    //rotateMtx(mtx, 0.0f, 0.0f, 90.0f);
+                    translateFromOriginMtx(mtx, boxIndex);
+                    transformVertices(littleTotalVertexCount, mtx);
 
-                // TODOTODO rotate chain if attached
-                //if (dataVal & BIT_16) {}
+                    // right half
+                    littleTotalVertexCount = gModel.vertexCount;
+                    saveBoxMultitileGeometry(boxIndex, type, dataVal, bottomSwatchLoc, bottomSwatchLoc, bottomSwatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY, 3, 6, 8, 14, 8, 8);
+                    littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+                    identityMtx(mtx);
+                    translateToOriginMtx(mtx, boxIndex);
+                    translateMtx(mtx, 3.5f / 16.0f, 0.0f, 0.0f);
+                    rotateMtx(mtx, 0.0f, 45.0f, 0.0f);
+                    //rotateMtx(mtx, 0.0f, 0.0f, 90.0f);
+                    translateFromOriginMtx(mtx, boxIndex);
+                    transformVertices(littleTotalVertexCount, mtx);
 
-                uberTotalVertexCount = gModel.vertexCount - uberTotalVertexCount;
-                identityMtx(mtx);
-                translateMtx(mtx, (10 * i - 5) * 1.0f / 16.0f, 2.0f / 16.0f, 0.0f);
-                transformVertices(uberTotalVertexCount, mtx);
+                    uberTotalVertexCount = gModel.vertexCount - uberTotalVertexCount;
+                    identityMtx(mtx);
+                    translateMtx(mtx, (10 * i - 5) * 1.0f / 16.0f, 2.0f / 16.0f, 0.0f);
+                    transformVertices(uberTotalVertexCount, mtx);
+                }
             }
         }
         gUsingTransform = 0;
