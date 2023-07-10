@@ -11073,10 +11073,19 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_PITCHER_CROP:						// saveBillboardOrGeometry
         assert(!gModel.print3D);
 
+        gUsingTransform = 1;
         if (!(dataVal & 0x8)) {
             // bottom output base for bottom only
+            totalVertexCount = gModel.vertexCount;
             swatchLoc = SWATCH_INDEX(13, 57);   //bottom
             saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc + 6, swatchLoc + 5, swatchLoc, 1, 0x0, 0x0, 3, 12, 0, 6, 3, 12);
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            // have to kick it down 1 pixel to attach to farmland
+            translateMtx(mtx, 0.0f, -1.0f / 16.0f, 0.0f);
+            //translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(totalVertexCount, mtx);
+
             firstFace = 0;
         }
         else {
@@ -11100,7 +11109,6 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 }
 
                 //output cross flower
-                gUsingTransform = 1;
                 totalVertexCount = gModel.vertexCount;
                 for (i = 0; i < 2; i++) {
                     littleTotalVertexCount = gModel.vertexCount;
@@ -11111,6 +11119,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                     littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
                     identityMtx(mtx);
                     translateToOriginMtx(mtx, boxIndex);
+                    translateMtx(mtx, 0.0f, -1.0f / 16.0f, 0.0f);
                     rotateMtx(mtx, 0.0f, 45.0f + ((float)i * 90.0f), 0.0f);
                     translateFromOriginMtx(mtx, boxIndex);
                     transformVertices(littleTotalVertexCount, mtx);
@@ -11122,13 +11131,13 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                     identityMtx(mtx);
                     // for a pure translation, don't need to send it to origin
                     //translateToOriginMtx(mtx, boxIndex);
-                    translateMtx(mtx, 0.0f, 6.0f / 16.0f, 0.0f);
+                    translateMtx(mtx, 0.0f, 5.0f / 16.0f, 0.0f);
                     //translateFromOriginMtx(mtx, boxIndex);
                     transformVertices(totalVertexCount, mtx);
                 }
-                gUsingTransform = 0;
             }
         }
+        gUsingTransform = 0;
         break; // saveBillboardOrGeometry
 
     case BLOCK_SNIFFER_EGG:						// saveBillboardOrGeometry
@@ -13187,7 +13196,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     float height = 0.0f;
     int uvIndices[4];  // cppcheck-suppress 398
     int foundSunflowerTop = 0;
-    int foundPitcherPlant = 0;
+    int yShift = 0;
     int swatchLocSet[6];
     int retCode = MW_NO_ERROR;
     int matchType;  // cppcheck-suppress 398
@@ -13607,7 +13616,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
                 // bottom
                 swatchLoc = SWATCH_INDEX(1, 58);
             }
-            foundPitcherPlant = 1;
+            yShift = -5;
         }
         else {
             if (dataVal & 0x8)
@@ -13782,7 +13791,14 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         break;
 
     case BLOCK_SWEET_BERRY_BUSH:				// saveBillboardFacesExtraData
+        // adjust for growth
+        swatchLoc += (dataVal & 0x3);
+        break;
+
     case BLOCK_TORCHFLOWER_CROP:				// saveBillboardFacesExtraData
+        // shift to farmland - well, actually, torchflower crops float above farmland, it turns out. Sort of a bug by Minecraft itself.
+        // I think it's because the fully grown torchflower can be on grass, no shift.
+        //yShift = -1;
         // adjust for growth
         swatchLoc += (dataVal & 0x3);
         break;
@@ -13806,11 +13822,13 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         wobbleIt = false;
         shiftX = shiftY = 0.0f;
     }
-    if (wobbleIt || foundPitcherPlant) {
+    if (wobbleIt || yShift) {
         gUsingTransform = 1;
         metaVertexCount = gModel.vertexCount;
 
-        wobbleObjectLocation(boxIndex, shiftX, shiftZ);
+        if (wobbleIt) {
+            wobbleObjectLocation(boxIndex, shiftX, shiftZ);
+        }
     }
     // given billboardType, set up number of faces, normals for each, coordinate offsets for each;
     // the UV indices should always be the same for each, so we don't need to touch those
@@ -14630,11 +14648,11 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     }
 
     // this is a place where we can translate or shift the plant's location
-    if (wobbleIt || foundPitcherPlant) {
+    if (wobbleIt || yShift ) {
         gUsingTransform = 0;
         metaVertexCount = gModel.vertexCount - metaVertexCount;
         identityMtx(mtx);
-        translateMtx(mtx, shiftX / 16.0f, foundPitcherPlant ? -6.0f / 16.0f : 0.0f, shiftZ / 16.0f);
+        translateMtx(mtx, shiftX / 16.0f, yShift / 16.0f, shiftZ / 16.0f);
         transformVertices(metaVertexCount, mtx);
     }
 

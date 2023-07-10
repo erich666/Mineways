@@ -3423,6 +3423,18 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case 11: // wither rose
             color = 0x2D3119;
             break;
+        case 12:    // crimson fungus
+            color = 0x9D3F2B;
+            break;
+        case 13:    // warped fungus
+            color = 0x777965;
+            break;
+        case 14:    // crimson root
+            color = 0x3092B;
+            break;
+        case 15:    // warped root
+            color = 0x148E7E;
+            break;
         }
         break;
 
@@ -5117,12 +5129,20 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_CAVE_VINES_LIT:
     case BLOCK_AZALEA:
     case BLOCK_MANGROVE_LEAVES:
-    case BLOCK_TORCHFLOWER_CROP:
     case BLOCK_DANDELION:
         // uses 0-1 
         if (dataVal < 2)
         {
             addBlock = 1;
+        }
+        break;
+    case BLOCK_TORCHFLOWER_CROP:
+        // uses 0-1, put on farmland
+        if (dataVal < 2)
+        {
+            addBlock = 1;
+            // add farmland underneath
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = BLOCK_FARMLAND;
         }
         break;
     case BLOCK_FIRE:
@@ -5179,7 +5199,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_PRISMARINE:
     case BLOCK_NETHER_BRICKS:
     case BLOCK_RED_MUSHROOM:
-    case BLOCK_SNIFFER_EGG:
         // uses 0-2
         if (dataVal < 3)
         {
@@ -5241,11 +5260,25 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_DEAD_CORAL_BLOCK:
     case BLOCK_CRIMSON_DOUBLE_SLAB:
     case BLOCK_RESPAWN_ANCHOR:
+        // uses 0-4
+        if (dataVal < 5)
+        {
+            addBlock = 1;
+        }
+        break;
     case BLOCK_PITCHER_CROP:
         // uses 0-4
         if (dataVal < 5)
         {
             addBlock = 1;
+            // add farmland underneath
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = BLOCK_FARMLAND;
+            // if age is 3 or 4, add block above of same flower
+            if (dataVal > 2) {
+                bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
+                block->grid[bi] = (unsigned char)type;
+                block->data[bi] = (unsigned char)(dataVal | 0x8 | typeHighBit); // 0x8 means half is upper
+            }
         }
         break;
     case BLOCK_CORAL:
@@ -5291,7 +5324,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
             addBlock = 1;
             // for just chorus flower, put endstone below
-            if (type == BLOCK_CHORUS_FLOWER)
+            if (origType == BLOCK_CHORUS_FLOWER)
             {
                 block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = BLOCK_END_STONE;
             }
@@ -5655,7 +5688,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         if ((dataVal & 0x03) < 2) {    // mangrove and cherry
             addBlock = 1;
             // add "wood" variant to map diagonally SE of original
-            if (dataVal < ((type == BLOCK_LOG) ? 4 : 2)) {
+            if (dataVal < ((origType == BLOCK_LOG) ? 4 : 2)) {
                 // add "wood" variant to map
                 neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
                 block->grid[neighborIndex] = (unsigned char)type;
@@ -5832,7 +5865,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 block->grid[BLOCK_INDEX(x + 4 + (type % 2) * 8, y, z + 4 + (dataVal % 2) * 8)] = (unsigned char)type;
             }
         }
-        else if (type == BLOCK_STATIONARY_WATER) {
+        else if (origType == BLOCK_STATIONARY_WATER) {
             // for stationary water, bubble column is put at bottom
             if (dataVal == 15) {
                 addBlock = 1;
@@ -6077,7 +6110,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
             addBlock = 1;
             // set higher bits BIT_8 and BIT_16
-            if (type == BLOCK_WALL_SIGN) {
+            if (origType == BLOCK_WALL_SIGN) {
                 // cycle 8 materials
                 finalDataVal = ((dataVal % 8) << 3) | (dataVal & 0x7);
             }
@@ -6383,7 +6416,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 bi = BLOCK_INDEX(bx, by, bz);
                 block->grid[bi] = BLOCK_PISTON_HEAD;
                 // sticky or not, plus direction
-                block->data[bi] |= (unsigned char)(trimVal | ((type == BLOCK_STICKY_PISTON) ? 0x8 : 0x0));
+                block->data[bi] |= (unsigned char)(trimVal | ((origType == BLOCK_STICKY_PISTON) ? 0x8 : 0x0));
             }
         }
         break;
@@ -6443,11 +6476,11 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
             // just a post
-            block->data[bi] = (unsigned char)(((type == BLOCK_CHORUS_PLANT)? BIT_16 : 0) | typeHighBit);
+            block->data[bi] = (unsigned char)(((origType == BLOCK_CHORUS_PLANT)? BIT_16 : 0) | typeHighBit);
         }
 
         // for just chorus plant, put endstone below
-        if (type == BLOCK_CHORUS_PLANT)
+        if (origType == BLOCK_CHORUS_PLANT)
         {
             finalDataVal |= BIT_16;
             block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = BLOCK_END_STONE;
@@ -6733,6 +6766,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
 
     case BLOCK_PURPUR_PILLAR:
+    case BLOCK_SNIFFER_EGG:
         // uses 0,4,8
         if ((dataVal == 0) || (dataVal == 4) || (dataVal == 8)) {
             addBlock = 1;
@@ -6976,6 +7010,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
 
     case BLOCK_OAK_WALL_HANGING_SIGN:
+        // 0-10 x 4 + 0-3 => 0-43
     case BLOCK_OAK_HANGING_SIGN:
     case BLOCK_BIRCH_HANGING_SIGN:
     case BLOCK_ACACIA_HANGING_SIGN:
@@ -6985,24 +7020,33 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         // 0-64,
         // add new style diagonally SE of original
         {
+            addBlock = 1;
             neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
             int neighborIndex2 = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
             int neighborIndex3 = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
 
             block->grid[neighborIndex] = (unsigned char)type;
             block->data[neighborIndex] = (unsigned char)((dataVal + 16) | typeHighBit);
-            block->grid[neighborIndex2] = (unsigned char)type;
-            block->data[neighborIndex2] = (unsigned char)((dataVal + 32) | typeHighBit);
-            block->grid[neighborIndex3] = (unsigned char)type;
-            block->data[neighborIndex3] = (unsigned char)((dataVal + 48) | typeHighBit);
+            // third block needed only when "total" dataVal is < 44
+            if ((origType != BLOCK_OAK_WALL_HANGING_SIGN) || (dataVal < 12)) {
+                block->grid[neighborIndex2] = (unsigned char)type;
+                block->data[neighborIndex2] = (unsigned char)((dataVal + 32) | typeHighBit);
+            }
+            // fourth block needed only for non-wall hanging signs (48-63)
+            if (origType != BLOCK_OAK_WALL_HANGING_SIGN) {
+                block->grid[neighborIndex3] = (unsigned char)type;
+                block->data[neighborIndex3] = (unsigned char)((dataVal + 48) | typeHighBit);
+            }
 
-            if (type != BLOCK_OAK_WALL_HANGING_SIGN) {
+            if (origType != BLOCK_OAK_WALL_HANGING_SIGN) {
                 // add wood block or fence post overhead each hanging sign
                 bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
                 block->grid[bi] = BLOCK_STONE;
-                block->grid[neighborIndex+1] = BLOCK_STONE;
-                block->grid[neighborIndex2+1] = BLOCK_FENCE;
-                block->grid[neighborIndex3+1] = BLOCK_FENCE;
+                // Y+1 is 256 higher
+                block->grid[neighborIndex + 256] = BLOCK_FENCE;
+                // goes stone/fence/stone/fence since "attach" bit is next-to-highest
+                block->grid[neighborIndex2 + 256] = BLOCK_STONE;
+                block->grid[neighborIndex3 + 256] = BLOCK_FENCE;
             }
         }
         break;
