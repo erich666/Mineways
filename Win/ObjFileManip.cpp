@@ -12298,6 +12298,14 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
     int startVertexIndex;
     int retCode = MW_NO_ERROR;
 
+    // crazy assertion: if faces are not single-sided (i.e., false means double-sided means only a single face should be output) and it looks like both faces are output, assert.
+    // If this happens, depending on the direction matched (min == max), add to calling routine one of:
+    //  | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT)
+    //  | (gModel.singleSided ? 0x0 : DIR_LO_X_BIT)
+    //  | (gModel.singleSided ? 0x0 : DIR_BOTTOM_BIT)
+    // Really, we could just test this here and turn off one of the two faces, but that seems slower and also I'd like to be really sure it's what's desired.
+    assert(gModel.singleSided || !(((minPixY == maxPixY) && ((faceMask & 0x12) == 0x12)) || ((minPixX == maxPixX) && ((faceMask & 0x9) == 0x9)) || (minPixZ == maxPixZ) && ((faceMask & 0x24) == 0x24)));
+
 #ifdef _DEBUG
     // note which faces are being output
     gAssertFacesNotReusedMask = (~faceMask & 0x3f);
@@ -25659,6 +25667,9 @@ static int createBaseMaterialTexture()
         // TODOUSD - may also need to bleed the PBR textures?
         for (i = 0; i < TOTAL_TILES; i++)
         {
+            // check that I didn't forget to give each a material type it's associated with
+            assert(gTilesTable[i].typeForMtl || wcslen(gTilesTable[i].filename) == 0);
+
             // If leaves are to be made solid and so should have alphas all equal to 1.0.
             if (gModel.options->pEFD->chkLeavesSolid && (gTilesTable[i].flags & SBIT_LEAVES))
             {

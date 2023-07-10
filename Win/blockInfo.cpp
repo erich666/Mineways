@@ -520,7 +520,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 434 */ "Sculk Vein",           		0x0B3C45, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 56, 0x00, BLF_BILLBOARD | BLF_FLATTEN_SMALL | BLF_PANE | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_OFFSET | BLF_MAYWATERLOG },
     { /* 435 */ "Frogspawn",               		0x4D5581, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 54, 0x00, BLF_FLATTEN | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_OFFSET },
     { /* 436 */ "Ochre Froglight",         		0xFBF6D2, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 55, 0x03, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_EMITTER },
-    { /* 437 */ "Mangrove Leaves",				0x6fac2c, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 54, 0x01, BLF_WHOLE | BLF_CUTOUTS | BLF_LEAF_PART | BLF_MAYWATERLOG },	//12
+    { /* 437 */ "Mangrove Leaves",				0x6fac2c, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 54, 0x01, BLF_WHOLE | BLF_CUTOUTS | BLF_LEAF_PART | BLF_MAYWATERLOG },
     { /* 438 */ "Cherry Button",                0xE3B4AE, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 57, 0x00, BLF_FLATTEN_SMALL | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },
     { /* 439 */ "Cherry Door",                  0xE0ACA7, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 57, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
     { /* 440 */ "Cherry Fence",                 0xE3B4AE, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 57, 0x00, BLF_MIDDLER | BLF_FENCE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
