@@ -426,7 +426,7 @@ typedef struct Options {
 } Options;
 
 // number of blocks with entries in block info table (max number at bottom + 1) - now that 255 is used, we need this
-#define NUM_BLOCKS_DEFINED 460
+#define NUM_BLOCKS_DEFINED 465
 // number of official Minecraft blocks (no longer needed - we used to have the block after everything be special)
 #define NUM_BLOCKS_STANDARD NUM_BLOCKS_DEFINED
 // number of blocks we want to show on the map (no longer needed - includes the unknown one)
@@ -1007,4 +1007,9 @@ enum block_types {
     BLOCK_TORCHFLOWER_CROP = 457,
     BLOCK_OAK_WALL_HANGING_SIGN = 458,
     BLOCK_OAK_HANGING_SIGN = 459,
+    BLOCK_BIRCH_HANGING_SIGN = 460,
+    BLOCK_ACACIA_HANGING_SIGN = 461,
+    BLOCK_CRIMSON_HANGING_SIGN = 462,
+    BLOCK_MANGROVE_HANGING_SIGN = 463,
+    BLOCK_BAMBOO_HANGING_SIGN = 464,
 };

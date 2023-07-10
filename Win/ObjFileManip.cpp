@@ -11206,7 +11206,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         gUsingTransform = 1;
         totalVertexCount = gModel.vertexCount;
         //sideSwatchLoc = SWATCH_INDEX(6, 1); // block of iron
-        sideSwatchLoc = SWATCH_INDEX(1, 0); // stone, ugh - block of iron is too white
+        sideSwatchLoc = SWATCH_INDEX(10, 9); // cauldron side - block of iron is too light gray/white
 
         if (gModel.print3D) {
             // sign - easy enough
@@ -11276,13 +11276,47 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break;
 
     case BLOCK_OAK_HANGING_SIGN: // saveBillboardOrGeometry
+    case BLOCK_BIRCH_HANGING_SIGN: // saveBillboardOrGeometry
+    case BLOCK_ACACIA_HANGING_SIGN: // saveBillboardOrGeometry
+    case BLOCK_CRIMSON_HANGING_SIGN: // saveBillboardOrGeometry
+    case BLOCK_MANGROVE_HANGING_SIGN: // saveBillboardOrGeometry
+    case BLOCK_BAMBOO_HANGING_SIGN: // saveBillboardOrGeometry
         // two main elements:
         // sign itself - stripped logs are used
         // chains - vertical or angled, depending on attached (which gives diagonal)
         // Sorry, we don't use the sign textures in textures\entity\signs
         swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-        if (dataVal & BIT_32) {
-            swatchLoc++;    // spruce
+        switch (type) {
+        default:
+            assert(0);
+        case BLOCK_OAK_HANGING_SIGN:
+            if (dataVal & BIT_32) {
+                swatchLoc++;    // spruce
+            }
+            break;
+        case BLOCK_BIRCH_HANGING_SIGN:
+            if (dataVal & BIT_32) {
+                swatchLoc++;    // jungle
+            }
+            break;
+        case BLOCK_ACACIA_HANGING_SIGN:
+            if (dataVal & BIT_32) {
+                swatchLoc++;    // dark oak
+            }
+            break;
+        case BLOCK_CRIMSON_HANGING_SIGN:
+            if (dataVal & BIT_32) {
+                swatchLoc += 16;    // warped is next row down
+            }
+            break;
+        case BLOCK_MANGROVE_HANGING_SIGN:
+            if (dataVal & BIT_32) {
+                swatchLoc = SWATCH_INDEX(8, 59);    // cherry
+            }
+            break;
+        case BLOCK_BAMBOO_HANGING_SIGN:
+            // no alternate
+            break;
         }
 
         gUsingTransform = 1;
@@ -11337,7 +11371,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
-        rotateMtx(mtx, 0.0f, (dataVal & 0x3) * 90.0f, 0.0f);
+        // rotation is in 0xf, 0-15
+        rotateMtx(mtx, 0.0f, (dataVal & 0xf) * 22.5f, 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(totalVertexCount, mtx);
 
@@ -23324,6 +23359,11 @@ bool IsASubblock(int type, int dataVal)
         // so that the age is always shown
     case BLOCK_OAK_WALL_HANGING_SIGN:   // TODOTODO added, but I'm not clear on the point of this function. Should logs etc. be added, too?
     case BLOCK_OAK_HANGING_SIGN:
+    case BLOCK_BIRCH_HANGING_SIGN:
+    case BLOCK_ACACIA_HANGING_SIGN:
+    case BLOCK_CRIMSON_HANGING_SIGN:
+    case BLOCK_MANGROVE_HANGING_SIGN:
+    case BLOCK_BAMBOO_HANGING_SIGN:
         return true;
 
     default:
@@ -33552,6 +33592,11 @@ static bool faceCanTile(int faceId)
     case BLOCK_SNIFFER_EGG:
     case BLOCK_OAK_WALL_HANGING_SIGN:
     case BLOCK_OAK_HANGING_SIGN:
+    case BLOCK_BIRCH_HANGING_SIGN:
+    case BLOCK_ACACIA_HANGING_SIGN:
+    case BLOCK_CRIMSON_HANGING_SIGN:
+    case BLOCK_MANGROVE_HANGING_SIGN:
+    case BLOCK_BAMBOO_HANGING_SIGN:
 
     // Ruled out because complex and used flipIndicesLeftRight
     case BLOCK_BED:

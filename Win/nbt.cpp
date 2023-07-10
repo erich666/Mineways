@@ -372,7 +372,7 @@ static bool makeBiomeHash = true;
 // attached: true/false
 #define ATTACHED_HANGING_SIGN   65
 
-#define NUM_TRANS 1000
+#define NUM_TRANS 1009
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1399,6 +1399,15 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 202, HIGH_BIT | (10 << 2), "bamboo_wall_hanging_sign", SWNE_FACING_PROP },
     { 0, 203,       HIGH_BIT, "oak_hanging_sign", ATTACHED_HANGING_SIGN },
     { 0, 203, HIGH_BIT | BIT_32, "spruce_hanging_sign", ATTACHED_HANGING_SIGN },
+    { 0, 204,       HIGH_BIT, "birch_hanging_sign", ATTACHED_HANGING_SIGN },
+    { 0, 204, HIGH_BIT | BIT_32, "jungle_hanging_sign", ATTACHED_HANGING_SIGN },
+    { 0, 205,       HIGH_BIT, "acacia_hanging_sign", ATTACHED_HANGING_SIGN },
+    { 0, 205, HIGH_BIT | BIT_32, "dark_oak_hanging_sign", ATTACHED_HANGING_SIGN },
+    { 0, 206,       HIGH_BIT, "crimson_hanging_sign", ATTACHED_HANGING_SIGN },
+    { 0, 206, HIGH_BIT | BIT_32, "warped_hanging_sign", ATTACHED_HANGING_SIGN },
+    { 0, 207,       HIGH_BIT, "mangrove_hanging_sign", ATTACHED_HANGING_SIGN },
+    { 0, 207, HIGH_BIT | BIT_32, "cherry_hanging_sign", ATTACHED_HANGING_SIGN },
+    { 0, 208,       HIGH_BIT, "bamboo_hanging_sign", ATTACHED_HANGING_SIGN },
 
  // Note: 140, 144 are reserved for the extra bit needed for BLOCK_FLOWER_POT and BLOCK_HEAD, so don't use these HIGH_BIT values
 };

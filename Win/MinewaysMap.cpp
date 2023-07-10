@@ -2309,6 +2309,24 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Spruce Hanging Sign";
         }
         break;
+    case BLOCK_ACACIA_HANGING_SIGN:
+        if (dataVal & BIT_16)
+        {
+            return "Dark Oak Hanging Sign";
+        }
+        break;
+    case BLOCK_CRIMSON_HANGING_SIGN:
+        if (dataVal & BIT_16)
+        {
+            return "Warped Hanging Sign";
+        }
+        break;
+    case BLOCK_MANGROVE_HANGING_SIGN:
+        if (dataVal & BIT_16)
+        {
+            return "Cherry Hanging Sign";
+        }
+        break;
     }
 
     return gBlockDefinitions[type].name;
@@ -4351,9 +4369,41 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
 
     case BLOCK_OAK_HANGING_SIGN:
         dataVal = block->data[voxel];
-        if (dataVal & BIT_16)
+        if (dataVal & BIT_32)
         {
             color = 0x745632;   // spruce
+        }
+        break;
+
+    case BLOCK_BIRCH_HANGING_SIGN:
+        dataVal = block->data[voxel];
+        if (dataVal & BIT_32)
+        {
+            color = 0xAC8555;   // jungle
+        }
+        break;
+
+    case BLOCK_ACACIA_HANGING_SIGN:
+        dataVal = block->data[voxel];
+        if (dataVal & BIT_32)
+        {
+            color = 0x745632;   // dark oak
+        }
+        break;
+
+    case BLOCK_CRIMSON_HANGING_SIGN:
+        dataVal = block->data[voxel];
+        if (dataVal & BIT_32)
+        {
+            color = 0x745632;   // warped
+        }
+        break;
+
+    case BLOCK_MANGROVE_HANGING_SIGN:
+        dataVal = block->data[voxel];
+        if (dataVal & BIT_32)
+        {
+            color = 0x745632;   // mangrove
         }
         break;
 
@@ -6927,6 +6977,11 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
 
     case BLOCK_OAK_WALL_HANGING_SIGN:
     case BLOCK_OAK_HANGING_SIGN:
+    case BLOCK_BIRCH_HANGING_SIGN:
+    case BLOCK_ACACIA_HANGING_SIGN:
+    case BLOCK_CRIMSON_HANGING_SIGN:
+    case BLOCK_MANGROVE_HANGING_SIGN:
+    case BLOCK_BAMBOO_HANGING_SIGN:
         // 0-64,
         // add new style diagonally SE of original
         {
@@ -6941,7 +6996,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             block->grid[neighborIndex3] = (unsigned char)type;
             block->data[neighborIndex3] = (unsigned char)((dataVal + 48) | typeHighBit);
 
-            if (type == BLOCK_OAK_HANGING_SIGN) {
+            if (type != BLOCK_OAK_WALL_HANGING_SIGN) {
                 // add wood block or fence post overhead each hanging sign
                 bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
                 block->grid[bi] = BLOCK_STONE;
