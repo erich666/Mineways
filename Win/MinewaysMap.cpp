@@ -6130,6 +6130,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_WALL_SIGN:
     case BLOCK_MANGROVE_WALL_SIGN:
         // there are now 8 materials for wall signs and 3 for mangrove wall signs. Rather than going absolutely nuts, we change the dataVal for each.
+        // directions are 2-5, so allow those and 10-13
         if ((dataVal & 0x7) >= 2 && (dataVal & 0x7) <= 5)
         {
             addBlock = 1;

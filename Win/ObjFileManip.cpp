@@ -10954,7 +10954,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             // a top and bottom, then also a "+" shape of root textures in the middle
             // if single-sided (culling is on), Minecraft actually does *not* cull backfaces, to get a dense mesh appearance of roots
             if (gModel.singleSided) {
-                // 8 outputs: bottom, top, then 3 X, 3 Z
+                // 8 outputs: bottom, top, then 3 X, 3 Z. Have to do all 8 in order to make each one double-sided by outputting both faces for each.
                 saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 1, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 0, 16, 0, 0, 0, 16);
                 saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 0, 16, 16, 16, 0, 16);
                 saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 0, 0);
@@ -12297,6 +12297,7 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
     //  | (gModel.singleSided ? 0x0 : DIR_LO_X_BIT)
     //  | (gModel.singleSided ? 0x0 : DIR_BOTTOM_BIT)
     // Really, we could just test this here and turn off one of the two faces, but that seems slower and also I'd like to be really sure it's what's desired.
+    // However, note that the Mangrove Root's way of creating triangles should also then change. There's a slight efficiency (fewer verts) in that code when double-sided is done.
     assert(gModel.singleSided || !(((minPixY == maxPixY) && ((faceMask & 0x12) == 0x12)) || ((minPixX == maxPixX) && ((faceMask & 0x9) == 0x9)) || (minPixZ == maxPixZ) && ((faceMask & 0x24) == 0x24)));
 
 #ifdef _DEBUG
@@ -23353,6 +23354,10 @@ static void resolveFaceNormals()
     //gModel.normalListCount = maxFaceNormalIndex + 1;
 }
 
+// There are some blocks that have a "primary" name like "Wool" or "Coral Fan", but the real name is "White Wool" or "Tube Coral Fan".
+// This function checks for those and returns true if this primary name should be retrieved, using RetrieveBlockSubname().
+// A few objects, at the top, have special weird old 1.12 things going on with their data values.
+// Basically, if dataVal == 0 does not give the default descriptive name in blockInfo.cpp, do something here.
 bool IsASubblock(int type, int dataVal)
 {
     switch (type) {
@@ -23372,7 +23377,8 @@ bool IsASubblock(int type, int dataVal)
             return false;
         break;
 
-        // All of these have colors or types or other characteristics, for all versions, beyond the generic name such as "Wool"
+        // All of these have colors or types or other characteristics, for all versions, beyond the generic name such as "Wool".
+        // TODO - really, all these could be deleted and then have their names fixed in blockInfo.cpp, I think, but leave it be.
     case BLOCK_WOOL:
     case BLOCK_STAINED_GLASS:
     case BLOCK_STAINED_GLASS_PANE:
@@ -23381,14 +23387,10 @@ bool IsASubblock(int type, int dataVal)
     case BLOCK_CONCRETE_POWDER:
         // Wool wants to be White Wool when it's a subblock, so the default block name is not OK
     case BLOCK_COLORED_TERRACOTTA:
-        // special case: the block is "colored terracotta" but subblocks have color, so always use subblock color if requested
+        // special case: the block is "colored terracotta" but subblocks have color names, so always use subblock color if requested
     case BLOCK_HEAD:
         // which mob head, if specified?
-    case BLOCK_SIGN_POST:
-    case BLOCK_ACACIA_SIGN_POST:
-    case BLOCK_MANGROVE_SIGN_POST:
-    case BLOCK_WALL_SIGN:
-    case BLOCK_MANGROVE_WALL_SIGN:
+    case BLOCK_WALL_SIGN:   // note that "BLOCK_SIGN" is now "Oak Sign" so doesn't appear here
         // each have names
     case BLOCK_CORAL_BLOCK:
     case BLOCK_CORAL:
@@ -23404,13 +23406,6 @@ bool IsASubblock(int type, int dataVal)
     case BLOCK_PUMPKIN_STEM:
     case BLOCK_MELON_STEM:
         // so that the age is always shown
-    case BLOCK_OAK_WALL_HANGING_SIGN:   // TODOTODO added, but I'm not clear on the point of this function. Should logs etc. be added, too?
-    case BLOCK_OAK_HANGING_SIGN:
-    case BLOCK_BIRCH_HANGING_SIGN:
-    case BLOCK_ACACIA_HANGING_SIGN:
-    case BLOCK_CRIMSON_HANGING_SIGN:
-    case BLOCK_MANGROVE_HANGING_SIGN:
-    case BLOCK_BAMBOO_HANGING_SIGN:
         return true;
 
     default:
