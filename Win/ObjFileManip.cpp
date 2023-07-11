@@ -10952,23 +10952,23 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         }
         else {
             // a top and bottom, then also a "+" shape of root textures in the middle
-            // if single-sided (culling is on), Minecraft actually does not cull backfaces, to get a dense mesh appearance of roots
+            // if single-sided (culling is on), Minecraft actually does *not* cull backfaces, to get a dense mesh appearance of roots
             if (gModel.singleSided) {
                 // 8 outputs: bottom, top, then 3 X, 3 Z
                 saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 1, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 0, 16, 0, 0, 0, 16);
                 saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 0, 16, 16, 16, 0, 16);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), 0, 0, 16, 0, 16, 0, 0);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), 0, 0, 16, 0, 16, 8, 8);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), 0, 0, 16, 0, 16, 16, 16);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | (gModel.singleSided ? 0x0 : DIR_LO_X_BIT), 0, 0, 0, 0, 16, 0, 16);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | (gModel.singleSided ? 0x0 : DIR_LO_X_BIT), 0, 8, 8, 0, 16, 0, 16);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | (gModel.singleSided ? 0x0 : DIR_LO_X_BIT), 0, 16, 16, 0, 16, 0, 16);
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 0, 0);
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 8, 8);
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 16, 16);
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_X_FACE_VERTICALLY, 0, 0, 0, 16, 0, 16);
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_X_FACE_VERTICALLY, 8, 8, 0, 16, 0, 16);
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_X_FACE_VERTICALLY, 16, 16, 0, 16, 0, 16);
             }
             else {
-                // double sided, so just 3 outputs: bottom & top and XZ outer, then X, then Z (but only single sided for those two)
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 1, 0x0, 0, 0, 16, 0, 16, 0, 16);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0, 0, 16, 0, 16, 8, 8);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_LO_X_BIT, 0, 8, 8, 0, 16, 0, 16);
+                // double sided, so just 3 outputs: bottom & top and XZ outer, then X, then Z (and only single sided for those two)
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 1, 0x0, FLIP_X_FACE_VERTICALLY | FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 0, 16);
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, FLIP_Z_FACE_VERTICALLY, 0, 16, 0, 16, 8, 8);
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_LO_X_BIT, FLIP_X_FACE_VERTICALLY, 8, 8, 0, 16, 0, 16);
             }                
         }
         break;
@@ -10977,8 +10977,6 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // get side
         swatchLoc = SWATCH_INDEX(0, 61);
         gUsingTransform = 1;
-
-        // TODOTODO 3d print version, full block. Just need to make side and top textures extend
 
         // form body - 14 wide and 16 high
         saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc+3, swatchLoc, swatchLoc+4, 1, 0x0, 0x0, 1, 15, 0, 16, 1, 15);
@@ -11071,8 +11069,6 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break;	// saveBillboardOrGeometry
 
     case BLOCK_PITCHER_CROP:						// saveBillboardOrGeometry
-        assert(!gModel.print3D);
-
         gUsingTransform = 1;
         if (!(dataVal & 0x8)) {
             // bottom output base for bottom only
@@ -11223,11 +11219,11 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
             // sign post above holding it up
             // two wood, two iron, 8 wood, two iron, two wood
-            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_HI_X_BIT, 0, 2, 14 - 2 * fatten, 16, 6, 10);
-            saveBoxTileGeometry(boxIndex, type, dataVal, sideSwatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, 2, 4, 14 - 2 * fatten, 16, 6, 10);
-            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, 4, 12, 14 - 2 * fatten, 16, 6, 10);
-            saveBoxTileGeometry(boxIndex, type, dataVal, sideSwatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, 12, 14, 14 - 2 * fatten, 16, 6, 10);
-            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_LO_X_BIT, 14, 16, 14 - 2 * fatten, 16, 6, 10);
+            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_HI_X_BIT, 0, 2, 14 - 2 * fatten, 16, 6 - fatten, 10 + fatten);
+            saveBoxTileGeometry(boxIndex, type, dataVal, sideSwatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, 2, 4, 14 - 2 * fatten, 16, 6 - fatten, 10 + fatten);
+            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, 4, 12, 14 - 2 * fatten, 16, 6 - fatten, 10 + fatten);
+            saveBoxTileGeometry(boxIndex, type, dataVal, sideSwatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT, 12, 14, 14 - 2 * fatten, 16, 6 - fatten, 10 + fatten);
+            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_LO_X_BIT, 14, 16, 14 - 2 * fatten, 16, 6 - fatten, 10 + fatten);
         }
         else {
             // sign - easy enough
@@ -11444,11 +11440,9 @@ static void makePinkPetalFlowerStem(int boxIndex, int type, int dataVal, int swa
     // final thing, both "vanes"
     totalVertexCount = gModel.vertexCount - totalVertexCount;
     identityMtx(mtx);
-    translateToOriginMtx(mtx, boxIndex);
-    //translateMtx(mtx, 0.0f, out_powered ? -3.0f/16.0f : -6.0f/16.0f, -5.0f/16.0f );
+    //translateToOriginMtx(mtx, boxIndex);
     translateMtx(mtx, (x - 8.0f) / 16.0f, -9.0f / 16.0f, (8.0f - y) / 16.0f);
-    //rotateMtx(mtx, 0.0f, -90.0f, 0.0f);
-    translateFromOriginMtx(mtx, boxIndex);
+    //translateFromOriginMtx(mtx, boxIndex);
     transformVertices(totalVertexCount, mtx);
 }
 
@@ -12186,7 +12180,6 @@ static int saveCandle(int type, int dataVal, int boxIndex, float height, float x
 
     identityMtx(mtx);
     //translateToOriginMtx(mtx, boxIndex);
-    //rotateMtx(mtx, 0.0f, 0.0f, -90.0f);
     translateMtx(mtx, (7.0f + xLoc) / 16.0f, (yLoc - 2.0f) / 16.0f, (7.0f + zLoc) / 16.0f);
     //translateFromOriginMtx(mtx, boxIndex);
     transformVertices(littleTotalVertexCount, mtx);
@@ -19000,13 +18993,24 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 swatchLoc = SWATCH_INDEX(13, 56);
                 SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 14, 56, 15, 56);
                 break;
-            case 6: // Sculk Catalyst
+            }
+            randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
+            break;
+
+        case BLOCK_CRYING_OBSIDIAN:
+            switch (dataVal & 0xf)
+            {
+            default:
+                assert(0);
+            case 0:
+                break;
+            case 1: // Sculk Catalyst
                 swatchLoc = SWATCH_INDEX(2, 56);
                 SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 3, 56, 4, 56);
                 break;
             }
-            randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
             break;
+
         case BLOCK_BEDROCK:
             // half-rotate tops and bottoms randomly
             randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices, true);
@@ -23420,7 +23424,7 @@ bool IsASubblock(int type, int dataVal)
 static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float power)
 {
     // called only when BLF_EMITTER is flagged, and we assume a default value of 15 for emitters.
-    // See https://minecraft.gamepedia.com/Light
+    // See https://minecraft.fandom.com/wiki/Light#Light-emitting_blocks
     float emission = 15.0f;
     // lower for some types
     switch (type) {
@@ -23446,8 +23450,22 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
         emission = 11.0f;
         break;
     case BLOCK_SOUL_TORCH:
+        emission = 10.0f;
+        break;
     case BLOCK_CRYING_OBSIDIAN:
         emission = 10.0f;
+        if (splitByBlockType) {
+            switch (dataVal & 0xf) {
+            default:
+                assert(0);
+            case 0:
+                // default: emission = 15.0f;
+                break;
+            case 1: // skulk catalyst
+                emission = 6.0f;
+                break;
+            }
+        }
         break;
     case BLOCK_LANTERN:
         if (splitByBlockType) {
@@ -23491,6 +23509,7 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
         }
         break;
     case BLOCK_GLOWING_REDSTONE_ORE:
+        // can't actually normally make this block
         emission = 9.0f;
         break;
     case BLOCK_ENDER_CHEST:
@@ -23590,6 +23609,9 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
             // lava
             emission = 15.0f;
         }
+        break;
+    case BLOCK_SCULK_SENSOR:
+        emission = 1.0f;
         break;
     }
     // Minecraft lights are quite non-physical, dropping off linearly with distance, but dropping off more quickly if they are dimmer.

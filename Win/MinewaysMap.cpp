@@ -1122,10 +1122,20 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Warped Nylium";
         case 5:
             return "Reinforced Deepslate";
-        case 6:
-            return "Sculk Catalyst";
         }
         break;
+
+    case BLOCK_CRYING_OBSIDIAN:
+        switch (dataVal & 0xf)
+        {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case 1:
+            return "Sculk Catalyst";
+        }
 
     case BLOCK_SAPLING:
         // mask off the age_bit - specifies the sapling's growth stage.
@@ -2928,7 +2938,20 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case 5: // reinforced deepslate
             color = 0x5B6057;
             break;
-        case 6: // Sculk Catalyst
+        }
+        break;
+
+    case BLOCK_CRYING_OBSIDIAN:
+        dataVal = block->data[voxel];
+        switch (dataVal & 0xf)
+        {
+        default:
+            assert(0);
+        case 0:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 1: // Sculk Catalyst
             color = 0x143036;
             break;
         }
@@ -3128,7 +3151,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
 
     case BLOCK_MANGROVE_LEAVES:
         dataVal = block->data[voxel];
-        if (dataVal)
+        if (dataVal & 0x3)
         {
             // cherry, not affected by biome
             color = 0xE9B1CC;
@@ -5130,6 +5153,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_AZALEA:
     case BLOCK_MANGROVE_LEAVES:
     case BLOCK_DANDELION:
+    case BLOCK_CRYING_OBSIDIAN:
         // uses 0-1 
         if (dataVal < 2)
         {

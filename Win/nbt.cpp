@@ -239,7 +239,7 @@ static bool makeBiomeHash = true;
 // facing: down|up|north|south|west|east
 // extended: true|false - ignored, don't know what that is (block wouldn't exist otherwise, right?
 // type: sticky|normal
-// short: true|false - TODOTODO, piston arm is shorter by 4 pixels, https://minecraft.gamepedia.com/Piston#Block_state_2 - not sure how to get this state, so leaving it alone
+// short: true|false - TODO, piston arm is shorter by 4 pixels, https://minecraft.gamepedia.com/Piston#Block_state_2 - not sure how to generate this state, so leaving it alone
 #define PISTON_HEAD_PROP	 EXTENDED_FACING_PROP
 // south|west|north|east|down|up: true|false
 #define FENCE_AND_VINE_PROP	 34
@@ -1331,7 +1331,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 139,             21, "mud_brick_wall", WALL_PROP },	// no data values used for walls, it's all implied in Mineways
     { 0,   3,              5, "reinforced_deepslate", NO_PROP },
     { 0, 132,  HIGH_BIT | 47, "sculk", NO_PROP },
-    { 0,   3,              6, "sculk_catalyst", NO_PROP },
+    { 0,  88,   HIGH_BIT | 1, "sculk_catalyst", NO_PROP },  // part of crying obsidian, as it emits
     { 0, 177,       HIGH_BIT, "sculk_shrieker", NO_PROP },
     { 0, 178,       HIGH_BIT, "sculk_vein", FENCE_AND_VINE_PROP },
     { 0, 179,       HIGH_BIT, "frogspawn", NO_PROP },
@@ -3907,9 +3907,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             else if (strcmp(token, "unstable") == 0) {}	// does TNT blow up when punched? I don't care
                             else if (strcmp(token, "shrieking") == 0) {}	// non-visual sculk shrieker prop
                             else if (strcmp(token, "bloom") == 0) {}	// for sculk catalyst
-
-                            // TODOTODOTODO
-                            else if (strcmp(token, "cracked") == 0) {}	// for sniffer egg
+                            else if (strcmp(token, "cracked") == 0) {}	// for decorated pot - ignored
                             else {
                                 // unknown property - look at token and value
                                 assert(0);
