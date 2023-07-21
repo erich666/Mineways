@@ -135,7 +135,7 @@ Read on if you want to understand how to make your models less expensive, use di
  <LI><a href="#rendering">Rendering Tips</a> - help for importing to different renderers.
 <UL>
  <LI><a href="#blender">Blender</a>
- <LI><a href="#ovcreate">Omniverse Create</a>
+ <LI><a href="#ovcreate">Omniverse USD Composer</a>
  <LI><a href="#c4d">Cinema 4D</a>
  <LI><a href="#houdini">Houdini</a> 
  <LI><a href="#3dsmax">3DS MAX</a>
@@ -757,16 +757,16 @@ What follows are how various options apply to USD export. Also, Mineways' "View 
 <B>Export individual blocks:</B> With USD export, two additional USD files are produced, "*_BlockLibrary.usda" and "*_MaterialLibrary.usda". USD structures its data in different forms. These additional files contain the individual blocks and materials, in case these are of use as-is.
 
 <P>
-<B>Export MDL:</B> Applies only to USD export. <a href="https://www.nvidia.com/en-us/design-visualization/technologies/material-definition-language/">MDL material descriptions</a> are exported. These generally give higher-quality looks to glass objects, for example. Omniverse is the main user of MDL at this point, with other applications coming up to speed. Turning this off will export only <a href="https://graphics.pixar.com/usd/release/wp_usdpreviewsurface.html">UsdPreviewSurface material descriptions</a>. Note that UsdPreviewSurface descriptions are always exported.
+<B>Export MDL:</B> Applies only to USD export. <a href="https://www.nvidia.com/en-us/design-visualization/technologies/material-definition-language/">MDL material descriptions</a> are exported. These generally give higher-quality looks to glass objects, for example. <a href="https://www.nvidia.com/en-us/omniverse/apps/create/">Omniverse USD Composer</a> is the main user of MDL at this point, with other applications coming up to speed. Turning this off will export only <a href="https://graphics.pixar.com/usd/release/wp_usdpreviewsurface.html">UsdPreviewSurface material descriptions</a>. Note that UsdPreviewSurface descriptions are always exported.
 
 <P>
-<B>Custom material:</B> This option is ignored if Export MDL is off. For USDA export, the Custom material setting mainly has the effects of making the texture's texels appear blocky, in Minecraft fashion, and present stripped down materials in <a href="#ovcreate">Omniverse Create</a>. I uncheck this box for higher-resolution resource packs (basically 64x64 or larger tiles) so that the textures interpolate more smoothly. This option is also discussed in <a href="https://youtu.be/lpFpj84eFgw">this video</a>.
+<B>Custom material:</B> This option is ignored if Export MDL is off. For USDA export, the Custom material setting mainly has the effects of making the texture's texels appear blocky, in Minecraft fashion, and present stripped down materials in <a href="#ovcreate">Omniverse USD Composer</a>. I uncheck this box for higher-resolution resource packs (basically 64x64 or larger tiles) so that the textures interpolate more smoothly. This option is also discussed in <a href="https://youtu.be/lpFpj84eFgw">this video</a>.
 
 <P>
 <B><a name="opt_lighting">Light scale:</a></B> Used only by USD. This has a value of 30 by default. You can change the intensity of the lights exported to USD - the sun and dome light - by changing this value. The sun is normally at 30, the surrounding dome light is 6. Nighttime lighting of 2 and 2 respectively, is used if you toggle on the View | Lighting option before export. If you set the light scale to 0, the two lights will not be exported to the USD file.
 
 <P>
-<B>Surface emit scale:</B> Used only by USD. This has a value of 1000 by default. It's more or less a <a href="https://en.wikipedia.org/wiki/Candela_per_square_metre">nit</a> value for emitting surfaces. Omniverse Create looks good with the default, though realistically the emitters are then quite bright (but look good for interior scenes or when the sun is turned off). Adjusting the camera exposure is another way to deal with this situation.
+<B>Surface emit scale:</B> Used only by USD. This has a value of 1000 by default. It's more or less a <a href="https://en.wikipedia.org/wiki/Candela_per_square_metre">nit</a> value for emitting surfaces. Omniverse USD Composer looks good with the default, though realistically the emitters are then quite bright (but look good for interior scenes or when the sun is turned off). Adjusting the camera exposure is another way to deal with this situation.
 
 
 <a id="opt_globals">
@@ -1058,7 +1058,7 @@ Rendering Tips
   This section covers the basics on importing Mineways files into various renderers:
   <a href="#blender">Blender</a>,
   <a href="#c4d">Cinema 4D</a>,
-  <a href="#ovcreate">Omniverse Create</a>,
+  <a href="#ovcreate">Omniverse USD Composer</a>,
   <a href="#3dsmax">3DS MAX</a>,
   <a href="#maya">Maya</a>,
   and <a href="#houdini">Houdini</a>.
@@ -1208,12 +1208,12 @@ There are plenty of other material properties you can modify, these are just a s
 I'll again note that you should probably be using <a href="https://theduckcow.com/dev/blender/mcprep/">MCprep</a> to convert your OBJ materials. <a href="https://youtu.be/XndRsS6KWkw">Here's my short video</a> on how to install and use it. They also have a <a href="https://discord.gg/mb8hBUC">MCprep Blender Discord server</a> for asking questions.
 
 <HR>
-<H4 id="ovcreate">Omniverse Create</H4><p>
-<a href="https://www.nvidia.com/en-us/omniverse"><img id="productLogo" src="images/ov_create_icon.jpg" alt="Omniverse Create icon"></a>
+<H4 id="ovcreate">Omniverse USD Composer</H4><p>
+<a href="https://www.nvidia.com/en-us/omniverse/apps/create/"><img id="productLogo" src="images/ov_create_icon.jpg" alt="Omniverse USD Composer icon"></a>
 <P>
-Here is how to import a model into the free Omniverse Create program. First, download the <a href="https://www.nvidia.com/en-us/omniverse">Omniverse Launcher</a>, install and run it, then from the launcher install and launch Omniverse Create.
+Here is how to import a model into the free Omniverse USD Composer program. First, download the <a href="https://www.nvidia.com/en-us/omniverse/apps/create/">Omniverse Launcher</a>, install and run it, then from the launcher install and launch Omniverse USD Composer.
 <P>
-See <a href="https://youtu.be/tBDGH5v40x8">the tutorial video</a>. It runs through a lot of the common operations for Omniverse Create: moving the camera, modifying the lighting and materials, etc. There's a lot of documentation on <a href="https://docs.omniverse.nvidia.com/">Omniverse</a> and <a href="https://docs.omniverse.nvidia.com/app_create/app_create/overview.html">Create</a>, but the video will get you started. I also give some tips and tricks in <a href="https://youtu.be/lpFpj84eFgw">this "the whole process" video</a>. I also show Omniverse in action <a href="https://youtu.be/EH8NhyusZBU">here</a>. What follows are the steps in the first video.
+See <a href="https://youtu.be/tBDGH5v40x8">the tutorial video</a>. It runs through a lot of the common operations for Omniverse USD Composer: moving the camera, modifying the lighting and materials, etc. There's a lot of documentation on <a href="https://docs.omniverse.nvidia.com/">Omniverse</a> and <a href="https://docs.omniverse.nvidia.com/app_create/app_create/overview.html">Create</a>, but the video will get you started. I also give some tips and tricks in <a href="https://youtu.be/lpFpj84eFgw">this "the whole process" video</a>. I also show Omniverse in action <a href="https://youtu.be/EH8NhyusZBU">here</a>. What follows are the steps in the first video.
 <P>
 <b>Step 1:</b> Select your world and region for export in Mineways, then from the menu choose File | Export Rendering.
 </P>
@@ -1223,7 +1223,7 @@ See <a href="https://youtu.be/tBDGH5v40x8">the tutorial video</a>. It runs throu
 <P>
 <b>Step 2:</b> Save as the file type 'USDA'. This is the <a href="https://graphics.pixar.com/usd/docs/USD-Frequently-Asked-Questions.html">Universal Scene Description ASCII file format</a>. USD is a format developed by Pixar that is used in film studios and other applications. You can see my <a href="https://github.com/erich666/McUsd">test scene project</a> for an idea of how various renderers handle this file format as of August 2022 (they're always improving).
 <P>
-After choosing the file name, you are faced with many export options. Most are grayed out in the upper left part of this dialog, with one important exception: "Custom material." By default this box is checked. Doing so gives the distinctive blocky look for Minecraft textures. However, if you are using higher resolution textures, 64x64 or larger, I recommend unchecking this box. You will then use Omniverse default materials, which blend smoothly between texture texels. Also, these default materials will display much more quickly; the custom materials need to be compiled when viewed in Omniverse Create for the first time.
+After choosing the file name, you are faced with many export options. Most are grayed out in the upper left part of this dialog, with one important exception: "Custom material." By default this box is checked. Doing so gives the distinctive blocky look for Minecraft textures. However, if you are using higher resolution textures, 64x64 or larger, I recommend unchecking this box. You will then use Omniverse default materials, which blend smoothly between texture texels. Also, these default materials will display much more quickly; the custom materials need to be compiled when viewed in Omniverse USD Composer for the first time.
 <P>
 As far as other export options go, I recommend not touching them. USDA export is a brand new feature, so support for individual block export and other modes is unlike to work, nay, likely to crash Mineways.
 <P>
@@ -1231,7 +1231,7 @@ As far as other export options go, I recommend not touching them. USDA export is
 I should note that Pixar USD files can be read in by other applications, for example the free <a href="#houdini">Houdini Apprentice</a> and <a href="mineways.html#c4d">Cinema 4D</a>.
 </P>
 <P>
-<b>Step 3:</b> Load the model into Omniverse Create. Easiest is to copy and paste the directory where the USDA model is located into the Content directory bar, towards the lower left, here highlighted in red:
+<b>Step 3:</b> Load the model into Omniverse USD Composer. Easiest is to copy and paste the directory where the USDA model is located into the Content directory bar, towards the lower left, here highlighted in red:
 <p class="center">
 <img src="images/ov_content_bar.jpg">
 </p>
@@ -1272,7 +1272,7 @@ Bonus feature: I've included a water_normal.png normals map (from the open sourc
 <P>
 For more about physical materials and how to add them into Mineways, see the <a href="textures.html">texture tutorial page</a>.
 <P>
-By default the RTX Path-Traced renderer is used, as shown in the upper left corner of the Omniverse Create viewport. Changing this to "RTX Real-Time" will give faster, lower quality renders. If you want even faster interactivity - useful for large scenes - click on the Render Settings tab in the upper right, select "Real-Time" for the Renderer if not already selected, choose the "Ray Tracing" option just below, then under Translucency uncheck the box "Enable Fractional Cutout Opacity." Having this box checked can be up to 3x slower than unchecked.
+By default the RTX Path-Traced renderer is used, as shown in the upper left corner of the Omniverse USD Composer viewport. Changing this to "RTX Real-Time" will give faster, lower quality renders. If you want even faster interactivity - useful for large scenes - click on the Render Settings tab in the upper right, select "Real-Time" for the Renderer if not already selected, choose the "Ray Tracing" option just below, then under Translucency uncheck the box "Enable Fractional Cutout Opacity." Having this box checked can be up to 3x slower than unchecked.
 <P>
 This is as far as I'm going, as explaining <a href="https://docs.omniverse.nvidia.com/app_create/app_create/materials.html">materials</a>, <a href="https://docs.omniverse.nvidia.com/app_create/prod_extensions/ext_animation.html">animation</a>, and <a href="https://docs.omniverse.nvidia.com/app_create/app_create/overview.html">many other features</a> is definitely beyond the scope. But, notice that last sentence has links to documentation for these topics. Some people <a href="https://www.youtube.com/embed/fCLE_9SNL8M">know <i>way</i> more</a> than I do about Omniverse.
 <P>
@@ -3018,7 +3018,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
   <LI>Version 10.03, 11/21/2022 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1003.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
     <BR>
     <UL>
-	<LI>Rework USD export, to match behavior of latest Omniverse Create, version 2022.3.0. Added camera and let default exposure take effect, modified all emitters to new light behavior, other little cleanups.
+	<LI>Rework USD export, to match behavior of latest Omniverse USD Composer, version 2022.3.0. Added camera and let default exposure take effect, modified all emitters to new light behavior, other little cleanups.
     <LI>Update the lodepng files, just in case this cleans up anything.
     <LI>TileMaker 3.17: If normals listed as 255,255,255, convert to 128,128,255 (happens with Smoolistic). Helps avoid any interpolation errors along the edges.
     <LI>ChannelMixer 1.12: Add a little more verbose info.</LI>
@@ -3132,7 +3132,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 	<LI>Read biomes for 1.18 worlds. As biomes are 3D in 1.18, the biome at level 240 is used for display. This height is "above it all" most of the time, so can give the "from above" biome view, while also avoiding any conversion to 1.18 height problems.
 	<LI>One level of selection undo. If you want to restore the previous selection (e.g., you goofed and accidentally deleted it or messed up a resize), hit Control-Z or select "Undo selection" from the View menu. This feature will not undo height slider changes but undoes just about everything other selection modification <i>(thanks, 4NIZIO)</i>.
 	<LI>Added "blender_alpha_hashed.txt" script to set Alpha Hashed for all materials in Blender and updated <a href="#blender_blocky">the Blender documentation for step #9</a> <i>(thanks, Ohanno_Forgotten-Knight)</i>.
-	<LI>Enabled fractional cutout opacity for the Omniverse Create's RTX Real-Time renderer, so that semi-transparent objects look reasonable by default. Explained how to turn this option off for faster preview rendering. Here I would rather favor quality over speed by default, as otherwise it looks like a bug.
+	<LI>Enabled fractional cutout opacity for the Omniverse USD Composer's RTX Real-Time renderer, so that semi-transparent objects look reasonable by default. Explained how to turn this option off for faster preview rendering. Here I would rather favor quality over speed by default, as otherwise it looks like a bug.
 	<LI>In TileMaker, if the user specifies a tile size, abort if this is not a power of two.
 	<LI>Updated JG-RTX terrain images.
   </UL>
@@ -3369,7 +3369,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 <LI>Version 8.01, 12/17/2020 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV801.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
-<LI>A small flaw in one custom material file was causing Omniverse Create's renderer to spend about 50% more time ray tracing than needed. Fixed.
+<LI>A small flaw in one custom material file was causing Omniverse USD Composer's renderer to spend about 50% more time ray tracing than needed. Fixed.
 <LI>Added "Choose Terrain File" selector to File menu. All color "terrainExt*.png" files found in the same directory as mineways.exe at startup are listed.
 <LI>Added a low-res version of <a href="http://lunahd.com">LunaHD</a> as an optional terrain file set for rendering.
 <LI>Added more menu items for specific help, and for <a href="textures.html#dl">the terrain file download area</a>.
@@ -3381,9 +3381,9 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 <LI><B>Version 8.00</B>, 12/15/2020 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV800.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
-<LI><B>Support for USD into Omniverse Create</B>. <a href="https://graphics.pixar.com/usd/docs/index.html">USD</a> is a new file format used by the film industry. <a href="https://www.nvidia.com/en-us/design-visualization/omniverse/">Omniverse Create</a> is a free product out in beta that lets you see your scene path-traced at interactive rates. See <a href="#ovcreate">this documentation</a> for how to use Create with Mineways.
+<LI><B>Support for USD into Omniverse USD Composer</B>. <a href="https://graphics.pixar.com/usd/docs/index.html">USD</a> is a new file format used by the film industry. <a href="https://www.nvidia.com/en-us/omniverse/apps/create/">Omniverse USD Composer</a> is a free product out in beta that lets you see your scene path-traced at interactive rates. See <a href="#ovcreate">this documentation</a> for how to use Create with Mineways.
 <LI><B>Physically based material support.</B> USD supports exporting more elaborate material models. Mineways integrates with this, exporting USDA files and physically based textures from resource packs. To help the process of taking an arbitrary resource pack and converting it to the textures Mineways needs, a new easy-to-use (really!) command-line utility is available: <a href="textures.html">ChannelMixer</a>.
-<LI><B>TileMaker regrooved</B>. TileMaker takes block face textures and makes "terrain files" that Mineways uses to texture models. This utility program has gone through an overhaul, now supporting making physically based terrain files for Mineways, for use by Omniverse Create and possibly OBJ files. See the <a href="textures.html">new documentation page</a> for a tutorial and details.
+<LI><B>TileMaker regrooved</B>. TileMaker takes block face textures and makes "terrain files" that Mineways uses to texture models. This utility program has gone through an overhaul, now supporting making physically based terrain files for Mineways, for use by Omniverse USD Composer and possibly OBJ files. See the <a href="textures.html">new documentation page</a> for a tutorial and details.
 <LI><B>JG RTX:</B> This <a href="https://github.com/jasonjgardner/jg-rtx">resource pack</a> is included with Mineways, in both 64x64 and 256x256 versions. That's why the download got so large... Download <a href="https://github.com/jasonjgardner/jg-rtx/releases">the original</a> for higher resolution versions of some textures.
 <LI>Fix <a href="https://www.reddit.com/r/mineways/comments/k68ga4/720_horizontal_chains_appear_vertical/">chain export bug</a> by supporting horizontal chains. <I>(Thanks to Chris for reporting this bug.)</I>
 <LI>The shortcut control-A now selects the entire visible screen when exporting from a world map. For schematics opened in Mineways, control-A continues to select the entire schematic, regardless of the visible screen.
@@ -4133,7 +4133,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 7/11/2023</p>
+		<br id="lastUpdate">Last updated 7/21/2023</p>
 	</div>
 </div>
 

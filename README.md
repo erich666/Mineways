@@ -7,9 +7,7 @@
 
 Mineways is an open-source GUI program that exports Minecraft maps into 3D models for use in 3D software, printing and rendering. Mineways supports most Minecraft: Java Edition versions and offers many settings and functionality to customize the map export to your needs.
 
-<p align="center">
-<img src="banner.jpg" width="700" />
-</p>
+![Simple example export rendered by spacebanana420](banner.jpg "Simple example export by [spacebanana420](https://github.com/spacebanana420)")
 
 # Download
 
@@ -43,8 +41,8 @@ If you want to work on the mapping part of this program on another platform, see
 
 Mineways uses the same [license](license.txt) as Minutor.
 
-<p align="center">
-<img src="ov_accurate.jpg" width="700" />
-</p>
+#
 
-Mineways and [JG-RTX](https://github.com/jasonjgardner/jg-rtx) used to make a [test scene asset](https://github.com/usd-wg/assets) for the USD file format. Rendered with [Omniverse USD Composer](https://www.nvidia.com/en-us/omniverse/apps/create/).
+![McUsd: JG-RTX textures, rendered in Omniverse USD Composer](ov_accurate.jpg "McUsd: JG-RTX textures, rendered with Omniverse USD Composer")
+
+_Mineways and [JG-RTX](https://github.com/jasonjgardner/jg-rtx) used to make a [test scene asset](https://github.com/usd-wg/assets) for the USD file format. Rendered with [Omniverse USD Composer](https://www.nvidia.com/en-us/omniverse/apps/create/)._
