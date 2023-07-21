@@ -25,7 +25,8 @@ You usually want the latest version. If you have problems with it, you might try
 Source files are here:
 
 * **Win/** contains the Windows version of Mineways (in C++).
-* **TileMaker/** contains the TileMaker for Mineways, which takes the individual block textures and forms a terrainExt.png file for use by Mineways. This allows you to replace any terrain textures with your own custom tiles.
+* **channelMixer/** contains the ChannelMixer for Mineways, which extracts the individual block textures from a mod resource pack into a directory.
+* **tileMaker/** contains the TileMaker, which takes the block in that directory and forms a terrainExt.png file for use by Mineways. Using this allows you to replace any terrain textures with your own custom tiles.
 
 ## Windows
 You can compile Mineways with Visual Studio Community 2022
