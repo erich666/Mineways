@@ -7,7 +7,7 @@
 
 Mineways is an open-source GUI program that exports Minecraft maps into 3D models for use in 3D software, printing and rendering. Mineways supports most Minecraft: Java Edition versions and offers many settings and functionality to customize the map export to your needs.
 
-![Simple example export rendered by spacebanana420](banner.jpg "Simple example export by [spacebanana420](https://github.com/spacebanana420)")
+![Simple example export rendered by spacebanana420](banner.jpg "Simple example export by spacebanana420")
 
 # Download
 
