@@ -5,7 +5,7 @@
 
 **http://mineways.com**
 
-Mineways is an open source GUI program that exports Minecraft maps into 3D models for use in 3D software, printing and rendering. Mineways supports most Minecraft versions and offers many settings and functionality to customize the map export to your needs.
+Mineways is an open-source GUI program that exports Minecraft maps into 3D models for use in 3D software, printing and rendering. Mineways supports most Minecraft: Java Edition versions and offers many settings and functionality to customize the map export to your needs.
 
 <p align="center">
 <img src="banner.jpg" width="700" />
@@ -13,20 +13,14 @@ Mineways is an open source GUI program that exports Minecraft maps into 3D model
 
 # Download
 
-[Visit the project homepage](http://mineways.com) or the Releases page on this repository for executables for Windows and MacOS.
+[Visit the project homepage](http://mineways.com) or [the Releases page](https://github.com/erich666/Mineways/releases) in this repository for executables for Windows and MacOS.
 
 Documentation links, credits, etc are also avaliable in the homepage.
 Much of the mapping and UI code is built on the open-source project [Minutor](http://seancode.com/minutor/).
 
-Mineways does not have a Linux build, but it runs well under [WINE](http://www.winehq.org/)
+Mineways does not have a Linux build, but it runs well under [WINE](http://www.winehq.org/). See more [here](https://www.realtimerendering.com/erich/minecraft/public/mineways/downloads.html#linuxPlatformHelp).
 
-There are different major versions of Mineways. You usually want the latest version; version 1.15 can be used on older worlds.
-* **Version 6.** works on Minecraft 1.2 to 1.13 and beyond, but is 64-bit only.
-* **Version 5.** works on Minecraft 1.2 to 1.9 and beyond, adds scripting language.
-* **Version 4.** works on Minecraft 1.2 to 1.9-ish and beyond, 64-bit for large exports.
-* **Version 3.** works on Minecraft 1.2 to 1.7 worlds (Anvil, stair geometry changes, and new texturing).
-* **Version 2.x** works on Minecraft 1.2 worlds to 1.4 (Anvil format).
-* **Version 1.x** works on Minecraft 1.1 worlds and earlier (McRegion format).
+You usually want the latest version. If you have problems with it, you might try [an older version](https://www.realtimerendering.com/erich/minecraft/public/mineways/mineways.html#versions).
 
 # Compiling
 
@@ -48,3 +42,9 @@ If you want to work on the mapping part of this program on another platform, see
 # License
 
 Mineways uses the same [license](license.txt) as Minutor.
+
+<p align="center">
+<img src="ov_accurate.jpg" width="700" />
+</p>
+
+Mineways and [JG-RTX](https://github.com/jasonjgardner/jg-rtx) used to make a [test scene asset](https://github.com/usd-wg/assets) for the USD file format. Rendered with [Omniverse USD Composer](https://www.nvidia.com/en-us/omniverse/apps/create/).
