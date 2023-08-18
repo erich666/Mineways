@@ -10173,13 +10173,14 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT, FLIP_Z_FACE_VERTICALLY, 3, 16, 8, 12, 0, 16);
         swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
         // top
-        saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT, 0, 16, 1, 14);
+        saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT, 0, 16, 2, 15);
         swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_OAK_PLANKS].txrX, gBlockDefinitions[BLOCK_OAK_PLANKS].txrY);
         // bottom
-        saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT, 0, 16, 1, 14);
+        saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT, 0, 16, 2, 15);
         littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
+        translateMtx(mtx, 0.0f, 0.0f, -1.0f / 16.0f);
         rotateMtx(mtx, 0.0f, 0.0f, -22.5f);
         if (gMcVersion >= 17) {
             // lectern top is lower in version 17 on, https://bugs.mojang.com/browse/MC-214568
