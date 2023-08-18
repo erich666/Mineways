@@ -2064,6 +2064,9 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         case 5 << 4:
             sprintf_s(gConcatString, 100, "Dragon %sHead", (dataVal & 0x80) ? "" : "Wall ");
             break;
+        case 6 << 4:
+            sprintf_s(gConcatString, 100, "Piglin %sHead", (dataVal & 0x80) ? "" : "Wall ");
+            break;
         }
         return gConcatString;
 
@@ -5271,8 +5274,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
     case BLOCK_HEAD:
-        // uses 2-5
-        if (dataVal >= 2 && dataVal <= 5)
+        // uses 0-6
+        if (dataVal <= 6)
         {
             addBlock = 1;
         }

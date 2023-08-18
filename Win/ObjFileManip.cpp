@@ -11096,8 +11096,11 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             if (age > 0) {
                 // is this the upper or lower block?
                 if (dataVal & 0x8) {
-                    // upper. Check that the age is 3 or 4
-                    assert(age >= 3);
+                    // upper. Check that the age is 3 or 4.
+                    // The Debug world has age 0-2 tops. Not legal, so don't output anything.
+                    if (age < 3) {
+                        goto NoUpperPitcherCrop;
+                    }
                     swatchLoc = SWATCH_INDEX(1, 58) + age;
                 }
                 else {
@@ -11133,6 +11136,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 }
             }
         }
+        NoUpperPitcherCrop:
         gUsingTransform = 0;
         break; // saveBillboardOrGeometry
 
@@ -26561,10 +26565,12 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
         goto Exit;
     }
 
-    // add camera
-    if (retCode |= addCameraUSD()) {
-        // failed to write
-        goto Exit;
+    // add camera - add it only if lights are export
+    if (gModel.options->pEFD->scaleLightsVal > 0.0f) {
+        if (retCode |= addCameraUSD()) {
+            // failed to write
+            goto Exit;
+        }
     }
 
     // create lighting, put outside of model - do before everything else, so that these are easier to find (no scrolling to the bottom)
@@ -27004,6 +27010,8 @@ static int finishCommentsUSD(char* defaultPrim)
         strcpy_s(outputString, 256, "        }\n");
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     }
+    strcpy_s(outputString, 256, "        # hints for NVIDIA's USD Composer's rendering system:\n");
+    WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "        dictionary renderSettings = {\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     /* not supported any more, AFAIK
@@ -27165,6 +27173,7 @@ static int addCameraUSD()
     strcpy_s(outputString, 256, "    token visibility = \"inherited\"\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     // really don't like YXZ here and below, ZXY is better, with -45,45,0. But this preserves the translations
+    // For some reason, most files I've seen use float3 for (just) the camera for (just) rotate and scale
     strcpy_s(outputString, 256, "    float3 xformOp:rotateZXY = (-38, 45, 0)\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    float3 xformOp:scale = (1, 1, 1)\n");
@@ -27626,11 +27635,11 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
     // Are we outputting an instance? If so, save mesh with an extended name scheme
     if (type >= 0) {
         // instancing
-        sprintf_s(outputString, 256, "\n    def Mesh \"%s_%d_%d\" (\n\t\tprepend apiSchemas = [\"MaterialBindingAPI\"]\n\t)\n    {\n", mtlName, type, dataVal);
+        sprintf_s(outputString, 256, "\n    def Mesh \"%s_%d_%d\" (\n        prepend apiSchemas = [\"MaterialBindingAPI\"]\n   )\n    {\n", mtlName, type, dataVal);
     }
     else {
         // consolidated mesh - just use the name of the texture associated with the material
-        sprintf_s(outputString, 256, "\n    def Mesh \"%s\" (\n\t\tprepend apiSchemas = [\"MaterialBindingAPI\"]\n\t)\n    {\n", mtlName);
+        sprintf_s(outputString, 256, "\n    def Mesh \"%s\" (\n        prepend apiSchemas = [\"MaterialBindingAPI\"]\n    )\n    {\n", mtlName);
     }
     WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
 
@@ -30143,26 +30152,26 @@ static int createLightingUSD(char *texturePath)
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "{\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float angle = 1\n");
+    strcpy_s(outputString, 256, "    float inputs:angle = 1\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     // scale everything up by 52.0f, as we are no longer adjusting the camera's exposure, etc.
     float lightIntensity = (float)(gModel.options->pEFD->scaleLightsVal * 52.0f * (nightLight ? 2.0 / 30.0 : 30.0 / 30.0));
-    sprintf_s(outputString, 256, "    float intensity =  %f\n", lightIntensity);
+    sprintf_s(outputString, 256, "    float inputs:intensity = %f\n", lightIntensity);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float shaping:cone:angle = 180\n");
+    strcpy_s(outputString, 256, "    float inputs:shaping:cone:angle = 180\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float shaping:cone:softness\n");
+    strcpy_s(outputString, 256, "    float inputs:shaping:cone:softness\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float shaping:focus\n");
+    strcpy_s(outputString, 256, "    float inputs:shaping:focus\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    color3f shaping:focusTint\n");
+    strcpy_s(outputString, 256, "    color3f inputs:shaping:focusTint\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    asset shaping:ies:file\n");
+    strcpy_s(outputString, 256, "    asset inputs:shaping:ies:file\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float3 xformOp:rotateZXY = (235, 325, 0)\n");  // x is altitude, y is azimuth, z does nothing
+    strcpy_s(outputString, 256, "    double3 xformOp:rotateZXY = (235, 325, 0)\n");  // x is altitude, y is azimuth, z does nothing
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float3 xformOp:translate = (0, 0, 0)\n");
+    strcpy_s(outputString, 256, "    double3 xformOp:translate = (0, 0, 0)\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    uniform token[] xformOpOrder = [\"xformOp:translate\", \"xformOp:rotateZXY\"]\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -30179,26 +30188,33 @@ static int createLightingUSD(char *texturePath)
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
     // low for the nighttime sky, but making it higher makes the background surrounding map too bright.
+    // used to multiply by 52.0f - let's not
     lightIntensity = (float)(gModel.options->pEFD->scaleLightsVal * 52.0f * (nightLight ? 2.0 / 30.0 : 6.0 / 30.0));
-    sprintf_s(outputString, 256, "    float intensity =  %f\n", lightIntensity);
+    sprintf_s(outputString, 256, "    float inputs:intensity = %f\n", lightIntensity);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float shaping:cone:angle = 180\n");
+    strcpy_s(outputString, 256, "    float inputs:shaping:cone:angle = 180\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float shaping:cone:softness\n");
+    strcpy_s(outputString, 256, "    float inputs:shaping:cone:softness\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float shaping:focus\n");
+    strcpy_s(outputString, 256, "    float inputs:shaping:focus\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    color3f shaping:focusTint\n");
+    strcpy_s(outputString, 256, "    color3f inputs:shaping:focusTint\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    asset shaping:ies:file\n");
+    strcpy_s(outputString, 256, "    asset inputs:shaping:ies:file\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    sprintf_s(outputString, 256, nightLight ? "    asset texture:file = @./%s/_domelight_night.png@\n" : "    asset texture:file = @./%s/_domelight.png@\n", texturePath);
+    sprintf_s(outputString, 256, nightLight ? "    asset inputs:texture:file = @./%s/_domelight_night.png@\n" : "    asset inputs:texture:file = @./%s/_domelight.png@\n", texturePath);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    token texture:format = \"latlong\"\n");
+    strcpy_s(outputString, 256, "    token inputs:texture:format = \"latlong\"\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float3 xformOp:rotateZXY = (270, 0, 0)\n");
+
+    // TODO: someday should rotate this light and the previous light around X if Z is up axis:
+    // if (gModel.options->pEFD->chkMakeZUp[gModel.options->pEFD->fileType])
+
+    // transform is left in so as to be easy to "fix" for USD Composer, just set X to 270
+    strcpy_s(outputString, 256, "    double3 xformOp:rotateZXY = (0, 0, 0)\n");
+    //strcpy_s(outputString, 256, "    double3 xformOp:rotateZXY = (270, 0, 0)\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    strcpy_s(outputString, 256, "    float3 xformOp:translate = (0, 0, 0)\n");
+    strcpy_s(outputString, 256, "    double3 xformOp:translate = (0, 0, 0)\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "    uniform token[] xformOpOrder = [\"xformOp:translate\", \"xformOp:rotateZXY\"]\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));

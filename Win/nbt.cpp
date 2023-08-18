@@ -372,7 +372,7 @@ static bool makeBiomeHash = true;
 // attached: true/false
 #define ATTACHED_HANGING_SIGN   65
 
-#define NUM_TRANS 1009
+#define NUM_TRANS 1011
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1408,6 +1408,8 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 207,       HIGH_BIT, "mangrove_hanging_sign", ATTACHED_HANGING_SIGN },
     { 0, 207, HIGH_BIT | BIT_32, "cherry_hanging_sign", ATTACHED_HANGING_SIGN },
     { 0, 208,       HIGH_BIT, "bamboo_hanging_sign", ATTACHED_HANGING_SIGN },
+    { 0, 144,        6 << 4, "piglin_wall_head", HEAD_WALL_PROP },
+    { 0, 144, 0x80 | 6 << 4, "piglin_head", HEAD_PROP },
 
  // Note: 140, 144 are reserved for the extra bit needed for BLOCK_FLOWER_POT and BLOCK_HEAD, so don't use these HIGH_BIT values
 };
