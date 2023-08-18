@@ -2886,9 +2886,11 @@ The textures and rules used in Minecraft for how blocks appear and connect have 
 From newest to oldest. The very newest is sometimes unreleased work in progress, with "*" meaning "to do" and "**" meaning "stretch goal."
 
 <UL>
+
+
 <LI>Version 11.01, 8/14/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1101.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
-  <UL>
+    <UL>
 	<LI>User feature request for USD export: if "Light scale" is set to zero, also don't export the camera (as well as not exporting the lights). <I>(Thanks to Alexander for the idea)</I>
 	<LI>Adjust the application of the lectern top texture by one texel up, to properly match Minecraft.
 	<LI>Read in piglin heads. I still don't convert these - they come out pumpkins - but at least they're properly read in and will show the correct name if the mouse is hovered over them. <I>(Thanks to Alexander for pointing out how <a href="blocks">the Debug World</a> is now generated, which has the piglin heads)</I>
@@ -2897,13 +2899,11 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 	<LI>Removed the transform for the Dome Light, due to <a href="https://github.com/usd-wg/assets/pull/44">this bug report and fix</a>. The original dome light worked in USD Composer, but that program has a bug. This means that, currently, this dome light incorrectly imports rotated 90 degrees along the X axis in USD Composer. See <a href="ovcreate">step 3a for USD Composer</a> for how to work around this bug.
 	<LI>Changed some USD "float3" to "double3" to fit in with the norms. Changed tabs in USD output to spaces.
 	<LI>Doku Light and Doku High texture packs updated to 1.20, and emission textures now included for each. Sphax is "contributor only" downloads currently. JG-RTX hasn't been updated for 3 months. Coterie Craft and Smoolistic look dead, so I may drop them someday.
-</UL>
+    </UL>
 
-
-<UL>
 <LI><B>Version 11.00</B>, 7/11/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1100.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
-  <UL>
+    <UL>
 	<LI>Minecraft 1.20.1 support. New ChannelMixer version 1.14 and TileMaker 3.19. Added <a href="https://minecraft.fandom.com/wiki/Cherry_Grove">cherry grove biome</a>. 
 	<LI>Fixed leave and vines in mangrove swamp biomes to use the proper, lighter green. Fixed deep dark biome downfall (rainfall) from 0.5 to 0.4. Wooded badlands biome now affects plant colors, same as other badlands. Values are from <a href="https://minecraft.fandom.com/wiki/Custom_biome">biome JSON files</a>.
 	<LI>Made more cutout objects properly be one-sided when exported as such, such as sculk sensor tendrils.
@@ -2913,7 +2913,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 	<LI>Fixed mangrove roots so that they match between single and double sided output.
 	<LI>Sculk catalyst and sculk sensor now emit light (barely).
 	<LI>Update LunaHD pack. No other texture packs provided have updated to 1.20 at this point.
-</UL>
+    </UL>
 
 <P>
  <LI>Version 10.15, 5/9/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1015.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
