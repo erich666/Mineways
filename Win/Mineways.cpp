@@ -1489,6 +1489,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 //                swprintf( bufa, 100, L"selection box: x %d, y %d to x %d, y %d\n", gStartHiX, gStartHiZ, mx, mz );
 //                OutputDebugStringW( bufa );
 //#endif
+                // If shift is held down, take the largest coordinate and make a box with it
+                if (GetKeyState(VK_SHIFT) < 0) {
+                    int dx = mx - gStartHiX;
+                    int dz = mz - gStartHiZ;
+                    if (abs(dx) > abs(dz)) {
+                        mz = gStartHiZ + ((dz < 0) ? -abs(dx) : abs(dx));
+                    }
+                    else {
+                        mx = gStartHiX + ((dx < 0) ? -abs(dz) : abs(dz));
+                    }
+                }
+
                 SetHighlightState(gHighlightOn, gStartHiX, gTargetDepth, gStartHiZ, mx, gCurDepth, mz, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_IGNORE);
                 enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
                 drawInvalidateUpdate(hWnd);

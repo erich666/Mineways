@@ -231,7 +231,7 @@ Here's basic map use:
 <H2 id="select">
 Selecting a Region
 </H2>
-To create a 3D file for viewing or printing you first select a 3D box in your world. Whatever is in this box is exported. Hold down the right mouse button (or left mouse and Control key) and drag to define a selection area. <B>Key tip:</B> once a region is defined, you can then use the right mouse button to select an edge or corner and drag to fine-tune the rectangle. Hit the space bar to automatically adjust the depth to something reasonable, if need be. <B>Pro users:</B> Using the mouse wheel with the Control key down changes the depth; using it with Shift down changes the visible height (this second mode can be slow, since the map is regenerated). 
+To create a 3D file for viewing or printing you first select a 3D box in your world. Whatever is in this box is exported. Hold down the right mouse button (or left mouse and Control key) and drag to define a selection area. If you also hold down the Shift key, the selection region will be square. <B>Key tip:</B> once a region is defined, you can then use the right mouse button to select an edge or corner and drag to fine-tune the rectangle. Hit the space bar to automatically adjust the depth to something reasonable, if need be. <B>Pro users:</B> Using the mouse wheel with the Control key down changes the depth; using it with Shift down changes the visible height (this second mode can be slow, since the map is regenerated). 
 <P>
 Once you make a selection, you may get a dialog as shown below. Mineways will detect when what you see is not what you'll get. It will ask if you want to set the depth so that everything you can see from above that you have selected will be exported.
 <P>
@@ -2887,9 +2887,10 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 
 <UL>
 
-<LI>Version 11.02, 8/24/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1102.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 11.02, 8/26/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1102.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
     <UL>
+	<LI>New UI feature: hold down Shift while selecting a region and the selection will be square. Sorry, I don't display the size, though. <I>(Thanks to TheChocolateOre for <a href="https://github.com/erich666/Mineways/issues/112">the suggestion</a>)</I>
 	<LI>Change USD shader normal3f and color3f inputs and outputs to float3, to more precisely match the specification. Delete unnecessary output and (mostly) alphabetize the parameter list, to fit with common practice.
 	</UL>
 
@@ -4162,7 +4163,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 8/18/2023</p>
+		<br id="lastUpdate">Last updated 8/26/2023</p>
 	</div>
 </div>
 
