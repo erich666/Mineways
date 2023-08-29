@@ -12506,7 +12506,9 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
                         minv = (float)(16.0f - maxPixZ) / 16.0f;
                         maxv = (float)(16.0f - minPixZ) / 16.0f;
                     }
-                    reverseLoop = 1;
+                    // we used to have to reverse bottom faces, but in 1.20.1 (and likely earlier)
+                    // they fixed this to make the norm to be not reversed.
+                    //reverseLoop = 1;
                     break;
                 case DIRECTION_BLOCK_TOP:
                     vindex[0] = 0x2 | 0x4;		// xmax, zmin
@@ -22882,23 +22884,26 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         saveTextureCorners(swatchLoc, type, standardCorners);
 
         // let the adjustments begin!
-        if (faceDirection == DIRECTION_BLOCK_BOTTOM)
-        {
-            // -Y is unique: the textures are actually flipped! 2,1,4,3
-            uvIndices[0] = standardCorners[localIndices[1]];
-            uvIndices[1] = standardCorners[localIndices[0]];
-            uvIndices[2] = standardCorners[localIndices[3]];
-            uvIndices[3] = standardCorners[localIndices[2]];
-        }
-        else
-        {
+        // In previous versions, the bottom block was mirrored with the top.
+        // In 1.20.1 (and likely earlier) all blocks now are not mirrored in this way,
+        // so this test is no longer needed.
+        //if (faceDirection == DIRECTION_BLOCK_BOTTOM)
+        //{
+        //    // -Y is unique: the textures are actually flipped! 2,1,4,3
+        //    uvIndices[0] = standardCorners[localIndices[1]];
+        //    uvIndices[1] = standardCorners[localIndices[0]];
+        //    uvIndices[2] = standardCorners[localIndices[3]];
+        //    uvIndices[3] = standardCorners[localIndices[2]];
+        //}
+        //else
+        //{
             // Normal case (note that pistons go through this, too, but we compensate
             // earlier - easier than testing for that special case here)
             uvIndices[0] = standardCorners[localIndices[0]];
             uvIndices[1] = standardCorners[localIndices[1]];
             uvIndices[2] = standardCorners[localIndices[2]];
             uvIndices[3] = standardCorners[localIndices[3]];
-        }
+        //}
     }
 
     return swatchLoc;
