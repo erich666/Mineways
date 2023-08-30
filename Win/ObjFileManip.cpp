@@ -14557,10 +14557,19 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         // displace faces a bit so that they don't z-fight. To be honest, I don't know why G3D makes
         // these two primitives double-sided - perhaps because they are cutouts? G3D normally makes
         // blocks single sided. Anyway, there's z-fighting, which looks bad and is confusing.
+        // For the back of the sunflower, Coterie Craft and Doku have differing opinions. Coterie's
+        // backface is mirrored so that it properly matches the front. Doku's is not mirrored. I think
+        // the right answer Coterie's, where you see it from the back. Happily doesn't matter for JG-RTX,
+        // which puts some leaves instead. Also doesn't matter for most other packs, as the front's outline
+        // is symmetrical. Anyway, whew, I've decided to not reverse the back, since it should be rendered
+        // as is.
+        // A USD subtlety is whether the front should be double-sided or not. For JG-RTX it should be, since
+        // the sunflower back does not cover the flower and so the flower would disappear from the rear view.
+        // But, the sunflower back itself could be made single-sided - I don't bother.
         retCode |= saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0,
             // DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (singleSided ? 0x0 : DIR_LO_X_BIT),
             DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, // always include back side, esp. now that it's separated from the front (avoiding z-fighting)
-            FLIP_X_FACE_VERTICALLY, 0, 7.95f, 8.05f, 0, 16, 0, 16);
+            0 /*FLIP_X_FACE_VERTICALLY*/, 0, 7.95f, 8.05f, 0, 16, 0, 16);
         if (retCode > MW_BEGIN_ERRORS) return retCode;
 
         gUsingTransform = 0;
@@ -14568,6 +14577,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
         rotateMtx(mtx, 0.0f, 0.0f, -20.0f);
+        // maybe needs to get pushed out farther still - Doku's leaves poke through it.
         translateMtx(mtx, 1.8f / 16.0f, 0.4f / 16.0f, 0.2f / 16.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(totalVertexCount, mtx);
@@ -18879,7 +18889,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
     {
         // Outputting textured face
 
-        int head, bottom, inside, outside, newFaceDirection, flip, neighborType;  // cppcheck-suppress 398
+        int head, bottom, inside, outside, newFaceDirection, neighborType;  // cppcheck-suppress 398
         int xoff, xstart, dir, dirBit, frontLoc, trimVal, xloc, yloc;  // cppcheck-suppress 398
         // north is 0, east is 1, south is 2, west is 3
         int faceRot[6] = { 0, 0, 1, 2, 0, 3 };  // cppcheck-suppress 398
@@ -19233,7 +19243,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             // bit tricksy: rotate by rotating face direction itself
             newFaceDirection = faceDirection;
             angle = 0;
-            flip = 0;
+            // no longer needed - fixed. flip = 0;
             switch (dataVal & 0xC)
             {
             default:
@@ -19250,13 +19260,12 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     break;
                 case DIRECTION_BLOCK_SIDE_LO_Z:
                     angle = 270;
-                    flip = 1;
                     break;
                 case DIRECTION_BLOCK_SIDE_HI_Z:
                     angle = 90;
                     break;
                 case DIRECTION_BLOCK_BOTTOM:
-                    angle = 270;
+                    angle = 90;
                     newFaceDirection = DIRECTION_BLOCK_SIDE_LO_X;
                     break;
                 case DIRECTION_BLOCK_TOP:
@@ -19270,17 +19279,17 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 {
                 default:
                 case DIRECTION_BLOCK_SIDE_LO_X:
-                    angle = 90;
+                    angle = 270;
                     break;
                 case DIRECTION_BLOCK_SIDE_HI_X:
-                    angle = 270;
-                    flip = 1;
+                    angle = 90;
                     break;
                 case DIRECTION_BLOCK_SIDE_LO_Z:
                 case DIRECTION_BLOCK_SIDE_HI_Z:
                     newFaceDirection = DIRECTION_BLOCK_TOP;
                     break;
                 case DIRECTION_BLOCK_BOTTOM:
+                    angle = 180;    // and, yes, fall through
                 case DIRECTION_BLOCK_TOP:
                     newFaceDirection = DIRECTION_BLOCK_SIDE_LO_X;
                     break;
@@ -19522,8 +19531,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
 
             if (angle != 0 && uvIndices)
                 rotateIndices(localIndices, angle);
-            if (flip && uvIndices)
-                flipIndicesLeftRight(localIndices);
+            // flip no longer needed
+            //if (flip && uvIndices)
+            //    flipIndicesLeftRight(localIndices);
             break;
         case BLOCK_OAK_PLANKS:						// getSwatch
             // This bit is unused for WOODEN_PLANKS, so masking doesn't hurt - we can share code here.
@@ -19922,43 +19932,64 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             {
             case 0:	// back side facing down
                 switch (faceDirection) {
-                case DIRECTION_BLOCK_BOTTOM: swatchLoc = SWATCH_INDEX(2, 33); break;
-                case DIRECTION_BLOCK_SIDE_LO_X:
+                case DIRECTION_BLOCK_BOTTOM: swatchLoc = SWATCH_INDEX(2, 33); 
+                    if (uvIndices) {
+                        rotateIndices(localIndices, 180);
+                    }
+                    break;
+                case DIRECTION_BLOCK_SIDE_LO_X: swatchLoc = SWATCH_INDEX(3, 33);
+                    if (uvIndices) {
+                        rotateIndices(localIndices, 270);
+                    }
+                    break;
                 case DIRECTION_BLOCK_SIDE_HI_X: swatchLoc = SWATCH_INDEX(3, 33);
                     if (uvIndices) {
                         rotateIndices(localIndices, 90);
                     }
                     break;
-                case DIRECTION_BLOCK_SIDE_LO_Z:
-                case DIRECTION_BLOCK_SIDE_HI_Z: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY); break;
+                case DIRECTION_BLOCK_SIDE_LO_Z: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+                    flipIndicesLeftRight(localIndices);
+                    break;
+                case DIRECTION_BLOCK_SIDE_HI_Z: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+                    break;
                 default: break;
                 }
                 break;
-            case 1: // facing up
+            case 1: // back side facing up
                 switch (faceDirection) {
                 case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(2, 33);
                     if (uvIndices) {
                         rotateIndices(localIndices, 180);
                     }
                     break;
-                case DIRECTION_BLOCK_SIDE_LO_X:
-                case DIRECTION_BLOCK_SIDE_HI_X: swatchLoc = SWATCH_INDEX(3, 33);
+                case DIRECTION_BLOCK_SIDE_LO_X: swatchLoc = SWATCH_INDEX(3, 33);
                     if (uvIndices) {
                         rotateIndices(localIndices, 90);
                     }
                     break;
-                case DIRECTION_BLOCK_SIDE_LO_Z:
+                case DIRECTION_BLOCK_SIDE_HI_X: swatchLoc = SWATCH_INDEX(3, 33);
+                    if (uvIndices) {
+                        rotateIndices(localIndices, 270);
+                    }
+                    break;
+                case DIRECTION_BLOCK_SIDE_LO_Z: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+                    if (uvIndices) {
+                        rotateIndices(localIndices, 180);
+                    }
+                    break;
                 case DIRECTION_BLOCK_SIDE_HI_Z: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
                     if (uvIndices) {
+                        flipIndicesLeftRight(localIndices);
                         rotateIndices(localIndices, 180);
                     }
                     break;
                 default: break;
                 }
                 break;
-            case 2: // North -Z
+            case 2: // back side facing North -Z
                 switch (faceDirection) {
-                case DIRECTION_BLOCK_BOTTOM:
+                case DIRECTION_BLOCK_BOTTOM: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+                    break;
                 case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
                     if (uvIndices) {
                         flipIndicesLeftRight(localIndices);
@@ -19971,9 +20002,13 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 default: break;
                 }
                 break;
-            case 3: // South +Z
+            case 3: // back side facing South +Z
                 switch (faceDirection) {
-                case DIRECTION_BLOCK_BOTTOM:
+                case DIRECTION_BLOCK_BOTTOM: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+                    if (uvIndices) {
+                        rotateIndices(localIndices, 180);
+                    }
+                    break;
                 case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
                     if (uvIndices) {
                         flipIndicesLeftRight(localIndices);
@@ -19985,9 +20020,13 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 default: break;
                 }
                 break;
-            case 4: // West
+            case 4: // back side facing West
                 switch (faceDirection) {
-                case DIRECTION_BLOCK_BOTTOM:
+                case DIRECTION_BLOCK_BOTTOM: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+                    if (uvIndices) {
+                        rotateIndices(localIndices, 90);
+                    }
+                    break;
                 case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
                     if (uvIndices) {
                         flipIndicesLeftRight(localIndices);
@@ -20000,10 +20039,14 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 default: break;
                 }
                 break;
-            case 5: // East
+            case 5: // back side facing East
             default:
                 switch (faceDirection) {
-                case DIRECTION_BLOCK_BOTTOM:
+                case DIRECTION_BLOCK_BOTTOM: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+                    if (uvIndices) {
+                        rotateIndices(localIndices, 270);
+                    }
+                    break;
                 case DIRECTION_BLOCK_TOP: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
                     if (uvIndices) {
                         flipIndicesLeftRight(localIndices);
@@ -20235,12 +20278,12 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 case 1:
                     swatchLoc = SWATCH_INDEX(xoff + xstart, 9);
                     if (uvIndices)
-                        flipIndicesLeftRight(localIndices);
+                        flipIndicesLeftRight(localIndices); // actually needed - mirror bed side
                     break;
                 case 2:
                     swatchLoc = SWATCH_INDEX(xstart, 9);
                     if (uvIndices)
-                        flipIndicesLeftRight(localIndices);
+                        flipIndicesLeftRight(localIndices); // actually needed - mirror bed side
                     break;
                 case 3:
                     swatchLoc = SWATCH_INDEX(xoff + xstart, 9);
@@ -20288,6 +20331,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             break;
         case BLOCK_STICKY_PISTON:						// getSwatch
         case BLOCK_PISTON:
+            // TODOTODO: should use the R texture pack to get these exactly right someday. They're fine for now.
             // 10,6 sticky head, 11,6 head, 12,6 side, 13,6 bottom, 14,6 extended top
             head = bottom = 0;
             dir = dataVal & 7;
@@ -22001,32 +22045,35 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
 
         case BLOCK_BONE_BLOCK:						// getSwatch
             // bit tricksy: rotate by rotating face direction itself
+            // This is done slightly differently than logs do, for reasons unknown
             newFaceDirection = faceDirection;
             angle = 0;
-            flip = 0;
+            //flip = 0;
             switch (dataVal & 0xC)
             {
             default:
             case 0x0:
                 // as above: newFaceDirection = faceDirection;
                 break;
-            case 0x4:
+            case 0x4: // X
                 switch (faceDirection)
                 {
                 default:
                 case DIRECTION_BLOCK_SIDE_LO_X:
+                    newFaceDirection = DIRECTION_BLOCK_TOP;
+                    break;
                 case DIRECTION_BLOCK_SIDE_HI_X:
                     newFaceDirection = DIRECTION_BLOCK_TOP;
+                    angle = 180;
                     break;
                 case DIRECTION_BLOCK_SIDE_LO_Z:
                     angle = 270;
-                    flip = 1;
                     break;
                 case DIRECTION_BLOCK_SIDE_HI_Z:
                     angle = 90;
                     break;
                 case DIRECTION_BLOCK_BOTTOM:
-                    angle = 270;
+                    angle = 90;
                     newFaceDirection = DIRECTION_BLOCK_SIDE_LO_X;
                     break;
                 case DIRECTION_BLOCK_TOP:
@@ -22035,27 +22082,31 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     break;
                 }
                 break;
-            case 0x8:
+            case 0x8: // Z
                 switch (faceDirection)
                 {
                 default:
                 case DIRECTION_BLOCK_SIDE_LO_X:
-                    angle = 90;
+                    angle = 270;
                     break;
                 case DIRECTION_BLOCK_SIDE_HI_X:
-                    angle = 270;
-                    flip = 1;
+                    angle = 90;
                     break;
                 case DIRECTION_BLOCK_SIDE_LO_Z:
+                    newFaceDirection = DIRECTION_BLOCK_TOP;
+                    angle = 180;
+                    break;
                 case DIRECTION_BLOCK_SIDE_HI_Z:
                     newFaceDirection = DIRECTION_BLOCK_TOP;
                     break;
                 case DIRECTION_BLOCK_BOTTOM:
+                    newFaceDirection = DIRECTION_BLOCK_SIDE_LO_X;
+                    angle = 180;
+                    break;
                 case DIRECTION_BLOCK_TOP:
                     newFaceDirection = DIRECTION_BLOCK_SIDE_LO_X;
                     break;
                 }
-
                 break;
             case 0xC:
                 // all faces are sides
@@ -22085,8 +22136,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             // follow the axis, though may be flipped vertically or horizontally (for the NS and EW axis blocks)
             if (angle != 0 && uvIndices)
                 rotateIndices(localIndices, angle);
-            if (flip && uvIndices)
-                flipIndicesLeftRight(localIndices);
+            //if (flip && uvIndices)
+            //    flipIndicesLeftRight(localIndices);
             break;
 
         case BLOCK_STRUCTURE_BLOCK:						// getSwatch
@@ -22887,23 +22938,29 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         // In previous versions, the bottom block was mirrored with the top.
         // In 1.20.1 (and likely earlier) all blocks now are not mirrored in this way,
         // so this test is no longer needed.
-        //if (faceDirection == DIRECTION_BLOCK_BOTTOM)
-        //{
-        //    // -Y is unique: the textures are actually flipped! 2,1,4,3
-        //    uvIndices[0] = standardCorners[localIndices[1]];
-        //    uvIndices[1] = standardCorners[localIndices[0]];
-        //    uvIndices[2] = standardCorners[localIndices[3]];
-        //    uvIndices[3] = standardCorners[localIndices[2]];
-        //}
-        //else
-        //{
+        // But, the corners do have to be rotated 180 degrees to match!
+        if (faceDirection == DIRECTION_BLOCK_BOTTOM)
+        {
+            // -Y has the UVs rotated 180
+            uvIndices[0] = standardCorners[localIndices[2]];
+            uvIndices[1] = standardCorners[localIndices[3]];
+            uvIndices[2] = standardCorners[localIndices[0]];
+            uvIndices[3] = standardCorners[localIndices[1]];
+            // was: -Y is unique: the textures are actually flipped! 2,1,4,3
+            //uvIndices[0] = standardCorners[localIndices[1]];
+            //uvIndices[1] = standardCorners[localIndices[0]];
+            //uvIndices[2] = standardCorners[localIndices[3]];
+            //uvIndices[3] = standardCorners[localIndices[2]];
+        }
+        else
+        {
             // Normal case (note that pistons go through this, too, but we compensate
             // earlier - easier than testing for that special case here)
             uvIndices[0] = standardCorners[localIndices[0]];
             uvIndices[1] = standardCorners[localIndices[1]];
             uvIndices[2] = standardCorners[localIndices[2]];
             uvIndices[3] = standardCorners[localIndices[3]];
-        //}
+        }
     }
 
     return swatchLoc;
@@ -34138,10 +34195,11 @@ static void mergeSimplifySet(SimplifyFaceRecord** ppSFR, int faceCount)
                     {
                         // flip direction texture goes
                         flipIndicesLeftRight(vertexIndex);
-                        rotateIndices(vertexIndex, 90);
-                        short tmp = uvIndex[1];
-                        uvIndex[1] = uvIndex[3];
-                        uvIndex[3] = tmp;
+                        rotateIndices(vertexIndex, 180);
+                        // used to do this flip - now not needed
+                        //short tmp = uvIndex[1];
+                        //uvIndex[1] = uvIndex[3];
+                        //uvIndex[3] = tmp;
                     }
                     break;
                 case DIRECTION_BLOCK_SIDE_LO_X:

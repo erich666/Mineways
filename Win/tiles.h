@@ -1198,6 +1198,7 @@ static const struct {
     { L"stone_andesite_smooth", L"polished_andesite" },    // JG-RTX
     { L"stone_diorite_smooth", L"polished_diorite" },    // JG-RTX
     { L"stonebrick_cracked", L"cracked_stone_bricks" },    // Muddle
+    { L"sunflower_top_back", L"sunflower_top" },    // Doku craft - sunflower_top is not what we want
     { L"trip_wire_hook", L"tripwire_hook" },    // Absolution
     { L"wool", L"white_wool" },    // PhotoCraft
 
@@ -1212,7 +1213,6 @@ static const struct {
     { L"netherack", L"netherrack" },    // JG-RTX typo
     { L"packed_ce", L"packed_ice" },    // JG-RTX typo, reported https://github.com/jasonjgardner/jg-rtx/issues/4
     { L"prismrine_brick", L"prismarine_bricks" }, // PhotoCraft
-
 
     // tag that denotes end of list for while loop
     { L"", L"" }

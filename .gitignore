@@ -32,6 +32,7 @@ Win/teapot*.png
 docs/images/crushed
 mineways-cppcheck-build-dir
 ipch
+TileMaker/TileMaker/1.*
 TileMaker/TileMaker/blocks*
 TileMaker/TileMaker/MW_BLOCKS
 TileMaker/TileMaker/code*
@@ -43,6 +44,7 @@ TileMaker/Debug
 TileMaker/ipch
 TileMaker/Release
 TileMaker/x64
+TileMaker/TileMaker/crushed
 TileMaker/TileMaker/Debug
 TileMaker/TileMaker/ipch
 TileMaker/TileMaker/Release
