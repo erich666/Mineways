@@ -77,7 +77,7 @@ static bool gUndoAvailable = false;
 // was an unknown block read in?
 static int gUnknownBlock = 0;
 static int gPerformUnknownBlockCheck = 1;
-static char gUnknownBlockName[100];
+static char gUnknownBlockName[MAX_PATH_AND_FILE];   // this length only because that name is global
 // What block ID should be used for any unknown blocks?
 #ifdef _DEBUG
 // Make it bedrock, so we see it's not translated
@@ -7869,6 +7869,12 @@ static void initColors()
 char* MapUnknownBlockName()
 {
     return gUnknownBlockName;
+}
+
+// reset error field for bad block names
+void ClearUnknownBlockNameString()
+{
+    gUnknownBlockName[0] = NULL;
 }
 
 void SetUnknownBlockID(int val)

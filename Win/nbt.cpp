@@ -1623,9 +1623,15 @@ void makeHashTable()
 int findIndexFromName(char* name)
 {
     // quick out: if it's air, just be done
-    if (strcmp("air", name) == 0) {
+    // +10 is to avoid (useless) "minecraft:" string.
+    if (strcmp("air", name + 10) == 0) {
         return 0;
     }
+    if (strlen(name) < 11) {
+        // name is too short, probably some mod name like "train:turn" etc.
+        return -1;
+    }
+    name += 10;
     // to break on a specific named block
 #ifdef _DEBUG
     //if (strcmp("acacia_stairs", name) == 0) {
@@ -3281,23 +3287,48 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 //	type = type;
                 //}
 
-                // convert name to block value. +10 is to avoid (useless) "minecraft:" string.
-                // could be dangerous if len < 10 for whatever reason.
-                typeIndex = findIndexFromName(thisBlockName + 10);
+                // convert name to block value.
+                typeIndex = findIndexFromName(thisBlockName);
                 if (typeIndex > -1) {
                     paletteBlockEntry[entryIndex] = BlockTranslations[typeIndex].blockId;
                     paletteDataEntry[entryIndex] = BlockTranslations[typeIndex].dataVal;
                 }
                 else {
                     // unknown type
-                    //  THIS IS WHERE TO PUT A DEBUG BREAK TO SEE WHAT NAME IS UNKNOWN: see thisBlockName.
+                    //  THIS IS WHERE TO PUT A DEBUG BREAK TO SEE WHAT NAME IS UNKNOWN: watch thisBlockName.
                     // TODO: could add a more complex system here to convert from various unknown block names to other IDs.
                     // Test if we care about knowing which block name is unknown.
                     typeIndex = BLOCK_AIR;  // to avoid problems interpreting this blocck
                     if (unknownBlock) {
-                        // return unknown block's name to output; really, should return all block names, just add to the string until it's full,
-                        // if the name is not already in the list. Handy for people trying to make block conversions. Make string a lot longer.
-                        strcpy_s(unknownBlock, 100, thisBlockName + 10);
+                        // return unknown block's name to output; return all block names as room permits, just add to the string until it's full,
+                        // if the name is not already in the list. Handy for people trying to make block conversions.
+
+                        // remove the part before the colon:
+                        char* unknownName = strchr(thisBlockName, ':');
+                        if (unknownName == NULL) {
+                            assert(0);  // weird, doesn't have a colon in its name. Is everything OK?
+                            unknownName = thisBlockName;
+                        }
+                        else {
+                            // get past colon
+                            unknownName++;
+                        }
+                        // is name already in string? Yes, there could be names inside names, but this isn't meant to be thorough.
+                        if (strstr(unknownBlock, unknownName) == NULL) {
+                            // name is unique
+                            size_t stringLength = strlen(unknownBlock);
+                            if (stringLength + strlen(unknownName) + 8 < MAX_PATH_AND_FILE) {
+                                if (stringLength > 0) {
+                                    // already added a name, so add comma
+                                    strcat_s(unknownBlock, MAX_PATH_AND_FILE, ", ");
+                                }
+                                strcat_s(unknownBlock, MAX_PATH_AND_FILE, unknownName);
+                            }
+                            else if (stringLength + 6 < MAX_PATH_AND_FILE) {
+                                // end it - no more room!
+                                strcat_s(unknownBlock, MAX_PATH_AND_FILE, ", etc.");
+                            }
+                        }
                     }
                     // Make unknown blocks air (0) by default, or whatever the user has set with the script command "Set unknown block ID".
                     paletteBlockEntry[entryIndex] = (unsigned char)(unknownBlockID & 0xff);
@@ -3912,7 +3943,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             else if (strcmp(token, "cracked") == 0) {}	// for decorated pot - ignored
                             else {
                                 // unknown property - look at token and value
-                                assert(0);
+                                static int ignore = 0;
+                                assert(ignore);
                             }
                         }
 #endif

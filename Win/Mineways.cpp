@@ -3453,11 +3453,12 @@ static void updateProgress(float progress, wchar_t* buf)
 
 static void drawTheMap()
 {
-    if (gLoaded)
+    if (gLoaded) {
+        ClearUnknownBlockNameString();
         checkMapDrawErrorCode(
             DrawMap(&gWorldGuide, gCurX, gCurZ, gCurDepth - gMinHeight, gMaxHeight, bitWidth, bitHeight, gCurScale, map, &gOptions, gHitsFound, updateProgress, gMinecraftVersion, gVersionID)
         );
-    else {
+    } else {
         // avoid clearing nothing at all.
         if (bitWidth > 0 && bitHeight > 0)
             memset(map, 0xff, bitWidth * bitHeight * 4);
@@ -9462,7 +9463,7 @@ static void checkMapDrawErrorCode(int retCode)
     else if (gOneTimeDrawWarning & retCode) {
         // NBT_WARNING_NAME_NOT_FOUND is the only one now
         // currently the only warning - we will someday look at bits, I guess, in retCode
-        wsprintf(fullbuf, _T("Warning: at least one unknown block type '%S' was encountered and turned into '%S'.\n\nIf you are not running a Minecraft beta, mod, or conversion, please download the latest version of Mineways from mineways.com. If you think Mineways has a bug, please report it (see the Help menu)."),
+        wsprintf(fullbuf, _T("Warning: unknown block types '%S' encountered and turned into '%S'.\n\nIf you are not running a Minecraft beta, mod, or conversion, please download the latest version of Mineways from mineways.com. If you think Mineways has a bug, please report it (see the Help menu)."),
             MapUnknownBlockName(), gBlockDefinitions[GetUnknownBlockID()].name);
         FilterMessageBox(NULL, fullbuf,
             _T("Warning"), MB_OK | MB_ICONWARNING | MB_TOPMOST);
@@ -9503,6 +9504,7 @@ static bool saveMapFile(int xmin, int zmin, int xmax, int ymax, int zmax, wchar_
     // turn off highlight for map draw
     SetHighlightState(0, xmin, gTargetDepth, zmin, xmax, ymax, zmax, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_IGNORE);
 
+    ClearUnknownBlockNameString();
     checkMapDrawErrorCode(
         DrawMapToArray(imageDst, &gWorldGuide, xmin, zmin, ymax, gMaxHeight, w, h, zoom, &gOptions, gHitsFound, updateProgress, gMinecraftVersion, gVersionID)
     );
