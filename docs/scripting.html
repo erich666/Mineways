@@ -722,7 +722,7 @@ Clear out all stored 'Change blocks' commands. While exporting will clear out an
 Translate: modded_block_name standard_block_name
 </td>
 <td>
-Added to help <a href="https://github.com/erich666/Mineways/issues/44">mod</a> and beta users a bit. Pair some unknown block name to some standard name, e.g.: "Translate track_signal black_wool". Double quotes are not needed around the names, and any modding prefix, e.g., "create:", should not be included - it is ignored. The list of block names that Mineways currently accepts is <a href="https://github.com/erich666/Mineways/blob/master/Win/nbt.cpp#L386">here</a>. Any data values for the block are currently not used. Normally you want to set translations before loading a world. To have these changes take effect on a world that is loaded, hit "r" or use the script command "Minecraft world:" to reload.
+Added to help <a href="https://github.com/erich666/Mineways/issues/44">mod</a> and beta users a bit. Pair some unknown block name to some standard name, e.g.: "Translate track_signal black_wool". Double quotes are not needed around the names, and any modding prefix, e.g., "create:", should not be included - it is ignored. The list of block names that Mineways currently accepts is <a href="https://github.com/erich666/Mineways/blob/master/Win/nbt.cpp#L386">here</a>. Any block states (data values) for the block are currently not used. Normally you want to set translations before loading a world. To have these changes take effect on a world that is loaded, hit "r" or use the script command "Minecraft world:" to reload. <B>This feature is experimental!</B> For example, try to avoid converting to doors, sunflowers, and other two-block types, as you're likely to get something weird or even crash. 
 </td>
 </tr>
 
