@@ -99,6 +99,12 @@ typedef struct BlockEntity {
     unsigned char data;	// major and minor data in one byte
 } BlockEntity;
 
+typedef struct TranslationTuple {
+    char* name;
+    int type;
+    struct TranslationTuple* next;
+} TranslationTuple;
+
 bfFile newNBT(const wchar_t* filename, int* err);
 int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int minHeight, int maxHeight, int& mfsHeight, char* unknownBlock, int unknownBlockID);
 int nbtGetHeights(bfFile* pbf, int & minHeight, int & maxHeight, int mcVersion);
@@ -113,3 +119,5 @@ int nbtGetSchematicWord(bfFile* pbf, char* field, int* value);
 int nbtGetSchematicBlocksAndData(bfFile* pbf, int numBlocks, unsigned char* schematicBlocks, unsigned char* schematicBlockData);
 void nbtClose(bfFile* pbf);
 
+int SlowFindIndexFromName(char* name);
+void SetModTranslations(TranslationTuple* mt);

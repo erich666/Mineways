@@ -31,6 +31,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "ColorSchemes.h"
 #include "ExportPrint.h"
 #include "Location.h"
+#include "nbt.h"    // just for SlowFindIndexFromName()
 #ifdef SKETCHFAB
 #include "publishSkfb.h"
 #endif
@@ -250,6 +251,8 @@ static bool gShowError = true;
 // If, say, gRemapMouse[LEFT_MOUSE_BUTTON_INDEX] is set to 1, that remaps
 // the ability of the left mouse (i.e., pan movement) to the middle mouse button instead
 static int gRemapMouse[3] = { 0,1,2 };
+
+static TranslationTuple *gModTranslations = NULL;
 
 #define LEFT_MOUSE_BUTTON_INDEX 0
 #define MIDDLE_MOUSE_BUTTON_INDEX 1
@@ -8008,8 +8011,10 @@ JumpToSpawn:
 
     strPtr = findLineDataNoCase(line, "Clear change block commands");
     if (strPtr != NULL) {
-        deleteCommandBlockSet(is.pCBChead);
-        is.pCBChead = is.pCBClast = NULL;
+        if (is.processData) {
+            deleteCommandBlockSet(is.pCBChead);
+            is.pCBChead = is.pCBClast = NULL;
+        }
         return INTERPRETER_FOUND_VALID_LINE;
     }
 
@@ -8057,7 +8062,7 @@ JumpToSpawn:
         int list[3] = {-1, -1, -1};
         list[leftRemap] = list[middleRemap] = list[rightRemap] = 0;
         if (list[0] + list[1] + list[2] < 0) {
-            saveErrorMessage(is, L"must use left, middle, and right once each for Set mouse order command.", strPtr); return INTERPRETER_FOUND_ERROR;
+            saveErrorMessage(is, L"must use left, middle, and right once each for 'Set mouse order' command.", strPtr); return INTERPRETER_FOUND_ERROR;
         }
 
         if (is.processData) {
@@ -8091,6 +8096,74 @@ JumpToSpawn:
         if (is.processData)
         {
             SetUnknownBlockID(val);
+        }
+        return INTERPRETER_FOUND_VALID_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Translate:");
+    if (strPtr != NULL) {
+        if (2 != sscanf_s(strPtr, "%s %s",
+            string1, (unsigned)_countof(string1),
+            string2, (unsigned)_countof(string2)
+        ))
+        {
+            saveErrorMessage(is, L"could not find two names for the 'Translate' command."); return INTERPRETER_FOUND_ERROR;
+        }
+        // if either block has a colon in it, the person needs to read the docs
+        if (strchr(string1, ':') ) {
+            wsprintf(error, L"first name %S should not include a colon in it for the 'Translate' command.", string1);
+            saveErrorMessage(is, error); return INTERPRETER_FOUND_ERROR;
+        }
+        if (strchr(string2, ':') ) {
+            wsprintf(error, L"second name %S should not include a colon in it for the 'Translate' command.", string2);
+            saveErrorMessage(is, error); return INTERPRETER_FOUND_ERROR;
+        }
+        // find if second name is a valid block
+        int typeValue = SlowFindIndexFromName(string2);
+        if (typeValue < 0 ) {
+            wsprintf(error, L"second name %S is not a valid block name for the 'Translate' command. See https://bit.ly/minewaysnames for valid names.", string2);
+            saveErrorMessage(is, error); return INTERPRETER_FOUND_ERROR;
+        }
+
+        if (is.processData) {
+            // check if this modded name is already in the list
+            TranslationTuple* ptt = gModTranslations;
+            while (ptt) {
+                if (strcmp(ptt->name, string1) == 0) {
+                    // matches, so just replace contents and done
+                    ptt->type = typeValue;
+                    return INTERPRETER_FOUND_VALID_LINE;
+                }
+                ptt = ptt->next;
+            }
+
+            // not in the list, so add to list of translations, just a simple linked list of tuples
+            ptt = (TranslationTuple*)malloc(sizeof(TranslationTuple));
+            size_t stringLength = strlen(string1) + 1;
+            ptt->name = (char*)malloc(stringLength);
+            strcpy_s(ptt->name, stringLength, string1);
+            ptt->type = typeValue;
+            ptt->next = gModTranslations;
+            gModTranslations = ptt;
+            SetModTranslations(gModTranslations);
+        }
+        return INTERPRETER_FOUND_VALID_LINE;
+    }
+
+    strPtr = findLineDataNoCase(line, "Clear translations");
+    if (strPtr != NULL) {
+        if (is.processData)
+        {
+            // free linked list
+            TranslationTuple* ptt = gModTranslations;
+            while (ptt) {
+                free(ptt->name);
+                TranslationTuple* next_ptt = ptt->next;
+                free(ptt);
+                ptt = next_ptt;
+            }
+            gModTranslations = NULL;
+            SetModTranslations(gModTranslations);
         }
         return INTERPRETER_FOUND_VALID_LINE;
     }

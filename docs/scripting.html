@@ -364,7 +364,7 @@ The commands above are available for scripting, unless listed as <B>"Model only.
 <P>
 If you wish to set any export options, it's wise to first set the export mode and file type by using the "Set render type:" or "Set 3D print type:" command. If you don't, the export settings will be applied to whatever file type was last exported, if any, and a warning will pop up.
 <P>
-Because it's a powerful system that can itself create files, the script file is read twice. Syntax errors are checked for and flagged on the first read; no actions are done. If there are no syntax errors, then the script is read again and executed line by line. Script execution is aborted if some execution error is found and caught. Pro tip: if you want to test a script for syntax errors and not execute it, put "FAIL" (or anything else that's not a command) as a line in the script. It will flag this line, and any other lines causing errors, and will not execute the script until all are fixed.
+Because it's a powerful system that can itself create files, the script file is read twice. Syntax errors are checked for and flagged on the first read; no actions are done. If there are no syntax errors, then the script is read again and executed line by line. Script execution is aborted <I>for the whole script</I> if any execution error is found and caught. Pro tip: if you want to test a script for syntax errors and not execute it, put "FAIL" (or anything else that's not a command) as a line in the script. It will flag this line, and any other lines causing errors, and will not execute the script until all are fixed.
 <P>
 Even with error checking, it's definitely possible to set combinations that may crash Mineways, as there are complex interactions between systems and especially between blocks and some combinations are simply illegal. If things get wedged, just restart Mineways, which always resets its defaults to a known good state.
 <P>
@@ -719,6 +719,24 @@ Clear out all stored 'Change blocks' commands. While exporting will clear out an
 
 <tr>
 <td>
+Translate: modded_block_name standard_block_name
+</td>
+<td>
+Added to help <a href="https://github.com/erich666/Mineways/issues/44">mod</a> and beta users a bit. Pair some unknown block name to some standard name, e.g.: "Translate track_signal black_wool". Double quotes are not needed around the names, and any modding prefix, e.g., "create:", should not be included - it is ignored. The list of block names that Mineways currently accepts is <a href="https://github.com/erich666/Mineways/blob/master/Win/nbt.cpp#L386">here</a>. Any data values for the block are currently not used. Normally you want to set translations before loading a world. To have these changes take effect on a world that is loaded, hit "r" or use the script command "Minecraft world:" to reload.
+</td>
+</tr>
+
+<tr>
+<td>
+Clear translations
+</td>
+<td>
+Clear all pairings set by the "Translate:" command. To have these changes take effect on a world that is loaded, hit "r" or use the script command "Minecraft world:".
+</td>
+</tr>
+
+<tr>
+<td>
 Custom printer cost per ccm: <i>0.03</i><br>
 Custom printer cost per printer ccm: <i>0.00</i><br>
 Custom printer handling cost: <i>0.00</i><br>
@@ -1051,7 +1069,7 @@ Running the script to set up the scene, then exporting (manually) to Sketchfab, 
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 5/9/2023</p>	</div>
+		<br id="lastUpdate">Last updated 8/31/2023</p>	</div>
 </div>
 
 </body>
