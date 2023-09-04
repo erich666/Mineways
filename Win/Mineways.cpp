@@ -3317,6 +3317,7 @@ static void updateStatus(int mx, int mz, int my, const char* blockLabel, int typ
     wchar_t buf[150];
     char sbuftype[100];
     char sbufbiome[100];
+    char sbufselect[100];
     char sbufmap[100];
 
     // always show all information - it's fine
@@ -3333,15 +3334,24 @@ static void updateStatus(int mx, int mz, int my, const char* blockLabel, int typ
     else
         sbufbiome[0] = '\0';
 
+    // note selected area, if any
+    int on, minx, miny, minz, maxx, maxy, maxz;
+    GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz, gMinHeight);
+    if (gHighlightOn) {
+        sprintf_s(sbufselect, 100, "; select [%d,%d] to [%d,%d], %d X %d", minx, minz, maxx, maxz, maxx - minx + 1, maxz - minz + 1);
+    }
+    else {
+        sbufselect[0] = '\0';
+    }
+
     // also note map chunk file name and chunk itself
     if (gWorldGuide.type == WORLD_TEST_BLOCK_TYPE) {
         sbufmap[0] = '\0';
     }
     else {
         // (((mx>>4) % 32) + 32) % 32) ensures the value is non-negative - there's probably a better way
-        sprintf_s(sbufmap, 100, "; r.%d.%d.mca, chunk [%d, %d] {%d, %d}", mx >> 9, mz >> 9, (((mx>>4) % 32) + 32) % 32, (((mz>>4) % 32) + 32) % 32, mx>>4, mz>>4);
+        sprintf_s(sbufmap, 100, "; cursor at r.%d.%d.mca, chunk [%d, %d] {%d, %d}", mx >> 9, mz >> 9, (((mx >> 4) % 32) + 32) % 32, (((mz >> 4) % 32) + 32) % 32, mx >> 4, mz >> 4);
     }
-
 
     // if my is out of bounds, print dashes
     if (my < -1 + gMinHeight || my >= gMaxHeight + 1)
@@ -3354,14 +3364,14 @@ static void updateStatus(int mx, int mz, int my, const char* blockLabel, int typ
         // In Nether, show corresponding overworld coordinates
         if (gOptions.worldType & HELL)
             //wsprintf(buf,L"%d,%d; y=%d[%d,%d] %S \t\tBtm %d",mx,mz,my,mx*8,mz*8,blockLabel,gTargetDepth);
-            wsprintf(buf, L"%d,%d,y=%d[%d,%d]; %S%S%S%S%S", mx, mz, my, mx * 8, mz * 8, 
+            wsprintf(buf, L"%d,%d,y=%d[%d,%d]; %S%S%S%S%S%S", mx, mz, my, mx * 8, mz * 8, 
                 WATERLOGGED_LABEL(type, dataVal) ? "waterlogged " : "",
-                blockLabel, sbuftype, sbufbiome, sbufmap);	// char to wchar
+                blockLabel, sbuftype, sbufbiome, sbufselect, sbufmap);	// char to wchar
         else
             //wsprintf(buf,L"%d,%d; y=%d %S \t\tBottom %d",mx,mz,my,blockLabel,gTargetDepth);
-            wsprintf(buf, L"%d,%d,y=%d; %S%S%S%S%S", mx, mz, my, 
+            wsprintf(buf, L"%d,%d,y=%d; %S%S%S%S%S%S", mx, mz, my, 
                 WATERLOGGED_LABEL(type, dataVal) ? "waterlogged " : "",
-                blockLabel, sbuftype, sbufbiome, sbufmap);	// char to wchar
+                blockLabel, sbuftype, sbufbiome, sbufselect, sbufmap);	// char to wchar
     }
     SendMessage(hwndStatus, SB_SETTEXT, 0, (LPARAM)buf);
 }
