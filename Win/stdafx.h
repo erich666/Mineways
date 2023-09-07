@@ -90,6 +90,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #ifdef WIN32
 #define PORTAFILE HANDLE
 #define PortaOpen(fn) CreateFileW(fn,GENERIC_READ,FILE_SHARE_READ | FILE_SHARE_WRITE,NULL,OPEN_EXISTING,0,NULL)
+// This one doesn't really work: https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew is documentation
 #define PortaAppend(fn) CreateFileW(fn,GENERIC_READ,FILE_SHARE_READ | FILE_SHARE_WRITE,NULL,CREATE_NEW,0,NULL)
 #define PortaCreate(fn) CreateFileW(fn,GENERIC_WRITE,FILE_SHARE_READ | FILE_SHARE_WRITE,NULL,CREATE_ALWAYS,0,NULL)
 #define PortaSeek(h,ofs) SetFilePointer(h,ofs,NULL,FILE_BEGIN)==INVALID_SET_FILE_POINTER

@@ -50,11 +50,15 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define MW_CHANGE_BLOCK_COMMAND_OUT_OF_BOUNDS		(1<<7)
 #define MW_TEXTURE_RESOLUTION_HIGH          		(1<<8)
 
-// errors
-#define MW_BEGIN_ERRORS                           (1<<9)
+// export doesn't "fail", but doesn't output anything
+#define MW_BEGIN_NOTHING_TO_DO                    (1<<9)
 
 #define MW_NO_BLOCKS_FOUND                          (1<<9)
 #define MW_ALL_BLOCKS_DELETED                       (1<<10)
+
+// errors
+#define MW_BEGIN_ERRORS                           (1<<11)
+
 #define MW_CANNOT_CREATE_FILE                       (1<<11)
 #define MW_CANNOT_WRITE_TO_FILE                     (1<<12)
 #define MW_IMAGE_WRONG_WIDTH                        (1<<13)

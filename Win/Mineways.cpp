@@ -329,9 +329,13 @@ typedef struct ImportedSet {
     HANDLE logfile;
     ChangeBlockCommand* pCBChead;
     ChangeBlockCommand* pCBClast;
+    bool showError;
+    bool showWarning;
+    bool showInformational;
 } ImportedSet;
 
 static WindowSet gWS;
+static ImportedSet *gpIS;
 
 // Error codes - see ObjFileManip.h for error numbers, look for MW_NO_ERROR
 static struct {
@@ -349,9 +353,9 @@ static struct {
     {_T("Warning: too few rows of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt*.png with 62 rows."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<6 VERTICAL_TILES
     {_T("Warning: one or more Change Block commands specified location(s) that were outside the selected volume."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<6
     {_T("Warning: with the large Terrain File you're using, the output texture is extremely large. Other programs make have problems using it. We recommend that you use the 'Export tiles' option instead, or reduce the size of your Terrain File by using the '-t 256' (or smaller) option in TileMaker.\n\nThis warning will not be repeated this session."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<6
+    {_T("Warning: only air blocks found; no file output. If you see something on the map, you likely need to set the Depth slider near the top to 0, or tap the space bar for a reasonable guess."), _T("Export warning"), MB_OK | MB_ICONWARNING},	// <<7
+    {_T("Warning: all solid blocks were deleted; no file output"), _T("Export warning"), MB_OK | MB_ICONWARNING},	// <<8
 
-    {_T("Error: no solid blocks found; no file output. If you see something on the map, you likely need to set the Depth slider at the top to 0, or tap the space bar for a reasonable guess."), _T("Export warning"), MB_OK | MB_ICONERROR},	// <<7
-    {_T("Error: all solid blocks were deleted; no file output"), _T("Export warning"), MB_OK | MB_ICONERROR},	// <<8
     {_T("Error creating export file; no file output"), _T("Export error"), MB_OK | MB_ICONERROR},	// <<9
     {_T("Error: cannot write to export file"), _T("Export error"), MB_OK | MB_ICONERROR},	// <<10
     {_T("Error: the incoming terrainExt*.png file resolution must be divisible by 16 horizontally and at least 16 pixels wide."), _T("Export error"), MB_OK | MB_ICONERROR},	// <<11
@@ -464,9 +468,11 @@ static char* removeLeadingWhitespace(char* line);
 static void cleanseBackslashes(char* line);
 static void saveErrorMessage(ImportedSet& is, wchar_t* error, char* restOfLine = NULL);
 static void saveWarningMessage(ImportedSet& is, wchar_t* error);
-static void saveMessage(ImportedSet& is, wchar_t* error, wchar_t* msgType, int increment, char* restOfLine = NULL);
+static void saveMessage(ImportedSet& is, wchar_t* error, wchar_t* msgType, int increment, char* restOfLine = NULL, LPCTSTR readyWcharLine = NULL);
 static bool validBoolean(ImportedSet& is, char* string);
+static bool validBooleanOrScript(ImportedSet& is, char* string);
 static bool interpretBoolean(char* string);
+static bool interpretScript(char* string);
 static bool validMouse(ImportedSet& is, char* string);
 static int interpretMouse(char* string);
 
@@ -3314,7 +3320,7 @@ static void gotoSurface(HWND hWnd, HWND hwndSlider, HWND hwndLabel)
 
 static void updateStatus(int mx, int mz, int my, const char* blockLabel, int type, int dataVal, int biome, HWND hwndStatus)
 {
-    wchar_t buf[150];
+    wchar_t buf[500];
     char sbuftype[100];
     char sbufbiome[100];
     char sbufselect[100];
@@ -5050,6 +5056,10 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         gChangeBlockCommands = NULL;
 
         if (errCode < MW_BEGIN_ERRORS) {
+            // things "succeeded", though no files were output. Hacky
+            retCode = 99999;
+        }
+        if (errCode < MW_BEGIN_NOTHING_TO_DO) {
             // note how many files were output - if an error occurred, we output and zip nothing
             retCode = outputFileList.count;
 
@@ -5140,11 +5150,10 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         // show errors first
         if (errCode != MW_NO_ERROR)
         {
-            // TODO: really, for scripting, if we're logging errors, these should all actually go into the .log file
             PopupErrorDialogs(errCode);
         }
 
-        if (errCode < MW_BEGIN_ERRORS) {
+        if (errCode < MW_BEGIN_NOTHING_TO_DO) {
 
             // output stats, if printing or rendering and there *are* stats (showStatistics is 0 if there's nothing in the volume)
             if (showStatistics) {
@@ -6152,6 +6161,16 @@ static bool readAndExecuteScript(wchar_t* importFile, ImportedSet& is)
 
 Exit:
     fclose(fh);
+    // if we suppressed errors, etc. with "Show error: script", that means suppress until the script is over.
+    if (is.showInformational) {
+        gShowInformational = true;
+    }
+    if (is.showWarning) {
+        gShowWarning = true;
+    }
+    if (is.showError) {
+        gShowError = true;
+    }
     return retCode;
 }
 
@@ -7635,7 +7654,9 @@ static int interpretScriptLine(char* line, ImportedSet& is)
         if (is.processData) {
             if (!commandExportFile(is, error, model, strPtr2)) {
                 saveErrorMessage(is, error);
-                return INTERPRETER_FOUND_ERROR;
+                // abort only if errors are not suppressed? TODO - not sure this should be allowed.
+                //if (gShowError)
+                    return INTERPRETER_FOUND_ERROR;
             }
         }
         return INTERPRETER_FOUND_VALID_LINE;
@@ -8185,10 +8206,13 @@ JumpToSpawn:
             saveErrorMessage(is, L"could not find boolean value for 'Show informational' command.");
             return INTERPRETER_FOUND_ERROR;
         }
-        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+        if (!validBooleanOrScript(is, string1)) return INTERPRETER_FOUND_ERROR;
         if (is.processData)
         {
+            // if "script", this gets set to false
             gShowInformational = interpretBoolean(string1);
+            // setting to true means that at the end of processing, gShowInformational will get set to be on again
+            is.showInformational = interpretScript(string1);
         }
         return INTERPRETER_FOUND_VALID_LINE;
     }
@@ -8200,10 +8224,13 @@ JumpToSpawn:
             saveErrorMessage(is, L"could not find boolean value for 'Show warning' command.");
             return INTERPRETER_FOUND_ERROR;
         }
-        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+        if (!validBooleanOrScript(is, string1)) return INTERPRETER_FOUND_ERROR;
         if (is.processData)
         {
+            // if "script", this gets set to false
             gShowWarning = interpretBoolean(string1);
+            // setting to true means that at the end of processing, gShowWarning will get set to be on again
+            is.showWarning = interpretScript(string1);
         }
         return INTERPRETER_FOUND_VALID_LINE;
     }
@@ -8215,10 +8242,13 @@ JumpToSpawn:
             saveErrorMessage(is, L"could not find boolean value for 'Show error' command.");
             return INTERPRETER_FOUND_ERROR;
         }
-        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+        if (!validBooleanOrScript(is, string1)) return INTERPRETER_FOUND_ERROR;
         if (is.processData)
         {
+            // if "script", this gets set to false
             gShowError = interpretBoolean(string1);
+            // setting to true means that at the end of processing, gShowError will get set to be on again
+            is.showError = interpretScript(string1);
         }
         return INTERPRETER_FOUND_VALID_LINE;
     }
@@ -8917,15 +8947,20 @@ static void cleanseBackslashes(char* line)
     }
 }
 
+static void saveSuppressedMessage(ImportedSet& is, int isError, LPCTSTR readyWcharLine)
+{
+    saveMessage(is, (isError == 2 ? L"Error" : ((isError == 1 ) ? L"Warning" : L"Informational")), L"Suppressed", isError == 2, NULL, readyWcharLine);
+}
+
 static void saveErrorMessage(ImportedSet& is, wchar_t* error, char* restOfLine)
 {
-    saveMessage(is, error, L"Error", 1, restOfLine);
+    saveMessage(is, error, L"Error", 1, restOfLine, NULL);
 }
 static void saveWarningMessage(ImportedSet& is, wchar_t* error)
 {
-    saveMessage(is, error, L"Warning", 0, NULL);
+    saveMessage(is, error, L"Warning", 0, NULL, NULL);
 }
-static void saveMessage(ImportedSet& is, wchar_t* error, wchar_t* msgType, int increment, char* restOfLine)
+static void saveMessage(ImportedSet& is, wchar_t* error, wchar_t* msgType, int increment, char* restOfLine, LPCTSTR readyWcharLine)
 {
     if (is.errorMessages == NULL) {
         is.errorMessagesStringSize = 1024;
@@ -8935,7 +8970,7 @@ static void saveMessage(ImportedSet& is, wchar_t* error, wchar_t* msgType, int i
 
     size_t oldlength = wcslen(is.errorMessages);
     // 50 is for buf[50], which may get appended
-    size_t addlength = 50 + wcslen(error) + ((restOfLine != NULL) ? strlen(restOfLine) : 0);
+    size_t addlength = 50 + wcslen(error) + ((restOfLine != NULL) ? strlen(restOfLine) : 0) + ((readyWcharLine != NULL) ? wcslen(readyWcharLine) : 0);
     // enough room?
     if (is.errorMessagesStringSize < oldlength + addlength) {
         is.errorMessagesStringSize *= 2;
@@ -8947,14 +8982,23 @@ static void saveMessage(ImportedSet& is, wchar_t* error, wchar_t* msgType, int i
         //free(oldStr);
     }
     // append error message
-    // If error does not start with "Error" or "Warning" then add this, and line number.
-    if (wcsstr(error, msgType) != error)
-    {
-        wchar_t buf[50];
-        wsprintf(buf, L"%s reading line %d: ", msgType, is.lineNumber);
+    // If a suppressed message, just output directly
+    wchar_t buf[50];
+    if (wcscmp(L"Suppressed", msgType) == 0) {
+        wsprintf(buf, L"Run-time problem executing line %d: ", is.lineNumber);
         wcscat_s(is.errorMessages, is.errorMessagesStringSize, buf);
     }
-    wcscat_s(is.errorMessages, is.errorMessagesStringSize, error);
+    else {
+        // If error does not start with "Error" or "Warning" then add this, and line number.
+        if (wcsstr(error, msgType) != error)
+        {
+            wsprintf(buf, L"%s reading line %d: ", msgType, is.lineNumber);
+            wcscat_s(is.errorMessages, is.errorMessagesStringSize, buf);
+        }
+        // add the message to the long string.
+        wcscat_s(is.errorMessages, is.errorMessagesStringSize, error);
+    }
+
     if (restOfLine && (*restOfLine != (char)0))
     {
         wcscat_s(is.errorMessages, is.errorMessagesStringSize, L" Rest of line: ");
@@ -8971,6 +9015,13 @@ static void saveMessage(ImportedSet& is, wchar_t* error, wchar_t* msgType, int i
         }
         wcscat_s(is.errorMessages, is.errorMessagesStringSize, badCommand);
     }
+
+    // add any wide char stuff directly
+    if (readyWcharLine) {
+        wcscat_s(is.errorMessages, is.errorMessagesStringSize, readyWcharLine);
+    }
+
+    // seal the deal
     wcscat_s(is.errorMessages, is.errorMessagesStringSize, L"\n");
     is.errorsFound += increment;
 }
@@ -8988,10 +9039,25 @@ static bool validBoolean(ImportedSet& is, char* string)
     }
 }
 
+static bool validBooleanOrScript(ImportedSet& is, char* string)
+{
+    // yes, just the "s" matters for script
+    if ((string[0] == 'S') || (string[0] == 's')) {
+        return true;
+    }
+    return validBoolean(is, string);
+}
+
 static bool interpretBoolean(char* string)
 {
     // YES, yes, TRUE, true, 1
     return ((string[0] == 'Y') || (string[0] == 'y') || (string[0] == 'T') || (string[0] == 't') || (string[0] == '1'));
+}
+
+static bool interpretScript(char* string)
+{
+    // script gives true (or anything starting with "s", why not)
+    return ((string[0] == 'S') || (string[0] == 's'));
 }
 
 static bool validMouse(ImportedSet& is, char* string)
@@ -9443,6 +9509,9 @@ static bool openLogFile(ImportedSet& is)
         strcpy_s(outputString, 256, "Start processing script\n");
         if (PortaWrite(is.logfile, outputString, strlen(outputString))) goto OnFail;
 
+        // ugh, yet another global...
+        gpIS = &is;
+
         // Print local time as a string.
         errno_t errNum;
         struct tm newtime;
@@ -9615,16 +9684,25 @@ static int FilterMessageBox(HWND hWnd, LPCTSTR lpText, LPCTSTR lpCaption, UINT u
     if (!gShowInformational && (uType & MB_ICONINFORMATION)) {
         swprintf_s(statusbuf, 1024, L"Informational: %s", lpText);
         sendStatusMessage(gWS.hwndStatus, statusbuf);
+        if (gpIS && gpIS->logging && gpIS->logfile) {
+            saveSuppressedMessage(*gpIS, 0, lpText);
+        }
         return 1;
     }
     if (!gShowWarning && (uType & MB_ICONWARNING)) {
         swprintf_s(statusbuf, 1024, L"Warning: %s", lpText);
         sendStatusMessage(gWS.hwndStatus, statusbuf);
+        if (gpIS && gpIS->logging && gpIS->logfile) {
+            saveSuppressedMessage(*gpIS, 1, lpText);
+        }
         return 1;
     }
     if (!gShowError && (uType & MB_ICONERROR)) {
         swprintf_s(statusbuf, 1024, L"ERROR: %s", lpText);
         sendStatusMessage(gWS.hwndStatus, statusbuf);
+        if (gpIS && gpIS->logging && gpIS->logfile) {
+            saveSuppressedMessage(*gpIS, 2, lpText);
+        }
         return 1;
     }
     // note: we make all these message boxes system modal - they should always be in the user's face until dismissed.

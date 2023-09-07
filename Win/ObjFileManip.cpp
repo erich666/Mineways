@@ -1196,7 +1196,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     // Note that tightenedWorldBox will come back with the "solid" bounds, of where data was actually found.
     // Mostly "of interest", not particularly useful - we used to output it, but that's a bit confusing when importing.
     retCode |= populateBox(pWorldGuide, pCBC, &tightenedWorldBox);
-    if (retCode >= MW_BEGIN_ERRORS)
+    if (retCode >= MW_BEGIN_ERRORS || retCode >= MW_BEGIN_NOTHING_TO_DO)
     {
         // nothing in box, so end.
         goto Exit;
