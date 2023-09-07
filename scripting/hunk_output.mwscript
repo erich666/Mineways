@@ -18,19 +18,29 @@
 // +----+----+
 //
 // Each hunk is 100x100 in size, next to each other. This is just a sample script: you can of course
-// add more hunks to output, change the size of the hunks, etc. I'm just showing the two things you
+// add more hunks to output, change the size of the hunks, etc. I'm just showing the things you
 // need to do to output a hunk: select the location, then export.
 
-// These first four lines are to set up how you want to export:
-//   to Wavefront OBJ format,
-//   materials export to separate textures, which are then shared among all hunks
-//   not centered, so that each hunk can be read in next to its neighbor,
-//   and without block faces since hunks should join together.
+
+// Errors, warnings, and informational message logging. Instead of letting all messages go to the screen
+// (and possibly stop processing until you hit "OK"), you can send these messages to a log file like so.
+Show informational: script
+Show warning: script
+Show error: script
+Save log file: c:\temp\script_run.log
+
+
+// These next four commands set up how your export will be done. What they do:
+//   export any render to the Wavefront OBJ format,
 Set render type: Wavefront OBJ absolute indices
-File type: Export tiles for textures to directory texture
+//   export block textures as separate images, saved to the "hunks_textures" directory
+File type: Export tiles for textures to directory hunks_textures
+//   not centered, so that each hunk can be read in next to its neighbor,
 Center model: NO
+//   and without block faces since hunks should join together.
 Create block faces at the borders: NO
 
+// Now select and export!
 Selection location: 0, 0, 0 to 99, 255, 99
 Export for rendering: c:\temp\hunk00.obj
 

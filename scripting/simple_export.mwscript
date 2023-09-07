@@ -10,8 +10,10 @@
 // You must have a world loaded to run this script. If you want to load it using this script, you could do:
 //Minecraft world: your world directory
 // This will load the Minecraft world in the save directory "your world" - you must change "your world" to the
-// actual name of the directory. You can see your saves here (paste into File Explorer): %appdata%\.minecraft\saves
+// actual name of the directory.
+// You can see your saves here (paste into File Explorer): %appdata%\.minecraft\saves
 
+// This command is optional for Wavefront OBJ for rendering export, the default, but here's how to set it:
 Set render type: Wavefront OBJ absolute indices
 // This command removes faces from the sides of your model. For a walkthrough animation these may not be needed.
 Create block faces at the borders: NO

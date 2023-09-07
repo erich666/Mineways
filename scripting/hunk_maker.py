@@ -42,11 +42,20 @@ sz = 100
 ystart = 0
 yend = 255
 
+# These optional commands temporarily suppress errors etc. and instead send them to a log file:
+print("Show informational: script");
+print("Show warning: script");
+print("Show error: script");
+print("Save log file: c:/temp/script_run.log");
+
+
+# Here's where to put the settings you want for your output files:
 print("Set render type: Wavefront OBJ absolute indices");
 print("File type: Export tiles for textures to directory texture");
 print("Center model: NO");
 print("Create block faces at the borders: NO");
 
+# Now loop, selecting and exporting. Done!
 x = xstart
 while x < xend:
     z = zstart

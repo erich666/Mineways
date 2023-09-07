@@ -2887,12 +2887,15 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 
 <UL>
 
-<LI>Version 11.03, 9/4/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1103.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 11.03, 9/7/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1103.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
     <UL>
-	<LI>Add selection location and size in information bar (lower left). <I>(Thanks to TheChocolateOre for <a href="https://github.com/erich666/Mineways/issues/117">the suggestion</a>)</I>
-	<LI>Modded block translation. The <a href="scripting.html#soc">"Translate:" command</a> lets you set a pick a modded block name and convert such blocks to a standard name when a world is read in. See <a href="scripting.html#soc">the documentation</a> for details. Sorry, block states (data values) are currently ignored.
-	<LI>More elaborate error message: when a modded block is found, add it to a list of blocks not found, instead of just displaying the first unknown block not found. Helps identify names of modded blocks for translation.
+	<LI>When <a href="scripting.html#soc">info/warning/error messages are suppressed</a>, they are now automatically sent to the scripting log file, if assigned. See the file hunk_output.mwscript for an example of how to use these commands.
+	<LI>If nothing is exported, a warning instead of an error is issued. This means that a script exporting an empty selection will not abort. <I>(Thanks to TheChocolateOre for <a href="https://github.com/erich666/Mineways/issues/114">the suggestion</a>)
+	<LI>Show selection rectangle location and size in information bar (lower left). <I>(Thanks to TheChocolateOre for <a href="https://github.com/erich666/Mineways/issues/117">the suggestion</a>)</I>
+	<LI>Modded block translation. The <a href="scripting.html#soc">"Translate:" command</a> lets you set a pick a modded block name and convert such blocks to a standard name when a world is read in. See <a href="scripting.html#soc">the documentation</a> for details. Sorry, block states (data values) are currently ignored, so it's mostly good for translating simple modded blocks without any attributes. Closes <a href="https://github.com/erich666/Mineways/issues/115">this issue</a>, for now.
+	<LI>More elaborate error message: display a list of modded blocks that were not found, instead of just the first block not found. Helps identify names of modded blocks for translation.
+	<LI>Restructure USD output to be more in line with asset delivery, grouping everything into a single Xform.
 	</UL>
 
 <LI>Version 11.02, 8/30/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1102.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
@@ -4175,7 +4178,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 8/30/2023</p>
+		<br id="lastUpdate">Last updated 9/7/2023</p>
 	</div>
 </div>
 

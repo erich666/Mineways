@@ -508,24 +508,27 @@ Export for Rendering: C:\Users\erich\Desktop\nether.obj<br>
 <P>
 For the world that is currently loaded, this sets the render type and file format, switches to the Nether level of the world loaded, selects an area, zooms the map, and performs a rendering export to the file nether.obj
 <P>
-Note that you could use this type of command sequence to export a bunch of adjacent areas, which you could then load into Blender or any other application as you wished. This can help you avoid hitting memory limits in Mineways, etc. Here's a script that comes with Mineways (along with hunk_maker.py, a Python program you can modify to generate sets of hunks as you wish; open and read the top of hunk_maker.py for how to edit and run it):
+Note that you could use this type of command sequence to export a bunch of adjacent areas, which you could then load into Blender or any other application as you wished. This can help you avoid hitting memory limits in Mineways, etc. As an example, here are the commands in hunk_output.mwscript, a script that comes with Mineways (along with hunk_maker.py, a Python program you can modify to generate sets of hunks as you wish; open and read the top of hunk_maker.py for how to edit and run it):
 </P>
 <P>
 <div id="code">
-// file hunk_output.mwscript.txt
+// file hunk_output.mwscript
+Show informational: script
+Show warning: script
+Show error: script
+Save log file: c:\temp\script_run.log
 Set render type: Wavefront OBJ absolute indices<br>
-File type: Export individual textures to directory texture<br>
+File type: Export individual textures to directory hunks_textures<br>
 Center model: no<br>
-Use biomes: no<br>
 Create block faces at the borders: no<br>
 Selection location min to max: 0, 50, 0 to 99, 255, 99<br>
-Export for Rendering: C:\Users\erich\Desktop\hunk00.obj<br>
+Export for Rendering: C:\temp\hunk00.obj<br>
 Selection location min to max: 0, 50, 100 to 99, 255, 199<br>
-Export for Rendering: C:\Users\erich\Desktop\hunk01.obj<br>
+Export for Rendering: C:\temp\hunk01.obj<br>
 Selection location min to max: 100, 50, 0 to 199, 255, 99<br>
-Export for Rendering: C:\Users\erich\Desktop\hunk10.obj<br>
+Export for Rendering: C:\temp\hunk10.obj<br>
 Selection location min to max: 100, 50, 100 to 199, 255, 199<br>
-Export for Rendering: C:\Users\erich\Desktop\hunk11.obj<br>
+Export for Rendering: C:\temp\hunk11.obj<br>
 </div>
 <P>
 Load your world, run this script via Import Settings, and it will dump four exports, with absolute coordinates, so that they can be loaded into a modeler and nicely join with each other. The "50" lower Y height is just a guess as to how deep you might want to go for a typical above-ground export - you can override this as you wish. Biomes are off, since the biome is computed for the center of each hunk and so will differ. Block faces at the borders being off means that the polygons where the hunks join are not output, saving on polygon count. You can set that to "yes" if you prefer. You 
@@ -657,20 +660,23 @@ You can specify a series of commands, which are applied in the order given. Each
 <tr>
 <td>
 Show informational: <i>true</i><br>
-Show warning: <i>YES</i><br>
-Show error: <i>no</i><br>
+Show warning: <i>NO</i><br>
+Show error: <i>script</i><br>
 </td>
 <td>
-You can suppress informational, warning, and error pop-up dialog messages by setting the corresponding property to false. By default, all these are set to true. Note that it's usually wise to set these all back to true at the end of any script that turns them off, as these settings are permanent for the session. That is, if you turn off errors in a script, all export errors are suppressed from then on, which can be confusing. If suppressed, these messages will instead show up (usually briefly!) in the status line in the lower left of Mineways when exporting. Note that other warnings, such as when you manually turn on some experimental feature, are always displayed and cannot be suppressed.
+You can suppress informational, warning, and execution error pop-up dialog messages by setting the corresponding property to false. By default, all these are set to true. If you instead set the status to "script", this means the messages will be suppressed for the current script only and returned to "true" (normally visible) after the script is executed. Note that it's usually wise to set these all back to true at the end of any script that turns them off, as these settings are permanent for the session, so "script" is usually your best bet. Execution errors (not warnings) will abort a script, even if turned off with this command.
+<P>
+If turned off or set to "script", these messages will instead show up (usually briefly!) in the status line in the lower left of Mineways when exporting. They will also be sent to the script log file, if set - see the next command. A few warnings, such as when you manually turn on some experimental feature, are always displayed and cannot be suppressed.
 </td>
 </tr>
 
 <tr>
 <td>
-Set unknown block ID: <i>322</i>
+Save log file: <i>filename</i>
 </td>
 <td>
-Set this value before opening a modded world, e.g., in a startup script. Modded worlds have block types not understood by Mineways. By default, unknown blocks are removed, "replaced by air", ID 0. You can set a <a href="https://github.com/erich666/Mineways/blob/master/Win/blockInfo.cpp#L72">block family ID</a> that you want to use instead. Note that after the unknown block is turned into that block type, it is treated exactly like that block type, including gettings its faces removed if the face is fully covered by a neighboring block. To have the unknown block not get culled in this way, you might consider using ID 322, "conduit", to give a small floating block that will not removed (because it doesn't border anything).
+Instead of displaying script syntax errors, warnings, and informational messages to the screen in pop-up dialogs, write this information to the specified log file. Typically use this command at the beginning of a script. The log file is closed when the script is processed (that is, you'll have to issue this command again for any succeeding scripts). This is handy if you have syntax errors and want to look at them later.
+<P>Normally only <I>syntax</I> errors in the script commands are saved to the log. Actual execution errors are still popped up. If you use "Show error: false" and similar commands for warnings, etc., these messages will be recorded in the log file instead. That said, a true execution error will still cause the script to abort, as usual. See the file hunk_output.mwscript for an example of how to use these commands.
 </td>
 </tr>
 
@@ -719,6 +725,15 @@ Clear out all stored 'Change blocks' commands. While exporting will clear out an
 
 <tr>
 <td>
+Set unknown block ID: <i>322</i>
+</td>
+<td>
+Set this value before opening a modded world, e.g., in a startup script. Modded worlds have block types not understood by Mineways. By default, unknown blocks are removed, "replaced by air", ID 0. You can set a <a href="https://github.com/erich666/Mineways/blob/master/Win/blockInfo.cpp#L72">block family ID</a> that you want to use instead. Note that after the unknown block is turned into that block type, it is treated exactly like that block type, including gettings its faces removed if the face is fully covered by a neighboring block. To have the unknown block not get culled in this way, you might consider using ID 322, "conduit", to give a small floating block that will not removed (because it doesn't border anything).
+</td>
+</tr>
+
+<tr>
+<td>
 Translate: modded_block_name standard_block_name
 </td>
 <td>
@@ -747,15 +762,6 @@ Custom printer minimum wall thickness: <i>1.5</i><br>
 </td>
 <td>
 The custom printer material that is used by the STL exporter can have its attributes set for showing the cost on export. You can set the cost per cubic centimeter (ccm) of material used (assuming a solid model), the cost per ccm of printer volume used (i.e., including the empty space, a bounding box around the model; Shapeways uses this for its <a href="https://www.shapeways.com/materials/strong-and-flexible-plastic?li=nav">Strong &amp; Flexible</a> material, for example), the "handling" cost (added in), the minimum cost a model will cost, the currency symbol (only the first character is used), the volume size of the 3D printer in centimeters (to warn if the print is too large), and the minimum wall thickness in <b>millimeters</b> for printing. Any or all of these can be set; the defaults are shown when not modified. PLA is typically priced at $24 for a 1 kilogram (800 cubic centimeters) spool. That is, $24/800 ccm then costs $0.03 per cubic centimeter.
-</td>
-</tr>
-
-<tr>
-<td>
-Save log file: <i>filename</i>
-</td>
-<td>
-Instead of displaying script syntax errors, warnings, and completion messages to the screen in a pop-up dialog, append this information to the specified log file. Typically call this at the beginning of a script. The log file is closed when the script is processed. This is handy if you have errors and want to look at them later. That said, I added it mostly for testing errors, as the popup dialog is limited to showing the first 20 errors, while the log file has no limit. Note: only syntax errors in the script commands are saved to the log. Actual execution errors are still popped up. You can hide errors by using the <a href="#soc">"Show error: false"</a> command (but, sorry, these don't get saved to the log - they should, but there you have it, a hole in Mineways' error handling).
 </td>
 </tr>
 
@@ -1069,7 +1075,7 @@ Running the script to set up the scene, then exporting (manually) to Sketchfab, 
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 8/31/2023</p>	</div>
+		<br id="lastUpdate">Last updated 9/7/2023</p>	</div>
 </div>
 
 </body>
