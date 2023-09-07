@@ -8934,6 +8934,7 @@ static void saveMessage(ImportedSet& is, wchar_t* error, wchar_t* msgType, int i
     }
 
     size_t oldlength = wcslen(is.errorMessages);
+    // 50 is for buf[50], which may get appended
     size_t addlength = 50 + wcslen(error) + ((restOfLine != NULL) ? strlen(restOfLine) : 0);
     // enough room?
     if (is.errorMessagesStringSize < oldlength + addlength) {
@@ -9610,6 +9611,7 @@ static bool saveMapFile(int xmin, int zmin, int xmax, int ymax, int zmax, wchar_
 static int FilterMessageBox(HWND hWnd, LPCTSTR lpText, LPCTSTR lpCaption, UINT uType)
 {
     wchar_t statusbuf[1024];
+    // if turned off, the message is still sent to the status line and to the log file, if any.
     if (!gShowInformational && (uType & MB_ICONINFORMATION)) {
         swprintf_s(statusbuf, 1024, L"Informational: %s", lpText);
         sendStatusMessage(gWS.hwndStatus, statusbuf);
