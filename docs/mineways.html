@@ -2891,7 +2891,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
   <BR>
     <UL>
 	<LI>When <a href="scripting.html#soc">info/warning/error messages are suppressed</a>, they are now automatically sent to the scripting log file, if assigned. See the file hunk_output.mwscript for an example of how to use these commands.
-	<LI>If nothing is exported, a warning instead of an error is issued. This means that a script exporting an empty selection will not abort. <I>(Thanks to TheChocolateOre for <a href="https://github.com/erich666/Mineways/issues/114">the suggestion</a>)
+	<LI>If nothing is exported, a warning instead of an error is issued. This means that a script exporting an empty selection will not abort. <I>(Thanks to TheChocolateOre for <a href="https://github.com/erich666/Mineways/issues/114">the suggestion</a>)</I>
 	<LI>Show selection rectangle location and size in information bar (lower left). <I>(Thanks to TheChocolateOre for <a href="https://github.com/erich666/Mineways/issues/117">the suggestion</a>)</I>
 	<LI>Modded block translation. The <a href="scripting.html#soc">"Translate:" command</a> lets you set a pick a modded block name and convert such blocks to a standard name when a world is read in. See <a href="scripting.html#soc">the documentation</a> for details. Sorry, block states (data values) are currently ignored, so it's mostly good for translating simple modded blocks without any attributes. Closes <a href="https://github.com/erich666/Mineways/issues/115">this issue</a>, for now.
 	<LI>More elaborate error message: display a list of modded blocks that were not found, instead of just the first block not found. Helps identify names of modded blocks for translation.
