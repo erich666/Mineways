@@ -729,7 +729,7 @@ Clear out all stored 'Change blocks' commands. While exporting will clear out an
 Set unknown block ID: <i>322</i>
 </td>
 <td>
-Set this value before opening a modded world, e.g., in a startup script. Modded worlds have block types not understood by Mineways. By default, unknown blocks are removed, "replaced by air", ID 0. You can set a <a href="https://github.com/erich666/Mineways/blob/master/Win/blockInfo.cpp#L72">block family ID</a> that you want to use instead. Note that after the unknown block is turned into that block type, it is treated exactly like that block type, including gettings its faces removed if the face is fully covered by a neighboring block. To have the unknown block not get culled in this way, you might consider using ID 322, "conduit", to give a small floating block that will not removed (because it doesn't border anything).
+Set this value before opening a modded world, e.g., in a startup script. Modded worlds have block types not understood by Mineways. By default, unknown blocks are converted to bedrock blocks. You can set a <a href="https://github.com/erich666/Mineways/blob/master/Win/blockInfo.cpp#L72">block family ID</a> that you want to use instead. Note that after the unknown block is turned into that block type, it is treated exactly like that block type, including gettings its faces removed if the face is fully covered by a neighboring block. To have the unknown block not get culled in this way, you might consider using ID 322, "conduit", to give a small floating block that will not removed (because it doesn't border anything).
 </td>
 </tr>
 
