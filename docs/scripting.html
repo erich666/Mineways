@@ -182,6 +182,7 @@
 
 <tr>
 <td>
+World: <i>Royal Albert Hall</i><br>
 Minecraft world: <i>Happy Blocks Land</i><br>
 Minecraft world: <i>C:\Users\erich\AppData\Roaming\.minecraft\saves\Round World</i><br>
 Minecraft world: <i>C:\Users\erich\schematics\teapot.schematic</i><br>
@@ -189,7 +190,7 @@ Minecraft world: [Block Test World]
 Extracted from Minecraft world saves/<i>BestWorld</i> [deprecated]
 </td>
 <td>
-The world to load, accessed by the folder name. The .minecraft/saves directory is assumed, but a full path can be given if desired. The full path is always needed for schematics. Use <I>[Block Test World]</I> to load this special test world.
+The world to load (or reload), accessed by the folder name. The .minecraft/saves directory is assumed, but a full path can be given if desired. The full path is always needed for schematics. Use <I>[Block Test World]</I> to load this special test world.
 </td>
 </tr>
 
@@ -508,7 +509,7 @@ Export for Rendering: C:\Users\erich\Desktop\nether.obj<br>
 <P>
 For the world that is currently loaded, this sets the render type and file format, switches to the Nether level of the world loaded, selects an area, zooms the map, and performs a rendering export to the file nether.obj
 <P>
-Note that you could use this type of command sequence to export a bunch of adjacent areas, which you could then load into Blender or any other application as you wished. This can help you avoid hitting memory limits in Mineways, etc. As an example, here are the commands in hunk_output.mwscript, a script that comes with Mineways (along with hunk_maker.py, a Python program you can modify to generate sets of hunks as you wish; open and read the top of hunk_maker.py for how to edit and run it):
+Note that you could use this type of command sequence to export a bunch of adjacent areas, which you could then load into Blender or any other application as you wished. This can help you avoid hitting memory limits in Mineways, etc. As an example, here are the commands in <B>hunk_output.mwscript</B>, a script that comes with Mineways (along with <B>hunk_maker.py</B>, a Python program you can modify to generate sets of hunks as you wish; open and read the top of <B>hunk_maker.py</B> for how to edit and run it):
 </P>
 <P>
 <div id="code">
@@ -676,7 +677,7 @@ Save log file: <i>filename</i>
 </td>
 <td>
 Instead of displaying script syntax errors, warnings, and informational messages to the screen in pop-up dialogs, write this information to the specified log file. Typically use this command at the beginning of a script. The log file is closed when the script is processed (that is, you'll have to issue this command again for any succeeding scripts). This is handy if you have syntax errors and want to look at them later.
-<P>Normally only <I>syntax</I> errors in the script commands are saved to the log. Actual execution errors are still popped up. If you use "Show error: false" and similar commands for warnings, etc., these messages will be recorded in the log file instead. That said, a true execution error will still cause the script to abort, as usual. See the file hunk_output.mwscript for an example of how to use these commands.
+<P>Normally only <I>syntax</I> errors in the script commands are saved to the log. Actual execution errors are still popped up. If you use "Show error: false" and similar commands for warnings, etc., these messages will be recorded in the log file instead. That said, a true execution error will still cause the script to abort, as usual. See the file <B>hunk_output.mwscript</B> for an example of how to use these commands.
 </td>
 </tr>
 
@@ -737,7 +738,9 @@ Set this value before opening a modded world, e.g., in a startup script. Modded 
 Translate: modded_block_name standard_block_name
 </td>
 <td>
-Added to help <a href="https://github.com/erich666/Mineways/issues/44">mod</a> and beta users a bit. Pair some unknown block name to some standard name, e.g.: "Translate: track_signal black_wool". Double quotes are not needed around the names, and any modding prefix, e.g., "create:", should not be included - it is ignored. The list of block names that Mineways currently accepts is <a href="https://github.com/erich666/Mineways/blob/master/Win/nbt.cpp#L386">here</a>. Any block states (data values) for the block are currently not used. Normally you want to set translations before loading a world. To have these changes take effect on a world that is loaded, hit "r" or use the script command "Minecraft world:" to reload. <B>This feature is experimental!</B> For example, try to avoid converting to doors, sunflowers, and other two-block types, as you're likely to get something weird or even crash. 
+Added to help <a href="https://github.com/erich666/Mineways/issues/44">mod</a> and beta users a bit. Pair some unknown block name to some standard name, e.g.: "Translate: track_signal black_wool". Double quotes are not needed around the names, and any modding prefix, e.g., "create:", should not be included - it is ignored. The list of block names that Mineways currently accepts is <a href="https://github.com/erich666/Mineways/blob/master/Win/nbt.cpp#L386">here</a>. If you want to attempt to use the block states of the modded block, put a "+" at the end of the block you're translating to. For example, "Translate: train_trapdoor bamboo_trapdoor+" tells Mineways to use the <a href="https://minecraft.fandom.com/wiki/Trapdoor#Block_states">block states of the trapdoor</a>. Unknown block states will of course be ignored. See the script <B>mod_translation.mwscript</B> for an example setup.
+<P>
+Normally you want to set these translations before loading a world. To have these changes take effect on a world that is loaded, hit "r" or use the script command "Minecraft world:" to reload. <B>This feature is experimental!</B> If you try to use block states and things don't match up, you'll likely get weird results or even possibly crash.
 </td>
 </tr>
 
@@ -770,7 +773,7 @@ The custom printer material that is used by the STL exporter can have its attrib
 
 <h3 id="cbce">Change blocks command examples</h3>
 
-The Change blocks command specifies a set of blocks to turn into a particular block ID and data value in a particular volume of space. It has seven variants, depending on whether you specify the from, to, and at values. Here are examples of each variant. A simple example is the heightfield.py Python program that comes with Mineways, which reads an image and creates a heightfield.mwscript file, example also included. See <a href="https://youtu.be/nqLYO4qofcM">this video</a> for the process.
+The Change blocks command specifies a set of blocks to turn into a particular block ID and data value in a particular volume of space. It has seven variants, depending on whether you specify the from, to, and at values. Here are examples of each variant. A simple example is the <B>heightfield.py</B> Python program that comes with Mineways, which reads an image and creates a <B>heightfield.mwscript</B> file, example also included. See <a href="https://youtu.be/nqLYO4qofcM">this video</a> for the process.
 
 <P>
 Block names in the examples below are the standard English names seen in the game itself, not the internal "namespaced ID". <a href="https://minecraft.gamepedia.com/Block_of_Diamond#Data_values">For example</a>, it's "block of diamond", not "diamond_block". See the names in <a href="https://github.com/erich666/Mineways/blob/master/Win/blockInfo.cpp#L70">this file</a>. Capitalization is unimportant.
@@ -876,7 +879,7 @@ Export for Rendering: c:\temp\mysave.obj      // forward slashes in the path spe
 
 You can use command-line options with Mineways so that it is customized on startup. For example, you could provide a different initial window size, then run a script that loads your favorite world and takes you to where you were last building.
 <P>
-You can <a href="http://www.makeuseof.com/tag/write-simple-batch-bat-file/">store this command line in a .bat file</a> and double-click that file, or <a href="http://windows.tips.net/T010869_Changing_Shortcut_Properties.html">change your options on the shortcut for Mineways itself</a>. See the file <b>mineways.bat</b> in Mineways for an example. It starts Mineways with a larger window, then calls the scripting/startup.mwscript script (which does nothing, but which you can edit to perform the various startup script commands shown above).
+You can <a href="http://www.makeuseof.com/tag/write-simple-batch-bat-file/">store this command line in a .bat file</a> and double-click that file, or <a href="http://windows.tips.net/T010869_Changing_Shortcut_Properties.html">change your options on the shortcut for Mineways itself</a>. See the file <b>mineways.bat</b> in Mineways for an example. It starts Mineways with a larger window, then calls the <B>scripting/startup.mwscript</B> script (which does nothing, but which you can edit to perform the various startup script commands shown above).
 <P>
 Syntax:
 <P>
@@ -928,13 +931,13 @@ Import the settings for the previously-exported model MyCastle.obj, its renderin
 mineways.exe scripting/startup.mwscript
 </div>
 <P>
-Run the script "startup.mwscript" in the scripting directory at startup. Useful for setting default export options or other things you prefer.
+Run the script <B>startup.mwscript</B> in the scripting directory at startup. Useful for setting default export options or other things you prefer.
 <P>
 <div id="code">
 mineways.exe "C:\Mineways\My House.obj" C:\Mineways\modify.mwscript
 </div>
 <P>
-If you exported a model just how you like it, you can import it and modify its settings with whatever commands are in your modify.mwscript. When using multiple scripts, it's wise to give the full path to each file, as Mineways will modify the default directory used to load files. Note that double quotes are needed when the file or path contains a space character, such as shown in this example for "My House.obj".
+If you exported a model just how you like it, you can import it and modify its settings with whatever commands are in your <B>modify.mwscript</B>. When using multiple scripts, it's wise to give the full path to each file, as Mineways will modify the default directory used to load files. Note that double quotes are needed when the file or path contains a space character, such as shown in this example for "My House.obj".
 <P>
 <div id="code">
 mineways.exe -m "C:\Mineways\Load Eiffel.mwscript" C:\Mineways\export.mwscript C:\Mineways\close.mwscript
@@ -1029,7 +1032,7 @@ Melt snow blocks: no<br>
 
 <h1 id="pse">Perl Script Example</h1>
 
-Here's a simple Perl script to generate a Mineways script. It shows the power of scripting to make models. Another example is the heightfield.py file that comes with Mineways, which reads an image and creates a heightfield. See <a href="https://youtu.be/nqLYO4qofcM">this video</a> for the process.
+Here's a simple Perl script to generate a Mineways script. It shows the power of scripting to make models. Another example is the <B>heightfield.py</B> file that comes with Mineways, which reads an image and creates a heightfield. See <a href="https://youtu.be/nqLYO4qofcM">this video</a> for the process.
 <P>
 <div id="code">
 $Cobras = 8;<br>
@@ -1075,7 +1078,7 @@ Running the script to set up the scene, then exporting (manually) to Sketchfab, 
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 9/7/2023</p>	</div>
+		<br id="lastUpdate">Last updated 9/8/2023</p>	</div>
 </div>
 
 </body>

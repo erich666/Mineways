@@ -1,0 +1,46 @@
+// Example script of how to translate modded blocks into standard blocks.
+//
+// This script shows how to set up logging, how to translate blocks, and how to load and export from a modded world.
+//
+// If you want to try this script on a world, it's designed for Create Mod Trains - Urban American Railroad Map
+// https://www.planetminecraft.com/project/create-mod-trains-urban-american-railroad/
+// Direct download link: https://www.mediafire.com/file/f08i63ruq8eae94/AR+Create+23-08-26.zip/file
+
+// Errors, warnings, and informational message logging. Instead of letting all messages go to the screen
+// (and possibly stop processing until you hit "OK"), you can send these messages to a log file like so.
+// By logging to a file, you can get a list from Mineways of block types it does not recognize.
+Show informational: script
+Show warning: script
+Show error: script
+Save log file: C:\temp\script_error.log
+
+// Some translations for the "Create Train Map" world
+// "+" at the end means "use the modded block's block states, as possible." I figured that "track" was similar to "rail".
+// Add "+" only if you feel confident the two blocks are of the same type. If they aren't, strange or crashy things may happen.
+Translate: track rail+
+// we don't know what fake_track is about, so don't add "+" when translating it. Same for these other blocks.
+Translate: fake_track white_wool
+Translate: terracotta_slab terracotta
+Translate: metal_girder iron_block
+Translate: track_signal beacon
+Translate: nixie_tube beehive
+// trapdoors we probably know about, so use their blockstates by adding the "+"
+Translate: train_trapdoor iron_trapdoor+
+Translate: white_stained_glass_trapdoor bamboo_trapdoor+
+Translate: polished_cut_andesite_slab polished_andesite_slab+
+Translate: polished_cut_andesite_stairs polished_andesite_stairs+
+// I don't know what a vertical slab is about, so don't add the "+" here:
+Translate: polished_andesite_slab_vertical polished_andesite
+// For simple blocks like this, no "+" is needed since there are likely no block states:
+Translate: polished_cut_andesite polished_andesite
+Translate: polished_cut_diorite polished_diorite
+// there are a bunch I didn't try to translate, so they'll give a warning in the script_error.log.
+// For whatever mod you use, you'll want to see what gets put in the log file and add your own translations.
+
+// Loading the world (even if already loaded) guarantees that the translations above take effect.
+// The directory name is what is used to load the world, not "Create Train Map"
+World: AR Create 23-08-26
+
+// Simple example: export the train station area
+Selection location min to max: 1918, 42, 5302 to 2033, 319, 5503
+Export for rendering: C:\temp\mod_export.obj

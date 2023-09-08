@@ -3316,7 +3316,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 }
                 else {
                     // unknown type
-                    useData = false;   // TODO - could allow the user to get the (somewhat random) data of the unknown block
+                    useData = false;   // later allow the user to get the (somewhat random) data of the unknown block
                     //  THIS IS WHERE TO PUT A DEBUG BREAK TO SEE WHAT NAME IS UNKNOWN: watch thisBlockName.
                     typeIndex = BLOCK_AIR;  // to avoid problems interpreting this block
                     if (unknownBlock) {
@@ -3334,7 +3334,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             unknownName++;
                         }
 
-                        // TODO: where we could put a thing to check for any list of names to translate to known blocks.
+                        // Check for any list of names to translate to known blocks.
                         // We translate, then go to set palette entry as above.
                         TranslationTuple* ptt = modTranslations;
                         bool matched = false;
@@ -3345,6 +3345,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                                 paletteBlockEntry[entryIndex] = BlockTranslations[ptt->type].blockId;
                                 paletteDataEntry[entryIndex] = BlockTranslations[ptt->type].dataVal;
                                 // note that any dataVal translation will be magic - might destroy life as we know it.
+                                // But, allow the user to do it using ":*".
+                                useData = ptt->useData;
                                 break;
                             }
                             ptt = ptt->next;

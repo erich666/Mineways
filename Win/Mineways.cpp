@@ -8149,6 +8149,14 @@ JumpToSpawn:
             wsprintf(error, L"second name %S should not include a colon in it for the 'Translate' command.", string2);
             saveErrorMessage(is, error); return INTERPRETER_FOUND_ERROR;
         }
+        // find if the second name has a "+" at the end. This means "use its data".
+        size_t str2len = strlen(string2);
+        bool useData = false;
+        if (string2[str2len - 1] == '+') {
+            // trim the '+' off it
+            string2[str2len - 1] = 0;
+            useData = true;
+        }
         // find if second name is a valid block
         int typeValue = SlowFindIndexFromName(string2);
         if (typeValue < 0 ) {
@@ -8174,6 +8182,7 @@ JumpToSpawn:
             ptt->name = (char*)malloc(stringLength);
             strcpy_s(ptt->name, stringLength, string1);
             ptt->type = typeValue;
+            ptt->useData = useData;
             ptt->next = gModTranslations;
             gModTranslations = ptt;
             SetModTranslations(gModTranslations);
@@ -9298,8 +9307,8 @@ static bool commandLoadWorld(ImportedSet& is, wchar_t* error)
         }
 
         // if the world is already loaded, don't reload it.
-        if (wcscmp(backupWorld, gWorldGuide.world) != 0 || (gSameWorld == FALSE))
-        {
+        //if (wcscmp(backupWorld, gWorldGuide.world) != 0 || (gSameWorld == FALSE))
+        //{
             // not the same, attempt to load!
             gSameWorld = FALSE;
             if (loadWorld(is.ws.hWnd))	// uses gWorldGuide.world
@@ -9315,7 +9324,7 @@ static bool commandLoadWorld(ImportedSet& is, wchar_t* error)
             } // else success with just world folder name, and it's already saved to gWorldGuide.world
             // world loaded, so turn things on, etc.
             setUIOnLoadWorld(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, is.ws.hwndInfoLabel, is.ws.hwndBottomSlider, is.ws.hwndBottomLabel);
-        }
+        //}
     }
     else {
         // world didn't convert over - unlikely to hit this one

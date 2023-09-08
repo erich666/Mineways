@@ -102,6 +102,7 @@ typedef struct BlockEntity {
 typedef struct TranslationTuple {
     char* name;
     int type;
+    bool useData;
     struct TranslationTuple* next;
 } TranslationTuple;
 
