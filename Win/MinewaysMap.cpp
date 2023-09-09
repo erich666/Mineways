@@ -4875,6 +4875,11 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
                 int num = prevy + 50 - (256 - heightAlloc) / 5;
                 int denom = heightAlloc + 50 - (256 - heightAlloc) / 5;
 
+                // avoid division by 0
+                if (denom <= 0) {
+                    num = 1;
+                    denom = 1;
+                }
                 r = (unsigned char)(r * num / denom);
                 g = (unsigned char)(g * num / denom);
                 b = (unsigned char)(b * num / denom);
