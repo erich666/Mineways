@@ -735,12 +735,14 @@ Set this value before opening a modded world, e.g., in a startup script. Modded 
 
 <tr>
 <td>
-Translate: modded_block_name standard_block_name
+Translate: track_signal beacon
+<br>
+Translate: unobtainium_slab purpur_slab+
 </td>
 <td>
-Added to help <a href="https://github.com/erich666/Mineways/issues/44">mod</a> and beta users a bit. Pair some unknown block name to some standard name, e.g.: "Translate: track_signal black_wool". Double quotes are not needed around the names, and any modding prefix, e.g., "create:", should not be included - it is ignored. The list of block names that Mineways currently accepts is <a href="https://github.com/erich666/Mineways/blob/master/Win/nbt.cpp#L386">here</a>. If you want to attempt to use the block states of the modded block, put a "+" at the end of the block you're translating to. For example, "Translate: train_trapdoor bamboo_trapdoor+" tells Mineways to use the <a href="https://minecraft.fandom.com/wiki/Trapdoor#Block_states">block states of the trapdoor</a>. Unknown block states will of course be ignored. See the script <B>mod_translation.mwscript</B> for an example setup. MCPrep's <a href="https://theduckcow.com/dev/blender/mcprep/">meshswap feature</a> can also help (<a href="https://github.com/Moo-Ack-Productions/MCprep/issues/56">more info</a>).
+Added to help <a href="https://github.com/erich666/Mineways/issues/44">mod</a> and beta users a bit. Pair some unknown block name to some standard name, e.g.: "Translate: nixie_tube beehive". Do not put quotes around the names, and any modding prefix in the file, e.g., "create:", should not be included - it is ignored. The list of block names that Mineways currently accepts is <a href="https://github.com/erich666/Mineways/blob/master/Win/nbt.cpp#L386">here</a>. If you want to attempt to use the block states of the modded block, put a "+" at the end of the block you're translating to. For example, "Translate: white_stained_glass_trapdoor bamboo_trapdoor+" tells Mineways to use the <a href="https://minecraft.fandom.com/wiki/Trapdoor#Block_states">block states of the trapdoor</a>. Unknown block states will of course be ignored. See the script <B>mod_translation.mwscript</B> for an example setup. MCPrep's <a href="https://theduckcow.com/dev/blender/mcprep/">meshswap feature</a> can also help modify things after export (<a href="https://github.com/Moo-Ack-Productions/MCprep/issues/56">more info</a>).
 <P>
-Normally you want to set these translations before loading a world. To have these changes take effect on a world that is loaded, hit "r" or use the script command "Minecraft world:" to reload. <B>This feature is experimental!</B> If you try to use block states and things don't match up, you'll likely get weird results or even possibly crash.
+Normally you want to set these translations before loading a modded world. To have these changes take effect on a world that is loaded, hit "r" or use the script command "Minecraft world:" to reload. <B>This feature is experimental!</B> If you try to use block states via "+" and things don't match up, you'll likely get weird results or even possibly crash.
 </td>
 </tr>
 
@@ -1078,7 +1080,7 @@ Running the script to set up the scene, then exporting (manually) to Sketchfab, 
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 9/8/2023</p>	</div>
+		<br id="lastUpdate">Last updated 9/9/2023</p>	</div>
 </div>
 
 </body>
