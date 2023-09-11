@@ -6205,8 +6205,8 @@ static void initializeImportedSet(ImportedSet& is, ExportFileData* pEFD, wchar_t
     is.terrainFile[0] = (char)0;
     is.colorScheme[0] = (char)0;
     is.importFile = importFile;
+    is.lineNumber = 1;
     // set by memset
-    //is.lineNumber = 0;
     //is.errorMessagesStringSize = 0;
     //is.errorMessages = NULL;
     is.processData = true;
