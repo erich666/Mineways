@@ -2489,6 +2489,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     case WM_ERASEBKGND:
     {
+        // trying https://www.catch22.net/tuts/win32/flicker-free-drawing/ - it doesn't help
+        //return 1;
         hdc = (HDC)wParam;
         GetClipBox(hdc, &rect);
         rect.bottom = MAIN_WINDOW_TOP;
