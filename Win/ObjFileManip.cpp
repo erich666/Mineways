@@ -167,7 +167,7 @@ static int gMinewaysMajorVersion = 0;
 static int gMinewaysMinorVersion = 0;
 // used to be used for flowerpots, before we read in Block Entities. Now not really needed, but left in for the future.
 // 0 means version 1.8 and earlier
-// Find these numbers in world data in region > r.0.0.mca > Chunk > DataVersion and in level.dat > Data > Version. See https://minecraft.gamepedia.com/Data_version
+// Find these numbers in world data in region > r.0.0.mca > Chunk > DataVersion and in level.dat > Data > Version. See https://minecraft.wiki/w/Data_version
 static int gMinecraftWorldVersion = 0;
 // translate the number above to a version number, e.g. 12, 13, 14 for 1.12, 1.13, 1.14 - IMPORTANT: 1.15 and 1.16 are still called 14, go figure
 static int gMcVersion = 0;
@@ -2482,7 +2482,7 @@ static int populateBox(WorldGuide* pWorldGuide, ChangeBlockCommand* pCBC, IBox* 
 
     // Here we actually always read in the upper and lower edge blocks in Y, even though we won't output them.
     // It is useful to know what is above or below a block because of how neighbors can affect 2-high objects,
-    // such as doors and sunflowers. See http://minecraft.gamepedia.com/Data_values#Door for example.
+    // such as doors and sunflowers. See http://minecraft.wiki/w/Data_values#Door for example.
     // if we're not at the lower limit, and there's actually some solid stuff on that bottom level, get the stuff below
     if (edgeWorldBox.min[Y] > gMinHeight && (originalWorldBox.min[Y] == gSolidWorldBox.min[Y]))
     {
@@ -3646,7 +3646,7 @@ static void computeRedstoneConnectivity(int boxIndex)
     }
 
     // finally finally, if ONLY waterlogged bit is set, which means there are no other connections, unset it and make this one a cross.
-    // this is a 1.16 20w21a addition, see https://minecraft.gamepedia.com/Java_Edition_20w21a
+    // this is a 1.16 20w21a addition, see https://minecraft.wiki/w/Java_Edition_20w21a
     //if (isCross && (gBoxData[boxIndex].data & ((FLAT_FACE_HI_X | FLAT_FACE_HI_Z | FLAT_FACE_LO_X | FLAT_FACE_LO_Z) << 4)) == 0x0) {
     //    gBoxData[boxIndex].data |= (FLAT_FACE_HI_X|FLAT_FACE_HI_Z|FLAT_FACE_LO_X|FLAT_FACE_LO_Z) << 4;
     //}
@@ -6368,7 +6368,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             break;
 
         case BLOCK_PURPUR_SLAB:
-            // some confusion in the docs here: https://minecraft.gamepedia.com/Java_Edition_data_values#Stone_Slabs
+            // some confusion in the docs here: https://minecraft.wiki/w/Java_Edition_data_values#Stone_Slabs
             switch (dataVal & 0x7)
             {
             default: // normal log
@@ -14186,7 +14186,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 
         // distanceOffset is used for silly case https://www.reddit.com/r/Minecraft/comments/c9r6qd/a_new_building_trick_that_might_come_in_handy
         // in which the lily pad is actually on top of a slab
-        // Note that lily pads are officially 1.5/16 above still water: https://minecraft.gamepedia.com/Solid_block
+        // Note that lily pads are officially 1.5/16 above still water: https://minecraft.wiki/w/Solid_block
         distanceOffset *= 0.5f;
         Vec3Scalar(vertexOffsets[0][0], =, 1.0f, distanceOffset, 1.0f);
         Vec3Scalar(vertexOffsets[0][1], =, 1.0f, distanceOffset, 0.0f);
@@ -18873,11 +18873,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case 7:	// quartz
             case 15:	// quartz
-                // quartz (normally same quartz on all faces? See http://minecraft.gamepedia.com/Data_values)
+                // quartz (normally same quartz on all faces? See http://minecraft.wiki/w/Data_values)
                 swatchLoc = BLOCK_QUARTZ_BLOCK;
                 break;
             case 10:
-                // quartz (normally same quartz on all faces? See http://minecraft.gamepedia.com/Data_values)
+                // quartz (normally same quartz on all faces? See http://minecraft.wiki/w/Data_values)
                 swatchLoc = (type == BLOCK_STONE_DOUBLE_SLAB) ? BLOCK_QUARTZ_BLOCK : BLOCK_OAK_PLANKS;
                 break;
             }
@@ -19201,7 +19201,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             break;
         case BLOCK_PURPUR_DOUBLE_SLAB:		// getSwatch
         case BLOCK_PURPUR_SLAB:		// getSwatch
-            // some confusion in the docs here: https://minecraft.gamepedia.com/Java_Edition_data_values#Stone_Slabs
+            // some confusion in the docs here: https://minecraft.wiki/w/Java_Edition_data_values#Stone_Slabs
             switch (dataVal & 0x7)
             {
             default: // normal log
@@ -21098,7 +21098,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     }
                     break;
                 case 4: // no face at all! Uncarved
-                    // http://minecraft.gamepedia.com/Pumpkin#Block_data
+                    // http://minecraft.wiki/w/Pumpkin#Block_data
                     break;
                 }
             }

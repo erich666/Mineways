@@ -121,7 +121,7 @@ static Options gOptions = { 0,   // which world is visible
     NULL };
 
 static WorldGuide gWorldGuide;
-// find versions here: https://minecraft.gamepedia.com/Data_version
+// find versions here: https://minecraft.wiki/w/Data_version
 static int gVersionID = 0;								// Minecraft version 1.9 (finally) introduced a version number for the releases. 0 means Minecraft world is earlier than 1.9.
 // translate the number above into a version number, e.g. 12, 13, 14 for 1.12, 1.13, 1.14:
 static int gMinecraftVersion = 0;
@@ -3533,7 +3533,7 @@ static int loadSchematic(wchar_t* pathAndFile)
 
     // All data's read in! Now we let the mapping system take over and load on demand.
     gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
-    gVersionID = 1343;	// latest 1.12.2 https://minecraft.gamepedia.com/Data_version
+    gVersionID = 1343;	// latest 1.12.2 https://minecraft.wiki/w/Data_version
     gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
     setHeightsFromVersionID();
 
@@ -3594,7 +3594,7 @@ static int loadWorld(HWND hWnd)
         // world, then reload and carry on.
         //gHighlightOn=FALSE;
         //SetHighlightState(gHighlightOn,0,gTargetDepth,0,0,gCurDepth,0, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_CLEAR);
-        // Get the NBT file type, lowercase "version". Should be 19333 or higher to be Anvil. See http://minecraft.gamepedia.com/Level_format#level.dat_format
+        // Get the NBT file type, lowercase "version". Should be 19333 or higher to be Anvil. See http://minecraft.wiki/w/Level_format#level.dat_format
         gSubError = GetFileVersion(gWorldGuide.world, &gWorldGuide.nbtVersion, gFileOpened, MAX_PATH_AND_FILE);
         if (gSubError != 0) {
             gWorldGuide.type = WORLD_UNLOADED_TYPE;
@@ -3615,7 +3615,7 @@ static int loadWorld(HWND hWnd)
         }
         if (GetPlayer(gWorldGuide.world, &gPlayerX, &gPlayerY, &gPlayerZ) != 0) {
             // if this fails, it's a server world, so set the values equal to the spawn location; return no error
-            // from http://minecraft.gamepedia.com/Level_format
+            // from http://minecraft.wiki/w/Level_format
             // Player: The state of the Singleplayer player. This overrides the <player>.dat file with the same name as the
             // Singleplayer player. This is only saved by Servers if it already exists, otherwise it is not saved for server worlds. See Player.dat Format.
             gPlayerX = gSpawnX;

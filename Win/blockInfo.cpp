@@ -61,9 +61,9 @@ UnitType gUnitTypeTable[MODELS_UNITS_TABLE_SIZE] = {
     { L"Inches", "inches", 100.0f / 2.54f }
 };
 
-// First column "comment" number is from https://minecraft.gamepedia.com/Java_Edition_data_values/Pre-flattening#Block_IDs through 255, then I just assign numbers as I wish.
+// First column "comment" number is from https://minecraft.wiki/w/Java_Edition_data_values/Pre-flattening#Block_IDs through 255, then I just assign numbers as I wish.
 // For sub-blocks, see https://minecraft-ids.grahamedgecombe.com/
-// Other interesting pages: https://minecraft.gamepedia.com/Solid_block maximum block height, https://minecraft.gamepedia.com/Materials material attributes (not all that useful to me, but still)
+// Other interesting pages: https://minecraft.wiki/w/Solid_block maximum block height, https://minecraft.wiki/w/Materials material attributes (not all that useful to me, but still)
 // The "subtype_mask" (shown as "mtl") field shows which bits are used to determine which type of block it is (vs. orientation or other sub-data about the block). This field gets recalculated by the
 // software itself, but putting it here gives a sense of what blocks can be added to with new content.
 BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {

@@ -7668,7 +7668,7 @@ int GetFileVersion(const wchar_t* world, int* version, wchar_t* fileOpened, rsiz
     return retcode;
 }
 // 0 succeed, 1+ windows file open fail, -1 or less is some other read error from nbt
-//  The NBT data version, which tells the MC release. See https://minecraft.gamepedia.com/Data_version
+//  The NBT data version, which tells the MC release. See https://minecraft.wiki/w/Data_version
 // 1444 is 1.13, 1901 is 1.14
 int GetFileVersionId(const wchar_t* world, int* versionId)
 {

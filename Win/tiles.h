@@ -1245,9 +1245,9 @@ static const wchar_t* gUnneeded[] = {
     L"itemframe_background", // Absolution
     L"shulker_box", // generic 1.13; specific colors now used per box
     L"soul_fire_1",
-    L"structure_block", // only used in inventory, not used when placed: http://minecraft.gamepedia.com/Structure_Block - we use the other ones of this type
+    L"structure_block", // only used in inventory, not used when placed: http://minecraft.wiki/w/Structure_Block - we use the other ones of this type
 
-    L"flower_paeonia", // experimental block, never used: https://minecraft.gamepedia.com/Java_Edition_removed_features#Paeonia
+    L"flower_paeonia", // experimental block, never used: https://minecraft.wiki/w/Java_Edition_removed_features#Paeonia
 
     // this empty string is used to mark the end of this array
     L""

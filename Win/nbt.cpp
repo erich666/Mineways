@@ -165,7 +165,7 @@ static TranslationTuple* modTranslations = NULL;
 // shape: straight|inner_left|inner_right|outer_left|outer_right - we ignore, deriving from neighbors
 #define STAIRS_PROP			 12
 // Redstone wire
-// north|south|east|west: none|side|up https://minecraft.gamepedia.com/Redstone#Block_state - we ignore, it's from geometry
+// north|south|east|west: none|side|up https://minecraft.wiki/w/Redstone#Block_state - we ignore, it's from geometry
 // power: 0-15
 #define WIRE_PROP		     13
 // Lever
@@ -240,7 +240,7 @@ static TranslationTuple* modTranslations = NULL;
 // facing: down|up|north|south|west|east
 // extended: true|false - ignored, don't know what that is (block wouldn't exist otherwise, right?
 // type: sticky|normal
-// short: true|false - TODO, piston arm is shorter by 4 pixels, https://minecraft.gamepedia.com/Piston#Block_state_2 - not sure how to generate this state, so leaving it alone
+// short: true|false - TODO, piston arm is shorter by 4 pixels, https://minecraft.wiki/w/Piston#Block_state_2 - not sure how to generate this state, so leaving it alone
 #define PISTON_HEAD_PROP	 EXTENDED_FACING_PROP
 // south|west|north|east|down|up: true|false
 #define FENCE_AND_VINE_PROP	 34
@@ -380,8 +380,8 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     // hash is computed once when 1.13 data is first read in.
     // second column is "traditional" type value, as found in blockInfo.cpp; third column is high-order bit and data value, fourth is Minecraft name
     // Note: the HIGH_BIT gets "transferred" to the type in MinewaysMap's IDBlock() method, about 100 lines in.
-    // The list of names and data values: https://minecraft.gamepedia.com/Java_Edition_data_values
-    // and older https://minecraft.gamepedia.com/Java_Edition_data_values/Pre-flattening#Block_IDs
+    // The list of names and data values: https://minecraft.wiki/w/Java_Edition_data_values
+    // and older https://minecraft.wiki/w/Java_Edition_data_values/Pre-flattening#Block_IDs
     //hash,ID,BIT|dataval,  name, common properties flags
     { 0,   0,           0, "air", NO_PROP },
     { 0,   0,           0, "empty", NO_PROP },  // not sure this is necessary, but it is mentioned in https://minecraft.wiki/w/Java_Edition_data_values
@@ -515,7 +515,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  42,           0, "iron_block", NO_PROP },
     { 0,  44,           0, "smooth_stone_slab", SLAB_PROP },	// renamed in 1.14 from stone_slab in 1.13 - it means "the chiseled one" as it's traditionally been; the new 1.14 "stone_slab" means "pure flat stone"
     { 0,  44,           1, "sandstone_slab", SLAB_PROP },
-    { 0, 182,           0, "red_sandstone_slab", SLAB_PROP }, // really, just uses 182 exclusively; sometimes rumored to be 205/0, but not so https://minecraft.gamepedia.com/Java_Edition_data_values#Stone_Slabs
+    { 0, 182,           0, "red_sandstone_slab", SLAB_PROP }, // really, just uses 182 exclusively; sometimes rumored to be 205/0, but not so https://minecraft.wiki/w/Java_Edition_data_values#Stone_Slabs
     { 0,  44,           2, "petrified_oak_slab", SLAB_PROP },
     { 0,  44,           3, "cobblestone_slab", SLAB_PROP },
     { 0,  44,           4, "brick_slab", SLAB_PROP },
@@ -718,8 +718,8 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 151,           0, "daylight_detector", DAYLIGHT_PROP },
     { 0, 153,           0, "nether_quartz_ore", NO_PROP },
     { 0, 154,           0, "hopper", HOPPER_PROP },
-    { 0, 155,           0, "quartz_block", NO_PROP },	// has AXIS_PROP in Bedrock edition, but not here, https://minecraft.gamepedia.com/Block_of_Quartz
-    { 0, 155,           1, "chiseled_quartz_block", NO_PROP },	// has AXIS_PROP in Bedrock edition, but not here, https://minecraft.gamepedia.com/Block_of_Quartz
+    { 0, 155,           0, "quartz_block", NO_PROP },	// has AXIS_PROP in Bedrock edition, but not here, https://minecraft.wiki/w/Block_of_Quartz
+    { 0, 155,           1, "chiseled_quartz_block", NO_PROP },	// has AXIS_PROP in Bedrock edition, but not here, https://minecraft.wiki/w/Block_of_Quartz
     { 0, 155,           0, "quartz_pillar", QUARTZ_PILLAR_PROP },	// note this always has an axis, so will be set to 2,3,4
     { 0, 155,           5, "quartz_bricks", NO_PROP },
     { 0, 156,           0, "quartz_stairs", STAIRS_PROP },
@@ -854,8 +854,8 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 217,           0, "structure_void", NO_PROP },
     { 0, 255,           0, "structure_block", STRUCTURE_PROP },
     // new 1.13 on down
-    { 0,   0,           0, "void_air", NO_PROP },	// consider these air until proven otherwise https://minecraft.gamepedia.com/Air
-    { 0,   0,           0, "cave_air", NO_PROP },	// consider these air until proven otherwise https://minecraft.gamepedia.com/Air
+    { 0,   0,           0, "void_air", NO_PROP },	// consider these air until proven otherwise https://minecraft.wiki/w/Air
+    { 0,   0,           0, "cave_air", NO_PROP },	// consider these air until proven otherwise https://minecraft.wiki/w/Air
     { 0, 205,           2, "prismarine_slab", SLAB_PROP }, // added to purpur slab and double slab, dataVal 2, just to be safe (see purpur_slab)
     { 0, 205,           3, "prismarine_brick_slab", SLAB_PROP }, // added to purpur slab and double slab, dataVal 3
     { 0, 205,           4, "dark_prismarine_slab", SLAB_PROP }, // added to purpur slab and double slab, dataVal 4
@@ -2228,7 +2228,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
         }
         else if (len == 1024) {
             // 1.15 on, optionally
-            // TODO from https://minecraft.gamepedia.com/Java_Edition_1.15/Development_versions
+            // TODO from https://minecraft.wiki/w/Java_Edition_1.15/Development_versions
             // Biome information now stores Y-coordinates, allowing biomes to be changed based on height; previously, biome information only stored X and Z coordinates.
             // The Biomes array in the Level tag for each chunk now contains 1024 integers instead of 256.
             // len should be 1024
@@ -3454,9 +3454,9 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         // there does not seem to be any "check decay" flag 
                         else if (strcmp(token, "persistent") == 0) {
                             // if true, will decay; if false, will be checked for decay (what?)
-                            // https://minecraft.gamepedia.com/Leaves#Block_states
+                            // https://minecraft.wiki/w/Leaves#Block_states
                             // Instead, I'm guessing persistent means "no decay"
-                            // https://minecraft.gamepedia.com/Java_Edition_data_values#Leaves
+                            // https://minecraft.wiki/w/Java_Edition_data_values#Leaves
                             // ignore, since it is has no graphical effect
 #ifndef GRAPHICAL_ONLY
                             dataVal = (strcmp(value, "true") == 0) ? 4 : 0;
@@ -3620,7 +3620,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         }
                         // DOOR_PROP only
                         else if (strcmp(token, "hinge") == 0) {
-                            // NOTE: this is flipped from what the docs at https://minecraft.gamepedia.com/Java_Edition_data_values#Door
+                            // NOTE: this is flipped from what the docs at https://minecraft.wiki/w/Java_Edition_data_values#Door
                             // say, they say left is 1, but this works properly. Mojang, I suspect, means the hinge on the inside of
                             // the door, vs. outside, or something.
                             hinge = (strcmp(value, "right") == 0) ? 1 : 0;
@@ -3974,7 +3974,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
 #ifdef _DEBUG
                         else {
                             // ignore, not used by Mineways for now, BlockTranslations[typeIndex]
-                            if (strcmp(token, "distance") == 0) {} // for leaves and scaffold, see https://minecraft.gamepedia.com/Leaves - not needed for graphics
+                            if (strcmp(token, "distance") == 0) {} // for leaves and scaffold, see https://minecraft.wiki/w/Leaves - not needed for graphics
                             else if (strcmp(token, "short") == 0) {} // for piston, TODO - what makes this property be true?
                             else if (strcmp(token, "note") == 0) {}
                             else if (strcmp(token, "instrument") == 0) {}
@@ -4340,7 +4340,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 //dataVal = up ? 15 : 10;
                 //break;
             case MUSHROOM_PROP:
-                // https://minecraft.gamepedia.com/Java_Edition_data_values#Brown_and_red_mushroom_blocks
+                // https://minecraft.wiki/w/Java_Edition_data_values#Brown_and_red_mushroom_blocks
                 // set w/b/n/e/t/s from low to high bits
                 dataVal = (west ? 0x1 : 0x0) | (down ? 0x2 : 0x0) | (north ? 0x4 : 0x0) | (east ? 0x8 : 0x0) | (up ? 0x10 : 0x0) | (south ? 0x20 : 0x0) |
                     (tf == MUSHROOM_STEM_PROP ? 0x40 : 0x0);    // steal the waterlog bit
@@ -4742,7 +4742,7 @@ int nbtGetSpawn(bfFile* pbf, int* x, int* y, int* z)
     return 0;
 }
 
-//  The NBT version of the level, 19133. See http://minecraft.gamepedia.com/Level_format#level.dat_format
+//  The NBT version of the level, 19133. See http://minecraft.wiki/w/Level_format#level.dat_format
 int nbtGetFileVersion(bfFile* pbf, int* version)
 {
     *version = 0x0; // initialize
@@ -4761,9 +4761,9 @@ int nbtGetFileVersion(bfFile* pbf, int* version)
     return 0;
 }
 
-// From Version, not version, see http://minecraft.gamepedia.com/Level_format#level.dat_format at bottom.
+// From Version, not version, see http://minecraft.wiki/w/Level_format#level.dat_format at bottom.
 // This is a newer tag for 1.9 and on, older worlds do not have them.
-// The NBT data version is also included, which tells the MC release. See https://minecraft.gamepedia.com/Data_version
+// The NBT data version is also included, which tells the MC release. See https://minecraft.wiki/w/Data_version
 // e.g., 1444 is 1.13, 1901 is 1.14
 int nbtGetFileVersionId(bfFile* pbf, int* versionId)
 {
@@ -4881,7 +4881,7 @@ int nbtGetPlayer(bfFile* pbf, int* px, int* py, int* pz)
 }
 
 //////////// schematic
-//  http://minecraft.gamepedia.com/Schematic_file_format
+//  http://minecraft.wiki/w/Schematic_file_format
 // return 0 if not found, 1 if all is well
 int nbtGetSchematicWord(bfFile* pbf, char* field, int* value)
 {

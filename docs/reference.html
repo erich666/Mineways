@@ -264,7 +264,7 @@ For debugging startup problems, you'll normally never use this. Saves startup an
 <LI><b>Mineways.exe</b> - the main, 64-bit executable.
 <LI>for_old_machines_Mineways32.exe - 32-bit executable version. Not recommended, unless you have no choice.
 <LI>terrainExt.png - the default Minecraft block tiles texture read by Mineways, if present.
-<LI>terrainExt_*.png - various popular <a href="http://minecraft.gamepedia.com/Resource_pack">resource pack</a> block textures. Use <a href="mineways.html#terrain_png">Set Terrain File</a> and select one of these for a different texture set, or make your own with <a href="mineways.html#tilemaker">TileMaker</a>.
+<LI>terrainExt_*.png - various popular <a href="http://minecraft.wiki/w/Resource_pack">resource pack</a> block textures. Use <a href="mineways.html#terrain_png">Set Terrain File</a> and select one of these for a different texture set, or make your own with <a href="mineways.html#tilemaker">TileMaker</a>.
 <LI>docs/index.html - the starting spot for documentation; same page as <a href="http://mineways.com">mineways.com</a>.
 <LI>README.txt - some quick notes, mostly leading you to documentation.
 <LI>mineways.bat - run Mineways and first apply whatever scripting commands are in scripting/startup.mwscript (empty by default).
@@ -274,7 +274,7 @@ For debugging startup problems, you'll normally never use this. Saves startup an
 <LI>scripting/register-Mineways-run-as-administrator.bat - run once to associate *.mwscript scripting files with Mineways.exe. More <a href="scripting.html#amfwm">here</a>.
 <LI>scripting/*.mwscript - script files for automatically controlling Mineways in various ways. View the script itself to see comments about what it does. More about scripting <a href="scripting.html">here</a>.
 <LI>TileMaker/ChannelMixer.exe - a program to pull in the various textures in a resource pack and, for physically based rendering packs, to separate the various channels into separate textures. See <a href="textures.html">here</a>.
-<LI>TileMaker/TileMaker.exe - a program to make a new terrain block texture set (terrainExt*.png) from a <a href="http://minecraft.gamepedia.com/Resource_pack">resource pack</a>. More <a href="textures.html">here</a>.
+<LI>TileMaker/TileMaker.exe - a program to make a new terrain block texture set (terrainExt*.png) from a <a href="http://minecraft.wiki/w/Resource_pack">resource pack</a>. More <a href="textures.html">here</a>.
 <LI>TileMaker/terrainBase.png - the basic template for textures. The same file as terrainExt.png, just to be safe.
 <LI>TileMaker/blocks - the directory where tiles (block textures) for <a href="mineways.html#tilemaker">TileMaker</a> are put for processing. You provide the blocks you want to change. Also see the _readme.txt file there.
 <LI>TileMaker/textures - a tiling normal map texture for water from NVIDIA's open-source MDL (see the _readme.txt), for use when making PBR terrainExt files and you're missing a water texture.
@@ -305,7 +305,7 @@ All shortcut keys for Mineways. Holding "Shift" does not matter for shortcut key
 </li><li><b>F5</b> goes to the Nether, if any.
 </li><li><b>F6</b> goes to The End, if any.
 </li><li><b>F7</b> shows all blocks on the map, such as flowers, mushrooms, ladders; off by default, as these can be distracting. Also shows ID and data values of the first block (including transparent blocks) under the cursor. This option does not affect exported models.
-</li><li><b>F8</b> shows <a id="biomes">biomes</a>. Grass, leaves, and water colors are affected by <a href="http://minecraft.gamepedia.com/Biome">biomes</a>. Moving the cursor over a biome displays its name in the lower left. Exporting with this option on will turn on the "Use biome in center of export area" option. Note: swamplands are not fully simulated, as in Minecraft these use a complex Perlin noise function to vary the temperature, which in turn determines the color of the grass: sickly brown or lush green. I chose sickly yellow as the default. The lush green is color #4c763c, if you want to use a color scheme to simulate it.
+</li><li><b>F8</b> shows <a id="biomes">biomes</a>. Grass, leaves, and water colors are affected by <a href="http://minecraft.wiki/w/Biome">biomes</a>. Moving the cursor over a biome displays its name in the lower left. Exporting with this option on will turn on the "Use biome in center of export area" option. Note: swamplands are not fully simulated, as in Minecraft these use a complex Perlin noise function to vary the temperature, which in turn determines the color of the grass: sickly brown or lush green. I chose sickly yellow as the default. The lush green is color #4c763c, if you want to use a color scheme to simulate it.
 </li><li><b>F</b> shades by altitude. This option does not affect exported models. When biomes are displayed, it shades by temperature, a subtle effect. Minecraft drops the temperature of a biome by 0.00167 every meter above 64.
 </li><li><b>L</b> show nighttime lighting. This option does not affect exported models.
 </li><li><b>C</b> shows underground caves below the given altitude.
