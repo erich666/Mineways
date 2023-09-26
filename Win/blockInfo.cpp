@@ -61,9 +61,9 @@ UnitType gUnitTypeTable[MODELS_UNITS_TABLE_SIZE] = {
     { L"Inches", "inches", 100.0f / 2.54f }
 };
 
-// First column "comment" number is from https://minecraft.gamepedia.com/Java_Edition_data_values/Pre-flattening#Block_IDs through 255, then I just assign numbers as I wish.
+// First column "comment" number is from https://minecraft.wiki/w/Java_Edition_data_values/Pre-flattening#Block_IDs through 255, then I just assign numbers as I wish.
 // For sub-blocks, see https://minecraft-ids.grahamedgecombe.com/
-// Other interesting pages: https://minecraft.gamepedia.com/Solid_block maximum block height, https://minecraft.gamepedia.com/Materials material attributes (not all that useful to me, but still)
+// Other interesting pages: https://minecraft.wiki/w/Solid_block maximum block height, https://minecraft.wiki/w/Materials material attributes (not all that useful to me, but still)
 // The "subtype_mask" (shown as "mtl") field shows which bits are used to determine which type of block it is (vs. orientation or other sub-data about the block). This field gets recalculated by the
 // software itself, but putting it here gives a sense of what blocks can be added to with new content.
 BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
@@ -145,7 +145,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /*  71 */ "Iron Door",              		0xb2b2b2, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2, 5, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT},	//47 (71) 2,6 bottom TODO BLF_FLATSIDE?
     { /*  72 */ "Oak Pressure Plate",     		0x9d7f4e, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 0, 0x00, BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_CONNECTS_REDSTONE},	//48
     { /*  73 */ "Redstone Ore",           		0x8f0303, 1.000f, 0xff7711, 0xff7711, 0.12345f,   3, 3, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//49
-    { /*  74 */ "Glowing Redstone Ore",   		0x900303, 1.000f, 0xff7711, 0xff7711, 0.12345f,   3, 3, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_EMITTER},	// unobtainable normally! https://minecraft.fandom.com/wiki/Redstone_Ore#Lit_redstone_ore_%22item%22
+    { /*  74 */ "Glowing Redstone Ore",   		0x900303, 1.000f, 0xff7711, 0xff7711, 0.12345f,   3, 3, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_EMITTER},	// unobtainable normally! https://minecraft.wiki/w/Redstone_Ore#Lit_redstone_ore_%22item%22
     { /*  75 */ "Redstone Torch (inactive)",	0x560000, 1.000f, 0xff7711, 0xff7711, 0.12345f,   3, 7, 0x00, BLF_MIDDLER | BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_CONNECTS_REDSTONE},	//4b
     { /*  76 */ "Redstone Torch (active)",  	0xfd0000, 1.000f, 0xff7711, 0xff7711, 0.12345f,   3, 6, 0x00, BLF_MIDDLER | BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_EMITTER | BLF_DNE_FLUID | BLF_CONNECTS_REDSTONE},	//4c should be BLF_EMITTER, 0x00FF, But it makes the whole block glow
     { /*  77 */ "Stone Button",           		0xacacac, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 0, 0x00, BLF_FLATTEN_SMALL | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID},	//4d

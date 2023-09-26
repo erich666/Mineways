@@ -740,7 +740,7 @@ Translate: track_signal beacon
 Translate: unobtainium_slab purpur_slab+
 </td>
 <td>
-Added to help <a href="https://github.com/erich666/Mineways/issues/44">mod</a> and beta users a bit. Pair some unknown block name to some standard name, e.g.: "Translate: nixie_tube beehive". Do not put quotes around the names, and any modding prefix in the file, e.g., "create:", should not be included - it is ignored. The list of block names that Mineways currently accepts is <a href="https://github.com/erich666/Mineways/blob/master/Win/nbt.cpp#L386">here</a>. If you want to attempt to use the block states of the modded block, put a "+" at the end of the block you're translating to. For example, "Translate: white_stained_glass_trapdoor bamboo_trapdoor+" tells Mineways to use the <a href="https://minecraft.fandom.com/wiki/Trapdoor#Block_states">block states of the trapdoor</a>. Unknown block states will of course be ignored. See the script <B>mod_translation.mwscript</B> for an example setup. MCPrep's <a href="https://theduckcow.com/dev/blender/mcprep/">meshswap feature</a> can also help modify things after export (<a href="https://github.com/Moo-Ack-Productions/MCprep/issues/56">more info</a>).
+Added to help <a href="https://github.com/erich666/Mineways/issues/44">mod</a> and beta users a bit. Pair some unknown block name to some standard name, e.g.: "Translate: nixie_tube beehive". Do not put quotes around the names, and any modding prefix in the file, e.g., "create:", should not be included - it is ignored. The list of block names that Mineways currently accepts is <a href="https://github.com/erich666/Mineways/blob/master/Win/nbt.cpp#L386">here</a>. If you want to attempt to use the block states of the modded block, put a "+" at the end of the block you're translating to. For example, "Translate: white_stained_glass_trapdoor bamboo_trapdoor+" tells Mineways to use the <a href="https://minecraft.wiki/w/Trapdoor#Block_states">block states of the trapdoor</a>. Unknown block states will of course be ignored. See the script <B>mod_translation.mwscript</B> for an example setup. MCPrep's <a href="https://theduckcow.com/dev/blender/mcprep/">meshswap feature</a> can also help modify things after export (<a href="https://github.com/Moo-Ack-Productions/MCprep/issues/56">more info</a>).
 <P>
 Normally you want to set these translations before loading a modded world. To have these changes take effect on a world that is loaded, hit "r" or use the script command "Minecraft world:" to reload. <B>This feature is experimental!</B> If you try to use block states via "+" and things don't match up, you'll likely get weird results or even possibly crash.
 </td>
@@ -778,10 +778,10 @@ The custom printer material that is used by the STL exporter can have its attrib
 The Change blocks command specifies a set of blocks to turn into a particular block ID and data value in a particular volume of space. It has seven variants, depending on whether you specify the from, to, and at values. Here are examples of each variant. A simple example is the <B>heightfield.py</B> Python program that comes with Mineways, which reads an image and creates a <B>heightfield.mwscript</B> file, example also included. See <a href="https://youtu.be/nqLYO4qofcM">this video</a> for the process.
 
 <P>
-Block names in the examples below are the standard English names seen in the game itself, not the internal "namespaced ID". <a href="https://minecraft.gamepedia.com/Block_of_Diamond#Data_values">For example</a>, it's "block of diamond", not "diamond_block". See the names in <a href="https://github.com/erich666/Mineways/blob/master/Win/blockInfo.cpp#L70">this file</a>. Capitalization is unimportant.
+Block names in the examples below are the standard English names seen in the game itself, not the internal "namespaced ID". <a href="https://minecraft.wiki/w/Block_of_Diamond#Data_values">For example</a>, it's "block of diamond", not "diamond_block". See the names in <a href="https://github.com/erich666/Mineways/blob/master/Win/blockInfo.cpp#L70">this file</a>. Capitalization is unimportant.
 
 <P>
-<B>IMPORTANT NOTE:</B> This feature uses <a href="https://minecraft.gamepedia.com/Java_Edition_data_value/Pre-flattening#Block_IDs">the old "pre-flattening" type/dataVal format</a> for specifying blocks, which went away in Minecraft 1.13. You can look up the type values <a href="https://minecraft.gamepedia.com/Java_Edition_data_value/Pre-flattening#Block_IDs">here</a> - click the "[show]" link to the right of the "Block IDs" title. Wiser is to use the block names explicitly, as found in <a href="https://github.com/erich666/Mineways/blob/master/Win/blockInfo.cpp#L70">this file</a>. That said, I have shoved many newer 1.13+ blocks in various places, e.g., a warped_slab, blackstone_slab, and other new slabs have the same block ID, 361 (= 256+105), as crimson_slab, with a dataVal of 1, 2, etc. - see that encoded <a href="https://github.com/erich666/Mineways/blob/master/Win/nbt.cpp#L1078">here</a>. As an example, "crimson slab":2 means <a href="https://github.com/erich666/Mineways/blob/master/Win/nbt.cpp#L1079">a blackstone slab</a> (ignore "HIGH_BIT" in the code). I hope this helps.
+<B>IMPORTANT NOTE:</B> This feature uses <a href="https://minecraft.wiki/w/Java_Edition_data_value/Pre-flattening#Block_IDs">the old "pre-flattening" type/dataVal format</a> for specifying blocks, which went away in Minecraft 1.13. You can look up the type values <a href="https://minecraft.wiki/w/Java_Edition_data_value/Pre-flattening#Block_IDs">here</a> - click the "[show]" link to the right of the "Block IDs" title. Wiser is to use the block names explicitly, as found in <a href="https://github.com/erich666/Mineways/blob/master/Win/blockInfo.cpp#L70">this file</a>. That said, I have shoved many newer 1.13+ blocks in various places, e.g., a warped_slab, blackstone_slab, and other new slabs have the same block ID, 361 (= 256+105), as crimson_slab, with a dataVal of 1, 2, etc. - see that encoded <a href="https://github.com/erich666/Mineways/blob/master/Win/nbt.cpp#L1078">here</a>. As an example, "crimson slab":2 means <a href="https://github.com/erich666/Mineways/blob/master/Win/nbt.cpp#L1079">a blackstone slab</a> (ignore "HIGH_BIT" in the code). I hope this helps.
 
 <P>
 Basically, if you're reading this and are extremely bitter that I don't clearly support some particular block you want and can't figure out how to set it, <a href="contact.html">write me</a> and plead your case. I could probably rework the nbt.cpp code to also use the namespaced ID names.
@@ -809,13 +809,13 @@ The specific location, no matter what's in it (even air), is turned into TNT. Fo
 Change blocks: to 24:1
 </div>
 <P>
-Everything solid (not air) in the whole volume is turned into <a href="http://minecraft.gamepedia.com/Data_values#Sandstone">chiseled sandstone</a>. The long form is Change blocks: from 1-255 to 24:1
+Everything solid (not air) in the whole volume is turned into <a href="http://minecraft.wiki/w/Data_values#Sandstone">chiseled sandstone</a>. The long form is Change blocks: from 1-255 to 24:1
 <P>
 <div id="code">
 Change blocks: from "stained glass","glass pane","stained glass pane" to "glass"
 </div>
 <P>
-Any of the given forms of glass are turned into glass blocks in the entire exported volume (defined by "Selection location:"). Note that the "from" range can be a list of blocks by ID number or name. A range can also be given, e.g., 64,71,193-197 specifics all full doors. You can also give specific <a href="http://minecraft.gamepedia.com/Data_values#Data">data values</a>, e.g., "wood planks":1-5 means all variants of wood planks other than oak, which uses <a href="http://minecraft.gamepedia.com/Data_values#Wood_Planks">data value 1</a>.
+Any of the given forms of glass are turned into glass blocks in the entire exported volume (defined by "Selection location:"). Note that the "from" range can be a list of blocks by ID number or name. A range can also be given, e.g., 64,71,193-197 specifics all full doors. You can also give specific <a href="http://minecraft.wiki/w/Data_values#Data">data values</a>, e.g., "wood planks":1-5 means all variants of wood planks other than oak, which uses <a href="http://minecraft.wiki/w/Data_values#Wood_Planks">data value 1</a>.
 <P>
 <div id="code">
 Change blocks: at -5,50,45 to 50,255,90
@@ -827,25 +827,25 @@ The at/to volume specified is cleared out, turned to air. The long form is Chang
 Change blocks: from "wheat" to "cactus" at -5,0,-45 to 50,255,90
 </div>
 <P>
-This example finds any wheat blocks in the given volume and changes them to cactus blocks. The names are those shown in the "Block" column on <a href="http://minecraft.gamepedia.com/Data_values/Block_IDs">this page</a>. Or, find these names and IDs in <a href="https://github.com/erich666/Mineways/blob/master/Win/blockInfo.cpp#L65">this table</a>.
+This example finds any wheat blocks in the given volume and changes them to cactus blocks. The names are those shown in the "Block" column on <a href="http://minecraft.wiki/w/Data_values/Block_IDs">this page</a>. Or, find these names and IDs in <a href="https://github.com/erich666/Mineways/blob/master/Win/blockInfo.cpp#L65">this table</a>.
 <P>
 <div id="code">
 Change blocks: from 59 to 81 at -5,0,-45   // wheat to cactus
 </div>
 <P>
-This is the same as say from "wheat" to "cactus", instead using the decimal "Dec" number shown in <a href="http://minecraft.gamepedia.com/Data_values/Block_IDs">this table</a>. If you're not sure of the name, use the ID to be safe - you can always add a comment, as shown. Note how the "at" location specifies only a single block in this example, just to show a different example; if that block is wheat, it will be turned into a cactus.
+This is the same as say from "wheat" to "cactus", instead using the decimal "Dec" number shown in <a href="http://minecraft.wiki/w/Data_values/Block_IDs">this table</a>. If you're not sure of the name, use the ID to be safe - you can always add a comment, as shown. Note how the "at" location specifies only a single block in this example, just to show a different example; if that block is wheat, it will be turned into a cactus.
 <P>
 <div id="code">
 Change blocks: from "wheat":0-6 to "wheat":7 at -5,0,-45 to 50,255,90
 </div>
 <P>
-Here the <a href="http://minecraft.gamepedia.com/Data_values#Data">data values</a> for wheat are specified. The data value is a number from 0 to 15 and specifies variants of blocks. Wheat's values are <a href="http://minecraft.gamepedia.com/Data_values#Crops">0-7</a>, specifying the growth stage, 7 being fully mature. This example says to make all the wheat fully mature, by taking data values 0-6 and changing them all to 7.
+Here the <a href="http://minecraft.wiki/w/Data_values#Data">data values</a> for wheat are specified. The data value is a number from 0 to 15 and specifies variants of blocks. Wheat's values are <a href="http://minecraft.wiki/w/Data_values#Crops">0-7</a>, specifying the growth stage, 7 being fully mature. This example says to make all the wheat fully mature, by taking data values 0-6 and changing them all to 7.
 <P>
 <div id="code">
 Change blocks: from "wheat":0-6,141-142,207 to "wheat":7 at -5,0,-45 to 50,255,90
 </div>
 <P>
-Any <a href="http://minecraft.gamepedia.com/Data_values#Crops">growing wheat</a>, carrots (ID 141) through potatoes (ID 142), and beetroot seeds (ID 207) are turned into fully grown wheat in the specified area. This is about as elaborate as you can go. All the commands below are shorthand variants, using defaults for missing fields.
+Any <a href="http://minecraft.wiki/w/Data_values#Crops">growing wheat</a>, carrots (ID 141) through potatoes (ID 142), and beetroot seeds (ID 207) are turned into fully grown wheat in the specified area. This is about as elaborate as you can go. All the commands below are shorthand variants, using defaults for missing fields.
 <P>
 <i>Usually</i> if you don't specify a "from" range, it means everything solid (not air). The one exception is if you set "to" and a volume, in which case air is also turned into the specified block type. The "to" value is "air" by default. If the location volume is not given, the whole export selection area is used.
 <P>
@@ -853,7 +853,7 @@ Any <a href="http://minecraft.gamepedia.com/Data_values#Crops">growing wheat</a>
 Change blocks: from 198-255 at -319,50,-1077 to -302,50,-1059
 </div>
 <P>
-All blocks greater or equal in <a href="http://minecraft.gamepedia.com/Data_values/Block_IDs">ID</a> to 198 ("end rod") in the given at/to volume are turned into "air", i.e., cleared out. If no "to" ID is given, air is used.
+All blocks greater or equal in <a href="http://minecraft.wiki/w/Data_values/Block_IDs">ID</a> to 198 ("end rod") in the given at/to volume are turned into "air", i.e., cleared out. If no "to" ID is given, air is used.
 
 
 <h2 id="c">Comments</h2>

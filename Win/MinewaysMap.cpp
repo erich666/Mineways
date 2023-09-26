@@ -721,7 +721,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             break;
         case 0: // dead bush
             // left for backward compatibility, I think it was called this long ago
-            // (in Bedrock it's "Fern", though) https://minecraft.fandom.com/wiki/Grass#Block_states
+            // (in Bedrock it's "Fern", though) https://minecraft.wiki/w/Grass#Block_states
             return "Dead Bush";
         case 1:	// tall grass - really, the default name Grass
             break; // return "TALL_GRASS";
@@ -3106,7 +3106,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
                 // the stored value is used to affect only the output color, not the map color.
                 // This oak leaf color (and jungle, below) makes the trees easier to pick out.
 
-                // jungle/mangrove and oak - this is pretty arbitrary on my part, should all be same: https://minecraft.fandom.com/wiki/Leaves#Color
+                // jungle/mangrove and oak - this is pretty arbitrary on my part, should all be same: https://minecraft.wiki/w/Leaves#Color
                 color = dataVal ? 0x46AD19 : 0x3A7F1B;
             }
             else
@@ -3116,7 +3116,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             }
             affectedByBiome = 2;
             break;
-        // Not affected by biome. Color from https://minecraft.fandom.com/wiki/Leaves#Color
+        // Not affected by biome. Color from https://minecraft.wiki/w/Leaves#Color
         case 1:	// spruce
             color = 0x3D623D;
             break;
@@ -5336,7 +5336,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_GRASS:
         // uses 1-5 - dead bush is a separate block, type==32
         // type 31 dataVal 0 was once dead bush, I think it was called this long ago
-        // (in Bedrock it's "Fern", though) https://minecraft.fandom.com/wiki/Grass#Block_states
+        // (in Bedrock it's "Fern", though) https://minecraft.wiki/w/Grass#Block_states
         if (dataVal > 0 && dataVal < 6)
         {
             addBlock = 1;
@@ -5394,7 +5394,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
             block->grid[bi] = BLOCK_DOUBLE_FLOWER;
             // not entirely sure about this number, but 10 seems to be the norm,
-            // but https://minecraft.fandom.com/wiki/Flower#Data_values says to use 8
+            // but https://minecraft.wiki/w/Flower#Data_values says to use 8
             // Note that the top half is made to be the dataVal, too, which is the modern
             // way that nbt.cpp reads in this data. 1.12 and earlier would not have this set,
             // but this artificial map is considered modern.
@@ -7668,7 +7668,7 @@ int GetFileVersion(const wchar_t* world, int* version, wchar_t* fileOpened, rsiz
     return retcode;
 }
 // 0 succeed, 1+ windows file open fail, -1 or less is some other read error from nbt
-//  The NBT data version, which tells the MC release. See https://minecraft.gamepedia.com/Data_version
+//  The NBT data version, which tells the MC release. See https://minecraft.wiki/w/Data_version
 // 1444 is 1.13, 1901 is 1.14
 int GetFileVersionId(const wchar_t* world, int* versionId)
 {

@@ -496,7 +496,7 @@ typedef struct Options {
 // this object is a 3D bit, and this bit is set if it can actually glue horizontal neighboring blocks together
 // - not really used. TODO - may want to use this to decide whether objects should be grouped together or whatever.
 #define BLF_3D_BIT_GLUE     0x100000
-// set if the block does not affect fluid height. See https://minecraft.gamepedia.com/Waterlogging
+// set if the block does not affect fluid height. See https://minecraft.wiki/w/Waterlogging
 #define BLF_DNE_FLUID		0x200000
 // set if the block connects to redstone - do only if there's no orientation to the block, e.g. repeaters attach only on two sides, so don't have this flag
 // What this means: given a block, it will have BLF_CONNECTS_REDSTONE for it if, when you put the block
@@ -506,9 +506,9 @@ typedef struct Options {
 #define BLF_NONE			0x800000
 // is an offset tile, rendered separately: rails, vines, lily pad, redstone, ladder (someday, tripwire? TODO)
 #define BLF_OFFSET			0x1000000
-// is a billboard or similar that is always underwater, such as seagrass and kelp. See https://minecraft.gamepedia.com/Waterlogging
+// is a billboard or similar that is always underwater, such as seagrass and kelp. See https://minecraft.wiki/w/Waterlogging
 #define BLF_WATERLOG		0x2000000
-// is a billboard or similar that may waterlog, such as coral fans; bit 0x100 is set if waterlogged. See https://minecraft.gamepedia.com/Waterlogging
+// is a billboard or similar that may waterlog, such as coral fans; bit 0x100 is set if waterlogged. See https://minecraft.wiki/w/Waterlogging
 #define BLF_MAYWATERLOG		0x4000000
 // this object is a gate that attachs to fences if oriented properly - like BLF_FENCE_NEIGHBOR, but needs orientation to connect
 #define BLF_FENCE_GATE		0x8000000
