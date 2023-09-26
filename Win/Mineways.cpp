@@ -1891,7 +1891,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     wsprintf(infoString, L"World is the built-in [Block Test World]");
                     break;
                 case WORLD_LEVEL_TYPE:
-                    // TODO: add this table to convert to strings https://minecraft.fandom.com/wiki/Data_version
+                    // TODO: add this table to convert to strings https://minecraft.wiki/w/Data_version
                     char levelName[MAX_PATH_AND_FILE];
                     // the only place we ever need the level name, other than populating the world list
                     GetLevelName(gWorldGuide.world, levelName, MAX_PATH_AND_FILE);
@@ -3584,7 +3584,7 @@ static int loadWorld(HWND hWnd)
         // load test world
         MY_ASSERT(gWorldGuide.world[0] == 0);
         gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
-        gVersionID = 3105;	// Change this to the current release number https://minecraft.fandom.com/wiki/Data_version
+        gVersionID = 3105;	// Change this to the current release number https://minecraft.wiki/w/Data_version
         gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
         setHeightsFromVersionID();
         break;

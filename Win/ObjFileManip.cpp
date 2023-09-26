@@ -3542,7 +3542,7 @@ static void computeRedstoneConnectivity(int boxIndex)
     // In other words: you have a redstone wire on the ground, you have some random block (say grass) next to it with redstone on top.
     // These two will normally connect. However, if just above the redstone on the ground is a full block that is not glass/glowstone/piston/observer/etc.,
     // it will chop the redstone on the ground from connecting with the neighboring redstone a level up. Whew.
-    // See the "full-block solids" section here https://minecraft.fandom.com/wiki/Opacity#Types_of_transparent_blocks for which blocks should be listed below
+    // See the "full-block solids" section here https://minecraft.wiki/w/Opacity#Types_of_transparent_blocks for which blocks should be listed below
     if (!(gBlockDefinitions[gBoxData[boxIndex + 1].origType].flags & BLF_WHOLE) ||
         //(gBoxData[boxIndex + 1].origType == BLOCK_PISTON) || - not needed; not a whole block
         (gBoxData[boxIndex + 1].origType == BLOCK_GLASS) ||
@@ -13418,7 +13418,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         {
             // fully mature, change height to 10 if the proper fruit is next door
             matchType = (type == BLOCK_PUMPKIN_STEM) ? BLOCK_PUMPKIN : BLOCK_MELON;
-            if ((dataVal & 0x8) ||  // the new way - if there's an attachment, https://minecraft.fandom.com/wiki/Pumpkin_Seeds#Metadata
+            if ((dataVal & 0x8) ||  // the new way - if there's an attachment, https://minecraft.wiki/w/Pumpkin_Seeds#Metadata
                 (gBoxData[boxIndex - gBoxSizeYZ].origType == matchType) ||
                 (gBoxData[boxIndex + gBoxSizeYZ].origType == matchType) ||
                 (gBoxData[boxIndex - gBoxSize[Y]].origType == matchType) ||
@@ -23486,7 +23486,7 @@ bool IsASubblock(int type, int dataVal)
 static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float power)
 {
     // called only when BLF_EMITTER is flagged, and we assume a default value of 15 for emitters.
-    // See https://minecraft.fandom.com/wiki/Light#Light-emitting_blocks
+    // See https://minecraft.wiki/w/Light#Light-emitting_blocks
     float emission = 15.0f;
     // lower for some types
     switch (type) {
@@ -24881,7 +24881,7 @@ static TypeTile multTable[MULT_TABLE_SIZE] = {
     { BLOCK_GRASS /* pink petals stem */, 12, 57, {0,0,0} },
 
     // affected by foliage biome - change MULT_TABLE_NUM_FOLIAGE definition to +1 more if you add any
-    { BLOCK_LEAVES /* (oak) leaves, fancy: oak_leaves */, 4, 3, {0,0,0} },  // see https://minecraft.fandom.com/wiki/Biome
+    { BLOCK_LEAVES /* (oak) leaves, fancy: oak_leaves */, 4, 3, {0,0,0} },  // see https://minecraft.wiki/w/Biome
     { BLOCK_LEAVES /* jungle leaves, fancy */, 4, 12, {0,0,0} },
     { BLOCK_AD_LEAVES /* acacia leaves, fancy */,  9, 19, {0,0,0} },
     { BLOCK_AD_LEAVES /* dark oak leaves, fancy */, 11, 19, {0,0,0} },

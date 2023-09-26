@@ -1691,7 +1691,7 @@ There are two main modes of export: for rendering and for 3D printing. These mai
 <P>
 If you want to test particular blocks to see what they look like, use the <a href="#blocktestworld">"[Block Test World]"</a> and the block IDs to select and export whatever block types in whatever mode you want. Alternately, you could <a href="https://www.planetminecraft.com/resources/projects/?keywords=texture+test+world">find a texture test world</a> you like, such as <a href="https://www.planetminecraft.com/project/texture-test-world-3122931/">this one</a>.
 <P>
-In Minecraft itself you can also <a href="https://minecraft.fandom.com/wiki/Debug_mode">create a Debug block world</a> in Minecraft itself (short version: "Create New World", click "World" tab middle top, hold Alt and keep clicking on "World Type:" until "Debug Mode" comes up) - note Mineways doesn't support everything, as noted below. If you are using <a href="https://minecraft.fandom.com/wiki/Debug_Stick">the debug stick</a> or commands to set a state for a block that is not valid in a normal world, don't expect it to work. Desperate? Try <a href="https://www.jmc2obj.net/">jmc2obj</a> - they do some fancy stuff, like create banner textures.
+In Minecraft itself you can also <a href="https://minecraft.wiki/w/Debug_mode">create a Debug block world</a> in Minecraft itself (short version: "Create New World", click "World" tab middle top, hold Alt and keep clicking on "World Type:" until "Debug Mode" comes up) - note Mineways doesn't support everything, as noted below. If you are using <a href="https://minecraft.wiki/w/Debug_Stick">the debug stick</a> or commands to set a state for a block that is not valid in a normal world, don't expect it to work. Desperate? Try <a href="https://www.jmc2obj.net/">jmc2obj</a> - they do some fancy stuff, like create banner textures.
 <P>
 Here's what Mineways exports as of version 5.01:
 <div>
@@ -2850,7 +2850,7 @@ When 3D printing, only the full, "all petals" texture is applied to surfaces.
 
 <tr>
 <td>
-<a href="https://minecraft.fandom.com/wiki/Light_Block">Light</a>
+<a href="https://minecraft.wiki/w/Light_Block">Light</a>
 </td>
 <td colspan="3">
 <center>Always hidden</center>
@@ -2933,8 +2933,8 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 <LI><B>Version 11.00</B>, 7/11/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1100.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
     <UL>
-	<LI>Minecraft 1.20.1 support. New ChannelMixer version 1.14 and TileMaker 3.19. Added <a href="https://minecraft.fandom.com/wiki/Cherry_Grove">cherry grove biome</a>. 
-	<LI>Fixed leave and vines in mangrove swamp biomes to use the proper, lighter green. Fixed deep dark biome downfall (rainfall) from 0.5 to 0.4. Wooded badlands biome now affects plant colors, same as other badlands. Values are from <a href="https://minecraft.fandom.com/wiki/Custom_biome">biome JSON files</a>.
+	<LI>Minecraft 1.20.1 support. New ChannelMixer version 1.14 and TileMaker 3.19. Added <a href="https://minecraft.wiki/w/Cherry_Grove">cherry grove biome</a>. 
+	<LI>Fixed leave and vines in mangrove swamp biomes to use the proper, lighter green. Fixed deep dark biome downfall (rainfall) from 0.5 to 0.4. Wooded badlands biome now affects plant colors, same as other badlands. Values are from <a href="https://minecraft.wiki/w/Custom_biome">biome JSON files</a>.
 	<LI>Made more cutout objects properly be one-sided when exported as such, such as sculk sensor tendrils.
 	<LI>Fix mangrove door top and bottom to use mangrove plank texture for full block 3D printing.
 	<LI>Fix Block Test World for newer fence and fence gate representations.
@@ -3350,7 +3350,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 <UL>
 <LI>For USD export, allow export of individual blocks, created as instances. The "Export individual blocks" option creates separate block and material USD files. Not every block type will export nicely, due to limitations in Mineways' data structures, but it gets pretty close. The excitement here is that it means simulations or other manipulations are now possible for USD scenes.
 <LI>Map grid, "m" hotkey: overlays a grid showing the Anvil (r*.mca) file bounds and the individual chunks. Also, map file and chunk numbers are now always shown in the status display in the lower left. One of those "I should have added this a decade ago" features, as it also helps me debug. (<I>thanks to <a href="https://www.reddit.com/r/mineways/comments/m5m7h4/export_complete_world/">lajawi</a> for the suggestion.</I>)
-<LI>Note if block is waterlogged in status display (but only if it isn't always waterlogged, i.e., <a href="https://minecraft.fandom.com/wiki/Waterlogging">inherent</a>).
+<LI>Note if block is waterlogged in status display (but only if it isn't always waterlogged, i.e., <a href="https://minecraft.wiki/w/Waterlogging">inherent</a>).
 <LI>Add waterlogged status to some [Block Test World] blocks; also fix this world in a number of places.
 <LI>Updated color schemes to include all block types, using my internal block type numbering scheme for blocks from 1.13 on. If you get flaky problems with old color schemes, at worst you can always run REGEDIT and delete the ColorSchemes directory at "Computer\HKEY_CURRENT_USER\Software\&lt;your name here&gt;\Mineways".
 <LI>Fix walls: increase height by one, and become solid (and remove the post if not at a junction) if there is an object above the post. Note that the new 1.16 wall rules are not complete, but closer than they were. It will take major rework of the data values system (e.g., go to 16 bits) to capture the full state of a wall block. (<I>Thanks to Joefy200 for reporting this bug.</I>)
