@@ -345,7 +345,7 @@ void ClearCache();
 
 int SaveVolume(wchar_t* objFileName, int fileType, Options* options, WorldGuide* gWorldGuide, const wchar_t* curDir, int minx, int miny, int minz, int maxx, int maxy, int maxz, int mapMinHeight, int mapMaxHeight,
     ProgressCallback callback, wchar_t* terrainFileName, wchar_t* schemeSelected, FileList* outputFileList, int majorVersion, int minorVersion, int worldVersion, ChangeBlockCommand* pCBC, int instanceChunkSize,
-    int& biomeIndex, int& groupCount, int groupCountSize, int* groupCountArray);
+    int& userSelectedBiome, int& biomeIndex, int& groupCount, int groupCountSize, int* groupCountArray);
 
 int GetMinimumSelectionHeight(WorldGuide* pWorldGuide, Options* pOptions, int minx, int minz, int maxx, int maxz, int mapMinHeight, int mapMaxHeight, bool expandByOne, bool ignoreTransparent, int maxy);
 

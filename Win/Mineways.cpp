@@ -254,6 +254,8 @@ static int gRemapMouse[3] = { 0,1,2 };
 
 static TranslationTuple *gModTranslations = NULL;
 
+static int gUserSelectedBiome = -1;
+
 #define LEFT_MOUSE_BUTTON_INDEX 0
 #define MIDDLE_MOUSE_BUTTON_INDEX 1
 #define RIGHT_MOUSE_BUTTON_INDEX 2
@@ -4511,7 +4513,7 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileNa
     int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gExeDirectory,
         gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gMinHeight, gMaxHeight,
         updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMinewaysMajorVersion, (int)gMinewaysMinorVersion, gVersionID, gChangeBlockCommands,
-        gInstanceChunkSize, gBiomeSelected, gGroupCount, gGroupCountSize, gGroupCountArray);
+        gInstanceChunkSize, gUserSelectedBiome, gBiomeSelected, gGroupCount, gGroupCountSize, gGroupCountArray);
 
     deleteCommandBlockSet(gChangeBlockCommands);
     gChangeBlockCommands = NULL;
@@ -5053,7 +5055,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gExeDirectory,
             gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gMinHeight, gMaxHeight,
             updateProgress, terrainFileName, schemeSelected, &outputFileList, (int)gMinewaysMajorVersion, (int)gMinewaysMinorVersion, gVersionID, gChangeBlockCommands,
-            gInstanceChunkSize, gBiomeSelected, gGroupCount, gGroupCountSize, gGroupCountArray);
+            gInstanceChunkSize, gUserSelectedBiome, gBiomeSelected, gGroupCount, gGroupCountSize, gGroupCountArray);
         deleteCommandBlockSet(gChangeBlockCommands);
         gChangeBlockCommands = NULL;
 
@@ -8129,6 +8131,26 @@ JumpToSpawn:
         if (is.processData)
         {
             SetUnknownBlockID(val);
+        }
+        return INTERPRETER_FOUND_VALID_LINE;
+    }
+
+    // Note, is exported in model file, but
+    // Should NOT read in this scripting-only setting when importing a file, since it takes effect for only the next export.
+    // Which is why this code is in the scripting-only interpretation area.
+    strPtr = findLineDataNoCase(line, "Export using biome:");
+    if (strPtr != NULL) {
+        int val;
+        if (1 != sscanf_s(strPtr, "%d", &val))
+        {
+            saveErrorMessage(is, L"could not find ID value for 'Export using biome' command.");
+            return INTERPRETER_FOUND_ERROR;
+        }
+        // could be more exacting, but GIGO:
+        if (val < -1 || val >= 256) return INTERPRETER_FOUND_ERROR;
+        if (is.processData)
+        {
+            gUserSelectedBiome = val;
         }
         return INTERPRETER_FOUND_VALID_LINE;
     }

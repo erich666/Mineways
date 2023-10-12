@@ -1,6 +1,6 @@
 @rem echo Script to make JG-RTX terrainExt files. By Eric Haines, 11/21/2022 
 
-@rem echo Setup: Copy this file to the TileMaker directory. Or, alternately (to keep that directory clean), create some subdirectory, say "MinewaysJGRTX". From the Mineways TileMaker directory copy the ChannelMixer.exe, TileMaker.exe, and terrainBase.png to your new directory MinewaysJGRTX. 
+@rem echo Setup: Copy this file to the TileMaker directory. Or, alternately (to keep that directory clean), create some subdirectory, say "MinewaysJGRTX" and copy this script into it. From the Mineways TileMaker directory, also copy the ChannelMixer.exe, TileMaker.exe, and terrainBase.png to your new directory MinewaysJGRTX. 
 
 @rem Go to https://github.com/jasonjgardner/jg-rtx. Under the green Code button, Download ZIP. Unzip into MinewaysJGRTX, so that there's a directory called "jg-rtx-main" inside this directory (which has all the JG-RTX files in it). Then, use CMD and go to MinewaysJGRTX and run this script!
 
@@ -18,7 +18,7 @@ ChannelMixer.exe -i jg-rtx-main/mineways -o blocks_jgrtx -v > mineways.log
 
 @rem IMPORTANT: the redstone torch on has a crummy emissive texture - too dark: redstone_torch_on_e.png - open in Irfanview and do Shift+U (Image -> Auto-adjust colors) then save Ctrl+S.
 
-@rem echo Remove lava_still_e.png and lava_flow_e.png, as they're too dim. The color texture will get used instead.
+@rem echo Remove lava_still_e.png and lava_flow_e.png, as they're too dim. The color texture will get used instead. Other textures are either too blackish or don't look good to me.
 del blocks_jgrtx\lava_still_e.png
 del blocks_jgrtx\lava_flow_e.png
 del blocks_jgrtx\lava_still_r.png

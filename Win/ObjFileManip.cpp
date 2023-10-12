@@ -586,6 +586,8 @@ typedef struct OutDataArrays
 
 OutDataArrays   gOutData;
 
+int gUserSelectedBiome = -1;
+
 #ifdef _DEBUG
 // if we use the Reused command, make sure we're not outputting a face twice - that's an error.
 static int gAssertFacesNotReusedMask = 0x0;
@@ -906,7 +908,7 @@ void ClearCache()
 // User should be warned if nothing found to export.
 int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide* pWorldGuide, const wchar_t* curDir, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax, int mapMinHeight, int mapMaxHeight,
     ProgressCallback callback, wchar_t* terrainFileName, wchar_t* schemeSelected, FileList* outputFileList, int majorVersion, int minorVersion, int worldVersion, ChangeBlockCommand* pCBC, int instanceChunkSize,
-    int& biomeIndex, int& groupCount, int groupCountSize, int *groupCountArray)
+    int& userSelectedBiome, int& biomeIndex, int& groupCount, int groupCountSize, int *groupCountArray)
 {
     // * Read the texture for the materials.
     // * populateBox:
@@ -927,6 +929,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     int needDifferentTextures = 0;
     int catIndex;
     gTotalInputTextures = 1;
+    gUserSelectedBiome = userSelectedBiome;
 
     // set up a bunch of globals
     gpCallback = &callback;
@@ -1407,6 +1410,7 @@ Exit:
 
     // return biome selected, if any (else -1)
     biomeIndex = (gModel.options->exportFlags & EXPT_BIOME) ? gModel.biomeIndex : -1;
+    gUserSelectedBiome = userSelectedBiome = -1;    // reset - used
 
     // not needed - happens in Mineways after zipping up files: UPDATE_STATUS(1.0f, L"Export completed");
     return retCode;
@@ -25356,15 +25360,21 @@ static int createBaseMaterialTexture()
         int useBiome = gModel.options->exportFlags & EXPT_BIOME;
         if (useBiome)
         {
-            // get foliage and grass color from center biome: half X and half Z
-            idx = (int)(gBoxSize[X] / 2) * gBoxSize[Z] + gBoxSize[Z] / 2;
-            int biome = gBiomeArray[idx];
-            gModel.biomeIndex = biome;
+            if (gUserSelectedBiome < 0)
+            {
+                // get foliage and grass color from center biome: half X and half Z
+                idx = (int)(gBoxSize[X] / 2) * gBoxSize[Z] + gBoxSize[Z] / 2;
+                gModel.biomeIndex = gBiomeArray[idx];
+            }
+            else {
+                // use scripting override
+                gModel.biomeIndex = gUserSelectedBiome;
+            }
 
             // note we don't use location height at this point to adjust temperature
-            grassColor = ComputeBiomeColor(biome, 0, 1);
-            leafColor = ComputeBiomeColor(biome, 0, 0);
-            waterColor = (biome == SWAMPLAND_BIOME || biome == MANGROVE_SWAMP_BIOME) ? BiomeSwampRiverColor(0xffffff) : 0xffffff;
+            grassColor = ComputeBiomeColor(gModel.biomeIndex, 0, 1);
+            leafColor = ComputeBiomeColor(gModel.biomeIndex, 0, 0);
+            waterColor = (gModel.biomeIndex == SWAMPLAND_BIOME || gModel.biomeIndex == MANGROVE_SWAMP_BIOME) ? BiomeSwampRiverColor(0xffffff) : 0xffffff;
         }
 
         for (i = 0; i < MULT_TABLE_SIZE; i++)
@@ -31566,13 +31576,19 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
     sprintf_s(outputString, 256, "# Center model: %s\n", gModel.options->pEFD->chkCenterModel ? "YES" : "no");
     WRITE_STAT;
 
-    if (gModel.options->pEFD->chkBiome) {
+    if (gModel.options->exportFlags & EXPT_BIOME) {
+    // was, but better to set the flag: if (gModel.options->pEFD->chkBiome) {
         sprintf_s(outputString, 256, "# Use biomes: YES - index %d, %s\n", gModel.biomeIndex, gBiomes[gModel.biomeIndex].name);
+        WRITE_STAT;
+        if (gUserSelectedBiome >= 0) {
+            sprintf_s(outputString, 256, "# Export using biome: %d - %s\n", gUserSelectedBiome, gBiomes[gModel.biomeIndex].name);
+            WRITE_STAT;
+        }
     }
     else {
         sprintf_s(outputString, 256, "# Use biomes: no\n");
+        WRITE_STAT;
     }
-    WRITE_STAT;
 
     // options only available when rendering.
     if (!gModel.print3D)

@@ -657,6 +657,20 @@ You can specify a series of commands, which are applied in the order given. Each
 <B>Notes</B>
 </td>
 </tr>
+ 
+<tr>
+<td>
+Export using biome: <I>6</I>
+Export using biome: <I>13</I> Snowy Mountains
+</td>
+<td>
+If <a href="mineways.html#biome_center">Use biome in center of export area</a> is selected on export, or script "Use biomes: YES", the biome type at the center of the exported area is used, affecting coloration. You can override which biome is used with this "Export using biome" command, setting a different number before exporting. IMPORTANT: you must also have set "Use biomes: YES".
+<P>
+You must select the number associated with the biome you want <a href="https://github.com/erich666/Mineways/blob/master/Win/biomes.cpp#L43">this piece of code</a>. For example, 6 is Swamp. Anything after the number is ignored (such as "Snowy Mountains" above), so you can use that area as a place to note what the number means. This number is -1 by default (which means it doesn't affect anything), and will get reset to -1 after a (successful or unsuccessful, biomes exported or not) model export.
+<P>
+When you export, the biome you used will be displayed in a comment near the top of the model file created. When you import this file, this "Export using biome" setting <i>will be ignored</i>. This command is meant as a temporary override, controlled entirely by scripting. When in doubt, set it before any export if you're using this feature (and don't forget to also set "Use biomes: YES").
+</td>
+</tr>
 
 <tr>
 <td>
@@ -1080,7 +1094,7 @@ Running the script to set up the scene, then exporting (manually) to Sketchfab, 
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 10/2/2023</p>	</div>
+		<br id="lastUpdate">Last updated 10/12/2023</p>	</div>
 </div>
 
 </body>
