@@ -2890,6 +2890,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 <LI>Version 11.04, 10/12/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1104.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
     <UL>
+	<LI>Change USD export to a single directory, if desired: for "Export individual textures to", if the "tex" directory is set to blank instead of "tex", all output files are placed in the same directory as the main output file - no subdirectories are used. This can be a good thing for multiple exports, as only a single copy of the textures needed are output. <I>(Thanks to Alexander for the idea)</I>
 	<LI>Add <a href="scripting.html#scriptOnlyTable">"Export using biome" script-only command</a>, which lets you select a specific biome when exporting. <I>(Thanks to Alexander for the idea)</I>
 	<LI>Protect against crashing when elevation shading is on and the Height is set to -64. <I>(Thanks to TheChocolateOre for <a href="https://github.com/erich666/Mineways/issues/118">the bug report</a>)</I>
 	<LI>Avoid crashing when switching lesser, detailed blocks off when exporting for rendering. <I>(Thanks to jae1911 for <a href="https://github.com/erich666/Mineways/issues/121">the bug report</a>)</I>
