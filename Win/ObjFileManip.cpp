@@ -291,7 +291,6 @@ wchar_t gOutputFileRoot[MAX_PATH_AND_FILE]; // this is "Eiffel"
 wchar_t gOutputFileRootClean[MAX_PATH_AND_FILE]; // used by all files that are referenced inside text files - "Eiffel"
 char gOutputFileRootCleanChar[MAX_PATH_AND_FILE]; // - "Eiffel" in chars
 
-wchar_t gMaterialFileSubdir[MAX_PATH_AND_FILE]; // directory "Eiffel_materials"
 char gMaterialFileSubdirChar[MAX_PATH_AND_FILE]; // directory "Eiffel_materials"
 wchar_t gMaterialDirectoryPath[MAX_PATH_AND_FILE]; // "c:\\temp\\Buildings\\Eiffel_materials\\"
 wchar_t gTextureDirectoryPath[MAX_PATH_AND_FILE]; // "c:\\temp\\Buildings\\Eiffel_materials\\textures\\"
@@ -1029,19 +1028,31 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     spacesToUnderlines(gOutputFileRootClean);
     WcharToChar(gOutputFileRootClean, gOutputFileRootCleanChar, MAX_PATH_AND_FILE);
 
-    // get subdirectory path and try to create it - only needed for USDA, else it's just the same as gOutputFilePath
+    // get subdirectory path and try to create it - only needed for USDA, else it's just the same as gOutputFilePath.
+    // Create only if the materials directory is specified.
     if (fileType == FILE_TYPE_USD) {
-        wcscpy_s(gMaterialFileSubdir, MAX_PATH_AND_FILE, gOutputFileRootClean);
-        wcscat_s(gMaterialFileSubdir, MAX_PATH_AND_FILE, L"_materials");
-        WcharToChar(gMaterialFileSubdir, gMaterialFileSubdirChar, MAX_PATH_AND_FILE);
-        concatFileName3(gMaterialDirectoryPath, gOutputFilePath, gMaterialFileSubdir, L"\\");
-        // try to create it
-        if (!(CreateDirectoryW(gMaterialDirectoryPath, NULL) ||
-            ERROR_ALREADY_EXISTS == GetLastError()))
-        {
-            // Failed to create directory.
-            retCode |= MW_CANNOT_CREATE_DIRECTORY;
-            return retCode;
+        if (strlen(gModel.options->pEFD->tileDirString) > 0) {
+            wchar_t materialFileSubdir[MAX_PATH_AND_FILE]; // directory "Eiffel_materials"
+            wcscpy_s(materialFileSubdir, MAX_PATH_AND_FILE, gOutputFileRootClean);
+            wcscat_s(materialFileSubdir, MAX_PATH_AND_FILE, L"_materials");
+            WcharToChar(materialFileSubdir, gMaterialFileSubdirChar, MAX_PATH_AND_FILE);
+            // always add a / to the directory, vs. if it doesn't exist ("else" case below) then it will not be output
+            strcat_s(gMaterialFileSubdirChar, MAX_PATH_AND_FILE, "/");
+
+            concatFileName3(gMaterialDirectoryPath, gOutputFilePath, materialFileSubdir, L"\\");
+            // try to create it
+            if (!(CreateDirectoryW(gMaterialDirectoryPath, NULL) ||
+                ERROR_ALREADY_EXISTS == GetLastError()))
+            {
+                // Failed to create directory.
+                retCode |= MW_CANNOT_CREATE_DIRECTORY;
+                return retCode;
+            }
+        }
+        else {
+            // no subdir, set that up (note that gOutputFilePath already has a \ at the end of it)
+            wcscpy_s(gMaterialDirectoryPath, MAX_PATH_AND_FILE, gOutputFilePath);
+            gMaterialFileSubdirChar[0] = 0;
         }
     }
     else {
@@ -26581,9 +26592,9 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
     char fullTexturePath[MAX_PATH_AND_FILE];
     strcpy_s(fullTexturePath, MAX_PATH_AND_FILE, gMaterialFileSubdirChar);
     // if exporting a single tile (for 3d printing, mostly), don't use a subdirectory;
-    // if texture path is empty, we won't have a sub-subdirectory, so don't add "/"
-    if (gModel.exportTiles && strlen(texturePath) > 0) {
-        strcat_s(fullTexturePath, MAX_PATH_AND_FILE, "/");
+    // if texture path is used, add it to the fullTexturePath.
+    if (strlen(texturePath) > 0) {
+        strcat_s(texturePath, MAX_PATH_AND_FILE, "/");
         strcat_s(fullTexturePath, MAX_PATH_AND_FILE, texturePath);
     }
 
@@ -26789,7 +26800,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             }
 
-            sprintf_s(outputString, 256, "            over \"Blocks\" (references = @./%s/%s@) {}\n", gMaterialFileSubdirChar, blockLibraryName);
+            sprintf_s(outputString, 256, "            over \"Blocks\" (references = @./%s%s@) {}\n", gMaterialFileSubdirChar, blockLibraryName);
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             strcpy_s(outputString, 256, "        }\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -26814,7 +26825,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
 
             strcpy_s(outputString, 256, "            def BlockLib \"BlockLib\"\n        {\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-            sprintf_s(outputString, 256, "                over \"Blocks\" (references = @./%s/%s@) {}\n", gMaterialFileSubdirChar, blockLibraryName);
+            sprintf_s(outputString, 256, "                over \"Blocks\" (references = @./%s%s@) {}\n", gMaterialFileSubdirChar, blockLibraryName);
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             strcpy_s(outputString, 256, "            }\n\n");
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -26931,7 +26942,6 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
     if (!gModel.instancing) {
         char mdlPath[MAX_PATH_AND_FILE];
         strcpy_s(mdlPath, MAX_PATH_AND_FILE, gMaterialFileSubdirChar);
-        strcat_s(mdlPath, MAX_PATH_AND_FILE, "/");
         if (retCode |= createMaterialsUSD(texturePath, mdlPath, NULL, singleTerrainFile, slashDefaultPrim)) {
             // failed to write
             goto Exit;
@@ -29083,7 +29093,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 // Not water, glass, slime, etc.
 
                 // add the "_y" if synthesized - material name differs from tile file name in this case
-                sprintf_s(outputString, 256, "                asset inputs:diffuse_texture = @./%s/%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (gTilesTable[swatchLoc].flags& SBIT_SYNTHESIZED)) ? "_y" : "");
+                sprintf_s(outputString, 256, "                asset inputs:diffuse_texture = @./%s%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (gTilesTable[swatchLoc].flags& SBIT_SYNTHESIZED)) ? "_y" : "");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "                    colorSpace = \"sRGB\"\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -29174,7 +29184,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
 
                         // same as the diffuse texture
-                        sprintf_s(outputString, 256, "                asset inputs:emissive_color_texture = @./%s/%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (gTilesTable[swatchLoc].flags & SBIT_SYNTHESIZED)) ? "_y" : "");
+                        sprintf_s(outputString, 256, "                asset inputs:emissive_color_texture = @./%s%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (gTilesTable[swatchLoc].flags & SBIT_SYNTHESIZED)) ? "_y" : "");
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                         strcpy_s(outputString, 256, "                    colorSpace = \"sRGB\"\n");
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -29222,12 +29232,12 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
 
                         // if there's a specific emitter texture available, use it, adding the "_e" suffix.
 #ifdef GENERATE_EMISSION_TILES
-                        sprintf_s(outputString, 256, "                asset inputs:emissive_mask_texture = @./%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_EMISSION]);
+                        sprintf_s(outputString, 256, "                asset inputs:emissive_mask_texture = @./%s%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_EMISSION]);
 #else
-                        sprintf_s(outputString, 256, "                asset inputs:emissive_mask_texture = @./%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_RGBA]);
+                        sprintf_s(outputString, 256, "                asset inputs:emissive_mask_texture = @./%s%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_RGBA]);
 #endif
                         // Here's more convoluted logic, with the color texture getting used as the emitter mask, which is usually A Bad Idea.
-                        //sprintf_s(outputString, 256, "                asset inputs:emissive_mask_texture = @./%s/%s%s.png@ (\n", texturePath, mtlName,
+                        //sprintf_s(outputString, 256, "                asset inputs:emissive_mask_texture = @./%s%s%s.png@ (\n", texturePath, mtlName,
                         //    gModel.tileList[CATEGORY_EMISSION][swatchLoc] ? "_e" : 
                         //        (gModel.exportTiles && (gTilesTable[swatchLoc].flags & SBIT_SYNTHESIZED)) ? "_y" : "");
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -29342,7 +29352,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
 
                 // metallic?
                 if (gModel.tileList[CATEGORY_METALLIC][swatchLoc]) {
-                    sprintf_s(outputString, 256, "                asset inputs:metallic_texture = @./%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_METALLIC]);
+                    sprintf_s(outputString, 256, "                asset inputs:metallic_texture = @./%s%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_METALLIC]);
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "                    colorSpace = \"raw\"\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -29402,7 +29412,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
 
             // normals? Note that semitransparent custom material OmniSurfaceUber already output "coat_normal_image" above, so don't do it here
             if (gModel.tileList[CATEGORY_NORMALS][swatchLoc]) {
-                sprintf_s(textureString, 256, "%s/%s%s.png", texturePath, mtlName, gCatStrSuffixes[CATEGORY_NORMALS]);
+                sprintf_s(textureString, 256, "%s%s%s.png", texturePath, mtlName, gCatStrSuffixes[CATEGORY_NORMALS]);
             }
             else {
                 strcpy_s(textureString, 256, "");
@@ -29485,7 +29495,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 }
 
-                sprintf_s(outputString, 256, "                asset inputs:opacity_texture = @./%s/%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (gTilesTable[swatchLoc].flags& SBIT_SYNTHESIZED)) ? "_y" : "");
+                sprintf_s(outputString, 256, "                asset inputs:opacity_texture = @./%s%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (gTilesTable[swatchLoc].flags& SBIT_SYNTHESIZED)) ? "_y" : "");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "                    colorSpace = \"raw\"\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -29544,7 +29554,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             if (gModel.tileList[CATEGORY_ROUGHNESS][swatchLoc]) {
                 if (isSemitransparent) {
                     // slightly different naming - good times!
-                    sprintf_s(outputString, 256, "                asset inputs:roughness_texture = @./%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_ROUGHNESS]);
+                    sprintf_s(outputString, 256, "                asset inputs:roughness_texture = @./%s%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_ROUGHNESS]);
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "                    colorSpace = \"raw\"\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -29588,7 +29598,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "                )\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                    sprintf_s(outputString, 256, "                asset inputs:reflectionroughness_texture = @./%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_ROUGHNESS]);
+                    sprintf_s(outputString, 256, "                asset inputs:reflectionroughness_texture = @./%s%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_ROUGHNESS]);
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "                    colorSpace = \"raw\"\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -29777,7 +29787,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "                uniform token info:id = \"UsdUVTexture\"\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                sprintf_s(outputString, 256, "                asset inputs:file = @./%s/%s%s.png@\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_ROUGHNESS]);
+                sprintf_s(outputString, 256, "                asset inputs:file = @./%s%s%s.png@\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_ROUGHNESS]);
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "                token inputs:sourceColorSpace = \"raw\"\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -29804,7 +29814,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "                float4 inputs:bias = (-1, 1, -1, -1)\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                sprintf_s(outputString, 256, "                asset inputs:file = @./%s/%s%s.png@\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_NORMALS]);
+                sprintf_s(outputString, 256, "                asset inputs:file = @./%s%s%s.png@\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_NORMALS]);
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 // yes, this scale of Y=-2 (and bias of 1.0 in the next line) seems weird to me, too, but seems to work. I don't love it.
                 strcpy_s(outputString, 256, "                float4 inputs:scale = (2, -2, 2, 2)\n");
@@ -29832,7 +29842,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "                uniform token info:id = \"UsdUVTexture\"\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-                sprintf_s(outputString, 256, "                asset inputs:file = @./%s/%s%s.png@\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_METALLIC]);
+                sprintf_s(outputString, 256, "                asset inputs:file = @./%s%s%s.png@\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_METALLIC]);
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "                token inputs:sourceColorSpace = \"raw\"\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -29856,7 +29866,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             strcpy_s(outputString, 256, "                uniform token info:id = \"UsdUVTexture\"\n");
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-            sprintf_s(outputString, 256, "                asset inputs:file = @./%s/%s%s.png@\n", texturePath, mtlName, (gModel.exportTiles && (gTilesTable[swatchLoc].flags & SBIT_SYNTHESIZED)) ? "_y" : "");
+            sprintf_s(outputString, 256, "                asset inputs:file = @./%s%s%s.png@\n", texturePath, mtlName, (gModel.exportTiles && (gTilesTable[swatchLoc].flags & SBIT_SYNTHESIZED)) ? "_y" : "");
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             strcpy_s(outputString, 256, "                token inputs:sourceColorSpace = \"sRGB\"\n");
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -29910,9 +29920,9 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     strcpy_s(outputString, 256, "                uniform token info:id = \"UsdUVTexture\"\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
 #ifdef GENERATE_EMISSION_TILES
-                    sprintf_s(outputString, 256, "                asset inputs:file = @./%s/%s%s.png@\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_EMISSION]);
+                    sprintf_s(outputString, 256, "                asset inputs:file = @./%s%s%s.png@\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_EMISSION]);
 #else
-                    sprintf_s(outputString, 256, "                asset inputs:file = @./%s/%s%s.png@\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_RGBA]);
+                    sprintf_s(outputString, 256, "                asset inputs:file = @./%s%s%s.png@\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_RGBA]);
 #endif
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
 
@@ -30294,7 +30304,7 @@ static int createLightingUSD(char *texturePath)
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            asset inputs:shaping:ies:file\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    sprintf_s(outputString, 256, nightLight ? "            asset inputs:texture:file = @./%s/_domelight_night.png@\n" : "            asset inputs:texture:file = @./%s/_domelight.png@\n", texturePath);
+    sprintf_s(outputString, 256, nightLight ? "            asset inputs:texture:file = @./%s_domelight_night.png@\n" : "            asset inputs:texture:file = @./%s_domelight.png@\n", texturePath);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            token inputs:texture:format = \"latlong\"\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
