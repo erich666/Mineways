@@ -287,7 +287,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, BST_INDETERMINATE);
             if (epd.fileType == FILE_TYPE_USD) {
-                CheckDlgButton(hDlg, IDC_G3D_MATERIAL, epd.chkCustomMaterial[epd.fileType]);
+                // indeterminate if exportMDL is off, for USD
+                CheckDlgButton(hDlg, IDC_G3D_MATERIAL, epd.chkExportMDL ? epd.chkCustomMaterial[epd.fileType] : BST_INDETERMINATE);
                 CheckDlgButton(hDlg, IDC_EXPORT_MDL, epd.chkExportMDL);
             }
             else
