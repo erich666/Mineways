@@ -1031,6 +1031,12 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 else if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_UNCHECKED)
                 {
                     // if lesser is toggled back off, turn on the defaults
+                    if (IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES)) {
+                        MessageBox(NULL, _T("Warning: turning details off changes the export mode to \"Export all textures to three large, mosaic images,\" as the \"Export individual blocks\" export mode is incompatible with full block export. New textures are created that are composites, e.g., fern atop a grass block."),
+                            _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
+                        CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MOSAIC_TEXTURES, 1);
+                        CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, 0);
+                    }
                     CheckDlgButton(hDlg, IDC_DELETE_FLOATERS, BST_CHECKED);
                     CheckDlgButton(hDlg, IDC_CONNECT_PARTS, BST_CHECKED);
                     CheckDlgButton(hDlg, IDC_CONNECT_CORNER_TIPS, BST_CHECKED);
@@ -1046,6 +1052,12 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 }
                 else if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_UNCHECKED)
                 {
+                    if (IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES)) {
+                        MessageBox(NULL, _T("Warning: turning details off changes the export mode to \"Export all textures to three large, mosaic images,\" as the \"Export individual blocks\" export mode is incompatible with full block export. New textures are created that are composites, e.g., fern atop a grass block."),
+                            _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
+                        CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MOSAIC_TEXTURES, 1);
+                        CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, 0);
+                    }
                     // definitely make compositing uncheckable at this point - full blocks mean that composite overlay must be used, vs. separate objects
                     CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
 
