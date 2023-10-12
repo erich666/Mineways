@@ -60,11 +60,11 @@ typedef struct WorldBlock {
     unsigned char rendercache[16 * 16 * 4]; // bitmap of last render
     short heightmap[16 * 16]; // height of rendered block [x+z*16]
     unsigned char biome[16 * 16];
-    BlockEntity* entities;	// block entities, http://minecraft.gamepedia.com/Chunk_format#Block_entity_format
+    BlockEntity* entities;	// block entities, http://minecraft.wiki/w/Chunk_format#Block_entity_format
     int numEntities;	// number in the list, maximum of 16x16x256
     // a waste to do per block, but so be it.
     int mcVersion;		// type of block opened: 12 for 1.12 and earlier, 13 for 1.13 and on
-    int versionID;      // exact version ID, https://minecraft.gamepedia.com/Data_version
+    int versionID;      // exact version ID, https://minecraft.wiki/w/Data_version
 
     int rendery;        // slice height for last render
     int renderopts;     // options bitmask for last render

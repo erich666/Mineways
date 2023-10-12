@@ -29,8 +29,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "biomes.h"
 
-// IDs here: https://minecraft.fandom.com/wiki/Biome/ID (ignore the ID numbers there) and https://minecraft.fandom.com/wiki/Biome#Temperature
-// Note new biomes and new biome names here in 1.18: https://minecraft.fandom.com/wiki/Java_Edition_1.18
+// IDs here: https://minecraft.wiki/w/Biome/ID (ignore the ID numbers there) and https://minecraft.wiki/w/Biome#Temperature
+// Note new biomes and new biome names here in 1.18: https://minecraft.wiki/w/Java_Edition_1.18
 // To add a new biome: pick an "Unknown" slot, they no longer use numbers but we do. Find the temperature and precipitation
 // in the ...\data\minecraft\worldgen\biome file in the jar. The "temperature" is just that, the "downfall" is rainfall.
 // For grass color, search "grass_color" (if any) and convert to hex e.g. https://www.rapidtables.com/convert/number/decimal-to-hex.html
@@ -95,7 +95,7 @@ Biome gBiomes[256] = {	// IMPORTANT: do not change 256 size here.
     { /*  52 */ "Wooded Badlands",			2.0f, 0.0f, 0x90814D, 0x9E814D },  // not actually this number, added in 1.18, have to put it somewhere
     { /*  53 */ "Mangrove Swamp",			0.8f, 0.9f, 0x92BD59, 0x8DB127 },  // not actually this number, added in 1.19, have to put it somewhere; foliage color changed via JSON file, but really, change happens in ComputeBiomeColor()
     { /*  54 */ "Deep Dark",    			0.8f, 0.4f, 0x92BD59, 0x77AB2F },  // not actually this number, added in 1.19, have to put it somewhere
-    { /*  55 */ "Cherry Grove",				0.5f, 0.8f, 0xB6DB61, 0xB6DB61 },  // not actually this number, added in 1.19, have to put it somewhere; color for plants from https://minecraft.fandom.com/wiki/Biome#Temperature, confirmed with JSON file. but really, change happens in ComputeBiomeColor()
+    { /*  55 */ "Cherry Grove",				0.5f, 0.8f, 0xB6DB61, 0xB6DB61 },  // not actually this number, added in 1.19, have to put it somewhere; color for plants from https://minecraft.wiki/w/Biome#Temperature, confirmed with JSON file. but really, change happens in ComputeBiomeColor()
     { /*  56 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /*  57 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /*  58 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
@@ -214,7 +214,7 @@ Biome gBiomes[256] = {	// IMPORTANT: do not change 256 size here.
     { /* 171 */ "Crimson Forest",				2.0f, 0.0f, 0x92BD59, 0x77AB2F },
     { /* 172 */ "Warped Forest",				2.0f, 0.0f, 0x92BD59, 0x77AB2F },
     { /* 173 */ "Basalt Deltas",				2.0f, 0.0f, 0x92BD59, 0x77AB2F },
-    { /* 174 */ "Dripstone Caves",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },   // not sure, from https://minecraft.fandom.com/wiki/Biome/ID
+    { /* 174 */ "Dripstone Caves",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },   // not sure, from https://minecraft.wiki/w/Biome/ID
     { /* 175 */ "Lush Caves",   				0.5f, 0.5f, 0x92BD59, 0x77AB2F },
     { /* 176 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /* 177 */ "Meadow",		        		0.5f, 0.8f, 0x92BD59, 0x77AB2F },   // found in ChunkHeightAndBiomeFix.java
@@ -402,7 +402,7 @@ int ComputeBiomeColor(int biome, int elevation, int isGrass)
     case MANGROVE_SWAMP_BIOME:
         return isGrass ? 0x6a7039 : 0x8db127;
 
-    case DARK_FOREST_BIOME:	// forestType 3, see https://minecraft.fandom.com/wiki/Biome
+    case DARK_FOREST_BIOME:	// forestType 3, see https://minecraft.wiki/w/Biome
         if (isGrass)
         {
             int color = BiomeGrassColor(gBiomes[biome].temperature, gBiomes[biome].rainfall, elevation);
@@ -423,11 +423,11 @@ int ComputeBiomeColor(int biome, int elevation, int isGrass)
     case 165:   // badlands, but really exists only in Bedrock Edition
     case 166:
     case 167:
-        // yes, it's hard-wired, see https://minecraft.fandom.com/wiki/Biome
+        // yes, it's hard-wired, see https://minecraft.wiki/w/Biome
         return isGrass ? 0x90814d : 0x9e814d;
 
     case CHERRY_GROVE_BIOME:
-        // yes, it's hard-wired, same for both, brighter green, see https://minecraft.fandom.com/wiki/Biome
+        // yes, it's hard-wired, same for both, brighter green, see https://minecraft.wiki/w/Biome
         return isGrass ? 0xb6db61 : 0xb6db61;
 
     default:

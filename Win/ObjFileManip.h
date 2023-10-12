@@ -323,7 +323,7 @@ typedef struct Model {
 extern Model gModel;
 
 
-// translate the world version from https://minecraft.gamepedia.com/Data_version to a version number: 12, 13, 14, 15, 16, 17, 18, 19...
+// translate the world version from https://minecraft.wiki/w/Data_version to a version number: 12, 13, 14, 15, 16, 17, 18, 19...
 #define	DATA_VERSION_TO_RELEASE_NUMBER(worldVersion) ((worldVersion) < 100 ? 8 : \
                                                      ((worldVersion) <= 184) ? 9 : \
                                                      ((worldVersion) <= 512) ? 10 : \
