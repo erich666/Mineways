@@ -534,7 +534,7 @@ Export for Rendering: C:\temp\hunk11.obj<br>
 <P>
 Load your world, run this script via Import Settings, and it will dump four exports, with absolute coordinates, so that they can be loaded into a modeler and nicely join with each other. The "50" lower Y height is just a guess as to how deep you might want to go for a typical above-ground export - you can override this as you wish. Biomes are off, since the biome is computed for the center of each hunk and so will differ. Block faces at the borders being off means that the polygons where the hunks join are not output, saving on polygon count. You can set that to "yes" if you prefer. You 
 <P>
-The one gotcha is that differently named (but usually identical in content) PNG texture files are made for each separate model. If you prefer sharing PNG files (which saves on memory), I solve this problem here by setting the File type to use individual textures for each block type face, such as "grass_top.png"; these have the same names for all exported files.
+The one gotcha is that differently named (but usually identical in content) PNG texture files are made for each separate model. If you prefer sharing PNG files (which saves on memory), I solve this problem here by setting the File type to use individual textures for each block type face, such as "grass_top.png"; these have the same names for all exported files, all put in the same "hunks_textures" directory.
 
 
 <h2 id="sketchfab">Sketchfab Script Commands</h2>
@@ -1094,7 +1094,7 @@ Running the script to set up the scene, then exporting (manually) to Sketchfab, 
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 10/12/2023</p>	</div>
+		<br id="lastUpdate">Last updated 10/13/2023</p>	</div>
 </div>
 
 </body>
