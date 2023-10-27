@@ -9692,7 +9692,7 @@ static bool saveMapFile(int xmin, int zmin, int xmax, int ymax, int zmax, wchar_
 
     ClearUnknownBlockNameString();
     checkMapDrawErrorCode(
-        DrawMapToArray(imageDst, &gWorldGuide, xmin, zmin, ymax, gMaxHeight, w, h, zoom, &gOptions, gHitsFound, updateProgress, gMinecraftVersion, gVersionID)
+        DrawMapToArray(imageDst, &gWorldGuide, xmin, zmin, ymax - gMinHeight, gMaxHeight, w, h, zoom, &gOptions, gHitsFound, updateProgress, gMinecraftVersion, gVersionID)
     );
 
     // check if map file has ".png" at the end - if not, add it.
