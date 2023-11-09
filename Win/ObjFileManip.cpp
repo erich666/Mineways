@@ -18982,7 +18982,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     swatchLoc = SWATCH_INDEX(2, 4);
                 }
             }
-            randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
+            else {
+                // grass randomly rotates, snowy grass does not (not that you'd ever really notice, since it's covered with snow, but still).
+                randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
+            }
             break;
         case BLOCK_DIRT:						// getSwatch
             switch (dataVal & 0x7)
