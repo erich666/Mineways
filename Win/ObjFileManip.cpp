@@ -19050,6 +19050,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             break;
         case BLOCK_NETHERRACK:
             randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
+            // TODO: should also rotate sides - it's the only one that does this, AFAIK.
             break;
         case BLOCK_STONE_DOUBLE_SLAB:						// getSwatch
         case BLOCK_STONE_SLAB:
@@ -20148,8 +20149,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             break;
         case BLOCK_CONCRETE:
+            swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX + dataVal, gBlockDefinitions[type].txrY);
+            break;
         case BLOCK_CONCRETE_POWDER:
             swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX + dataVal, gBlockDefinitions[type].txrY);
+            randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
             break;
         case BLOCK_POWERED_RAIL:						// getSwatch
         case BLOCK_DETECTOR_RAIL:
@@ -22647,6 +22651,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case 24: // Rooted Dirt
                 swatchLoc = SWATCH_INDEX(11, 52);
+                randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
                 break;
             case 25: // Powder Snow
                 swatchLoc = SWATCH_INDEX(13, 52);

@@ -241,7 +241,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 163 */ "Acacia Stairs",          		0xBA683B, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0,22, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },    //A3
     { /* 164 */ "Dark Oak Stairs",        		0x492F17, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1,22, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },    //A4/164
     { /* 165 */ "Slime Block",            		0x787878, 0.700f, 0xff7711, 0xff7711, 0.12345f,   3,22, 0x00, BLF_WHOLE | BLF_TRUE_GEOMETRY | BLF_TRANSPARENT | BLF_FENCE_NEIGHBOR },	// A5/165 - 1.8
-    { /* 166 */ "Barrier",                		0xE30000, 0.000f, 0xff7711, 0xff7711, 0.12345f,  14,25, 0x00, BLF_WHOLE | BLF_CUTOUTS },	// A6/166 - 1.8 - to make visible, set alpha to 1.0
+    { /* 166 */ "Barrier",                		0xE30000, 0.000f, 0xff7711, 0xff7711, 0.12345f,  14,25, 0x00, BLF_WHOLE | BLF_CUTOUTS | BLF_MAYWATERLOG },	// A6/166 - 1.8 - to make visible, set alpha to 1.0, 1.20.2 - in creative may now waterlog
     { /* 167 */ "Iron Trapdoor",          		0xC0C0C0, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2,22, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_FLATTEN | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },	// A7/167 - 1.8
     { /* 168 */ "Prismarine",             		0x66ADA1, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12,22, 0x03, BLF_WHOLE | BLF_FENCE_NEIGHBOR },	// 1.8 add
     { /* 169 */ "Sea Lantern",            		0xD3DBD3, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14,22, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_EMITTER },   //59
