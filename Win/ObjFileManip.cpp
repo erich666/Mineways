@@ -24099,6 +24099,28 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
         // Doesn't matter for functionality, just looks a bit odd.
         if ((gModel.options->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP) && (pFace->faceIndex <= 0))
         {
+            // put a comment as to what the name of the block is
+            // use subtype name or add a dataval suffix.
+            // If possible, turn these data values into the actual sub-material type names.
+            char typeName[256];
+            // this code is a copy of code 400 lines later - search on tempString to find it.
+            const char* commentName = RetrieveBlockSubname(prevType, prevDataVal);
+            if (strcmp(commentName, mtlName) == 0) {
+                // No unique subname found for this data value, so use the data value.
+                // Shouldn't ever hit here, actually; all things should be named by now.
+                char tempString[MAX_PATH_AND_FILE];
+                sprintf_s(tempString, 256, "%s__%d", mtlName, prevDataVal);
+                strcpy_s(typeName, 256, tempString);
+            }
+            else {
+                // Name does not match, so use it
+                // was: sprintf_s(tempString, 256, "%s__%s", mtlName, subName);
+                strcpy_s(typeName, 256, commentName);
+            }
+            // with number: sprintf_s(outputString, 256, "# type: %s %d\n", typeName, groupCount + 1);
+            sprintf_s(outputString, 256, "# type: %s\n", typeName);
+            WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
+
             if (mkGroupsObjs) {
                 sprintf_s(outputString, 256, "o block_%05d\n", groupCount + 1);   // don't increment it here
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
