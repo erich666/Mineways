@@ -3062,13 +3062,12 @@ static int filterBox(ChangeBlockCommand* pCBC)
                             // This check is more a symptom than a cure;
                             // there seems to be some error where data gets read and is too large, for some reason.
                             // But it's flakey - seems more like uninitialized or corrupted memory. Ugh.
-#ifdef _DEBUG
-                            type = BLOCK_BEDROCK;
-                            gBoxData[boxIndex].type = BLOCK_BEDROCK;
-#else
-                            type = BLOCK_AIR;
-                            gBoxData[boxIndex].type = BLOCK_BEDROCK;
-#endif
+//#ifdef _DEBUG
+//                            type = BLOCK_BEDROCK;
+//                            gBoxData[boxIndex].type = BLOCK_BEDROCK;
+//#else
+                            type = gBoxData[boxIndex].type = (unsigned short)(GetUnknownBlockID() & 0xff);
+
                             gBoxData[boxIndex].data = 0x0;
                             gBadBlocksInModel = true;
                         }
