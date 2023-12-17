@@ -743,7 +743,7 @@ Clear out all stored 'Change blocks' commands. While exporting will clear out an
 Set unknown block ID: <i>322</i>
 </td>
 <td>
-Set this value before opening a modded world, e.g., in a startup script. Modded worlds have block types not understood by Mineways. By default, unknown blocks are converted to bedrock blocks. You can set a <a href="https://github.com/erich666/Mineways/blob/master/Win/blockInfo.cpp#L72">block family ID</a> that you want to use instead. Note that after the unknown block is turned into that block type, it is treated exactly like that block type, including gettings its faces removed if the face is fully covered by a neighboring block. To have the unknown block not get culled in this way, you might consider using ID 322, "conduit", to give a small floating block that will not removed (because it doesn't border anything).
+Set this value before opening a modded world, e.g., in a startup script. Modded worlds have block types not understood by Mineways. By default, unknown blocks are converted to bedrock blocks. You can set a <a href="https://github.com/erich666/Mineways/blob/master/Win/blockInfo.cpp#L72">block family ID</a> that you want to use instead. Note that after the unknown block is turned into that block type, it is treated exactly like that block type, including gettings its faces removed if the face is fully covered by a neighboring block. To have the unknown block not get culled in this way, for Minecraft 1.13 you might consider using ID 322, "conduit", to give a small floating block that will not be removed or modified (because it doesn't have geometry on the faces of the voxel). For Minecraft 1.12 and earlier this value must be 255 or lower.
 </td>
 </tr>
 
@@ -754,7 +754,7 @@ Translate: track_signal beacon
 Translate: unobtainium_slab purpur_slab+
 </td>
 <td>
-Added to help <a href="https://github.com/erich666/Mineways/issues/44">mod</a> and beta users a bit. Pair some unknown block name to some standard name, e.g.: "Translate: nixie_tube beehive". Do not put quotes around the names, and any modding prefix in the file, e.g., "create:", should not be included - it is ignored. The list of block names that Mineways currently accepts is <a href="https://github.com/erich666/Mineways/blob/master/Win/nbt.cpp#L386">here</a>. If you want to attempt to use the block states of the modded block, put a "+" at the end of the block you're translating to. For example, "Translate: white_stained_glass_trapdoor bamboo_trapdoor+" tells Mineways to use the <a href="https://minecraft.wiki/w/Trapdoor#Block_states">block states of the trapdoor</a>. Unknown block states will of course be ignored. See the script <B>mod_translation.mwscript</B> for an example setup. MCPrep's <a href="https://theduckcow.com/dev/blender/mcprep/">meshswap feature</a> can also help modify things after export (<a href="https://github.com/Moo-Ack-Productions/MCprep/issues/56">more info</a>).
+Added to help <a href="https://github.com/erich666/Mineways/issues/44">mod</a> and beta users a bit. For Minecraft 1.13 and newer. Pair some unknown block name to some standard name, e.g.: "Translate: nixie_tube beehive". Do not put quotes around the names, and any modding prefix in the file, e.g., "create:", should not be included - it is ignored. The list of block names that Mineways currently accepts is <a href="https://github.com/erich666/Mineways/blob/master/Win/nbt.cpp#L386">here</a>. If you want to attempt to use the block states of the modded block, put a "+" at the end of the block you're translating to. For example, "Translate: white_stained_glass_trapdoor bamboo_trapdoor+" tells Mineways to use the <a href="https://minecraft.wiki/w/Trapdoor#Block_states">block states of the trapdoor</a>. Unknown block states will of course be ignored. See the script <B>mod_translation.mwscript</B> for an example setup. MCPrep's <a href="https://theduckcow.com/dev/blender/mcprep/">meshswap feature</a> can also help modify things after export (<a href="https://github.com/Moo-Ack-Productions/MCprep/issues/56">more info</a>).
 <P>
 Normally you want to set these translations before loading a modded world. To have these changes take effect on a world that is loaded, hit "r" or use the script command "Minecraft world:" to reload. <B>This feature is experimental!</B> If you try to use block states via "+" and things don't match up, you'll likely get weird results or even possibly crash.
 </td>
@@ -1094,7 +1094,7 @@ Running the script to set up the scene, then exporting (manually) to Sketchfab, 
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 10/13/2023</p>	</div>
+		<br id="lastUpdate">Last updated 11/27/2023</p>	</div>
 </div>
 
 </body>
