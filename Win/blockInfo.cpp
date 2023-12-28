@@ -102,7 +102,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /*  28 */ "Detector Rail",          		0xCD5E58, 1.000f, 0xff7711, 0xff7711, 0.12345f,   3,12, 0x00, BLF_FLATTEN | BLF_BILLBOARD | BLF_3D_BIT | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_CONNECTS_REDSTONE | BLF_OFFSET | BLF_MAYWATERLOG},
     { /*  29 */ "Sticky Piston",          		0x719e60, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12, 6, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT},	//1d
     { /*  30 */ "Cobweb",                 		0xeeeeee, 1.000f, 0xff7711, 0xff7711, 0.12345f,  11, 0, 0x00, BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID},	//1e
-    { /*  31 */ "Grass",       /*output!*/		0x8cbd57, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7, 2, 0x07, BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID},	//1f/31
+    { /*  31 */ "Short Grass", /* 1.20.3 name*/	0x8cbd57, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7, 2, 0x07, BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID},	//1f/31
     { /*  32 */ "Dead Bush",              		0x946428, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7, 3, 0x00, BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID},	//20/32
     { /*  33 */ "Piston",                 		0x95774b, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12, 6, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT},	//21
     { /*  34 */ "Piston Head",            		0x95774b, 1.000f, 0xff7711, 0xff7711, 0.12345f,  11, 6, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT},	//22/34

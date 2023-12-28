@@ -723,7 +723,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             // left for backward compatibility, I think it was called this long ago
             // (in Bedrock it's "Fern", though) https://minecraft.wiki/w/Grass#Block_states
             return "Dead Bush";
-        case 1:	// tall grass - really, the default name Grass
+        case 1:	// tall grass - really, the default name is Grass, but now Short Grass as of 1.20.3
             break; // return "TALL_GRASS";
         case 2:	// fern
             return "Fern";
@@ -952,7 +952,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         case 1:	// lilac
             return "Lilac";
         case 2:	// tall grass
-            return "Double Tallgrass";
+            return "Tall Grass";
         case 3:	// large fern
             return "Large Fern";
         case 4:	// rose bush

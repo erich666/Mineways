@@ -123,7 +123,7 @@ static struct {
     {  4,  2,  48, 0, L"mossy_cobblestone", L"cobblestone_mossy", SWATCH_REPEAT_ALL },
     {  5,  2,  49, 0, L"obsidian", L"", SWATCH_REPEAT_ALL },
     {  6,  2,   2, 0, L"grass_block_side_overlay", L"grass_side_overlay", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_ALPHA_OVERLAY }, // was "grass_side_overlay" - we use it for temporary work - grass_side_overlay tinted by grass.png, but we don't use it.
-    {  7,  2,  31, 0, L"grass", L"tallgrass", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYNTHESIZED },
+    {  7,  2,  31, 0, L"grass", L"short_grass", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYNTHESIZED },    // 1.20.3 changed grass to short_grass for ID and texture
     {  8,  2,   1, 0, L"MWO_workspace1", L"", SWATCH_REPEAT_ALL },	// we use it for temporary work - output as white? top grayscale, but we don't use it, nor does Mojang - left as "it's stone"
     {  9,  2,  54, 0, L"MWO_double_chest_front_left", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY }, // was beacon - taken by chest
     { 10,  2,  54, 0, L"MWO_double_chest_front_right", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },	// taken by chest
@@ -1199,6 +1199,7 @@ static const struct {
     { L"stone_diorite_smooth", L"polished_diorite" },    // JG-RTX
     { L"stonebrick_cracked", L"cracked_stone_bricks" },    // Muddle
     { L"sunflower_top_back", L"sunflower_top" },    // Doku craft - sunflower_top is not what we want
+    { L"tallgrass", L"grass" },    // old name - something once used it, I think...
     { L"trip_wire_hook", L"tripwire_hook" },    // Absolution
     { L"wool", L"white_wool" },    // PhotoCraft
 

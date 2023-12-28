@@ -373,7 +373,7 @@ static TranslationTuple* modTranslations = NULL;
 // attached: true/false
 #define ATTACHED_HANGING_SIGN   65
 
-#define NUM_TRANS 1011
+#define NUM_TRANS 1012
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -453,7 +453,8 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 161,           0, "acacia_leaves", LEAF_PROP },
     { 0, 161,           1, "dark_oak_leaves", LEAF_PROP },
     { 0,  32,           0, "dead_bush", NO_PROP },
-    { 0,  31,           1, "grass", NO_PROP }, // tall grass
+    { 0,  31,           1, "grass", NO_PROP },
+    { 0,  31,           1, "short_grass", NO_PROP }, // name change in 1.20.3, https://minecraft.wiki/w/Java_Edition_1.20.3
     { 0,  31,           2, "fern", NO_PROP },
     { 0,  19,           0, "sponge", NO_PROP },
     { 0,  19,           1, "wet_sponge", NO_PROP },
@@ -1411,6 +1412,8 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 208,       HIGH_BIT, "bamboo_hanging_sign", ATTACHED_HANGING_SIGN },
     { 0, 144,        6 << 4, "piglin_wall_head", HEAD_WALL_PROP },
     { 0, 144, 0x80 | 6 << 4, "piglin_head", HEAD_PROP },
+
+    // 1.20.3 additions (short_grass added next to "grass", above), https://minecraft.wiki/w/Java_Edition_1.20.3#General_2
 
  // Note: 140, 144 are reserved for the extra bit needed for BLOCK_FLOWER_POT and BLOCK_HEAD, so don't use these HIGH_BIT values
 };
