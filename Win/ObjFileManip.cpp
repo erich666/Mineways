@@ -725,7 +725,7 @@ static int saveSpecialVertices(int boxIndex, int faceDirection, IPoint loc, floa
 static int saveVertices(int boxIndex, int faceDirection, IPoint loc);
 static int saveFaceLoop(int boxIndex, int faceDirection, float heights[4], int heightIndex[4], int firstFace);
 static int getMaterialUsingGroup(int groupID);
-static void randomlyRotateTopAndBottomFace(int faceDirection, int boxIndex, int* localIndices, bool halfOnly = false);
+static void randomlyRotateTopAndBottomFace(int faceDirection, int boxIndex, int* localIndices, bool halfOnly = false, bool reflect = false);
 static int retrieveWoolSwatch(int dataVal);
 static int getSwatch(int type, int dataVal, int faceDirection, int backgroundIndex, int uvIndices[4]);
 static int getCompositeSwatch(int swatchLoc, int backgroundIndex, int faceDirection, int angle);
@@ -733,6 +733,7 @@ static int createCompositeSwatch(int swatchLoc, int backgroundSwatchLoc, int ang
 
 static void flipIndicesLeftRight(int localIndices[4]);
 static void rotateIndices(int localIndices[4], int angle);
+static void reflectIndices(int localIndices[4]);
 static void saveTextureCorners(int swatchLoc, int type, int uvIndices[4]);
 static void saveRectangleTextureUVs(int swatchLoc, int type, float minu, float maxu, float minv, float maxv, int uvIndices[4]);
 static int saveTextureUV(int swatchLoc, int type, float u, float v);
@@ -5062,10 +5063,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         return saveBillboardFaces(boxIndex, type, BB_SIDE);
 
     case BLOCK_LILY_PAD:					// saveBillboardOrGeometry
-    case BLOCK_FROGSPAWN:					// saveBillboardOrGeometry
-        // TODO: could randomize lily pad's rotation (it depends on location in Minecraft).
-        // Not doing it, because in part we'd be inconsistent between this and composite swatches,
+        // Randomize lily pad's rotation (it depends on location in Minecraft).
+        // Doing so makes this export inconsistent between this and composite swatches,
         // where the lily pad is always the same orientation (otherwise we'd need up to four swatches).
+        return saveBillboardFaces(boxIndex, type, BB_BOTTOM);
+
+    case BLOCK_FROGSPAWN:					// saveBillboardOrGeometry
         return saveBillboardFaces(boxIndex, type, BB_BOTTOM);
 
         /////////////////////////////////////////////////////////////////////////////////////////
@@ -13242,6 +13245,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     int origUsingTransform = gUsingTransform;
     bool fullHeight = false;
     bool singleSided = (gBlockDefinitions[type].flags & BLF_EMITTER) ? gModel.emitterSingleSided : gModel.singleSided;
+    int rotateIndex;
 
     assert(!gModel.print3D);
 
@@ -14202,10 +14206,19 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         // in which the lily pad is actually on top of a slab
         // Note that lily pads are officially 1.5/16 above still water: https://minecraft.wiki/w/Solid_block
         distanceOffset *= 0.5f;
-        Vec3Scalar(vertexOffsets[0][0], =, 1.0f, distanceOffset, 1.0f);
-        Vec3Scalar(vertexOffsets[0][1], =, 1.0f, distanceOffset, 0.0f);
-        Vec3Scalar(vertexOffsets[0][2], =, 0.0f, distanceOffset, 0.0f);
-        Vec3Scalar(vertexOffsets[0][3], =, 0.0f, distanceOffset, 1.0f);
+
+        // if it's a lily pad, we rotate the indices randomly
+        rotateIndex = 0;
+        if (type == BLOCK_LILY_PAD) {
+            int intangle;
+            randomRotation(boxIndex, intangle);
+            rotateIndex = intangle / 90;
+        }
+
+        Vec3Scalar(vertexOffsets[0][(rotateIndex + 0) % 4], =, 1.0f, distanceOffset, 1.0f);
+        Vec3Scalar(vertexOffsets[0][(rotateIndex + 1) % 4], =, 1.0f, distanceOffset, 0.0f);
+        Vec3Scalar(vertexOffsets[0][(rotateIndex + 2) % 4], =, 0.0f, distanceOffset, 0.0f);
+        Vec3Scalar(vertexOffsets[0][(rotateIndex + 3) % 4], =, 0.0f, distanceOffset, 1.0f);
         break;
 
         // corals
@@ -18731,7 +18744,7 @@ static int getMaterialUsingGroup(int groupID)
     return type;
 }
 
-static void randomlyRotateTopAndBottomFace(int faceDirection, int boxIndex, int* localIndices, bool halfOnly)
+static void randomlyRotateTopAndBottomFace(int faceDirection, int boxIndex, int* localIndices, bool halfOnly /*= false*/, bool reflect /*= false*/)
 {
     if (gModel.instancing || gModel.options->pEFD->chkDecimate || gModel.dontRandomizeRotations) {
         // don't rotate when instancing, since only one grass block is going to be set.
@@ -18743,6 +18756,13 @@ static void randomlyRotateTopAndBottomFace(int faceDirection, int boxIndex, int*
     if ((faceDirection == DIRECTION_BLOCK_TOP) || (faceDirection == DIRECTION_BLOCK_BOTTOM)) {
         // random rotation based on location - not same algorithm as Minecraft, but same idea
         randomRotation(boxIndex, angle);
+        if (reflect) {
+            // currently only for Stone
+            assert(halfOnly);   // we use the 90 and 270 angles as instead meaning "reflect"
+            if (angle == 90 || angle == 270) {
+                reflectIndices(localIndices);
+            }
+        }
         if (halfOnly) {
             // rotate 180 or not at all
             angle = (angle >= 180) ? 180 : 0;
@@ -19640,9 +19660,13 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 assert(0);
             case 0:
                 // no change, default stone is fine
+                randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices, true, true);
+                // TODO add reflection
                 break;
             case 1: // granite
                 swatchLoc = SWATCH_INDEX(8, 22);
+                // it rotates
+                randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
                 break;
             case 2: // polished granite
                 swatchLoc = SWATCH_INDEX(9, 22);
@@ -23133,6 +23157,17 @@ static void rotateIndices(int localIndices[4], int angle)
         localIndices[1] = tmp;
         break;
     }
+}
+
+static void reflectIndices(int localIndices[4])
+{
+    int tmp;
+    tmp = localIndices[0];
+    localIndices[0] = localIndices[1];
+    localIndices[1] = tmp;
+    tmp = localIndices[2];
+    localIndices[2] = localIndices[3];
+    localIndices[3] = tmp;
 }
 
 static void saveTextureCorners(int swatchLoc, int type, int uvIndices[4])
@@ -30759,14 +30794,9 @@ static int writeSchematicBox()
                     // unknown block?
                     if (gBoxData[boxIndex].type == BLOCK_UNKNOWN)
                     {
-                        // convert to bedrock, I guess...
-#ifdef _DEBUG
+                        // convert to whatever "Set unknown block ID" is set to (default is 7 - Bedrock)
                         data = 0x0;
-                        type = BLOCK_BEDROCK;
-#else
-                        data = 0x0;
-                        type = BLOCK_AIR;
-#endif
+                        type = (unsigned short)(GetUnknownBlockID() & 0xff);
                         retCode |= MW_UNKNOWN_BLOCK_TYPE_ENCOUNTERED;
                     }
                 }

@@ -55,7 +55,6 @@
 				<li><a href='http://www.flickr.com/groups/mineways/pool/'><span>Flickr</span></a></li>
 				<li><a href='https://www.google.com/search?q=mineways&newwindow=1&source=lnms&tbm=isch'><span>Google Images</span></a></li>
 				<li><a href='https://www.shapeways.com/search?q=mineways'><span>Shapeways</span></a></li>
-				<li><a href='http://www.sculpteo.com/en/gallery/today/?search=mineways'><span>Sculpteo</span></a></li>
 				<li class='last'><a href='https://sketchfab.com/tags/minecraft'><span>Sketchfab</span></a></li>
 			</ul>
 		</li>
@@ -1009,7 +1008,7 @@ Technical note: superhollow can sometimes create little separate objects at the 
 <P>
 Checking this box for 3D printing is risky, but will allow you to export slabs, stairs, and many other smaller elements as true geometry. <a href="#fullBlocksTable">The table</a> gives specifics about what is printable, under the "Lesser" column. The model produced with this option on can have some geometry that's tough for some 3D print slicers to process. The risk is that the service bureau or printer software cannot properly interpret your files. If you are printing a single-color model, use the free <a href="https://service.netfabb.com/login.php">cloud version of netfabb</a> to preprocess your model. Shapeways also uses <a href="https://www.autodesk.com/products/netfabb/overview">netfabb</a> to process your uploaded models, so you should have no problems with the mesh itself using their service. You may still have problems with features being too thin to reliably print. If you truly want to print some geometry that Mineways won't output for 3D printing, e.g., you want to make a large banner model, you can always export via rendering and perform cleanup yourself (such as removing billboards).
 <P>
-If you use another service bureau such as Sculpteo, look over your uploaded model for any missing block or texturing errors (well, as of 2021, Sculpteo does not support textured, colored output). Secret <a href="http://sculpteo.com">Sculpteo</a> trick: you can see a large view of your model by using the URL http://www.sculpteo.com/en/embed/design/&lt;xxx&gt;, where you put the 8 character identifier for your model in place of &lt;xxx&gt;. For example, for <a href="https://www.sculpteo.com/en/print/sand-castle-1/hfM9BZw2?">this model</a> the 8 characters in the URL are "hfM9BZw2", so use <a href="http://www.sculpteo.com/en/embed/design/hfM9BZw2">http://www.sculpteo.com/en/embed/design/hfM9BZw2</a> to see it large. Try these two links and compare.</p>
+If you use another service bureau such as Sculpteo, look over your uploaded model for any missing block or texturing errors (well, as of 2021, Sculpteo does not support textured, colored output). Secret <a href="http://sculpteo.com">Sculpteo</a> trick: you can see a large view of your model by using the URL http://www.sculpteo.com/en/embed/design/&lt;xxx&gt;, where you put the 8 character identifier for your model in place of &lt;xxx&gt;. For example, if your URL is <a href="https://www.sculpteo.com/en/print/sand-castle-1/hfM9BZw2?uuid=4OmRAVteIsyb9BYa10KM3b">https://www.sculpteo.com/en/print/sand-castle-1/hfM9BZw2?uuid=4OmRAVteIsyb9BYa10KM3b</a> the 8 characters in the URL are "hfM9BZw2", so use <a href="http://www.sculpteo.com/en/embed/design/hfM9BZw2">http://www.sculpteo.com/en/embed/design/hfM9BZw2</a> to see it large. (Sadly, I can't figure out how to make these URLs public for anyone to view; Sculpteo seems to have locked that down.)</p>
 
 <div id="slicerProbsSet">
   <div id="slicerProbs">
@@ -1503,16 +1502,7 @@ On the <a href="http://www.sculpteo.com/en/upload_design/3D/">upload page</a> ch
 <P>
 You should then get a page showing your model has been uploaded. You can interact with it in the viewport using left-mouse, right-mouse, middle-mouse, and scroll wheel. Pro tip: note that rotating by going up and down near the edge of the window gives a different rotation than going up and down in the middle. This can help you adjust the "up" direction.
 <P>
-You now have a number of options. The "Click to see repair work on your model" shows where objects were merged - usually not that useful. "See the price" brings you to the main page for the model. From here you can do a wide range of operations, and they're mostly self-explanatory. You can choose the material (colored by default), change the overall scale (and see the new price), or perform a solidity check. This last option is useful for seeing if some part of your model is likely to snap off during printing.
-<P>
-Note the links above these options. "Settings" lets you add photos, change your description and sharing options, and set the initial scale for the object. "Customize" gives some worthwhile options, such as engraving text, adding images and symbols, and smoothing the design. This last option can give a different sort of look to smaller models, though there is a risk of some bits of the model becoming detached when printed.
-<P>
-<div id="imgSmoothing">
-  <b>Smoothing:</b> done using Sculpteo's "smooth the design" customization option.
-  <P>
-  <img src="images/smoothing_happy_home.jpg">
-  <img src="images/smoothing_adobe.jpg">
-</div>
+You now have a range of options. One service worth checking is "Thickening" in the viewport. This view shows you whether your model is printable. Red areas are likely too thin to print properly.
 
 <HR>
 <H2 id="scripting">
@@ -2891,14 +2881,16 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
   <BR>
     <UL>
 	<LI>Update to <a href="https://minecraft.wiki/w/Java_Edition_1.20.3#Blocks">1.20.3</a> (and 1.20.4), changing "grass" to "short grass" throughout and updating textures. The experimental 1.21 copper and tuff block types have not yet been added (that happens only on major releases).
+	<LI>Convert unknown blocks to Bedrock by default, for all versions. These were being converted to Air. The block type can be changed using <a href="scripting.html#soc">"Set unknown block ID"</a> or <a href="scripting.html#soc">"Translate"</a> commands, as before. <I>(Thanks to abidcahngrembel for debugging help by send a modded map and testing)</I>
 	<LI>Fix map export to properly draw the correct layer. The old code did not properly add 64. <I>(Thanks to y.it for the bug report)</I>
 	<LI>Add a comment line to the OBJ file when exporting individual blocks, so you can see what each block type is.
 	<LI>Add random rotation for concrete powder and rooted dirt blocks.
 	<LI>Allow barriers to be waterlogged (1.20.2 creative mode change).
-	<LI>TODO: add mirroring and 180-degree rotation for Stone
+	<LI>Add mirroring and 180-degree rotation for Stone.
 	<LI>TODO: add random rotation for sides of blocks for Netherrack.
-	<LI>TODO: randomize lily orientation.
-	<LI>For modded 1.12 worlds and earlier, unknown type numbers are turned into bedrock or whatever scripting number <a href="scripting.html#soc">"Set unknown block ID"</a> is set to.
+	<LI>TODO: suppress Sketchfab dialogs with -suppress
+	<LI>Randomize lily orientation for rendering export (only; 3d printing composite textures would be messy).
+	<LI>Remove Sculpteo from menus, as it no longer has much of a storefront for models.
 	</UL>
 
 <LI>Version 11.04, 10/12/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1104.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
@@ -4183,8 +4175,7 @@ Some links I commonly use.
 <LI><b><a href="http://www.flickr.com/groups/mineways/pool/">Mineways Flickr group</a></b>. Best photo so far: <a href="http://www.flickr.com/photos/postapocalyptic/6606221371/in/pool-1862849@N21/">this one</a> (not made in Mineways, but it could have been). Note: logging into Flickr appears to <a href="http://www.flickr.com/help/forum/82334/?search=group+visible">allow you to see more images</a> in this group, due to their account review policy. If you submit images, I recommend submitting 5 or more (do some close ups) to avoid their limitations - less than 5 and your photos can only be seen by people signed into Flickr (goofy, I know).
 <LI>Search Shapeways for models tagged with <a href="http://www.shapeways.com/search?q=minecraft">"Minecraft"</a> or <a href="http://www.shapeways.com/search?q=mineways">"Mineways"</a>. You can also <a href="https://www.google.com/search?hl=en&rlz=1C1ARAB_enUS470US470&q=site:shapeways.com+minecraft&ix=sea&bav=on.2,or.r_gc.r_pw.r_cp.r_qf.,cf.osb&biw=1920&bih=1032&um=1&ie=UTF-8&tbm=isch&source=og&sa=N&tab=wi&ei=VHqDT4yKE4ig9QTn_KX2Bw">search via Google Images</a>.
 <LI><a href="http://www.shapeways.com/shops/mineways">My modest (non-profit) Shapeways shop</a> shows some buildings I've exported and purchased, mostly for friends. You can look at photos, check prices, and download the models themselves.
-<LI><a href="http://www.sculpteo.com/en/gallery/public/eerich666/">My even more modest Sculpteo shop</a> shows a few test models. I'm extremely impressed by Sculpteo's website and technologies. Prices are a bit higher than Shapeways, but they work with the <a href="#lesser">"Export lesser blocks" option</a> extremely well.
-<LI>It's also possible to host models on <a href="https://sketchfab.com/erich">Sketchfab</a>, as I have done here.
+<LI>You can upload and host models on <a href="https://sketchfab.com">Sketchfab</a>. Here's <a href="https://sketchfab.com/erich">my area</a>, and here's <a href="https://sketchfab.com/search?q=mineways&type=models">all models tagged with "Mineways"</a>.
 <LI>If you're using 3D printing and Minecraft in the classroom, one place to look for support is the <a href="https://groups.google.com/forum/#!forum/minecraft-teachers">Minecraft teachers Google Group</a>.
 <LI>You can download <a href="https://erich.realtimerendering.com/minecraft/public/mineways/presentations">some slidesets</a> I've used in talks and workshops on 3D printing and Minecraft. Feel free to reuse them in reasonable, Fair Use ways.
 <LI>Things made at the Cambridge Science Festival and by <a href="http://partsandcrafts.org/">Parts &amp; Crafts</a> workshop participants are <a href="http://www.shapeways.com/shops/csf">here</a> on the Shapeways site.

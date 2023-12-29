@@ -55,7 +55,6 @@
 				<li><a href='http://www.flickr.com/groups/mineways/pool/'><span>Flickr</span></a></li>
 				<li><a href='https://www.google.com/search?q=mineways&newwindow=1&source=lnms&tbm=isch'><span>Google Images</span></a></li>
 				<li><a href='https://www.shapeways.com/search?q=mineways'><span>Shapeways</span></a></li>
-				<li><a href='http://www.sculpteo.com/en/gallery/today/?search=mineways'><span>Sculpteo</span></a></li>
 				<li class='last'><a href='https://sketchfab.com/tags/minecraft'><span>Sketchfab</span></a></li>
 			</ul>
 		</li>
@@ -743,7 +742,9 @@ Clear out all stored 'Change blocks' commands. While exporting will clear out an
 Set unknown block ID: <i>322</i>
 </td>
 <td>
-Set this value before opening a modded world, e.g., in a startup script. Modded worlds have block types not understood by Mineways. By default, unknown blocks are converted to bedrock blocks. You can set a <a href="https://github.com/erich666/Mineways/blob/master/Win/blockInfo.cpp#L72">block family ID</a> that you want to use instead. Note that after the unknown block is turned into that block type, it is treated exactly like that block type, including gettings its faces removed if the face is fully covered by a neighboring block. To have the unknown block not get culled in this way, for Minecraft 1.13 you might consider using ID 322, "conduit", to give a small floating block that will not be removed or modified (because it doesn't have geometry on the faces of the voxel). For Minecraft 1.12 and earlier this value must be 255 or lower.
+Set this value before opening a modded world. Modded worlds have block types not understood by Mineways. By default, unknown blocks are converted to bedrock blocks. You can set a <a href="https://github.com/erich666/Mineways/blob/master/Win/blockInfo.cpp#L72">block family ID</a> that you want to use instead. Note that after the unknown block is turned into that block type, it is treated exactly like that block type, including gettings its faces removed if the face is fully covered by a neighboring block.
+<P>
+By default the ID is set to 7, Bedrock. For Minecraft 1.12 and earlier this value must be 255 or lower. You might prefer setting it to, say, 103 - Melon. See "Translate" for a more powerful way to translate unknown blocks.
 </td>
 </tr>
 
@@ -1094,7 +1095,7 @@ Running the script to set up the scene, then exporting (manually) to Sketchfab, 
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 12/27/2023</p>	</div>
+		<br id="lastUpdate">Last updated 12/29/2023</p>	</div>
 </div>
 
 </body>

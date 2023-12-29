@@ -79,13 +79,8 @@ static int gUnknownBlock = 0;
 static int gPerformUnknownBlockCheck = 1;
 static char gUnknownBlockName[MAX_PATH_AND_FILE];   // this length only because that name is global
 // What block ID should be used for any unknown blocks?
-#ifdef _DEBUG
 // Make it bedrock, so we see it's not translated
 static int gUnknownBlockID = 7;
-#else
-// Make unknown blocks air (0) by default
-static int gUnknownBlockID = 0;
-#endif
 
 static wchar_t gSeparator[3];
 
