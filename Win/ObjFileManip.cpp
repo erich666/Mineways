@@ -622,6 +622,9 @@ static int computeFlatFlags(int boxIndex);
 static int firstFaceModifier(int isFirst, int faceIndex);
 static void wobbleObjectLocation(int boxIndex, float& shiftX, float& shiftZ);
 static void randomRotation(int boxIndex, int& angle);
+static float getChorusRand3to1(int boxIndex);
+static float getRand3to1(int boxIndex);
+
 static bool fenceNeighbor(int type, int boxIndex, int blockSide);
 static int saveBillboardOrGeometry(int boxIndex, int type);
 static void makePinkPetalFlowerStem(int boxIndex, int type, int dataVal, int swatchLoc, float x, float y, int height);
@@ -725,7 +728,8 @@ static int saveSpecialVertices(int boxIndex, int faceDirection, IPoint loc, floa
 static int saveVertices(int boxIndex, int faceDirection, IPoint loc);
 static int saveFaceLoop(int boxIndex, int faceDirection, float heights[4], int heightIndex[4], int firstFace);
 static int getMaterialUsingGroup(int groupID);
-static void randomlyRotateTopAndBottomFace(int faceDirection, int boxIndex, int* localIndices, bool halfOnly = false, bool reflect = false);
+static void randomlyRotateTopAndBottomFace(int faceDirection, int boxIndex, int* localIndices, bool halfOnly = false, bool allFaces = false);
+static void randomlyRotate180AndReflect(int faceDirection, int boxIndex, int* localIndices);
 static int retrieveWoolSwatch(int dataVal);
 static int getSwatch(int type, int dataVal, int faceDirection, int backgroundIndex, int uvIndices[4]);
 static int getCompositeSwatch(int swatchLoc, int backgroundIndex, int faceDirection, int angle);
@@ -4454,31 +4458,41 @@ static void wobbleObjectLocation(int boxIndex, float& shiftX, float& shiftZ)
     shiftZ = 6.0f * val - 3.0f;
 }
 
+// really should just return the angle value
 static void randomRotation(int boxIndex, int& angle)
 {
-    int x, y, z;
-    BOX_INDEX_TO_WORLD_XYZ(boxIndex, x, y, z);  // cppcheck-suppress 563
-    // make the numbers positive
-    x += 100001;
-    z += 101031;
+    angle = 90 * (int)(4.0f * getRand3to1(boxIndex));
 
-    // xxhash32(uint2 p)
-    const unsigned int PRIME32_2 = 2246822519U, PRIME32_3 = 3266489917U;
-    const unsigned int PRIME32_4 = 668265263U, PRIME32_5 = 374761393U;
-    unsigned int h32 = (unsigned int)z + PRIME32_5 + (unsigned int)x * PRIME32_3;
-    h32 = PRIME32_4 * ((h32 << 17) | (h32 >> (32 - 17)));
-    h32 = PRIME32_2 * (h32 ^ (h32 >> 15));
-    h32 = PRIME32_3 * (h32 ^ (h32 >> 13));
-    float val = (float)(h32 ^ (h32 >> 16)) / 4294967296.0f;
-    angle = 90 * (int)(4.0f * val);
+    // old code - does not use y value, so no good for netherrack rotations, stone mirroring on vertical walls, etc.
+    //int x, y, z;
+    //BOX_INDEX_TO_WORLD_XYZ(boxIndex, x, y, z);  // cppcheck-suppress 563
+    //// make the numbers positive
+    //x += 100001;
+    //z += 101031;
+
+    //// xxhash32(uint2 p)
+    //const unsigned int PRIME32_2 = 2246822519U, PRIME32_3 = 3266489917U;
+    //const unsigned int PRIME32_4 = 668265263U, PRIME32_5 = 374761393U;
+    //unsigned int h32 = (unsigned int)z + PRIME32_5 + (unsigned int)x * PRIME32_3;
+    //h32 = PRIME32_4 * ((h32 << 17) | (h32 >> (32 - 17)));
+    //h32 = PRIME32_2 * (h32 ^ (h32 >> 15));
+    //h32 = PRIME32_3 * (h32 ^ (h32 >> 13));
+    //float val = (float)(h32 ^ (h32 >> 16)) / 4294967296.0f;
+    //angle = 90 * (int)(4.0f * val);
 }
 
-static float getRand3to1(int boxIndex)
+static float getChorusRand3to1(int boxIndex)
 {
     if (gModel.instancing) {
         // chorus plant random bulges - keep consistent when instancing, so that position won't affect these
-        return 65.0f/256.0f;
+        return 65.0f / 256.0f;
     }
+    return getRand3to1(boxIndex);
+}
+
+// return value [0.0,1.0) given XYZ location
+static float getRand3to1(int boxIndex)
+{
     int bx, by, bz;
     BOX_INDEX_TO_WORLD_XYZ(boxIndex, bx, by, bz);
     // make the location numbers positive (y already is)
@@ -5797,14 +5811,14 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // side panels:
         // if adjacent to chorus plant or flower, certainly extend.
         // else extend randomly, based on random value: 50/50 there's a growth or not, and 50/50 the growth is a 6x6/8x8
-        int odds = (int)(getRand3to1(boxIndex) * 256.0f);
+        int odds = (int)(getChorusRand3to1(boxIndex) * 256.0f);
         int fallbackBoxIndex = boxIndex;
         int count = 0;
         // if all bump out bits are on (no bumps) or all are off (four bumps), get another value, as those two values are not valid
         while (((odds & 0x55) == 0x55) || ((odds & 0x55) == 0x0)) {
             // Can't use boxIndex again, as it will give the same result. Somewhat random increment:
             fallbackBoxIndex += 12345;
-            odds = (int)(getRand3to1(fallbackBoxIndex) * 256.0f);
+            odds = (int)(getChorusRand3to1(fallbackBoxIndex) * 256.0f);
             count++;
             if (count == 10) {
                 // something is very wrong with getRand3to1
@@ -18744,31 +18758,47 @@ static int getMaterialUsingGroup(int groupID)
     return type;
 }
 
-static void randomlyRotateTopAndBottomFace(int faceDirection, int boxIndex, int* localIndices, bool halfOnly /*= false*/, bool reflect /*= false*/)
+static void randomlyRotateTopAndBottomFace(int faceDirection, int boxIndex, int* localIndices, bool halfOnly /*= false*/, bool allFaces /*= false*/)
 {
     if (gModel.instancing || gModel.options->pEFD->chkDecimate || gModel.dontRandomizeRotations) {
-        // don't rotate when instancing, since only one grass block is going to be set.
+        // don't rotate when instancing, since only one block is going to be set.
         // An alternative would be to set a rotation value for the block.
         // Decimation also needs to avoid rotation, see https://github.com/erich666/Mineways/issues/60
         return;
     }
     int angle;  // cppcheck-suppress 398
-    if ((faceDirection == DIRECTION_BLOCK_TOP) || (faceDirection == DIRECTION_BLOCK_BOTTOM)) {
+    if (allFaces || (faceDirection == DIRECTION_BLOCK_TOP) || (faceDirection == DIRECTION_BLOCK_BOTTOM)) {
         // random rotation based on location - not same algorithm as Minecraft, but same idea
         randomRotation(boxIndex, angle);
-        if (reflect) {
-            // currently only for Stone
-            assert(halfOnly);   // we use the 90 and 270 angles as instead meaning "reflect"
-            if (angle == 90 || angle == 270) {
-                reflectIndices(localIndices);
-            }
-        }
         if (halfOnly) {
             // rotate 180 or not at all
             angle = (angle >= 180) ? 180 : 0;
         }
         if (angle != 0) {
             rotateIndices(localIndices, angle);
+        }
+    }
+}
+
+// reflect randomly, and rotate 180 if on top or bottom
+static void randomlyRotate180AndReflect(int faceDirection, int boxIndex, int* localIndices)
+{
+    if (gModel.instancing || gModel.options->pEFD->chkDecimate || gModel.dontRandomizeRotations) {
+        // don't rotate when instancing, since only one block is going to be set.
+        // An alternative would be to set a rotation and reflection value for the block.
+        // Decimation also needs to avoid rotation, see https://github.com/erich666/Mineways/issues/60
+        return;
+    }
+    int angle;  // cppcheck-suppress 398
+    randomRotation(boxIndex, angle);
+    if ((faceDirection == DIRECTION_BLOCK_TOP) || (faceDirection == DIRECTION_BLOCK_BOTTOM)) {
+        // use 90 and 270 as meaning "reflect" bit, instead of rotating this much
+        if (angle == 90 || angle == 270) {
+            reflectIndices(localIndices);
+        }
+        // rotate 180 or not at all; 50% chance angle is 180 or 270
+        if (angle >= 180) {
+            rotateIndices(localIndices, 180);
         }
     }
 }
@@ -19068,11 +19098,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
 
         case BLOCK_BEDROCK:
             // half-rotate tops and bottoms randomly
-            randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices, true);
+            randomlyRotate180AndReflect(faceDirection, backgroundIndex, localIndices);
             break;
         case BLOCK_NETHERRACK:
-            randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
-            // TODO: should also rotate sides - it's the only one that does this, AFAIK.
+            randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices, false, true);
             break;
         case BLOCK_STONE_DOUBLE_SLAB:						// getSwatch
         case BLOCK_STONE_SLAB:
@@ -19660,13 +19689,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 assert(0);
             case 0:
                 // no change, default stone is fine
-                randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices, true, true);
-                // TODO add reflection
+                randomlyRotate180AndReflect(faceDirection, backgroundIndex, localIndices);
                 break;
             case 1: // granite
                 swatchLoc = SWATCH_INDEX(8, 22);
-                // it rotates
-                randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
                 break;
             case 2: // polished granite
                 swatchLoc = SWATCH_INDEX(9, 22);
@@ -21521,6 +21547,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             case 0:
             default:
                 // default
+                randomlyRotate180AndReflect(faceDirection, backgroundIndex, localIndices);
                 break;
             case 1: // cobblestone
                 swatchLoc = SWATCH_INDEX(0, 1);
@@ -22161,7 +22188,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             switch (dataVal & 0x13) {
             default:
                 assert(0);
-            case 0:
+            case 0: // bone block default
                 SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection,
                     gBlockDefinitions[BLOCK_BONE_BLOCK].txrX - 1, gBlockDefinitions[BLOCK_BONE_BLOCK].txrY,	// sides
                     gBlockDefinitions[BLOCK_BONE_BLOCK].txrX, gBlockDefinitions[BLOCK_BONE_BLOCK].txrY);	// top
@@ -22172,13 +22199,26 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             case 2: // polished_basalt
                 SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 10, 42, 9, 42);
                 break;
+
             case 3: // deepslate
-            case BIT_16: // deepslate
+            case BIT_16: // infested deepslate
                 SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 5, 53, 4, 53);
+                // reflect and rotate 180 degrees, randomly, based on location
+                // see 1.20.4\assets\minecraft\blockstates\deepslate.json
+                if (uvIndices) {
+                    int rotref = (int)(4.0f * getRand3to1(backgroundIndex));
+                    if (rotref >= 2) {
+                        reflectIndices(localIndices);
+                    }
+                    if ((rotref % 2) == 1) {
+                        angle += 180;
+                    }
+                }
                 break;
             }
             // probably not quite right, but better than not doing this; at least all the sides, regardless of direction,
             // follow the axis, though may be flipped vertically or horizontally (for the NS and EW axis blocks)
+            // Deepslate (and infested deepslate) are more involved, possibly reflecting.
             if (angle != 0 && uvIndices)
                 rotateIndices(localIndices, angle);
             //if (flip && uvIndices)
@@ -22746,6 +22786,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 swatchLoc = SWATCH_INDEX(10, 55);
                 break;
             case 47: // Sculk
+                randomlyRotate180AndReflect(faceDirection, backgroundIndex, localIndices);
                 swatchLoc = SWATCH_INDEX(1, 56);
                 break;
             }
@@ -23129,6 +23170,11 @@ static void flipIndicesLeftRight(int localIndices[4])
     localIndices[3] = tmp;
 }
 
+// To tell if a face rotates, look at the file, e.g.,
+// Minecraft_1.20.4\assets\minecraft\blockstates\rooted_dirt.json
+// and see if there's a "variant" that is "y": 180
+// this means the Y (top and bottom) faces can be rotated 180 degrees.
+// For reflection, look for "_mirrored" in the texture name, as that means reflection is possible
 static void rotateIndices(int localIndices[4], int angle)
 {
     int tmp;
