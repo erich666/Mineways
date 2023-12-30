@@ -4509,6 +4509,8 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileNa
     gpEFD->radioScaleToHeight = 1;
     gpEFD->radioScaleByCost = 0;
     gpEFD->chkCreateModelFiles[gpEFD->fileType] = 0;
+    // faces must be doubled for Sketchfab
+    gpEFD->chkDoubledBillboards = 1;
 
     int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gExeDirectory,
         gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gMinHeight, gMaxHeight,
