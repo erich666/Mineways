@@ -8,7 +8,7 @@
 #include "tiles.h"
 #include "tilegrid.h"
 
-#define	VERSION_STRING	L"1.15"
+#define	VERSION_STRING	L"1.16"
 
 // how the green and blue tiles get tinted
 //#define FOLIAGE_GREEN	0x8cbd57
@@ -1269,7 +1269,7 @@ static bool setChestDirectory(const wchar_t* outputDirectory, wchar_t* outputChe
 	// this operation is not done much.
 	wcscpy_s(outputChestDirectory, MAX_PATH, outputDirectory);
 	// Note: the \\ is put at the end here, so we don't have to do it elsewhere
-	wcscat_s(outputChestDirectory, MAX_PATH, L"\\chest\\");
+	wcscat_s(outputChestDirectory, MAX_PATH, L"chest\\");
 	
 	// lazy global - check if we've done this operation before
 	if (!gChestDirectoryExists && !gChestDirectoryFailed) {
@@ -1292,7 +1292,7 @@ static bool setPotDirectory(const wchar_t* outputDirectory, wchar_t* outputPotDi
 	// this operation is not done much.
 	wcscpy_s(outputPotDirectory, MAX_PATH, outputDirectory);
 	// Note: the \\ is put at the end here, so we don't have to do it elsewhere
-	wcscat_s(outputPotDirectory, MAX_PATH, L"\\decorated_pot\\");
+	wcscat_s(outputPotDirectory, MAX_PATH, L"decorated_pot\\");
 
 	// lazy global - check if we've done this operation before
 	if (!gDecoratedPotDirectoryExists && !gDecoratedPotDirectoryFailed) {

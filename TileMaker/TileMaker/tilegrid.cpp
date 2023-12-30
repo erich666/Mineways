@@ -135,7 +135,11 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg
 				// In other words, don't check the original directory passed in for "block", to avoid cases like the original path being:
 				// c:\temp\my_block_processing\Vanilla\ where Vanilla is where you put the resource pack, as ALL subdirectories will be
 				// considered to be "block" directories.
-				if (topmost || wcsstr(tilePathAppended + origTPLen, L"block") != NULL) {
+				if (topmost ||
+					wcsstr(tilePathAppended + origTPLen, L"block") != NULL ||
+					wcsstr(tilePathAppended + origTPLen, L"decorated_pot") != NULL ||	// for decorated_pot_side.png
+					wcsstr(tilePathAppended + origTPLen, L"item") != NULL	// for barrier.png
+					) {
 					int status = testIfTileExists(pfg, tilePathAppended, ffd.cFileName, verbose, alternate, warnUnused, warnDups);
 					if (status == FILE_FOUND || status == FILE_FOUND_AND_DUPLICATE) {
 						used = 1;

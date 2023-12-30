@@ -3,7 +3,7 @@
 
 **begun 11/14/2011**
 
-**http://mineways.com**
+**http://mineways.com which redirects to https://www.realtimerendering.com/erich/minecraft/public/mineways/**
 
 Mineways is an open-source GUI program that exports Minecraft maps into 3D models for use in 3D software, printing and rendering. Mineways supports most Minecraft: Java Edition versions and offers many settings and functionality to customize the map export to your needs.
 
@@ -11,7 +11,7 @@ Mineways is an open-source GUI program that exports Minecraft maps into 3D model
 
 # Download
 
-[Visit the project homepage](http://mineways.com) or [the Releases page](https://github.com/erich666/Mineways/releases) in this repository for executables for Windows and MacOS.
+[Visit the project homepage](https://www.realtimerendering.com/erich/minecraft/public/mineways/) or [the Releases page](https://github.com/erich666/Mineways/releases) in this repository for executables for Windows and MacOS.
 
 Documentation links, credits, etc are also avaliable in the homepage.
 Much of the mapping and UI code is built on the open-source project [Minutor](http://seancode.com/minutor/).

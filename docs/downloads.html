@@ -75,13 +75,13 @@
 			<div id="downloadImgs" class="helpLightOuterSector">
 				<a href="https://erich.realtimerendering.com/minecraft/public/mineways/mineways.zip">
 				<div id="windowsDownload">
-					<p>Download for Windows</p>
+					<p><B>Download for Windows</B></p>
 					<img id="windows_logo" src="images/windowsLogo.jpg" alt="Windows logo">
 				</div>		
 				</a>
-				<a href="https://erich.realtimerendering.com/minecraft/public/mineways/MinewaysMacInstaller_10.04.zip">
+				<a href="https://erich.realtimerendering.com/minecraft/public/mineways/MinewaysMacInstaller_11.04.zip">
 				<div id="appleDownload">
-					<p>Download Mineways 10.04 for Mac</p>
+					<p><B>Download Mineways 11.04 for Mac</B></p>
 					<img id="apple_logo" src="images/appleLogo.jpg" alt="Apple logo"> 
 				</div>
 				</a>				
@@ -176,7 +176,7 @@
 					<P>
 					To use Mineways on the Mac, download <a href="https://erich.realtimerendering.com/minecraft/public/mineways/MinewaysMacInstaller_11.04.zip">Mineways 11.04 on Wineskin</a> (370 Mb), which runs on Big Sur (<I>thanks, Hypersun_pro/Froxcey!</I>). You'll likely get a message that this pkg cannot be opened because it is from an unidentified developer. If you instead right-click the pkg file and select "Open" and confirm, you can then install it. The steps done to make the Mineways Mac version are <a href="https://www.youtube.com/watch?v=-7cY5KT8rdw">shown in this tutorial</a>.
 					<P>
-					Other options: you can use <a href="https://www.playonmac.com/en/">PlayOnMac</a>, which is free. Using it, run Mineways32.exe in the <a href="downloads.html">Windows distribution</a> (now called "for_old_machines_Mineways32.exe"), the 32-bit version. Just in case there's a problem with this option on your machine, I'll list other options, from cheapest to most expensive.
+					Other options: you can use <a href="#linuxPlatformHelp">Wine</a> if you know what you're doing. Another option is <a href="https://www.playonmac.com/en/">PlayOnMac</a>, which is free. Using it, run Mineways32.exe in the <a href="downloads.html">Windows distribution</a> (now called "for_old_machines_Mineways32.exe"), the 32-bit version.
 					<P>
 					Other options that may work include <a href="https://www.vmware.com/products/fusion.html">VMware Fusion</a>, which is free to students and home users (i.e., you), and <a href="https://www.parallels.com/">Parallels</a>, which has a free trial.
 					<P>
@@ -209,13 +209,10 @@
 						Still stuck? See the <a href="#generalTrouble">General Troubleshooting</a> section below.
 					<P>
 					Feel free <a href="contact.html">to write me</a> if you have problems. The more you describe what you've tried, what happened or didn't happen, and what type of computer you're on (Windows 10, Mac, etc.), the more chance I have of helping you.
-					<P>
-					I once supported a Mac version using <a href="http://winebottler.kronenberg.org/">WineBottler</a>, it worked on only the 32-bit version of Mineways. However, now WineBottler doesn't even work on this, it gives an error about "__wine_spec_unimplemented_stub+0x3f() in api-ms-win-crt-runtime-l1-1-0". If you're an expert, let me know if you have ideas for a fix. The last working version of Mineways that is "self-contained," that doesn't need WINE or Crossover or Boot Camp, is <a href="https://erich.realtimerendering.com/minecraft/public/mineways/MinewaysMac510.zip">version 5.10, 32-bit only</a>. This version is ancient - it does not let you read 1.13 or newer worlds, for example.
-					<P> If you're feeling extremely lucky, here are my old Winebottler instructions to make mineways32.exe into a Mac app. Like I say above, THESE NO LONGER WORK, but maybe someday they'll work again. Instructions: Start WineBottler up and click on "Advanced", the rightmost icon at the top of the application. <a href="images/winebottler.png">Here's a screenshot of the settings</a> I use; I've renamed mineways32.exe to be Mineways.exe for this example (and deleted the original mineways.exe from the set of files, since it's not needed). Click "Install", save to the "Documents" directory, and "Save As: Mineways". Wait a while, and then you can run (and redistribute) the Mineways.app produced. Note: do <I>not</I> save to the original Mineways directory where the mineways32.exe file is located, as this will cause a loop and the program will never finish. Note to self: download the original to the desktop. Output to Documents. Zip it up. Upload the zip, that's what gets distributed. Test by copying zip to Applications and double-clicking - should just run. However, nowadays the Mineways zip file produced fails on startup. 
 				</div>
 				<div id="linuxPlatformHelp" class="helpInnerSector">
 					<h2 id="linux">Linux</h2>
-					<p>For Linux, download the Windows version and then use <a href="http://www.winehq.org/">WINE</a> to emulate Windows while running the 32-bit mineways32.exe (now "for_old_machines_Mineways32.exe") version. The 64-bit version, mineways.exe, may also work, <a href="https://wiki.winehq.org/FAQ#Is_there_a_64_bit_Wine.3F">according to this FAQ</a>. Note: this also works on the Mac; the Mac version is merely the Windows version plus the WINE executables wrapped around it. That said, some Ubuntu Linux users have had problems (that I haven't figured out yet - something about GetMessage...) with version 5.00 and on. Linux is not "supported" by Mineways; I don't have Linux on any machine, I've never tried Mineways on Linux, I've been told it sometimes works. <a href="https://www.codeweavers.com/products/">Crossover</a> for Linux may work for you (see my <a href="#mac">Mac instructions above</a>) - let me know. One other bit of advice: try starting up with "mineways -s none" if you get a warning about the worlds directory not being found.</p>
+					<p>For Linux, download the Windows version and then use <a href="http://www.winehq.org/">WINE</a> to emulate Windows. You should be able to use the normal 64-bit mineways.exe, according to users and <a href="https://wiki.winehq.org/FAQ#Is_there_a_64_bit_Wine.3F">this FAQ</a>. Note: Wine also works on the Mac; the downloadable Mac version <a href="#mac">here</a> is the Windows version plus the Wine executables wrapped around it. That said, some Ubuntu Linux users have had problems (that I haven't figured out - something about GetMessage...). Linux is not "supported" by Mineways; I don't have Linux on any machine, I've never tried Mineways on Linux, I've been told it sometimes works. <a href="https://www.codeweavers.com/products/">Crossover</a> for Linux may work for you (see my <a href="#mac">Mac instructions above</a>) - let me know. One other bit of advice: try starting up with "mineways -s none" if you get a warning about the worlds directory not being found.</p>
 				</div>
 			</div>
 			<div id="troubleshooting" class="helpLightOuterSector">
@@ -277,7 +274,7 @@
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 10/15/2023</p>	</div>
+		<br id="lastUpdate">Last updated 12/29/2023</p>	</div>
 
 </body>
 </html>

@@ -26,14 +26,18 @@ del blocks_jgrtx\lava_flow_r.png
 del blocks_jgrtx\lava_flow_m.png
 del blocks_jgrtx\water_flow_m.png
 del blocks_jgrtx\dispenser_front_horizontal_m.png
-del blocks_jgrtx\obsidian_m.png
-del blocks_jgrtx\crying_obsidian_m.png
+@rem not sure why I wanted to delete this one, looks OK now: del blocks_jgrtx\crying_obsidian_m.png
+@rem there's a _normal and _n version of these - the _n does nothing
 del blocks_jgrtx\piston_top_sticky_n.png
 @rem echo there are a bunch of blocks_jgrtx with tiny mild flecks of metal in them - I wouldn't bother
-del blocks_jgrtx\deepslate_diamond_ore_m.png
+@rem del blocks_jgrtx\deepslate_diamond_ore_m.png
+del blocks_jgrtx\amethyst_cluster.png
 
-TileMaker.exe -v -m -i terrainBase.png -d blocks_jgrtx -o terrainExt_JG-RTX64.png -t 64 > tilemaker64.log
-TileMaker.exe -v -m -i terrainBase.png -d blocks_jgrtx -o terrainExt_JG-RTX256.png -t 256 > tilemaker256.log
+@rem some tiles with the same names, need to get the good one:
+copy C:\temp\jg-rtx-main\java\pack\assets\minecraft\textures\block\grass.png blocks_jgrtx
+
+TileMaker.exe -v -m -i C:\temp/terrainExt_JG-RTX64.png -d blocks_jgrtx -o terrainExt_JG-RTX64.png -t 64 > tilemaker64.log
+TileMaker.exe -v -m -i C:\temp/terrainExt_JG-RTX256.png -d blocks_jgrtx -o terrainExt_JG-RTX256.png -t 256 > tilemaker256.log
 
 @rem echo ============= debug stuff
 @rem echo DEBUG: separate blocks_jgrtx to look through
