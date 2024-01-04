@@ -16,7 +16,7 @@
 #include "tiles.h"
 #include "tilegrid.h"
 
-#define	VERSION_STRING	L"3.21"
+#define	VERSION_STRING	L"3.22"
 
 //#define TILE_PATH	L".\\blocks\\"
 #define BASE_INPUT_FILENAME			L"terrainBase.png"
@@ -199,7 +199,7 @@ static void copyPNGArea(progimage_info* dst, unsigned long dst_x_min, unsigned l
 
 static int checkForCutout(progimage_info* dst);
 static int isNormalMapZ01(progimage_info& tile);
-static bool cleanNormalMap(progimage_info& tile, int type);
+static void cleanNormalMap(progimage_info& tile, int type);
 static int convertHeightfieldToXYZ(progimage_info* src, float heightfieldScale);
 
 static bool rotateTileIfHorizontal(progimage_info& tile);
@@ -253,6 +253,7 @@ int wmain(int argc, wchar_t* argv[])
 	float heightfieldScale = 0.5f;
 	int normalsCount = 0;
 	bool cleanNormals = true;
+	bool favor_normal_over_n = false;
 	bool normalsZoom = false;
 
 	bool allChests = true;
@@ -384,6 +385,14 @@ int wmain(int argc, wchar_t* argv[])
 			// no base background image; mostly for debug, to see which tiles we actually have ready.
 			cleanNormals = false;
 		}
+		else if (wcscmp(argv[argLoc], L"-fnormal") == 0)
+		{
+			// favor _n over _normal; in JG-RTX, for example, _normal is Bedrock and _n is Java.
+			// Bedrock _normal.png is more "seminal", with RGB->XYZ, Java _n.png(though it sounds better) is derivative,
+			// with only RG->XY (derive Z) but for some reason the XY's don't match Bedrock's XYs.
+			// The B blue channel for Java is AO, used by LabPBR.
+			favor_normal_over_n = true;
+			}
 		else
 		{
 			printHelp();
@@ -700,7 +709,13 @@ int wmain(int argc, wchar_t* argv[])
 		gWarningCount++;
 	}
 
-	// if there are _n and _normal and _heightmap textures for the same tile, favor the _n textures
+	// if there are _n and _normal and _heightmap textures for the same tile, favor the _n (Java) textures, unless -fnormal is set.
+	// Bedrock _normal.png is more "seminal" and complete, with RGB->XYZ, Java _n.png (though it sounds better) is derivative,
+	// with only RG->XY (derive Z) but for some reason the XY's don't match Bedrock's XYs.
+	// It shouldn't make a difference, but in JG-RTX it does, only because of asset mismatches (for some unknown reason).
+	// Examples include gold_block_n/normal (the textures are way different) and
+	// jukebox_top_n/normal (the bevels don't match between Bedrock and Java; the XY's should be identical).
+	// The B blue channel for Java is AO, used by LabPBR.
 	for (index = 0; index < gFG.totalTiles; index++) {
 		int fullIndexN = CATEGORY_NORMALS * gFG.totalTiles + index;
 		int fullIndexNormals = CATEGORY_NORMALS_LONG * gFG.totalTiles + index;
@@ -708,11 +723,23 @@ int wmain(int argc, wchar_t* argv[])
 		if (gFG.fr[fullIndexNormals].exists || gFG.fr[fullIndexHeightmaps].exists) {
 			// does _n version exist?
 			if (gFG.fr[fullIndexN].exists) {
-				// _n does exist, so delete alternates
+				// _n does exist; does _normal exist?
 				if (gFG.fr[fullIndexNormals].exists) {
-					deleteFileFromGrid(&gFG, CATEGORY_NORMALS_LONG, fullIndexNormals);
-					wprintf(L"DUP WARNING: File '%s' and '%s' specify the same texture, so the second file is ignored.\n", gFG.fr[fullIndexN].fullFilename, gFG.fr[fullIndexNormals].fullFilename);
-					gWarningCount++;
+					// delete Java _n.png or Bedrock _normal.png?
+					if (favor_normal_over_n) {
+						// favor Bedrock _normal
+						deleteFileFromGrid(&gFG, CATEGORY_NORMALS_LONG, fullIndexNormals);
+						copyFileRecord(&gFG, CATEGORY_NORMALS, fullIndexN, &gFG.fr[fullIndexNormals]);
+						deleteFileFromGrid(&gFG, CATEGORY_NORMALS_LONG, fullIndexNormals);
+						wprintf(L"DUP WARNING: File '%s' and '%s' specify the same texture, _normal files are set as preferred, so the second file is ignored.\n", gFG.fr[fullIndexNormals].fullFilename, gFG.fr[fullIndexN].fullFilename);
+						gWarningCount++;
+					}
+					else {
+						// favor Java _n, the default
+						deleteFileFromGrid(&gFG, CATEGORY_NORMALS_LONG, fullIndexNormals);
+						wprintf(L"DUP WARNING: File '%s' and '%s' specify the same texture, so the second file is ignored.\n", gFG.fr[fullIndexN].fullFilename, gFG.fr[fullIndexNormals].fullFilename);
+						gWarningCount++;
+					}
 				}
 				if (gFG.fr[fullIndexHeightmaps].exists) {
 					deleteFileFromGrid(&gFG, CATEGORY_HEIGHTMAP, fullIndexHeightmaps);
@@ -720,7 +747,7 @@ int wmain(int argc, wchar_t* argv[])
 					gWarningCount++;
 				}
 			} else {
-				// move the _normal or _heightmap to _n - favor _normal
+				// _n does not exist, so move the _normal or _heightmap to _n
 				if (gFG.fr[fullIndexNormals].exists) {
 					if (verbose) {
 						wprintf(L"File '%s' is used for normals.\n", gFG.fr[fullIndexNormals].fullFilename);
@@ -728,11 +755,13 @@ int wmain(int argc, wchar_t* argv[])
 					copyFileRecord(&gFG, CATEGORY_NORMALS, fullIndexN, &gFG.fr[fullIndexNormals]);
 					deleteFileFromGrid(&gFG, CATEGORY_NORMALS_LONG, fullIndexNormals);
 					if (gFG.fr[fullIndexHeightmaps].exists) {
+						// _normal always wins over _heightmap currently
 						wprintf(L"DUP WARNING: File '%s' and '%s' specify the same texture, so the second file is ignored.\n", gFG.fr[fullIndexNormals].fullFilename, gFG.fr[fullIndexHeightmaps].fullFilename);
 						deleteFileFromGrid(&gFG, CATEGORY_HEIGHTMAP, fullIndexHeightmaps);
 					}
 				}
 				else if (gFG.fr[fullIndexHeightmaps].exists) {
+					// only heightmap exists, so put it in _n; it'll get figured out as a heightmap later
 					copyFileRecord(&gFG, CATEGORY_NORMALS, fullIndexN, &gFG.fr[fullIndexHeightmaps]);
 					if (verbose) {
 						wprintf(L"File '%s' is used for normals.\n", gFG.fr[fullIndexHeightmaps].fullFilename);
@@ -1489,6 +1518,7 @@ void printHelp()
 	wprintf(L"  -s - take the average color of the incoming tile and output this solid color.\n");
 	wprintf(L"  -S - as above, but preserve the cutout transparent areas.\n");
 	wprintf(L"  -dcn - don't clean normals. Many normal maps are poorly formed, with normals pointing\n    down into the surface, or the normals are not normalized, or Z is always 255.\n    This option turns off the normal cleaning feature.\n");
+	wprintf(L"  -fnormal - normally we favor _n.png (Java) files over _normal.png (Bedrock).\n    Set this option to favor using _normal.png instead of _n.png.\n");
 	wprintf(L"  -u - report all image files encountered that are not standard Minecraft block or chest names.\n");
 }
 
@@ -2267,20 +2297,20 @@ static int checkForCutout(progimage_info* dst)
 };
 
 // Check if the Z value normals range from 0 to 1, or -1 to 1, or something else
-// -2 means all normals found to be normalized between -1 and 1, no further processing needed!
-// -1 means -1 to 1, what USD (for example) expects
-// 0 means 0 to 1, a norm from long back
-// 1 means "I dunno, nothing's normal and there's not a lot of negatives" and we'll blithely act like it's -1 to 1
+// -2 means all normals found to be normalized between -1 and 1, all Z's >= 0, no further processing needed!
+// -1 means -1 to 1, what USD (for example) expects, but some Z values were found to be negative.
+// 0 means 0 to 1, a norm from long back; derive the Z value from X and Y, though in theory we could rescale Z
+// 1 means "I dunno, nothing's normal and there's not a lot of negatives"; derive the Z value from X and Y, to be safe
 // 2 means "the Z channel is not assigned (is likely 255 everywhere) and must be derived"
 static int isNormalMapZ01(progimage_info& tile)
 {
 	int row, col;
 	float xyz[3];
 	unsigned char* src_data = &tile.image_data[0];
-	int is255 = 0;
-	int negZ = 0;
-	int zn11 = 0;
-	int z01 = 0;
+	int is255 = 0;	// is the Z value 255?
+	int negZ = 0;	// is the converted Z value negative? That's not good...
+	int zn11 = 0;	// is the normal's length just about 1.0? That's good.
+	int z01 = 0;	// is the normal's length about 1.0 if Z is scaled between 0 and 1? Then Z should be rescaled.
 
 	for (row = 0; row < tile.height; row++)
 	{
@@ -2305,10 +2335,12 @@ static int isNormalMapZ01(progimage_info& tile)
 				xyz[2] = (float)src_data[2] / 255.0f;
 				len = xyz[0] * xyz[0] + xyz[1] * xyz[1] + xyz[2] * xyz[2];
 				if (len <= 1.02f && len >= 0.98f) {
+					// Z appears to be scaled from 0 to 1 for this pixel
 					z01++;
 				}
 			}
 			else {
+				// Z appears to be scaled from -1 to 1, which is what we like
 				zn11++;
 			}
 			src_data += 3;
@@ -2323,7 +2355,7 @@ static int isNormalMapZ01(progimage_info& tile)
 	if ((zn11 == tile.height * tile.width) && negZ == 0) {
 		return -2;
 	}
-	// Else, check if the -1 to 1 range where normals were found to be normalized is greater than the 0 to 1 range.
+	// Else, check if the -1 to 1 range where normals were found to be normalized is greater than the 0 to 1 range for the Z's.
 	// Not really a great test, we should probably be doing something like "the sum of normal lengths on average",
 	// but seems to work
 	if (zn11 > z01 * 1.5) {
@@ -2334,92 +2366,114 @@ static int isNormalMapZ01(progimage_info& tile)
 		assert(0);	// should be a rare case, fingers crossed, but nice to know if we see one
 		return 0;
 	}
-	// Else, dunno - could be a normal map without much going on, but convert it anyway from -1 to 1
+	// Else, dunno - could be a normal map without much going on, or a PBR map with Z being AO; convert -1 to 1, rederiving Z.
 	return 1;
 }
 
 
-// Check that each normal doesn't point downward, and that it is nearly 1.0 in length.
-// Returns true if the texture was already clean, no corrections, false if corrections were made.
-// Basically, type -1 or 1 (from above) means convert Z from -1 to 1 range; type 0 means 0 to 1 range for Z.
-static bool cleanNormalMap(progimage_info& tile, int type)
+// If this is called, the Z value of some normal is suspect, so rederive from XY, period.
+static void cleanNormalMap(progimage_info& tile, int type)
 {
 	int row, col;
 	float xyz[3];
 	unsigned char* src_data = &tile.image_data[0];
-	bool clamped = false;
-	bool retval = true;
 	float len;
+	if (type == -2) {
+		// normals are clean, shouldn't need to call this method
+		assert(0);
+		return;
+	}
 
 	for (row = 0; row < tile.height; row++)
 	{
 		for (col = 0; col < tile.width; col++)
 		{
 			if (src_data[0] > 5 || src_data[1] > 5 || src_data[2] > 5) {
-				// else black pixel, or near black, some background thing, so skip
+				// else black pixel, or near black, some background thing, so skip this pixel and leave as-is.
 
-				// Smoolistic, for example, sets unused areas to white. Better to make these "no normals"
-				// to avoid any interpolation funniness around the edges.
+				// Check for all-white. Smoolistic, for example, sets unused areas in a real normal map to white.
+				// Better to make these "no normals" to avoid any interpolation funniness around the edges.
 				if (src_data[0] == 255 && src_data[1] == 255 && src_data[2] == 255) {
+					// set to normal 0,0,1:
 					src_data[0] = 128;
 					src_data[1] = 128;
+					// src_data[2] is already 255, so that's all set
 				}
 				else {
-					if (type != 0 && src_data[2] < 128) {
-						// hey, a normal is pointing into the surface; that shouldn't happen
-						//assert(0);
-						// corrective action, e.g., clamp
-						src_data[2] = 128;
-						clamped = true;
-						retval = false;
-					}
-					// now check if normal is around 1.0 in length
+					// renormalize Z, always, even if "it's pretty good as-is"
 					for (int ch = 0; ch < 2; ch++)
 					{
 						xyz[ch] = ((float)src_data[ch] / 255.0f) * 2.0f - 1.0f;
 					}
-					// All Z's in image are 255, so Z needs to be derived from X and Y.
-					// (Even if the Z's are correct, i.e., the normal map is flat, "correcting" won't hurt here.)
-					if (type == 2) {
-						// derive Z from XY values
-						len = 1.0f - xyz[0] * xyz[0] - xyz[1] * xyz[1];
-						if (len >= 0.0f) {
-							xyz[2] = (float)sqrt(len);
-						}
-						else {
-							// If the length of the X and Y component vector is greater than 1, who
-							// the heck knows what's going on. I guess go renormalize the whole thing.
-							assert(len > -0.02f);
-							xyz[2] = 0.0f;
-							goto Renormalize;
-						}
-						src_data[2] = (unsigned char)(255.0f * ((xyz[2] + 1.0f) / 2.0f) + 0.5f);
-						retval = false;
+					len = xyz[0] * xyz[0] + xyz[1] * xyz[1];
+					// if z is negative, the length defined by X and Y are too high, so renormalize X and Y
+					if (len > 1.0f) {
+						// force Z to be 0.0 and distance to X,Y to not be larger than a length of 1.0
+						len = (float)sqrt(len);
+						xyz[0] /= len;
+						xyz[1] /= len;
+						xyz[2] = 0.0f;
 					}
 					else {
-						xyz[2] = (type != 0) ? ((float)src_data[2] / 255.0f) * 2.0f - 1.0f : (float)src_data[2] / 255.0f;
-					Renormalize:
-						len = xyz[0] * xyz[0] + xyz[1] * xyz[1] + xyz[2] * xyz[2];
-						// test whether normal is around 1.0f in length, or if we're going to type -1 from type 0.
-						if (type == 0 || clamped || len > 1.02f || len < 0.98f) {
-							clamped = false;
-							//assert(0);
-							// corrective action, e.g., renormalize
-							len = (float)sqrt(len);
-							// we always convert to -1 to 1 range
-							for (int ch = 0; ch < 3; ch++)
-							{
-								src_data[ch] = (unsigned char)(255.0f * (((xyz[ch] / len) + 1.0f) / 2.0f) + 0.5f);
-							}
-							retval = false;
-						}
+						// normalized Z
+						xyz[2] = (float)sqrt(1.0f - len);
 					}
+					src_data[2] = (unsigned char)(255.0f * (xyz[2]/2.0f + 0.5f) + 0.5f);
+
+					//if (type != 0 && src_data[2] < 128) {
+					//	// hey, a normal is pointing into the surface; that shouldn't happen
+					//	//assert(0);
+					//	// corrective action, e.g., clamp
+					//	src_data[2] = 128;
+					//	clamped = true;
+					//	retval = false;
+					//}
+					//// now check if normal is around 1.0 in length
+					//for (int ch = 0; ch < 2; ch++)
+					//{
+					//	xyz[ch] = ((float)src_data[ch] / 255.0f) * 2.0f - 1.0f;
+					//}
+					//// All Z's in image are 255, so Z needs to be derived from X and Y.
+					//// (Even if the Z's are correct, i.e., the normal map is flat, "correcting" won't hurt here.)
+					//if (type == 2) {
+					//	// derive Z from XY values
+					//	len = 1.0f - xyz[0] * xyz[0] - xyz[1] * xyz[1];
+					//	if (len >= 0.0f) {
+					//		xyz[2] = (float)sqrt(len);
+					//	}
+					//	else {
+					//		// If the length of the X and Y component vector is greater than 1, who
+					//		// the heck knows what's going on. I guess go renormalize the whole thing.
+					//		assert(len > -0.02f);
+					//		xyz[2] = 0.0f;
+					//		goto Renormalize;
+					//	}
+					//	src_data[2] = (unsigned char)(255.0f * ((xyz[2] + 1.0f) / 2.0f) + 0.5f);
+					//	retval = false;
+					//}
+					//else {
+					//	xyz[2] = (type != 0) ? ((float)src_data[2] / 255.0f) * 2.0f - 1.0f : (float)src_data[2] / 255.0f;
+					//Renormalize:
+					//	len = xyz[0] * xyz[0] + xyz[1] * xyz[1] + xyz[2] * xyz[2];
+					//	// test whether normal is around 1.0f in length, or if we're going to type -1 from type 0.
+					//	if (type == 0 || clamped || len > 1.02f || len < 0.98f) {
+					//		clamped = false;
+					//		//assert(0);
+					//		// corrective action, e.g., renormalize
+					//		len = (float)sqrt(len);
+					//		// we always convert to -1 to 1 range
+					//		for (int ch = 0; ch < 3; ch++)
+					//		{
+					//			src_data[ch] = (unsigned char)(255.0f * (((xyz[ch] / len) + 1.0f) / 2.0f) + 0.5f);
+					//		}
+					//		retval = false;
+					//	}
+					//}
 				}
 			}
 			src_data += 3;
 		}
 	}
-	return retval;
 }
 
 // assumes 3 channels

@@ -2877,7 +2877,15 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 
 <UL>
 
-<LI>Version 11.05, 12/30/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1104.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 11.06, 1/4/2024 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1106.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+  <BR>
+    <UL>
+	<LI>Improve TileMaker, now at version 3.22, with the "-fnormal" option, which favors PNG normal files with a "*_normal.png" ending (which are found in Bedrock texture packs) over "*_n.png" normal files (found in Java). Normally (ha ha) you want to favor Java-Minecraft normals for Mineways if there's a choice. I added this option because I found a large number of "*_normal.png" (Java) files in JG-RTX had problems, such as normals being rotated 90 degrees. This option helps me work around the problem.
+	<LI>TileMaker also now does a simpler check of each incoming normal texture. It now rederives the Z direction value from X and Y channels unless all incoming values are already normalized.
+	<LI>The JG-RTX texture pack has been fixed with the proper normal maps, and the more interesting "medieval" textures are now used for glass. The file build_jgrtx_terrain_files.bat for building JG-RTX nicely (and showing various features of ChannelMixer and TileMaker) has been updated.
+	</UL>
+	
+<LI>Version 11.05, 12/30/2023 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1105.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
     <UL>
 	<LI>Update to <a href="https://minecraft.wiki/w/Java_Edition_1.20.3#Blocks">1.20.3</a> (and 1.20.4), changing "grass" to "short grass" throughout and updating textures. The experimental 1.21 copper and tuff block types have not yet been added (that happens only on major releases).
@@ -4203,7 +4211,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 12/30/2023</p>
+		<br id="lastUpdate">Last updated 1/4/2024</p>
 	</div>
 </div>
 

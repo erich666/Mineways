@@ -458,8 +458,10 @@ on the command line.
         If none given, current directory.
 <LI><b>-o outputTexturesDirectory</b> - directory where resulting textures will go.
         If none given, current directory.
-<LI><b>-m</b> - output merged '_mer' format files in addition to separate files, as found. Experimental (as in, I've rarely used it). Can maybe be a help if you want to make a <a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-texturing-guide/">MER MCPack format texture</a> from separate _m/_e/_r files.
-<LI><b>-k {m|e|r|n}</b> - kill creation of the metallic, emissive, roughness, and/or normals textures. These files, if present, will not be copied over or created. For example, "-k mern" suppresses all physically based material creation so that only color textures are copied. Using "-k e" suppresses pulling in the blue channel in any "_s" type file, a common use, as this channel is sometimes set to something else (such as in labPBR, which uses it for porosity and subsurface scattering).
+<LI><b>-m</b> - output merged '_mer' format files in addition to separate files, as found.
+		Experimental (as in, I've rarely used it). Can maybe be a help if you want to make a <a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-texturing-guide/">MER MCPack format texture</a> from separate _m/_e/_r files.
+<LI><b>-k {m|e|r|n}</b> - kill creation of the metallic, emissive, roughness, and/or normals textures.
+		These files, if present, will not be copied over or created. For example, "-k mern" suppresses all physically based material creation so that only color textures are copied. Using "-k e" suppresses pulling in the blue channel in any "_s" type file, a common use, as this channel is sometimes set to something else (such as in labPBR, which uses it for porosity and subsurface scattering).
 <LI><b>-u</b> - show all image files encountered that are not standard Minecraft block or chest names.
 </UL>
 
@@ -511,6 +513,8 @@ on the command line.
 <LI><b>-dcn</b> - don't clean normals. Many normal maps are poorly formed, with normals pointing
 	down into the surface, or the normals are not normalized, or Z is <a href="https://wiki.shaderlabs.org/wiki/LabPBR_Material_Standard">always 255</a> (seen in the JG-RTX resource pack).
 	This option turns off the normal cleaning feature.
+<LI><b>-fnormal</b> - normally we favor _n.png files (Java) over _normal.png (Bedrock).
+	Set this option to favor using _normal.png instead of _n.png.
 <LI><b>-u</b> - show all image files encountered that are not standard Minecraft block or chest names.
 </UL>
 <HR>
@@ -519,7 +523,8 @@ on the command line.
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 10/12/2023</p>	</div>
+		<br id="lastUpdate">Last updated 1/4/2024</p>
+	</div>
 </div>
 
 </body>
