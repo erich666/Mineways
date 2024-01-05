@@ -384,7 +384,7 @@ Mineways comes with this set of <a href="https://github.com/jasonjgardner/jg-rtx
 Mod makers over the years have developed a wide variety of these additional file types. ChannelMixer and TileMaker do their best to process these into the emissive/metallic/normals/roughness textures that Mineways uses. Here are some other file type suffixes you may encounter in various resource packs:
 
 <UL>
-<LI><B>_normal</B> - same as "_n". That said, you will also encounter _n and _normal files as holding <a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-texturing-guide/">height maps</a>, where the color (usually red or sometimes grayscale) represents the perceived height of surface. TileMaker attempts to detect and convert such files into the RGB normal map format discussed earlier. TileMaker will also discard all normal maps found to have no effect.
+<LI><B>_normal</B> - same as "_n". In JG-RTX, for example, "_normal" is for the Bedrock version, "_n" for the Java. The Java "_n" version may hold just the XY values of the normal in RG, e.g., <a href="https://wiki.shaderlabs.org/wiki/LabPBR_Material_Standard#Normal_Texture_.28_n.29">LabPBR</a> uses the B channel to hold ambient occlusion, deriving the normal's Z value (which must be between 0 and 1) from XY (<a href="https://github.com/usd-wg/assets/tree/main/test_assets/NormalsTextureBiasAndScale">more info</a>). That said, you will also encounter _n and _normal files as holding <a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-texturing-guide/">height maps</a>, where the color (usually red or sometimes grayscale) represents the perceived height of surface. TileMaker attempts to detect and convert such files into the RGB normal map format discussed earlier. TileMaker will also discard all normal maps found to have no effect.
 <LI><B>_heightmap</B> - a <a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-texturing-guide/">height map</a>, processed similarly to the above.
 <LI><B>_mer</B> - often seen in .MCPack files for <a href="https://www.nvidia.com/en-us/geforce/campaigns/minecraft-with-rtx/">Minecraft RTX</a>. This format is explained in depth <a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-texturing-guide/">here</a>.
 <LI><B>_s</B> - specular, or shininess. This is basically the inverse of roughness. When ChannelMixer encounters these textures, it creates a roughness texture instead, basically inverting the image (black becomes white and vice versa). However, in some packs, "_s" means "_sm", basically: the red channel is the shininess component, and the green channel is the metallic. Still other resource packs store in their "_s" textures shininess in red, metallic in green, and emissive in blue. Or, emissive in the alpha channel, according to the <a href="https://github.com/rre36/lab-pbr/wiki/Specular-Texture-Details">labPBR spec</a>.
@@ -523,7 +523,7 @@ on the command line.
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 1/4/2024</p>
+		<br id="lastUpdate">Last updated 1/5/2024</p>
 	</div>
 </div>
 
