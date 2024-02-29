@@ -16,7 +16,7 @@
 #include "tiles.h"
 #include "tilegrid.h"
 
-#define	VERSION_STRING	L"3.22"
+#define	VERSION_STRING	L"3.23"
 
 //#define TILE_PATH	L".\\blocks\\"
 #define BASE_INPUT_FILENAME			L"terrainBase.png"
@@ -2501,9 +2501,9 @@ static int convertHeightfieldToXYZ(progimage_info* src, float heightfieldScale)
 			float y = heightfieldScale * (phf_data[trow * phf->width + col] - phf_data[brow * phf->width + col]) / 255.0f;
 			float length = (float)sqrt(x * x + y * y + 1.0f);
 			// Basically, map from XYZ [-1,1] to RGB. Make sure it's normalized.
-			*src_data++ = (unsigned char)((1.0f + x / length) * 127.5f);
-			*src_data++ = (unsigned char)((1.0f + y / length) * 127.5f);
-			*src_data++ = (unsigned char)((1.0f + 1.0 / length) * 127.5f);
+			*src_data++ = (unsigned char)(((x / length + 1.0f) / 2.0f) * 255.0f + 0.5f);
+			*src_data++ = (unsigned char)(((y / length + 1.0f) / 2.0f) * 255.0f + 0.5f);
+			*src_data++ = (unsigned char)(((1.0f / length + 1.0f) / 2.0f) * 255.0f + 0.5f);
 		}
 	}
 	return 1;
