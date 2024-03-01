@@ -36,7 +36,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 //Decode from disk to raw pixels with a single function call
 // return 0 on success
-int readtga(progimage_info *im, wchar_t *filename, LodePNGColorType colortype)
+int readtga(progimage_info* im, wchar_t* filename, LodePNGColorType colortype)
 {
     im->width = im->height = 0;
 
@@ -52,7 +52,7 @@ int readtga(progimage_info *im, wchar_t *filename, LodePNGColorType colortype)
     int channels_in = header.bytesPerPixel();
     switch (channels_in) {
     case 1:
-        if ( colortype == LCT_GREY ) {
+        if (colortype == LCT_GREY) {
             match = true;
         }
         break;
@@ -89,7 +89,6 @@ int readtga(progimage_info *im, wchar_t *filename, LodePNGColorType colortype)
     // it shouldn't.
     decoder.postProcessImage(header, image);
 
-    //im->image_data = TODOTODO - how to hold onto data? Use colortype for number of channels to write to
     if (match) {
         im->image_data = buffer;
     }
@@ -111,12 +110,11 @@ int readtga(progimage_info *im, wchar_t *filename, LodePNGColorType colortype)
             channels_out = (colortype == LCT_RGB) ? 3 : 1;
             break;
         }
-        std::vector<uint8_t> imbuffer(channels_out * header.width * header.height);
         int num_pixels = header.width * header.height;
-        im->image_data = imbuffer;
+        im->image_data.resize(channels_out * num_pixels);
         int i;
         unsigned char* src_data = &buffer[0];
-        unsigned char* dst_data = &imbuffer[0];
+        unsigned char* dst_data = &im->image_data[0];
         switch (channels_in) {
         case 1:
             // gray to RGB or RGBA
@@ -152,7 +150,7 @@ int readtga(progimage_info *im, wchar_t *filename, LodePNGColorType colortype)
             break;
         case 4:
             // RGBA to gray or RGB (ignore alpha, I guess...)
-            if (channels_out == 4) {
+            if (channels_out == 3) {
                 for (i = 0; i < num_pixels; i++) {
                     *dst_data++ = *src_data++;
                     *dst_data++ = *src_data++;
@@ -229,7 +227,8 @@ int readImage(progimage_info* im, wchar_t* filename, LodePNGColorType colortype,
 {
     if (imageFileType == 1) {
         return readpng(im, filename, colortype);
-    } else if (imageFileType == 2) {
+    }
+    else if (imageFileType == 2) {
         return readtga(im, filename, colortype);
     }
     assert(0);
