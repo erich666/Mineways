@@ -2488,12 +2488,13 @@ static int convertHeightfieldToXYZ(progimage_info* src, float heightfieldScale)
 
 	for (row = 0; row < phf->height; row++)
 	{
+		// wrap around tile to opposite edge. Ensure trow and lcol are non-negative by adding in the height/width
 		int trow = (row + phf->height - 1) % phf->height;
-		int brow = (row + phf->height + 1) % phf->height;
+		int brow = (row + 1) % phf->height;
 		for (col = 0; col < phf->width; col++)
 		{
 			int lcol = (col + phf->width - 1) % phf->width;
-			int rcol = (col + phf->width + 1) % phf->width;
+			int rcol = (col + 1) % phf->width;
 			// Won't swear to this conversion being quite right. From Real-Time Rendering, p. 214 referencing an article:
 			// Eberly, David, "Reconstructing a Height Field from a Normal Map," Geometric Tools blog, May 3, 2006.
 			// https://www.geometrictools.com/Documentation/ReconstructHeightFromNormals.pdf
