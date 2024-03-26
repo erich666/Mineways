@@ -1666,8 +1666,29 @@ static void reportReadError(int rc, const wchar_t* filename)
 	case 4:
 		wsprintf(gErrorString, L"***** ERROR [%s] read failed - insufficient memory.\n", filename);
 		break;
+	case 27:
+		wsprintf(gErrorString, L"***** ERROR [%s] read failed - the data length is smaller than the length of a PNG header.\n", filename);
+		break;
+	case 28:
+		wsprintf(gErrorString, L"***** ERROR [%s] read failed - the first 8 bytes are not the correct PNG signature.\n", filename);
+		break;
+	case 29:
+		wsprintf(gErrorString, L"***** ERROR [%s] read failed - file doesn't start with a IHDR chunk.\n", filename);
+		break;
+	case 32:
+		wsprintf(gErrorString, L"***** ERROR [%s] read failed - only compression method 0 is allowed in the specification.\n", filename);
+		break;
+	case 33:
+		wsprintf(gErrorString, L"***** ERROR [%s] read failed - only filter method 0 is allowed in the specification.\n", filename);
+		break;
+	case 34:
+		wsprintf(gErrorString, L"***** ERROR [%s] read failed - only interlace methods 0 and 1 exist in the specification.\n", filename);
+		break;
+	case 48:
+		wsprintf(gErrorString, L"***** ERROR [%s] read failed - the given data is empty.\n", filename);
+		break;
 	case 57:
-		wsprintf(gErrorString, L"***** ERROR [%s] read failed - invalid CRC. Try saving this PNG using some program, e.g., IrfanView.\n", filename);
+		wsprintf(gErrorString, L"***** ERROR [%s] read failed - invalid CRC.\n", filename);
 		break;
 	case 63:
 		wsprintf(gErrorString, L"***** ERROR [%s] read failed - chunk too long.\n", filename);
@@ -1680,6 +1701,12 @@ static void reportReadError(int rc, const wchar_t* filename)
 		break;
 	case 83:
 		wsprintf(gErrorString, L"***** ERROR [%s] allocation failed. Image file is too large for your system to handle?\n", filename);
+		break;
+	case 93:
+		wsprintf(gErrorString, L"***** ERROR [%s] read failed - invalid image size.\n", filename);
+		break;
+	case 94:
+		wsprintf(gErrorString, L"***** ERROR [%s] read failed - header size must be 13 bytes.\n", filename);
 		break;
 	case 102:
 		wsprintf(gErrorString, L"***** ERROR [%s] - could not read Targa TGA file header.\n", filename);
@@ -1700,8 +1727,8 @@ static void reportReadError(int rc, const wchar_t* filename)
 	saveErrorForEnd();
 	gErrorCount++;
 
-	if (rc != 78 && rc != 79 && rc < 100) {
-		wsprintf(gErrorString, L"Often this means the PNG file has some small bit of information that TileMaker cannot\n  handle. You might be able to fix this error by opening this PNG file in\n  Irfanview or other viewer and then saving it again. This has been known to clear\n  out any irregularity that TileMaker's somewhat-fragile PNG reader dies on.\n");
+	if (rc != 27 && rc != 78 && rc != 79 && rc < 100) {
+		wsprintf(gErrorString, L"Often this means the PNG file has some small bit of information that TileMaker cannot\n  handle. You might be able to fix this error by opening this PNG file in\n  Irfanview or other viewer and then saving it again. Doing so might clear\n  out any irregularity that TileMaker's PNG reader dies on.\n");
 		saveErrorForEnd();
 	}
 }
@@ -2329,7 +2356,8 @@ static int isNormalMapZ01(progimage_info& tile)
 				xyz[ch] = ((float)src_data[ch] / 255.0f) * 2.0f - 1.0f;
 			}
 			float len = xyz[0] * xyz[0] + xyz[1] * xyz[1] + xyz[2] * xyz[2];
-			// test whether normal is around 1.0f in length. Is this a good test?
+			// Test whether normal is around 1.0f in length. More than 0.02 difference and something's probably wrong.
+			// See https://github.com/erich666/NormalTextureProcessor for more thorough testing of normals textures
 			if (len > 1.02f || len < 0.98f) {
 				// instead scale Z from 0 to 1
 				xyz[2] = (float)src_data[2] / 255.0f;
@@ -2363,7 +2391,8 @@ static int isNormalMapZ01(progimage_info& tile)
 	}
 	// Else, check if 0 to 1 dominates
 	if (z01 > zn11 * 1.5) {
-		assert(0);	// should be a rare case, fingers crossed, but nice to know if we see one
+		// interestingly, 0 to 1 dominates
+		//assert(0);	// should be a rare case, fingers crossed, but nice to know if we see one
 		return 0;
 	}
 	// Else, dunno - could be a normal map without much going on, or a PBR map with Z being AO; convert -1 to 1, rederiving Z.
