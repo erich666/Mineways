@@ -31872,6 +31872,72 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
     sprintf_s(outputString, 256, "# Full current path: %s\n", outChar);
     WRITE_STAT;
 
+// for project at https://github.com/CommonMCOBJ
+#define CMC2OBJ
+#ifdef CMC2OBJ
+    if (gModel.options->pEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ ||
+        gModel.options->pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ) {
+
+        /* from https://github.com/CommonMCOBJ/cmc2obj/blob/26fa005b97c6dfa212436f03a687bcaea6fa8978/src/org/jmc/ObjExporter.kt#L405-L421
+        objWriter.println("# COMMON_MC_OBJ_START");
+        objWriter.println("# version: 1");
+        objWriter.println("# exporter: cmc2obj");  // Name of the exporter, all lowercase, with spaces substituted by underscores
+        objWriter.println("# world_name: ${Options.worldDir?.getName()}");  // Name of the source world
+        objWriter.println("# world_path: ${Options.worldDir?.toString()}");  // Path of the source world
+        objWriter.println("# export_bounds_min: (${Options.minX}, ${Options.minY}, ${Options.minZ})");  // The lowest block coordinate exported in the obj file
+        objWriter.println("# export_bounds_max: (${Options.maxX-1}, ${Options.maxY-1}, ${Options.maxZ-1})");  // The highest block coordinate exported in the obj file
+        objWriter.println("# export_offset: " + String.format(Locale.US, "(%f, %f, %f)", offsetVec.x, offsetVec.y, offsetVec.z)); // The offset vector the model was exported with
+        objWriter.println("# block_scale: ${Options.scale}"); // Scale of each block
+        objWriter.println("# block_origin_offset: (-0.5, -0.5, -0.5)"); // The offset vector of the block model origins
+        objWriter.println("# z_up: false");  // true if the Z axis is up instead of Y, false is not
+        objWriter.println("# texture_type: " + (if (Options.singleMaterial) "ATLAS" else "INDIVIDUAL_TILES"));  // ATLAS or INDIVIDUAL_TILES
+        objWriter.println("# has_split_blocks: " + (if (Options.objectPerMaterial) "true" else "false"));  // true if blocks have been split, false if not
+        objWriter.println("# COMMON_MC_OBJ_END");
+        */
+        sprintf_s(outputString, 256, "\n# COMMON_MC_OBJ_START\n# version: 1\n# exporter: mineways\n");
+        WRITE_STAT;
+
+        if (justWorldFileName == NULL || strlen(justWorldFileName) == 0)
+        {
+            strcpy_s(outputString, 256, "# world_name: [Block Test World]\n");
+        }
+        else {
+            sprintf_s(outputString, 256, "# world_name: %s\n", justWorldFileName);
+        }
+        WRITE_STAT;
+        sprintf_s(outputString, 256, "# world_path: %s\n", worldChar);
+        WRITE_STAT;
+
+        sprintf_s(outputString, 256, "# export_bounds_min: (%d, %d, %d)\n",
+            worldBox->min[X], worldBox->min[Y], worldBox->min[Z]);
+        WRITE_STAT;
+        sprintf_s(outputString, 256, "# export_bounds_max: (%d, %d, %d)\n",
+            worldBox->max[X], worldBox->max[Y], worldBox->max[Z]);
+        WRITE_STAT;
+
+        // the translation vector from where the minecraft block coordinates are to where they are exported in the model
+        // See https://github.com/jmc2obj/j-mc-2-obj/issues/243#issuecomment-2016341301
+        Point exportOffset;
+        Vec3Op(exportOffset, =, (float)gWorld2BoxOffset, -, gModel.center);
+        sprintf_s(outputString, 256, "# export_offset: (%f, %f, %f)\n", exportOffset[X], exportOffset[Y], exportOffset[Z]);
+        WRITE_STAT;
+        // in meters, so divide by 1000.
+        sprintf_s(outputString, 256, "# block_scale: %g\n", gModel.options->pEFD->blockSizeVal[gModel.options->pEFD->fileType] / 1000.0f);
+        WRITE_STAT;
+        // lower left corner defined as 0,0,0, if I understand it right.
+        sprintf_s(outputString, 256, "# block_origin_offset: (0.000000, 0.000000, 0.000000)\n");
+        WRITE_STAT;
+        sprintf_s(outputString, 256, "# z_up: %s\n", gModel.options->pEFD->chkMakeZUp[gModel.options->pEFD->fileType] ? "true" : "false");
+        WRITE_STAT;
+        sprintf_s(outputString, 256, "# texture_type: %s\n", gModel.exportTiles ? "INDIVIDUAL_TILES" : "ATLAS");
+        WRITE_STAT;
+        sprintf_s(outputString, 256, "# has_split_blocks: true\n");
+        WRITE_STAT;
+        sprintf_s(outputString, 256, "# COMMON_MC_OBJ_END\n");
+        WRITE_STAT;
+    }
+#endif
+
     return MW_NO_ERROR;
 }
 
