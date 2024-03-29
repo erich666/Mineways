@@ -9339,13 +9339,28 @@ static bool commandLoadWorld(ImportedSet& is, wchar_t* error)
             gSameWorld = FALSE;
             if (loadWorld(is.ws.hWnd))	// uses gWorldGuide.world
             {
+                switch (gWorldGuide.type) {
+                case WORLD_TEST_BLOCK_TYPE:
+                    swprintf_s(error, 1024, L"Mineways attempted to load world \"%s\" but could not do so. This is extremely strange, as this is the built-in test world. Please report this problem to Eric at erich@acm.org.", warningWorld);
+                    break;
+
+                case WORLD_LEVEL_TYPE:
+                    swprintf_s(error, 1024, L"Mineways attempted to load world \"%s\" but could not do so. The full path was \"%s\". Either the world could not be found, or the world name is some wide character string that could not be stored in your import file. Please load the world manually and then try importing again.", warningWorld, gFileOpened);
+                    break;
+
+                case WORLD_SCHEMATIC_TYPE:
+                    swprintf_s(error, 1024, L"Mineways attempted to load world \"%s\" but could not do so. Either the world could not be found, or the world name is some wide character string that could not be stored in your import file. Please load the world manually and then try importing again.", warningWorld);
+                    break;
+
+                default:
+                    MY_ASSERT(gAlwaysFail);
+                }
                 // could not load world, so restore old world, if any;
                 wcscpy_s(gWorldGuide.world, MAX_PATH_AND_FILE, backupWorld);
                 if (gWorldGuide.world[0] != 0) {
                     gWorldGuide.type = backupWorldType;
                     loadWorld(is.ws.hWnd);	// uses gWorldGuide.world
                 }
-                swprintf_s(error, 1024, L"Mineways attempted to load world \"%s\" but could not do so. The full path was \"%s\". Either the world could not be found, or the world name is some wide character string that could not be stored in your import file. Please load the world manually and then try importing again.", warningWorld, gFileOpened);
                 return false;
             } // else success with just world folder name, and it's already saved to gWorldGuide.world
             // world loaded, so turn things on, etc.
