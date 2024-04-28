@@ -38,6 +38,8 @@ Source files are here:
 
 You should then find a mineways.exe in GitHub\Mineways\x64\Release\Mineways.exe
 
+For more on Visual Studio 2022 and C++, see [Microsoft's tutorials](https://learn.microsoft.com/en-us/cpp/get-started/?view=msvc-170).
+
 Sorry, other platforms are not directly supported, though Mineways runs fine under [WINE](http://www.winehq.org/) and we also provide a Mac-specific version.
 
 If you want to work on the mapping part of this program on another platform, see [Minutor](http://seancode.com/minutor/), which *is* supported on Mac and Linux.
