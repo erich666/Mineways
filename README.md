@@ -31,10 +31,12 @@ Source files are here:
 * **tileMaker/** contains the TileMaker, which takes the block in that directory and forms a terrainExt.png file for use by Mineways. Using this allows you to replace any terrain textures with your own custom tiles.
 
 ## Windows
-You can compile Mineways with Visual Studio Community 2022
+[Mineways](https://www.realtimerendering.com/erich/minecraft/public/mineways/) comes with executables, but if you prefer, you can compile Mineways with Visual Studio Community 2022:
 - Install the "Desktop development with C++" workload
 - Go to "Individual components", search on "MFC", and choose "C++ MFC for latest v143 build tools (x86 & x64)".
-- Open Mineways.sln in Visual C++, switch the target to Release and x64, compile the solution to `generate Mineways.exe`
+- Open Mineways.sln in Visual C++, switch the target to "Release" and "x64", then Build | Rebuild Solution.
+
+You should then find a mineways.exe in GitHub\Mineways\x64\Release\Mineways.exe
 
 Sorry, other platforms are not directly supported, though Mineways runs fine under [WINE](http://www.winehq.org/) and we also provide a Mac-specific version.
 
