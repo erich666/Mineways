@@ -372,6 +372,10 @@ static TranslationTuple* modTranslations = NULL;
 // rotation: 0-15
 // attached: true/false
 #define ATTACHED_HANGING_SIGN   65
+// orientation 0-11
+// crafting 0-1 (0x10)
+// triggered 0-1 (0x20)
+#define CRAFTER_PROP        66
 
 #define NUM_TRANS 1015
 
@@ -1414,7 +1418,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 144, 0x80 | 6 << 4, "piglin_head", HEAD_PROP },
     { 0, 209,       HIGH_BIT, "trial_spawner", NO_PROP },
     { 0, 210,       HIGH_BIT, "vault", NO_PROP },
-    { 0, 211,       HIGH_BIT, "crafter", NO_PROP },
+    { 0, 211,       HIGH_BIT, "crafter", CRAFTER_PROP },
 
     // 1.20.3 additions (short_grass added next to "grass", above), https://minecraft.wiki/w/Java_Edition_1.20.3#General_2
 
@@ -3242,17 +3246,17 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
 
     // for doors
     bool half, north, south, east, west, down, lit, powered, triggered, extended, attached, disarmed,
-        conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall, signal_fire, has_book, up, hanging;
+        conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall, signal_fire, has_book, up, hanging, crafting;
     int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age,
         delay, locked, sticky, hatch, leaves, single, attachment, honey_level, stairs, bites, tilt,
-        thickness, vertical_direction, berries, flower_amount;
+        thickness, vertical_direction, berries, flower_amount, orientation;
     // to avoid Release build warning, but should always be set by code in practice
     int typeIndex = 0;
     half = north = south = east = west = down = lit = powered = triggered = extended = attached = disarmed
-        = conditional = inverted = enabled = doubleSlab = mode = in_wall = signal_fire = has_book = up = hanging = false; // waterlogged is always set false in loop
+        = conditional = inverted = enabled = doubleSlab = mode = in_wall = signal_fire = has_book = up = hanging = crafting = false; // waterlogged is always set false in loop
     axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
         delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt =
-        thickness = vertical_direction = berries = flower_amount = 0;
+        thickness = vertical_direction = berries = flower_amount = orientation = 0;
 
     // IMPORTANT: if any PROP field uses any of these:
     // triggered, extended, sticky, enabled, conditional, open, powered, face, has_book, powered, attachment, lit, signal_fire, honey_level
@@ -3704,12 +3708,11 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         else if (strcmp(token, "part") == 0) {
                             part = (strcmp(value, "head") == 0) ? 8 : 0;
                         }
-                        // dropper/dispenser
+                        // dropper/dispenser and crafter
                         else if (strcmp(token, "triggered") == 0) {
-                            // ignore, non-graphical
-#ifndef GRAPHICAL_ONLY
+                            // ignore, non-graphical for some things.
+                            // matters for crafter
                             triggered = (strcmp(value, "true") == 0);
-#endif
                         }
                         // END_PORTAL_PROP (really, the frame)
                         else if (strcmp(token, "eye") == 0) {
@@ -3835,43 +3838,56 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         else if (strcmp(token, "charges") == 0) {
                             dataVal = atoi(value);
                         }
-                        // for jigsaw
+                        // for jigsaw and crafter
                         else if (strcmp(token, "orientation") == 0) {
+                            // orientation order: south, west, north, east; then up_ then down_
                             if (strcmp(value, "south_up") == 0) {
                                 dropper_facing = 3;
+                                orientation = 0;
                             }
                             else if (strcmp(value, "west_up") == 0) {
                                 dropper_facing = 2;
+                                orientation = 1;
                             }
                             else if (strcmp(value, "north_up") == 0) {
                                 dropper_facing = 4;
+                                orientation = 2;
                             }
                             else if (strcmp(value, "east_up") == 0) {
                                 dropper_facing = 5;
+                                orientation = 3;
                             }
                             else if (strcmp(value, "up_east") == 0) {
                                 dropper_facing = 1 | BIT_16 | BIT_8;
+                                orientation = 7;
                             }
                             else if (strcmp(value, "up_north") == 0) {
                                 dropper_facing = 1 | BIT_16;
+                                orientation = 6;
                             }
                             else if (strcmp(value, "up_west") == 0) {
                                 dropper_facing = 1;
+                                orientation = 5;
                             }
                             else if (strcmp(value, "up_south") == 0) {
                                 dropper_facing = 1 | BIT_8;
+                                orientation = 4;
                             }
                             else if (strcmp(value, "down_east") == 0) {
                                 dropper_facing = 0 | BIT_16 | BIT_8;
+                                orientation = 11;
                             }
                             else if (strcmp(value, "down_north") == 0) {
                                 dropper_facing = 0 | BIT_16;
+                                orientation = 10;
                             }
                             else if (strcmp(value, "down_west") == 0) {
                                 dropper_facing = 0;
+                                orientation = 9;
                             }
                             else if (strcmp(value, "down_south") == 0) {
                                 dropper_facing = 0 | BIT_8;
+                                orientation = 8;
                             }
                             else {
                                 // unknown state found
@@ -4041,7 +4057,12 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                                 // cooldown and inactive are the same, ignore as 0x0 state
                                 assert(0);
                             }
-                         }
+                        }
+
+                        // for crafter
+                        else if (strcmp(token, "crafting") == 0) {
+                            crafting = (strcmp(value, "true") == 0) ? 1 : 0;
+                        }
 
 #ifdef _DEBUG
                         else {
@@ -4582,6 +4603,12 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             case ATTACHED_HANGING_SIGN:
                 // south/west/north/east == 0/1/2/3
                 dataVal |= (attached ? BIT_16 : 0x0);
+                break;
+            case CRAFTER_PROP:
+                // for crafter
+                dataVal = orientation | (crafting ? BIT_16 : 0) | (triggered ? BIT_32 : 0);
+                // Normally we don't have to reset, as all of these properties get set for the crafter. Note that "triggered" is not graphical
+                // for the jigsaw that uses it. Does matter to the crafter.
                 break;
             }
 

@@ -22998,24 +22998,24 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             if (faceDirection == DIRECTION_BLOCK_BOTTOM)
             {
                 // easy
-                swatchLoc = SWATCH_INDEX(5, 64);
+                swatchLoc = SWATCH_INDEX(4, 64);
             }
             else if (faceDirection == DIRECTION_BLOCK_TOP) {
                 // top has ejecting_reward/active/inactive
                 if ( (dataVal & 0x3) == 0)
 				{
                     // inactive
-					// stays the same: swatchLoc = SWATCH_INDEX(14, 64);
+					// stays the same: swatchLoc = SWATCH_INDEX(12, 64);
 				}
 				else if ((dataVal & 0x3) == 3)
 				{
                     // ejecting
-					swatchLoc = SWATCH_INDEX(12, 64);
+					swatchLoc = SWATCH_INDEX(11, 64);
 				}
 				else
 				{
                     // active, waiting for
-					swatchLoc = SWATCH_INDEX(10, 64);
+					swatchLoc = SWATCH_INDEX(9, 64);
 				}
 
                 if (dataVal & 0x4) {
@@ -23028,12 +23028,12 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 if ((dataVal & 0x3) == 0)
                 {
                     // inactive
-                    swatchLoc = SWATCH_INDEX(8, 64);
+                    swatchLoc = SWATCH_INDEX(7, 64);
                 }
                 else
                 {
                     // active or ejecting - same
-                    swatchLoc = SWATCH_INDEX(6, 64);
+                    swatchLoc = SWATCH_INDEX(5, 64);
                 }
 
                 if (dataVal & 0x4) {
@@ -23051,19 +23051,19 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             if (faceDirection == DIRECTION_BLOCK_BOTTOM)
             {
                 // easy
-                swatchLoc = SWATCH_INDEX(1, 65);
+                swatchLoc = SWATCH_INDEX(0, 65);
             }
             else if (faceDirection == DIRECTION_BLOCK_TOP) {
                 // top has ejecting
                 if (dataVal & (0x3 << 3))
                 {
                     // ejecting
-                    swatchLoc = SWATCH_INDEX(15, 65);
+                    swatchLoc = SWATCH_INDEX(14, 65);
                 }
                 //else
                 //{
                     // everything else - default
-                    //swatchLoc = SWATCH_INDEX(13, 65);
+                    //swatchLoc = SWATCH_INDEX(12, 65);
                 //}
             }
             else {
@@ -23076,17 +23076,17 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     if ((dataVal & (0x3 << 3)) == ((0x0) << 3))
                     {
                         // inactive
-                        swatchLoc = SWATCH_INDEX(5, 65);
+                        swatchLoc = SWATCH_INDEX(4, 65);
                     }
                     else if ((dataVal & (0x3 << 3)) == ((0x1) << 3))
                     {
                         // active
-                        swatchLoc = SWATCH_INDEX(7, 65);
+                        swatchLoc = SWATCH_INDEX(6, 65);
                     }
                     else // if ((dataVal & (0x3 << 3)) == ((0x2) << 3))
                     {
                         // unlocking and ejecting are the same
-                        swatchLoc = SWATCH_INDEX(3, 65);
+                        swatchLoc = SWATCH_INDEX(2, 65);
                     }
                 }
                 else {
@@ -23094,12 +23094,12 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     if ((dataVal & (0x3 << 3)) == ((0x0) << 3))
                     {
                         // inactive
-                        swatchLoc = SWATCH_INDEX(9, 65);
+                        swatchLoc = SWATCH_INDEX(8, 65);
                     }
                     else
                     {
                         // everything else
-                        swatchLoc = SWATCH_INDEX(11, 65);
+                        swatchLoc = SWATCH_INDEX(10, 65);
                     }
                 }
             }
@@ -23110,6 +23110,118 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             break;
 
+        case BLOCK_CRAFTER:
+            // given 0-11 for the orientation (the bottom four bits), we return whether it's a bottom, top, north, south, east, or west face
+            // Input order is orientation order: south, west, north, east; then up_ then down_
+            // Order is: bottom, top, south, west, north, east == 0-5
+            // In other words
+            {
+                // faceDirection => west/bottom/north/east/top/south
+                int crafterFaceType[6 * 12] = {
+                    0,0,0,0,0,0,0,0,0,0,0,0,    // west
+                    1,1,1,1,1,1,1,1,1,1,1,1,    // bottom
+                    2,2,2,2,2,2,2,2,2,2,2,2,    // north
+                    3,3,3,3,3,3,3,3,3,3,3,3,    // east
+                    4,4,4,4,4,4,4,4,4,4,4,4,    // top
+                    5,5,5,5,5,5,5,5,5,5,5,5     // south
+                };
+                int crafterAngle[6 * 12] = {
+                    0,0,0,0,0,0,0,0,0,0,0,0,    // west
+                    0,0,0,0,0,0,0,0,0,0,0,0,    // bottom
+                    0,0,0,0,0,0,0,0,0,0,0,0,    // north
+                    0,0,0,0,0,0,0,0,0,0,0,0,    // east
+                    0,0,0,0,0,0,0,0,0,0,0,0,    // top
+                    0,0,0,0,0,0,0,0,0,0,0,0     // south
+                };
+
+                int swatchSide = crafterFaceType[12 * faceDirection + (dataVal & 0xF)];
+                switch (swatchSide) {
+                default:
+                    assert(0);
+                    // fall through, just in case
+                case DIRECTION_BLOCK_SIDE_LO_X:
+                    // west
+                    if (dataVal & BIT_16) {
+                        // crafting - overrides triggered for the top
+                        swatchLoc = SWATCH_INDEX(14, 62);
+                    }
+                    else if (dataVal & BIT_32) {
+                        // triggered
+                        swatchLoc = SWATCH_INDEX(15, 62);
+                    }
+                    else {
+                        // normal
+                        swatchLoc = SWATCH_INDEX(13, 62);
+                    }
+                    break;
+                case DIRECTION_BLOCK_BOTTOM:
+                    swatchLoc = SWATCH_INDEX(2, 62);
+                    break;
+                case DIRECTION_BLOCK_SIDE_LO_Z:
+                    // north
+                    if (dataVal & BIT_16) {
+                        // crafting - overrides triggered for the top
+                        swatchLoc = SWATCH_INDEX(7, 62);
+                    }
+                    else {
+                        // normal
+                        swatchLoc = SWATCH_INDEX(6, 62);
+                    }
+                    break;
+                case DIRECTION_BLOCK_SIDE_HI_X:
+                    // east
+                    if (dataVal & BIT_16) {
+                        // crafting - overrides triggered for the top
+                        swatchLoc = SWATCH_INDEX(4, 62);
+                    }
+                    else if (dataVal & BIT_32) {
+                        // triggered
+                        swatchLoc = SWATCH_INDEX(5, 62);
+                    }
+                    else {
+                        // normal
+                        swatchLoc = SWATCH_INDEX(3, 62);
+                    }
+                    break;
+                case DIRECTION_BLOCK_TOP:
+                    if (dataVal & BIT_16) {
+                        // crafting - overrides triggered for the top
+                        swatchLoc = SWATCH_INDEX(11, 62);
+                    } 
+                    else if (dataVal & BIT_32) {
+                        // triggered
+                        swatchLoc = SWATCH_INDEX(12, 62);
+                    }
+                    else {
+					    // normal
+					    swatchLoc = SWATCH_INDEX(10, 62);
+				    }
+                    break;
+                case DIRECTION_BLOCK_SIDE_HI_Z:
+                    // south
+                    if (dataVal & BIT_32) {
+                        // triggered
+                        swatchLoc = SWATCH_INDEX(9, 62);
+                    }
+                    else {
+                        // normal
+                        swatchLoc = SWATCH_INDEX(8, 62);
+                    }
+                    break;
+                }
+                // need to rotate?
+                if (uvIndices)
+                {
+                    int swatchAngle = crafterAngle[12 * faceDirection + (dataVal & 0xF)];
+                    if (swatchAngle != 0)
+                    {
+                        rotateIndices(localIndices, swatchAngle);
+                    }
+                }
+		    }
+            break;
+
+         //================================================================================================
         default:
             // if something has cutouts, it almost assuredly needs to have a case above with a call to getCompositeSwatch()
 #ifdef _DEBUG
