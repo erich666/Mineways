@@ -336,7 +336,8 @@ extern Model gModel;
                                                      ((worldVersion) <= 2730) ? 17 : \
                                                      ((worldVersion) <= 2975) ? 18 : \
                                                      ((worldVersion) <= 3442) ? 19 : \
-                                                     20)
+                                                     ((worldVersion) <= 3837) ? 20 : \
+                                                     21)
 
 
 void SetSeparatorObj(const wchar_t* separator);

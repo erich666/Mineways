@@ -3,6 +3,6 @@
 
 extern int gTerrainExtWidth;
 extern int gTerrainExtHeight;
-extern unsigned char gTerrainExt[1015808];
+extern unsigned char gTerrainExt[1097728];
 
 #endif

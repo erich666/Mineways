@@ -4440,6 +4440,65 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         }
         break;
 
+    case BLOCK_TRIAL_SPAWNER:
+        dataVal = block->data[voxel];
+        // low 2 bits are trial_spawner_state
+        // next 1 bit is ominous
+        switch (dataVal & 0x7)
+        {
+        default:
+            assert(0);
+        case 0:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 1:	// active, 10,64
+        case 2: // waiting_for_player 10,64
+            color = 0x545863;
+            break;
+        case 3:	// ejecting, 12,64
+            color = 0x4E484F;
+            break;
+        case 4:	// ominous inactive, 15,64
+            color = 0x355161;
+            break;
+        case 5:	// ominous active, 11,64
+        case 6:	// ominous waiting_for_player, 11,64
+            color = 0x365E6C;
+            break;
+        case 7:	// ominous ejecting, 13,64
+            color = 0x2B505A;
+            break;
+        }
+        break;
+
+    case BLOCK_VAULT:
+        dataVal = block->data[voxel];
+        // bit 0x4 is ominous, higher 2 bits are vault state
+        switch (dataVal & 0x1C)
+        {
+        default:
+            assert(0);
+        case 0:     // inactive 13,65
+        case 0x8:	// active, 13,65
+        case 0x10:	// unlocking, 13,65
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 4:	    // ominous inactive, 14,65
+        case 0xC:	// ominous active, 14,65
+        case 0x14:	// ominous unlocking, 14,65
+            color = 0x3B4245;
+            break;
+        case 0x18:	// ejecting, 15,65
+            color = 0x3C403F;
+            break;
+        case 0x1C:	// ominous ejecting, 0,66
+            color = 0x4A4E4B;
+            break;
+        }
+        break;
+
     default:
         // Everything else
         lightComputed = true;
@@ -5473,6 +5532,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_WOODEN_DOUBLE_SLAB:
     case BLOCK_CUT_COPPER_DOUBLE_SLAB:
     case BLOCK_SUSPICIOUS_GRAVEL:
+    case BLOCK_TRIAL_SPAWNER:
         // uses 0-7 - TODO we could someday add more blocks to neighbor the others, in order to show the stairs' "step block trim" feature of week 39
         if (dataVal < 8)
         {
@@ -5814,6 +5874,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
     case BLOCK_COLORED_CANDLE:
     case BLOCK_LIT_COLORED_CANDLE:
+    case BLOCK_VAULT:
         // uses all bits, 0-15, with variations to show other styles
         // This is for when adding content with the HIGH_BIT set
         addBlock = 1;

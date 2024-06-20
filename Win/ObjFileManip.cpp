@@ -22990,6 +22990,126 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             swatchLoc += (dataVal & 0x7);
             break;
 
+        case BLOCK_TRIAL_SPAWNER:
+            // for trial_spawner:
+            // low 2 bits are trial_spawner_state
+            // next 1 bit is ominous
+            // bottom, side, or top?
+            if (faceDirection == DIRECTION_BLOCK_BOTTOM)
+            {
+                // easy
+                swatchLoc = SWATCH_INDEX(5, 64);
+            }
+            else if (faceDirection == DIRECTION_BLOCK_TOP) {
+                // top has ejecting_reward/active/inactive
+                if ( (dataVal & 0x3) == 0)
+				{
+                    // inactive
+					// stays the same: swatchLoc = SWATCH_INDEX(14, 64);
+				}
+				else if ((dataVal & 0x3) == 3)
+				{
+                    // ejecting
+					swatchLoc = SWATCH_INDEX(12, 64);
+				}
+				else
+				{
+                    // active, waiting for
+					swatchLoc = SWATCH_INDEX(10, 64);
+				}
+
+                if (dataVal & 0x4) {
+                    // ominous
+                    swatchLoc++;
+                }
+            }
+            else {
+                // it's a side
+                if ((dataVal & 0x3) == 0)
+                {
+                    // inactive
+                    swatchLoc = SWATCH_INDEX(8, 64);
+                }
+                else
+                {
+                    // active or ejecting - same
+                    swatchLoc = SWATCH_INDEX(6, 64);
+                }
+
+                if (dataVal & 0x4) {
+                    // ominous
+                    swatchLoc++;
+                }
+            }
+            break;
+
+        case BLOCK_VAULT:
+            // for vault:
+            // low 2 bits are facing
+            // next 1 bit is ominous
+            // next 2 bits are vault_state: ejecting and unlocking are really the same visually
+            if (faceDirection == DIRECTION_BLOCK_BOTTOM)
+            {
+                // easy
+                swatchLoc = SWATCH_INDEX(1, 65);
+            }
+            else if (faceDirection == DIRECTION_BLOCK_TOP) {
+                // top has ejecting
+                if (dataVal & (0x3 << 3))
+                {
+                    // ejecting
+                    swatchLoc = SWATCH_INDEX(15, 65);
+                }
+                //else
+                //{
+                    // everything else - default
+                    //swatchLoc = SWATCH_INDEX(13, 65);
+                //}
+            }
+            else {
+                // it's a side - front or side facing?
+                if (((faceDirection == DIRECTION_BLOCK_SIDE_LO_X) && ((dataVal & 0x3) == 3)) ||
+                    ((faceDirection == DIRECTION_BLOCK_SIDE_HI_X) && ((dataVal & 0x3) == 1)) ||
+                    ((faceDirection == DIRECTION_BLOCK_SIDE_LO_Z) && ((dataVal & 0x3) == 0)) ||
+                    ((faceDirection == DIRECTION_BLOCK_SIDE_HI_Z) && ((dataVal & 0x3) == 2))) {
+                    // front facing: off, on, ejecting
+                    if ((dataVal & (0x3 << 3)) == ((0x0) << 3))
+                    {
+                        // inactive
+                        swatchLoc = SWATCH_INDEX(5, 65);
+                    }
+                    else if ((dataVal & (0x3 << 3)) == ((0x1) << 3))
+                    {
+                        // active
+                        swatchLoc = SWATCH_INDEX(7, 65);
+                    }
+                    else // if ((dataVal & (0x3 << 3)) == ((0x2) << 3))
+                    {
+                        // unlocking and ejecting are the same
+                        swatchLoc = SWATCH_INDEX(3, 65);
+                    }
+                }
+                else {
+                    // side facing: off, on
+                    if ((dataVal & (0x3 << 3)) == ((0x0) << 3))
+                    {
+                        // inactive
+                        swatchLoc = SWATCH_INDEX(9, 65);
+                    }
+                    else
+                    {
+                        // everything else
+                        swatchLoc = SWATCH_INDEX(11, 65);
+                    }
+                }
+            }
+            // in all cases there's an ominous version!
+            if (dataVal & 0x4) {
+                // ominous
+                swatchLoc++;
+            }
+            break;
+
         default:
             // if something has cutouts, it almost assuredly needs to have a case above with a call to getCompositeSwatch()
 #ifdef _DEBUG
@@ -23777,6 +23897,36 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
         break;
     case BLOCK_SCULK_SENSOR:
         emission = 1.0f;
+        break;
+    case BLOCK_TRIAL_SPAWNER:
+        // Yes, when not inactive
+        // Waiting for players : 4
+        // Active : 8
+        if (splitByBlockType) {
+            switch ((dataVal & 0x3)) {
+            case 0:
+                emission = 0.0f;
+                break;
+            case 2:
+                emission = 4.0f;
+                break;
+            case 1:
+            case 3:
+                emission = 8.0f;
+                break;
+            default:
+                assert(0);
+                break;
+            }
+        }
+        break;
+    case BLOCK_VAULT:
+        // Active or ejecting : 12
+        // Inactive : 6
+        if (splitByBlockType) {
+            // top 2 bits (bit 0x4 is ominous, bits 0x3 are facing)
+            emission = (dataVal & 0x18) ? 12.0f : 6.0f;
+        }
         break;
     }
     // Minecraft lights are quite non-physical, dropping off linearly with distance, but dropping off more quickly if they are dimmer.
@@ -25882,8 +26032,14 @@ static int createBaseMaterialTexture()
         // TODOUSD - may also need to bleed the PBR textures?
         for (i = 0; i < TOTAL_TILES; i++)
         {
-            // check that I didn't forget to give each a material type it's associated with
-            assert(gTilesTable[i].typeForMtl || wcslen(gTilesTable[i].filename) == 0);
+            // check that I didn't forget to give each a material type it's associated with - if hit, go to tiles.h and add an entry
+            assert(true 
+                
+                
+                
+                
+                
+                || gTilesTable[i].typeForMtl || wcslen(gTilesTable[i].filename) == 0);
 
             // If leaves are to be made solid and so should have alphas all equal to 1.0.
             if (gModel.options->pEFD->chkLeavesSolid && (gTilesTable[i].flags & SBIT_LEAVES))

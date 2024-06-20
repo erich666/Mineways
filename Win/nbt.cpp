@@ -373,7 +373,7 @@ static TranslationTuple* modTranslations = NULL;
 // attached: true/false
 #define ATTACHED_HANGING_SIGN   65
 
-#define NUM_TRANS 1012
+#define NUM_TRANS 1015
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1412,6 +1412,9 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 208,       HIGH_BIT, "bamboo_hanging_sign", ATTACHED_HANGING_SIGN },
     { 0, 144,        6 << 4, "piglin_wall_head", HEAD_WALL_PROP },
     { 0, 144, 0x80 | 6 << 4, "piglin_head", HEAD_PROP },
+    { 0, 209,       HIGH_BIT, "trial_spawner", NO_PROP },
+    { 0, 210,       HIGH_BIT, "vault", NO_PROP },
+    { 0, 211,       HIGH_BIT, "crafter", NO_PROP },
 
     // 1.20.3 additions (short_grass added next to "grass", above), https://minecraft.wiki/w/Java_Edition_1.20.3#General_2
 
@@ -3968,11 +3971,77 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             strcmp(token, "slot_5_occupied") == 0 ) {
                             dataVal |= (strcmp(value, "true") == 0) ? 8 : 0;
                         }
-                        
                         // for pink petals
                         else if (strcmp(token, "flower_amount") == 0) {
                             flower_amount = atoi(value);
                         }
+
+                        // for trial spawner and vault
+                        else if (strcmp(token, "ominous") == 0) {
+                            dataVal |= (strcmp(value, "true") == 0) ? 0x4 : 0;
+                        }
+
+                        // for trial_spawner:
+                        // low 2 bits are trial_spawner_state
+                        // next 1 bit is ominous
+                        else if (strcmp(token, "trial_spawner_state") == 0) {
+                            // there are only three states that matter visually:
+                            // waiting_for_reward_ejection, waiting_for_players, and active are all the same, except for illumination level
+                            // cooldown and inactive are the same
+                            // ejecting_reward
+                            if (strcmp(value, "active") == 0) {
+                                dataVal |= 0x1;
+                            }
+                            else if (strcmp(value, "waiting_for_reward_ejection") == 0) {
+                                dataVal |= 0x1;
+                            }
+                            else if (strcmp(value, "waiting_for_players") == 0) {
+                                // different illumination level
+                                dataVal |= 0x2;
+                            }
+                            else if (strcmp(value, "ejecting_reward") == 0) {
+                                dataVal |= 0x3;
+                            }
+                            // last two just to check validity - don't do anything
+                            else if (strcmp(value, "cooldown") == 0) {
+                                //dataVal |= 0x0;
+                            }
+                            else if (strcmp(value, "inactive") == 0) {
+                                //dataVal |= 0x0;
+                            }
+                            else {
+                                // cooldown and inactive are the same, ignore as 0x0 state
+                                assert(0);
+                            }
+                        }
+
+                        // for vault:
+                        // low 2 bits are facing
+                        // next 1 bit is ominous
+                        // next 2 bits are vault_state: ejecting and unlocking are really the same visually
+                        else if (strcmp(token, "vault_state") == 0) {
+                            // there are only three states that matter visually:
+                            // waiting_for_reward_ejection, waiting_for_players, and active are all the same
+                            // cooldown and inactive are the same
+                            // ejecting_reward
+                            if (strcmp(value, "inactive") == 0) {
+                                //dataVal |= 0x0;
+                            }
+                            else if (strcmp(value, "active") == 0) {
+                                dataVal |= 0x1 << 3;
+                            }
+                            else if (strcmp(value, "unlocking") == 0) {
+                                // really the same as "ejecting", visually, but let's separate them since we have a state 0-3
+                                dataVal |= 0x2 << 3;
+                            }
+                            else if (strcmp(value, "ejecting") == 0) {
+                                dataVal |= 0x3 << 3;
+                            }
+                            else {
+                                // cooldown and inactive are the same, ignore as 0x0 state
+                                assert(0);
+                            }
+                         }
 
 #ifdef _DEBUG
                         else {

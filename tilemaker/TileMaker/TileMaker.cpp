@@ -16,7 +16,7 @@
 #include "tiles.h"
 #include "tilegrid.h"
 
-#define	VERSION_STRING	L"3.23"
+#define	VERSION_STRING	L"3.24"
 
 //#define TILE_PATH	L".\\blocks\\"
 #define BASE_INPUT_FILENAME			L"terrainBase.png"
