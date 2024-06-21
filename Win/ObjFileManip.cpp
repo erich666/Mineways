@@ -11436,8 +11436,27 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
         break;
 
-        // END saveBillboardOrGeometry
+    case BLOCK_HEAVY_CORE:						// saveBillboardOrGeometry
+        swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+        gUsingTransform = 1;
+        // note all six sides are used, but with different texture coordinates
+        // set sides
+        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0, 0, 8, 0, 8, 0, 8);
+        saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 8, 16, 0, 8, 8, 16);
+        // set top
+        saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 8, 8, 16, 0, 8);
+        // set bottom
+        saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 8, 16, 8, 16, 0, 8);
 
+        identityMtx(mtx);
+        translateMtx(mtx, 4.0f / 16.0f, 0.0f / 16.0f, 4.0f / 16.0f);
+        transformVertices(8, mtx);
+
+        gUsingTransform = 0;
+        break; // saveBillboardOrGeometry
+
+        // END saveBillboardOrGeometry
+    //==================================================================================
     default:
         // something tagged as billboard or geometry, but no case here! Examine "type"
         assert(0);
@@ -18993,6 +19012,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_GLOW_LICHEN:
         case BLOCK_SCULK_VEIN:
         case BLOCK_MANGROVE_PROPAGULE:						// getSwatch
+        case BLOCK_HEAVY_CORE:
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             break;
         case BLOCK_LILY_PAD:
@@ -34239,6 +34259,7 @@ static bool faceCanTile(int faceId)
     case BLOCK_CRIMSON_HANGING_SIGN:
     case BLOCK_MANGROVE_HANGING_SIGN:
     case BLOCK_BAMBOO_HANGING_SIGN:
+    case BLOCK_HEAVY_CORE:
 
     // Ruled out because complex and used flipIndicesLeftRight
     case BLOCK_BED:

@@ -6941,6 +6941,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
     case BLOCK_CONDUIT:
+    case BLOCK_HEAVY_CORE:
         // also with waterlogged
         if (dataVal < 2)
         {

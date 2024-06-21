@@ -377,7 +377,7 @@ static TranslationTuple* modTranslations = NULL;
 // triggered 0-1 (0x20)
 #define CRAFTER_PROP        66
 
-#define NUM_TRANS 1015
+#define NUM_TRANS 1016
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1419,6 +1419,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 209,       HIGH_BIT, "trial_spawner", NO_PROP },
     { 0, 210,       HIGH_BIT, "vault", NO_PROP },
     { 0, 211,       HIGH_BIT, "crafter", CRAFTER_PROP },
+    { 0, 212,       HIGH_BIT, "heavy_core", NO_PROP },
 
     // 1.20.3 additions (short_grass added next to "grass", above), https://minecraft.wiki/w/Java_Edition_1.20.3#General_2
 
