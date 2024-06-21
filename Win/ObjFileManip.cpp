@@ -23117,21 +23117,24 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             // In other words
             {
                 // faceDirection => west/bottom/north/east/top/south
+                // columns are south_up, west_up, north_up, east_up (and north is the default direction)
                 int crafterFaceType[6 * 12] = {
-                    0,0,0,0,0,0,0,0,0,0,0,0,    // west
-                    1,1,1,1,1,1,1,1,1,1,1,1,    // bottom
-                    2,2,2,2,2,2,2,2,2,2,2,2,    // north
-                    3,3,3,3,3,3,3,3,3,3,3,3,    // east
-                    4,4,4,4,4,4,4,4,4,4,4,4,    // top
-                    5,5,5,5,5,5,5,5,5,5,5,5     // south
+                //  s_u,w_u,n_u,e_u,u_s,u_w,u_n,u_e,d_s,d_w,d_n,d_e
+                      3,  2,  0,  5,  0,  4,  3,  1,  3,  4,  0,  1,    // west
+                      1,  1,  1,  1,  5,  5,  5,  5,  2,  2,  2,  2,    // bottom
+                      5,  3,  2,  0,  1,  0,  4,  3,  1,  3,  4,  0,    // north
+                      0,  5,  3,  2,  3,  1,  0,  4,  0,  1,  3,  4,    // east
+                      4,  4,  4,  4,  2,  2,  2,  2,  5,  5,  5,  5,    // top
+                      2,  0,  5,  3,  4,  3,  1,  0,  4,  0,  1,  3     // south
                 };
                 int crafterAngle[6 * 12] = {
-                    0,0,0,0,0,0,0,0,0,0,0,0,    // west
-                    0,0,0,0,0,0,0,0,0,0,0,0,    // bottom
-                    0,0,0,0,0,0,0,0,0,0,0,0,    // north
-                    0,0,0,0,0,0,0,0,0,0,0,0,    // east
-                    0,0,0,0,0,0,0,0,0,0,0,0,    // top
-                    0,0,0,0,0,0,0,0,0,0,0,0     // south
+                //  s_u,w_u,n_u,e_u,u_s,u_w,u_n,u_e,d_s,d_w,d_n,d_e
+                      0,  0,  0,  0, 90,180,270,180, 90,  0,270,  0,    // west
+                      0, 90,180,270,  0,270,180, 90,  0,270,180,270,    // bottom
+                      0,  0,  0,  0,180, 90,180,270,  0, 90,  0,270,    // north
+                      0,  0,  0,  0,270,180, 90,180,270,  0, 90,  0,    // east
+                      0, 90,180,270,180,270,  0, 90,180,270,  0, 90,    // top
+                      0,  0,  0,  0,180,270,180, 90,  0,270,  0, 90     // south
                 };
 
                 int swatchSide = crafterFaceType[12 * faceDirection + (dataVal & 0xF)];

@@ -5893,6 +5893,27 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | BIT_16 | HIGH_BIT;
         }
         break;
+    case BLOCK_CRAFTER:
+        // uses bits 0-11, with variations to show other styles
+        // This is for when adding content with the HIGH_BIT set
+        if (dataVal < 12) {
+            addBlock = 1;
+            y += 2;
+
+            // add new style diagonally SE of original
+            neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16 | HIGH_BIT;
+
+            neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | HIGH_BIT;
+
+            neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | BIT_16 | HIGH_BIT;
+        }
+        break;
     case BLOCK_AMETHYST_BUD:
         if (dataVal < 4) {
             addBlock = 1;
