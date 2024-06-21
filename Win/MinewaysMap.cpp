@@ -2337,6 +2337,29 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Cherry Hanging Sign";
         }
         break;
+    case BLOCK_COPPER_BULB:
+        switch (dataVal & 0x7) {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case 1:
+            return "Exposed Copper Bulb";
+        case 2:
+            return "Weathered Copper Bulb";
+        case 3:
+            return "Oxidized Copper Bulb";
+        case 4:
+            return "Waxed Copper Bulb";
+        case 5:
+            return "Waxed Exposed Copper Bulb";
+        case 6:
+            return "Waxed Weathered Copper Bulb";
+        case 7:
+            return "Waxed Oxidized Copper Bulb";
+        }
+        break;
     }
 
     return gBlockDefinitions[type].name;
@@ -4503,6 +4526,37 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             break;
         }
         break;
+    case BLOCK_COPPER_BULB:
+        dataVal = block->data[voxel];
+        switch (dataVal & 0x7) {
+        default:
+            assert(0);
+        case 0:
+        case 4:
+            // Waxed Copper Bulb
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 1:
+        case 5:
+            // Exposed Copper Bulb
+            // Waxed Exposed Copper Bulb
+            color = 0x8E6E5D;
+            break;
+        case 2:
+        case 6:
+            // Weathered Copper Bulb
+            // Waxed Weathered Copper Bulb
+            color = 0x5F8467;
+            break;
+        case 3:
+        case 7:
+            // Oxidized Copper Bulb
+            // Waxed Oxidized Copper Bulb
+            color = 0x498B73;
+            break;
+        }
+        break;
 
     default:
         // Everything else
@@ -5899,27 +5953,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | BIT_16 | HIGH_BIT;
         }
         break;
-    case BLOCK_CRAFTER:
-        // uses bits 0-11, with variations to show other styles
-        // This is for when adding content with the HIGH_BIT set
-        if (dataVal < 12) {
-            addBlock = 1;
-            y += 2;
-
-            // add new style diagonally SE of original
-            neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
-            block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16 | HIGH_BIT;
-
-            neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
-            block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | HIGH_BIT;
-
-            neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
-            block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | BIT_16 | HIGH_BIT;
-        }
-        break;
     case BLOCK_AMETHYST_BUD:
         if (dataVal < 4) {
             addBlock = 1;
@@ -7166,6 +7199,36 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 block->grid[neighborIndex3 + 256] = BLOCK_FENCE;
             }
         }
+        break;
+    case BLOCK_CRAFTER:
+        // uses bits 0-11, with variations to show other styles
+        // This is for when adding content with the HIGH_BIT set
+        if (dataVal < 12) {
+            addBlock = 1;
+
+            // add new style diagonally SE of original
+            neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16 | HIGH_BIT;
+
+            neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | HIGH_BIT;
+
+            neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | BIT_16 | HIGH_BIT;
+        }
+        break;
+    case BLOCK_COPPER_BULB:
+        // 0-32, to catch two top bits
+        {
+            addBlock = 1;
+
+            neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16 | HIGH_BIT;
+    }
         break;
 
         // don't show special blocks to users

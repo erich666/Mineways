@@ -376,8 +376,10 @@ static TranslationTuple* modTranslations = NULL;
 // crafting 0-1 (0x10)
 // triggered 0-1 (0x20)
 #define CRAFTER_PROP        66
+// lit true|false gives 0x8 for copper bulbs
+#define BULB_PROP            67
 
-#define NUM_TRANS 1017
+#define NUM_TRANS 1025
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1420,7 +1422,15 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 210,       HIGH_BIT, "vault", NO_PROP },
     { 0, 211,       HIGH_BIT, "crafter", CRAFTER_PROP },
     { 0, 212,       HIGH_BIT, "heavy_core", NO_PROP },
-    { 0, 132,   HIGH_BIT | 4, "polished_tuff", NO_PROP },
+    { 0, 132,  HIGH_BIT | 48, "polished_tuff", NO_PROP },
+    { 0, 213,       HIGH_BIT, "copper_bulb", NO_PROP },
+    { 0, 213,   HIGH_BIT | 1, "exposed_copper_bulb", NO_PROP },
+    { 0, 213,   HIGH_BIT | 2, "weathered_copper_bulb", NO_PROP },
+    { 0, 213,   HIGH_BIT | 3, "oxidized_copper_bulb", NO_PROP },
+    { 0, 213,   HIGH_BIT | 4, "waxed_copper_bulb", NO_PROP },
+    { 0, 213,   HIGH_BIT | 5, "waxed_exposed_copper_bulb", NO_PROP },
+    { 0, 213,   HIGH_BIT | 6, "waxed_weathered_copper_bulb", NO_PROP },
+    { 0, 213,   HIGH_BIT | 7, "waxed_oxidized_copper_bulb", NO_PROP },
 
     // 1.20.3 additions (short_grass added next to "grass", above), https://minecraft.wiki/w/Java_Edition_1.20.3#General_2
 
@@ -3248,14 +3258,16 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
 
     // for doors
     bool half, north, south, east, west, down, lit, powered, triggered, extended, attached, disarmed,
-        conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall, signal_fire, has_book, up, hanging, crafting;
+        conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall, signal_fire, has_book,
+        up, hanging, crafting, powered_bit;
     int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age,
         delay, locked, sticky, hatch, leaves, single, attachment, honey_level, stairs, bites, tilt,
         thickness, vertical_direction, berries, flower_amount, orientation;
     // to avoid Release build warning, but should always be set by code in practice
     int typeIndex = 0;
     half = north = south = east = west = down = lit = powered = triggered = extended = attached = disarmed
-        = conditional = inverted = enabled = doubleSlab = mode = in_wall = signal_fire = has_book = up = hanging = crafting = false; // waterlogged is always set false in loop
+        = conditional = inverted = enabled = doubleSlab = mode = in_wall = signal_fire = has_book
+        = up = hanging = crafting = powered_bit = false; // waterlogged is always set false in loop
     axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
         delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt =
         thickness = vertical_direction = berries = flower_amount = orientation = 0;
@@ -3697,7 +3709,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         else if (strcmp(token, "down") == 0) {
                             down = (strcmp(value, "true") == 0);
                         }
-                        // redstone
+                        // redstone, copper bulbs, candles, much else
                         else if (strcmp(token, "lit") == 0) {
                             lit = (strcmp(value, "true") == 0);
                         }
@@ -4064,6 +4076,11 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         // for crafter
                         else if (strcmp(token, "crafting") == 0) {
                             crafting = (strcmp(value, "true") == 0) ? 1 : 0;
+                        }
+
+                        // copper bulbs
+                        else if (strcmp(token, "powered_bit") == 0) {
+                            powered_bit = (strcmp(value, "true") == 0);
                         }
 
 #ifdef _DEBUG
@@ -4609,8 +4626,12 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             case CRAFTER_PROP:
                 // for crafter
                 dataVal = orientation | (crafting ? BIT_16 : 0) | (triggered ? BIT_32 : 0);
-                // Normally we don't have to reset, as all of these properties get set for the crafter. Note that "triggered" is not graphical
-                // for the jigsaw that uses it. Does matter to the crafter.
+                break;
+            case BULB_PROP:
+                // for copper bulbs
+                dataVal |= (lit ? 0x8 : 0) | (powered_bit ? BIT_16 : 0);
+                // reset because basic cake doesn't reset lit to false, IIRC
+                lit = false;
                 break;
             }
 

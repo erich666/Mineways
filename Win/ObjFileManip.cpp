@@ -23247,6 +23247,48 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
 		    }
             break;
 
+        case BLOCK_COPPER_BULB:
+            // no visual difference between waxed and normal, just a behavioral thing. We track so that the name shows up.
+            switch (dataVal & 0x07)
+            {
+            default: // copper bulb
+                assert(0);
+            case 0:
+            case 4: // waxed_copper_bulb
+                // no change, default is fine
+                break;
+            case 1: // exposed_copper_bulb
+            case 5:	// waxed_exposed_copper_bulb
+                swatchLoc = SWATCH_INDEX(1, 63);
+                break;
+            case 2: // weathered_copper_bulb
+            case 6:	// waxed_weathered_copper_bulb
+                swatchLoc = SWATCH_INDEX(1, 66);
+                break;
+            case 3: // oxidized_copper_bulb
+            case 7:	// waxed_oxidized_copper_bulb
+                swatchLoc = SWATCH_INDEX(11, 63);
+                break;
+            }
+            // due to alphabetical order, adds are lit/lit+powered/powered
+            switch (dataVal & 0x18) {
+            default: // no add
+                assert(0);
+            case 0:
+                // no change, default is fine
+                break;
+            case 1<<3: // lit
+                swatchLoc++;
+                break;
+            case 2<<3: // powered
+                swatchLoc += 3;
+                break;
+            case 3<<3: // lit and powered, add 2
+                swatchLoc += 2;
+                break;
+            }
+            break;
+
          //================================================================================================
         default:
             // if something has cutouts, it almost assuredly needs to have a case above with a call to getCompositeSwatch()
@@ -24066,6 +24108,34 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
             emission = (dataVal & 0x18) ? 12.0f : 6.0f;
         }
         break;
+    case BLOCK_COPPER_BULB:
+        if (splitByBlockType) {
+            // top 2 bits are 0x8 lit and 0x10 powered_bit - lit matters, powered_bit does not
+            if (dataVal & 0x8) {
+                // Unoxidized: 15
+                // Exposed: 12
+                // Weathered: 8
+                // Oxidized: 4
+                switch (dataVal & 0x3) {
+                case 0:
+                    emission = 15;
+                    break;
+                case 1:
+                    emission = 12;
+                    break;
+                case 2:
+                    emission = 8;
+                    break;
+                case 3:
+                    emission = 4;
+                    break;
+                }
+            }
+            else {
+                emission = 0;
+            }
+        }
+        break;
     }
     // Minecraft lights are quite non-physical, dropping off linearly with distance, but dropping off more quickly if they are dimmer.
     // A 15 emission drops off to 14 one block away, 13 two blocks, etc.
@@ -24150,6 +24220,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
 
     char outputString[MAX_PATH_AND_FILE];
     char mtlName[MAX_PATH_AND_FILE];
+    mtlName[0] = 0; // initialize to avoid warnings
 
     int i, j, groupCount, index;
 
