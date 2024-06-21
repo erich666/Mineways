@@ -22809,6 +22809,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 randomlyRotate180AndReflect(faceDirection, backgroundIndex, localIndices);
                 swatchLoc = SWATCH_INDEX(1, 56);
                 break;
+            case 48: // polished tuff
+                swatchLoc = SWATCH_INDEX(3, 64);
+                break;
             }
             break;
 
@@ -24987,6 +24990,9 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
     double fRed, fGreen, fBlue;
     double ka, kd, ks;
 
+    // if type is not set, go to tiles.h and put a number in for typeForMtl field (third one) in tiles.h
+    assert(type > 0);
+
     char customMaterialString[256];
     customMaterialString[0] = (wchar_t)0;
     if (gModel.customMaterial)
@@ -25187,7 +25193,7 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
 
     // If we go full reflective, it's way too much for g3d. And this might be too little for other apps.
     // Well, that's how it goes.
-    ks = (1.0f - roughness) * 0.2f;
+    ks = (1.0f - roughness) * 0.3f;
 
     // Any last-minute adjustments due to material?
     // I like to give the water a slight reflectivity, it's justifiable. Same with glass.

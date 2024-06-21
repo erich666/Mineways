@@ -2198,6 +2198,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Packed Mud";
         case 47:
             return "Sculk";
+        case 48:
+            return "Polished Tuff";
         }
         break;
 
@@ -4264,6 +4266,9 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case 47: // Sculk
             color = 0x0E2025;
             break;
+        case 48: // Polished Tuff
+            color = 0x636965;
+            break;
         }
         break;
 
@@ -5715,15 +5720,16 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         block->grid[neighborIndex] = (unsigned char)type;
         block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16 | HIGH_BIT;
 
-        if (dataVal < 15) { // 15+32 == 47, 0-46 blocks
-            neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
+        neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
+        block->grid[neighborIndex] = (unsigned char)type;
+        block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | HIGH_BIT;
+
+        if (dataVal < 1) { // 1+48 == 49, 0-48 blocks
+            neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | HIGH_BIT;
+            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | BIT_16 | HIGH_BIT;
         }
 
-        //neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
-        //block->grid[neighborIndex] = (unsigned char)type;
-        //block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | BIT_16 | HIGH_BIT;
         break;
     case BLOCK_BONE_BLOCK:
         // uses 0,1,2,3 for low bits in 0x3 - note, leaves out infested deepslate, which is a repeat of deepslate anyway
