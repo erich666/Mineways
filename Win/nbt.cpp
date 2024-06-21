@@ -379,7 +379,7 @@ static TranslationTuple* modTranslations = NULL;
 // lit true|false gives 0x8 for copper bulbs
 #define BULB_PROP            67
 
-#define NUM_TRANS 1047
+#define NUM_TRANS 1050
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1453,6 +1453,9 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 132,   HIGH_BIT | 57, "tuff_bricks", NO_PROP },
     { 0, 132,   HIGH_BIT | 58, "chiseled_tuff", NO_PROP },
     { 0, 132,   HIGH_BIT | 59, "chiseled_tuff_bricks", NO_PROP },
+    { 0, 215,	    HIGH_BIT, "tuff_stairs", STAIRS_PROP },
+    { 0, 216,	    HIGH_BIT, "polished_tuff_stairs", STAIRS_PROP },
+    { 0, 217,	    HIGH_BIT, "tuff_brick_stairs", STAIRS_PROP },
 
     // 1.20.3 additions (short_grass added next to "grass", above), https://minecraft.wiki/w/Java_Edition_1.20.3#General_2
 

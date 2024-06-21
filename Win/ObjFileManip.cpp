@@ -6042,6 +6042,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_CHERRY_STAIRS:
     case BLOCK_BAMBOO_STAIRS:
     case BLOCK_BAMBOO_MOSAIC_STAIRS:
+    case BLOCK_TUFF_STAIRS:
+    case BLOCK_POLISHED_TUFF_STAIRS:
+    case BLOCK_TUFF_BRICK_STAIRS:
         // set texture
         switch (type)
         {
@@ -13037,6 +13040,9 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
             case BLOCK_CHERRY_STAIRS:
             case BLOCK_BAMBOO_STAIRS:
             case BLOCK_BAMBOO_MOSAIC_STAIRS:
+            case BLOCK_TUFF_STAIRS:
+            case BLOCK_POLISHED_TUFF_STAIRS:
+            case BLOCK_TUFF_BRICK_STAIRS:
                 // TODO: Right now stairs are dumb: only the large rectangle of the base is returned.
                 // Returning the little block, which can further be trimmed to a cube, is a PAIN.
                 // This does mean the little stair block sides won't be deleted. Ah well.
@@ -18030,6 +18036,9 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_CHERRY_STAIRS:
         case BLOCK_BAMBOO_STAIRS:
         case BLOCK_BAMBOO_MOSAIC_STAIRS:
+        case BLOCK_TUFF_STAIRS:
+        case BLOCK_POLISHED_TUFF_STAIRS:
+        case BLOCK_TUFF_BRICK_STAIRS:
             switch (neighborDataVal & 0x3)
             {
             default:    // make compiler happy

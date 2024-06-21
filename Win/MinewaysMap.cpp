@@ -5725,6 +5725,9 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_SUSPICIOUS_GRAVEL:
     case BLOCK_TRIAL_SPAWNER:
     case BLOCK_COPPER_GRATE:
+    case BLOCK_TUFF_STAIRS:
+    case BLOCK_POLISHED_TUFF_STAIRS:
+    case BLOCK_TUFF_BRICK_STAIRS:
         // uses 0-7 - TODO we could someday add more blocks to neighbor the others, in order to show the stairs' "step block trim" feature of week 39
         if (dataVal < 8)
         {

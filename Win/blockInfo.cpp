@@ -555,6 +555,9 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 468 */ "Heavy Core",              		0x5B606A, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 63, 0x00, BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG | BLF_EMITTER },
     { /* 469 */ "Copper Bulb",           		0xA81E09, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 61, 0x07, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_EMITTER },
     { /* 470 */ "Copper Grate",                 0xC26D51, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 62, 0x07, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_CUTOUTS },
+    { /* 471 */ "Tuff Stairs",                  0x6F6F69, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 49, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 472 */ "Polished Tuff Stairs",         0x636965, 1.000f, 0xff7711, 0xff7711, 0.12345f,  3, 64, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 473 */ "Tuff Brick Stairs",            0x656962, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 64, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
 
     // Important note: 396 is skipped, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
 };
