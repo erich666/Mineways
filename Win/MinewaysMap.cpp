@@ -1608,6 +1608,15 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         case BIT_16 | 3:
             strcat_s(gConcatString, 100, "Deepslate Tile Slab");
             break;
+        case BIT_16 | 4:
+            strcat_s(gConcatString, 100, "Tuff Slab");
+            break;
+        case BIT_16 | 5:
+            strcat_s(gConcatString, 100, "Polished Tuff Slab");
+            break;
+        case BIT_16 | 6:
+            strcat_s(gConcatString, 100, "Tuff Brick Slab");
+            break;
         }
         return gConcatString;
 
@@ -2200,6 +2209,28 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Sculk";
         case 48:
             return "Polished Tuff";
+        case 49:
+            return "Chiseled Copper";
+        case 50:
+            return "Exposed Chiseled Copper";
+        case 51:
+            return "Weathered Chiseled Copper";
+        case 52:
+            return "Oxidized Chiseled Copper";
+        case 53:
+            return "Waxed Chiseled Copper";
+        case 54:
+            return "Waxed Exposed Chiseled Copper";
+        case 55:
+            return "Waxed Weathered Chiseled Copper";
+        case 56:
+            return "Waxed Oxidized Chiseled Copper";
+        case 57:
+            return "Tuff Bricks";
+        case 58:	// chiseled_tuff
+            return "Chiseled Tuff";
+        case 59:	// chiseled_tuff_bricks
+            return "Chiseled Tuff Bricks";
         }
         break;
 
@@ -2358,6 +2389,29 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Waxed Weathered Copper Bulb";
         case 7:
             return "Waxed Oxidized Copper Bulb";
+        }
+        break;
+    case BLOCK_COPPER_GRATE:
+        switch (dataVal & 0x7) {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case 1:
+            return "Exposed Copper Grate";
+        case 2:
+            return "Weathered Copper Grate";
+        case 3:
+            return "Oxidized Copper Grate";
+        case 4:
+            return "Waxed Copper Grate";
+        case 5:
+            return "Waxed Exposed Copper Grate";
+        case 6:
+            return "Waxed Weathered Copper Grate";
+        case 7:
+            return "Waxed Oxidized Copper Grate";
         }
         break;
     }
@@ -3423,6 +3477,18 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case BIT_16 | 3: // Deepslate Tile Slab
             color = 0x39393A;
             break;
+        case BIT_16 | 4:
+            // Tuff Slab
+            color = 0x6F6F69;
+            break;
+        case BIT_16 | 5:
+            // Polished Tuff Slab
+            color = 0x636965;
+            break;
+        case BIT_16 | 6:
+            // Tuff Brick Slab
+            color = 0x656962;
+            break;
         }
         break;
 
@@ -4292,6 +4358,40 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case 48: // Polished Tuff
             color = 0x636965;
             break;
+        case 49:
+        case 53:
+            // Chiseled Copper
+            // Waxed Chiseled Copper
+            color = 0xBA674D;
+            break;
+        case 50:
+        case 54:
+            // Exposed Chiseled Copper
+            // Waxed Exposed Chiseled Copper
+            color = 0x9E7866;
+            break;
+        case 51:
+        case 55:
+            // Weathered Chiseled Copper
+            // Waxed Weathered Chiseled Copper
+            color = 0x6A9A73;
+            break;
+        case 52:
+        case 56:
+            // Oxidized Chiseled Copper
+            // Waxed Oxidized Chiseled Copper
+            color = 0x55A587;
+            break;
+        case 57:
+            // Tuff Bricks
+            color = 0x656962;
+            break;
+        case 58:	// chiseled_tuff_top
+            color = 0x61655E;
+            break;
+        case 59:	// chiseled_tuff_bricks_top
+            color = 0x71736C;
+            break;
         }
         break;
 
@@ -4554,6 +4654,38 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             // Oxidized Copper Bulb
             // Waxed Oxidized Copper Bulb
             color = 0x498B73;
+            break;
+        }
+        break;
+
+    case BLOCK_COPPER_GRATE:
+        dataVal = block->data[voxel];
+        switch (dataVal & 0x7) {
+        default:
+            assert(0);
+        case 0:
+        case 4:
+            // Waxed Copper Grate
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 1:
+        case 5:
+            // Exposed Copper Grate
+            // Waxed Exposed Copper Grate
+            color = 0xA47F6A;
+            break;
+        case 2:
+        case 6:
+            // Weathered Copper Grate
+            // Waxed Weathered Copper Grate
+            color = 0x54A486;
+            break;
+        case 3:
+        case 7:
+            // Oxidized Copper Grate
+            // Waxed Oxidized Copper Grate
+            color = 0x6B9B72;
             break;
         }
         break;
@@ -5592,6 +5724,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_CUT_COPPER_DOUBLE_SLAB:
     case BLOCK_SUSPICIOUS_GRAVEL:
     case BLOCK_TRIAL_SPAWNER:
+    case BLOCK_COPPER_GRATE:
         // uses 0-7 - TODO we could someday add more blocks to neighbor the others, in order to show the stairs' "step block trim" feature of week 39
         if (dataVal < 8)
         {
@@ -5778,7 +5911,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         block->grid[neighborIndex] = (unsigned char)type;
         block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | HIGH_BIT;
 
-        if (dataVal < 1) { // 1+48 == 49, 0-48 blocks
+        if (dataVal < 12) { // 12+48 == 60, 0-59 blocks
             neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
             block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | BIT_16 | HIGH_BIT;
@@ -5905,7 +6038,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
 
     case BLOCK_CUT_COPPER_SLAB:
         addBlock = 1;
-        if (dataVal < 4) {
+        if (dataVal < 7) {
             // add new style diagonally SE of original
             neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
@@ -7228,7 +7361,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
             block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16 | HIGH_BIT;
-    }
+        }
         break;
 
         // don't show special blocks to users

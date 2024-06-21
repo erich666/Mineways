@@ -6507,6 +6507,18 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 case BIT_16 | 3: // Deepslate Tile Slab
                     topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(10, 53);
                     break;
+                case BIT_16 | 4:
+                    // Tuff Slab
+                    topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(7, 49);
+                    break;
+                case BIT_16 | 5:
+                    // Polished Tuff Slab
+                    topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(3, 64);
+                    break;
+                case BIT_16 | 6:
+                    // Tuff Brick Slab
+                    topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(15, 64);
+                    break;
                 }
             }
             else {
@@ -22421,6 +22433,18 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 case BIT_16 | 3: // Deepslate Tile Slab
                     swatchLoc = SWATCH_INDEX(10, 53);
                     break;
+                case BIT_16 | 4:
+                    // Tuff Slab
+                    swatchLoc = SWATCH_INDEX(7, 49);
+                    break;
+                case BIT_16 | 5:
+                    // Polished Tuff Slab
+                    swatchLoc = SWATCH_INDEX(3, 64);
+                    break;
+                case BIT_16 | 6:
+                    // Tuff Brick Slab
+                    swatchLoc = SWATCH_INDEX(15, 64);
+                    break;
                 }
             }
             else {
@@ -22811,6 +22835,41 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case 48: // polished tuff
                 swatchLoc = SWATCH_INDEX(3, 64);
+                break;
+            case 49: // chiseled_copper - just the name differs
+            case 53: // waxed_chiseled_copper
+                swatchLoc = SWATCH_INDEX(9, 66);
+                break;
+            case 50: // exposed_chiseled_copper
+            case 54:	// waxed_exposed_chiseled_copper
+                swatchLoc = SWATCH_INDEX(0, 63);
+                break;
+            case 51: // weathered_chiseled_copper
+            case 55:	// waxed_weathered_chiseled_copper
+                swatchLoc = SWATCH_INDEX(0, 66);
+                break;
+            case 52: // oxidized_chiseled_copper
+            case 56:	// waxed_oxidized_chiseled_copper
+                swatchLoc = SWATCH_INDEX(10, 63);
+                break;
+            case 57:	// tuff_bricks
+                swatchLoc = SWATCH_INDEX(15, 64);
+                break;
+            case 58:	// chiseled_tuff
+                if ((faceDirection != DIRECTION_BLOCK_TOP) && (faceDirection != DIRECTION_BLOCK_BOTTOM)) {
+                    swatchLoc = SWATCH_INDEX(10, 66);
+                }
+                else {
+                    swatchLoc = SWATCH_INDEX(11, 66);
+                }
+                break;
+            case 59:	// chiseled_tuff_bricks
+                if ((faceDirection != DIRECTION_BLOCK_TOP) && (faceDirection != DIRECTION_BLOCK_BOTTOM)) {
+                    swatchLoc = SWATCH_INDEX(12, 66);
+                }
+                else {
+                    swatchLoc = SWATCH_INDEX(13, 66);
+                }
                 break;
             }
             break;
@@ -23289,7 +23348,32 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             break;
 
-         //================================================================================================
+        case BLOCK_COPPER_GRATE:
+            // no visual difference between waxed and normal, just a behavioral thing. We track so that the name shows up.
+            switch (dataVal & 0x07)
+            {
+            default:
+                assert(0);
+            case 0: // copper grate
+            case 4: // waxed_copper_grate
+                // no change, default is fine 0,62
+                break;
+            case 1: // exposed_copper_grate
+            case 5:	// waxed_exposed_copper_grate
+                swatchLoc = SWATCH_INDEX(7, 63);
+                break;
+            case 2: // weathered_copper_grate
+            case 6:	// waxed_weathered_copper_grate
+                swatchLoc = SWATCH_INDEX(1, 64);
+                break;
+            case 3: // oxidized_copper_grate
+            case 7:	// waxed_oxidized_copper_grate
+                swatchLoc = SWATCH_INDEX(7, 66);
+                break;
+            }
+            break;
+
+        //================================================================================================
         default:
             // if something has cutouts, it almost assuredly needs to have a case above with a call to getCompositeSwatch()
 #ifdef _DEBUG

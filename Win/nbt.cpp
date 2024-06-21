@@ -379,7 +379,7 @@ static TranslationTuple* modTranslations = NULL;
 // lit true|false gives 0x8 for copper bulbs
 #define BULB_PROP            67
 
-#define NUM_TRANS 1025
+#define NUM_TRANS 1047
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1431,6 +1431,28 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 213,   HIGH_BIT | 5, "waxed_exposed_copper_bulb", NO_PROP },
     { 0, 213,   HIGH_BIT | 6, "waxed_weathered_copper_bulb", NO_PROP },
     { 0, 213,   HIGH_BIT | 7, "waxed_oxidized_copper_bulb", NO_PROP },
+    { 0, 132,  HIGH_BIT | 49, "chiseled_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 50, "exposed_chiseled_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 51, "weathered_chiseled_copper", NO_PROP },
+    { 0, 132,   HIGH_BIT | 52, "oxidized_chiseled_copper", NO_PROP },
+    { 0, 132,   HIGH_BIT | 53, "waxed_chiseled_copper", NO_PROP },
+    { 0, 132,   HIGH_BIT | 54, "waxed_exposed_chiseled_copper", NO_PROP },
+    { 0, 132,   HIGH_BIT | 55, "waxed_weathered_chiseled_copper", NO_PROP },
+    { 0, 132,   HIGH_BIT | 56, "waxed_oxidized_chiseled_copper", NO_PROP },
+    { 0, 214,       HIGH_BIT, "copper_grate", NO_PROP },
+    { 0, 214,   HIGH_BIT | 1, "exposed_copper_grate", NO_PROP },
+    { 0, 214,   HIGH_BIT | 2, "weathered_copper_grate", NO_PROP },
+    { 0, 214,   HIGH_BIT | 3, "oxidized_copper_grate", NO_PROP },
+    { 0, 214,   HIGH_BIT | 4, "waxed_copper_grate", NO_PROP },
+    { 0, 214,   HIGH_BIT | 5, "waxed_exposed_copper_grate", NO_PROP },
+    { 0, 214,   HIGH_BIT | 6, "waxed_weathered_copper_grate", NO_PROP },
+    { 0, 214,   HIGH_BIT | 7, "waxed_oxidized_copper_grate", NO_PROP },
+    { 0, 142,   HIGH_BIT | BIT_16 | 4, "tuff_slab", SLAB_PROP },
+    { 0, 142,   HIGH_BIT | BIT_16 | 5, "polished_tuff_slab", SLAB_PROP },
+    { 0, 142,   HIGH_BIT | BIT_16 | 6, "tuff_brick_slab", SLAB_PROP },
+    { 0, 132,   HIGH_BIT | 57, "tuff_bricks", NO_PROP },
+    { 0, 132,   HIGH_BIT | 58, "chiseled_tuff", NO_PROP },
+    { 0, 132,   HIGH_BIT | 59, "chiseled_tuff_bricks", NO_PROP },
 
     // 1.20.3 additions (short_grass added next to "grass", above), https://minecraft.wiki/w/Java_Edition_1.20.3#General_2
 
