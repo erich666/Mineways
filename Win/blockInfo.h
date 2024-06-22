@@ -426,7 +426,7 @@ typedef struct Options {
 } Options;
 
 // number of blocks with entries in block info table (max number at bottom + 1) - now that 255 is used, we need this
-#define NUM_BLOCKS_DEFINED 474
+#define NUM_BLOCKS_DEFINED 490
 // number of official Minecraft blocks (no longer needed - we used to have the block after everything be special)
 #define NUM_BLOCKS_STANDARD NUM_BLOCKS_DEFINED
 // number of blocks we want to show on the map (no longer needed - includes the unknown one)
@@ -1021,4 +1021,20 @@ enum block_types {
     BLOCK_TUFF_STAIRS = 471,
     BLOCK_POLISHED_TUFF_STAIRS = 472,
     BLOCK_TUFF_BRICK_STAIRS = 473,
+    BLOCK_COPPER_TRAPDOOR = 474,
+    BLOCK_EXPOSED_COPPER_TRAPDOOR = 475,
+    BLOCK_WEATHERED_COPPER_TRAPDOOR = 476,
+    BLOCK_OXIDIZED_COPPER_TRAPDOOR = 477,
+    BLOCK_WAXED_COPPER_TRAPDOOR = 478,
+    BLOCK_WAXED_EXPOSED_COPPER_TRAPDOOR = 479,
+    BLOCK_WAXED_WEATHERED_COPPER_TRAPDOOR = 480,
+    BLOCK_WAXED_OXIDIZED_COPPER_TRAPDOOR = 481,
+    BLOCK_COPPER_DOOR = 482,
+    BLOCK_EXPOSED_COPPER_DOOR = 483,
+    BLOCK_WEATHERED_COPPER_DOOR = 484,
+    BLOCK_OXIDIZED_COPPER_DOOR = 485,
+    BLOCK_WAXED_COPPER_DOOR = 486,
+    BLOCK_WAXED_EXPOSED_COPPER_DOOR = 487,
+    BLOCK_WAXED_WEATHERED_COPPER_DOOR = 488,
+    BLOCK_WAXED_OXIDIZED_COPPER_DOOR = 489,
 };

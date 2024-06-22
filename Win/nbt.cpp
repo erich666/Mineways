@@ -379,7 +379,7 @@ static TranslationTuple* modTranslations = NULL;
 // lit true|false gives 0x8 for copper bulbs
 #define BULB_PROP            67
 
-#define NUM_TRANS 1050
+#define NUM_TRANS 1069
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1456,6 +1456,25 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 215,	    HIGH_BIT, "tuff_stairs", STAIRS_PROP },
     { 0, 216,	    HIGH_BIT, "polished_tuff_stairs", STAIRS_PROP },
     { 0, 217,	    HIGH_BIT, "tuff_brick_stairs", STAIRS_PROP },
+    { 0, 139,	          22, "tuff_wall", WALL_PROP },     // no data values used for walls, it's all implied in Mineways
+    { 0, 139,	          23, "polished_tuff_wall", WALL_PROP },
+    { 0, 139,	          24, "tuff_brick_wall", WALL_PROP },
+    { 0, 218,       HIGH_BIT, "copper_trapdoor", TRAPDOOR_PROP },
+    { 0, 219,       HIGH_BIT, "exposed_copper_trapdoor", TRAPDOOR_PROP },
+    { 0, 220,       HIGH_BIT, "weathered_copper_trapdoor", TRAPDOOR_PROP },
+    { 0, 221,       HIGH_BIT, "oxidized_copper_trapdoor", TRAPDOOR_PROP },
+    { 0, 222,       HIGH_BIT, "waxed_copper_trapdoor", TRAPDOOR_PROP },
+    { 0, 223,       HIGH_BIT, "waxed_exposed_copper_trapdoor", TRAPDOOR_PROP },
+    { 0, 224,       HIGH_BIT, "waxed_weathered_copper_trapdoor", TRAPDOOR_PROP },
+    { 0, 225,       HIGH_BIT, "waxed_oxidized_copper_trapdoor", TRAPDOOR_PROP },
+    { 0, 226,       HIGH_BIT, "copper_door", DOOR_PROP },
+    { 0, 227,       HIGH_BIT, "exposed_copper_door", DOOR_PROP },
+    { 0, 228,       HIGH_BIT, "weathered_copper_door", DOOR_PROP },
+    { 0, 229,       HIGH_BIT, "oxidized_copper_door", DOOR_PROP },
+    { 0, 230,       HIGH_BIT, "waxed_copper_door", DOOR_PROP },
+    { 0, 231,       HIGH_BIT, "waxed_exposed_copper_door", DOOR_PROP },
+    { 0, 232,       HIGH_BIT, "waxed_weathered_copper_door", DOOR_PROP },
+    { 0, 233,       HIGH_BIT, "waxed_oxidized_copper_door", DOOR_PROP },
 
     // 1.20.3 additions (short_grass added next to "grass", above), https://minecraft.wiki/w/Java_Edition_1.20.3#General_2
 

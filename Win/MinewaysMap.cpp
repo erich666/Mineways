@@ -1698,6 +1698,12 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Deepslate Tile Wall";
         case 21:
             return "Mud Brick Wall";
+        case 22:
+            return "Tuff Slab";
+        case 23:
+            return "Polished Tuff Slab";
+        case 24:
+            return"Tuff Brick Slab";
         }
         break;
 
@@ -4010,6 +4016,15 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             break;
         case 21: // Mud brick wall
             color = 0x8B6950;
+            break;
+        case 22: // Tuff wall
+            color = 0x6F6F69;
+            break;
+        case 23: // Polished Tuff wall
+            color = 0x636965;
+            break;
+        case 24: // Tuff Brick wall
+            color = 0x656962;
             break;
         }
         break;
@@ -6515,6 +6530,14 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_MANGROVE_DOOR:
     case BLOCK_CHERRY_DOOR:
     case BLOCK_BAMBOO_DOOR:
+    case BLOCK_COPPER_DOOR:
+    case BLOCK_EXPOSED_COPPER_DOOR:
+    case BLOCK_WEATHERED_COPPER_DOOR:
+    case BLOCK_OXIDIZED_COPPER_DOOR:
+    case BLOCK_WAXED_COPPER_DOOR:
+    case BLOCK_WAXED_EXPOSED_COPPER_DOOR:
+    case BLOCK_WAXED_WEATHERED_COPPER_DOOR:
+    case BLOCK_WAXED_OXIDIZED_COPPER_DOOR:
         bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
         block->grid[bi] = (unsigned char)type;
         block->data[bi] = (unsigned char)((dataVal & 0x7) | typeHighBit);
@@ -6622,6 +6645,14 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_MANGROVE_TRAPDOOR:
     case BLOCK_CHERRY_TRAPDOOR:
     case BLOCK_BAMBOO_TRAPDOOR:
+    case BLOCK_COPPER_TRAPDOOR:
+    case BLOCK_EXPOSED_COPPER_TRAPDOOR:
+    case BLOCK_WEATHERED_COPPER_TRAPDOOR:
+    case BLOCK_OXIDIZED_COPPER_TRAPDOOR:
+    case BLOCK_WAXED_COPPER_TRAPDOOR:
+    case BLOCK_WAXED_EXPOSED_COPPER_TRAPDOOR:
+    case BLOCK_WAXED_WEATHERED_COPPER_TRAPDOOR:
+    case BLOCK_WAXED_OXIDIZED_COPPER_TRAPDOOR:
         // use all 0-15
         addBlock = 1;
 
@@ -6903,8 +6934,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
         block->grid[neighborIndex] = (unsigned char)type;
         block->data[neighborIndex] = (unsigned char)(dataVal | typeHighBit);
-        if (dataVal < 5) {
-            // 16 through 20, just a post
+        if (dataVal < 9) {
+            // 16 through 24, just a post
             neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
             block->data[neighborIndex] = (unsigned char)(dataVal | BIT_16 | typeHighBit);

@@ -3949,6 +3949,14 @@ static int computeFlatFlags(int boxIndex)
     case BLOCK_MANGROVE_TRAPDOOR:
     case BLOCK_CHERRY_TRAPDOOR:
     case BLOCK_BAMBOO_TRAPDOOR:
+    case BLOCK_COPPER_TRAPDOOR:
+    case BLOCK_EXPOSED_COPPER_TRAPDOOR:
+    case BLOCK_WEATHERED_COPPER_TRAPDOOR:
+    case BLOCK_OXIDIZED_COPPER_TRAPDOOR:
+    case BLOCK_WAXED_COPPER_TRAPDOOR:
+    case BLOCK_WAXED_EXPOSED_COPPER_TRAPDOOR:
+    case BLOCK_WAXED_WEATHERED_COPPER_TRAPDOOR:
+    case BLOCK_WAXED_OXIDIZED_COPPER_TRAPDOOR:
         if (gBoxData[boxIndex].data & 0x4)
         {
             // trapdoor is open, so is against a wall
@@ -5265,6 +5273,18 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             break;
         case 21: // Mud brick wall
             swatchLoc = SWATCH_INDEX(7, 55);
+            break;
+        case 22:
+            // Tuff wall
+            swatchLoc = SWATCH_INDEX(7, 49);
+            break;
+        case 23:
+            // Polished Tuff wall
+            swatchLoc = SWATCH_INDEX(3, 64);
+            break;
+        case 24:
+            // Tuff Brick wall
+            swatchLoc = SWATCH_INDEX(15, 64);
             break;
         }
 
@@ -6853,6 +6873,14 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_MANGROVE_TRAPDOOR:
     case BLOCK_CHERRY_TRAPDOOR:
     case BLOCK_BAMBOO_TRAPDOOR:
+    case BLOCK_COPPER_TRAPDOOR:
+    case BLOCK_EXPOSED_COPPER_TRAPDOOR:
+    case BLOCK_WEATHERED_COPPER_TRAPDOOR:
+    case BLOCK_OXIDIZED_COPPER_TRAPDOOR:
+    case BLOCK_WAXED_COPPER_TRAPDOOR:
+    case BLOCK_WAXED_EXPOSED_COPPER_TRAPDOOR:
+    case BLOCK_WAXED_WEATHERED_COPPER_TRAPDOOR:
+    case BLOCK_WAXED_OXIDIZED_COPPER_TRAPDOOR:
         // On second thought, in testing it worked fine.
         //if ( gModel.print3D && !(dataVal & 0x4) )
         //{
@@ -7119,6 +7147,14 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_MANGROVE_DOOR:
     case BLOCK_CHERRY_DOOR:
     case BLOCK_BAMBOO_DOOR:
+    case BLOCK_COPPER_DOOR:
+    case BLOCK_EXPOSED_COPPER_DOOR:
+    case BLOCK_WEATHERED_COPPER_DOOR:
+    case BLOCK_OXIDIZED_COPPER_DOOR:
+    case BLOCK_WAXED_COPPER_DOOR:
+    case BLOCK_WAXED_EXPOSED_COPPER_DOOR:
+    case BLOCK_WAXED_WEATHERED_COPPER_DOOR:
+    case BLOCK_WAXED_OXIDIZED_COPPER_DOOR:
         // swatchLoc is the *top* facing part of the door
         topSwatchLoc = swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
         // at top of door, so get bottom swatch loc, as we use this for the top and bottom faces
@@ -13140,6 +13176,14 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
             case BLOCK_MANGROVE_TRAPDOOR:
             case BLOCK_CHERRY_TRAPDOOR:
             case BLOCK_BAMBOO_TRAPDOOR:
+            case BLOCK_COPPER_TRAPDOOR:
+            case BLOCK_EXPOSED_COPPER_TRAPDOOR:
+            case BLOCK_WEATHERED_COPPER_TRAPDOOR:
+            case BLOCK_OXIDIZED_COPPER_TRAPDOOR:
+            case BLOCK_WAXED_COPPER_TRAPDOOR:
+            case BLOCK_WAXED_EXPOSED_COPPER_TRAPDOOR:
+            case BLOCK_WAXED_WEATHERED_COPPER_TRAPDOOR:
+            case BLOCK_WAXED_OXIDIZED_COPPER_TRAPDOOR:
                 if (!(dataVal & 0x4))
                 {
                     // trapdoor is flat on ground
@@ -18134,6 +18178,14 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_MANGROVE_TRAPDOOR:
         case BLOCK_CHERRY_TRAPDOOR:
         case BLOCK_BAMBOO_TRAPDOOR:
+        case BLOCK_COPPER_TRAPDOOR:
+        case BLOCK_EXPOSED_COPPER_TRAPDOOR:
+        case BLOCK_WEATHERED_COPPER_TRAPDOOR:
+        case BLOCK_OXIDIZED_COPPER_TRAPDOOR:
+        case BLOCK_WAXED_COPPER_TRAPDOOR:
+        case BLOCK_WAXED_EXPOSED_COPPER_TRAPDOOR:
+        case BLOCK_WAXED_WEATHERED_COPPER_TRAPDOOR:
+        case BLOCK_WAXED_OXIDIZED_COPPER_TRAPDOOR:
             if (!view3D)
             {
                 // rotate as needed
@@ -19018,6 +19070,14 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_MANGROVE_TRAPDOOR:
         case BLOCK_CHERRY_TRAPDOOR:
         case BLOCK_BAMBOO_TRAPDOOR:
+        case BLOCK_COPPER_TRAPDOOR:
+        case BLOCK_EXPOSED_COPPER_TRAPDOOR:
+        case BLOCK_WEATHERED_COPPER_TRAPDOOR:
+        case BLOCK_OXIDIZED_COPPER_TRAPDOOR:
+        case BLOCK_WAXED_COPPER_TRAPDOOR:
+        case BLOCK_WAXED_EXPOSED_COPPER_TRAPDOOR:
+        case BLOCK_WAXED_WEATHERED_COPPER_TRAPDOOR:
+        case BLOCK_WAXED_OXIDIZED_COPPER_TRAPDOOR:
         case BLOCK_DAYLIGHT_SENSOR:
         case BLOCK_INVERTED_DAYLIGHT_SENSOR:
         case BLOCK_LADDER:
@@ -20740,6 +20800,14 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_MANGROVE_DOOR:
         case BLOCK_CHERRY_DOOR:
         case BLOCK_BAMBOO_DOOR:
+        case BLOCK_COPPER_DOOR:
+        case BLOCK_EXPOSED_COPPER_DOOR:
+        case BLOCK_WEATHERED_COPPER_DOOR:
+        case BLOCK_OXIDIZED_COPPER_DOOR:
+        case BLOCK_WAXED_COPPER_DOOR:
+        case BLOCK_WAXED_EXPOSED_COPPER_DOOR:
+        case BLOCK_WAXED_WEATHERED_COPPER_DOOR:
+        case BLOCK_WAXED_OXIDIZED_COPPER_DOOR:
             // top half is default
             if ((faceDirection == DIRECTION_BLOCK_TOP) ||
                 (faceDirection == DIRECTION_BLOCK_BOTTOM))
@@ -20784,6 +20852,30 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 case BLOCK_BAMBOO_DOOR:
                     swatchLoc = SWATCH_INDEX(14, 60); // bamboo planks
                     break;
+                case BLOCK_COPPER_DOOR:
+                    swatchLoc = SWATCH_INDEX(15, 61);
+                    break;
+                case BLOCK_EXPOSED_COPPER_DOOR:
+                    swatchLoc = SWATCH_INDEX(6, 63);
+                    break;
+                case BLOCK_WEATHERED_COPPER_DOOR:
+                    swatchLoc = SWATCH_INDEX(6, 66);
+                    break;
+                case BLOCK_OXIDIZED_COPPER_DOOR:
+                    swatchLoc = SWATCH_INDEX(0, 64);
+                    break;
+                case BLOCK_WAXED_COPPER_DOOR:
+                    swatchLoc = SWATCH_INDEX(15, 61);
+                    break;
+                case BLOCK_WAXED_EXPOSED_COPPER_DOOR:
+                    swatchLoc = SWATCH_INDEX(6, 63);
+                    break;
+                case BLOCK_WAXED_WEATHERED_COPPER_DOOR:
+                    swatchLoc = SWATCH_INDEX(6, 66);
+                    break;
+                case BLOCK_WAXED_OXIDIZED_COPPER_DOOR:
+                    swatchLoc = SWATCH_INDEX(0, 64);
+                    break;
                 }
             }
             else if (!(dataVal & 0x8))
@@ -20806,6 +20898,14 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 case BLOCK_MANGROVE_DOOR:
                 case BLOCK_CHERRY_DOOR:
                 case BLOCK_BAMBOO_DOOR:
+                case BLOCK_COPPER_DOOR:
+                case BLOCK_EXPOSED_COPPER_DOOR:
+                case BLOCK_WEATHERED_COPPER_DOOR:
+                case BLOCK_OXIDIZED_COPPER_DOOR:
+                case BLOCK_WAXED_COPPER_DOOR:
+                case BLOCK_WAXED_EXPOSED_COPPER_DOOR:
+                case BLOCK_WAXED_WEATHERED_COPPER_DOOR:
+                case BLOCK_WAXED_OXIDIZED_COPPER_DOOR:
                     // door tiles are in order bottom, top
                     swatchLoc--;
                     break;
@@ -21838,6 +21938,18 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case 21: // Mud brick wall
                 swatchLoc = SWATCH_INDEX(7, 55);
+                break;
+            case 22:
+                // Tuff wall
+                swatchLoc = SWATCH_INDEX(7, 49);
+                break;
+            case 23:
+                // Polished Tuff wall
+                swatchLoc = SWATCH_INDEX(3, 64);
+                break;
+            case 24:
+                // Tuff Brick wall
+                swatchLoc = SWATCH_INDEX(15, 64);
                 break;
             }
             break;
