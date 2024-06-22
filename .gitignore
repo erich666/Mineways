@@ -40,6 +40,7 @@ TileMaker/TileMaker/make_*.bat
 TileMaker/TileMaker/output.*
 TileMaker/TileMaker/terrainBase*
 TileMaker/TileMaker/terrainExt*
+TileMaker/TileMaker/Mineways*
 TileMaker/Debug
 TileMaker/ipch
 TileMaker/Release
