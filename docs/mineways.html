@@ -744,10 +744,10 @@ Special note: in terrain files, the one ending in "_r.png" is a roughness textur
 <a id="usd_export_options">
 <H4>Pixar USD File Export Options</H4></a>
 
-<a href="https://graphics.pixar.com/usd/release/index.html">Pixar's USD format</a> is getting uptake in many popular digital content creation (DCC) applications, including Cinema 4D, Houdini, Unreal Editor, and Blender. It is more full-featured than the ancient Wavefront OBJ format, including direct support for physically based materials, emitters, and more. If your package of choice supports it, consider using it!
+<a href="https://graphics.pixar.com/usd/release/index.html">Pixar's USD format</a> is getting uptake in many popular digital content creation (DCC) applications, including Cinema 4D, Houdini, Unreal Editor, and Blender. It is more full-featured than the ancient Wavefront OBJ format, including direct support for physically based materials, emitters, and more. If your package of choice supports it, consider using it! And if you don't like Mineways' exported USD, or even if you do, you should also give <a href="https://bramstout.nl/en/miex/">MiEx</a> a look, as it can support mod export and more!
 
 <P>
-There are a few changes to how the export dialog works. Some export options are not supported, as the focus has been the highest-quality and more flexible export option: Export individual textures. This form lets you replace and edit individual texture files. USD export works particularly nicely with the JG-RTX terrain files.
+In Mineways there are a few changes to how the export dialog works. Some export options are not supported, as the focus has been the highest-quality and more flexible export option: Export individual textures. This form lets you replace and edit individual texture files. USD export works particularly nicely with the JG-RTX terrain files.
 
 <P>
 What follows are how various options apply to USD export. Also, Mineways' "View | Light" can be toggled on to give nighttime lighting. Turning "View | Elevation shading" on will give a light fog to the USD scene exported.
@@ -1067,7 +1067,7 @@ Rendering Tips
   <a href="#3dsmax">3DS MAX</a>,
   <a href="#maya">Maya</a>,
   and <a href="#houdini">Houdini</a>.
-  If you want better geometry for some blocks, you might also consider using <a href="https://www.jmc2obj.net/">jmc2obj</a>. Honestly, they have a lot of features Mineways doesn't, so you should give it a try.
+  If you want better geometry for some blocks, you might also consider using <a href="https://www.jmc2obj.net/">jmc2obj</a>. Honestly, they have a lot of features Mineways doesn't, so you should give it a try. Also consider <a href="https://bramstout.nl/en/miex/">MiEx</a>, especially if you are using USD.
   <P>
   While I have your ear (eye?), you should also check out the shader mods <a href="https://bitslablab.com/bslshaders/">BSL</a>, <a href="https://rre36.com/kappa-shader">Kappa</a>, <a href="https://www.minecraftforum.net/forums/mapping-and-modding-java-edition/minecraft-mods/1272953-optifine-hd-fps-boost-dynamic-lights-shaders-and">OptiFine</a>, and <a href="https://www.sonicether.com/seus/">Sonic Ether's Unbelievable Shaders</a> (<a href="https://www.minecraftforum.net/forums/mapping-and-modding-java-edition/minecraft-mods/1280299-sonic-ethers-unbelievable-shaders-compatible-with">SEUS forum</a>) for in-game play or viewing. They have lots of cool rendering options. What makes these systems shine (literally) is using a high-quality texture pack that support specular textures, bump maps, etc. Some nice texture packs: <a href="https://github.com/jasonjgardner/jg-rtx">JG-RTX</a>, <a href="https://umsoea.com/">UMSOEA</a> and <a href="https://sildurs-shaders.github.io/downloads/">Sildur's Shaders</a>, among many others (<a href="https://www.planetminecraft.com/texture-packs/tag/bsl/">BSL search</a>).
   <P>
@@ -1085,7 +1085,7 @@ Rendering Tips
 <P>
 These instructions assume Blender version 3.5 or newer. I've made <a href="https://youtu.be/uVogzXQ6UKs">a 13-minute video of different ways to import into Blender 3.5</a> and perform rendering, which covers most of the first nine steps below.
 <P>
-Alternative Minecraft exporters for Blender include <a href="http://www.jmc2obj.net/">jmc2obj</a>, a general-purpose and full-featured exporter, and <a href="http://randomsamples.info/project/mineblend/">Mineblend</a>, which is dated, but is tailored specifically for Minecraft to Blender import. There are tons of other Blender+Minecraft things out there. For example, <a href="https://www.replaymod.com/">the Replay Mod</a> lets you create an animation path in Minecraft and export the camera moves. You can then import the .GLB animation file into Blender.
+Alternative Minecraft exporters for Blender include <a href="http://www.jmc2obj.net/">jmc2obj</a>, a general-purpose and full-featured exporter, <a href="https://bramstout.nl/en/miex/">MiEx</a>, especially if you are using USD, and <a href="http://randomsamples.info/project/mineblend/">Mineblend</a>, which is dated, but is tailored specifically for Minecraft to Blender import. There are tons of other Blender+Minecraft things out there. For example, <a href="https://www.replaymod.com/">the Replay Mod</a> lets you create an animation path in Minecraft and export the camera moves. You can then import the .GLB animation file into Blender.
 <P>
 To move your Minecraft world's data into Blender, the first step is always the same, since it involves only Mineways:
 <P>
@@ -1297,7 +1297,7 @@ Here's <a href="https://github.com/jasonjgardner/jg-rtx">JG RTX</a> in action (a
 <P>
 These instructions explain how to import a model and set the textures are mostly for Cinema 4D R25 or newer; the instructions are similar for older versions, though USD support is unlikely. Really, I should redo this section, but I hope you'll be able to figure things out. Most steps are mostly from <a href="http://www.youtube.com/watch?v=xx4WNvV6k4E&list=PL3AE7AB94E9114715&index=7&feature=plpp_video">this excellent (though now-dated) video</a> from <a href="https://www.minecraftforum.net/forums/show-your-creation/videos/1637913-making-amazing-minecraft-scenes-in-cinema-4d">this forum post</a>, which includes a number of other useful Cinema 4D animation tutorials and resource links. Here's <a href="https://www.minecraftforum.net/forums/show-your-creation/videos/1624794-minecraft-3d-essentials-cinema-4d">one more useful post</a>.
 <P>
-That said, you may instead want to use <a href="http://www.jmc2obj.net/">jmc2obj</a>, another exporter. I won't be insulted - use what works best for you!
+That said, you may instead want to use <a href="http://www.jmc2obj.net/">jmc2obj</a> or <a href="https://bramstout.nl/en/miex/">MiEx</a>. I won't be insulted - use what works best for you!
 <P>
 <b>Step 1:</b> In Mineways, select your world and region for export in Mineways, then from the menu choose File | Export Rendering.
 </P>
@@ -1558,6 +1558,8 @@ Mineways is not the first to offer a Minecraft model exporter, nor necessarily t
 <li><a href="http://www.jmc2obj.net/">Jmc2obj</a> is a Java-based (so multi-platform) exporter for rendering. It is actively developed, but I find I can no longer quite get the textures to attach properly to the surfaces. You do need to export textures first, typically giving you a single texture to work from, which is then applied to the model. If you get it going (let me know the secret), it has some nice features, nicer than Mineways in some ways.
 
 </li><li><a href="https://theduckcow.com/dev/blender/mcprep/">MCprep</a> is a Blender python script that can improve model quality of Mineways and jmc2obj exports. <a href="https://youtu.be/XndRsS6KWkw">Here's my short video</a> on how to install and use it for that. But, it does much more than that, including letting you add mobs, swap in custom 3D meshes for objects, change character skins, etc.
+
+</li><li><a href="https://bramstout.nl/en/miex/">MiEx</a> is a new exporter with a bunch of features, including mod support, focused on USD export. Definitely worth a try, as it exports some entities that Mineways ignores.
 
 </li><LI><a href="https://chunky.llbit.se/">Chunky</a> is an amazing self-contained path-traced renderer: choose your chunks, load them, set the view and let 'er rip. Definitely try out the various options.
 
