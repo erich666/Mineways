@@ -336,7 +336,7 @@ extern Model gModel;
                                                      ((worldVersion) <= 2730) ? 17 : \
                                                      ((worldVersion) <= 2975) ? 18 : \
                                                      ((worldVersion) <= 3442) ? 19 : \
-                                                     ((worldVersion) <= 3837) ? 20 : \
+                                                     ((worldVersion) <= 3839) ? 20 : \
                                                      21)
 
 

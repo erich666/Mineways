@@ -1154,7 +1154,7 @@ static struct {
     { 11, 66, 388, 0, L"chiseled_tuff_top", L"", SWATCH_REPEAT_ALL },
     { 12, 66, 388, 0, L"chiseled_tuff_bricks", L"", SWATCH_REPEAT_ALL },
     { 13, 66, 388, 0, L"chiseled_tuff_bricks_top", L"", SWATCH_REPEAT_ALL },
-    { 14, 66,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 14, 66,  47, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL }, // d'oh, accidentally deleted this one when adding 1.21
     { 15, 66,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     /* Template for future additions - copy and paste in Notepad++ to avoid it getting rejiggered, and keep inside comment marks to
      * avoid rejiggering (spaces getting removed) by keeping it inside the comment marks when pasting back here:

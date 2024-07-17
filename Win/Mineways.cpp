@@ -3586,7 +3586,7 @@ static int loadWorld(HWND hWnd)
         // load test world
         MY_ASSERT(gWorldGuide.world[0] == 0);
         gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
-        gVersionID = 3837;	// Change this to the current release number https://minecraft.wiki/w/Data_version
+        gVersionID = 3953;	// Change this to the current release number https://minecraft.wiki/w/Data_version
         gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
         setHeightsFromVersionID();
         break;

@@ -4035,8 +4035,9 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             dataVal |= atoi(value);
                         }
 
-                        // for the chiseled bookshelf, just mark the low bit with a 1 if there is any occupied book slot.
-                        // direction is in 0x7 field
+                        // for the chiseled bookshelf, just mark the 0x8 bit with a 1 if there is any occupied book slot.
+                        // We do not differentiate how many books.
+                        // Direction is in 0x7 field
                         else if (strcmp(token, "slot_0_occupied") == 0 ||
                             strcmp(token, "slot_1_occupied") == 0 ||
                             strcmp(token, "slot_2_occupied") == 0 ||

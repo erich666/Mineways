@@ -6598,11 +6598,11 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 minx = 6;
                 maxx = 10;
                 minz = 5;
-                maxz = 12;
+                maxz = 11;
             }
             else {
                 minx = 5;
-                maxx = 12;
+                maxx = 11;
                 minz = 6;
                 maxz = 10;
             }
@@ -6611,23 +6611,23 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             minx = 0;
             maxx = 2 - bitAdd;
             minz = 5;
-            maxz = 12;
+            maxz = 11;
             break;
         case 2: // west
             minx = 14 + bitAdd;
             maxx = 16;
             minz = 5;
-            maxz = 12;
+            maxz = 11;
             break;
         case 3: // south
             minx = 5;
-            maxx = 12;
+            maxx = 11;
             minz = 0;
             maxz = 2 - bitAdd;
             break;
         case 4: // north
             minx = 5;
-            maxx = 12;
+            maxx = 11;
             minz = 14 + bitAdd;
             maxz = 16;
             break;
@@ -6639,11 +6639,11 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 minx = 6;
                 maxx = 10;
                 minz = 5;
-                maxz = 12;
+                maxz = 11;
             }
             else {
                 minx = 5;
-                maxx = 12;
+                maxx = 11;
                 minz = 6;
                 maxz = 10;
             }
@@ -20756,10 +20756,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_BOOKSHELF:						// getSwatch
             if (dataVal & BIT_16)
             {
+                // chiseled bookshelf, that has a direction and whether face is full or empty of books (no in between - texture limitation)
                 // sides and top/bottom
                 SWATCH_SWITCH_SIDE_VERTICAL(faceDirection, 8, 61, 7, 61);
-                // now, for one of the side faces, put occupied or not
-                frontLoc = SWATCH_INDEX(9 + ((dataVal & 0x8) ? 1:0), 61);
+                // now, for one of the side faces, put occupied or not; 0x8 is occupied, grabs occupied tile
+                frontLoc = (dataVal & 0x8) ? SWATCH_INDEX(14, 66) : SWATCH_INDEX(9, 61);
                 // Look at direction, change that face. A bit inefficient.
                 switch (dataVal & 0x7)
                 {
@@ -26450,13 +26451,7 @@ static int createBaseMaterialTexture()
         for (i = 0; i < TOTAL_TILES; i++)
         {
             // check that I didn't forget to give each a material type it's associated with - if hit, go to tiles.h and add an entry
-            assert(true 
-                
-                
-                
-                
-                
-                || gTilesTable[i].typeForMtl || wcslen(gTilesTable[i].filename) == 0);
+            assert(gTilesTable[i].typeForMtl || wcslen(gTilesTable[i].filename) == 0);
 
             // If leaves are to be made solid and so should have alphas all equal to 1.0.
             if (gModel.options->pEFD->chkLeavesSolid && (gTilesTable[i].flags & SBIT_LEAVES))
