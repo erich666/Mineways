@@ -24097,6 +24097,9 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
     // called only when BLF_EMITTER is flagged, and we assume a default value of 15 for emitters.
     // See https://minecraft.wiki/w/Light#Light-emitting_blocks
     float emission = 15.0f;
+
+    // IMPORTANT: the dataVal for the texture has to be put in the nbt.cpp file, it will not be
+    // passed with the block's actual dataVal. This lets us give different tiles on the same block different emission levels.
     // lower for some types
     switch (type) {
     case BLOCK_END_ROD:
@@ -24108,6 +24111,7 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
         if (splitByBlockType) {
             switch (dataVal & (BIT_32 | BIT_16)) {
             default:
+                // furnace, blast furnace, smoker all are 13.0
                 emission = 13.0f;
                 break;
             case BIT_16: // loom - just in case it somehow is categorized as burning
@@ -24132,7 +24136,7 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
             case 0:
                 // default: emission = 15.0f;
                 break;
-            case 1: // skulk catalyst
+            case 1: // sculk catalyst
                 emission = 6.0f;
                 break;
             }
@@ -24201,7 +24205,7 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
         if (splitByBlockType) {
             switch ((dataVal & 0x3)) {
             case 0:
-                // 1 sea pickle
+                // 1 sea pickle (or per pickle)
                 emission = 6.0f;
                 break;
             case 1:
@@ -24276,6 +24280,7 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
         break;
     case BLOCK_CAULDRON:
         emission = 0.0f;    // empty, water, or snow
+        // set if lava is used
         if (splitByBlockType && (dataVal & 0x4)) {
             // lava
             emission = 15.0f;
@@ -24289,7 +24294,7 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
         // Waiting for players : 4
         // Active : 8
         if (splitByBlockType) {
-            switch ((dataVal & 0x3)) {
+            switch (dataVal & 0x3) {
             case 0:
                 emission = 0.0f;
                 break;
@@ -24318,6 +24323,7 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
         if (splitByBlockType) {
             // top 2 bits are 0x8 lit and 0x10 powered_bit - lit matters, powered_bit does not
             if (dataVal & 0x8) {
+                // Light levels:
                 // Unoxidized: 15
                 // Exposed: 12
                 // Weathered: 8
@@ -30696,6 +30702,10 @@ static boolean tileIsAnEmitter(int type, int swatchLoc )
             if (wcscmp(gTilesTable[swatchLoc].filename, L"campfire_fire") == 0)
                 return true;
             if (wcscmp(gTilesTable[swatchLoc].filename, L"campfire_log_lit") == 0)
+                return true;
+            if (wcscmp(gTilesTable[swatchLoc].filename, L"soul_campfire_fire") == 0)
+                return true;
+            if (wcscmp(gTilesTable[swatchLoc].filename, L"soul_campfire_log_lit") == 0)
                 return true;
             // campfire_log is not an emitter
             break;

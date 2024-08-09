@@ -1423,30 +1423,30 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 211,       HIGH_BIT, "crafter", CRAFTER_PROP },
     { 0, 212,       HIGH_BIT, "heavy_core", NO_PROP },
     { 0, 132,  HIGH_BIT | 48, "polished_tuff", NO_PROP },
-    { 0, 213,       HIGH_BIT, "copper_bulb", NO_PROP },
-    { 0, 213,   HIGH_BIT | 1, "exposed_copper_bulb", NO_PROP },
-    { 0, 213,   HIGH_BIT | 2, "weathered_copper_bulb", NO_PROP },
-    { 0, 213,   HIGH_BIT | 3, "oxidized_copper_bulb", NO_PROP },
-    { 0, 213,   HIGH_BIT | 4, "waxed_copper_bulb", NO_PROP },
-    { 0, 213,   HIGH_BIT | 5, "waxed_exposed_copper_bulb", NO_PROP },
-    { 0, 213,   HIGH_BIT | 6, "waxed_weathered_copper_bulb", NO_PROP },
-    { 0, 213,   HIGH_BIT | 7, "waxed_oxidized_copper_bulb", NO_PROP },
-    { 0, 132,  HIGH_BIT | 49, "chiseled_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 50, "exposed_chiseled_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 51, "weathered_chiseled_copper", NO_PROP },
-    { 0, 132,   HIGH_BIT | 52, "oxidized_chiseled_copper", NO_PROP },
-    { 0, 132,   HIGH_BIT | 53, "waxed_chiseled_copper", NO_PROP },
-    { 0, 132,   HIGH_BIT | 54, "waxed_exposed_chiseled_copper", NO_PROP },
-    { 0, 132,   HIGH_BIT | 55, "waxed_weathered_chiseled_copper", NO_PROP },
-    { 0, 132,   HIGH_BIT | 56, "waxed_oxidized_chiseled_copper", NO_PROP },
-    { 0, 214,       HIGH_BIT, "copper_grate", NO_PROP },
-    { 0, 214,   HIGH_BIT | 1, "exposed_copper_grate", NO_PROP },
-    { 0, 214,   HIGH_BIT | 2, "weathered_copper_grate", NO_PROP },
-    { 0, 214,   HIGH_BIT | 3, "oxidized_copper_grate", NO_PROP },
-    { 0, 214,   HIGH_BIT | 4, "waxed_copper_grate", NO_PROP },
-    { 0, 214,   HIGH_BIT | 5, "waxed_exposed_copper_grate", NO_PROP },
-    { 0, 214,   HIGH_BIT | 6, "waxed_weathered_copper_grate", NO_PROP },
-    { 0, 214,   HIGH_BIT | 7, "waxed_oxidized_copper_grate", NO_PROP },
+    { 0, 213,       HIGH_BIT, "copper_bulb", BULB_PROP },
+    { 0, 213,   HIGH_BIT | 1, "exposed_copper_bulb", BULB_PROP },
+    { 0, 213,   HIGH_BIT | 2, "weathered_copper_bulb", BULB_PROP },
+    { 0, 213,   HIGH_BIT | 3, "oxidized_copper_bulb", BULB_PROP },
+    { 0, 213,   HIGH_BIT | 4, "waxed_copper_bulb", BULB_PROP },
+    { 0, 213,   HIGH_BIT | 5, "waxed_exposed_copper_bulb", BULB_PROP },
+    { 0, 213,   HIGH_BIT | 6, "waxed_weathered_copper_bulb", BULB_PROP },
+    { 0, 213,   HIGH_BIT | 7, "waxed_oxidized_copper_bulb", BULB_PROP },
+    { 0, 132,  HIGH_BIT | 49, "chiseled_copper", BULB_PROP },
+    { 0, 132,  HIGH_BIT | 50, "exposed_chiseled_copper", BULB_PROP },
+    { 0, 132,  HIGH_BIT | 51, "weathered_chiseled_copper", BULB_PROP },
+    { 0, 132,   HIGH_BIT | 52, "oxidized_chiseled_copper", BULB_PROP },
+    { 0, 132,   HIGH_BIT | 53, "waxed_chiseled_copper", BULB_PROP },
+    { 0, 132,   HIGH_BIT | 54, "waxed_exposed_chiseled_copper", BULB_PROP },
+    { 0, 132,   HIGH_BIT | 55, "waxed_weathered_chiseled_copper", BULB_PROP },
+    { 0, 132,   HIGH_BIT | 56, "waxed_oxidized_chiseled_copper", BULB_PROP },
+    { 0, 214,       HIGH_BIT, "copper_grate", BULB_PROP },
+    { 0, 214,   HIGH_BIT | 1, "exposed_copper_grate", BULB_PROP },
+    { 0, 214,   HIGH_BIT | 2, "weathered_copper_grate", BULB_PROP },
+    { 0, 214,   HIGH_BIT | 3, "oxidized_copper_grate", BULB_PROP },
+    { 0, 214,   HIGH_BIT | 4, "waxed_copper_grate", BULB_PROP },
+    { 0, 214,   HIGH_BIT | 5, "waxed_exposed_copper_grate", BULB_PROP },
+    { 0, 214,   HIGH_BIT | 6, "waxed_weathered_copper_grate", BULB_PROP },
+    { 0, 214,   HIGH_BIT | 7, "waxed_oxidized_copper_grate", BULB_PROP },
     { 0, 142,   HIGH_BIT | BIT_16 | 4, "tuff_slab", SLAB_PROP },
     { 0, 142,   HIGH_BIT | BIT_16 | 5, "polished_tuff_slab", SLAB_PROP },
     { 0, 142,   HIGH_BIT | BIT_16 | 6, "tuff_brick_slab", SLAB_PROP },
@@ -1538,7 +1538,7 @@ void makeHashTable()
         int index = BlockTranslations[i].hashSum & HASH_MASK;
         HashLists[hashStart[index]++] = i;
     }
-    // done once to initialize gBlockDefinitions[i].subtype_mask values properly.
+    // Done once to initialize gBlockDefinitions[i].subtype_mask values properly.
     // These values determine if a bit determines if an object is a separate type of
     // thing, e.g., granite vs. stone, or needs a separate material, e.g., redstone wire
     // at different levels of illumination.
@@ -1596,6 +1596,8 @@ void makeHashTable()
         mask_array[BLOCK_CAKE] |= BIT_32;
         // lit version of cave_vines is same as unlit
         mask_array[BLOCK_CAVE_VINES_LIT] |= mask_array[BLOCK_CAVE_VINES];
+        // bulbs also should have "lit" be a part of the material
+        mask_array[BLOCK_COPPER_BULB] |= 0x8;
         // really, these should all be set properly already, but might as well make sure...
         for (i = 0; i < NUM_BLOCKS_DEFINED; i++) {
             // if you hit this assert, set the proper subtype_mask to be equal to mask_array's value here.
@@ -4674,7 +4676,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 break;
             case BULB_PROP:
                 // for copper bulbs
-                dataVal |= (lit ? 0x8 : 0) | (powered_bit ? BIT_16 : 0);
+                dataVal |= (lit ? 0x8 : 0) | (powered ? BIT_16 : 0);
                 // reset because basic cake doesn't reset lit to false, IIRC
                 lit = false;
                 break;

@@ -4643,7 +4643,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         break;
     case BLOCK_COPPER_BULB:
         dataVal = block->data[voxel];
-        switch (dataVal & 0x7) {
+        switch (dataVal & 0xf) {
         default:
             assert(0);
         case 0:
@@ -4669,6 +4669,31 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             // Oxidized Copper Bulb
             // Waxed Oxidized Copper Bulb
             color = 0x498B73;
+            break;
+
+        // lit; we don't bothered with powered (lit and unlit), as it changes just one texel
+        case 0x8 | 0:
+        case 0x8 | 4:
+            // Waxed Copper Bulb
+            color = 0xDCA478;
+            break;
+        case 0x8 | 1:
+        case 0x8 | 5:
+            // Exposed Copper Bulb
+            // Waxed Exposed Copper Bulb
+            color = 0xC9976C;
+            break;
+        case 0x8 | 2:
+        case 0x8 | 6:
+            // Weathered Copper Bulb
+            // Waxed Weathered Copper Bulb
+            color = 0xABA067;
+            break;
+        case 0x8 | 3:
+        case 0x8 | 7:
+            // Oxidized Copper Bulb
+            // Waxed Oxidized Copper Bulb
+            color = 0x989E70;
             break;
         }
         break;

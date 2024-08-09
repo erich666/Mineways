@@ -553,7 +553,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 466 */ "Vault",           		        0x404E56, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 65, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_EMITTER },
     { /* 467 */ "Crafter",           		    0x777272, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 62, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
     { /* 468 */ "Heavy Core",              		0x5B606A, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 63, 0x00, BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG | BLF_EMITTER },
-    { /* 469 */ "Copper Bulb",           		0xA81E09, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 61, 0x07, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_EMITTER },
+    { /* 469 */ "Copper Bulb",           		0xA81E09, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 61, 0x0F, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_EMITTER },   // note that 0x8 is included, for lit
     { /* 470 */ "Copper Grate",                 0xC26D51, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 62, 0x07, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_CUTOUTS | BLF_MAYWATERLOG },
     { /* 471 */ "Tuff Stairs",                  0x6F6F69, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 49, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 472 */ "Polished Tuff Stairs",         0x636965, 1.000f, 0xff7711, 0xff7711, 0.12345f,  3, 64, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },

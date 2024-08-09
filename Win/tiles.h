@@ -70,7 +70,7 @@ static struct {
     // the polished granite tile by setting the "material type" as "polished granite stairs".
     // Use crossCorrelate code in _DEBUG in Mineways to *help* build this column.
     int typeForMtl;
-    // the data value associated with the tile type. Needed just for sea pickles, campfires, and respawn anchors, to give the illumination level.
+    // the data value associated with the tile type. Needed to give the illumination level of the tile.
     int dataValForMtl;
     const wchar_t* filename;
     const wchar_t* altFilename;   // new 1.13 name
@@ -339,7 +339,7 @@ static struct {
     { 12, 15, 154, 0, L"hopper_outside", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
     { 13, 15, 154, 0, L"hopper_top", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 14, 15, 152, 0, L"redstone_block", L"", SWATCH_REPEAT_ALL },
-    { 15, 15,  11, 0, L"lava_still", L"", SWATCH_REPEAT_ALL },
+    { 15, 15,  11, 4, L"lava_still", L"", SWATCH_REPEAT_ALL },
     {  0, 16, 159, 0, L"white_terracotta", L"hardened_clay_stained_white", SWATCH_REPEAT_ALL }, //** Brave new world, off the 256x256 edge
     {  1, 16, 159, 0, L"orange_terracotta", L"hardened_clay_stained_orange", SWATCH_REPEAT_ALL },
     {  2, 16, 159, 0, L"magenta_terracotta", L"hardened_clay_stained_magenta", SWATCH_REPEAT_ALL },
@@ -509,7 +509,7 @@ static struct {
     {  6, 26,  55, 0, L"MWO_redstone_dust_four_way", L"redstone_dust_cross", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED 4 way redstone wire - reserved (alt: Smoolistic)
     {  7, 26,  54, 0, L"MWO_chest_latch", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     {  8, 26,   8, 0, L"water_flow", L"water_flow_grey", SWATCH_REPEAT_ALL | SBIT_SYNTHESIZED },	// special: double-wide. TODO: some packs make "water_flow" a colored version, using "water_flow_grey" for the right one
-    {  9, 26,  10, 0, L"lava_flow", L"", SWATCH_REPEAT_ALL },		// special: double-wide
+    {  9, 26,  10, 4, L"lava_flow", L"", SWATCH_REPEAT_ALL },		// special: double-wide
     { 10, 26,  55, 0, L"MWO_redstone_dust_line0_off", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_VERT_OFF: vertical and runs north-south
     { 11, 26,  55, 0, L"MWO_redstone_dust_line1_off", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_HORIZ_OFF: "horizontal": appears vertically in the texture, but runs east-west
     { 12, 26,  55, 0, L"MWO_redstone_dust_dot_off", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_DOT_OFF
@@ -702,7 +702,7 @@ static struct {
     {  7, 38,  61, 0, L"blast_furnace_top", L"", SWATCH_REPEAT_ALL },
     {  8, 38,  61, 0, L"blast_furnace_side", L"", SWATCH_REPEAT_ALL },
     {  9, 38,  61, 0, L"blast_furnace_front", L"blast_furnace_front_off", SWATCH_REPEAT_ALL },
-    { 10, 38,  61, 0, L"blast_furnace_front_on", L"", SWATCH_REPEAT_ALL },
+    { 10, 38,  62, 0, L"blast_furnace_front_on", L"", SWATCH_REPEAT_ALL },
     { 11, 38, 332, 0, L"composter_top", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 12, 38, 332, 0, L"composter_side", L"", SWATCH_REPEAT_ALL },
     { 13, 38, 332, 0, L"composter_bottom", L"", SWATCH_REPEAT_ALL },
@@ -731,7 +731,7 @@ static struct {
     {  4, 40,  61, 0, L"loom_top", L"", SWATCH_REPEAT_ALL },
     {  5, 40,  61, 0, L"loom_side", L"", SWATCH_REPEAT_ALL },
     {  6, 40,  61, 0, L"loom_bottom", L"", SWATCH_REPEAT_ALL },
-    {  7, 40,  61, 0, L"loom_front", L"", SWATCH_REPEAT_ALL },
+    {  7, 40,  61, BIT_16, L"loom_front", L"", SWATCH_REPEAT_ALL },
     {  8, 40, 340, 0, L"scaffolding_top", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     {  9, 40, 340, 0, L"scaffolding_side", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 10, 40, 340, 0, L"scaffolding_bottom", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
@@ -739,7 +739,7 @@ static struct {
     { 12, 40,  61, 0, L"smoker_side", L"", SWATCH_REPEAT_ALL },
     { 13, 40,  61, 0, L"smoker_bottom", L"", SWATCH_REPEAT_ALL },
     { 14, 40,  61, 0, L"smoker_front", L"smoker_front_off", SWATCH_REPEAT_ALL },
-    { 15, 40,  61, 0, L"smoker_front_on", L"", SWATCH_REPEAT_ALL },
+    { 15, 40,  62, 0, L"smoker_front_on", L"", SWATCH_REPEAT_ALL },
     {  0, 41,  58, 0, L"smithing_table_top", L"", SWATCH_REPEAT_ALL },
     {  1, 41,  58, 0, L"smithing_table_side", L"", SWATCH_REPEAT_ALL },
     {  2, 41,  58, 0, L"smithing_table_bottom", L"", SWATCH_REPEAT_ALL },
@@ -768,10 +768,10 @@ static struct {
     {  9, 42, 367, 0, L"polished_basalt_top", L"", SWATCH_REPEAT_ALL },
     { 10, 42, 367, 0, L"polished_basalt_side", L"", SWATCH_REPEAT_ALL },
     { 11, 42, 362, 0, L"soul_torch", L"soul_fire_torch", SBIT_CLAMP_BOTTOM | SBIT_DECAL }, // second name from an earlier beta
-    { 12, 42,  51, 0, L"soul_fire_0", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// input is fire animation strip - ignoring soul_fire_1
-    { 13, 42, 338, 0, L"soul_lantern", L"soul_fire_lantern", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY }, // second name from an earlier beta
-    { 14, 42, 339, 0, L"soul_campfire_fire", L"soul_campfire", SBIT_CLAMP_BOTTOM | SBIT_DECAL },    // alternate in Smoolistic
-    { 15, 42, 339, 4, L"soul_campfire_log_lit", L"", SBIT_CLAMP_BOTTOM },	// geometry - this particular one does not need SBIT_CUTOUT_GEOMETRY as it fills the tile
+    { 12, 42,  51, BIT_16, L"soul_fire_0", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// input is fire animation strip - ignoring soul_fire_1
+    { 13, 42, 338, 2, L"soul_lantern", L"soul_fire_lantern", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY }, // second name from an earlier beta
+    { 14, 42, 339, 0xC, L"soul_campfire_fire", L"soul_campfire", SBIT_CLAMP_BOTTOM | SBIT_DECAL },    // alternate in Smoolistic
+    { 15, 42, 339, 0xC, L"soul_campfire_log_lit", L"", SBIT_CLAMP_BOTTOM },	// geometry - this particular one does not need SBIT_CUTOUT_GEOMETRY as it fills the tile
     {  0, 43, 162, 0, L"crimson_stem_top", L"", SWATCH_REPEAT_ALL },	// more like a log
     {  1, 43, 162, 0, L"crimson_stem", L"crimson_stem_side", SWATCH_REPEAT_ALL },	// _side naming from Smoolistic
     {  2, 43,   3, 0, L"crimson_nylium", L"crimson_nylium_top", SWATCH_REPEAT_ALL },
@@ -835,7 +835,7 @@ static struct {
     { 12, 46, 364, 0, L"chain", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },    // TODO: bedrock uses chain1 and chain2: these could be composited into the single chain tile
     { 13, 46, 370, 0, L"tinted_glass", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 14, 46, 384, 0, L"candle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    { 15, 46, 385, 0, L"candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 15, 46, 385, BIT_16, L"candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  0, 47, 386, 0, L"white_candle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  1, 47, 386, 0, L"orange_candle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  2, 47, 386, 0, L"magenta_candle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
@@ -852,26 +852,26 @@ static struct {
     { 13, 47, 386, 0, L"green_candle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 14, 47, 386, 0, L"red_candle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 15, 47, 386, 0, L"black_candle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  0, 48, 387, 0, L"white_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  1, 48, 387, 0, L"orange_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  2, 48, 387, 0, L"magenta_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  3, 48, 387, 0, L"light_blue_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  4, 48, 387, 0, L"yellow_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  5, 48, 387, 0, L"lime_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  6, 48, 387, 0, L"pink_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  7, 48, 387, 0, L"gray_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  8, 48, 387, 0, L"light_gray_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  9, 48, 387, 0, L"cyan_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    { 10, 48, 387, 0, L"purple_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    { 11, 48, 387, 0, L"blue_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    { 12, 48, 387, 0, L"brown_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    { 13, 48, 387, 0, L"green_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    { 14, 48, 387, 0, L"red_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    { 15, 48, 387, 0, L"black_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  0, 48, 387, BIT_16, L"white_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  1, 48, 387, BIT_16, L"orange_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  2, 48, 387, BIT_16, L"magenta_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  3, 48, 387, BIT_16, L"light_blue_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  4, 48, 387, BIT_16, L"yellow_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  5, 48, 387, BIT_16, L"lime_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  6, 48, 387, BIT_16, L"pink_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  7, 48, 387, BIT_16, L"gray_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  8, 48, 387, BIT_16, L"light_gray_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  9, 48, 387, BIT_16, L"cyan_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 10, 48, 387, BIT_16, L"purple_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 11, 48, 387, BIT_16, L"blue_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 12, 48, 387, BIT_16, L"brown_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 13, 48, 387, BIT_16, L"green_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 14, 48, 387, BIT_16, L"red_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 15, 48, 387, BIT_16, L"black_candle_lit", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  0, 49, 388, 0, L"amethyst_block", L"", SWATCH_REPEAT_ALL },                  // TODO figure out numbers and flags
-    {  1, 49, 389, 0, L"small_amethyst_bud", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  2, 49, 389, 0, L"medium_amethyst_bud", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  3, 49, 389, 0, L"large_amethyst_bud", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  1, 49, 389, 1, L"small_amethyst_bud", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  2, 49, 389, 2, L"medium_amethyst_bud", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  3, 49, 389, 3, L"large_amethyst_bud", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  4, 49, 389, 0, L"amethyst_cluster", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  5, 49, 389, 0, L"budding_amethyst", L"", SWATCH_REPEAT_ALL },
     {  6, 49,   1, 0, L"calcite", L"", SWATCH_REPEAT_ALL },
@@ -982,11 +982,11 @@ static struct {
     { 15, 55, 436, 0, L"verdant_froglight_top", L"", SWATCH_REPEAT_ALL },
     {  0, 56, 436, 0, L"verdant_froglight_side", L"", SWATCH_REPEAT_ALL },
     {  1, 56, 388, 0, L"sculk", L"", SWATCH_REPEAT_ALL },
-    {  2, 56,   3, 0, L"sculk_catalyst_top", L"", SWATCH_REPEAT_ALL },
-    {  3, 56,   3, 0, L"sculk_catalyst_side", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
-    {  4, 56,   3, 0, L"sculk_catalyst_bottom", L"", SWATCH_REPEAT_ALL },
-    {  5, 56,   3, 0, L"sculk_catalyst_top_bloom", L"", SWATCH_REPEAT_ALL },
-    {  6, 56,   3, 0, L"sculk_catalyst_side_bloom", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
+    {  2, 56,   3, 1, L"sculk_catalyst_top", L"", SWATCH_REPEAT_ALL },
+    {  3, 56,   3, 1, L"sculk_catalyst_side", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
+    {  4, 56,   3, 1, L"sculk_catalyst_bottom", L"", SWATCH_REPEAT_ALL },
+    {  5, 56,   3, 1, L"sculk_catalyst_top_bloom", L"", SWATCH_REPEAT_ALL },
+    {  6, 56,   3, 1, L"sculk_catalyst_side_bloom", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
     {  7, 56, 433, 0, L"sculk_shrieker_top", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
     {  8, 56, 433, 0, L"sculk_shrieker_side", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_CUTOUT_GEOMETRY },
     {  9, 56, 433, 0, L"sculk_shrieker_bottom", L"", SWATCH_REPEAT_ALL },
@@ -1071,8 +1071,8 @@ static struct {
     {  8, 61,  47, 0, L"chiseled_bookshelf_side", L"", SWATCH_REPEAT_ALL },
     {  9, 61,  47, 0, L"chiseled_bookshelf_empty", L"", SWATCH_REPEAT_ALL },
     { 10, 61, 469, 0, L"copper_bulb", L"", SWATCH_REPEAT_ALL }, // start 1.21
-    { 11, 61, 469, 0, L"copper_bulb_lit", L"", SWATCH_REPEAT_ALL },
-    { 12, 61, 469, 0, L"copper_bulb_lit_powered", L"", SWATCH_REPEAT_ALL },
+    { 11, 61, 469, 0x8, L"copper_bulb_lit", L"", SWATCH_REPEAT_ALL },
+    { 12, 61, 469, 0x8, L"copper_bulb_lit_powered", L"", SWATCH_REPEAT_ALL },
     { 13, 61, 469, 0, L"copper_bulb_powered", L"", SWATCH_REPEAT_ALL },
     { 14, 61, 482, 0, L"copper_door_bottom", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     { 15, 61, 482, 0, L"copper_door_top", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
@@ -1094,8 +1094,8 @@ static struct {
     { 15, 62, 467, 0, L"crafter_west_triggered", L"", SWATCH_REPEAT_ALL },
     {  0, 63, 388, 0, L"exposed_chiseled_copper", L"", SWATCH_REPEAT_ALL },
     {  1, 63, 469, 0, L"exposed_copper_bulb", L"", SWATCH_REPEAT_ALL },
-    {  2, 63, 469, 0, L"exposed_copper_bulb_lit", L"", SWATCH_REPEAT_ALL },
-    {  3, 63, 469, 0, L"exposed_copper_bulb_lit_powered", L"", SWATCH_REPEAT_ALL },
+    {  2, 63, 469, 0x9, L"exposed_copper_bulb_lit", L"", SWATCH_REPEAT_ALL },
+    {  3, 63, 469, 0x9, L"exposed_copper_bulb_lit_powered", L"", SWATCH_REPEAT_ALL },
     {  4, 63, 469, 0, L"exposed_copper_bulb_powered", L"", SWATCH_REPEAT_ALL },
     {  5, 63, 475, 0, L"exposed_copper_door_bottom", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     {  6, 63, 475, 0, L"exposed_copper_door_top", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
@@ -1104,8 +1104,8 @@ static struct {
     {  9, 63, 468, 0, L"heavy_core", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 10, 63, 388, 0, L"oxidized_chiseled_copper", L"", SWATCH_REPEAT_ALL },
     { 11, 63, 469, 0, L"oxidized_copper_bulb", L"", SWATCH_REPEAT_ALL },
-    { 12, 63, 469, 0, L"oxidized_copper_bulb_lit", L"", SWATCH_REPEAT_ALL },
-    { 13, 63, 469, 0, L"oxidized_copper_bulb_lit_powered", L"", SWATCH_REPEAT_ALL },
+    { 12, 63, 469, 11, L"oxidized_copper_bulb_lit", L"", SWATCH_REPEAT_ALL },
+    { 13, 63, 469, 11, L"oxidized_copper_bulb_lit_powered", L"", SWATCH_REPEAT_ALL },
     { 14, 63, 469, 0, L"oxidized_copper_bulb_powered", L"", SWATCH_REPEAT_ALL },
     { 15, 63, 475, 0, L"oxidized_copper_door_bottom", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     {  0, 64, 475, 0, L"oxidized_copper_door_top", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
@@ -1113,37 +1113,37 @@ static struct {
     {  2, 64, 483, 0, L"oxidized_copper_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
     {  3, 64, 388, 0, L"polished_tuff", L"", SWATCH_REPEAT_ALL },
     {  4, 64, 465, 0, L"trial_spawner_bottom", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
-    {  5, 64, 465, 0, L"trial_spawner_side_active", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
-    {  6, 64, 465, 0, L"trial_spawner_side_active_ominous", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
+    {  5, 64, 465, 1, L"trial_spawner_side_active", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
+    {  6, 64, 465, 1, L"trial_spawner_side_active_ominous", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
     {  7, 64, 465, 0, L"trial_spawner_side_inactive", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
     {  8, 64, 465, 0, L"trial_spawner_side_inactive_ominous", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
-    {  9, 64, 465, 0, L"trial_spawner_top_active", L"", SWATCH_REPEAT_ALL },
-    { 10, 64, 465, 0, L"trial_spawner_top_active_ominous", L"", SWATCH_REPEAT_ALL },
-    { 11, 64, 465, 0, L"trial_spawner_top_ejecting_reward", L"", SWATCH_REPEAT_ALL },
-    { 12, 64, 465, 0, L"trial_spawner_top_ejecting_reward_ominous", L"", SWATCH_REPEAT_ALL },
+    {  9, 64, 465, 1, L"trial_spawner_top_active", L"", SWATCH_REPEAT_ALL },
+    { 10, 64, 465, 1, L"trial_spawner_top_active_ominous", L"", SWATCH_REPEAT_ALL },
+    { 11, 64, 465, 1, L"trial_spawner_top_ejecting_reward", L"", SWATCH_REPEAT_ALL },
+    { 12, 64, 465, 1, L"trial_spawner_top_ejecting_reward_ominous", L"", SWATCH_REPEAT_ALL },
     { 13, 64, 465, 0, L"trial_spawner_top_inactive", L"", SWATCH_REPEAT_ALL },
     { 14, 64, 465, 0, L"trial_spawner_top_inactive_ominous", L"", SWATCH_REPEAT_ALL },
     { 15, 64, 388, 0, L"tuff_bricks", L"", SWATCH_REPEAT_ALL },
     {  0, 65, 466, 0, L"vault_bottom", L"", SWATCH_REPEAT_ALL },
     {  1, 65, 466, 0, L"vault_bottom_ominous", L"", SWATCH_REPEAT_ALL },
-    {  2, 65, 466, 0, L"vault_front_ejecting", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
-    {  3, 65, 466, 0, L"vault_front_ejecting_ominous", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
+    {  2, 65, 466, 0x18, L"vault_front_ejecting", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
+    {  3, 65, 466, 0x18, L"vault_front_ejecting_ominous", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
     {  4, 65, 466, 0, L"vault_front_off", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
     {  5, 65, 466, 0, L"vault_front_off_ominous", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
-    {  6, 65, 466, 0, L"vault_front_on", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
-    {  7, 65, 466, 0, L"vault_front_on_ominous", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
+    {  6, 65, 466, 0x18, L"vault_front_on", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
+    {  7, 65, 466, 0x18, L"vault_front_on_ominous", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
     {  8, 65, 466, 0, L"vault_side_off", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
     {  9, 65, 466, 0, L"vault_side_off_ominous", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
-    { 10, 65, 466, 0, L"vault_side_on", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
-    { 11, 65, 466, 0, L"vault_side_on_ominous", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
+    { 10, 65, 466, 0x18, L"vault_side_on", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
+    { 11, 65, 466, 0x18, L"vault_side_on_ominous", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
     { 12, 65, 466, 0, L"vault_top", L"", SWATCH_REPEAT_ALL },
     { 13, 65, 466, 0, L"vault_top_ominous", L"", SWATCH_REPEAT_ALL },   // non-alphabetic order to keep ominous at +1
-    { 14, 65, 466, 0, L"vault_top_ejecting", L"", SWATCH_REPEAT_ALL },
+    { 14, 65, 466, 0x18, L"vault_top_ejecting", L"", SWATCH_REPEAT_ALL },
     { 15, 65, 466, 0, L"vault_top_ejecting_ominous", L"", SWATCH_REPEAT_ALL },
     {  0, 66, 388, 0, L"weathered_chiseled_copper", L"", SWATCH_REPEAT_ALL },
     {  1, 66, 469, 0, L"weathered_copper_bulb", L"", SWATCH_REPEAT_ALL },
-    {  2, 66, 469, 0, L"weathered_copper_bulb_lit", L"", SWATCH_REPEAT_ALL },
-    {  3, 66, 469, 0, L"weathered_copper_bulb_lit_powered", L"", SWATCH_REPEAT_ALL },
+    {  2, 66, 469, 10, L"weathered_copper_bulb_lit", L"", SWATCH_REPEAT_ALL },
+    {  3, 66, 469, 10, L"weathered_copper_bulb_lit_powered", L"", SWATCH_REPEAT_ALL },
     {  4, 66, 469, 0, L"weathered_copper_bulb_powered", L"", SWATCH_REPEAT_ALL },
     {  5, 66, 476, 0, L"weathered_copper_door_bottom", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     {  6, 66, 476, 0, L"weathered_copper_door_top", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
