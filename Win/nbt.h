@@ -115,6 +115,7 @@ int nbtGetFileVersionId(bfFile* pbf, int* versionId);
 // currently not used: int nbtGetFileVersionName(bfFile* pbf, char* versionName, int stringLength);
 int nbtGetLevelName(bfFile* pbf, char* levelName, int stringLength);
 int nbtGetPlayer(bfFile* pbf, int* px, int* py, int* pz);
+int nbtGetDimension(bfFile* pbf, int* dimension);
 //void nbtGetRandomSeed(bfFile *pbf,long long *seed);
 int nbtGetSchematicWord(bfFile* pbf, char* field, int* value);
 int nbtGetSchematicBlocksAndData(bfFile* pbf, int numBlocks, unsigned char* schematicBlocks, unsigned char* schematicBlockData);

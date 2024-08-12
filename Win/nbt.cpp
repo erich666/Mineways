@@ -5048,6 +5048,34 @@ int nbtGetPlayer(bfFile* pbf, int* px, int* py, int* pz)
     *pz = (int)readDouble(pbf);
     return 0;
 }
+int nbtGetDimension(bfFile * pbf, int* dimension)
+{
+    int len;
+    *dimension = 0; // overworld
+    //Data/Player/Dimension
+    if (bfseek(pbf, 1, SEEK_CUR) < 0)
+        return LINE_ERROR; //skip type
+    len = readWord(pbf); //name length
+    if (bfseek(pbf, len, SEEK_CUR) < 0)
+        return LINE_ERROR; //skip name ()
+    if (nbtFindElement(pbf, "Data") != 10)
+        return LINE_ERROR;
+    if (nbtFindElement(pbf, "Player") != 10)
+        return LINE_ERROR;
+    if (nbtFindElement(pbf, "Dimension") != 8)
+        return LINE_ERROR;
+    len = readWord(pbf);
+    char dimension_string[256];
+    if (bfread(pbf, dimension_string, len) < 0)
+        return LINE_ERROR;
+    // doesn't return a null-terminated string, so add one
+    dimension_string[len] = 0;
+    if (strstr(dimension_string, "nether") != NULL)
+        *dimension = 1;
+    else if (strstr(dimension_string, "end") != NULL)
+        *dimension = 2;
+    return 0;
+}
 
 //////////// schematic
 //  http://minecraft.wiki/w/Schematic_file_format

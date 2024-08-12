@@ -3615,7 +3615,8 @@ static int loadWorld(HWND hWnd)
             gWorldGuide.type = WORLD_UNLOADED_TYPE;
             return 3;
         }
-        if (GetPlayer(gWorldGuide.world, &gPlayerX, &gPlayerY, &gPlayerZ) != 0) {
+        int dimension;
+        if (GetPlayer(gWorldGuide.world, &gPlayerX, &gPlayerY, &gPlayerZ, &dimension) != 0) {
             // if this fails, it's a server world, so set the values equal to the spawn location; return no error
             // from http://minecraft.wiki/w/Level_format
             // Player: The state of the Singleplayer player. This overrides the <player>.dat file with the same name as the
@@ -3624,6 +3625,27 @@ static int loadWorld(HWND hWnd)
             gPlayerY = gSpawnY;
             gPlayerZ = gSpawnZ;
             gWorldGuide.isServerWorld = true;
+        }
+        else {
+            // use dimension to set world type viewed.
+            if (dimension == 1) {
+                // Nether
+                // could do this, but then we need to set a bunch of other options: 
+                // gOptions.worldType |= HELL;
+
+                // in Nether, so convert; for now, return overworld position, always
+                gPlayerX = gPlayerX * 8;
+                gPlayerZ = gPlayerZ * 8;
+            }
+            else if (dimension == 2) {
+                // End
+                //gOptions.worldType |= ENDER;
+            }
+            else {
+                // Overworld
+                //gOptions.worldType &= ~(HELL | ENDER);
+                assert(dimension == 0);
+            }
         }
         // This may or may not work, so we ignore errors.
         GetFileVersionId(gWorldGuide.world, &gVersionID);

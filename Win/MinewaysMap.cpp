@@ -8070,8 +8070,9 @@ int GetLevelName(const wchar_t* world, char* levelName, int stringLength)
 //
 //}
 // 0 succeed, 1+ windows file open fail, -1 or less is some other read error from nbt
-int GetPlayer(const wchar_t* world, int* px, int* py, int* pz)
+int GetPlayer(const wchar_t* world, int* px, int* py, int* pz, int* dimension)
 {
+    *px = *py = *pz = *dimension = 0;   // just to be safe, in case some call below fails and initialization isn't done there
     bfFile bf;
     wchar_t filename[300];
     wcsncpy_s(filename, 300, world, wcslen(world) + 1);
@@ -8082,6 +8083,12 @@ int GetPlayer(const wchar_t* world, int* px, int* py, int* pz)
     if (bf.gz == 0x0) return err;
     int retval = nbtGetPlayer(&bf, px, py, pz);
     nbtClose(&bf);
+
+    bf = newNBT(filename, &err);
+    if (bf.gz == 0x0) return err;
+    retval = nbtGetDimension(&bf, dimension);
+    nbtClose(&bf);
+
     return retval;
 }
 

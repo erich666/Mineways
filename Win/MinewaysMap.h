@@ -118,7 +118,7 @@ int GetFileVersion(const wchar_t* world, int* version, wchar_t* fileOpened, rsiz
 int GetFileVersionId(const wchar_t* world, int* versionId);
 // currently not used: int GetFileVersionName(const wchar_t* world, char* versionName, int stringLength);
 int GetLevelName(const wchar_t* world, char* levelName, int stringLength);
-int GetPlayer(const wchar_t* world, int* px, int* py, int* pz);
+int GetPlayer(const wchar_t* world, int* px, int* py, int* pz, int* dimension);
 int GetSchematicWord(const wchar_t* schematic, char* field, int* word);
 int GetSchematicBlocksAndData(const wchar_t* schematic, int numBlocks, unsigned char* schematicBlocks, unsigned char* schematicBlockData);
 // palette should be in RGBA format, num colors in the palette
