@@ -13,14 +13,14 @@ The page you're on now holds the open-source code for Mineways. You probably wan
 
 # Download
 
-[Visit the project homepage](https://www.realtimerendering.com/erich/minecraft/public/mineways/) for executables for Windows and MacOS.
+[Visit the project homepage](https://www.realtimerendering.com/erich/minecraft/public/mineways/) for the latest executables for Windows (and usually somewhat older, for MacOS).
 
-Documentation links, credits, etc are also avaliable on the homepage.
+Documentation links, credits, etc are also available on the homepage.
 Much of the mapping and UI code is built on the open-source project [Minutor](http://seancode.com/minutor/).
 
-Mineways does not have a Linux build, but it runs well under [WINE](http://www.winehq.org/). See more [here](https://www.realtimerendering.com/erich/minecraft/public/mineways/downloads.html#linuxPlatformHelp).
+Mineways does not have a Linux build (and the MacOS build is often a few versions behind), but it runs well under [WINE](http://www.winehq.org/). See more [here for Linux](https://www.realtimerendering.com/erich/minecraft/public/mineways/downloads.html#linuxPlatformHelp) and [here for MacOS](https://www.realtimerendering.com/erich/minecraft/public/mineways/downloads.html#mac).
 
-You usually want the latest version. If you have problems with it, you might try [an older version](https://www.realtimerendering.com/erich/minecraft/public/mineways/mineways.html#versions).
+You usually want the latest version. If you have problems with it, you might try downloading [an older version](https://www.realtimerendering.com/erich/minecraft/public/mineways/mineways.html#versions). All releases of the code (without EXEs) back to v3.01 are [on Github](https://github.com/erich666/Mineways/releases).
 
 # Compiling
 
