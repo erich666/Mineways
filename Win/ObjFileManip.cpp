@@ -14572,6 +14572,12 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         //saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 0, 7,9, 10,10, 6,8);
         int torchVertexCount = gModel.vertexCount;
         saveBoxGeometry(boxIndex, type, dataVal & 0xf, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT, 7, 9, stubShift, 10, 6, 8);
+        identityMtx(mtx);
+        translateToOriginMtx(mtx, boxIndex);
+        rotateMtx(mtx, 0.0f, 270.0f, 0.0f);
+        translateFromOriginMtx(mtx, boxIndex);
+        translateMtx(mtx, 1.0f / 16.0f, 0.0f, -1.0f / 16.0f);
+        transformVertices(gModel.vertexCount - torchVertexCount, mtx);
         // torch bottom
         saveBoxReuseGeometry(boxIndex, type, dataVal & 0xf, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT, 0x0, 7, 9, stubShift, 10, 11, 13);
         gUsingTransform = 0;
