@@ -14616,13 +14616,13 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
             // this moves block up so that bottom of torch is at Y=0
             // also move to wall
             translateMtx(mtx, 0.0f, 0.5f, 0.0f);
-            rotateMtx(mtx, 20.0f, 0.0f, 0.0f);
+            rotateMtx(mtx, 22.5f, 0.0f, 0.0f);
             // in 1.7 and earlier torches are sheared:
             // shearMtx(mtx, 0.0f, shr);
             translateMtx(mtx, 0.0f, 0.0f, trans);
             rotateMtx(mtx, 0.0f, yAngle, 0.0f);
             // undo translation, and kick it up the wall a bit
-            translateMtx(mtx, 0.0f, -0.5f + 3.8f / 16.0f, 0.0f);
+            translateMtx(mtx, 0.0f, -0.5f + 3.5f / 16.0f, 0.0f);
             translateFromOriginMtx(mtx, boxIndex);
             transformVertices(totalVertexCount, mtx);
         }
