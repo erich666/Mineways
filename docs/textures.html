@@ -203,7 +203,7 @@ TileMaker then puts all these tiles into a single terrain file (or a set of terr
 What TileMaker does by default is simple: it reads in the terrainBase.png file Mineways provides (or ../terrainExt.png, if terrainBase.png is not found), overlays it with any tiles in the "blocks" directory (replacing the originals), extracts the chests from the "chest" subdirectory, then writes out this new image as terrainExt.png. The "chest" subdirectory normally has three chest tiles, as available - ender.png, normal.png, and normal_double.png (or similar names) - to generate chest tiles.
 
 <P>
-Mineways' two tools work with both Minecraft Classic resource packs and with Minecraft Bedrock <a href="https://mcpedb.com/tag/mcpack/">MCPack files</a>. You can find resource packs on such sites as <a href="https://www.reddit.com/r/minecraftRTX/comments/iq3lkl/getting_startedhelpful_guidesresource_packs/">this NVIDIA RTX-related page</a>, <a href="https://wiki.shaderlabs.org/wiki/LabPBR_Supported_Packs">this LabPBR page</a>, <a href="https://www.planetminecraft.com/texture-packs/">this PlanetMinecraft page</a>, <a href="https://www.curseforge.com/minecraft/texture-packs">this CurseForge page</a>, <a href="https://mcpedl.com/?s=PBR">this MCPEDL page</a> (and also <a href="https://mcpedl.com/?s=RTX">this RTX search</a> there), and <a href="https://resourcepack.net/">this site</a>. Or <a href="https://www.google.com/search?q=minecraft+resource+packs">google around</a> for way too many more. Best ones? <a href="https://www.pcgamer.com/best-minecraft-texture-packs/">Here's what PC Gamer</a> thinks. Want to make your own PBR resource pack? <a href="https://www.planetminecraft.com/blog/how-to-convert-any-texture-pack-to-support-ray-tracing/">This post</a> gives some tools and steps for making normal maps, etc.
+Mineways' two tools work with both Minecraft Classic resource packs and with Minecraft Bedrock <a href="https://mcpedb.com/tag/mcpack/">MCPack files</a>. You can find resource packs on such sites as <a href="https://www.reddit.com/r/minecraftRTX/comments/iq3lkl/getting_startedhelpful_guidesresource_packs/">this NVIDIA RTX-related page</a>, <a href="https://shaderlabs.org/wiki/LabPBR_Supported_Packs">this LabPBR page</a>, <a href="https://www.planetminecraft.com/texture-packs/">this PlanetMinecraft page</a>, <a href="https://www.curseforge.com/minecraft/texture-packs">this CurseForge page</a>, <a href="https://mcpedl.com/?s=PBR">this MCPEDL page</a> (and also <a href="https://mcpedl.com/?s=RTX">this RTX search</a> there), and <a href="https://resourcepack.net/">this site</a>. Or <a href="https://www.google.com/search?q=minecraft+resource+packs">google around</a> for way too many more. Best ones? <a href="https://www.pcgamer.com/best-minecraft-texture-packs/">Here's what PC Gamer</a> thinks. Want to make your own PBR resource pack? <a href="https://www.planetminecraft.com/blog/how-to-convert-any-texture-pack-to-support-ray-tracing/">This post</a> gives some tools and steps for making normal maps, etc.
 
 
 <h3 id="channelmixer">ChannelMixer</h3>
@@ -406,7 +406,7 @@ There is an <B><a href="https://wiki.shaderlabs.org/wiki/Shaderpacks">extensive 
 <LI><a href="https://www.reddit.com/r/minecraftRTX/comments/iq3lkl/getting_startedhelpful_guidesresource_packs/">Reddit</a> has a getting started guide for Bedrock packs. These generally convert well; JG RTX is one I particularly like.
 <LI><a href="https://shaders.fandom.com/wiki/Shader_Packs">Fandom Minecraft Shaders</a> has a whole bunch; I haven't explored this list. It seems less extensive than <a href="https://wiki.shaderlabs.org/wiki/Shaderpacks">shaderLABS' listing</a>.
 <LI><a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-texturing-guide/">PBR Texturing Guide</a> is a guide on how to make PBR material textures.
-<LI><a href="https://github.com/TheDuckCow/MCprep/issues/78">MCPrep thread</a> discusses how this related utility is working to incorporate physically based materials in its translator. Good overview of the chaotic realistic resource pack format scene. If you want to directly use Mineways exports with Blender, <a href="https://theduckcow.com/dev/blender/mcprep/">explore MCPrep</a> as an option. I hope to work on supporting PBR in both Blender and MCPrep in the future.
+<LI><a href="https://github.com/Moo-Ack-Productions/MCprep/issues/78">MCPrep thread</a> discusses how this related utility is working to incorporate physically based materials in its translator. Good overview of the chaotic realistic resource pack format scene. If you want to directly use Mineways exports with Blender, <a href="https://theduckcow.com/dev/blender/mcprep/">explore MCPrep</a> as an option. I hope to work on supporting PBR in both Blender and MCPrep in the future.
 </UL>
 
 Here are <a href="https://photos.app.goo.gl/sUbwZjZ6JxgPGU4HA">more resource pack previews</a>, which are not that fascinating from a distance (it's the details that are cool), but give you some idea of what these packs look like. Click on an image to increase its size a bit.
@@ -419,7 +419,7 @@ Here we list the command line options for ChannelMixer and TileMaker.
 
 <H2>ChannelMixer Reference</H2>
 
-ChannelMixer's purpose is to find relevant block and chest textures inside an unzipped resource pack (or Minecraft itself) and copy these over to an intermediate directory. TileMaker then processes these textures. See the tutorial at the top of this page. <B>Note:</B> currently the program works only on the PC. I have heard you can run it through WINE or <a href="https://www.macworld.com/article/1164817/the_best_way_to_run_windows_on_your_mac.html">some emulator</a> (which should work but costs money).
+ChannelMixer's purpose is to find relevant block and chest textures inside an unzipped resource pack (or Minecraft itself) and copy these over to an intermediate directory. TileMaker then processes these textures. See the tutorial at the top of this page. <B>Note:</B> currently the program works only on the PC. I have heard you can run it through WINE or <a href="https://www.macworld.com/article/668848/best-virtual-machine-software-for-mac.html">some emulator</a> (which should work but costs money).
 
 <P>
 Here is a reference for all ChannelMixer options. To get a reminder of these, type:
@@ -444,7 +444,7 @@ on the command line.
 
 <H2>TileMaker Reference</H2>
 
-TileMaker is a command-line utility for making a terrainExt.png file, which is the file that Mineways uses to add textures to surfaces. <B>Note:</B> currently the program works only on the PC. I have heard you can run it through WINE or <a href="https://www.macworld.com/article/1164817/the_best_way_to_run_windows_on_your_mac.html">some emulator</a> (which should work but costs money).
+TileMaker is a command-line utility for making a terrainExt.png file, which is the file that Mineways uses to add textures to surfaces. <B>Note:</B> currently the program works only on the PC. I have heard you can run it through WINE or <a href="https://www.macworld.com/article/668848/best-virtual-machine-software-for-mac.html">some emulator</a> (which should work but costs money).
 <P>
 TileMaker works by using a few different textures from Minecraft and from a texture pack to create a new texture to feed to Mineways. See the tutorial at the top of this page.
 <P>
@@ -488,7 +488,7 @@ on the command line.
 <LI><b>-s</b> - take the average color of the incoming tile and output this solid color.
 <LI><b>-S</b> - as above, but preserve the cutout transparent areas.
 <LI><b>-dcn</b> - don't clean normals. Many normal maps are poorly formed, with normals pointing
-	down into the surface, or the normals are not normalized, or Z is <a href="https://wiki.shaderlabs.org/wiki/LabPBR_Material_Standard">always 255</a> (seen in the JG-RTX resource pack).
+	down into the surface, or the normals are not normalized, or Z is <a href="https://shaderlabs.org/wiki/LabPBR_Material_Standard">always 255</a> (seen in the JG-RTX resource pack).
 	This option turns off the normal cleaning feature.
 <LI><b>-fnormal</b> - normally we favor _n.png files (Java) over _normal.png (Bedrock).
 	Set this option to favor using _normal.png instead of _n.png.
@@ -500,7 +500,7 @@ on the command line.
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 6/21/2024</p>
+		<br id="lastUpdate">Last updated 11/7/2024</p>
 	</div>
 </div>
 
