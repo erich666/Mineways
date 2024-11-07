@@ -7,7 +7,7 @@
    <link rel="stylesheet" href="styles.css">
    <link rel="shortcut icon" href="icon.ico" type="image/x-icon" />
    <link rel="icon" href="icon.ico" type="image/x-icon" />
-   <script src="http://code.jquery.com/jquery-latest.min.js" type="text/javascript"></script>
+   <script src="https://code.jquery.com/jquery-latest.min.js" type="text/javascript"></script>
    <script src="script.js"></script>
    <title>Mineways Scripting Language</title>
 </head>
@@ -42,7 +42,7 @@
 				<li><a href="reference.html"><span>Quick Reference</span></a></li>
 				<li><a href="downloads.html#troubleshooting"><span>Troubleshooting</span></a></li>
 				<li><a href="mineways.html#rendering"><span>Rendering Tips</span></a></li>
-				<li><a href="http://www.youtube.com/playlist?list=PL3AE7AB94E9114715&feature=mh_lolz"><span>Videos</span></a></li>
+				<li><a href="https://www.youtube.com/playlist?list=PL3AE7AB94E9114715&feature=mh_lolz"><span>Videos</span></a></li>
 				<li class='active'><a href="scripting.html"><span>Scripting</span></a></li>
 				<li><a href="mineways.html#versions"><span>Versions</span></a></li>
 				<li class='last'><a href="https://github.com/erich666/Mineways"><span>Source Code</span></a></li>
@@ -52,18 +52,19 @@
 			<ul>
 				<li><a href="community.html"><span>Showcase</span></a></li>
 				<li><a href="https://www.youtube.com/playlist?list=PL3AE7AB94E9114715"><span>YouTube</span></a></li>
-				<li><a href='http://www.flickr.com/groups/mineways/pool/'><span>Flickr</span></a></li>
+				<li><a href='https://www.flickr.com/groups/mineways/pool/'><span>Flickr</span></a></li>
 				<li><a href='https://www.google.com/search?q=mineways&newwindow=1&source=lnms&tbm=isch'><span>Google Images</span></a></li>
 				<li class='last'><a href='https://sketchfab.com/tags/minecraft'><span>Sketchfab</span></a></li>
 			</ul>
 		</li>
-		<li class='has-sub'><a href="http://www.reddit.com/r/mineways/"><span>Community</span></a>
+		<li class='has-sub'><a href="https://www.reddit.com/r/mineways/"><span>Community</span></a>
 			<ul>
-				<li><a href="http://www.reddit.com/r/mineways/"><span>Reddit</span></a></li>
+				<li><a href="https://www.reddit.com/r/mineways/"><span>Reddit</span></a></li>
 				<li><a href="https://discord.gg/wfayQA6Dyc"><span>Discord</span></a></li>
 				<li><a href="https://www.minecraftforum.net/forums/minecraft-java-edition/discussion/326119-mineways-3d-prints-of-minecraft-objects?page=100"><span>Minecraft Forum</span></a></li>
 				<li><a href="https://groups.google.com/forum/#!forum/mineways"><span>Google Group</span></a></li>
-				<li class='last'><a href="https://github.com/erich666/Mineways/issues"><span>Issues on Github</span></a></li>			</ul>
+				<li class='last'><a href="https://github.com/erich666/Mineways/issues"><span>Issues on Github</span></a></li>
+			</ul>
 		</li>
 		<li class='last'><a href="contact.html"><span>Contact</span></a></li>
 	</ul>
@@ -823,13 +824,13 @@ The specific location, no matter what's in it (even air), is turned into TNT. Fo
 Change blocks: to 24:1
 </div>
 <P>
-Everything solid (not air) in the whole volume is turned into <a href="http://minecraft.wiki/w/Data_values#Sandstone">chiseled sandstone</a>. The long form is Change blocks: from 1-255 to 24:1
+Everything solid (not air) in the whole volume is turned into <a href="https://minecraft.wiki/w/Data_values#Sandstone">chiseled sandstone</a>. The long form is Change blocks: from 1-255 to 24:1
 <P>
 <div id="code">
 Change blocks: from "stained glass","glass pane","stained glass pane" to "glass"
 </div>
 <P>
-Any of the given forms of glass are turned into glass blocks in the entire exported volume (defined by "Selection location:"). Note that the "from" range can be a list of blocks by ID number or name. A range can also be given, e.g., 64,71,193-197 specifics all full doors. You can also give specific <a href="http://minecraft.wiki/w/Data_values#Data">data values</a>, e.g., "wood planks":1-5 means all variants of wood planks other than oak, which uses <a href="http://minecraft.wiki/w/Data_values#Wood_Planks">data value 1</a>.
+Any of the given forms of glass are turned into glass blocks in the entire exported volume (defined by "Selection location:"). Note that the "from" range can be a list of blocks by ID number or name. A range can also be given, e.g., 64,71,193-197 specifics all full doors. You can also give specific <a href="https://minecraft.wiki/w/Data_values#Data">data values</a>, e.g., "wood planks":1-5 means all variants of wood planks other than oak, which uses <a href="https://minecraft.wiki/w/Data_values#Wood_Planks">data value 1</a>.
 <P>
 <div id="code">
 Change blocks: at -5,50,45 to 50,255,90
@@ -841,25 +842,25 @@ The at/to volume specified is cleared out, turned to air. The long form is Chang
 Change blocks: from "wheat" to "cactus" at -5,0,-45 to 50,255,90
 </div>
 <P>
-This example finds any wheat blocks in the given volume and changes them to cactus blocks. The names are those shown in the "Block" column on <a href="http://minecraft.wiki/w/Data_values/Block_IDs">this page</a>. Or, find these names and IDs in <a href="https://github.com/erich666/Mineways/blob/master/Win/blockInfo.cpp#L65">this table</a>.
+This example finds any wheat blocks in the given volume and changes them to cactus blocks. The names are those shown in the "Block" column on <a href="https://minecraft.wiki/w/Data_values/Block_IDs">this page</a>. Or, find these names and IDs in <a href="https://github.com/erich666/Mineways/blob/master/Win/blockInfo.cpp#L65">this table</a>.
 <P>
 <div id="code">
 Change blocks: from 59 to 81 at -5,0,-45   // wheat to cactus
 </div>
 <P>
-This is the same as say from "wheat" to "cactus", instead using the decimal "Dec" number shown in <a href="http://minecraft.wiki/w/Data_values/Block_IDs">this table</a>. If you're not sure of the name, use the ID to be safe - you can always add a comment, as shown. Note how the "at" location specifies only a single block in this example, just to show a different example; if that block is wheat, it will be turned into a cactus.
+This is the same as say from "wheat" to "cactus", instead using the decimal "Dec" number shown in <a href="https://minecraft.wiki/w/Data_values/Block_IDs">this table</a>. If you're not sure of the name, use the ID to be safe - you can always add a comment, as shown. Note how the "at" location specifies only a single block in this example, just to show a different example; if that block is wheat, it will be turned into a cactus.
 <P>
 <div id="code">
 Change blocks: from "wheat":0-6 to "wheat":7 at -5,0,-45 to 50,255,90
 </div>
 <P>
-Here the <a href="http://minecraft.wiki/w/Data_values#Data">data values</a> for wheat are specified. The data value is a number from 0 to 15 and specifies variants of blocks. Wheat's values are <a href="http://minecraft.wiki/w/Data_values#Crops">0-7</a>, specifying the growth stage, 7 being fully mature. This example says to make all the wheat fully mature, by taking data values 0-6 and changing them all to 7.
+Here the <a href="https://minecraft.wiki/w/Data_values#Data">data values</a> for wheat are specified. The data value is a number from 0 to 15 and specifies variants of blocks. Wheat's values are <a href="https://minecraft.wiki/w/Data_values#Crops">0-7</a>, specifying the growth stage, 7 being fully mature. This example says to make all the wheat fully mature, by taking data values 0-6 and changing them all to 7.
 <P>
 <div id="code">
 Change blocks: from "wheat":0-6,141-142,207 to "wheat":7 at -5,0,-45 to 50,255,90
 </div>
 <P>
-Any <a href="http://minecraft.wiki/w/Data_values#Crops">growing wheat</a>, carrots (ID 141) through potatoes (ID 142), and beetroot seeds (ID 207) are turned into fully grown wheat in the specified area. This is about as elaborate as you can go. All the commands below are shorthand variants, using defaults for missing fields.
+Any <a href="https://minecraft.wiki/w/Data_values#Crops">growing wheat</a>, carrots (ID 141) through potatoes (ID 142), and beetroot seeds (ID 207) are turned into fully grown wheat in the specified area. This is about as elaborate as you can go. All the commands below are shorthand variants, using defaults for missing fields.
 <P>
 <i>Usually</i> if you don't specify a "from" range, it means everything solid (not air). The one exception is if you set "to" and a volume, in which case air is also turned into the specified block type. The "to" value is "air" by default. If the location volume is not given, the whole export selection area is used.
 <P>
@@ -867,7 +868,7 @@ Any <a href="http://minecraft.wiki/w/Data_values#Crops">growing wheat</a>, carro
 Change blocks: from 198-255 at -319,50,-1077 to -302,50,-1059
 </div>
 <P>
-All blocks greater or equal in <a href="http://minecraft.wiki/w/Data_values/Block_IDs">ID</a> to 198 ("end rod") in the given at/to volume are turned into "air", i.e., cleared out. If no "to" ID is given, air is used.
+All blocks greater or equal in <a href="https://minecraft.wiki/w/Data_values/Block_IDs">ID</a> to 198 ("end rod") in the given at/to volume are turned into "air", i.e., cleared out. If no "to" ID is given, air is used.
 
 
 <h2 id="c">Comments</h2>
@@ -895,7 +896,7 @@ Export for Rendering: c:\temp\mysave.obj      // forward slashes in the path spe
 
 You can use command-line options with Mineways so that it is customized on startup. For example, you could provide a different initial window size, then run a script that loads your favorite world and takes you to where you were last building.
 <P>
-You can <a href="http://www.makeuseof.com/tag/write-simple-batch-bat-file/">store this command line in a .bat file</a> and double-click that file, or <a href="http://windows.tips.net/T010869_Changing_Shortcut_Properties.html">change your options on the shortcut for Mineways itself</a>. See the file <b>mineways.bat</b> in Mineways for an example. It starts Mineways with a larger window, then calls the <B>scripting/startup.mwscript</B> script (which does nothing, but which you can edit to perform the various startup script commands shown above).
+You can <a href="https://www.makeuseof.com/tag/write-simple-batch-bat-file/">store this command line in a .bat file</a> and double-click that file, or <a href="https://windows.tips.net/T010869_Changing_Shortcut_Properties.html">change your options on the shortcut for Mineways itself</a>. See the file <b>mineways.bat</b> in Mineways for an example. It starts Mineways with a larger window, then calls the <B>scripting/startup.mwscript</B> script (which does nothing, but which you can edit to perform the various startup script commands shown above).
 <P>
 Syntax:
 <P>
@@ -987,7 +988,7 @@ You should see any *.mwscript files with Mineways icons next to them:
 <P>
 Now when you double-click on a file ending with .mwscript, it will run this script on startup.
 <P>
-On the Mac, follow <a href="http://osxdaily.com/2013/08/08/change-default-application-open-files-mac-os-x/">these instructions</a>.
+On the Mac, follow <a href="https://osxdaily.com/2013/08/08/change-default-application-open-files-mac-os-x/">these instructions</a>.
 
 	
 <h1 id="default">Default Rendering Options</h1>
