@@ -2862,6 +2862,19 @@ The textures and rules used in Minecraft for how blocks appear and connect have 
 From newest to oldest. The very newest is sometimes unreleased work in progress, with "*" meaning "to do" and "**" meaning "stretch goal."
 
 <UL>
+<LI>Version 12.03, */*/2024 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1203.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+  <BR>
+    <UL>
+	<LI>If the player's location is in The Nether, it is not properly recorded for viewing there, or for its equivalent Overworld position. Test which dimension the player is in and, if in The Nether, multiply X and Z by 8 to give the Overworld coordinates. <I>(Thanks to zNightLord for filing <a href="https://github.com/erich666/Mineways/issues/129">this bug</a>.)</I>
+	</UL>
+
+<LI>Version 12.02, 8/9/2024 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1202.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+  <BR>
+    <UL>
+	<LI>Bug fix: it's all very nice that I put in code for the copper bulbs, but actually testing "powered" and "lit" fell through the cracks. Fixed, both for output and on the map. <I>(thanks to TheAbyssalEnderling for reporting this bug.)</I>
+	<LI>This in turn led to the realization that illumination levels were not properly output for OBJ and USDA files for a bunch of emitters. Fixed.
+	</UL>
+
 <LI>Version 12.01, 7/17/2024 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1201.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
     <UL>
