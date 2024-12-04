@@ -91,7 +91,7 @@ Biome gBiomes[256] = {	// IMPORTANT: do not change 256 size here.
     { /*  48 */ "Deep Lukewarm Ocean",		0.5f, 0.5f, 0x92BD59, 0x77AB2F },
     { /*  49 */ "Deep Cold Ocean",			0.5f, 0.5f, 0x92BD59, 0x77AB2F },
     { /*  50 */ "Deep Frozen Ocean",		0.5f, 0.5f, 0x92BD59, 0x77AB2F },
-    { /*  51 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
+	{ /*  51 */ "Pale Garden",				0.7f, 0.8f, 0x778272, 0x878D76 },  // not actually this number, added in 1.21, have to put it somewhere
     { /*  52 */ "Wooded Badlands",			2.0f, 0.0f, 0x90814D, 0x9E814D },  // not actually this number, added in 1.18, have to put it somewhere
     { /*  53 */ "Mangrove Swamp",			0.8f, 0.9f, 0x92BD59, 0x8DB127 },  // not actually this number, added in 1.19, have to put it somewhere; foliage color changed via JSON file, but really, change happens in ComputeBiomeColor()
     { /*  54 */ "Deep Dark",    			0.8f, 0.4f, 0x92BD59, 0x77AB2F },  // not actually this number, added in 1.19, have to put it somewhere
@@ -425,6 +425,10 @@ int ComputeBiomeColor(int biome, int elevation, int isGrass)
     case 167:
         // yes, it's hard-wired, see https://minecraft.wiki/w/Biome
         return isGrass ? 0x90814d : 0x9e814d;
+
+    case PALE_GARDEN_BIOME:
+        // yes, it's hard-wired, see https://minecraft.wiki/w/Biome
+        return isGrass ? 0x778272 : 0x878D76;
 
     case CHERRY_GROVE_BIOME:
         // yes, it's hard-wired, same for both, brighter green, see https://minecraft.wiki/w/Biome

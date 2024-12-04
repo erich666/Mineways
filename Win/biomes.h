@@ -45,6 +45,8 @@ int BiomeSwampRiverColor(int color);
 #define WOODED_BADLANDS_PLATEAU_BIOME	38
 #define BADLANDS_PLATEAU_BIOME			39
 
+#define PALE_GARDEN_BIOME           51
+
 #define WOODED_BADLANDS_BIOME       52
 
 #define MANGROVE_SWAMP_BIOME        53   

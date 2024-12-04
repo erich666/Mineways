@@ -4453,6 +4453,10 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 // When there's one above, there (happily) cannot be east/west/n/s, so
                 // no extra bit is needed or used internally.
                 dataVal = (south ? 1 : 0) | (west ? 2 : 0) | (north ? 4 : 0) | (east ? 8 : 0) | (down ? BIT_16 : 0) | (up ? BIT_32 : 0);
+                // if you "cheat" you can put vines on all six sides. Sure, let's support that.
+                if (dataVal == 0x0) {
+                    dataVal = 0x3F; // all sides
+                }
                 break;
             case COCOA_PROP:
                 dataVal = ((door_facing + 3) % 4) + (age << 2);

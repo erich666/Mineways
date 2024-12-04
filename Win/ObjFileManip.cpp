@@ -4018,10 +4018,10 @@ static int computeFlatFlags(int boxIndex)
         {
             return 0;
         }
-        // the rules: vines can cover up to four sides, or if no bits set, top of overhanging block.
+        // the rules: vines can cover up to four sides, or if no bits set (or BIT_32, new format), top of overhanging block.
         // The overhanging block stops side faces from appearing, essentially.
         // If billboarding is on and we're not printing, then we've already exported everything else of the vine, so remove it.
-        if ((gBoxData[boxIndex].data == 0) || (gBoxData[boxIndex].data == BIT_16) || (gExportBillboards && !gModel.print3D))
+        if ((gBoxData[boxIndex].data == 0) || (gBoxData[boxIndex].data == BIT_16) || (gBoxData[boxIndex].data == BIT_32) || (gExportBillboards && !gModel.print3D))
         {
             // top face, flatten to bottom of block above, if the neighbor exists. If it doesn't,
             // something odd is going on (this shouldn't happen).
@@ -13610,7 +13610,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         break;
     case BLOCK_VINES:				// saveBillboardFacesExtraData
         if (CHECK_COMPOSITE_OVERLAY) {
-            if ((dataVal == 0) || (dataVal == BIT_16)) {
+            if ((dataVal == 0) || (dataVal == BIT_16) || (dataVal == BIT_32)) {
                 // compositing, and the vine's only sitting underneath a block, so flattened
                 return(0);
             }
@@ -13618,7 +13618,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         else {
             // full check: is dataVal == 0 (means only a vine above) or is there a solid block above?
             // Note that the solid block must actually exist, vs. "origType"
-            if ((dataVal == 0) || (dataVal == BIT_16) || (gBlockDefinitions[gBoxData[boxIndex + 1].type].flags & BLF_WHOLE)) {
+            if ((dataVal == 0) || (dataVal == BIT_16) || (dataVal == BIT_32) || (gBlockDefinitions[gBoxData[boxIndex + 1].type].flags & BLF_WHOLE)) {
                 vineUnderBlock = true;
             }
         }
