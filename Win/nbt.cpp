@@ -2051,9 +2051,11 @@ static int skipCompound(bfFile* pbf)
             retcode = skipType(pbf, type);
         }
         loopCount++;
-    } while (type && (retcode >= 0) && loopCount < 100);
-    // some corruption happening (Saffron City test), get out of here
-    if (loopCount >= 100)
+    } while (type && (retcode >= 0) && loopCount < 100000);
+    // Some corruption happening (Saffron City test), get out of here.
+    // But, https://github.com/Avanatiker/WorldTools bizarrely puts 162 entries in WorldGenSettings -> dimensions,
+    // so we up the count to 100000 (used to be 100).
+    if (loopCount >= 100000)
         return -1;
     return retcode;
 }
