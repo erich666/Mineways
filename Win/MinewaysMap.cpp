@@ -781,6 +781,12 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Potted Dandelion";
         case YELLOW_FLOWER_FIELD | 1:
             return "Potted Torchflower";
+        case YELLOW_FLOWER_FIELD | 2:
+            return "Potted Closed Eyeblossom";
+        case YELLOW_FLOWER_FIELD | 3:
+            return "Potted Open Eyeblossom";
+        case YELLOW_FLOWER_FIELD | 4:
+            return "Potted Pale Oak Sapling";
         case 1:
         case RED_FLOWER_FIELD | 0:
             return "Potted Poppy";
@@ -837,6 +843,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Potted Mangrove Propagule";
         case SAPLING_FIELD | 7:
             return "Potted Cherry Sapling";
+        case SAPLING_FIELD | 8:
+            return "Potted Pale Oak Sapling";
 
         case RED_MUSHROOM_FIELD | 0:
         case 7:
@@ -927,6 +935,12 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             break;
         case 1:	// torchflower
             return "Torchflower";
+        case 2:
+            return "Closed Eyeblossom";
+        case 3:
+            return "Open Eyeblossom";
+        case 4:
+            return "Pale Oak Sapling";
         }
         break;
 
@@ -3569,6 +3583,18 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case 1:	// torchflower
             color = 0xF6B927;   // picked from the flower, instead of an average solid color, which was boring brown 0x887354
             break;
+        case 2:
+            // closed_eyeblossom
+            color = 0xBCAEB9;   // picked from the flower
+            break;
+        case 3:
+            // opened_eyeblossom
+            color = 0xEEEEEE;   // picked from the flower and dimmed
+            break;
+        case 4:
+            // pale oak sapling - yeah, it's weird, but we're out of sapling space
+            color = 0x9FA498;
+            break;
         }
         break;
 
@@ -5445,7 +5471,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_CAVE_VINES_LIT:
     case BLOCK_AZALEA:
     case BLOCK_MANGROVE_LEAVES:
-    case BLOCK_DANDELION:
     case BLOCK_CRYING_OBSIDIAN:
         // uses 0-1 
         if (dataVal < 2)
@@ -5577,6 +5602,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_DEAD_CORAL_BLOCK:
     case BLOCK_CRIMSON_DOUBLE_SLAB:
     case BLOCK_RESPAWN_ANCHOR:
+    case BLOCK_DANDELION:
         // uses 0-4
         if (dataVal < 5)
         {
@@ -5864,24 +5890,32 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 block->data[neighborIndex] = SAPLING_FIELD | 3;
                 block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
                 block->data[neighborIndex2] = BROWN_MUSHROOM_FIELD | 0;
+                block->grid[neighborIndex3] = BLOCK_FLOWER_POT;
+                block->data[neighborIndex3] = YELLOW_FLOWER_FIELD | 2;
                 break;
             case 5:
                 block->grid[neighborIndex] = BLOCK_FLOWER_POT;
                 block->data[neighborIndex] = SAPLING_FIELD | 4;
                 block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
                 block->data[neighborIndex2] = DEADBUSH_FIELD | 0;
+                block->grid[neighborIndex3] = BLOCK_FLOWER_POT;
+                block->data[neighborIndex3] = YELLOW_FLOWER_FIELD | 3;
                 break;
             case 6:
                 block->grid[neighborIndex] = BLOCK_FLOWER_POT;
                 block->data[neighborIndex] = SAPLING_FIELD | 5;
                 block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
                 block->data[neighborIndex2] = CACTUS_FIELD | 0;
+                block->grid[neighborIndex3] = BLOCK_FLOWER_POT;
+                block->data[neighborIndex3] = SAPLING_FIELD | 7;
                 break;
             case 7:
                 block->grid[neighborIndex] = BLOCK_FLOWER_POT;
                 block->data[neighborIndex] = TALLGRASS_FIELD | 2;
                 block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
                 block->data[neighborIndex2] = RED_FLOWER_FIELD | 9;
+                block->grid[neighborIndex3] = BLOCK_FLOWER_POT;
+                block->data[neighborIndex3] = YELLOW_FLOWER_FIELD | 4;
                 break;
             case 8:
                 block->grid[neighborIndex] = BLOCK_FLOWER_POT;

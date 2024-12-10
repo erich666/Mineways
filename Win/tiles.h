@@ -4,6 +4,11 @@
 
 #pragma once
 
+// normally defined in nbt.h
+#ifndef BIT_16
+#define BIT_16 0x10
+#endif
+
 #define SBIT_REPEAT_SIDES       0x01
 #define SBIT_REPEAT_TOP_BOTTOM  0x02
 #define SBIT_CLAMP_BOTTOM       0x04
@@ -59,7 +64,7 @@
 
 
 // If this number changes, also change warning #7 in gPopupInfo (see TerrainExt.png in that message) in Mineways.cpp
-#define VERTICAL_TILES 67
+#define VERTICAL_TILES 69
 #define TOTAL_TILES (VERTICAL_TILES*16)
 static struct {
     int txrX;   // column and row, from upper left, of 16x16+ tiles in terrain.png, for top view of block
@@ -123,7 +128,7 @@ static struct {
     {  4,  2,  48, 0, L"mossy_cobblestone", L"cobblestone_mossy", SWATCH_REPEAT_ALL },
     {  5,  2,  49, 0, L"obsidian", L"", SWATCH_REPEAT_ALL },
     {  6,  2,   2, 0, L"grass_block_side_overlay", L"grass_side_overlay", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_ALPHA_OVERLAY }, // was "grass_side_overlay" - we use it for temporary work - grass_side_overlay tinted by grass.png, but we don't use it.
-    {  7,  2,  31, 0, L"grass", L"short_grass", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYNTHESIZED },    // 1.20.3 changed grass to short_grass for ID and texture
+    {  7,  2,  31, 0, L"short_grass", L"grass", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYNTHESIZED },    // 1.20.3 changed grass to short_grass for ID and texture
     {  8,  2,   1, 0, L"MWO_workspace1", L"", SWATCH_REPEAT_ALL },	// we use it for temporary work - output as white? top grayscale, but we don't use it, nor does Mojang - left as "it's stone"
     {  9,  2,  54, 0, L"MWO_double_chest_front_left", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY }, // was beacon - taken by chest
     { 10,  2,  54, 0, L"MWO_double_chest_front_right", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },	// taken by chest
@@ -477,7 +482,7 @@ static struct {
     {  6, 24, 207, 0, L"beetroots_stage2", L"beetroots_stage_2", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  7, 24, 207, 0, L"beetroots_stage3", L"beetroots_stage_3", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  8, 24, 208, 0, L"dirt_path_top", L"grass_path_top", SWATCH_REPEAT_ALL }, // note that in 1.16 and earlier this was called grass_path_top. Name and texture changed for some reason. In 1.20 these are new textures, but are identical.
-    {  9, 24, 208, 0, L"dirt_path_side", L"grass_path_side", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_ALPHA_OVERLAY }, // in 1.20, separate textures, but different! 1.20.1 uses dirt_path_side.png
+    {  9, 24, 208, 0, L"dirt_path_side", L"grass_path_side", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_ALPHA_OVERLAY }, // in 1.20, separate textures, but different! 1.20.1 on uses dirt_path_side.png, nothing seems to use grass_path_side.png
     { 10, 24, 137, 0, L"command_block_front", L"", SWATCH_REPEAT_ALL },
     { 11, 24, 210, 0, L"command_block_back", L"", SWATCH_REPEAT_ALL },  // also "commandBlock", but no room...
     { 12, 24, 210, 0, L"command_block_side", L"", SWATCH_REPEAT_ALL },
@@ -1155,25 +1160,57 @@ static struct {
     { 12, 66, 388, 0, L"chiseled_tuff_bricks", L"", SWATCH_REPEAT_ALL },
     { 13, 66, 388, 0, L"chiseled_tuff_bricks_top", L"", SWATCH_REPEAT_ALL },
     { 14, 66,  47, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL }, // d'oh, accidentally deleted this one when adding 1.21
-    { 15, 66,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 15, 66,   0, 0, L"chiseled_resin_bricks", L"", SWATCH_REPEAT_ALL },   // 1.21.4
+    {  0, 67,   0, 0, L"resin_block", L"", SWATCH_REPEAT_ALL },
+    {  1, 67,   0, 0, L"resin_bricks", L"", SWATCH_REPEAT_ALL },
+    {  2, 67,   0, 0, L"resin_clump", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
+    {  3, 67,   0, 0, L"pale_oak_door_bottom", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
+    {  4, 67,   0, 0, L"pale_oak_door_top", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
+    {  5, 67,  18, 0, L"pale_oak_leaves", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYNTHESIZED },
+    {  6, 67,  17, 0, L"pale_oak_log_top", L"", SWATCH_REPEAT_ALL },
+    {  7, 67,  17, 0, L"pale_oak_log", L"pale_oak_log_side", SWATCH_REPEAT_ALL },   // JG-RTX second name
+    {  8, 67,   0, 0, L"pale_oak_planks", L"", SWATCH_REPEAT_ALL },
+    {  9, 67,  37, 0, L"pale_oak_sapling", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 10, 67,   0, 0, L"pale_oak_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
+    { 11, 67,   0, 0, L"stripped_pale_oak_log_top", L"", SWATCH_REPEAT_ALL },
+    { 12, 67,   0, 0, L"stripped_pale_oak_log", L"stripped_pale_oak_log_side", SWATCH_REPEAT_ALL },   // JG-RTX second name
+    { 13, 67,   0, 0, L"pale_moss_carpet", L"pale_moss", SWATCH_REPEAT_ALL },   // JG-RTX "pale_moss"
+    { 14, 67,   0, 0, L"pale_moss_carpet_side_small", L"pale_moss_carpet_side_base", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },   // JG-RTX second name
+    { 15, 67,   0, 0, L"pale_moss_carpet_side_tall", L"pale_moss_carpet_side_tip", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },   // JG-RTX second name
+    {  0, 68,   0, 0, L"pale_moss_block", L"", SWATCH_REPEAT_ALL },
+    {  1, 68,   0, 0, L"pale_hanging_moss", L"pale_hanging_moss_middle", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },   // JG-RTX second name
+    {  2, 68,   0, 0, L"pale_hanging_moss_tip", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
+    {  3, 68,  37, 0, L"closed_eyeblossom", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  4, 68,  37, 0, L"open_eyeblossom", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL }, // TODO open_eyeblossom_emissive
+    {  5, 68,   0, 0, L"creaking_heart_top", L"creaking_heart_top_inactive", SWATCH_REPEAT_ALL },   // JG-RTX second name
+    {  6, 68,   0, 0, L"creaking_heart", L"creaking_heart_inactive", SWATCH_REPEAT_ALL },   // JG-RTX second name
+    {  7, 68,   0, 0, L"creaking_heart_top_active", L"", SWATCH_REPEAT_ALL },
+    {  8, 68,   0, 0, L"creaking_heart_active", L"", SWATCH_REPEAT_ALL },
+    {  9, 68,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 10, 68,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 11, 68,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 12, 68,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 13, 68,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 14, 68,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 15, 68,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     /* Template for future additions - copy and paste in Notepad++ to avoid it getting rejiggered, and keep inside comment marks to
      * avoid rejiggering (spaces getting removed) by keeping it inside the comment marks when pasting back here:
-    {  0, 67,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    {  1, 67,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    {  2, 67,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    {  3, 67,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    {  4, 67,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    {  5, 67,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    {  6, 67,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    {  7, 67,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    {  8, 67,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    {  9, 67,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    { 10, 67,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    { 11, 67,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    { 12, 67,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    { 13, 67,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    { 14, 67,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    { 15, 67,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    {  0, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    {  1, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    {  2, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    {  3, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    {  4, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    {  5, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    {  6, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    {  7, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    {  8, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    {  9, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    { 10, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    { 11, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    { 12, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    { 13, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    { 14, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    { 15, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
     */
 };
 
@@ -1338,6 +1375,7 @@ static const wchar_t* gUnneeded[] = {
     L"leaves_jungle_opaque",
     L"leaves_oak_opaque",
     L"leaves_spruce_opaque",
+    L"pale_oak_leaves_opaque",  // JG-RTX
     L"fire_1",
     L"glow_item_frame",
     L"item_frame",

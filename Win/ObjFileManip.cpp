@@ -7889,7 +7889,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 dataValB = dataVal & 0xf;
                 break;
             case YELLOW_FLOWER_FIELD | 0x1:
-                // torchflower
+            case YELLOW_FLOWER_FIELD | 0x2:
+            case YELLOW_FLOWER_FIELD | 0x3:
+            case YELLOW_FLOWER_FIELD | 0x4:
                 typeB = BLOCK_DANDELION;
                 dataValB = dataVal & 0xf;
                 break;
@@ -13676,10 +13678,25 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         break;
     case BLOCK_DANDELION:
         wobbleIt = true;
-        if ((dataVal & 0xf) > 0)
-        {
+        switch (dataVal) {
+        default:
+            // fine as is - dandelion
+            break;
+        case 1:
             // torchflower
             swatchLoc = SWATCH_INDEX(2, 60);
+        case 2:
+            // closed_eyeblossom
+            swatchLoc = SWATCH_INDEX(3, 68);
+            break;
+        case 3:
+            // opened_eyeblossom
+            swatchLoc = SWATCH_INDEX(4, 68);
+            break;
+        case 4:
+            // pale oak sapling - yeah, it's weird, but we're out of sapling space
+            swatchLoc = SWATCH_INDEX(9, 67);
+            break;
         }
         break;
     case BLOCK_POPPY:				// saveBillboardFacesExtraData
@@ -21504,18 +21521,52 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     // row 20 has these flowers; else poppy (12,0) is used
                     swatchLoc = SWATCH_INDEX(dataVal - 1, 19);
                 }
-                else {
+                else if (dataVal < 12) {
                     // cornflower, lily of the valley, wither rose
                     swatchLoc = SWATCH_INDEX(dataVal - 6, 37);
+                }
+                else {
+                    // crimson/warped fungus, roots
+                    switch (dataVal) {
+                    default:
+                        assert(0);
+                    case 12:
+                        swatchLoc = SWATCH_INDEX(4, 43);
+                        break;
+                    case 13:
+                        swatchLoc = SWATCH_INDEX(4, 44);
+                        break;
+                    case 14:
+                        swatchLoc = SWATCH_INDEX(7, 43);
+                        break;
+                    case 15:
+                        swatchLoc = SWATCH_INDEX(7, 44);
+                        break;
+                    }
                 }
             }
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             break;
         case BLOCK_DANDELION:						// getSwatch
-            if ((dataVal & 0xf) > 0)
-            {
+            switch (dataVal & 0xf) {
+            default:
+                // fine as is - dandelion
+                break;
+            case 1:
                 // torchflower
                 swatchLoc = SWATCH_INDEX(2, 60);
+            case 2:
+                // closed_eyeblossom
+                swatchLoc = SWATCH_INDEX(3, 68);
+                break;
+            case 3:
+                // opened_eyeblossom
+                swatchLoc = SWATCH_INDEX(4, 68);
+                break;
+            case 4:
+                // pale oak sapling - yeah, it's weird, but we're out of sapling space
+                swatchLoc = SWATCH_INDEX(9, 67);
+                break;
             }
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             break;

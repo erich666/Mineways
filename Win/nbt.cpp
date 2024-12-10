@@ -379,7 +379,7 @@ static TranslationTuple* modTranslations = NULL;
 // lit true|false gives 0x8 for copper bulbs
 #define BULB_PROP            67
 
-#define NUM_TRANS 1069
+#define NUM_TRANS 1104
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1475,6 +1475,42 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 231,       HIGH_BIT, "waxed_exposed_copper_door", DOOR_PROP },
     { 0, 232,       HIGH_BIT, "waxed_weathered_copper_door", DOOR_PROP },
     { 0, 233,       HIGH_BIT, "waxed_oxidized_copper_door", DOOR_PROP },
+    // 1.21.4
+    { 0,  37,              2, "closed_eyeblossom", NO_PROP },
+    { 0,  37,              3, "open_eyeblossom", NO_PROP },
+    { 0,   7,       HIGH_BIT, "creaking_heart", NO_PROP },
+    { 0,   7,       HIGH_BIT, "pale_hanging_moss", NO_PROP },
+    { 0,   7,       HIGH_BIT, "pale_moss_block", NO_PROP },
+    { 0,   7,       HIGH_BIT, "pale_moss_carpet", NO_PROP },
+    { 0,   7,       HIGH_BIT, "pale_oak_button", NO_PROP },
+    { 0,   7,       HIGH_BIT, "pale_oak_door", NO_PROP },
+    { 0,   7,       HIGH_BIT, "pale_oak_fence", NO_PROP },
+    { 0,   7,       HIGH_BIT, "pale_oak_fence_gate", NO_PROP },
+    { 0,   7,       HIGH_BIT, "pale_oak_hanging_sign", NO_PROP },
+    { 0,   7,       HIGH_BIT, "pale_oak_leaves", NO_PROP },
+    { 0,   7,       HIGH_BIT, "pale_oak_log", NO_PROP },
+    { 0,   7,       HIGH_BIT, "pale_oak_planks", NO_PROP },
+    { 0,   7,       HIGH_BIT, "pale_oak_pressure_plate", NO_PROP },
+    { 0,  37,              4, "pale_oak_sapling", NO_PROP },
+    { 0,   7,       HIGH_BIT, "pale_oak_sign", NO_PROP },
+    { 0,   7,       HIGH_BIT, "pale_oak_slab", NO_PROP },
+    { 0,   7,       HIGH_BIT, "pale_oak_stairs", NO_PROP },
+    { 0,   7,       HIGH_BIT, "pale_oak_trapdoor", NO_PROP },
+    { 0,   7,       HIGH_BIT, "pale_oak_wall_hanging_sign", NO_PROP },
+    { 0,   7,       HIGH_BIT, "pale_oak_wall_sign", NO_PROP },
+    { 0,   7,       HIGH_BIT, "pale_oak_wood", NO_PROP },
+    { 0, BLOCK_FLOWER_POT,  YELLOW_FLOWER_FIELD | 2, "potted_closed_eyeblossom", NO_PROP },
+    { 0, BLOCK_FLOWER_POT,  YELLOW_FLOWER_FIELD | 3, "potted_open_eyeblossom", NO_PROP },
+    { 0, BLOCK_FLOWER_POT,  YELLOW_FLOWER_FIELD | 4, "potted_pale_oak_sapling", NO_PROP },  // darn, all the sapling spots are filled up!
+    { 0,   7,       HIGH_BIT, "chiseled_resin_bricks", NO_PROP },
+    { 0,   7,       HIGH_BIT, "resin_block", NO_PROP },
+    { 0,   7,       HIGH_BIT, "resin_brick_slab", NO_PROP },
+    { 0,   7,       HIGH_BIT, "resin_brick_stairs", NO_PROP },
+    { 0,   7,       HIGH_BIT, "resin_brick_wall", NO_PROP },
+    { 0,   7,       HIGH_BIT, "resin_bricks", NO_PROP },
+    { 0,   7,       HIGH_BIT, "resin_clump", NO_PROP },
+    { 0,   7,       HIGH_BIT, "stripped_pale_oak_log", NO_PROP },
+    { 0,   7,       HIGH_BIT, "stripped_pale_oak_wood", NO_PROP },
 
     // 1.20.3 additions (short_grass added next to "grass", above), https://minecraft.wiki/w/Java_Edition_1.20.3#General_2
 
