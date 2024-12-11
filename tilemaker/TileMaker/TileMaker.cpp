@@ -16,7 +16,7 @@
 #include "tiles.h"
 #include "tilegrid.h"
 
-#define	VERSION_STRING	L"3.24"
+#define	VERSION_STRING	L"3.25"
 
 //#define TILE_PATH	L".\\blocks\\"
 #define BASE_INPUT_FILENAME			L"terrainBase.png"
@@ -1444,6 +1444,17 @@ int wmain(int argc, wchar_t* argv[])
 			else {
 				wprintf(L"SERIOUS WARNING: New texture '%s' was not created, as all input textures were found to be unusable.\n", terrainExtOutput);
 				gWarningCount++;
+			}
+		}
+		// TileMaker does not convert these categories
+		else if (catIndex == CATEGORY_SPECULAR || catIndex == CATEGORY_MER) {
+			for (index = 0; index < gFG.totalTiles; index++) {
+				fullIndex = catIndex * gFG.totalTiles + index;
+				if (gFG.fr[fullIndex].exists) {
+					wprintf(L"SERIOUS WARNING: File '%s' cannot be processed directly by TileMaker;\n    please use ChannelMixer to convert this type of file to its metallic, roughness, and emission textures\n    and then run TileMaker on the results.\n", gFG.fr[fullIndex].fullFilename);
+					gWarningCount++;
+					continue;
+				}
 			}
 		}
 	}

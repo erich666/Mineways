@@ -153,7 +153,10 @@ Making your own terrain file for Mineways takes only a few steps. You do have to
 All set? <B><a href="https://youtu.be/RpN1grOLocg">Watch the video</a></B> for the process or follow the instructions below.
 
 <P>
-There are two ways to make a terrainExt image file of your own. One is to use just TileMaker. To start, unzip your resource pack into the Mineways "TileMaker" directory into a subdirectory, let's call it <I>resource_pack_directory</I>. Then, in a <a href="https://www.computerhope.com/issues/chusedos.htm">command window</a>, go to the Mineways TileMaker subdirectory, then run TileMaker.exe itself:
+There are two ways to make a terrainExt image file of your own. One is to use just TileMaker. This works (correctly) only if your resource pack does not include specular (*_s.png) or MER (*_mer.png) textures. If your pack does include these textures, TileMaker will warn you with a "SERIOUS WARNING" that it has encountered these and that you'll need to first use ChannelMixer; see further down.
+
+<P>
+<B>Simple TileMaker only:</B> To start, unzip your resource pack into the Mineways "TileMaker" directory into a subdirectory, let's call it <I>resource_pack_directory</I>. Then, in a <a href="https://www.computerhope.com/issues/chusedos.htm">command window</a>, go to the Mineways TileMaker subdirectory, then run TileMaker.exe itself:
 
 <PRE>
 cd c:\...wherever you put mineways...\mineways\TileMaker
@@ -161,9 +164,9 @@ TileMaker.exe -d resource_pack_directory -o terrainExtYours.png
 </PRE>
 Running TileMaker produces a <i>terrainExtYours.png</I> terrain file, which you can then use in Mineways. The program looks for terrainBase.png being in the same directory you are running from. If it's missing, you can copy the terrainExt.png from the directory above TileMaker's to this directory and rename it terrainBase.png (terrainBase.png and terrainExt.png are the same file).
 <P>
-However, you'll often get warnings about textures or you'll want to check things over and modify them before making your terrainExtYours.png file. To do this, use ChannelMixer, which copies all the images from your resource pack into a directory for processing, check over that directory's contents, then use TileMaker to read that directory and make your terrainExt image file.
+However, you'll sometimes get warnings about textures or you'll want to check things over and modify individual textures before making your terrainExtYours.png file. To do this, use ChannelMixer, which copies all the images from your resource pack into a directory for processing, check over that directory's contents, then use TileMaker to read that directory and make your terrainExt image file.
 <P>
-As before, unzip your resource pack into some directory under the TileMaker directory, then in the TileMaker directory run:
+<B>ChannelMixer and TileMaker:</B> As before, unzip your resource pack into some directory under the TileMaker directory, then in the TileMaker directory run:
 
 <PRE>
 ChannelMixer.exe -i resource_pack_directory -o blocks_of_yours
@@ -368,7 +371,7 @@ Mod makers over the years have developed a wide variety of these additional file
 <LI><B>_o</B> - ambient occlusion, I believe. Seen in some forms of R3DCraft and nowhere else, it looks to be baked-in light maps. These files are ignored by ChannelMixer and TileMaker.
 </UL>
 
-ChannelMixer main task is to seek out relevant files and copies them over, splitting them up into separate textures as needed. It searches the directory structure, looking for textures it needs in areas such as the "\assets\minecraft\textures\block(s)" and "\assets\minecraft\textures\entity\chest" directories of the resource pack. It copies over the RGB, _n, and _normal textures, unmodified.
+ChannelMixer main task is to seek out relevant files and copies them over, splitting them up into separate textures as needed (TileMaker does not perform texture splitting for specular *_s.png or MER *_mer.png files). It searches the directory structure, looking for textures it needs in areas such as the "\assets\minecraft\textures\block(s)" and "\assets\minecraft\textures\entity\chest" directories of the resource pack. It copies over the RGB, _n, and _normal textures, unmodified.
 It also converts _mer and _s files into the _m/_e/_r files used as input by TileMaker. As an aside, I've opted with Mineways to go with separate _m/_e/_r textures for clarity, to understand what each texture does. For example, if I instead used an _mer texture, it would not be clear if the author had all three textures, or just the roughness, or roughness and metallic, etc. ChannelMixer will attempt to figure out which of the channels in _mer and _s textures have meaning, i.e., have truly been set. A texture will not be used if it is default, i.e., if roughness is always 1.0, metallic is always 0.0, or emissive is always 0.0.
 
 <P>

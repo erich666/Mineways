@@ -1326,7 +1326,7 @@ static const struct {
     { L"seagrass_doubletall_top", L"tall_seagrass_top" },   // JG-RTX; there's also a "_b" version...
     { L"seagrass_doubletall_top_a", L"tall_seagrass_top" },   // JG-RTX; there's also a "_b" version...
     { L"silver_glazed_terracotta", L"light_gray_glazed_terracotta"}, // Ultimate Immersion
-    { L"spruce", L"spruce_planks" },    // LunaHD
+	{ L"spruce_planks", L"" },    // LunaHD uses "spruce" for planks, but "spruce" is used in Minecraft itself for hanging signs, etc.
     { L"spruce_door_lower", L"spruce_door_bottom" },    // Absolution
     { L"spruce_door_upper", L"spruce_door_top" },    // Absolution
     { L"spruce_needles", L"spruce_leaves" },    // Ultimate Immersion
