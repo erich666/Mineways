@@ -75,7 +75,7 @@ static struct {
     // the polished granite tile by setting the "material type" as "polished granite stairs".
     // Use crossCorrelate code in _DEBUG in Mineways to *help* build this column.
     int typeForMtl;
-    // the data value associated with the tile type. Needed to give the illumination level of the tile.
+    // the data value associated with the tile type. Needed only to give the illumination level of the tile, else "0" is fine.
     int dataValForMtl;
     const wchar_t* filename;
     const wchar_t* altFilename;   // new 1.13 name
@@ -1160,9 +1160,9 @@ static struct {
     { 12, 66, 388, 0, L"chiseled_tuff_bricks", L"", SWATCH_REPEAT_ALL },
     { 13, 66, 388, 0, L"chiseled_tuff_bricks_top", L"", SWATCH_REPEAT_ALL },
     { 14, 66,  47, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL }, // d'oh, accidentally deleted this one when adding 1.21
-    { 15, 66,   0, 0, L"chiseled_resin_bricks", L"", SWATCH_REPEAT_ALL },   // 1.21.4
-    {  0, 67,   0, 0, L"resin_block", L"", SWATCH_REPEAT_ALL },
-    {  1, 67,   0, 0, L"resin_bricks", L"", SWATCH_REPEAT_ALL },
+    { 15, 66, 388, 0, L"chiseled_resin_bricks", L"", SWATCH_REPEAT_ALL },   // 1.21.4
+    {  0, 67, 388, 0, L"resin_block", L"", SWATCH_REPEAT_ALL },
+    {  1, 67, 388, 0, L"resin_bricks", L"", SWATCH_REPEAT_ALL },
     {  2, 67,   0, 0, L"resin_clump", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
     {  3, 67,   0, 0, L"pale_oak_door_bottom", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     {  4, 67,   0, 0, L"pale_oak_door_top", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
@@ -1177,7 +1177,7 @@ static struct {
     { 13, 67,   0, 0, L"pale_moss_carpet", L"pale_moss", SWATCH_REPEAT_ALL },   // JG-RTX "pale_moss"
     { 14, 67,   0, 0, L"pale_moss_carpet_side_small", L"pale_moss_carpet_side_base", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },   // JG-RTX second name
     { 15, 67,   0, 0, L"pale_moss_carpet_side_tall", L"pale_moss_carpet_side_tip", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },   // JG-RTX second name
-    {  0, 68,   0, 0, L"pale_moss_block", L"", SWATCH_REPEAT_ALL },
+    {  0, 68, 388, 0, L"pale_moss_block", L"", SWATCH_REPEAT_ALL },
     {  1, 68,   0, 0, L"pale_hanging_moss", L"pale_hanging_moss_middle", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },   // JG-RTX second name
     {  2, 68,   0, 0, L"pale_hanging_moss_tip", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     {  3, 68,  37, 0, L"closed_eyeblossom", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },

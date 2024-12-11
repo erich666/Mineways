@@ -23050,6 +23050,18 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     swatchLoc = SWATCH_INDEX(13, 66);
                 }
                 break;
+            case 60:	// pale_moss_block
+                swatchLoc = SWATCH_INDEX(0, 68);
+                break;
+            case 61:	// resin_block
+                swatchLoc = SWATCH_INDEX(0, 67);
+                break;
+            case 62:	// resin_bricks
+                swatchLoc = SWATCH_INDEX(1, 67);
+                break;
+            case 63:	// chiseled_resin_bricks
+                swatchLoc = SWATCH_INDEX(15, 66);
+                break;
             }
             break;
 

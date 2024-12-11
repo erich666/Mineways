@@ -1434,11 +1434,11 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 132,  HIGH_BIT | 49, "chiseled_copper", BULB_PROP },
     { 0, 132,  HIGH_BIT | 50, "exposed_chiseled_copper", BULB_PROP },
     { 0, 132,  HIGH_BIT | 51, "weathered_chiseled_copper", BULB_PROP },
-    { 0, 132,   HIGH_BIT | 52, "oxidized_chiseled_copper", BULB_PROP },
-    { 0, 132,   HIGH_BIT | 53, "waxed_chiseled_copper", BULB_PROP },
-    { 0, 132,   HIGH_BIT | 54, "waxed_exposed_chiseled_copper", BULB_PROP },
-    { 0, 132,   HIGH_BIT | 55, "waxed_weathered_chiseled_copper", BULB_PROP },
-    { 0, 132,   HIGH_BIT | 56, "waxed_oxidized_chiseled_copper", BULB_PROP },
+    { 0, 132,  HIGH_BIT | 52, "oxidized_chiseled_copper", BULB_PROP },
+    { 0, 132,  HIGH_BIT | 53, "waxed_chiseled_copper", BULB_PROP },
+    { 0, 132,  HIGH_BIT | 54, "waxed_exposed_chiseled_copper", BULB_PROP },
+    { 0, 132,  HIGH_BIT | 55, "waxed_weathered_chiseled_copper", BULB_PROP },
+    { 0, 132,  HIGH_BIT | 56, "waxed_oxidized_chiseled_copper", BULB_PROP },
     { 0, 214,       HIGH_BIT, "copper_grate", BULB_PROP },
     { 0, 214,   HIGH_BIT | 1, "exposed_copper_grate", BULB_PROP },
     { 0, 214,   HIGH_BIT | 2, "weathered_copper_grate", BULB_PROP },
@@ -1450,9 +1450,9 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 142,   HIGH_BIT | BIT_16 | 4, "tuff_slab", SLAB_PROP },
     { 0, 142,   HIGH_BIT | BIT_16 | 5, "polished_tuff_slab", SLAB_PROP },
     { 0, 142,   HIGH_BIT | BIT_16 | 6, "tuff_brick_slab", SLAB_PROP },
-    { 0, 132,   HIGH_BIT | 57, "tuff_bricks", NO_PROP },
-    { 0, 132,   HIGH_BIT | 58, "chiseled_tuff", NO_PROP },
-    { 0, 132,   HIGH_BIT | 59, "chiseled_tuff_bricks", NO_PROP },
+    { 0, 132,  HIGH_BIT | 57, "tuff_bricks", NO_PROP },
+    { 0, 132,  HIGH_BIT | 58, "chiseled_tuff", NO_PROP },
+    { 0, 132,  HIGH_BIT | 59, "chiseled_tuff_bricks", NO_PROP },
     { 0, 215,	    HIGH_BIT, "tuff_stairs", STAIRS_PROP },
     { 0, 216,	    HIGH_BIT, "polished_tuff_stairs", STAIRS_PROP },
     { 0, 217,	    HIGH_BIT, "tuff_brick_stairs", STAIRS_PROP },
@@ -1480,7 +1480,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  37,              3, "open_eyeblossom", NO_PROP },
     { 0,   7,       HIGH_BIT, "creaking_heart", NO_PROP },
     { 0,   7,       HIGH_BIT, "pale_hanging_moss", NO_PROP },
-    { 0,   7,       HIGH_BIT, "pale_moss_block", NO_PROP },
+    { 0, 132,  HIGH_BIT | 60, "pale_moss_block", NO_PROP },
     { 0,   7,       HIGH_BIT, "pale_moss_carpet", NO_PROP },
     { 0,   7,       HIGH_BIT, "pale_oak_button", NO_PROP },
     { 0,   7,       HIGH_BIT, "pale_oak_door", NO_PROP },
@@ -1502,12 +1502,12 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, BLOCK_FLOWER_POT,  YELLOW_FLOWER_FIELD | 2, "potted_closed_eyeblossom", NO_PROP },
     { 0, BLOCK_FLOWER_POT,  YELLOW_FLOWER_FIELD | 3, "potted_open_eyeblossom", NO_PROP },
     { 0, BLOCK_FLOWER_POT,  YELLOW_FLOWER_FIELD | 4, "potted_pale_oak_sapling", NO_PROP },  // darn, all the sapling spots are filled up!
-    { 0,   7,       HIGH_BIT, "chiseled_resin_bricks", NO_PROP },
-    { 0,   7,       HIGH_BIT, "resin_block", NO_PROP },
+    { 0, 132,  HIGH_BIT | 61, "chiseled_resin_bricks", NO_PROP },
+    { 0, 132,  HIGH_BIT | 62, "resin_block", NO_PROP },
     { 0,   7,       HIGH_BIT, "resin_brick_slab", NO_PROP },
     { 0,   7,       HIGH_BIT, "resin_brick_stairs", NO_PROP },
     { 0,   7,       HIGH_BIT, "resin_brick_wall", NO_PROP },
-    { 0,   7,       HIGH_BIT, "resin_bricks", NO_PROP },
+    { 0, 132,  HIGH_BIT | 63, "resin_bricks", NO_PROP },
     { 0,   7,       HIGH_BIT, "resin_clump", NO_PROP },
     { 0,   7,       HIGH_BIT, "stripped_pale_oak_log", NO_PROP },
     { 0,   7,       HIGH_BIT, "stripped_pale_oak_wood", NO_PROP },
@@ -3490,6 +3490,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 }
             }
             else if ((type == 10) && (strcmp(thisBlockName, "Properties") == 0)) {
+                // Find the states for all blocks here: https://minecraft.wiki/w/Block_states
                 do {
                     if (bfread(pbf, &type, 1) < 0)
                         return LINE_ERROR;

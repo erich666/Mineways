@@ -2251,6 +2251,14 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Chiseled Tuff";
         case 59:	// chiseled_tuff_bricks
             return "Chiseled Tuff Bricks";
+        case 60:	// pale_moss_block
+            return "Pale Moss Block";
+        case 61:	// resin_block
+            return "Block of Resin";
+        case 62:	// resin_bricks
+            return "Resin Bricks";
+        case 63:	// chiseled_resin_bricks
+            return "Chiseled Resin Bricks";
         }
         break;
 
@@ -4433,6 +4441,18 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case 59:	// chiseled_tuff_bricks_top
             color = 0x71736C;
             break;
+        case 60:	// pale_moss_block
+            color = 0x6C726A;
+            break;
+        case 61:	// resin_block
+            color = 0xDA681F;
+            break;
+        case 62:	// resin_bricks
+            color = 0xD05F1D;
+            break;
+        case 63:	// chiseled_resin_bricks
+            color = 0xCB5B1D;
+            break;
         }
         break;
 
@@ -5988,11 +6008,9 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         block->grid[neighborIndex] = (unsigned char)type;
         block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | HIGH_BIT;
 
-        if (dataVal < 12) { // 12+48 == 60, 0-59 blocks
-            neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
-            block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | BIT_16 | HIGH_BIT;
-        }
+        neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
+        block->grid[neighborIndex] = (unsigned char)type;
+        block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | BIT_16 | HIGH_BIT;
 
         break;
     case BLOCK_BONE_BLOCK:

@@ -108,7 +108,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /*  34 */ "Piston Head",            		0x95774b, 1.000f, 0xff7711, 0xff7711, 0.12345f,  11, 6, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT},	//22/34
     { /*  35 */ "Wool",                   		0xEEEEEE, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 4, 0x0f, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//23 - gets converted to colors at end
     { /*  36 */ "Block moved by Piston",  		0x010101, 1.000f, 0xff7711, 0xff7711, 0.12345f,  11, 6, 0x00, BLF_NONE},	//24 (36) - really, nothing...
-    { /*  37 */ "Dandelion",              		0xD3DD05, 1.000f, 0xff7711, 0xff7711, 0.12345f,  13, 0, 0x01, BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID},	//25
+    { /*  37 */ "Dandelion",              		0xD3DD05, 1.000f, 0xff7711, 0xff7711, 0.12345f,  13, 0, 0x0f, BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID},	//25
     { /*  38 */ "Poppy",                  		0xCE1A05, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12, 0, 0x0f, BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID},	//26 - 38
     { /*  39 */ "Brown Mushroom",         		0xc19171, 1.000f, 0xff7711, 0xff7711, 0.12345f,  13, 1, 0x00, BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_EMITTER},	//27
     { /*  40 */ "Red Mushroom",           		0xfc5c5d, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12, 1, 0x03, BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID},	//28
