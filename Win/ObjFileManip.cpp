@@ -3871,6 +3871,7 @@ static int computeFlatFlags(int boxIndex)
     case BLOCK_JUNGLE_BUTTON:
     case BLOCK_ACACIA_BUTTON:
     case BLOCK_DARK_OAK_BUTTON:
+    case BLOCK_PALE_OAK_BUTTON:
     case BLOCK_CRIMSON_BUTTON:
     case BLOCK_WARPED_BUTTON:
     case BLOCK_POLISHED_BLACKSTONE_BUTTON:
@@ -6618,6 +6619,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_JUNGLE_BUTTON:
     case BLOCK_ACACIA_BUTTON:
     case BLOCK_DARK_OAK_BUTTON:
+    case BLOCK_PALE_OAK_BUTTON:
     case BLOCK_CRIMSON_BUTTON:
     case BLOCK_WARPED_BUTTON:
     case BLOCK_POLISHED_BLACKSTONE_BUTTON:
@@ -34538,6 +34540,7 @@ static bool faceCanTile(int faceId)
     case BLOCK_JUNGLE_BUTTON:
     case BLOCK_ACACIA_BUTTON:
     case BLOCK_DARK_OAK_BUTTON:
+    case BLOCK_PALE_OAK_BUTTON:
     case BLOCK_CRIMSON_BUTTON:
     case BLOCK_WARPED_BUTTON:
     case BLOCK_POLISHED_BLACKSTONE_BUTTON:

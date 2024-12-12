@@ -349,7 +349,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 267 */ "Jungle Button",          		0xC5B57C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 12, 0x00, BLF_FLATTEN_SMALL | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },
     { /* 268 */ "Acacia Button",          		0xAB5D34, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 22, 0x00, BLF_FLATTEN_SMALL | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },
     { /* 269 */ "Dark Oak Button",        		0x3F2813, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 22, 0x00, BLF_FLATTEN_SMALL | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },
-    { /* 270 */ "Spruce Pressure Plate",  		0x6B5030, 1.000f, 0xff7711, 0xff7711, 0.12345f,  6, 12, 0x00, BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_CONNECTS_REDSTONE },	//48
+    { /* 270 */ "Pale Oak Button",  	    	0xE5DBDA, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 67, 0x00, BLF_FLATTEN_SMALL | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },
     { /* 271 */ "Birch Pressure Plate",   		0x9E7250, 1.000f, 0xff7711, 0xff7711, 0.12345f,  6, 13, 0x00, BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_CONNECTS_REDSTONE },	//48
     { /* 272 */ "Jungle Pressure Plate",  		0xC5B57C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 12, 0x00, BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_CONNECTS_REDSTONE },	//48
     { /* 273 */ "Acacia Pressure Plate",  		0xAB5D34, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 22, 0x00, BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_CONNECTS_REDSTONE },	//48

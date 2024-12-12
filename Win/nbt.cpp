@@ -1482,7 +1482,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,   7,       HIGH_BIT, "pale_hanging_moss", NO_PROP },
     { 0, 132,  HIGH_BIT | 60, "pale_moss_block", NO_PROP },
     { 0,   7,       HIGH_BIT, "pale_moss_carpet", NO_PROP },
-    { 0,   7,       HIGH_BIT, "pale_oak_button", NO_PROP },
+    { 0,  14,       HIGH_BIT, "pale_oak_button", BUTTON_PROP },
     { 0,   7,       HIGH_BIT, "pale_oak_door", NO_PROP },
     { 0,   7,       HIGH_BIT, "pale_oak_fence", NO_PROP },
     { 0,   7,       HIGH_BIT, "pale_oak_fence_gate", NO_PROP },
