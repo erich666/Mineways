@@ -5097,6 +5097,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_MANGROVE_FENCE:
     case BLOCK_CHERRY_FENCE:
     case BLOCK_BAMBOO_FENCE:
+    case BLOCK_PALE_OAK_FENCE:
         //groupByBlock = (gModel.options->exportFlags & EXPT_GROUP_BY_BLOCK);
         // if fence is to be fattened, instead make it like a brick wall - stronger
         if (fatten)
@@ -6108,6 +6109,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_TUFF_STAIRS:
     case BLOCK_POLISHED_TUFF_STAIRS:
     case BLOCK_TUFF_BRICK_STAIRS:
+    case BLOCK_PALE_OAK_STAIRS:
         // set texture
         switch (type)
         {
@@ -7415,6 +7417,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_MANGROVE_FENCE_GATE:
     case BLOCK_CHERRY_FENCE_GATE:
     case BLOCK_BAMBOO_FENCE_GATE:
+    case BLOCK_PALE_OAK_FENCE_GATE:
         gUsingTransform = 1;
         totalVertexCount = gModel.vertexCount;
         // Check if open
@@ -11454,7 +11457,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             }
             break;
         case BLOCK_BAMBOO_HANGING_SIGN:
-            // no alternate
+            if (dataVal & BIT_32) {
+                swatchLoc = SWATCH_INDEX(8, 67);    // pale oak
+            }
             break;
         }
 
@@ -13126,6 +13131,7 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
             case BLOCK_TUFF_STAIRS:
             case BLOCK_POLISHED_TUFF_STAIRS:
             case BLOCK_TUFF_BRICK_STAIRS:
+            case BLOCK_PALE_OAK_STAIRS:
                 // TODO: Right now stairs are dumb: only the large rectangle of the base is returned.
                 // Returning the little block, which can further be trimmed to a cube, is a PAIN.
                 // This does mean the little stair block sides won't be deleted. Ah well.
@@ -18151,6 +18157,7 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_TUFF_STAIRS:
         case BLOCK_POLISHED_TUFF_STAIRS:
         case BLOCK_TUFF_BRICK_STAIRS:
+        case BLOCK_PALE_OAK_STAIRS:
             switch (neighborDataVal & 0x3)
             {
             default:    // make compiler happy
@@ -19632,6 +19639,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     case 1: // cherry
                         swatchLoc = SWATCH_XY_TO_INDEX(6, 57);
                         break;
+                    case 2: // pale oak
+                        swatchLoc = SWATCH_XY_TO_INDEX(7, 67);
+                        break;
                     }
                 }
                 else {
@@ -19811,8 +19821,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             case 10: // bamboo
                 swatchLoc = SWATCH_INDEX(14, 60);
                 break;
-            case 11: // bamboo mosaic
+            case 11: // bamboo mosaic (no word "planks")
                 swatchLoc = SWATCH_INDEX(13, 60);
+                break;
+            case 12: // pale oak
+                swatchLoc = SWATCH_INDEX(8, 67);
                 break;
             }
             break;
@@ -19992,7 +20005,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             break;
         case BLOCK_MANGROVE_LEAVES:						// getSwatch
-            switch (dataVal & 0x3)
+            switch (dataVal & 0x3f)
             {
             default:
                 assert(0);
@@ -20001,6 +20014,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case 1: // cherry
                 swatchLoc = SWATCH_INDEX(5, 57);
+                break;
+            case 2: // pale oak
+                swatchLoc = SWATCH_INDEX(5, 67);
                 break;
             }
             break;
@@ -25699,7 +25715,7 @@ static TypeTile multTable[MULT_TABLE_SIZE] = {
     { BLOCK_DOUBLE_FLOWER /* double flower, fern top */, 9,18, {0,0,0} },
     { BLOCK_GRASS /* pink petals stem */, 12, 57, {0,0,0} },
 
-    // affected by foliage biome - change MULT_TABLE_NUM_FOLIAGE definition to +1 more if you add any
+    // affected by foliage biome - increase MULT_TABLE_NUM_FOLIAGE definition by +1 more if you add any
     { BLOCK_LEAVES /* (oak) leaves, fancy: oak_leaves */, 4, 3, {0,0,0} },  // see https://minecraft.wiki/w/Biome
     { BLOCK_LEAVES /* jungle leaves, fancy */, 4, 12, {0,0,0} },
     { BLOCK_AD_LEAVES /* acacia leaves, fancy */,  9, 19, {0,0,0} },
@@ -34575,6 +34591,8 @@ static bool faceCanTile(int faceId)
     case BLOCK_CHERRY_FENCE_GATE:
     case BLOCK_BAMBOO_FENCE:
     case BLOCK_BAMBOO_FENCE_GATE:
+    case BLOCK_PALE_OAK_FENCE:
+    case BLOCK_PALE_OAK_FENCE_GATE:
     case BLOCK_SIGN_POST:
     case BLOCK_WALL_SIGN:
     case BLOCK_ACACIA_SIGN_POST:

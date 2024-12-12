@@ -1167,9 +1167,9 @@ static struct {
     {  3, 67, 271, 0, L"pale_oak_door_bottom", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     {  4, 67, 271, 0, L"pale_oak_door_top", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     {  5, 67,  18, 0, L"pale_oak_leaves", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYNTHESIZED },
-    {  6, 67,  17, 0, L"pale_oak_log_top", L"", SWATCH_REPEAT_ALL },
-    {  7, 67,  17, 0, L"pale_oak_log", L"pale_oak_log_side", SWATCH_REPEAT_ALL },   // JG-RTX second name
-    {  8, 67,   0, 0, L"pale_oak_planks", L"", SWATCH_REPEAT_ALL },
+    {  6, 67, 437, 0, L"pale_oak_log_top", L"", SWATCH_REPEAT_ALL },
+    {  7, 67, 437, 0, L"pale_oak_log", L"pale_oak_log_side", SWATCH_REPEAT_ALL },   // JG-RTX second name
+    {  8, 67,   5, 0, L"pale_oak_planks", L"", SWATCH_REPEAT_ALL },
     {  9, 67,  37, 0, L"pale_oak_sapling", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 10, 67,   0, 0, L"pale_oak_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
     { 11, 67,   0, 0, L"stripped_pale_oak_log_top", L"", SWATCH_REPEAT_ALL },

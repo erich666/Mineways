@@ -351,9 +351,9 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 269 */ "Dark Oak Button",        		0x3F2813, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 22, 0x00, BLF_FLATTEN_SMALL | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },
     { /* 270 */ "Pale Oak Button",  	    	0xE5DBDA, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 67, 0x00, BLF_FLATTEN_SMALL | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },
     { /* 271 */ "Pale Oak Door",   	        	0xDFD7D5, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 67, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
-    { /* 272 */ "Jungle Pressure Plate",  		0xC5B57C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 12, 0x00, BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_CONNECTS_REDSTONE },	//48
-    { /* 273 */ "Acacia Pressure Plate",  		0xAB5D34, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 22, 0x00, BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_CONNECTS_REDSTONE },	//48
-    { /* 274 */ "Dark Oak Pressure Plate",		0x3F2813, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 22, 0x00, BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_CONNECTS_REDSTONE },	//48
+    { /* 272 */ "Pale Oak Fence",         		0xE5DBDA, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 67, 0x00, BLF_MIDDLER | BLF_FENCE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 273 */ "Pale Oak Fence Gate",  		0xE5DBDA, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 67, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_FENCE_GATE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE },
+    { /* 274 */ "Pale Oak Stairs",      		0xE5DBDA, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 67, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 275 */ "Stripped Oak Log",       		0xB29157, 1.000f, 0xff7711, 0xff7711, 0.12345f,  6, 34, 0x03, BLF_WHOLE | BLF_TRUNK_PART | BLF_FENCE_NEIGHBOR },
     { /* 276 */ "Stripped Acacia Log",    		0xA85C3B, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 34, 0x03, BLF_WHOLE | BLF_TRUNK_PART | BLF_FENCE_NEIGHBOR },
     { /* 277 */ "Stripped Oak Wood",      		0xB29157, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 34, 0x03, BLF_WHOLE | BLF_TRUNK_PART | BLF_FENCE_NEIGHBOR },
@@ -520,7 +520,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 434 */ "Sculk Vein",           		0x0B3C45, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 56, 0x00, BLF_BILLBOARD | BLF_FLATTEN_SMALL | BLF_PANE | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_OFFSET | BLF_MAYWATERLOG },
     { /* 435 */ "Frogspawn",               		0x4D5581, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 54, 0x00, BLF_FLATTEN | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_OFFSET },
     { /* 436 */ "Ochre Froglight",         		0xFBF6D2, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 55, 0x03, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_EMITTER },
-    { /* 437 */ "Mangrove Leaves",				0x6fac2c, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 54, 0x01, BLF_WHOLE | BLF_CUTOUTS | BLF_LEAF_PART | BLF_MAYWATERLOG },
+    { /* 437 */ "Mangrove Leaves",				0x6fac2c, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 54, 0x3f, BLF_WHOLE | BLF_CUTOUTS | BLF_LEAF_PART | BLF_MAYWATERLOG },
         // 1.20, though I snuck Decorated Pot in a slot above
     { /* 438 */ "Cherry Button",                0xE3B4AE, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 57, 0x00, BLF_FLATTEN_SMALL | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },
     { /* 439 */ "Cherry Door",                  0xE0ACA7, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 57, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
