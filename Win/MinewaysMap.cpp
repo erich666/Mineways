@@ -6705,6 +6705,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_JUNGLE_DOOR:
     case BLOCK_DARK_OAK_DOOR:
     case BLOCK_ACACIA_DOOR:
+    case BLOCK_PALE_OAK_DOOR:
     case BLOCK_CRIMSON_DOOR:
     case BLOCK_WARPED_DOOR:
     case BLOCK_MANGROVE_DOOR:

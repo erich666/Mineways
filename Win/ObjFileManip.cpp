@@ -7186,6 +7186,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_JUNGLE_DOOR:
     case BLOCK_DARK_OAK_DOOR:
     case BLOCK_ACACIA_DOOR:
+    case BLOCK_PALE_OAK_DOOR:
     case BLOCK_CRIMSON_DOOR:
     case BLOCK_WARPED_DOOR:
     case BLOCK_MANGROVE_DOOR:
@@ -20863,6 +20864,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_JUNGLE_DOOR:
         case BLOCK_DARK_OAK_DOOR:
         case BLOCK_ACACIA_DOOR:
+        case BLOCK_PALE_OAK_DOOR:
         case BLOCK_CRIMSON_DOOR:
         case BLOCK_WARPED_DOOR:
         case BLOCK_MANGROVE_DOOR:
@@ -20881,6 +20883,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 (faceDirection == DIRECTION_BLOCK_BOTTOM))
             {
                 // full block "door" - on top or bottom make it full wood or iron (or planks, for crimson and warped)
+                // We set the top half, then subtract one if it's the bottom half.
                 switch (type) {
                 default:
                     assert(0);
@@ -20904,6 +20907,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     break;
                 case BLOCK_ACACIA_DOOR:
                     swatchLoc = SWATCH_INDEX(0, 22);
+                    break;
+                case BLOCK_PALE_OAK_DOOR:
+                    swatchLoc = SWATCH_INDEX(4, 67);
                     break;
                 case BLOCK_CRIMSON_DOOR:
                     swatchLoc = SWATCH_INDEX(8, 43);
@@ -20961,6 +20967,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 case BLOCK_JUNGLE_DOOR:
                 case BLOCK_DARK_OAK_DOOR:
                 case BLOCK_ACACIA_DOOR:
+                case BLOCK_PALE_OAK_DOOR:
                 case BLOCK_CRIMSON_DOOR:
                 case BLOCK_WARPED_DOOR:
                 case BLOCK_MANGROVE_DOOR:
