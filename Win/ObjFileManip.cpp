@@ -3681,19 +3681,8 @@ static int computeFlatFlags(int boxIndex)
         // the block below this one, if solid, gets marked
     case BLOCK_STONE_PRESSURE_PLATE:						// computeFlatFlags
     case BLOCK_WOODEN_PRESSURE_PLATE:
-    case BLOCK_SPRUCE_PRESSURE_PLATE:
-    case BLOCK_BIRCH_PRESSURE_PLATE:
-    case BLOCK_JUNGLE_PRESSURE_PLATE:
-    case BLOCK_ACACIA_PRESSURE_PLATE:
-    case BLOCK_DARK_OAK_PRESSURE_PLATE:
     case BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT:
     case BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY:
-    case BLOCK_CRIMSON_PRESSURE_PLATE:
-    case BLOCK_WARPED_PRESSURE_PLATE:
-    case BLOCK_POLISHED_BLACKSTONE_PRESSURE_PLATE:
-    case BLOCK_MANGROVE_PRESSURE_PLATE:
-    case BLOCK_CHERRY_PRESSURE_PLATE:
-    case BLOCK_BAMBOO_PRESSURE_PLATE:
     case BLOCK_SNOW:
     case BLOCK_CARPET:
     case BLOCK_REDSTONE_REPEATER_OFF:
@@ -5332,17 +5321,6 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                         (neighborType == BLOCK_WOODEN_PRESSURE_PLATE) ||
                         (neighborType == BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT) ||
                         (neighborType == BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY) ||
-                        (neighborType == BLOCK_SPRUCE_PRESSURE_PLATE) ||
-                        (neighborType == BLOCK_BIRCH_PRESSURE_PLATE) ||
-                        (neighborType == BLOCK_JUNGLE_PRESSURE_PLATE) ||
-                        (neighborType == BLOCK_ACACIA_PRESSURE_PLATE) ||
-                        (neighborType == BLOCK_DARK_OAK_PRESSURE_PLATE) ||
-                        (neighborType == BLOCK_CRIMSON_PRESSURE_PLATE) ||
-                        (neighborType == BLOCK_WARPED_PRESSURE_PLATE) ||
-                        (neighborType == BLOCK_POLISHED_BLACKSTONE_PRESSURE_PLATE) ||
-                        (neighborType == BLOCK_MANGROVE_PRESSURE_PLATE) ||
-                        (neighborType == BLOCK_CHERRY_PRESSURE_PLATE) ||
-                        (neighborType == BLOCK_BAMBOO_PRESSURE_PLATE) ||
                         (neighborType == BLOCK_STANDING_BANNER) ||
                         (neighborType >= BLOCK_ORANGE_BANNER && neighborType <= BLOCK_BLACK_BANNER) ||
                         ((neighborType == BLOCK_HOPPER) && !(gBoxData[boxIndex + 1].data & 0x7)) ||  // pointing down is 0, which makes a post but no cover
@@ -5956,20 +5934,84 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     break; // saveBillboardOrGeometry
 
     case BLOCK_STONE_PRESSURE_PLATE:						// saveBillboardOrGeometry
-    case BLOCK_WOODEN_PRESSURE_PLATE:
-    case BLOCK_SPRUCE_PRESSURE_PLATE:
-    case BLOCK_BIRCH_PRESSURE_PLATE:
-    case BLOCK_JUNGLE_PRESSURE_PLATE:
-    case BLOCK_ACACIA_PRESSURE_PLATE:
-    case BLOCK_DARK_OAK_PRESSURE_PLATE:
+        switch ((dataVal & 0x7e) >> 1) {
+        default:
+            assert(0);
+        case 0:
+            swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            break;
+        case 1:
+            // Spruce Pressure Plate
+            swatchLoc = SWATCH_INDEX(6, 12);
+            break;
+        case 2:
+            // Birch Pressure Plate
+            swatchLoc = SWATCH_INDEX(6, 13);
+            break;
+        case 3:
+            // Jungle Pressure Plate
+            swatchLoc = SWATCH_INDEX(7, 12);
+            break;
+        case 4:
+            // Acacia Pressure Plate
+            swatchLoc = SWATCH_INDEX(0, 22);
+            break;
+        case 5:
+            // Dark Oak Pressure Plate
+            swatchLoc = SWATCH_INDEX(1, 22);
+            break;
+        case 6:
+            // Crimson Pressure Plate
+            swatchLoc = SWATCH_INDEX(8, 43);
+            break;
+        case 7:
+            // Warped Pressure Plate
+            swatchLoc = SWATCH_INDEX(8, 44);
+            break;
+        case 8:
+            // Polished Blackstone Pressure Plate
+            swatchLoc = SWATCH_INDEX(4, 46);
+            break;
+        case 9:
+            // Mangrove Pressure Plate
+            swatchLoc = SWATCH_INDEX(0, 55);
+            break;
+        case 10:
+            // Cherry Pressure Plate
+            swatchLoc = SWATCH_INDEX(8, 57);
+            break;
+        case 11:
+            // Bamboo Pressure Plate
+            swatchLoc = SWATCH_INDEX(14, 60);
+            break;
+        case 12:
+            // Pale Oak Pressure Plate
+            swatchLoc = SWATCH_INDEX(8, 67);
+            break;
+        }
+        // (ALMOST) SAME AS CODE IN NEXT case BLOCK:
+        // if printing and the location below the plate is empty, then don't make plate (it'll be too thin)
+        if (gModel.print3D &&
+            (gBoxData[boxIndex - 1].origType == BLOCK_AIR))
+        {
+            gMinorBlockCount--;
+            return 0;
+        }
+        // the only reason I fatten here is because plates get used for table tops sometimes...
+        // note we don't use gUsingTransform here, because if bottom of plate can match, remove it
+        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, 0, 0x0, 1, 15, 0, 1 + fatten, 1, 15);
+        if (dataVal & 0x1)
+        {
+            // pressed, kick it down half a pixel
+            identityMtx(mtx);
+            translateMtx(mtx, 0.0f, -0.5f / 16.0f, 0.5 / 16.0f);
+            transformVertices(8, mtx);
+        }
+        break;
+
+    case BLOCK_WOODEN_PRESSURE_PLATE: // saveBillboardOrGeometry
     case BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT:
     case BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY:
-    case BLOCK_CRIMSON_PRESSURE_PLATE:
-    case BLOCK_WARPED_PRESSURE_PLATE:
-    case BLOCK_POLISHED_BLACKSTONE_PRESSURE_PLATE:
-    case BLOCK_MANGROVE_PRESSURE_PLATE:
-    case BLOCK_CHERRY_PRESSURE_PLATE:
-    case BLOCK_BAMBOO_PRESSURE_PLATE:
         // if printing and the location below the plate is empty, then don't make plate (it'll be too thin)
         if (gModel.print3D &&
             (gBoxData[boxIndex - 1].origType == BLOCK_AIR))
@@ -34489,17 +34531,6 @@ static bool faceCanTile(int faceId)
     case BLOCK_WOODEN_PRESSURE_PLATE:
     case BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT:
     case BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY:
-    case BLOCK_SPRUCE_PRESSURE_PLATE:
-    case BLOCK_BIRCH_PRESSURE_PLATE:
-    case BLOCK_JUNGLE_PRESSURE_PLATE:
-    case BLOCK_ACACIA_PRESSURE_PLATE:
-    case BLOCK_DARK_OAK_PRESSURE_PLATE:
-    case BLOCK_CRIMSON_PRESSURE_PLATE:
-    case BLOCK_WARPED_PRESSURE_PLATE:
-    case BLOCK_POLISHED_BLACKSTONE_PRESSURE_PLATE:
-    case BLOCK_MANGROVE_PRESSURE_PLATE:
-    case BLOCK_CHERRY_PRESSURE_PLATE:
-    case BLOCK_BAMBOO_PRESSURE_PLATE:
     case BLOCK_STONE_BUTTON:
     case BLOCK_WOODEN_BUTTON:
     case BLOCK_SPRUCE_BUTTON:

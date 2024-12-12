@@ -2442,6 +2442,39 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Waxed Oxidized Copper Grate";
         }
         break;
+    case BLOCK_STONE_PRESSURE_PLATE: // now has 26 states, ignore lowest bit
+        switch ((dataVal & 0x7e)>>1) {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case 1:
+            return "Spruce Pressure Plate";
+        case 2:
+            return "Birch Pressure Plate";
+        case 3:
+            return "Jungle Pressure Plate";
+        case 4:
+            return "Acacia Pressure Plate";
+        case 5:
+            return "Dark Oak Pressure Plate";
+        case 6:
+            return "Crimson Pressure Plate";
+        case 7:
+            return "Warped Pressure Plate";
+        case 8:
+            return "Polished Blackstone Pressure Plate";
+        case 9:
+            return "Mangrove Pressure Plate";
+        case 10:
+            return "Cherry Pressure Plate";
+        case 11:
+            return "Bamboo Pressure Plate";
+        case 12:
+            return "Pale Oak Pressure Plate";
+        }
+        break;
     }
 
     return gBlockDefinitions[type].name;
@@ -2463,7 +2496,7 @@ static void blit(unsigned char* block, unsigned char* bits, int px, int py,
     if (bh <= 0) return;
     bits += py * w * 4;
     bits += px * 4;
-    for (y = 0; y < bh; y++, bits += w << 2)
+    for (y = 0; y < bh; y++, bits += (w << 2))
     {
         if (y < skipy) continue;
         yofs = ((int)(y / zoom)) << 6;
@@ -4775,6 +4808,64 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             break;
         }
         break;
+    case BLOCK_STONE_PRESSURE_PLATE: // now has 26 states, ignore lowest bit
+        dataVal = block->data[voxel];
+        switch ((dataVal & 0x7e) >> 1) {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case 1:
+            // Spruce Pressure Plate
+            color = 0x6B5030;
+            break;
+        case 2:
+            // Birch Pressure Plate
+            color = 0x9E7250;
+            break;
+        case 3:
+            // Jungle Pressure Plate
+            color = 0xC5B57C;
+            break;
+        case 4:
+            // Acacia Pressure Plate
+            color = 0xAB5D34;
+            break;
+        case 5:
+            // Dark Oak Pressure Plate
+            color = 0x3F2813;
+            break;
+        case 6:
+            // Crimson Pressure Plate
+            color = 0x693249;
+            break;
+        case 7:
+            // Warped Pressure Plate
+            color = 0x2D6D68;
+            break;
+        case 8:
+            // Polished Blackstone Pressure Plate
+            color = 0x37333D;
+            break;
+        case 9:
+            // Mangrove Pressure Plate
+            color = 0x773932;
+            break;
+        case 10:
+            // Cherry Pressure Plate
+            color = 0xE3B4AE;
+            break;
+        case 11:
+            // Bamboo Pressure Plate
+            color = 0xC4AF52;
+            break;
+        case 12:
+            // Pale Oak Pressure Plate
+            color = 0xE5DBDA;
+            break;
+        }
+        break;
 
     default:
         // Everything else
@@ -5435,6 +5526,30 @@ void GetChunkHeights(WorldGuide* pWorldGuide, int& minHeight, int& maxHeight, in
 // testBlock checks to see whether this block and data value exists and should be output,
 // and whether any neighboring blocks should be output for testing. Sometimes the data value is
 // used as a guide for where to put neighbors instead of as a data value, so that testing is more thorough.
+// dataVal comes in as 0-15. maxCount is how many blocks we want diagonally, adding increments of 16.
+void addDiagonalBlocksToMap(int maxCount, int y, int type, int dataVal, int finalDataVal, int typeHighBit, WorldBlock* block)
+{
+    int neighborIndex;
+    if (dataVal + 16 < maxCount)
+    {
+        neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
+        block->grid[neighborIndex] = (unsigned char)type;
+        block->data[neighborIndex] = (unsigned char)((finalDataVal + 16) | typeHighBit);
+
+        if (dataVal + 32 < maxCount) {
+            neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)((finalDataVal + 32) | typeHighBit);
+
+            if (dataVal + 48 < maxCount) {
+                neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
+                block->grid[neighborIndex] = (unsigned char)type;
+                block->data[neighborIndex] = (unsigned char)((finalDataVal + 48) | typeHighBit);
+            }
+        }
+    }
+}
+
 void testBlock(WorldBlock* block, int origType, int y, int dataVal)
 {
     int bi = 0;
@@ -5468,20 +5583,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_SAND:
     case BLOCK_TNT:
     case BLOCK_WOODEN_PRESSURE_PLATE:
-    case BLOCK_STONE_PRESSURE_PLATE:
-    case BLOCK_SPRUCE_PRESSURE_PLATE:
-    case BLOCK_BIRCH_PRESSURE_PLATE:
-    case BLOCK_JUNGLE_PRESSURE_PLATE:
-    case BLOCK_ACACIA_PRESSURE_PLATE:
-    case BLOCK_DARK_OAK_PRESSURE_PLATE:
     case BLOCK_WEIGHTED_PRESSURE_PLATE_LIGHT:
     case BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY:
-    case BLOCK_CRIMSON_PRESSURE_PLATE:
-    case BLOCK_WARPED_PRESSURE_PLATE:
-    case BLOCK_POLISHED_BLACKSTONE_PRESSURE_PLATE:
-    case BLOCK_MANGROVE_PRESSURE_PLATE:
-    case BLOCK_CHERRY_PRESSURE_PLATE:
-    case BLOCK_BAMBOO_PRESSURE_PLATE:
     case BLOCK_SPONGE:
     case BLOCK_SOUL_SAND:
     case BLOCK_GLOWSTONE:
@@ -6237,7 +6340,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             else if (dataVal > 0)
             {
                 int x = type % 2;
-                int z = !x;
+                int z = 1-x;
                 block->grid[BLOCK_INDEX(x + 4 + (type % 2) * 8, y, z + 4 + (dataVal % 2) * 8)] = (unsigned char)type;
             }
         }
@@ -7472,6 +7575,15 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
             block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16 | HIGH_BIT;
+        }
+        break;
+
+    case BLOCK_STONE_PRESSURE_PLATE: // now has 26 states
+		// 0-25
+	    {
+		    // always add the block, since we know we're above 16
+		    addBlock = 1;
+            addDiagonalBlocksToMap(26, y, type, dataVal, finalDataVal, typeHighBit, block);
         }
         break;
 
