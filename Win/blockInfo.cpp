@@ -526,8 +526,8 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 439 */ "Cherry Door",                  0xE0ACA7, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 57, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
     { /* 440 */ "Cherry Fence",                 0xE3B4AE, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 57, 0x00, BLF_MIDDLER | BLF_FENCE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 441 */ "Cherry Fence Gate",            0xE3B4AE, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 57, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_FENCE_GATE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE },
-    { /* 442 */ "Cherry Pressure Plate",        0xE3B4AE, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 57, 0x00, BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_CONNECTS_REDSTONE },
-    { /* 443 */ "Cherry Stairs",                0xE3B4AE, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 57, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 442 */ "UNUSED",                       0xE17721, 1.000f, 0xff7711, 0xff7711, 0.12345f,  2, 67, 0x00, BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },
+    { /* 443 */ "Cherry Stairs",                0xE3B4AE, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 57, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_CUTOUTS | BLF_MAYWATERLOG },
     { /* 444 */ "Cherry Trapdoor",              0xE3B4AE, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 57, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_FLATTEN | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },   // tricky case: could be a flattop, or a flatside. For now, render it
     { /* 445 */ "Bamboo Button",                0xC4AF52, 1.000f, 0xff7711, 0xff7711, 0.12345f, 14, 60, 0x00, BLF_FLATTEN_SMALL | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },
     { /* 446 */ "Bamboo Door",                  0xC2AE53, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 60, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
@@ -538,10 +538,10 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 451 */ "Bamboo Trapdoor",              0xC9B560, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 60, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_FLATTEN | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },   // tricky case: could be a flattop, or a flatside. For now, render it
     { /* 452 */ "Bamboo Mosaic Stairs",         0xC0AC4F, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13, 60, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 453 */ "Pink Petals",              	0xF7B9DC, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 57, 0x00, BLF_FLATTEN | BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID },
-    { /* 454 */ "Pitcher Crop",					0x7D9BC2, 1.000f, 0xff7711, 0xff7711, 0.12345f,  5, 58, 0x00, BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_BILLBOARD | BLF_3D_BIT | BLF_CUTOUTS | BLF_DNE_FLUID },
+    { /* 454 */ "Pitcher Plant",				0x7D9BC2, 1.000f, 0xff7711, 0xff7711, 0.12345f,  5, 58, 0x00, BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_BILLBOARD | BLF_3D_BIT | BLF_CUTOUTS | BLF_DNE_FLUID },
     { /* 455 */ "Sniffer Egg",            		0xBC4E3A, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 58, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
     { /* 456 */ "Suspicious Gravel",            0x837F7E, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 59, 0x04, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
-    { /* 457 */ "Torchflower Crop",				0xDE8B25, 1.000f, 0xff7711, 0xff7711, 0.12345f,  3, 60, 0x00, BLF_FLATTEN | BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID },
+    { /* 457 */ "Torchflower",			    	0xDE8B25, 1.000f, 0xff7711, 0xff7711, 0.12345f,  3, 60, 0x00, BLF_FLATTEN | BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID },
     { /* 458 */ "Oak Wall Hanging Sign",        0xB29157, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 34, 0x3c, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG },
     { /* 459 */ "Oak Hanging Sign",             0xB29157, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 34, 0x20, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG },
     { /* 460 */ "Birch Hanging Sign",           0xC5B077, 1.000f, 0xff7711, 0xff7711, 0.12345f,  2, 34, 0x20, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG },
