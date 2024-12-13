@@ -1297,8 +1297,10 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             break;
         case 0:
             break;
-        case 1:	// dark oak
+        case 1:
             return "Stripped Cherry Log";
+        case 2:
+            return "Stripped Pale Oak Log";
         }
         break;
     case BLOCK_STRIPPED_MANGROVE_WOOD:
@@ -1309,8 +1311,10 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             break;
         case 0:
             break;
-        case 1:	// dark oak
+        case 1:
             return "Stripped Cherry Wood";
+        case 2:
+            return "Stripped Pale Oak Wood";
         }
         break;
     case BLOCK_SIGN_POST:
@@ -1399,8 +1403,10 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Mangrove Wall Sign";
         case BIT_8:
             return "Cherry Wall Sign";
-        case BIT_16:	// birch
+        case BIT_16:	// bamboo
             return "Bamboo Wall Sign";
+        case BIT_16 | BIT_8:	// pale oak
+            return "Pale Oak Wall Sign";
         }
         break;
 
@@ -1596,6 +1602,12 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         case 5:
             strcat_s(gConcatString, 100, "Bamboo Mosaic Slab");
             break;
+        case 6:
+            strcat_s(gConcatString, 100, "Pale Oak Slab");
+            break;
+        case 7:
+            strcat_s(gConcatString, 100, "Resin Brick Slab");
+            break;
         }
         return gConcatString;
 
@@ -1734,11 +1746,13 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         case 21:
             return "Mud Brick Wall";
         case 22:
-            return "Tuff Slab";
+            return "Tuff Wall";
         case 23:
-            return "Polished Tuff Slab";
+            return "Polished Tuff Wall";
         case 24:
-            return"Tuff Brick Slab";
+            return"Tuff Brick Wall";
+        case 25:
+            return"Resin Brick Wall";
         }
         break;
 
@@ -1969,6 +1983,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
                 break;
             case 1:
                 return "Cherry Log";
+            case 2:
+                return "Pale Oak Log";
             }
         }
         break;
@@ -2276,12 +2292,12 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Chiseled Tuff Bricks";
         case 60:	// pale_moss_block
             return "Pale Moss Block";
-        case 61:	// resin_block
-            return "Block of Resin";
-        case 62:	// resin_bricks
-            return "Resin Bricks";
-        case 63:	// chiseled_resin_bricks
+        case 61:
             return "Chiseled Resin Bricks";
+        case 62:
+            return "Block of Resin";
+        case 63:
+            return "Resin Bricks";
         }
         break;
 
@@ -2400,6 +2416,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Cherry Wall Hanging Sign";
         case 10 << 2:
             return "Bamboo Wall Hanging Sign";
+        case 11 << 2:
+            return "Pale Oak Wall Hanging Sign";
         }
         break;
 
@@ -2899,6 +2917,12 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             break;
         case 5:	// bamboo mosaic
             color = 0xC0AC4F;
+            break;
+        case 6:	// pale oak
+            color = 0xE5DBDA;
+            break;
+        case 7:	// resin brick
+            color = 0xD05F1D;
             break;
         }
         break;
@@ -4050,6 +4074,9 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case BIT_16:	// bamboo
             color = 0xC4AF52;
             break;
+        case BIT_16 | BIT_8:	// pale oak
+            color = 0xE5DBDA;
+            break;
         }
         break;
 
@@ -4155,6 +4182,9 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             break;
         case 24: // Tuff Brick wall
             color = 0x656962;
+            break;
+        case 25: // Resin Brick wall
+            color = 0xD05F1D;
             break;
         }
         break;
@@ -4540,14 +4570,14 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case 60:	// pale_moss_block
             color = 0x6C726A;
             break;
-        case 61:	// resin_block
+        case 61:	// chiseled_resin_bricksresin_block
+            color = 0xCB5B1D;
+            break;
+        case 62:	// resin_block
             color = 0xDA681F;
             break;
-        case 62:	// resin_bricks
+        case 63:	// resin_bricks
             color = 0xD05F1D;
-            break;
-        case 63:	// chiseled_resin_bricks
-            color = 0xCB5B1D;
             break;
         }
         break;
@@ -4685,6 +4715,8 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case 10 << 2:	// bamboo
             color = 0xC4AF52;
             break;
+        case 11 << 2:
+            color = 0xE5DBDA;
         }
         break;
 
@@ -5862,13 +5894,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             }
         }
         break;
-    case BLOCK_CRIMSON_SLAB:
-        // uses 0-5 and 8-13 for different slab types + lower or upper
-        if (dataVal < 6 || (dataVal >= 8 && dataVal <= 13))
-        {
-            addBlock = 1;
-        }
-        break;
     case BLOCK_POINTED_DRIPSTONE:
         // uses 0-4 and 8-12 for different bits
         if (dataVal < 5 || (dataVal >= 8 && dataVal <= 12))
@@ -5985,6 +6010,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_POLISHED_TUFF_STAIRS:
     case BLOCK_TUFF_BRICK_STAIRS:
     case BLOCK_PALE_OAK_STAIRS:
+    case BLOCK_RESIN_BRICK_STAIRS:
         // uses 0-7 - TODO we could someday add more blocks to neighbor the others, in order to show the stairs' "step block trim" feature of week 39
         if (dataVal < 8)
         {
@@ -6245,7 +6271,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_STRIPPED_MANGROVE:
     case BLOCK_STRIPPED_MANGROVE_WOOD:
         // use 0-1,4-5,8-9,12-13
-        if ((dataVal & 0x03) < 2) {    // mangrove and cherry
+        if ((dataVal & 0x03) < 3) {    // mangrove and cherry and pale oak
             addBlock = 1;
         }
         break;
@@ -6287,6 +6313,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_CAMPFIRE:
     case BLOCK_PINK_PETALS:
     case BLOCK_POPPY:
+    case BLOCK_CRIMSON_SLAB:
         // uses all bits, 0-15
         addBlock = 1;
         break;
@@ -6622,7 +6649,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
 
     case BLOCK_WALL_SIGN:
     case BLOCK_MANGROVE_WALL_SIGN:
-        // there are now 8 materials for wall signs and 3 for mangrove wall signs. Rather than going absolutely nuts, we change the dataVal for each.
+        // there are now 8 materials for wall signs and 4 for mangrove wall signs. Rather than going absolutely nuts, we change the dataVal for each.
         // directions are 2-5, so allow those and 10-13
         if ((dataVal & 0x7) >= 2 && (dataVal & 0x7) <= 5)
         {
@@ -6633,8 +6660,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 finalDataVal = ((dataVal % 8) << 3) | (dataVal & 0x7);
             }
             else {
-                // cycle 3 materials
-                finalDataVal = ((dataVal % 3) << 3) | (dataVal & 0x7);
+                // cycle 4 materials
+                finalDataVal = ((dataVal % 4) << 3) | (dataVal & 0x7);
             }
 
             switch (dataVal & 0x7)
@@ -6873,6 +6900,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_WAXED_EXPOSED_COPPER_TRAPDOOR:
     case BLOCK_WAXED_WEATHERED_COPPER_TRAPDOOR:
     case BLOCK_WAXED_OXIDIZED_COPPER_TRAPDOOR:
+    case BLOCK_PALE_OAK_TRAPDOOR:
         // use all 0-15
         addBlock = 1;
 
@@ -7548,10 +7576,10 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
 
     case BLOCK_OAK_WALL_HANGING_SIGN:
-        // 0-10 x 4 + 0-3 => 0-43
+        // 0-11 x 4 + 0-3 => 0-43
     {
         addBlock = 1;
-        addDiagonalBlocksToMap(44, y, type, dataVal, finalDataVal, typeHighBit, block);
+        addDiagonalBlocksToMap(48, y, type, dataVal, finalDataVal, typeHighBit, block);
     }
     break;
     case BLOCK_OAK_HANGING_SIGN:

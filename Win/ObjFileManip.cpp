@@ -3947,6 +3947,7 @@ static int computeFlatFlags(int boxIndex)
     case BLOCK_WAXED_EXPOSED_COPPER_TRAPDOOR:
     case BLOCK_WAXED_WEATHERED_COPPER_TRAPDOOR:
     case BLOCK_WAXED_OXIDIZED_COPPER_TRAPDOOR:
+    case BLOCK_PALE_OAK_TRAPDOOR:
         if (gBoxData[boxIndex].data & 0x4)
         {
             // trapdoor is open, so is against a wall
@@ -5277,6 +5278,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             // Tuff Brick wall
             swatchLoc = SWATCH_INDEX(15, 64);
             break;
+        case 25:
+            // Resin Brick wall
+            swatchLoc = SWATCH_INDEX(1, 67);
+            break;
         }
 
         // since we erase "billboard" objects as we go, we need to test against origType.
@@ -6110,6 +6115,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_POLISHED_TUFF_STAIRS:
     case BLOCK_TUFF_BRICK_STAIRS:
     case BLOCK_PALE_OAK_STAIRS:
+    case BLOCK_RESIN_BRICK_STAIRS:
         // set texture
         switch (type)
         {
@@ -6555,6 +6561,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             case 5: // bamboo_mosaic_slab
                 topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(13, 60);
                 break;
+            case 6: // pale_oak_slab
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(8, 67);
+                break;
+            case 7:	// resin brick
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(1, 67);
+                break;
             }
             break;
 
@@ -6755,6 +6767,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 // bamboo
                 swatchLoc = SWATCH_INDEX(14, 60);
                 break;
+            case (BIT_16 | BIT_8):
+                // pale oak
+                swatchLoc = SWATCH_INDEX(8, 67);
+                break;
             }
         }
         switch (dataVal & 0x7)
@@ -6927,6 +6943,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_WAXED_EXPOSED_COPPER_TRAPDOOR:
     case BLOCK_WAXED_WEATHERED_COPPER_TRAPDOOR:
     case BLOCK_WAXED_OXIDIZED_COPPER_TRAPDOOR:
+    case BLOCK_PALE_OAK_TRAPDOOR:
         // On second thought, in testing it worked fine.
         //if ( gModel.print3D && !(dataVal & 0x4) )
         //{
@@ -6936,7 +6953,16 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         //		return 0;
         //}
         gUsingTransform = 1;
-        saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 0, 16, 0, 3, 0, 16);
+        saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 0, 16, 13, 16, 0, 16);
+        identityMtx(mtx);
+        translateToOriginMtx(mtx, boxIndex);
+        // rotate 180 on up axis
+        rotateMtx(mtx, 0.0f, 180.0f, 0.0f);
+		// lower from 13-16 height to 0-3 height
+        translateMtx(mtx, 0.0f, -13.0f / 16.0f, 0.0f);
+        // undo translation to origin
+        translateFromOriginMtx(mtx, boxIndex);
+        transformVertices(8, mtx);
         gUsingTransform = 0;
         // rotate as needed
         if (dataVal & 0x4)
@@ -11349,6 +11375,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         case 10 << 2:	// bamboo - pick mosaic so it's less obviously wrong
             swatchLoc = SWATCH_INDEX(11, 60);
             break;
+        case 11 << 2:	// pale oak
+            swatchLoc = SWATCH_INDEX(8, 67);
+            break;
         }
 
         gUsingTransform = 1;
@@ -13138,6 +13167,7 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
             case BLOCK_POLISHED_TUFF_STAIRS:
             case BLOCK_TUFF_BRICK_STAIRS:
             case BLOCK_PALE_OAK_STAIRS:
+            case BLOCK_RESIN_BRICK_STAIRS:
                 // TODO: Right now stairs are dumb: only the large rectangle of the base is returned.
                 // Returning the little block, which can further be trimmed to a cube, is a PAIN.
                 // This does mean the little stair block sides won't be deleted. Ah well.
@@ -13243,6 +13273,7 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
             case BLOCK_WAXED_EXPOSED_COPPER_TRAPDOOR:
             case BLOCK_WAXED_WEATHERED_COPPER_TRAPDOOR:
             case BLOCK_WAXED_OXIDIZED_COPPER_TRAPDOOR:
+            case BLOCK_PALE_OAK_TRAPDOOR:
                 if (!(dataVal & 0x4))
                 {
                     // trapdoor is flat on ground
@@ -13751,7 +13782,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
             swatchLoc = SWATCH_INDEX(4, 68);
             break;
         case 4:
-            // pale oak sapling - yeah, it's weird, but we're out of sapling space
+            // pale oak sapling - yeah, it's weird to have it here, but we're out of sapling space
             swatchLoc = SWATCH_INDEX(9, 67);
             break;
         }
@@ -18164,6 +18195,7 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_POLISHED_TUFF_STAIRS:
         case BLOCK_TUFF_BRICK_STAIRS:
         case BLOCK_PALE_OAK_STAIRS:
+        case BLOCK_RESIN_BRICK_STAIRS:
             switch (neighborDataVal & 0x3)
             {
             default:    // make compiler happy
@@ -18267,6 +18299,7 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_WAXED_EXPOSED_COPPER_TRAPDOOR:
         case BLOCK_WAXED_WEATHERED_COPPER_TRAPDOOR:
         case BLOCK_WAXED_OXIDIZED_COPPER_TRAPDOOR:
+        case BLOCK_PALE_OAK_TRAPDOOR:
             if (!view3D)
             {
                 // rotate as needed
@@ -19159,6 +19192,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_WAXED_EXPOSED_COPPER_TRAPDOOR:
         case BLOCK_WAXED_WEATHERED_COPPER_TRAPDOOR:
         case BLOCK_WAXED_OXIDIZED_COPPER_TRAPDOOR:
+        case BLOCK_PALE_OAK_TRAPDOOR:
         case BLOCK_DAYLIGHT_SENSOR:
         case BLOCK_INVERTED_DAYLIGHT_SENSOR:
         case BLOCK_LADDER:
@@ -19662,6 +19696,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     case 1: // cherry
                         SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 6, 57, 7, 57);
                         break;
+                    case 2: // pale oak
+                        SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 7, 67, 6, 67);
+                        break;
                     }
                 }
                 break;
@@ -19712,6 +19749,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 case 1: // cherry
                     SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 8, 59, 9, 59);
                     break;
+                case 2: // pale oak
+                    SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 12, 67, 11, 67);
+                    break;
                 }
                 break;
             case BLOCK_STRIPPED_OAK_WOOD:
@@ -19757,6 +19797,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     break;
                 case 1: // cherry
                     swatchLoc = SWATCH_INDEX(8, 59);
+                    break;
+                case 2: // pale oak
+                    swatchLoc = SWATCH_INDEX(12, 67);
                     break;
                 }
                 break;
@@ -21637,7 +21680,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 swatchLoc = SWATCH_INDEX(4, 68);
                 break;
             case 4:
-                // pale oak sapling - yeah, it's weird, but we're out of sapling space
+                // pale oak sapling - yeah, it's weird to have it here, but we're out of sapling space
                 swatchLoc = SWATCH_INDEX(9, 67);
                 break;
             }
@@ -22081,6 +22124,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             case 24:
                 // Tuff Brick wall
                 swatchLoc = SWATCH_INDEX(15, 64);
+                break;
+            case 25:
+                // Resin Brick wall
+                swatchLoc = SWATCH_INDEX(1, 67);
                 break;
             }
             break;
@@ -22664,6 +22711,12 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             case 5: // bamboo_mosaic_slab
                 swatchLoc = SWATCH_INDEX(13, 60);
                 break;
+            case 6: // pale_oak_slab
+                swatchLoc = SWATCH_INDEX(8, 67);
+                break;
+            case 7:	// resin brick
+                swatchLoc = SWATCH_INDEX(1, 67);
+                break;
             }
             break;
 
@@ -23126,14 +23179,14 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             case 60:	// pale_moss_block
                 swatchLoc = SWATCH_INDEX(0, 68);
                 break;
-            case 61:	// resin_block
+            case 61:	// chiseled_resin_bricks
+                swatchLoc = SWATCH_INDEX(15, 66);
+                break;
+            case 62:	// resin_block
                 swatchLoc = SWATCH_INDEX(0, 67);
                 break;
-            case 62:	// resin_bricks
+            case 63:	// resin_bricks
                 swatchLoc = SWATCH_INDEX(1, 67);
-                break;
-            case 63:	// chiseled_resin_bricks
-                swatchLoc = SWATCH_INDEX(15, 66);
                 break;
             }
             break;

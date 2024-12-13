@@ -1171,7 +1171,7 @@ static struct {
     {  7, 67, 437, 0, L"pale_oak_log", L"pale_oak_log_side", SWATCH_REPEAT_ALL },   // JG-RTX second name
     {  8, 67,   5, 0, L"pale_oak_planks", L"", SWATCH_REPEAT_ALL },
     {  9, 67,  37, 0, L"pale_oak_sapling", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    { 10, 67,   0, 0, L"pale_oak_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
+    { 10, 67, 357, 0, L"pale_oak_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
     { 11, 67,   0, 0, L"stripped_pale_oak_log_top", L"", SWATCH_REPEAT_ALL },
     { 12, 67,   0, 0, L"stripped_pale_oak_log", L"stripped_pale_oak_log_side", SWATCH_REPEAT_ALL },   // JG-RTX second name
     { 13, 67,   0, 0, L"pale_moss_carpet", L"pale_moss", SWATCH_REPEAT_ALL },   // JG-RTX "pale_moss"
