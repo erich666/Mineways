@@ -4147,6 +4147,7 @@ static int computeFlatFlags(int boxIndex)
 
     case BLOCK_GLOW_LICHEN:
     case BLOCK_SCULK_VEIN:
+    case BLOCK_RESIN_CLUMP:
         // (south ? 1 : 0) | (west ? 2 : 0) | (north ? 4 : 0) | (east ? 8 : 0) | (down ? BIT_16 : 0) | (up ? BIT_32 : 0);
         if (gBoxData[boxIndex].data & 0x01) {
             // south, +Z
@@ -5072,6 +5073,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_VINES:						// saveBillboardOrGeometry
     case BLOCK_GLOW_LICHEN:				    // saveBillboardOrGeometry
     case BLOCK_SCULK_VEIN:				    // saveBillboardOrGeometry
+    case BLOCK_RESIN_CLUMP:				    // saveBillboardOrGeometry
         // note that save billboard faces gives one or more faces for vines and lichen
         return saveBillboardFaces(boxIndex, type, BB_SIDE);
 
@@ -13715,6 +13717,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         break;
     case BLOCK_GLOW_LICHEN:				// saveBillboardFacesExtraData
     case BLOCK_SCULK_VEIN:				// saveBillboardFacesExtraData
+    case BLOCK_RESIN_CLUMP:				// saveBillboardFacesExtraData
         if (!CHECK_COMPOSITE_OVERLAY) {
             if (dataVal & BIT_16) {
                 lichenOverBlock = true;
@@ -19207,6 +19210,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_SPORE_BLOSSOM:
         case BLOCK_GLOW_LICHEN:
         case BLOCK_SCULK_VEIN:
+        case BLOCK_RESIN_CLUMP:
         case BLOCK_MANGROVE_PROPAGULE:						// getSwatch
         case BLOCK_HEAVY_CORE:
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);

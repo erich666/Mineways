@@ -1508,7 +1508,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 173,       HIGH_BIT, "resin_brick_stairs", STAIRS_PROP },
     { 0, 139,	          25, "resin_brick_wall", WALL_PROP },
     { 0, 132,  HIGH_BIT | 63, "resin_bricks", NO_PROP },
-    { 0,   7,       HIGH_BIT, "resin_clump", NO_PROP },
+    { 0, 186,       HIGH_BIT, "resin_clump", FENCE_AND_VINE_PROP },
     { 0, 167,   HIGH_BIT | 2, "stripped_pale_oak_log", AXIS_PROP },
     { 0, 168,   HIGH_BIT | 2, "stripped_pale_oak_wood", AXIS_PROP },
 

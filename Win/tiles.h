@@ -1163,7 +1163,7 @@ static struct {
     { 15, 66, 388, 0, L"chiseled_resin_bricks", L"", SWATCH_REPEAT_ALL },   // 1.21.4
     {  0, 67, 388, 0, L"resin_block", L"", SWATCH_REPEAT_ALL },
     {  1, 67, 388, 0, L"resin_bricks", L"", SWATCH_REPEAT_ALL },
-    {  2, 67,   0, 0, L"resin_clump", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
+    {  2, 67, 442, 0, L"resin_clump", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
     {  3, 67, 271, 0, L"pale_oak_door_bottom", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     {  4, 67, 271, 0, L"pale_oak_door_top", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     {  5, 67,  18, 0, L"pale_oak_leaves", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYNTHESIZED },
@@ -1173,7 +1173,7 @@ static struct {
     {  9, 67,  37, 0, L"pale_oak_sapling", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 10, 67, 357, 0, L"pale_oak_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
     { 11, 67,   0, 0, L"stripped_pale_oak_log_top", L"", SWATCH_REPEAT_ALL },
-    { 12, 67,   0, 0, L"stripped_pale_oak_log", L"stripped_pale_oak_log_side", SWATCH_REPEAT_ALL },   // JG-RTX second name
+    { 12, 67,   0, 0, L"stripped_pale_oak_log", L"stripped_pale_oak_logr_side", SWATCH_REPEAT_ALL },   // JG-RTX second name
     { 13, 67,   0, 0, L"pale_moss_carpet", L"pale_moss", SWATCH_REPEAT_ALL },   // JG-RTX "pale_moss"
     { 14, 67,   0, 0, L"pale_moss_carpet_side_small", L"pale_moss_carpet_side_base", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },   // JG-RTX second name
     { 15, 67,   0, 0, L"pale_moss_carpet_side_tall", L"pale_moss_carpet_side_tip", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },   // JG-RTX second name

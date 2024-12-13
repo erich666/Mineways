@@ -6570,6 +6570,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
     case BLOCK_GLOW_LICHEN:
     case BLOCK_SCULK_VEIN:
+    case BLOCK_RESIN_CLUMP:
         // show with and without waterlogging
         // note we don't try all permutations (6 bits)
         if ((dataVal & 0x7) <= 5)
