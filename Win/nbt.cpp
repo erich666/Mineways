@@ -1492,7 +1492,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,   5,             12, "pale_oak_planks", NO_PROP },
     { 0,  70,             24, "pale_oak_pressure_plate", PRESSURE_PROP },
     { 0,  37,              4, "pale_oak_sapling", NO_PROP },
-    { 0,   7,       HIGH_BIT, "pale_oak_sign", STANDING_SIGN_PROP },
+    { 0, 171, HIGH_BIT | BIT_32 | BIT_16, "pale_oak_sign", STANDING_SIGN_PROP },
     { 0,   7,       HIGH_BIT, "pale_oak_slab", SLAB_PROP },
     { 0,  18,       HIGH_BIT, "pale_oak_stairs", STAIRS_PROP },
     { 0,   7,       HIGH_BIT, "pale_oak_trapdoor", TRAPDOOR_PROP },

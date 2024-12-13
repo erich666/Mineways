@@ -7042,7 +7042,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             }
         }
         else {
-            // Mangrove, cherry, bamboo
+            // Mangrove, cherry, bamboo, pale oak
             switch (dataVal & (BIT_32 | BIT_16)) {
             default:
             case 0:
@@ -7062,6 +7062,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 topSwatchLoc = sideSwatchLoc = SWATCH_INDEX(14, 60);   // planks
                 bottomSwatchLoc = SWATCH_INDEX(6, 60);   // end of log, for the post
                 sideSwatchLoc = SWATCH_INDEX(5, 60);    // log bark, for the post
+                break;
+            case BIT_32 | BIT_16:
+                // pale oak
+                topSwatchLoc = sideSwatchLoc = SWATCH_INDEX(8, 67);   // planks
+                bottomSwatchLoc = SWATCH_INDEX(6, 67);   // end of log, for the post
+                sideSwatchLoc = SWATCH_INDEX(7, 67);    // log bark, for the post
                 break;
             }
         }

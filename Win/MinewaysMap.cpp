@@ -1320,7 +1320,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             assert(0);
             break;
         case 0:
-            return "Oak Sign";
+            //return "Oak Sign";
+            break;
         case BIT_16:	// spruce
             return "Spruce Sign";
         case BIT_32:	// birch
@@ -1336,13 +1337,31 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             assert(0);
             break;
         case 0:
-            return "Acacia Sign";
+            //return "Acacia Sign";
+            break;
         case BIT_16:	// dark oak
             return "Dark Oak Sign";
         case BIT_32:	// dark oak
             return "Crimson Sign";
         case BIT_32 | BIT_16:	// dark oak
             return "Warped Sign";
+        }
+        break;
+    case BLOCK_MANGROVE_SIGN_POST:
+        switch (dataVal & (BIT_16 | BIT_32))
+        {
+        default:
+            assert(0);
+            break;
+        case 0:
+            //return "Mangrove Sign";
+            break;
+        case BIT_16:
+            return "Cherry Sign";
+        case BIT_32:
+            return "Bamboo Sign";
+        case BIT_32 | BIT_16:
+            return "Pale Oak Sign";
         }
         break;
     case BLOCK_WALL_SIGN:
@@ -3959,6 +3978,28 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         }
         break;
 
+    case BLOCK_MANGROVE_SIGN_POST:
+        dataVal = block->data[voxel];
+        switch (dataVal & (BIT_16 | BIT_32))
+        {
+        default:
+            assert(0);
+        case 0:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case BIT_16:	// cherry
+            color = gBlockDefinitions[BLOCK_CHERRY_STAIRS].pcolor;
+            break;
+        case BIT_32:	// bamboo
+            color = gBlockDefinitions[BLOCK_BAMBOO_STAIRS].pcolor;
+            break;
+        case BIT_32 | BIT_16:	// pale oak
+            color = gBlockDefinitions[BLOCK_PALE_OAK_STAIRS].pcolor;
+            break;
+        }
+        break;
+
     case BLOCK_WALL_SIGN:
         dataVal = block->data[voxel];
         switch (dataVal & (BIT_8 | BIT_16 | BIT_32))
@@ -6244,7 +6285,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_RED_SANDSTONE_SLAB:
     case BLOCK_PURPUR_SLAB:
     case BLOCK_CAMPFIRE:
-    case BLOCK_MANGROVE_SIGN_POST:
     case BLOCK_PINK_PETALS:
     case BLOCK_POPPY:
         // uses all bits, 0-15
@@ -6273,10 +6313,11 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
 
     case BLOCK_SIGN_POST:
     case BLOCK_ACACIA_SIGN_POST:
+    case BLOCK_MANGROVE_SIGN_POST:
     case BLOCK_COLORED_CANDLE:
     case BLOCK_LIT_COLORED_CANDLE:
     case BLOCK_VAULT:
-        // uses all bits, 0-15, with variations to show other styles
+        // uses all bits, 0-15 to 0-63, with variations to show other styles
         addBlock = 1;
         addDiagonalBlocksToMap(64, y, type, dataVal, finalDataVal, typeHighBit, block);
         break;
