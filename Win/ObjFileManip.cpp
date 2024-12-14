@@ -19527,6 +19527,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_STRIPPED_MANGROVE:
         case BLOCK_STRIPPED_MANGROVE_WOOD:
         case BLOCK_FROGLIGHT:
+        case BLOCK_CREAKING_HEART:
             // bit tricksy: rotate by rotating face direction itself
             newFaceDirection = faceDirection;
             angle = 0;
@@ -19823,6 +19824,19 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     break;
                 case 2: // Pearlescent - side, then top
                     SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 0, 56, 15, 55);
+                    break;
+                }
+                break;
+            case BLOCK_CREAKING_HEART:
+                switch (dataVal & 0x1)
+                {
+                default:
+                    assert(0);
+                case 0: // inactive
+                    SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 6, 68, 5, 68);
+                    break;
+                case 1: // active
+                    SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 8, 68, 7, 68);
                     break;
                 }
                 break;

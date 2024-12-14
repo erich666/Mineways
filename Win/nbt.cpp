@@ -377,7 +377,11 @@ static TranslationTuple* modTranslations = NULL;
 // triggered 0-1 (0x20)
 #define CRAFTER_PROP        66
 // lit true|false gives 0x8 for copper bulbs
-#define BULB_PROP            67
+#define BULB_PROP           67
+// axis, like logs
+// active true|false - lowest bit
+// natural - ignored, not visual
+#define CREAKING_HEART_PROP 68
 
 #define NUM_TRANS 1104
 
@@ -1478,7 +1482,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     // 1.21.4
     { 0,  37,              2, "closed_eyeblossom", NO_PROP },
     { 0,  37,              3, "open_eyeblossom", NO_PROP },
-    { 0,   7,       HIGH_BIT, "creaking_heart", NO_PROP },
+    { 0, 193,       HIGH_BIT, "creaking_heart", CREAKING_HEART_PROP },
     { 0,   7,       HIGH_BIT, "pale_hanging_moss", NO_PROP },
     { 0, 132,  HIGH_BIT | 60, "pale_moss_block", NO_PROP },
     { 0,   7,       HIGH_BIT, "pale_moss_carpet", NO_PROP },
@@ -4169,6 +4173,11 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             powered_bit = (strcmp(value, "true") == 0);
                         }
 
+                        else if (strcmp(token, "active") == 0) {
+                            // CREAKING_HEART_PROP
+                            dataVal |= (strcmp(value, "true") == 0);
+                        }
+
 #ifdef _DEBUG
                         else {
                             // ignore, not used by Mineways for now, BlockTranslations[typeIndex]
@@ -4182,6 +4191,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             else if (strcmp(token, "shrieking") == 0) {}	// non-visual sculk shrieker prop
                             else if (strcmp(token, "bloom") == 0) {}	// for sculk catalyst
                             else if (strcmp(token, "cracked") == 0) {}	// for decorated pot - ignored
+                            else if (strcmp(token, "natural") == 0) {}	// for creaking_heart - ignored, has to do with experience
                             else {
                                 // unknown property - look at token and value
                                 static int ignore = 0;
@@ -4723,6 +4733,10 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 // reset because basic cake doesn't reset lit to false, IIRC
                 lit = false;
                 break;
+			case CREAKING_HEART_PROP:
+				// for creaking heart, should already have active bit set
+				dataVal |= axis;
+				break;
             }
 
             // make sure upper bits are not set - they should not be! Well, except for heads. So, comment out this test

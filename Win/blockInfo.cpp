@@ -533,7 +533,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 446 */ "Bamboo Door",                  0xC2AE53, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 60, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
     { /* 447 */ "Bamboo Fence",                 0xD0BC5B, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 60, 0x00, BLF_MIDDLER | BLF_FENCE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 448 */ "Bamboo Fence Gate",            0xD1BC5A, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 60, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_FENCE_GATE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE }, // TODOTODO someday use 10, 60 for bamboo fence gate texture
-    { /* 449 */ "Bamboo Pressure Plate",        0xC4AF52, 1.000f, 0xff7711, 0xff7711, 0.12345f, 14, 60, 0x00, BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_CONNECTS_REDSTONE },
+    { /* 449 */ "Creaking Heart",               0x4C3F3B, 1.000f, 0xff7711, 0xff7711, 0.12345f,  5, 68, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_FENCE_NEIGHBOR },
     { /* 450 */ "Bamboo Stairs",                0xC4AF52, 1.000f, 0xff7711, 0xff7711, 0.12345f, 14, 60, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 451 */ "Bamboo Trapdoor",              0xC9B560, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 60, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_FLATTEN | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },   // tricky case: could be a flattop, or a flatside. For now, render it
     { /* 452 */ "Bamboo Mosaic Stairs",         0xC0AC4F, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13, 60, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },

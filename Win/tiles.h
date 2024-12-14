@@ -1182,10 +1182,10 @@ static struct {
     {  2, 68,   0, 0, L"pale_hanging_moss_tip", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     {  3, 68,  37, 0, L"closed_eyeblossom", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  4, 68,  37, 0, L"open_eyeblossom", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL }, // TODO open_eyeblossom_emissive
-    {  5, 68,   0, 0, L"creaking_heart_top", L"creaking_heart_top_inactive", SWATCH_REPEAT_ALL },   // JG-RTX second name
-    {  6, 68,   0, 0, L"creaking_heart", L"creaking_heart_inactive", SWATCH_REPEAT_ALL },   // JG-RTX second name
-    {  7, 68,   0, 0, L"creaking_heart_top_active", L"", SWATCH_REPEAT_ALL },
-    {  8, 68,   0, 0, L"creaking_heart_active", L"", SWATCH_REPEAT_ALL },
+    {  5, 68, 449, 0, L"creaking_heart_top", L"creaking_heart_top_inactive", SWATCH_REPEAT_ALL },   // JG-RTX second name
+    {  6, 68, 449, 0, L"creaking_heart", L"creaking_heart_inactive", SWATCH_REPEAT_ALL },   // JG-RTX second name
+    {  7, 68, 449, 0, L"creaking_heart_top_active", L"", SWATCH_REPEAT_ALL },
+    {  8, 68, 449, 0, L"creaking_heart_active", L"", SWATCH_REPEAT_ALL },
     {  9, 68,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 10, 68,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 11, 68,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
