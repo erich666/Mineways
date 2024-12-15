@@ -3722,6 +3722,7 @@ static int computeFlatFlags(int boxIndex)
     case BLOCK_FROGSPAWN:
     case BLOCK_PINK_PETALS:
     case BLOCK_TORCHFLOWER_CROP:
+    case BLOCK_PALE_MOSS_CARPET:
         //case BLOCK_CHAIN:   // questionable: should a chain (offset to the edge!) really be flattened onto the neighbor below?
         gBoxData[boxIndex - 1].flatFlags |= FLAT_FACE_ABOVE;
         break;
@@ -5078,7 +5079,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // note that save billboard faces gives one or more faces for vines and lichen
         return saveBillboardFaces(boxIndex, type, BB_SIDE);
 
-    case BLOCK_LILY_PAD:					// saveBillboardOrGeometry
+    case BLOCK_LILY_PAD:					// saveBillboardOrGesometry
         // Randomize lily pad's rotation (it depends on location in Minecraft).
         // Doing so makes this export inconsistent between this and composite swatches,
         // where the lily pad is always the same orientation (otherwise we'd need up to four swatches).
@@ -6059,6 +6060,60 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             swatchLoc = retrieveWoolSwatch(dataVal);
         }
         saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0, 0, 16, 0, 1, 0, 16);
+        break; // saveBillboardOrGeometry
+
+    case BLOCK_PALE_MOSS_CARPET:						// saveBillboardOrGeometry
+        // bit 1 - bottom
+        // bit 2,4,5,16 - sides short/tall (only if neighbor is moss block!)
+        // bit 32 - are there any sides at all, for a quick out; optional
+        firstFace = 1;
+        swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+        if (dataVal & 0x1) {
+            // process bottom
+            if (gModel.print3D &&
+                (gBoxData[boxIndex - 1].origType == BLOCK_AIR))
+            {
+                // ignore floating thin carpet, definitely can't output that for 3d printing
+                gMinorBlockCount--;
+            }
+            else {
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, firstFace, 0x0, 0, 0, 16, 0, 1, 0, 16);
+                firstFace = 0;
+            }
+        }
+        // add sides, if found
+    //    if (dataVal & BIT_32) {
+    //        swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+    //        int dirDataVal = dataVal & 0x7f;
+    //        // TODO: have to check neighbor to see if short or tall is used
+    //        for (i = 0; i < 4; i++) {
+    //            int dv3 = dirDataVal % 3;
+				//if (dv3) {
+				//	// add side
+    //                switch (i) {
+    //     case 0:
+    //                    // north
+    //                    saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc + dv3, firstFace, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_TOP_BIT, 0, 16, 0, 16, 1, 1);
+    //                    break;
+    //                case 2:
+    //                    // east
+    //                    saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc + dv3, firstFace, DIR_BOTTOM_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT, 15, 15, 0, 16, 0, 16);
+    //                    break;
+    //                case 3:
+    //                    // south
+    //                    saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc + dv3, firstFace, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_TOP_BIT, 0, 16, 0, 16, 15, 15);
+    //                    break;
+    //                case 4:
+    //                    // west
+    //                    saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc + dv3, firstFace, DIR_BOTTOM_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT, 1, 1, 0, 16, 0, 16);
+    //                    break;
+    //                }
+    //                firstFace = 0;
+				//}
+    //            // next 0-2 for next direction
+    //            dirDataVal /= 3;
+    //        }
+    //    }
         break; // saveBillboardOrGeometry
 
     case BLOCK_OAK_WOOD_STAIRS:						// saveBillboardOrGeometry
@@ -13201,6 +13256,7 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
                 break;
 
             case BLOCK_CARPET:
+            case BLOCK_PALE_MOSS_CARPET:
                 setTop = 1;
                 break;
 
@@ -18285,7 +18341,6 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_SCULK_SHRIEKER:
             // blocks top of block below
             return (faceDirection == DIRECTION_BLOCK_TOP);
-
 
         case BLOCK_TRAPDOOR:						// lesserBlockCoversWholeFace
         case BLOCK_IRON_TRAPDOOR:

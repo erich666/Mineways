@@ -1172,11 +1172,11 @@ static struct {
     {  8, 67,   5, 0, L"pale_oak_planks", L"", SWATCH_REPEAT_ALL },
     {  9, 67,  37, 0, L"pale_oak_sapling", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 10, 67, 357, 0, L"pale_oak_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
-    { 11, 67,   0, 0, L"stripped_pale_oak_log_top", L"", SWATCH_REPEAT_ALL },
-    { 12, 67,   0, 0, L"stripped_pale_oak_log", L"stripped_pale_oak_logr_side", SWATCH_REPEAT_ALL },   // JG-RTX second name
-    { 13, 67,   0, 0, L"pale_moss_carpet", L"pale_moss", SWATCH_REPEAT_ALL },   // JG-RTX "pale_moss"
-    { 14, 67,   0, 0, L"pale_moss_carpet_side_small", L"pale_moss_carpet_side_base", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },   // JG-RTX second name
-    { 15, 67,   0, 0, L"pale_moss_carpet_side_tall", L"pale_moss_carpet_side_tip", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },   // JG-RTX second name
+    { 11, 67, 423, 0, L"stripped_pale_oak_log_top", L"", SWATCH_REPEAT_ALL },
+    { 12, 67, 423, 0, L"stripped_pale_oak_log", L"stripped_pale_oak_logr_side", SWATCH_REPEAT_ALL },   // JG-RTX second name
+    { 13, 67, 359, 0, L"pale_moss_carpet", L"pale_moss", SWATCH_REPEAT_ALL },   // JG-RTX "pale_moss"
+    { 14, 67, 359, 0, L"pale_moss_carpet_side_small", L"pale_moss_carpet_side_base", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },   // JG-RTX second name
+    { 15, 67, 359, 0, L"pale_moss_carpet_side_tall", L"pale_moss_carpet_side_tip", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },   // JG-RTX second name
     {  0, 68, 388, 0, L"pale_moss_block", L"", SWATCH_REPEAT_ALL },
     {  1, 68, 358, 0, L"pale_hanging_moss", L"pale_hanging_moss_middle", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },   // JG-RTX second name
     {  2, 68, 358, 0, L"pale_hanging_moss_tip", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },

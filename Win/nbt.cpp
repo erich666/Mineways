@@ -382,6 +382,9 @@ static TranslationTuple* modTranslations = NULL;
 // active true|false - lowest bit
 // natural - ignored, not visual
 #define CREAKING_HEART_PROP 68
+// north/south/east/west - none, short, tall
+// ignore bottom
+#define PALE_MOSS_CARPET_PROP   69
 
 #define NUM_TRANS 1104
 
@@ -1485,7 +1488,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 193,       HIGH_BIT, "creaking_heart", CREAKING_HEART_PROP },
     { 0, 102,       HIGH_BIT, "pale_hanging_moss", NO_PROP },   // "tip" is always looked for and add 0x1
     { 0, 132,  HIGH_BIT | 60, "pale_moss_block", NO_PROP },
-    { 0,   7,       HIGH_BIT, "pale_moss_carpet", NO_PROP },
+    { 0, 103,       HIGH_BIT, "pale_moss_carpet", PALE_MOSS_CARPET_PROP },
     { 0,  14,       HIGH_BIT, "pale_oak_button", BUTTON_PROP },
     { 0,  15,       HIGH_BIT, "pale_oak_door", DOOR_PROP },
     { 0,  16,       HIGH_BIT, "pale_oak_fence", FENCE_AND_VINE_PROP },
@@ -1641,7 +1644,11 @@ void makeHashTable()
         // really, these should all be set properly already, but might as well make sure...
         for (i = 0; i < NUM_BLOCKS_DEFINED; i++) {
             // if you hit this assert, set the proper subtype_mask to be equal to mask_array's value here.
-            assert(gBlockDefinitions[i].subtype_mask == mask_array[i]);
+            // for an exact match:
+            //assert(gBlockDefinitions[i].subtype_mask == mask_array[i]);
+            // looser: subtype_mask could be set (and really, should be set) to show how many bits are available
+            // for separate block types in the future. If the current mask array is a subset of this mask, it's fine.
+            assert((gBlockDefinitions[i].subtype_mask & mask_array[i]) == mask_array[i]);
             gBlockDefinitions[i].subtype_mask = mask_array[i];
         }
 
@@ -3359,6 +3366,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
     axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
         delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt =
         thickness = vertical_direction = berries = flower_amount = orientation = 0;
+    int pmc = 0;
 
     // IMPORTANT: if any PROP field uses any of these:
     // triggered, extended, sticky, enabled, conditional, open, powered, face, has_book, powered, attachment, lit, signal_fire, honey_level
@@ -3782,15 +3790,56 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             north = (strcmp(value, "true") == 0);
                             // setting this bit means "make it a cross" - TODO, ran out of bits!
                             //redstone_side = (strcmp(value, "side") == 0) ? BIT_16 : 0;
-                        }
-                        else if (strcmp(token, "south") == 0) {
-                            south = (strcmp(value, "true") == 0);
+
+                            // for pale moss carpet, different meaning
+                            if (strcmp(value, "short") == 0)
+                            {
+                                pmc |= BIT_32;
+                            }
+                            else if (strcmp(value, "tall") == 0)
+                            {
+                                pmc |= 0x2 | BIT_32;
+                            }
                         }
                         else if (strcmp(token, "east") == 0) {
                             east = (strcmp(value, "true") == 0);
+
+                            // for pale moss carpet, different meaning
+                            if (strcmp(value, "short") == 0)
+                            {
+                                pmc |= BIT_32;
+                            }
+                            else if (strcmp(value, "tall") == 0)
+                            {
+                                pmc |= 0x4 | BIT_32;
+                            }
+                        }
+                        else if (strcmp(token, "south") == 0) {
+                            south = (strcmp(value, "true") == 0);
+
+                            // for pale moss carpet, different meaning
+                            // for pale moss carpet, different meaning
+                            if (strcmp(value, "short") == 0)
+                            {
+                                pmc |= BIT_32;
+                            }
+                            else if (strcmp(value, "tall") == 0)
+                            {
+                                pmc |= 0x8 | BIT_32;
+                            }
                         }
                         else if (strcmp(token, "west") == 0) {
                             west = (strcmp(value, "true") == 0);
+
+                            // for pale moss carpet, different meaning
+                            if (strcmp(value, "short") == 0)
+                            {
+                                pmc |= BIT_32;
+                            }
+                            else if (strcmp(value, "tall") == 0)
+                            {
+                                pmc |= BIT_16 | BIT_32;
+                            }
                         }
                         else if (strcmp(token, "up") == 0) {
                             up = (strcmp(value, "true") == 0);
@@ -4737,6 +4786,11 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
 				// for creaking heart, should already have active bit set
 				dataVal |= axis;
 				break;
+            case PALE_MOSS_CARPET_PROP:
+                // "bottom" is bit 0x1
+                // BIT_32 gets set if there is at least one short/tall side
+                dataVal |= pmc ;
+                pmc = 0;
             }
 
             // make sure upper bits are not set - they should not be! Well, except for heads. So, comment out this test
