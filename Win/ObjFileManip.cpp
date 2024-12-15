@@ -4649,6 +4649,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_CAVE_VINES:
     case BLOCK_CAVE_VINES_LIT:
     case BLOCK_TORCHFLOWER_CROP:
+    case BLOCK_PALE_HANGING_MOSS:
         return saveBillboardFaces(boxIndex, type, BB_FULL_CROSS);
         break;	// saveBillboardOrGeometry
 
@@ -13828,6 +13829,10 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         // swatch is indexed directly by dataVal
         swatchLoc += (dataVal & 0x7) + ((dataVal & 0x8) ? 5 : 0);
         break;
+    case BLOCK_PALE_HANGING_MOSS:
+        // add one if tip 0x1 on, i.e., just add the data val
+        swatchLoc += (dataVal & 0x1);
+        break;
     case BLOCK_CAVE_VINES:
     case BLOCK_CAVE_VINES_LIT:
         // doesn't see to wobble: wobbleIt = true;
@@ -19207,6 +19212,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_SEAGRASS:
         case BLOCK_CONDUIT:
         case BLOCK_POINTED_DRIPSTONE:
+        case BLOCK_PALE_HANGING_MOSS:
         case BLOCK_SPORE_BLOSSOM:
         case BLOCK_GLOW_LICHEN:
         case BLOCK_SCULK_VEIN:
@@ -24534,7 +24540,7 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
         break;
     case BLOCK_COPPER_BULB:
         if (splitByBlockType) {
-            // top 2 bits are 0x8 lit and 0x10 powered_bit - lit matters, powered_bit does not
+            // top bit is 0x8 lit - lit matters, powered_bit does not
             if (dataVal & 0x8) {
                 // Light levels:
                 // Unoxidized: 15

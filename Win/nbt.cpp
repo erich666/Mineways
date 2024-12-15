@@ -1483,7 +1483,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  37,              2, "closed_eyeblossom", NO_PROP },
     { 0,  37,              3, "open_eyeblossom", NO_PROP },
     { 0, 193,       HIGH_BIT, "creaking_heart", CREAKING_HEART_PROP },
-    { 0,   7,       HIGH_BIT, "pale_hanging_moss", NO_PROP },
+    { 0, 102,       HIGH_BIT, "pale_hanging_moss", NO_PROP },   // "tip" is always looked for and add 0x1
     { 0, 132,  HIGH_BIT | 60, "pale_moss_block", NO_PROP },
     { 0,   7,       HIGH_BIT, "pale_moss_carpet", NO_PROP },
     { 0,  14,       HIGH_BIT, "pale_oak_button", BUTTON_PROP },
@@ -3347,7 +3347,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
     // for doors
     bool half, north, south, east, west, down, lit, powered, triggered, extended, attached, disarmed,
         conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall, signal_fire, has_book,
-        up, hanging, crafting, powered_bit;
+        up, hanging, crafting;
     int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age,
         delay, locked, sticky, hatch, leaves, single, attachment, honey_level, stairs, bites, tilt,
         thickness, vertical_direction, berries, flower_amount, orientation;
@@ -3355,7 +3355,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
     int typeIndex = 0;
     half = north = south = east = west = down = lit = powered = triggered = extended = attached = disarmed
         = conditional = inverted = enabled = doubleSlab = mode = in_wall = signal_fire = has_book
-        = up = hanging = crafting = powered_bit = false; // waterlogged is always set false in loop
+        = up = hanging = crafting = false; // waterlogged is always set false in loop
     axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
         delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt =
         thickness = vertical_direction = berries = flower_amount = orientation = 0;
@@ -4168,9 +4168,9 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             crafting = (strcmp(value, "true") == 0) ? 1 : 0;
                         }
 
-                        // copper bulbs
-                        else if (strcmp(token, "powered_bit") == 0) {
-                            powered_bit = (strcmp(value, "true") == 0);
+                        // pale hanging moss
+                        else if (strcmp(token, "tip") == 0) {
+                            dataVal |= (strcmp(value, "true") == 0);
                         }
 
                         else if (strcmp(token, "active") == 0) {

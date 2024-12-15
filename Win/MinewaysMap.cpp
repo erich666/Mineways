@@ -5692,6 +5692,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_CAVE_VINES_LIT:
     case BLOCK_AZALEA:
     case BLOCK_CRYING_OBSIDIAN:
+    case BLOCK_PALE_HANGING_MOSS:
         // uses 0-1 
         if (dataVal < 2)
         {

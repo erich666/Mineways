@@ -440,12 +440,12 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 355 */ "Crimson Door",            		0x773851, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 43, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
     { /* 356 */ "Warped Door",            		0x2F817A, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 44, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
     { /* 357 */ "Pale Oak Trapdoor",     		0xE8DFDD, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 67, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_FLATTEN | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
-    { /* 358 */ "Warped Pressure Plate",  		0x2D6D68, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 44, 0x00, BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_CONNECTS_REDSTONE },
+    { /* 358 */ "Pale Hanging Moss",  	    	0x2D6D68, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 68, 0x00, BLF_FLATTEN | BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID },
     { /* 359 */ "Polished Blackstone Pressure Plate",0x37333D,1.000f,0xff7711,0xff7711,0.12345f, 4, 46, 0x00, BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_CONNECTS_REDSTONE },
     { /* 360 */ "Double Crimson Slab",   		0x7F7F83, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 43, 0x07, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_LAME_WATERLOG | BLF_MAYWATERLOG }, // bizarrely, may waterlog, though pretty pointless; important for instancing
     { /* 361 */ "Crimson Slab",				    0x693249, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 43, 0x07, BLF_HALF | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 362 */ "Soul Torch",					0x64B4B7, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 42, 0x00, BLF_MIDDLER | BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_EMITTER | BLF_DNE_FLUID },	// should be BLF_EMITTER, flatten torches only if sides get flattened, too
-    { /* 363 */ "Weeping Vines",		  		0x8D211A, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 43, 0x23, BLF_FLATTEN | BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_MAYWATERLOG },    // hanging roots may waterlog
+    { /* 363 */ "Weeping Vines",		  		0x656963, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 43, 0x23, BLF_FLATTEN | BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_MAYWATERLOG },    // hanging roots may waterlog
     { /* 364 */ "Chain",		          		0x3E4453, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 46, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_CUTOUTS | BLF_MAYWATERLOG },    // removed | BLF_FLATTEN_SMALL - seemed debatable
     { /* 365 */ "Stone Stairs",          		0x7C7C7C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1,  0, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 366 */ "Granite Stairs",          		0xA77562, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 22, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
