@@ -904,7 +904,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             if (loadWorldList(GetMenu(hWnd)))
             {
                 LOG_INFO(gExecutionLogfile, "   world not converted\n");
-                int retcode = FilterMessageBox(NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format. These worlds will be shown as disabled in the Open World menu.\n\nYou might be trying to read a world from Minecraft for Windows 10. Mineways cannot read this type of world, as it is in a different ('Bedrock') format. Go to https://bit.ly/mcbedrock and follow the instructions there to convert your world to the 'Classic' Java format, which Mineways can read. If instead this world is from an early version of Classic Minecraft, load it into the latest Minecraft to convert it. A third possibility is that this is some modded world in a format that Mineways does not support. There's not a lot that can be done about that, but feel free to contact me on Discord or by email. See the http://mineways.com site for support information."),
+                int retcode = FilterMessageBox(NULL, _T("Warning:\nAt least one of your worlds has not been converted to the Anvil format. These worlds will be shown as disabled in the Open World menu.\n\nYou might be trying to read a world from Minecraft for Windows 10. Mineways cannot read this type of world, as it is in a different ('Bedrock') format. Go to https://bit.ly/mcbedrock and follow the instructions there to convert your world to the 'Classic' Java format, which Mineways can read. If instead this world is from an early version of Classic Minecraft, load it into the latest Minecraft to convert it. A third possibility is that this is some modded world in a format that Mineways does not support. There's not a lot that can be done about that, but feel free to contact me on Discord or by email. See the https://www.realtimerendering.com/erich/minecraft/public/mineways site for support information."),
                     _T("Warning"), MB_OKCANCEL | MB_ICONWARNING | MB_TOPMOST);
                 GoToBedrockHelpOnOK(retcode);
             }
@@ -1852,19 +1852,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
                 break;
             case IDM_HELP_URL:
-                ShellExecute(NULL, L"open", L"http://mineways.com/reference.html", NULL, NULL, SW_SHOWNORMAL);
+                ShellExecute(NULL, L"open", L"https://www.realtimerendering.com/erich/minecraft/public/mineways/reference.html", NULL, NULL, SW_SHOWNORMAL);
                 break;
             case ID_HELP_TROUBLESHOOTING:
-                ShellExecute(NULL, L"open", L"http://mineways.com/downloads.html#windowsPlatformHelp", NULL, NULL, SW_SHOWNORMAL);
+                ShellExecute(NULL, L"open", L"https://www.realtimerendering.com/erich/minecraft/public/mineways/downloads.html#windowsPlatformHelp", NULL, NULL, SW_SHOWNORMAL);
                 break;
             case ID_HELP_DOCUMENTATION:
-                ShellExecute(NULL, L"open", L"http://mineways.com/mineways.html", NULL, NULL, SW_SHOWNORMAL);
+                ShellExecute(NULL, L"open", L"https://www.realtimerendering.com/erich/minecraft/public/mineways/mineways.html", NULL, NULL, SW_SHOWNORMAL);
                 break;
             case ID_HELP_REPORTABUG:
-                ShellExecute(NULL, L"open", L"http://mineways.com/contact.html", NULL, NULL, SW_SHOWNORMAL);
+                ShellExecute(NULL, L"open", L"https://www.realtimerendering.com/erich/minecraft/public/mineways/contact.html", NULL, NULL, SW_SHOWNORMAL);
                 break;
             case ID_FILE_DOWNLOADTERRAINFILES:
-                ShellExecute(NULL, L"open", L"http://mineways.com/textures.html#dl", NULL, NULL, SW_SHOWNORMAL);
+                ShellExecute(NULL, L"open", L"https://www.realtimerendering.com/erich/minecraft/public/mineways/textures.html#dl", NULL, NULL, SW_SHOWNORMAL);
                 break;
             case IDM_FOCUSVIEW:
                 setLocationData((int)gCurX, (int)gCurZ);
