@@ -689,7 +689,7 @@ static void decrementNeighbors(int boxIndex);
 static float computeHidingDistance(Point loc1, Point loc2, float norm);
 static void boxIndexToLoc(IPoint loc, int boxIndex);
 
-static void deleteFloatingGroups();
+static void processFloatingGroups(bool trulyDelete);
 static int determineScaleAndHollowAndMelt();
 static void scaleByCost();
 static void hollowBottomOfModel();
@@ -3377,15 +3377,18 @@ static int filterBox(ChangeBlockCommand* pCBC)
             // Now delete any tiny objects, unless there's only one group
             // Make this an option, as a person could be making "charms" and having
             // a bunch of little objects in a single order.
+
+            // always process floating groups, either to delete them or to record statistics about them - affects gSolidGroups
+            processFloatingGroups((gModel.options->exportFlags& EXPT_DELETE_FLOATING_OBJECTS) && (gSolidGroups > 1));
             if (gModel.options->exportFlags & EXPT_DELETE_FLOATING_OBJECTS)
             {
                 // delete only if there's more than one solid group. One solid group means this is the object to output.
-                if (gSolidGroups > 1)
-                {
+                //if (gSolidGroups > 1)
+                //{
                     // delete only groups that have a min Y > the base gMinY+1 level, i.e. aren't at ground level
                     // OR delete tree (even at ground level - who wants a tree that will fall over?).
-                    deleteFloatingGroups();
-                }
+                    //deleteFloatingGroups();
+                //}
 
                 // it's possible that all groups are deleted
                 if (gSolidGroups == 0)
@@ -16617,7 +16620,7 @@ static void boxIndexToLoc(IPoint loc, int boxIndex)
 }
 
 
-static void deleteFloatingGroups()
+static void processFloatingGroups(bool trulyDelete)
 {
     BoxGroup* pGroup;
     int deleteGroup;
@@ -16716,7 +16719,7 @@ static void deleteFloatingGroups()
                 }
             }
             // ok, tests done: delete?
-            if (deleteGroup)
+            if (deleteGroup && trulyDelete)
             {
                 assert(i == pGroup->groupID);
                 neighborGroups = (int*)calloc((gGroupCount + 1), sizeof(int));
