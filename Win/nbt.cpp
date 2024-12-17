@@ -382,7 +382,7 @@ static TranslationTuple* modTranslations = NULL;
 // active true|false - lowest bit
 // natural - ignored, not visual
 #define CREAKING_HEART_PROP 68
-// north/south/east/west - none, short, tall
+// north/south/east/west - none, low, tall; only tall gets a 0x1 in the four 0x1e bits
 // ignore bottom
 #define PALE_MOSS_CARPET_PROP   69
 
@@ -3792,7 +3792,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             //redstone_side = (strcmp(value, "side") == 0) ? BIT_16 : 0;
 
                             // for pale moss carpet, different meaning
-                            if (strcmp(value, "short") == 0)
+                            if (strcmp(value, "low") == 0)
                             {
                                 pmc |= BIT_32;
                             }
@@ -3804,8 +3804,10 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         else if (strcmp(token, "east") == 0) {
                             east = (strcmp(value, "true") == 0);
 
-                            // for pale moss carpet, different meaning
-                            if (strcmp(value, "short") == 0)
+                            // for pale moss carpet, different meaning;
+                            // note that walls also have these set, so we need to clear out pmc every time!
+                            // Can't shove into dataVal, as that wipes out wall type info, etc.
+                            if (strcmp(value, "low") == 0)
                             {
                                 pmc |= BIT_32;
                             }
@@ -3819,7 +3821,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
 
                             // for pale moss carpet, different meaning
                             // for pale moss carpet, different meaning
-                            if (strcmp(value, "short") == 0)
+                            if (strcmp(value, "low") == 0)
                             {
                                 pmc |= BIT_32;
                             }
@@ -3832,7 +3834,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             west = (strcmp(value, "true") == 0);
 
                             // for pale moss carpet, different meaning
-                            if (strcmp(value, "short") == 0)
+                            if (strcmp(value, "low") == 0)
                             {
                                 pmc |= BIT_32;
                             }
@@ -3978,7 +3980,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         else if (strcmp(token, "hanging") == 0) {
                             hanging = (strcmp(value, "true") == 0);
                         }
-                        // for scaffolding
+                        // for scaffolding and pale moss carpet
                         else if (strcmp(token, "bottom") == 0) {
                             dataVal = (strcmp(value, "true") == 0) ? 1 : 0;
                         }
@@ -4788,9 +4790,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
 				break;
             case PALE_MOSS_CARPET_PROP:
                 // "bottom" is bit 0x1
-                // BIT_32 gets set if there is at least one short/tall side
-                dataVal |= pmc ;
-                pmc = 0;
+                // BIT_32 gets set if there is at least one low/tall side
+                dataVal |= pmc;
             }
 
             // make sure upper bits are not set - they should not be! Well, except for heads. So, comment out this test
@@ -4803,6 +4804,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
 
             paletteDataEntry[entryIndex] |= dataVal;
         }
+        // ugh, need to clear this out each time, whether it's used or not.
+        pmc = 0;
         entryIndex++;
     }
 

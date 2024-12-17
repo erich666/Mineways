@@ -5692,10 +5692,18 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_CAVE_VINES_LIT:
     case BLOCK_AZALEA:
     case BLOCK_CRYING_OBSIDIAN:
-    case BLOCK_PALE_HANGING_MOSS:
         // uses 0-1 
         if (dataVal < 2)
         {
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_PALE_HANGING_MOSS:
+        // uses 0-1, add stone above
+        if (dataVal < 2)
+        {
+            // put stone overhead
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
             addBlock = 1;
         }
         break;
@@ -5810,13 +5818,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = BLOCK_FARMLAND;
         }
         break;
-    case BLOCK_HEAD:
-        // uses 0-6
-        if (dataVal <= 6)
-        {
-            addBlock = 1;
-        }
-        break;
     case BLOCK_CRAFTING_TABLE:
     case BLOCK_PUMPKIN:
     case BLOCK_JACK_O_LANTERN:
@@ -5884,6 +5885,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_ANDESITE_DOUBLE_SLAB:
     case BLOCK_BAMBOO:
     case BLOCK_JIGSAW:
+    case BLOCK_HEAD:
         // uses 0-5 - could use more for 1.16 orientations, TODO
         if (dataVal < 6)
         {
@@ -7360,11 +7362,19 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 if (dataVal == 0) {
                     finalDataVal = BIT_32;
                     block->data[bi] = (unsigned char)HIGH_BIT;
+                    // hang off something
+                    bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 2, 4 + (dataVal % 2) * 8);
+                    block->grid[bi] = (unsigned char)BLOCK_STONE;
                 }
                 else {
                     // twisting vines are 0x1
                     block->data[bi] = (unsigned char)(HIGH_BIT | BIT_32 | 0x1);
                 }
+            }
+            else {
+                // hang off something
+                bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
+                block->grid[bi] = (unsigned char)BLOCK_STONE;
             }
         }
         break;
@@ -7634,6 +7644,48 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
 		    // always add the block, since we know we're above 16
 		    addBlock = 1;
             addDiagonalBlocksToMap(26, y, type, dataVal, finalDataVal, typeHighBit, block);
+        }
+        break;
+
+    case BLOCK_CREAKING_HEART:
+        // 0-1,4-5,8-9
+        if (dataVal <= 1 || dataVal == 4 || dataVal == 5 || dataVal == 8 || dataVal == 9) {
+            addBlock = 1;
+        }
+        break;
+
+    case BLOCK_PALE_MOSS_CARPET:
+        // 0,1,2+32 to 15+32 (could go higher)
+        addBlock = 1;
+        if (dataVal > 1) {
+            // note there could be low (or tall) plants, and always have a bottom
+            finalDataVal = (BIT_32 + dataVal) | 0x1;
+            if ((dataVal & 0x1) == 0x0) {
+                // mask off "tall" bits so short walls appear
+                finalDataVal &= (BIT_32 | 0x1);
+            }
+            // put moss block next to each side needed
+            if (dataVal & 0x2) {
+                // put moss block to north
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = (unsigned char)(BLOCK_AMETHYST & 0xff);
+                block->data[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = HIGH_BIT | 60;
+            }
+            if (dataVal & 0x4) {
+                // put moss block to east
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned char)(BLOCK_AMETHYST & 0xff);
+                block->data[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = HIGH_BIT | 60;
+            }
+            if (dataVal & 0x8) {
+                // put moss block to south
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = (unsigned char)(BLOCK_AMETHYST & 0xff);
+                block->data[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = HIGH_BIT | 60;
+            }
+            // currently not done
+            if (dataVal & 0x10) {
+                // put moss block to west
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned char)(BLOCK_AMETHYST & 0xff);
+                block->data[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = HIGH_BIT | 60;
+            }
         }
         break;
 

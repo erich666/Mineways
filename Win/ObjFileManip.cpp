@@ -3722,7 +3722,6 @@ static int computeFlatFlags(int boxIndex)
     case BLOCK_FROGSPAWN:
     case BLOCK_PINK_PETALS:
     case BLOCK_TORCHFLOWER_CROP:
-    case BLOCK_PALE_MOSS_CARPET:
         //case BLOCK_CHAIN:   // questionable: should a chain (offset to the edge!) really be flattened onto the neighbor below?
         gBoxData[boxIndex - 1].flatFlags |= FLAT_FACE_ABOVE;
         break;
@@ -3794,6 +3793,24 @@ static int computeFlatFlags(int boxIndex)
         default:
             // don't do anything, this torch is not touching a side
             break;
+        }
+        break;
+
+    case BLOCK_PALE_MOSS_CARPET:						// computeFlatFlags
+        if (gBoxData[boxIndex].data & 0x1) {
+            gBoxData[boxIndex - 1].flatFlags |= FLAT_FACE_ABOVE;
+        }
+        if (gBoxData[boxIndex].data & 0x2) {    // south, -Z (northern facing) face
+            gBoxData[boxIndex + gBoxSize[Y]].flatFlags |= FLAT_FACE_LO_Z;
+        }
+        if (gBoxData[boxIndex].data & 0x4) { // west, +X
+            gBoxData[boxIndex - gBoxSizeYZ].flatFlags |= FLAT_FACE_HI_X;
+        }
+        if (gBoxData[boxIndex].data & 0x8) {    // north, +Z
+            gBoxData[boxIndex - gBoxSize[Y]].flatFlags |= FLAT_FACE_HI_Z;
+        }
+		if (gBoxData[boxIndex].data & BIT_16) { // east, -X
+            gBoxData[boxIndex + gBoxSizeYZ].flatFlags |= FLAT_FACE_LO_X;
         }
         break;
 
@@ -4178,6 +4195,11 @@ static int computeFlatFlags(int boxIndex)
 
     case BLOCK_REDSTONE_WIRE:						// computeFlatFlags
         computeRedstoneConnectivity(boxIndex);
+        break;
+
+    case BLOCK_PALE_HANGING_MOSS:						// computeFlatFlags
+        // moss goes up
+        gBoxData[boxIndex + 1].flatFlags |= FLAT_FACE_BELOW;
         break;
 
     case BLOCK_WEEPING_VINES:						// computeFlatFlags
@@ -6064,7 +6086,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
     case BLOCK_PALE_MOSS_CARPET:						// saveBillboardOrGeometry
         // bit 1 - bottom
-        // bit 2,4,5,16 - sides short/tall (only if neighbor is moss block!)
+        // bit 2,4,8,16 - sides short/tall (only if neighbor is moss block!)
         // bit 32 - are there any sides at all, for a quick out; optional
         firstFace = 1;
         swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
@@ -6082,38 +6104,48 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             }
         }
         // add sides, if found
-    //    if (dataVal & BIT_32) {
-    //        swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-    //        int dirDataVal = dataVal & 0x7f;
-    //        // TODO: have to check neighbor to see if short or tall is used
-    //        for (i = 0; i < 4; i++) {
-    //            int dv3 = dirDataVal % 3;
-				//if (dv3) {
-				//	// add side
-    //                switch (i) {
-    //     case 0:
-    //                    // north
-    //                    saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc + dv3, firstFace, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_TOP_BIT, 0, 16, 0, 16, 1, 1);
-    //                    break;
-    //                case 2:
-    //                    // east
-    //                    saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc + dv3, firstFace, DIR_BOTTOM_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT, 15, 15, 0, 16, 0, 16);
-    //                    break;
-    //                case 3:
-    //                    // south
-    //                    saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc + dv3, firstFace, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_TOP_BIT, 0, 16, 0, 16, 15, 15);
-    //                    break;
-    //                case 4:
-    //                    // west
-    //                    saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc + dv3, firstFace, DIR_BOTTOM_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT, 1, 1, 0, 16, 0, 16);
-    //                    break;
-    //                }
-    //                firstFace = 0;
-				//}
-    //            // next 0-2 for next direction
-    //            dirDataVal /= 3;
-    //        }
-    //    }
+        if (dataVal & BIT_32) {
+            swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            int dirDataVal = (dataVal & 0x1e)>>1;
+            // have to check neighbor to see if it's a moss block, and so whether short is actually used (tall has a bit, short does not,
+            // so shows up only if there's a moss block next door).
+            for (i = 0; i < 4; i++) {
+                int dv2 = dirDataVal & 0x1;
+				// add side
+                switch (i) {
+                case 0:
+                    // north
+                    if (dv2 || (gBoxData[boxIndex - gBoxSize[Y]].type == BLOCK_AMETHYST && (gBoxData[boxIndex - gBoxSize[Y]].data & 0x7f) == 60)) {
+                        saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc + dv2 + 1, firstFace, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_TOP_BIT, 0, 16, 0, 16, 0.25f, 0.25f);
+                        firstFace = 0;
+                    }
+                    break;
+                case 1:
+                    // east
+                    if (dv2 || (gBoxData[boxIndex + gBoxSizeYZ].type == BLOCK_AMETHYST && (gBoxData[boxIndex + gBoxSizeYZ].data & 0x7f) == 60)) {
+                        saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc + dv2 + 1, firstFace, DIR_BOTTOM_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT, 16 - 0.25f, 16 - 0.25f, 0, 16, 0, 16);
+                        firstFace = 0;
+                    }
+                    break;
+                case 2:
+                    // south
+                    if (dv2 || (gBoxData[boxIndex + gBoxSize[Y]].type == BLOCK_AMETHYST && (gBoxData[boxIndex + gBoxSize[Y]].data & 0x7f) == 60)) {
+                        saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc + dv2 + 1, firstFace, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT, 0, 16, 0, 16, 16 - 0.25f, 16 - 0.25f);
+                        firstFace = 0;
+                    }
+                    break;
+                case 3:
+                    // west
+                    if (dv2 || (gBoxData[boxIndex - gBoxSizeYZ].type == BLOCK_AMETHYST && (gBoxData[boxIndex - gBoxSizeYZ].data & 0x7f) == 60)) {
+                        saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc + dv2 + 1, firstFace, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT, 0.25f, 0.25f, 0, 16, 0, 16);
+                        firstFace = 0;
+                    }
+                    break;
+                }
+                // next 0-1 for next direction
+                dirDataVal = dirDataVal >> 1;
+            }
+        }
         break; // saveBillboardOrGeometry
 
     case BLOCK_OAK_WOOD_STAIRS:						// saveBillboardOrGeometry
@@ -7011,52 +7043,52 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         //		return 0;
         //}
         gUsingTransform = 1;
-        saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 0, 16, 13, 16, 0, 16);
+        swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, FLIP_TOP_V_VALUES, 0, 16, 13, 16, 0, 16);
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
-        // rotate 180 on up axis
-        rotateMtx(mtx, 0.0f, 180.0f, 0.0f);
 		// lower from 13-16 height to 0-3 height
         translateMtx(mtx, 0.0f, -13.0f / 16.0f, 0.0f);
         // undo translation to origin
+
+        // 0x4 means rotated up or down
+        if (dataVal & 0x4)
+        {
+            translateMtx(mtx, 0.0f, 0.5f - 1.5f / 16.0f, -6.5f / 16.0f);
+            rotateMtx(mtx, (dataVal & 0x8) ? 90.0f : -90.0f, 0.0f, 0.0f);
+            translateMtx(mtx, 0.0f, -0.5f + 1.5f / 16.0f,6.5f / 16.0f);
+        }
+
+        // 0x3 is which edge hinge is at
+        switch (dataVal & 0x3)
+        {
+        default:    // make compiler happy
+        case 0: // south
+            angle = 0.0f;
+            break;
+        case 1: // north
+            angle = 180.0f;
+            break;
+        case 2: // east
+            angle = 270.0f;
+            break;
+        case 3: // west
+            angle = 90.0f;
+            break;
+        }
+        // rotate into position
+        rotateMtx(mtx, 0.0f, angle, 0.0f);
+
+        // attached at top vs. bottom
+        if (dataVal & 0x8)
+        {
+            translateMtx(mtx, 0.0f, 13.0f / 16.0f, 0.0f);
+        }
+
+        // undo translation to origin and perform transform
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(8, mtx);
         gUsingTransform = 0;
-        // rotate as needed
-        if (dataVal & 0x4)
-        {
-            switch (dataVal & 0x3)
-            {
-            default:    // make compiler happy
-            case 0: // south
-                angle = 180.0f;
-                break;
-            case 1: // north
-                angle = 0.0f;
-                break;
-            case 2: // east
-                angle = 90.0f;
-                break;
-            case 3: // west
-                angle = 270.0f;
-                break;
-            }
-            identityMtx(mtx);
-            translateToOriginMtx(mtx, boxIndex);
-            translateMtx(mtx, 0.0f, 0.5f - 1.5f / 16.0f, 6.5f / 16.0f);
-            rotateMtx(mtx, 90.0f, 0.0f, 0.0f);
-            translateMtx(mtx, 0.0f, -0.5f + 1.5f / 16.0f, -6.5f / 16.0f);
-            rotateMtx(mtx, 0.0f, angle, 0.0f);
-            // undo translation
-            translateFromOriginMtx(mtx, boxIndex);
-            transformVertices(8, mtx);
-        }
-        else if (dataVal & 0x8)
-        {
-            identityMtx(mtx);
-            translateMtx(mtx, 0.0f, 13.0f / 16.0f, 0.0f);
-            transformVertices(8, mtx);
-        }
         break; // saveBillboardOrGeometry
 
     case BLOCK_SIGN_POST:						// saveBillboardOrGeometry
@@ -13255,8 +13287,18 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
                 }
                 break;
 
-            case BLOCK_CARPET:
             case BLOCK_PALE_MOSS_CARPET:
+                if (dataVal & 0x1) {
+                    // has a base
+                    setTop = 1;
+                }
+                else {
+                    // no coverage - has no base
+                    return 0;
+                }
+                break;
+
+            case BLOCK_CARPET:
                 setTop = 1;
                 break;
 
@@ -23769,6 +23811,36 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             break;
 
+        case BLOCK_PALE_MOSS_CARPET:						// getSwatch
+            switch (faceDirection)
+            {
+            default:
+            case DIRECTION_BLOCK_SIDE_LO_X:
+                swatchLoc += (dataVal & BIT_16) ? 2 : 1;
+                break;
+            case DIRECTION_BLOCK_SIDE_HI_X:
+                swatchLoc += (dataVal & 0x4) ? 2 : 1;
+                break;
+            case DIRECTION_BLOCK_SIDE_LO_Z:
+                swatchLoc += (dataVal & 0x8) ? 2 : 1;
+                break;
+            case DIRECTION_BLOCK_SIDE_HI_Z:
+                swatchLoc += (dataVal & 0x2) ? 2 : 1;
+                break;
+            case DIRECTION_BLOCK_BOTTOM:
+                // should never get used
+                assert(0);
+                break;
+            case DIRECTION_BLOCK_TOP:
+                // no change, use default
+                break;
+            }
+            if (faceDirection != DIRECTION_BLOCK_TOP) {
+                // sides are semitransparent, so need a composite swatch
+                swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
+            }
+            break;
+
         //================================================================================================
         default:
             // if something has cutouts, it almost assuredly needs to have a case above with a call to getCompositeSwatch()
@@ -26479,6 +26551,11 @@ static int createBaseMaterialTexture()
         // clear bottom half of torch
         setColorPNGArea(mainprog, col * gModel.swatchSize, row * gModel.swatchSize + gModel.tileSize * 10 / 16 + SWATCH_BORDER, gModel.swatchSize, gModel.tileSize * 6 / 16 + SWATCH_BORDER, 0x0);
 
+        // place emissive part of open_eyeblossom atop the open_eyeblossom tile itself.
+        // Note that the open_eyeblossom is *NOT* an emitter, so having the emissive bit as a separate texture is not
+        // particularly useful normally. Until someone has a great reason/begs/donates $1000 to a charity of my choice, that's that. :P
+        compositePNGSwatches(mainprog, SWATCH_INDEX(4, 68), SWATCH_INDEX(4, 68), SWATCH_INDEX(9, 68), gModel.swatchSize, gModel.swatchesPerRow/*, FORCE_CUTOUT*/);
+
         /////////////////////////////////////////////////////
         // Add compositing dot to 4-way wire template.
         // Note that currently we have only "wire on" for all wires, no "wire off". We'd need new templates for all wires off, and we'd need an extra bit
@@ -26590,7 +26667,6 @@ static int createBaseMaterialTexture()
         compositePNGSwatches(mainprog, REDSTONE_WIRE_ANGLED_2_OFF, REDSTONE_WIRE_DOT_OFF, REDSTONE_WIRE_ANGLED_2_OFF, gModel.swatchSize, gModel.swatchesPerRow/*, FORCE_CUTOUT*/);
         compositePNGSwatches(mainprog, REDSTONE_WIRE_3_OFF, REDSTONE_WIRE_DOT_OFF, REDSTONE_WIRE_3_OFF, gModel.swatchSize, gModel.swatchesPerRow/*, FORCE_CUTOUT*/);
         compositePNGSwatches(mainprog, REDSTONE_WIRE_4_OFF, REDSTONE_WIRE_DOT_OFF, REDSTONE_WIRE_4_OFF, gModel.swatchSize, gModel.swatchesPerRow/*, FORCE_CUTOUT*/);
-
 
         // Stretch tiles to fill the area
         // stretch only if we're exporting full blocks

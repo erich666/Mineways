@@ -2823,6 +2823,23 @@ When 3D printing, only the full, "all petals" texture is applied to surfaces.
 </td>
 </tr>
 
+<tr>
+<td>
+Open Eyeblossom
+</td>
+<td>
+<center>Billboards</center>
+</td>
+<td>
+<center>Flattened</center>
+</td>
+<td>
+<center>Flattened</center>
+</td>
+<td>
+The emissive texture (which does not actually shed light in Minecraft) is merged with the un-emissive texture when output. The full-featured way would be to output two separate models, but this is a fair bit of coding.
+</td>
+</tr>
 
 <tr>
 <td>
@@ -2835,7 +2852,6 @@ When 3D printing, only the full, "all petals" texture is applied to surfaces.
 Meant for map makers
 </td>
 </tr>
-
 
 </TABLE>
 
@@ -2862,14 +2878,14 @@ The textures and rules used in Minecraft for how blocks appear and connect have 
 From newest to oldest. The very newest is sometimes unreleased work in progress, with "*" meaning "to do" and "**" meaning "stretch goal."
 
 <UL>
-<LI>Version 12.03, 12/13/2024 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1203.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 12.03, 12/15/2024 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1203.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
     <UL>
 	<LI><a href="https://minecraft.wiki/w/Pale_Garden">Pale Garden</a> blocks and biome added.
 	<LI>Vines on the tops of blocks now export (kinda impossible normally, but let's support it). <I>(Thanks to MiniRehvaro for reporting this problem and providing a debug world.)</I>
 	<LI>Warnings now given in TileMaker if specular (_s.png) or MER (_mer.png) texture files are encountered, which require using ChannelMixer to generate the intermediate _m/_e_/_r.png files that TileMaker can process. <I>(Thanks to Jonathan Amme for reporting this bug.)</I>
 	<LI>If the player's location is in The Nether, it is not properly recorded for viewing there, or for its equivalent Overworld position. Test which dimension the player is in and, if in The Nether, multiply X and Z by 8 to give the Overworld coordinates. <I>(Thanks to zNightLord for filing <a href="https://github.com/erich666/Mineways/issues/129">this bug</a>.)</I>
-	<LI>Numerous small fixes, such as trapdoor textures better applied, names of some blocks fixed, etc.
+	<LI>Numerous small fixes, such as trapdoor textures better applied, names of some blocks fixed, Block Test World cleanups, direct secure URLs for help menu items, etc.
 	</UL>
 
 <LI>Version 12.02, 8/9/2024 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1202.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
@@ -4236,7 +4252,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 12/13/2024</p>
+		<br id="lastUpdate">Last updated 12/15/2024</p>
 	</div>
 </div>
 
