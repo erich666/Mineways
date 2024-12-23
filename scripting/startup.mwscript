@@ -1,12 +1,18 @@
 // startup.mwscript - A sample startup script for Mineways, called by mineways.bat in the directory above.
 // Does nothing by default, until you edit it. See comments below.
 //
-// version 1.00
+// version 1.01
 //
 // Use it by running from the command line or batch file:
-//     mineways.exe startup.script
+//     mineways.exe startup.mwscript
 //
 // Read more at http://mineways.com/scripting.html
+
+
+// If by default you want to export to three large images, instead of individual textures, uncomment these two lines:
+
+//Set render type: Wavefront OBJ absolute indices
+//File type: Export all textures to three large images
 
 
 // If you want to load a particular world on startup, choose the directory you want in your %appdata%\.minecraft\saves
@@ -15,7 +21,7 @@
 //     Minecraft world: Super Castle
 //     Minecraft world: c:\my world saves\cool build
 //
-// uncomment this line and fill it in:
+// Uncomment this line and fill it in:
 
 //Minecraft world: *put your world's folder name here*
 
