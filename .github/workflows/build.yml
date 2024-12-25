@@ -1,0 +1,21 @@
+name: Build
+
+on:
+  push:
+
+jobs:
+  build-for-windows:
+    name: Build for Windows
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: microsoft/setup-msbuild@v1.0.2
+      - run: msbuild Mineways.sln /p:Configuration=Release /p:Platform="x64"
+
+      - name: Upload .EXE artifact for Windows
+        if: success()
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-exe
+          path: D:\a\Mineways\Mineways\x64\Release\Mineways.exe
