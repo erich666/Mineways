@@ -107,7 +107,7 @@ static TranslationTuple* modTranslations = NULL;
 // locked: REPEATER_PROP
 // mode: STRUCTURE_PROP, COMPARATOR_PROP
 // moisture: FARMLAND_PROP
-// north|east|south|west[|up]: VINE_PROP, TRIPWIRE_PROP
+// north|east|south|west[|up|down]: VINE_PROP, TRIPWIRE_PROP
 // occupied: BED_PROP
 // open: DOOR_PROP, TRAPDOOR_PROP
 // part: BED_PROP
@@ -242,8 +242,8 @@ static TranslationTuple* modTranslations = NULL;
 // type: sticky|normal
 // short: true|false - TODO, piston arm is shorter by 4 pixels, https://minecraft.wiki/w/Piston#Block_state_2 - not sure how to generate this state, so leaving it alone
 #define PISTON_HEAD_PROP	 EXTENDED_FACING_PROP
-// south|west|north|east|down|up: true|false
-#define FENCE_AND_VINE_PROP	 34
+// south|west|north|east: true|false
+#define FENCE_PROP	 34
 // facing: south|west|north|east
 #define END_PORTAL_PROP		 35
 // age: 0-3
@@ -385,6 +385,8 @@ static TranslationTuple* modTranslations = NULL;
 // north/south/east/west - none, low, tall; only tall gets a 0x1 in the four 0x1e bits
 // ignore bottom
 #define PALE_MOSS_CARPET_PROP   69
+// south|west|north|east|down|up: true|false
+#define VINE_PROP	 70
 
 #define NUM_TRANS 1104
 
@@ -504,7 +506,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 160,          13, "green_stained_glass_pane", NO_PROP },
     { 0, 160,          14, "red_stained_glass_pane", NO_PROP },
     { 0, 160,          15, "black_stained_glass_pane", NO_PROP },
-    { 0, 102,           0, "glass_pane", FENCE_AND_VINE_PROP },
+    { 0, 102,           0, "glass_pane", FENCE_PROP },
     { 0,  37,           0, "dandelion", NO_PROP },
     { 0,  38,           0, "poppy", NO_PROP },
     { 0,  38,           1, "blue_orchid", NO_PROP },
@@ -635,12 +637,12 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 172,           0, "terracotta", NO_PROP },
     { 0,  83,           0, "sugar_cane", AGE_PROP },
     { 0,  84,           0, "jukebox", NO_PROP },
-    { 0,  85,           0, "oak_fence", FENCE_AND_VINE_PROP },
-    { 0, 188,           0, "spruce_fence", FENCE_AND_VINE_PROP },
-    { 0, 189,           0, "birch_fence", FENCE_AND_VINE_PROP },
-    { 0, 190,           0, "jungle_fence", FENCE_AND_VINE_PROP },
-    { 0, 191,           0, "dark_oak_fence", FENCE_AND_VINE_PROP },
-    { 0, 192,           0, "acacia_fence", FENCE_AND_VINE_PROP },
+    { 0,  85,           0, "oak_fence", FENCE_PROP },
+    { 0, 188,           0, "spruce_fence", FENCE_PROP },
+    { 0, 189,           0, "birch_fence", FENCE_PROP },
+    { 0, 190,           0, "jungle_fence", FENCE_PROP },
+    { 0, 191,           0, "dark_oak_fence", FENCE_PROP },
+    { 0, 192,           0, "acacia_fence", FENCE_PROP },
     { 0, 107,           0, "oak_fence_gate", FENCE_GATE_PROP },
     { 0, 183,           0, "spruce_fence_gate", FENCE_GATE_PROP },
     { 0, 184,           0, "birch_fence_gate", FENCE_GATE_PROP },
@@ -694,13 +696,13 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  97,           5, "infested_chiseled_stone_bricks", NO_PROP },
     { 0,  33,           0, "piston", PISTON_PROP },
     { 0,  29,           0, "sticky_piston", PISTON_PROP },
-    { 0, 101,           0, "iron_bars", FENCE_AND_VINE_PROP },
+    { 0, 101,           0, "iron_bars", FENCE_PROP },
     { 0, 103,           0, "melon", NO_PROP },
     { 0, 108,           0, "brick_stairs", STAIRS_PROP },
     { 0, 109,           0, "stone_brick_stairs", STAIRS_PROP },
-    { 0, 106,           0, "vine", FENCE_AND_VINE_PROP },
+    { 0, 106,           0, "vine", VINE_PROP },
     { 0, 112,           0, "nether_bricks", NO_PROP },
-    { 0, 113,           0, "nether_brick_fence", FENCE_AND_VINE_PROP },
+    { 0, 113,           0, "nether_brick_fence", FENCE_PROP },
     { 0, 114,           0, "nether_brick_stairs", STAIRS_PROP },
     { 0, 115,           0, "nether_wart", AGE_PROP },
     { 0, 118,           0, "cauldron", NO_PROP }, // level directly translates to dataVal, bottom two bits
@@ -743,7 +745,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 168,           2, "dark_prismarine", NO_PROP },
     { 0, 169,           0, "sea_lantern", NO_PROP },
     { 0, 198,           0, "end_rod", EXTENDED_FACING_PROP },
-    { 0, 199,           0, "chorus_plant", FENCE_AND_VINE_PROP },
+    { 0, 199,           0, "chorus_plant", VINE_PROP },
     { 0, 200,           0, "chorus_flower", NO_PROP },	// uses age
     { 0, 201,           0, "purpur_block", NO_PROP },
     { 0, 202,           0, "purpur_pillar", AXIS_PROP },
@@ -1150,8 +1152,8 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  92,       HIGH_BIT, "crimson_button", BUTTON_PROP },
     { 0,  93,       HIGH_BIT, "warped_button", BUTTON_PROP },
     { 0,  94,       HIGH_BIT, "polished_blackstone_button", BUTTON_PROP },
-    { 0,  95,       HIGH_BIT, "crimson_fence", FENCE_AND_VINE_PROP },
-    { 0,  96,       HIGH_BIT, "warped_fence", FENCE_AND_VINE_PROP },
+    { 0,  95,       HIGH_BIT, "crimson_fence", FENCE_PROP },
+    { 0,  96,       HIGH_BIT, "warped_fence", FENCE_PROP },
     { 0,  97,       HIGH_BIT, "crimson_fence_gate", FENCE_GATE_PROP },
     { 0,  98,       HIGH_BIT, "warped_fence_gate", FENCE_GATE_PROP },
     { 0,  99,       HIGH_BIT, "crimson_door", DOOR_PROP },
@@ -1277,7 +1279,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 132,  HIGH_BIT | 24, "rooted_dirt", NO_PROP },
     { 0, 107,   HIGH_BIT | 2, "hanging_roots", TRULY_NO_PROP },  // weeping vines
     { 0, 132,  HIGH_BIT | 25, "powder_snow", NO_PROP },
-    { 0, 154,       HIGH_BIT, "glow_lichen", FENCE_AND_VINE_PROP },
+    { 0, 154,       HIGH_BIT, "glow_lichen", VINE_PROP },
     { 0, 155,       HIGH_BIT, "sculk_sensor", CALIBRATED_SCULK_SENSOR_PROP },   // doesn't really need facing for this one, but sculk_sensor_phase is used
     { 0, 216,              3, "deepslate", AXIS_PROP }, // with bone block, basalt, etc.
     { 0, 132,  HIGH_BIT | 26, "cobbled_deepslate", NO_PROP },
@@ -1338,7 +1340,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 172,       HIGH_BIT, "mangrove_wall_sign", WALL_SIGN_PROP },
     { 0,  70,          18, "mangrove_pressure_plate", PRESSURE_PROP },
     { 0, 174,       HIGH_BIT, "mangrove_button", BUTTON_PROP },
-    { 0, 175,       HIGH_BIT, "mangrove_fence", FENCE_AND_VINE_PROP },
+    { 0, 175,       HIGH_BIT, "mangrove_fence", FENCE_PROP },
     { 0, 176,       HIGH_BIT, "mangrove_fence_gate", FENCE_GATE_PROP },
     { 0, 132,  HIGH_BIT | 44, "mud", NO_PROP },
     { 0, 132,  HIGH_BIT | 45, "mud_bricks", NO_PROP },
@@ -1348,7 +1350,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 132,  HIGH_BIT | 47, "sculk", NO_PROP },
     { 0,  88,   HIGH_BIT | 1, "sculk_catalyst", NO_PROP },  // part of crying obsidian, as it emits
     { 0, 177,       HIGH_BIT, "sculk_shrieker", NO_PROP },
-    { 0, 178,       HIGH_BIT, "sculk_vein", FENCE_AND_VINE_PROP },
+    { 0, 178,       HIGH_BIT, "sculk_vein", VINE_PROP },
     { 0, 179,       HIGH_BIT, "frogspawn", NO_PROP },
     { 0, 180,       HIGH_BIT, "ochre_froglight", AXIS_PROP },
     { 0, 180,   HIGH_BIT | 1, "verdant_froglight", AXIS_PROP },
@@ -1359,7 +1361,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 155, HIGH_BIT | 0x4, "calibrated_sculk_sensor", CALIBRATED_SCULK_SENSOR_PROP }, // also power and sculk_sensor_phase, but not needed so not saved
     { 0, 182,       HIGH_BIT, "cherry_button", BUTTON_PROP },
     { 0, 183,       HIGH_BIT, "cherry_door", DOOR_PROP },
-    { 0, 184,       HIGH_BIT, "cherry_fence", FENCE_AND_VINE_PROP },
+    { 0, 184,       HIGH_BIT, "cherry_fence", FENCE_PROP },
     { 0, 185,       HIGH_BIT, "cherry_fence_gate", FENCE_GATE_PROP },
     { 0, 181,   HIGH_BIT | 1, "cherry_leaves", LEAF_PROP },
     { 0, 160,   HIGH_BIT | 1, "cherry_log", AXIS_PROP },
@@ -1378,7 +1380,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 170,              1, "bamboo_block", AXIS_PROP },
     { 0, 189,       HIGH_BIT, "bamboo_button", BUTTON_PROP },
     { 0, 190,       HIGH_BIT, "bamboo_door", DOOR_PROP },
-    { 0, 191,       HIGH_BIT, "bamboo_fence", FENCE_AND_VINE_PROP },
+    { 0, 191,       HIGH_BIT, "bamboo_fence", FENCE_PROP },
     { 0, 192,       HIGH_BIT, "bamboo_fence_gate", FENCE_GATE_PROP },
     { 0,   5,             10, "bamboo_planks", NO_PROP },
     { 0,  70,          22, "bamboo_pressure_plate", PRESSURE_PROP },
@@ -1491,7 +1493,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 103,       HIGH_BIT, "pale_moss_carpet", PALE_MOSS_CARPET_PROP },
     { 0,  14,       HIGH_BIT, "pale_oak_button", BUTTON_PROP },
     { 0,  15,       HIGH_BIT, "pale_oak_door", DOOR_PROP },
-    { 0,  16,       HIGH_BIT, "pale_oak_fence", FENCE_AND_VINE_PROP },
+    { 0,  16,       HIGH_BIT, "pale_oak_fence", FENCE_PROP },
     { 0,  17,       HIGH_BIT, "pale_oak_fence_gate", FENCE_GATE_PROP },
     { 0, 208, HIGH_BIT | BIT_32, "pale_oak_hanging_sign", ATTACHED_HANGING_SIGN },    // atop bamboo_hanging_sign
     { 0, 181,   HIGH_BIT | 2, "pale_oak_leaves", LEAF_PROP },
@@ -1515,7 +1517,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 173,       HIGH_BIT, "resin_brick_stairs", STAIRS_PROP },
     { 0, 139,	          25, "resin_brick_wall", WALL_PROP },
     { 0, 132,  HIGH_BIT | 63, "resin_bricks", NO_PROP },
-    { 0, 186,       HIGH_BIT, "resin_clump", FENCE_AND_VINE_PROP },
+    { 0, 186,       HIGH_BIT, "resin_clump", VINE_PROP },
     { 0, 167,   HIGH_BIT | 2, "stripped_pale_oak_log", AXIS_PROP },
     { 0, 168,   HIGH_BIT | 2, "stripped_pale_oak_wood", AXIS_PROP },
 
@@ -4548,12 +4550,16 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 // note that "occupied" will not be set if GRAPHICAL_ONLY is defined
                 dataVal = ((door_facing + 3) % 4) + part + occupied;
                 break;
-            case FENCE_AND_VINE_PROP:
+            case FENCE_PROP:
+                dataVal = (south ? 1 : 0) | (west ? 2 : 0) | (north ? 4 : 0) | (east ? 8 : 0);
+                break;
+            case VINE_PROP:
                 // Note that for vines, 0 means there's one "above" (really, underneath).
                 // When there's one above, there (happily) cannot be east/west/n/s, so
                 // no extra bit is needed or used internally.
                 dataVal = (south ? 1 : 0) | (west ? 2 : 0) | (north ? 4 : 0) | (east ? 8 : 0) | (down ? BIT_16 : 0) | (up ? BIT_32 : 0);
                 // if you "cheat" you can put vines on all six sides. Sure, let's support that.
+                // You can see this in the debug world at 87,70,97 for glow lichen, for example.
                 if (dataVal == 0x0) {
                     dataVal = 0x3F; // all sides
                 }

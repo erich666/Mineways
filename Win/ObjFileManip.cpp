@@ -13502,8 +13502,8 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 {
     int i, j, fc, swatchLoc;  // cppcheck-suppress 398
     FaceRecord* face;
-    int faceDir[2 * 5];			// vines need 5 total
-    Point vertexOffsets[5][4];	// vines need 5 total, if one is under the block
+    int faceDir[2 * 6];			// vines need 6 total
+    Point vertexOffsets[6][4];	// vines need 6 total, if one is under and another is over the block
     IPoint anchor;
     int faceCount = 0;
     int startVertexCount = 0;  // cppcheck-suppress 398
@@ -14484,22 +14484,20 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
                 Vec3Scalar(vertexOffsets[billCount][3], =, 0.0f, 1.0f - ONE_PIXEL + shiftY, 1.0f);
                 billCount++;
                 assert(billCount <= 5);
-                break;
             }
             if (lichenOverBlock) {
                 // lichen over block
                 // two paired billboards
                 faceDir[faceCount++] = DIRECTION_BLOCK_BOTTOM;
                 faceDir[faceCount++] = DIRECTION_BLOCK_TOP;
-                assert(faceCount <= 10);
+                assert(faceCount <= 12);
 
                 Vec3Scalar(vertexOffsets[billCount][0], =, 1.0f, ONE_PIXEL - shiftY, 1.0f);
                 Vec3Scalar(vertexOffsets[billCount][1], =, 0.0f, ONE_PIXEL - shiftY, 1.0f);
                 Vec3Scalar(vertexOffsets[billCount][2], =, 0.0f, ONE_PIXEL - shiftY, 0.0f);
                 Vec3Scalar(vertexOffsets[billCount][3], =, 1.0f, ONE_PIXEL - shiftY, 0.0f);
                 billCount++;
-                assert(billCount <= 5);
-                break;
+                assert(billCount <= 6);
             }
         }
         break;
