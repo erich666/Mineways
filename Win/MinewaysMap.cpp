@@ -5893,6 +5893,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_LECTERN:
     case BLOCK_LEAVES:
     case BLOCK_AD_LEAVES:
+    case BLOCK_TEST_BLOCK:
         // uses 0-3
         if (dataVal < 4)
         {
@@ -7750,8 +7751,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
 
     case BLOCK_CREAKING_HEART:
-        // 0-1,4-5,8-9
-        if (dataVal <= 1 || dataVal == 4 || dataVal == 5 || dataVal == 8 || dataVal == 9) {
+        // 0-3,4-6,8-10 - could add the pale oak logs for effect, but this is just for testing
+        if (dataVal <= 2 || dataVal == 4 || dataVal == 5 || dataVal == 6 || dataVal == 8 || dataVal == 9 || dataVal == 10) {
             addBlock = 1;
         }
         break;

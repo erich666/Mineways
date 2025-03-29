@@ -11299,14 +11299,20 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             int fheights[] = { 3, 1, 2, 2 };
             for (i = 0; i < flower_amount; i++)
             {
-                // flower tops
-                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, i==0 ? 1 : 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | (gModel.singleSided ? 0x0 : DIR_BOTTOM_BIT),
-                    (i < 2) ? 0.0f : 8.0f, (i < 2) ? 8.0f : 16.0f,
-                    (float)fheights[i], (float)fheights[i],
-                    (((i + 3) % 4) >= 2) ? 0.0f : 8.0f, (((i + 3) % 4) >= 2) ? 8.0f : 16.0f);
+                // leaf litter?
+                if ((dataVal & 0x30) == 16) {
+                    // leaf litter tops - doesn't use heights, just a constant 0.5 (should really be flush, but this is close enough and avoids z-fighting)
+                    saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, i == 0 ? 1 : 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | (gModel.singleSided ? 0x0 : DIR_BOTTOM_BIT),
+                        (i < 2) ? 0.0f : 8.0f, (i < 2) ? 8.0f : 16.0f,
+                        0.05f, 0.05f,
+                        (((i + 3) % 4) >= 2) ? 0.0f : 8.0f, (((i + 3) % 4) >= 2) ? 8.0f : 16.0f);
+                } else {
+                    saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, i == 0 ? 1 : 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | (gModel.singleSided ? 0x0 : DIR_BOTTOM_BIT),
+                        (i < 2) ? 0.0f : 8.0f, (i < 2) ? 8.0f : 16.0f,
+                        (float)fheights[i], (float)fheights[i],
+                        (((i + 3) % 4) >= 2) ? 0.0f : 8.0f, (((i + 3) % 4) >= 2) ? 8.0f : 16.0f);
 
-                // flower stems - not for leaf litter
-                if ((dataVal & 0x30) != 16) {
+                    // flower stems - not for leaf litter
                     switch (i) {
                     case 0:
                         // 3 flower stems, left to right
@@ -26504,6 +26510,16 @@ static int createBaseMaterialTexture()
             SWATCH_TO_COL_ROW(idx, dstCol, dstRow);
 
             adj = multTable[i].type;
+            // stupid fix: leaf litter is affected by the dry foliage map
+            // But all we have is the type, pink petals. Get leaf litter color
+            // if pink petals is here.
+            if (adj == BLOCK_PINK_PETALS)
+            {
+                color = 0x936646;
+            }
+            else {
+                color = gBlockDefinitions[adj].color;
+            }
 
             if (useBiome)
             {
@@ -26522,15 +26538,15 @@ static int createBaseMaterialTexture()
                     // use middle biome color
                     color = dryFoliageColor;
                 }
-                else
-                {
-                    color = gBlockDefinitions[adj].color;
-                }
+                //else
+                //{
+                //    color = gBlockDefinitions[adj].color;
+                //}
             }
-            else
-            {
-                color = gBlockDefinitions[adj].color;
-            }
+            //else
+            //{
+            //    color = gBlockDefinitions[adj].color;
+            //}
 
             // water is special: we set the color to 0xffffff to do nothing, but for biome and swampland, the color is multiplied
             if (multTable[i].type == BLOCK_WATER)
