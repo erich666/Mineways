@@ -3725,7 +3725,6 @@ static int computeFlatFlags(int boxIndex)
     case BLOCK_FROGSPAWN:
     case BLOCK_PINK_PETALS:
     case BLOCK_TORCHFLOWER_CROP:
-    case BLOCK_LEAF_LITTER:
         //case BLOCK_CHAIN:   // questionable: should a chain (offset to the edge!) really be flattened onto the neighbor below?
         gBoxData[boxIndex - 1].flatFlags |= FLAT_FACE_ABOVE;
         break;
@@ -11274,7 +11273,21 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
     case BLOCK_PINK_PETALS:
         assert(!gModel.print3D);
-        swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+        // get proper swatch loc
+        switch (dataVal & 0x30)
+        {
+        default:
+            assert(0);
+        case 0:
+            swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            break;
+        case 16: // Leaf Litter
+            swatchLoc = SWATCH_INDEX(2, 69);
+            break;
+        case 32: // Wildflowers
+            swatchLoc = SWATCH_INDEX(3, 69);
+            break;
+        }
 
         // generate all, then rotate
         gUsingTransform = 1;
@@ -11292,28 +11305,30 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                     (float)fheights[i], (float)fheights[i],
                     (((i + 3) % 4) >= 2) ? 0.0f : 8.0f, (((i + 3) % 4) >= 2) ? 8.0f : 16.0f);
 
-                // flower stems
-                switch (i) {
-                case 0:
-                    // 3 flower stems, left to right
-                    makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 1.5f, 10.5f, fheights[i]);
-                    makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 4.5f, 14.5f, fheights[i]);
-                    makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 6.5f, 9.5f, fheights[i]);
-                    break;
-                case 1:
-                    // 1 flower stem
-                    makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 4.5f, 4.5f, fheights[i]);
-                    break;
-                case 2:
-                    // 3 flower stems
-                    makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 9.5f, 6.5f, fheights[i]);
-                    makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 12.0f, 2.0f, fheights[i]);
-                    makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 14.5f, 5.5f, fheights[i]);
-                    break;
-                case 3:
-                    // 1 flower stem
-                    makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 11.5f, 12.5f, fheights[i]);
-                    break;
+                // flower stems - not for leaf litter
+                if ((dataVal & 0x30) != 16) {
+                    switch (i) {
+                    case 0:
+                        // 3 flower stems, left to right
+                        makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 1.5f, 10.5f, fheights[i]);
+                        makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 4.5f, 14.5f, fheights[i]);
+                        makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 6.5f, 9.5f, fheights[i]);
+                        break;
+                    case 1:
+                        // 1 flower stem
+                        makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 4.5f, 4.5f, fheights[i]);
+                        break;
+                    case 2:
+                        // 3 flower stems
+                        makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 9.5f, 6.5f, fheights[i]);
+                        makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 12.0f, 2.0f, fheights[i]);
+                        makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 14.5f, 5.5f, fheights[i]);
+                        break;
+                    case 3:
+                        // 1 flower stem
+                        makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 11.5f, 12.5f, fheights[i]);
+                        break;
+                    }
                 }
             }
             totalVertexCount = gModel.vertexCount - totalVertexCount;
@@ -23489,6 +23504,20 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     break;
                 }
             }
+            // get proper swatch loc
+            switch(dataVal & 0x30)
+            {
+            default:
+                assert(0);
+            case 0:
+                break;
+            case 16: // Leaf Litter
+                swatchLoc = SWATCH_INDEX(2, 69);
+                break;
+            case 32: // Wildflowers
+                swatchLoc = SWATCH_INDEX(3, 69);
+                break;
+            }
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, angle);
             break;
 
@@ -25990,7 +26019,7 @@ static TypeTile multTable[MULT_TABLE_SIZE] = {
     { BLOCK_MANGROVE_LEAVES /* mangrove leaves, fancy */, 11, 54, {0,0,0} },
 
     // affected by dry_foliage map, https://minecraft.wiki/w/Color#Biome_colors
-    { BLOCK_LEAF_LITTER /* leaf litter */, 2, 69, {0,0,0} },
+    { BLOCK_PINK_PETALS /* leaf litter */, 2, 69, {0,0,0} },
 
     // water - possibly affected by swampland
     { BLOCK_WATER /* water */, 15, 13, { 0, 0, 0 } },
@@ -34961,7 +34990,7 @@ static bool faceCanTile(int faceId)
     case BLOCK_MANGROVE_HANGING_SIGN:
     case BLOCK_BAMBOO_HANGING_SIGN:
     case BLOCK_HEAVY_CORE:
-    case BLOCK_LEAF_LITTER:
+    case BLOCK_PINK_PETALS:
 
     // Ruled out because complex and used flipIndicesLeftRight
     case BLOCK_BED:

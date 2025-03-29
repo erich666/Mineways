@@ -365,6 +365,8 @@ static TranslationTuple* modTranslations = NULL;
 #define CALIBRATED_SCULK_SENSOR_PROP    62
 // facing: SWNE 0x3
 // flower_amount: 0xc 1-4
+// or
+// segment_amount: 1 / 2 / 3 / 4
 #define PINK_PETALS_PROP    63
 // age: 0-4
 // half: upper/lower
@@ -388,9 +390,6 @@ static TranslationTuple* modTranslations = NULL;
 #define PALE_MOSS_CARPET_PROP   69
 // south|west|north|east|down|up: true|false
 #define VINE_PROP	 70
-// facing: north/east/south/west
-// segment_amount: 1 / 2 / 3 / 4
-#define GROUND_PROP 71
 
 #define NUM_TRANS 1113
 
@@ -1524,9 +1523,9 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 186,       HIGH_BIT, "resin_clump", VINE_PROP },
     { 0, 167,   HIGH_BIT | 2, "stripped_pale_oak_log", AXIS_PROP },
     { 0, 168,   HIGH_BIT | 2, "stripped_pale_oak_wood", AXIS_PROP },
-    { 0, 234,       HIGH_BIT, "leaf_litter", GROUND_PROP },
-    { 0, 234,  HIGH_BIT | 16, "wildflowers", GROUND_PROP },
-    { 0, 235,       HIGH_BIT, "test_block", NO_PROP },
+    { 0, 197,  HIGH_BIT | 16, "leaf_litter", PINK_PETALS_PROP },
+    { 0, 197,  HIGH_BIT | 32, "wildflowers", PINK_PETALS_PROP },
+    { 0, 234,       HIGH_BIT, "test_block", NO_PROP },
     { 0,   1,             16, "test_instance_block", NO_PROP },
     { 0,  31,              6, "bush", NO_PROP },
     { 0,  31,              7, "cactus_flower", NO_PROP },
@@ -4179,6 +4178,10 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         else if (strcmp(token, "flower_amount") == 0) {
                             flower_amount = atoi(value);
                         }
+                        // for PINK_PETALS_PROP
+                        else if (strcmp(token, "segment_amount") == 0) {
+                            flower_amount = atoi(value);
+                        }
 
                         // for trial spawner and vault
                         else if (strcmp(token, "ominous") == 0) {
@@ -4261,11 +4264,6 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         else if (strcmp(token, "active") == 0) {
                             // CREAKING_HEART_PROP
                             dataVal |= ((strcmp(value, "true") == 0) ? 2 : 0);
-                        }
-
-                        // for GROUND_PROP
-                        else if (strcmp(token, "segment_amount") == 0) {
-                            dataVal = atoi(value);
                         }
 
                         // creaking_heart_state, for side color: start / log / fail / accept
@@ -4852,12 +4850,6 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 // "bottom" is bit 0x1
                 // BIT_32 gets set if there is at least one low/tall side
                 dataVal |= pmc;
-            case GROUND_PROP:
-                // Note that for vines, 0 means there's one "above" (really, underneath).
-                // When there's one above, there (happily) cannot be east/west/n/s, so
-                // no extra bit is needed or used internally.
-                dataVal = door_facing | (dataVal << 2);
-                break;
             }
 
             // make sure upper bits are not set - they should not be! Well, except for heads. So, comment out this test

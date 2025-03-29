@@ -1161,8 +1161,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         }
         break;
 
-    case BLOCK_LEAF_LITTER:
-        switch (dataVal & 0x10)
+    case BLOCK_PINK_PETALS:
+        switch (dataVal & 0x30)
         {
         default:
             assert(0);
@@ -1170,6 +1170,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         case 0:
             break;
         case 16:
+            return "Leaf Litter";
+        case 32:
             return "Wildflowers";
         }
         break;
@@ -3209,9 +3211,9 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         }
         break;
 
-    case BLOCK_LEAF_LITTER:
+    case BLOCK_PINK_PETALS:
         dataVal = block->data[voxel];
-        switch (dataVal & 0x10)
+        switch (dataVal & 0x30)
         {
         default:
             assert(0);
@@ -3219,7 +3221,10 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
             break;
-        case 16: // Wildflowers
+        case 16: // Leaf Litter
+            color = 0x936646;
+            break;
+        case 32: // Wildflowers
             color = 0xEFD897;
             break;
         }
@@ -5777,7 +5782,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_CAVE_VINES_LIT:
     case BLOCK_AZALEA:
     case BLOCK_CRYING_OBSIDIAN:
-    case BLOCK_LEAF_LITTER:
         // uses 0-1 
         if (dataVal < 2)
         {
@@ -6399,11 +6403,15 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_RED_SANDSTONE_SLAB:
     case BLOCK_PURPUR_SLAB:
     case BLOCK_CAMPFIRE:
-    case BLOCK_PINK_PETALS:
     case BLOCK_POPPY:
     case BLOCK_CRIMSON_SLAB:
         // uses all bits, 0-15
         addBlock = 1;
+        break;
+
+    case BLOCK_PINK_PETALS:
+        addBlock = 1;
+        addDiagonalBlocksToMap(48, y, type, dataVal, finalDataVal, typeHighBit, block);
         break;
 
     case BLOCK_CARPET:
