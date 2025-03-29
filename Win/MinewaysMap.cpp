@@ -3222,7 +3222,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             color = gBlockColors[type * 16 + light];
             break;
         case 16: // Leaf Litter
-            color = 0x936646;
+            color = 0x9f744a;
             break;
         case 32: // Wildflowers
             color = 0xEFD897;

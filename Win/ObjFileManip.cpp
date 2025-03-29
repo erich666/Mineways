@@ -26515,7 +26515,7 @@ static int createBaseMaterialTexture()
             // if pink petals is here.
             if (adj == BLOCK_PINK_PETALS)
             {
-                color = 0x936646;
+                color = 0x9f744a;   // the same color as for biome 1
             }
             else {
                 color = gBlockDefinitions[adj].color;
