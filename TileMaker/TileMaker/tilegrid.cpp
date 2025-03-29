@@ -113,6 +113,10 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg
 				if ((!lstrcmpW(ffd.cFileName, L".")) || (!lstrcmpW(ffd.cFileName, L".."))) {
 					continue;
 				}
+				// the "textures/item" directory uses alternate names (that mods use) for textures, so ignore that directory
+				if (!lstrcmpW(ffd.cFileName, L"item") ) {
+					continue;
+				}
 
 				wchar_t subdir[MAX_PATH_AND_FILE];
 				wcscpy_s(subdir, MAX_PATH_AND_FILE, tilePathAppended);

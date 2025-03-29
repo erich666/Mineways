@@ -70,7 +70,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     // Ignore the premultiplied colors and alphas - these really are just placeholders, it's color * alpha that sets them when the program starts up.
     // name                               		read_color ralpha color     prem-clr  alpha,     txX,Y   mtl, flags
     { /*   0 */ "Air",                    		0x000000, 0.000f, 0xff7711, 0xff7711, 0.12345f,  13,14, 0x00, BLF_NONE},	//00
-    { /*   1 */ "Stone",                  		0x7C7C7C, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 0, 0x0f, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//01
+    { /*   1 */ "Stone",                  		0x7C7C7C, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 0, 0x1f, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//01
     // Grass block color is from Plains biome color (default terrain in a flat world). Grass and Sunflower should also be changed if this is changed.
     { /*   2 */ "Grass Block", /*output!*/		0x8cbd57, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 0, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//02 3,0 side gets turned into 6,2
     { /*   3 */ "Dirt",                   		0x8c6344, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2, 0, 0x07, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//03
@@ -102,7 +102,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /*  28 */ "Detector Rail",          		0xCD5E58, 1.000f, 0xff7711, 0xff7711, 0.12345f,   3,12, 0x00, BLF_FLATTEN | BLF_BILLBOARD | BLF_3D_BIT | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_CONNECTS_REDSTONE | BLF_OFFSET | BLF_MAYWATERLOG},
     { /*  29 */ "Sticky Piston",          		0x719e60, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12, 6, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT},	//1d
     { /*  30 */ "Cobweb",                 		0xeeeeee, 1.000f, 0xff7711, 0xff7711, 0.12345f,  11, 0, 0x00, BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID},	//1e
-    { /*  31 */ "Short Grass", /* 1.20.3 name*/	0x8cbd57, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7, 2, 0x07, BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID},	//1f/31
+    { /*  31 */ "Short Grass", /* 1.20.3 name*/	0x8cbd57, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7, 2, 0x0f, BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_EMITTER},	//1f/31 - emitter only for firefly_bush
     { /*  32 */ "Dead Bush",              		0x946428, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7, 3, 0x00, BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID},	//20/32
     { /*  33 */ "Piston",                 		0x95774b, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12, 6, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT},	//21
     { /*  34 */ "Piston Head",            		0x95774b, 1.000f, 0xff7711, 0xff7711, 0.12345f,  11, 6, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT},	//22/34
@@ -574,6 +574,8 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 487 */ "Waxed Exposed Copper Door",    0xA87C6C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  6, 63, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
     { /* 488 */ "Waxed Weathered Copper Door",  0x6F9972, 1.000f, 0xff7711, 0xff7711, 0.12345f,  6, 66, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
     { /* 489 */ "Waxed Oxidized Copper Door",   0x54A387, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 64, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
+    { /* 490 */ "Leaf Litter",                  0x936646, 1.000f, 0xff7711, 0xff7711, 0.12345f,  2, 69, 0x10, BLF_FLATTEN | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_OFFSET },
+    { /* 491 */ "Test Block",                   0xB7A18C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  6, 69, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
 
     // Important note: 396 is skipped, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
 };

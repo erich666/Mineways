@@ -379,7 +379,8 @@ static TranslationTuple* modTranslations = NULL;
 // lit true|false gives 0x8 for copper bulbs
 #define BULB_PROP           67
 // axis, like logs
-// active true|false - lowest bit
+// old: active true|false --> 0 or 2
+// creaking_heart_state: uprooted 0, dormant 1, awake 2
 // natural - ignored, not visual
 #define CREAKING_HEART_PROP 68
 // north/south/east/west - none, low, tall; only tall gets a 0x1 in the four 0x1e bits
@@ -387,8 +388,11 @@ static TranslationTuple* modTranslations = NULL;
 #define PALE_MOSS_CARPET_PROP   69
 // south|west|north|east|down|up: true|false
 #define VINE_PROP	 70
+// facing: north/east/south/west
+// segment_amount: 1 / 2 / 3 / 4
+#define GROUND_PROP 71
 
-#define NUM_TRANS 1104
+#define NUM_TRANS 1113
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1520,6 +1524,15 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 186,       HIGH_BIT, "resin_clump", VINE_PROP },
     { 0, 167,   HIGH_BIT | 2, "stripped_pale_oak_log", AXIS_PROP },
     { 0, 168,   HIGH_BIT | 2, "stripped_pale_oak_wood", AXIS_PROP },
+    { 0, 234,       HIGH_BIT, "leaf_litter", GROUND_PROP },
+    { 0, 234,  HIGH_BIT | 16, "wildflowers", GROUND_PROP },
+    { 0, 235,       HIGH_BIT, "test_block", NO_PROP },
+    { 0,   1,             16, "test_instance_block", NO_PROP },
+    { 0,  31,              6, "bush", NO_PROP },
+    { 0,  31,              7, "cactus_flower", NO_PROP },
+    { 0,  31,              8, "short_dry_grass", NO_PROP },
+    { 0,  31,              9, "tall_dry_grass", NO_PROP },
+    { 0,  31,             10, "firefly_bush", NO_PROP },
 
     // 1.20.3 additions (short_grass added next to "grass", above), https://minecraft.wiki/w/Java_Edition_1.20.3#General_2
 
@@ -3545,7 +3558,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         } // for grassy blocks, podzol, mycellium
 
                         // interpret token value
-                        // wood axis, quartz block axis AXIS_PROP and NETHER_PORTAL_AXIS_PROP
+                        // wood axis, quartz block axis AXIS_PROP and NETHER_PORTAL_AXIS_PROP, CREAKING_HEART_PROP
                         else if (strcmp(token, "axis") == 0) {
                             if (strcmp(value, "y") == 0) {
                                 axis = 0;
@@ -3914,7 +3927,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         }
                         // STRUCTURE_PROP
                         else if (strcmp(token, "mode") == 0) {
-                            // only matters for rails
+                            // structure block https://minecraft.wiki/w/Structure_Block
                             if (strcmp(value, "data") == 0) {
                                 dataVal = 1;
                             }
@@ -3927,14 +3940,32 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             else if (strcmp(value, "corner") == 0) {
                                 dataVal = 4;
                             }
-                            // comparator
+                            // comparator https://minecraft.wiki/w/Redstone_Comparator
+                            else if (strcmp(value, "compare") == 0) {
+                                mode = false;
+                            }
                             else if (strcmp(value, "subtract") == 0) {
                                 mode = true;
                             }
+                            // test_block_mode: start / log / fail / accept https://minecraft.wiki/w/Test_Block
+                            else if (strcmp(value, "start") == 0) {
+                                dataVal = 0;
+                            }
+                            else if (strcmp(value, "log") == 0) {
+                                dataVal = 1;
+                            }
+                            else if (strcmp(value, "fail") == 0) {
+                                dataVal = 2;
+                            }
+                            else if (strcmp(value, "accept") == 0) {
+                                dataVal = 3;
+                            }
                             else {
-                                mode = false;
+                                // just in case
+                                assert(0);
                             }
                         }
+
                         else if (strcmp(token, "pickles") == 0) {
                             dataVal = atoi(value) - 1;
                         }
@@ -4226,9 +4257,32 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             dataVal |= (strcmp(value, "true") == 0);
                         }
 
+                        // old creaking heart state. Active == awake, I guess
                         else if (strcmp(token, "active") == 0) {
                             // CREAKING_HEART_PROP
-                            dataVal |= (strcmp(value, "true") == 0);
+                            dataVal |= ((strcmp(value, "true") == 0) ? 2 : 0);
+                        }
+
+                        // for GROUND_PROP
+                        else if (strcmp(token, "segment_amount") == 0) {
+                            dataVal = atoi(value);
+                        }
+
+                        // creaking_heart_state, for side color: start / log / fail / accept
+                        else if (strcmp(token, "creaking_heart_state") == 0) {
+                            if (strcmp(value, "uprooted") == 0) {
+                                dataVal = 0;
+                            }
+                            else if (strcmp(value, "dormant") == 0) {
+                                dataVal = 1;
+                            }
+                            else if (strcmp(value, "awake") == 0) {
+                                dataVal = 2;
+                            }
+                            else {
+                                // just in case
+                                assert(0);
+                            }
                         }
 
 #ifdef _DEBUG
@@ -4792,12 +4846,18 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 break;
 			case CREAKING_HEART_PROP:
 				// for creaking heart, should already have active bit set
-				dataVal |= axis;
+                dataVal |= axis;
 				break;
             case PALE_MOSS_CARPET_PROP:
                 // "bottom" is bit 0x1
                 // BIT_32 gets set if there is at least one low/tall side
                 dataVal |= pmc;
+            case GROUND_PROP:
+                // Note that for vines, 0 means there's one "above" (really, underneath).
+                // When there's one above, there (happily) cannot be east/west/n/s, so
+                // no extra bit is needed or used internally.
+                dataVal = door_facing | (dataVal << 2);
+                break;
             }
 
             // make sure upper bits are not set - they should not be! Well, except for heads. So, comment out this test

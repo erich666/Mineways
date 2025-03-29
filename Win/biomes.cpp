@@ -317,7 +317,14 @@ static BiomeCorner foliageCorners[3] =
 {
     { 174, 164,  42 },	// lower left, temperature starts at 1.0 on left
     {  96, 161, 123 },	// lower right
-    {  26, 191,  0 }	// upper left
+    {  26, 191,   0 }	// upper left
+};
+
+static BiomeCorner dryFoliageCorners[3] =
+{
+    { 163, 128,  70 },	// lower left, temperature starts at 1.0 on left
+    { 143, 122,  90 },	// lower right
+    { 163,  95,  70 }	// upper left
 };
 
 // NOTE: elevation is number of meters above a height of 64. If elevation is < 64, pass in 0.
@@ -362,6 +369,11 @@ int BiomeFoliageColor(float temperature, float rainfall, int elevation)
     return BiomeColor(temperature, rainfall, elevation, foliageCorners);
 }
 
+int BiomeDryFoliageColor(float temperature, float rainfall, int elevation)
+{
+    return BiomeColor(temperature, rainfall, elevation, dryFoliageCorners);
+}
+
 void PrecomputeBiomeColors()
 {
     for (int biome = 0; biome < 256; biome++)
@@ -372,8 +384,9 @@ void PrecomputeBiomeColors()
 }
 
 // elevation == 0 means for precomputed colors and for elevation off
-// or 64 high or below. 
-int ComputeBiomeColor(int biome, int elevation, int isGrass)
+// or 64 high or below.
+// foliageType == 0 means leaf color, 1 means grass color, 2 means dry foliage color
+int ComputeBiomeColor(int biome, int elevation, int foliageType)
 {
     switch (biome)
     {
@@ -397,13 +410,16 @@ int ComputeBiomeColor(int biome, int elevation, int isGrass)
         // is based on a noise on XZ plane. When the value of this noise is less than -0.1, it uses the color 
         // #4c763c. Otherwise using #6a7039. The color for vines and leaves of oaks, jungles, acacias, dark oaks and mangroves is
         // #6a7039 in Swamp and #8db127 in Mangrove Swamp, which are not affected by the colormap.
-        return 0x6a7039;
+        // leaf litter brown from https://minecraft.wiki/w/Biome
+        return (foliageType == 2) ? 0x7b5334 : 0x6a7039;
 
     case MANGROVE_SWAMP_BIOME:
-        return isGrass ? 0x6a7039 : 0x8db127;
+        // Not sure what to do with leaf litter color, so picking a brown
+        // leaf litter brown from https://minecraft.wiki/w/Biome
+        return (foliageType == 2) ? 0x7b5334 : (foliageType ? 0x6a7039 : 0x8db127);
 
     case DARK_FOREST_BIOME:	// forestType 3, see https://minecraft.wiki/w/Biome
-        if (isGrass)
+        if (foliageType == 1)
         {
             int color = BiomeGrassColor(gBiomes[biome].temperature, gBiomes[biome].rainfall, elevation);
             // the fefefe makes it so that carries are copied to the low bit,
@@ -411,9 +427,13 @@ int ComputeBiomeColor(int biome, int elevation, int isGrass)
             // divide by two gives a carry that will nicely go away.
             return ((color & 0xfefefe) + 0x28340a) / 2;
         }
-        else
+        else if (foliageType == 0)
         {
             return BiomeFoliageColor(gBiomes[biome].temperature, gBiomes[biome].rainfall, elevation);
+        }
+        else
+        {
+            return BiomeDryFoliageColor(gBiomes[biome].temperature, gBiomes[biome].rainfall, elevation);
         }
 
     case BADLANDS_BIOME:
@@ -424,19 +444,21 @@ int ComputeBiomeColor(int biome, int elevation, int isGrass)
     case 166:
     case 167:
         // yes, it's hard-wired, see https://minecraft.wiki/w/Biome
-        return isGrass ? 0x90814d : 0x9e814d;
+        return (foliageType == 2) ? 0x9e814d : (foliageType ? 0x90814d : 0x9e814d);
 
     case PALE_GARDEN_BIOME:
         // yes, it's hard-wired, see https://minecraft.wiki/w/Biome
-        return isGrass ? 0x778272 : 0x878D76;
+        return (foliageType == 2) ? 0xa0a69c : (foliageType ? 0x778272 : 0x878D76);
 
     case CHERRY_GROVE_BIOME:
         // yes, it's hard-wired, same for both, brighter green, see https://minecraft.wiki/w/Biome
-        return isGrass ? 0xb6db61 : 0xb6db61;
+        // sadly, no foliageType 2 is shown on the page, so I guess
+        return (foliageType == 2) ? 0xC59E61 : (foliageType ? 0xb6db61 : 0xb6db61);
 
     default:
-        return isGrass ? BiomeGrassColor(gBiomes[biome].temperature, gBiomes[biome].rainfall, elevation) :
-            BiomeFoliageColor(gBiomes[biome].temperature, gBiomes[biome].rainfall, elevation);
+        return (foliageType == 2) ? BiomeDryFoliageColor(gBiomes[biome].temperature, gBiomes[biome].rainfall, elevation) :
+            (foliageType ? BiomeGrassColor(gBiomes[biome].temperature, gBiomes[biome].rainfall, elevation) :
+            BiomeFoliageColor(gBiomes[biome].temperature, gBiomes[biome].rainfall, elevation));
     }
 }
 

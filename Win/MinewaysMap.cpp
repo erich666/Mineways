@@ -728,6 +728,16 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Crimson Roots";
         case 5:
             return "Warped Roots";
+        case 6:
+            return "Bush";
+        case 7:	// cactus_flower
+            return "Cactus Flower";
+        case 8:	// short_dry_grass
+            return "Short Dry Grass";
+        case 9:	// tall_dry_grass
+            return "Tall Dry Grass";
+        case 10:	// firefly_bush
+            return "Firefly Bush";
         }
         break;
 
@@ -1021,7 +1031,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         break;
 
     case BLOCK_STONE:
-        switch (dataVal & 0xf)
+        switch (dataVal & 0x1f)
         {
         default:
             assert(0);
@@ -1058,6 +1068,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Ancient Debris";
         case 15: // nether_gold_ore
             return "Nether Gold Ore";
+        case 16: // test_instance_block
+            return "Test Instance Block";
         }
         break;
 
@@ -1147,6 +1159,20 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         case 1:
             return "Sculk Catalyst";
         }
+        break;
+
+    case BLOCK_LEAF_LITTER:
+        switch (dataVal & 0x10)
+        {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case 16:
+            return "Wildflowers";
+        }
+        break;
 
     case BLOCK_SAPLING:
         // mask off the age_bit - specifies the sapling's growth stage.
@@ -1241,6 +1267,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Stripped Jungle Log";
         }
         break;
+
     case BLOCK_STRIPPED_ACACIA:
         switch (dataVal & 0x3)
         {
@@ -1257,6 +1284,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Stripped Warped Stem";
         }
         break;
+
     case BLOCK_STRIPPED_OAK_WOOD:
         switch (dataVal & 0x3)
         {
@@ -1273,6 +1301,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Stripped Jungle Wood";
         }
         break;
+
     case BLOCK_STRIPPED_ACACIA_WOOD:
         switch (dataVal & 0x3)
         {
@@ -1289,6 +1318,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Stripped Warped Hyphae";
         }
         break;
+
     case BLOCK_STRIPPED_MANGROVE:
         switch (dataVal & 0x3)
         {
@@ -1303,6 +1333,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Stripped Pale Oak Log";
         }
         break;
+
     case BLOCK_STRIPPED_MANGROVE_WOOD:
         switch (dataVal & 0x3)
         {
@@ -1317,6 +1348,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Stripped Pale Oak Wood";
         }
         break;
+
     case BLOCK_SIGN_POST:
         switch (dataVal & (BIT_16 | BIT_32))
         {
@@ -1334,6 +1366,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Jungle Sign";
         }
         break;
+
     case BLOCK_ACACIA_SIGN_POST:
         switch (dataVal & (BIT_16 | BIT_32))
         {
@@ -1351,6 +1384,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Warped Sign";
         }
         break;
+
     case BLOCK_MANGROVE_SIGN_POST:
         switch (dataVal & (BIT_16 | BIT_32))
         {
@@ -1368,6 +1402,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Pale Oak Sign";
         }
         break;
+
     case BLOCK_WALL_SIGN:
         switch (dataVal & (BIT_8 | BIT_16 | BIT_32))
         {
@@ -1770,6 +1805,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Dark Prismarine";
         }
         break;
+
     case BLOCK_FURNACE:
     case BLOCK_BURNING_FURNACE:
         switch (dataVal & (BIT_32 | BIT_16)) {
@@ -1786,11 +1822,13 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Blast Furnace";
         }
         break;
+
     case BLOCK_BOOKSHELF:
         if (dataVal & BIT_16) {
             return "Chiseled Bookshelf";
         }
         break;
+
     case BLOCK_CRAFTING_TABLE:
         switch (dataVal & 0xf)
         {
@@ -1924,6 +1962,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             }
         }
         break;
+
     case BLOCK_AD_LOG:
         if (dataVal & BIT_16) {
             switch (dataVal & 0x3)
@@ -1958,6 +1997,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             }
         }
         break;
+
     case BLOCK_MANGROVE_LOG:
         if (dataVal & BIT_16) {
             switch (dataVal & 0x3)
@@ -1988,6 +2028,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             }
         }
         break;
+
     case BLOCK_STATIONARY_WATER:
         if (dataVal & BIT_16)
         {
@@ -1995,6 +2036,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Bubble Column";
         }
         break;
+
     case BLOCK_SPONGE:
         switch (dataVal & 0x1)
         {
@@ -2007,6 +2049,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Wet Sponge";
         }
         break;
+
     case BLOCK_BONE_BLOCK:
         switch (dataVal & 0x13)
         {
@@ -2039,6 +2082,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Cut Sandstone";
         }
         break;
+
     case BLOCK_RED_SANDSTONE:
         switch (dataVal & 0x3) {
         default:
@@ -2052,6 +2096,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Cut Red Sandstone";
         }
         break;
+
     case BLOCK_STONE_BRICKS:
         switch (dataVal & 0x3) {
         default:
@@ -2067,6 +2112,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Chiseled Stone Bricks";
         }
         break;
+
     case BLOCK_INFESTED_STONE:
         switch (dataVal & 0x7) {
         default:
@@ -2086,6 +2132,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Infested Chiseled Stone Bricks";
         }
         break;
+
     case BLOCK_QUARTZ_BLOCK:
         switch (dataVal & 0x7) {
         default:
@@ -2427,24 +2474,28 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Spruce Hanging Sign";
         }
         break;
+
     case BLOCK_ACACIA_HANGING_SIGN:
         if (dataVal & BIT_16)
         {
             return "Dark Oak Hanging Sign";
         }
         break;
+
     case BLOCK_CRIMSON_HANGING_SIGN:
         if (dataVal & BIT_16)
         {
             return "Warped Hanging Sign";
         }
         break;
+
     case BLOCK_MANGROVE_HANGING_SIGN:
         if (dataVal & BIT_16)
         {
             return "Cherry Hanging Sign";
         }
         break;
+
     case BLOCK_COPPER_BULB:
         switch (dataVal & 0x7) {
         default:
@@ -2468,6 +2519,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Waxed Oxidized Copper Bulb";
         }
         break;
+
     case BLOCK_COPPER_GRATE:
         switch (dataVal & 0x7) {
         default:
@@ -2491,6 +2543,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Waxed Oxidized Copper Grate";
         }
         break;
+
     case BLOCK_STONE_PRESSURE_PLATE: // now has 26 states, ignore lowest bit
         switch ((dataVal & 0x7e)>>1) {
         default:
@@ -2982,7 +3035,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
 
     case BLOCK_STONE:
         dataVal = block->data[voxel];
-        switch (dataVal & 0xf)
+        switch (dataVal & 0x1f)
         {
         default:
             assert(0);
@@ -3034,6 +3087,9 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             break;
         case 15: // nether_gold_ore
             color = 0x7E4E31;
+            break;
+        case 16: // test_instance_block
+            color = 0x908C8B;
             break;
         }
         break;
@@ -3149,6 +3205,22 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             break;
         case 1: // Sculk Catalyst
             color = 0x143036;
+            break;
+        }
+        break;
+
+    case BLOCK_LEAF_LITTER:
+        dataVal = block->data[voxel];
+        switch (dataVal & 0x10)
+        {
+        default:
+            assert(0);
+        case 0:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 16: // Wildflowers
+            color = 0xEFD897;
             break;
         }
         break;
@@ -3379,6 +3451,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             assert(0);
         case 1:	// grass
         case 2:	// fern
+        case 6:	// bush
             // by default, color is used for grass and ferns, which are more common
             affectedByBiome = 1;
             lightComputed = true;
@@ -3396,6 +3469,18 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             break;
         case 5:	// warped roots
             color = 0x148E7E;
+            break;
+        case 7:	// cactus_flower
+            color = 0xD67D89;
+            break;
+        case 8:	// short_dry_grass
+            color = 0xBCA272;
+            break;
+        case 9:	// tall_dry_grass
+            color = 0xC6AF80;
+            break;
+        case 10:	// firefly_bush
+            color = 0x62592E;
             break;
         }
         break;
@@ -5692,6 +5777,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_CAVE_VINES_LIT:
     case BLOCK_AZALEA:
     case BLOCK_CRYING_OBSIDIAN:
+    case BLOCK_LEAF_LITTER:
         // uses 0-1 
         if (dataVal < 2)
         {
@@ -5868,10 +5954,10 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
     case BLOCK_GRASS:
-        // uses 1-5 - dead bush is a separate block, type==32
+        // uses 1-10 - dead bush is a separate block, type==32
         // type 31 dataVal 0 was once dead bush, I think it was called this long ago
         // (in Bedrock it's "Fern", though) https://minecraft.wiki/w/Grass#Block_states
-        if (dataVal > 0 && dataVal < 6)
+        if (dataVal > 0 && dataVal < 11)
         {
             addBlock = 1;
         }
@@ -6278,7 +6364,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             addBlock = 1;
         }
         break;
-    case BLOCK_STONE:
     case BLOCK_STRIPPED_OAK:
     case BLOCK_STRIPPED_OAK_WOOD:
     case BLOCK_STRIPPED_ACACIA:
@@ -7644,6 +7729,15 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
 		    // always add the block, since we know we're above 16
 		    addBlock = 1;
             addDiagonalBlocksToMap(26, y, type, dataVal, finalDataVal, typeHighBit, block);
+        }
+        break;
+
+    case BLOCK_STONE:
+        // 0-16
+        {
+            // always add the block, since we know we're above 16
+            addBlock = 1;
+            addDiagonalBlocksToMap(17, y, type, dataVal, finalDataVal, typeHighBit, block);
         }
         break;
 

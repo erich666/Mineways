@@ -8,7 +8,7 @@
 #include "tiles.h"
 #include "tilegrid.h"
 
-#define	VERSION_STRING	L"1.18"
+#define	VERSION_STRING	L"1.19"
 
 // how the green and blue tiles get tinted
 //#define FOLIAGE_GREEN	0x8cbd57
@@ -184,7 +184,8 @@ int wmain(int argc, wchar_t* argv[])
 #endif
 
 	// How it works:
-	// Look through all directories for files, warn of duplicates that get ignored. TODO: just have one directory now
+	// Look through all directories for files, warn of duplicates that get ignored.
+	// Ignore "item" directory
 	// Copy files over if output directory is different than input directory.
 	// Split _mer and _s files into _m _e _r files.
 

@@ -3725,6 +3725,7 @@ static int computeFlatFlags(int boxIndex)
     case BLOCK_FROGSPAWN:
     case BLOCK_PINK_PETALS:
     case BLOCK_TORCHFLOWER_CROP:
+    case BLOCK_LEAF_LITTER:
         //case BLOCK_CHAIN:   // questionable: should a chain (offset to the edge!) really be flattened onto the neighbor below?
         gBoxData[boxIndex - 1].flatFlags |= FLAT_FACE_ABOVE;
         break;
@@ -13629,6 +13630,23 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
             // added wobble in 20w19a
             wobbleIt = true;
             break;
+        case 6:	// bush
+            swatchLoc = SWATCH_INDEX(12, 68);
+            break;
+        case 7:	// cactus_flower
+            swatchLoc = SWATCH_INDEX(13, 68);
+            break;
+        case 8:	// short_dry_grass
+            swatchLoc = SWATCH_INDEX(14, 68);
+            wobbleIt = true;
+            break;
+        case 9:	// tall_dry_grass
+            swatchLoc = SWATCH_INDEX(15, 68);
+            wobbleIt = true;
+            break;
+        case 10:	// firefly_bush
+            swatchLoc = SWATCH_INDEX(0, 69);
+            break;
         }
         break;
     case BLOCK_RED_MUSHROOM:				// saveBillboardFacesExtraData
@@ -19932,14 +19950,17 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 }
                 break;
             case BLOCK_CREAKING_HEART:
-                switch (dataVal & 0x1)
+                switch (dataVal & 0x3)
                 {
                 default:
                     assert(0);
-                case 0: // inactive
+                case 0: // uprooted
                     SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 6, 68, 5, 68);
                     break;
-                case 1: // active
+                case 1: // dormant
+                    SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 10, 68, 9, 68);
+                    break;
+                case 2: // awake
                     SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 8, 68, 7, 68);
                     break;
                 }
@@ -20036,7 +20057,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             break;
         case BLOCK_STONE:						// getSwatch
-            switch (dataVal & 0xf)
+            switch (dataVal & 0x1f)
             {
             default: // normal stone
                 assert(0);
@@ -20089,6 +20110,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case 15: // nether_gold_ore
                 swatchLoc = SWATCH_INDEX(14, 45);
+                break;
+            case 16: // test_instance_block
+                swatchLoc = SWATCH_INDEX(5, 69);
                 break;
             }
             break;
@@ -21962,6 +21986,21 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             case 5:
                 // warped root
                 swatchLoc = SWATCH_INDEX(6, 44);
+                break;
+            case 6:	// bush
+                swatchLoc = SWATCH_INDEX(12, 68);
+                break;
+            case 7:	// cactus_flower
+                swatchLoc = SWATCH_INDEX(13, 68);
+                break;
+            case 8:	// short_dry_grass
+                swatchLoc = SWATCH_INDEX(14, 68);
+                break;
+            case 9:	// tall_dry_grass
+                swatchLoc = SWATCH_INDEX(15, 68);
+                break;
+            case 10:	// firefly_bush
+                swatchLoc = SWATCH_INDEX(0, 69);
                 break;
             }
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
@@ -23842,6 +23881,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             break;
 
+        case BLOCK_TEST_BLOCK:						// getSwatch
+            // easy, just add offset, they're in order in tiles.h
+            swatchLoc += (dataVal & 0x3);
+            break;
+
         //================================================================================================
         default:
             // if something has cutouts, it almost assuredly needs to have a case above with a call to getCompositeSwatch()
@@ -24695,7 +24739,17 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
             }
         }
         break;
+        // Special case: only firefly bush emits
+    case BLOCK_GRASS:
+        if ((dataVal & 0xf) == 10) {
+            emission = 2;
+        }
+        else {
+             emission = 0;
+        }
+        break;
     }
+
     // Minecraft lights are quite non-physical, dropping off linearly with distance, but dropping off more quickly if they are dimmer.
     // A 15 emission drops off to 14 one block away, 13 two blocks, etc.
     // A 3 emission drops off to 2 one block away, 1 two block, then is dead.
@@ -25909,10 +25963,11 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
 
 // all the blocks that need premultiplication by a color.
 // See http://www.minecraftwiki.net/wiki/File:TerrainGuide.png
-#define MULT_TABLE_SIZE 28
-#define MULT_TABLE_NUM_GRASS	9
-#define MULT_TABLE_NUM_FOLIAGE	(MULT_TABLE_NUM_GRASS+5)
-#define MULT_TABLE_NUM_WATER	(MULT_TABLE_NUM_FOLIAGE+3)
+#define MULT_TABLE_NUM_GRASS	    10
+#define MULT_TABLE_NUM_FOLIAGE	    (MULT_TABLE_NUM_GRASS+5)
+#define MULT_TABLE_NUM_DRY_FOLIAGE	(MULT_TABLE_NUM_FOLIAGE+1)
+#define MULT_TABLE_NUM_WATER	    (MULT_TABLE_NUM_DRY_FOLIAGE+3)
+#define MULT_TABLE_SIZE             (11+MULT_TABLE_NUM_WATER)
 static TypeTile multTable[MULT_TABLE_SIZE] = {
     // first value is what the type is that this object should be treated as, next two is the swatch location, last three is override color, if any
     { BLOCK_GRASS_BLOCK /* grass */, 0,0, {0,0,0} },
@@ -25925,6 +25980,7 @@ static TypeTile multTable[MULT_TABLE_SIZE] = {
     { BLOCK_DOUBLE_FLOWER /* double flower, fern bottom */, 8,18, {0,0,0} },
     { BLOCK_DOUBLE_FLOWER /* double flower, fern top */, 9,18, {0,0,0} },
     { BLOCK_GRASS /* pink petals stem */, 12, 57, {0,0,0} },
+    { BLOCK_GRASS /* bush */, 12, 68, {0,0,0} },
 
     // affected by foliage biome - increase MULT_TABLE_NUM_FOLIAGE definition by +1 more if you add any
     { BLOCK_LEAVES /* (oak) leaves, fancy: oak_leaves */, 4, 3, {0,0,0} },  // see https://minecraft.wiki/w/Biome
@@ -25932,6 +25988,9 @@ static TypeTile multTable[MULT_TABLE_SIZE] = {
     { BLOCK_AD_LEAVES /* acacia leaves, fancy */,  9, 19, {0,0,0} },
     { BLOCK_AD_LEAVES /* dark oak leaves, fancy */, 11, 19, {0,0,0} },
     { BLOCK_MANGROVE_LEAVES /* mangrove leaves, fancy */, 11, 54, {0,0,0} },
+
+    // affected by dry_foliage map, https://minecraft.wiki/w/Color#Biome_colors
+    { BLOCK_LEAF_LITTER /* leaf litter */, 2, 69, {0,0,0} },
 
     // water - possibly affected by swampland
     { BLOCK_WATER /* water */, 15, 13, { 0, 0, 0 } },
@@ -26384,6 +26443,7 @@ static int createBaseMaterialTexture()
 
         int grassColor = 0xffffff;
         int leafColor = 0xffffff;
+        int dryFoliageColor = 0xffffff;
         int waterColor = 0xffffff;
 
         // Is biome in use? If so, write out biome textures, now that we actually have the biome data.
@@ -26405,6 +26465,7 @@ static int createBaseMaterialTexture()
             // note we don't use location height at this point to adjust temperature
             grassColor = ComputeBiomeColor(gModel.biomeIndex, 0, 1);
             leafColor = ComputeBiomeColor(gModel.biomeIndex, 0, 0);
+            dryFoliageColor = ComputeBiomeColor(gModel.biomeIndex, 0, 2);
             waterColor = (gModel.biomeIndex == SWAMPLAND_BIOME || gModel.biomeIndex == MANGROVE_SWAMP_BIOME) ? BiomeSwampRiverColor(0xffffff) : 0xffffff;
         }
 
@@ -26426,6 +26487,11 @@ static int createBaseMaterialTexture()
                 {
                     // use middle biome color
                     color = leafColor;
+                }
+                else if (i < MULT_TABLE_NUM_DRY_FOLIAGE)
+                {
+                    // use middle biome color
+                    color = dryFoliageColor;
                 }
                 else
                 {
@@ -26555,7 +26621,10 @@ static int createBaseMaterialTexture()
         // place emissive part of open_eyeblossom atop the open_eyeblossom tile itself.
         // Note that the open_eyeblossom is *NOT* an emitter, so having the emissive bit as a separate texture is not
         // particularly useful normally. Until someone has a great reason/begs/donates $1000 to a charity of my choice, that's that. :P
-        compositePNGSwatches(mainprog, SWATCH_INDEX(4, 68), SWATCH_INDEX(4, 68), SWATCH_INDEX(9, 68), gModel.swatchSize, gModel.swatchesPerRow/*, FORCE_CUTOUT*/);
+        compositePNGSwatches(mainprog, SWATCH_INDEX(4, 68), SWATCH_INDEX(11, 68), SWATCH_INDEX(4, 68), gModel.swatchSize, gModel.swatchesPerRow/*, FORCE_CUTOUT*/);
+
+        // place emissive part of firefly_bush atop the firefly_bush tile itself.
+        compositePNGSwatches(mainprog, SWATCH_INDEX(0, 69), SWATCH_INDEX(1, 69), SWATCH_INDEX(0, 69), gModel.swatchSize, gModel.swatchesPerRow/*, FORCE_CUTOUT*/);
 
         /////////////////////////////////////////////////////
         // Add compositing dot to 4-way wire template.
@@ -27494,7 +27563,9 @@ static int writeVRMLAttributeShapeSplit(int type, int dataVal, char* mtlName, ch
         bool subtypeMaterial = ((gModel.options->exportFlags & EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE) != 0x0);
 
         ke = getEmitterLevel(type, dataVal, subtypeMaterial, OBJ_EMITTER_POWER);
-        sprintf_s(keString, 256, "          emissiveColor %g %g %g\n", fRed * ke, fGreen * ke, fBlue * ke);
+        if (ke > 0.0f) {
+            sprintf_s(keString, 256, "          emissiveColor %g %g %g\n", fRed * ke, fGreen * ke, fBlue * ke);
+        }
     }
     else
     {
@@ -34890,6 +34961,7 @@ static bool faceCanTile(int faceId)
     case BLOCK_MANGROVE_HANGING_SIGN:
     case BLOCK_BAMBOO_HANGING_SIGN:
     case BLOCK_HEAVY_CORE:
+    case BLOCK_LEAF_LITTER:
 
     // Ruled out because complex and used flipIndicesLeftRight
     case BLOCK_BED:

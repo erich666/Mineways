@@ -64,7 +64,7 @@
 
 
 // If this number changes, also change warning #7 in gPopupInfo (see TerrainExt.png in that message) in Mineways.cpp
-#define VERTICAL_TILES 69
+#define VERTICAL_TILES 70
 #define TOTAL_TILES (VERTICAL_TILES*16)
 static struct {
     int txrX;   // column and row, from upper left, of 16x16+ tiles in terrain.png, for top view of block
@@ -1184,33 +1184,49 @@ static struct {
     {  4, 68,  37, 0, L"open_eyeblossom", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  5, 68, 449, 0, L"creaking_heart_top", L"creaking_heart_top_inactive", SWATCH_REPEAT_ALL },   // JG-RTX second name
     {  6, 68, 449, 0, L"creaking_heart", L"creaking_heart_inactive", SWATCH_REPEAT_ALL },   // JG-RTX second name
-    {  7, 68, 449, 0, L"creaking_heart_top_active", L"", SWATCH_REPEAT_ALL },
-    {  8, 68, 449, 0, L"creaking_heart_active", L"", SWATCH_REPEAT_ALL },
-    {  9, 68,  37, 0, L"open_eyeblossom_emissive", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    { 10, 68,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 11, 68,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 12, 68,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 13, 68,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 14, 68,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 15, 68,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    {  7, 68, 449, 0, L"creaking_heart_top_awake", L"creaking_heart_top_active", SWATCH_REPEAT_ALL },
+    {  8, 68, 449, 0, L"creaking_heart_awake", L"creaking_heart_active", SWATCH_REPEAT_ALL },
+    {  9, 68, 449, 0, L"creaking_heart_top_dormant", L"", SWATCH_REPEAT_ALL },
+    { 10, 68, 449, 0, L"creaking_heart_dormant", L"", SWATCH_REPEAT_ALL },
+    { 11, 68,  37, 0, L"open_eyeblossom_emissive", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },   // the "emissive" part doesn't actually shed light, according to https://minecraft.wiki/w/Eyeblossom
+    { 12, 68,  31, 0, L"bush", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYNTHESIZED },
+    { 13, 68,  31, 0, L"cactus_flower", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 14, 68,  31, 0, L"short_dry_grass", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    { 15, 68,  31, 0, L"tall_dry_grass", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  0, 69,  31, 0, L"firefly_bush", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  1, 69,  31, 2, L"firefly_bush_emissive", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  2, 69, 431, 0, L"leaf_litter", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_SYNTHESIZED },
+    {  3, 69, 490, 0, L"wildflowers", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
+    {  4, 69, 490, 0, L"wildflowers_stem", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
+    {  5, 69,   1, 0, L"test_instance_block", L"", SWATCH_REPEAT_ALL },
+    {  6, 69, 491, 0, L"test_block_start", L"", SWATCH_REPEAT_ALL },
+    {  7, 69, 491, 0, L"test_block_log", L"", SWATCH_REPEAT_ALL },
+    {  8, 69, 491, 0, L"test_block_fail", L"", SWATCH_REPEAT_ALL },
+    {  9, 69, 491, 0, L"test_block_accept", L"", SWATCH_REPEAT_ALL },
+    { 10, 69,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 11, 69,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 12, 69,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 13, 69,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 14, 69,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 15, 69,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     /* Template for future additions - copy and paste in Notepad++ to avoid it getting rejiggered, and keep inside comment marks to
-     * avoid rejiggering (spaces getting removed) by keeping it inside the comment marks when pasting back here:
-    {  0, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    {  1, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    {  2, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    {  3, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    {  4, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    {  5, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    {  6, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    {  7, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    {  8, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    {  9, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    { 10, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    { 11, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    { 12, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    { 13, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    { 14, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
-    { 15, 69,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+     * avoid rejiggering (spaces getting removed) by keeping it inside the comment marks when pasting back here, then moving these comment lines down:
+    {  0, 70,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    {  1, 70,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    {  2, 70,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    {  3, 70,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    {  4, 70,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    {  5, 70,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    {  6, 70,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    {  7, 70,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    {  8, 70,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    {  9, 70,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    { 10, 70,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    { 11, 70,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    { 12, 70,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    { 13, 70,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    { 14, 70,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
+    { 15, 70,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },
     */
 };
 
