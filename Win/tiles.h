@@ -16,7 +16,7 @@
 #define SBIT_CLAMP_RIGHT        0x10
 #define SBIT_CLAMP_LEFT         0x20
 
-// if tile is a cutout, note this, as it should be "bled" outwards before output when rendering
+// if tile is a decal, note this, as it should be "bled" outwards before output when rendering
 #define SBIT_DECAL				0x40
 // if tile is cutout geometry, note this so it's bled out for 3D printing and rendering. Cutout geometry differs from a decal in that
 // the texture defines exactly where various content is supposed to exist - alpha transparency is not actually needed for the object,
@@ -1195,9 +1195,9 @@ static struct {
     { 15, 68,  31, 0, L"tall_dry_grass", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  0, 69,  31, 0, L"firefly_bush", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  1, 69,  31, 2, L"firefly_bush_emissive", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  2, 69, 431, 0, L"leaf_litter", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_SYNTHESIZED },
-    {  3, 69, 490, 0, L"wildflowers", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
-    {  4, 69, 490, 0, L"wildflowers_stem", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
+    {  2, 69, 453, 0, L"leaf_litter", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_SYNTHESIZED },
+    {  3, 69, 453, 0, L"wildflowers", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
+    {  4, 69, 453, 0, L"wildflowers_stem", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     {  5, 69,   1, 0, L"test_instance_block", L"", SWATCH_REPEAT_ALL },
     {  6, 69, 491, 0, L"test_block_start", L"", SWATCH_REPEAT_ALL },
     {  7, 69, 491, 0, L"test_block_log", L"", SWATCH_REPEAT_ALL },
