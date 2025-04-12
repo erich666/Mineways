@@ -1003,7 +1003,7 @@ Technical note: superhollow can sometimes create little separate objects at the 
 <b id="lesser">Export lesser, detailed blocks:</b> when 3D printing, this option is off by default; for rendering it is on. When not checked, smaller objects, such as signs, fences, and torches are removed - only nearly-block-sized or important blocks are exported. This option is on by default when exporting full color textures for rendering; turn it off to remove the "billboard" objects and other smaller geometry objects. Remember you can also turn off output of any block type by setting its alpha to zero in your own custom <a href="#schemes">color scheme</a>. I've given you the ability to shoot yourself in the foot for 3D printing; I leave it to you to turn off any block types you think are likely to break off. As such, if you use this option you should probably turn off the "Connect parts sharing an edge" and "Delete floating objects" options further down, as these are likely to not work well - only full blocks are tracked when using these features. When exporting lesser blocks it's better to add and delete blocks by hand and not have the program clean up the data. If you do want to check for floating objects, I recommend exporting full blocks first (which will perform the check properly if the option is checked), then export lesser blocks with the option off.
 </P>
 <P>
-Checking this box for 3D printing is risky, but will allow you to export slabs, stairs, and many other smaller elements as true geometry. <a href="#fullBlocksTable">The table</a> gives specifics about what is printable, under the "Lesser" column. The model produced with this option on can have some geometry that's tough for some 3D print slicers to process. The risk is that the service bureau or printer software cannot properly interpret your files. Commercial programs such as <a href="https://www.autodesk.com/products/netfabb">netfabb</a> are likely needed to preprocess your model. If you know of a good cheap/free mesh cleanup tool, let me know.
+Checking this box for 3D printing is risky, but will allow you to export slabs, stairs, and many other smaller elements as true geometry. <a href="#fullBlocksTable">The table</a> gives specifics about what is printable, under the "Lesser" column. The model produced with this option on can have some geometry that's tough for some 3D print slicers to process. The risk is that the service bureau or printer software cannot properly interpret your files. <a href="https://www.autodesk.com/products/fusion-360/overview">Fusion 360</a>, free, can be used to clean up a model, <a href="https://www.reddit.com/r/mineways/comments/1jeebf9/comment/mmq1ti1">see here for details</a>. Commercial programs such as <a href="https://www.autodesk.com/products/netfabb">netfabb</a> can also be used to preprocess your model.
 <P>
 You may still have problems with features being too thin to reliably print. If you truly want to print some geometry that Mineways won't output for 3D printing, e.g., you want to make a large banner model, you can always export via rendering and perform cleanup yourself (such as removing billboards).
 <P>
@@ -2898,6 +2898,12 @@ The textures and rules used in Minecraft for how blocks appear and connect have 
 From newest to oldest. The very newest is sometimes unreleased work in progress, with "*" meaning "to do" and "**" meaning "stretch goal."
 
 <UL>
+<LI>Version 12.07, */**/2025 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1207.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+  <BR>
+    <UL>
+	<LI>Note that Fusion 360 can be used to <a href="https://www.reddit.com/r/mineways/comments/1jeebf9/comment/mmq1ti1/">clean up detailed Mineways models for 3D printing</a>.
+	</UL>
+
 <LI>Version 12.06, 4/12/2025 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1206.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
     <UL>
