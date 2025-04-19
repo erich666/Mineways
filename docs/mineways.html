@@ -2901,6 +2901,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 <LI>Version 12.07, */**/2025 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1207.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
     <UL>
+	<LI>Fix snow (and many other partial blocks) so that rectangles that are not visible from the outside are properly culled. Previously only half of these partial-height vertical rectangles were culled. Testing a snowy mountain, this led to a 12 percent reduction in the number of triangles output, with no visual difference. <I>(Thanks to ilovesoggycate for <a href="https://github.com/erich666/Mineways/issues/142">reporting this bug</a>.)</I>
 	<LI>Fix Budding Amethyst so that it doesn't emit light. <I>(Thanks to ilovesoggycate for <a href="https://github.com/erich666/Mineways/issues/143">reporting this bug</a>.)</I>
 	<LI>Note that Fusion 360 can be used to <a href="https://www.reddit.com/r/mineways/comments/1jeebf9/comment/mmq1ti1/">clean up detailed Mineways models for 3D printing</a>.
 	</UL>
