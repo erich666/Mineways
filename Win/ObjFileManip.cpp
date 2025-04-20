@@ -13037,46 +13037,49 @@ static int lesserNeighborCoversRectangle(int faceDirection, int boxIndex, float 
     if (neighborType == BLOCK_AIR)
         return 0;
 
-    // are we going off the border?
-    // if the neighbor is outside the bounds, it doesn't count TODO! Have to do this because we're using origType.
-    IPoint anchor;
-    boxIndexToLoc(anchor, neighborBoxIndex);
-    switch(faceDirection) {
-        // If we are sealing borders, we haven't yet clears "air" blocks above and below, as these are needed sometimes for
-        // two-block-high plants, doors, etc. But, we should ignore them for this coverage test.
-    case DIRECTION_BLOCK_TOP:
-        // limit above
-        if (anchor[Y] >= gAirBox.max[Y])
-            return 0;
-        break;
-    case DIRECTION_BLOCK_BOTTOM:
-        // below
-        if (anchor[Y] <= gAirBox.min[Y])
-            return 0;
-        break;
-    case DIRECTION_BLOCK_SIDE_LO_X:
-        // below
-        if (anchor[X] <= gAirBox.min[X])
-            return 0;
-        break;
-    case DIRECTION_BLOCK_SIDE_HI_X:
-        // limit above
-        if (anchor[X] >= gAirBox.max[X])
-            return 0;
-        break;
-    case DIRECTION_BLOCK_SIDE_LO_Z:
-        // below
-        if (anchor[Z] <= gAirBox.min[Z])
-            return 0;
-        break;
-    case DIRECTION_BLOCK_SIDE_HI_Z:
-        // limit above
-        if (anchor[Z] >= gAirBox.max[Z])
-            return 0;
-        break;
-    default:
-        assert(0);
-        break;
+    // do we care that we're off the border?
+    if (gModel.options->pEFD->chkBlockFacesAtBorders) {
+        // are we going off the border?
+        // if the neighbor is outside the bounds, it doesn't count TODO! Have to do this because we're using origType.
+        IPoint anchor;
+        boxIndexToLoc(anchor, neighborBoxIndex);
+        switch (faceDirection) {
+            // If we are sealing borders, we haven't yet clears "air" blocks above and below, as these are needed sometimes for
+            // two-block-high plants, doors, etc. But, we should ignore them for this coverage test.
+        case DIRECTION_BLOCK_TOP:
+            // limit above
+            if (anchor[Y] >= gAirBox.max[Y])
+                return 0;
+            break;
+        case DIRECTION_BLOCK_BOTTOM:
+            // below
+            if (anchor[Y] <= gAirBox.min[Y])
+                return 0;
+            break;
+        case DIRECTION_BLOCK_SIDE_LO_X:
+            // below
+            if (anchor[X] <= gAirBox.min[X])
+                return 0;
+            break;
+        case DIRECTION_BLOCK_SIDE_HI_X:
+            // limit above
+            if (anchor[X] >= gAirBox.max[X])
+                return 0;
+            break;
+        case DIRECTION_BLOCK_SIDE_LO_Z:
+            // below
+            if (anchor[Z] <= gAirBox.min[Z])
+                return 0;
+            break;
+        case DIRECTION_BLOCK_SIDE_HI_Z:
+            // limit above
+            if (anchor[Z] >= gAirBox.max[Z])
+                return 0;
+            break;
+        default:
+            assert(0);
+            break;
+        }
     }
 
     // check for easy case: if neighbor is a full block, neighbor covers all, so return 1
