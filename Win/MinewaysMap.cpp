@@ -55,7 +55,7 @@ static unsigned char gBlankHighlitTile[16 * 16 * 4];
 static unsigned char gBlankTransitionTile[16 * 16 * 4];
 
 static unsigned short gColormap = 0;
-static long long gMapSeed;
+// no longer needed: static long long gMapSeed;
 
 static HighlightBox gBox = { 0,0,0,0,0,0,0 };
 static HighlightBox gPreviousBox = { 0,0,0,0,0,0,0 };

@@ -138,6 +138,86 @@ int doExportPrint(HINSTANCE hInst, HWND hWnd)
     return gOK;
 }
 
+// Export detailed was turned off or on somewhere earlier, so check that the other states correspond.
+void checkExportDetailed(HWND hDlg, bool messages)
+{
+    // if printing, special warning; this is the only time we do something special for printing vs. rendering export in this code.
+    if (epd.flags & EXPT_3DPRINT) {
+        if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_CHECKED)
+        {
+            // depending on file format, explain problems and solutions
+            if (messages) {
+                if (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ)
+                    // Sculpteo
+                    MessageBox(NULL, _T("Warning: this checkbox allows tiny features to be exported for 3D printing. Some of these small bits - fences, free-standing signs - may snap off during manufacture. Fattened versions of these objects are used by default, but even these can break. Also, the edge connection and floater checkboxes have been unchecked, since these options can cause problems. Finally, the meshes for some objects have elements that can cause Sculpteo's slicer problems - either visually check the uploaded file carefully or run it through a mesh cleanup system such as Netfabb; old free version: https://github.com/3DprintFIT/netfabb-basic-download."),
+                        _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
+                else if (epd.fileType == FILE_TYPE_VRML2)
+                    // Shapeways
+                    MessageBox(NULL, _T("Warning: this checkbox allows tiny features to be exported for 3D printing. Some of these small bits - fences, free-standing signs - may snap off during manufacture. Fattened versions of these objects are used by default, but even these can break, so Shapeways may refuse to print the model. Also, the edge connection and floater checkboxes have been unchecked, since these options can cause problems. The one bit of good news is that Shapeways' software will clean up the mesh for you, so at least any geometric inconsistencies will not cause you problems. If you are 3D printing otherwise, you may need to clean up the mesh with a system such as Netfabb; old free version: https://github.com/3DprintFIT/netfabb-basic-download."),
+                        _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
+                else
+                    MessageBox(NULL, _T("Warning: this checkbox allows tiny features to be exported for 3D printing. Some of these small bits - fences, free-standing signs - may snap off during manufacture. Fattened versions of these objects are used by default, but even these can break. Also, the edge connection and floater checkboxes have been unchecked, since these options can cause problems. Finally, the meshes for some objects have elements that can cause some 3D printer slicers problems; you may need to clean up the mesh with a system such as Netfabb; old free version: https://github.com/3DprintFIT/netfabb-basic-download."),
+                        _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
+            }
+            CheckDlgButton(hDlg, IDC_FATTEN, BST_CHECKED);
+            CheckDlgButton(hDlg, IDC_DELETE_FLOATERS, BST_UNCHECKED);
+            CheckDlgButton(hDlg, IDC_CONNECT_PARTS, BST_UNCHECKED);
+            CheckDlgButton(hDlg, IDC_CONNECT_CORNER_TIPS, BST_INDETERMINATE);
+            CheckDlgButton(hDlg, IDC_CONNECT_ALL_EDGES, BST_INDETERMINATE);
+        }
+        else if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_UNCHECKED)
+        {
+            // if lesser is toggled back off, turn on the defaults
+            if (IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES)) {
+                if (messages) {
+                    MessageBox(NULL, _T("Warning: turning details off changes the export mode to \"Export all textures to three large, mosaic images,\" as the \"Export individual textures\" export mode is incompatible with full block export. New textures are created that are composites, e.g., fern atop a grass block."),
+                        _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
+                }
+                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MOSAIC_TEXTURES, 1);
+                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, 0);
+                CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, BST_INDETERMINATE);
+            }
+            CheckDlgButton(hDlg, IDC_DELETE_FLOATERS, BST_CHECKED);
+            CheckDlgButton(hDlg, IDC_CONNECT_PARTS, BST_CHECKED);
+            CheckDlgButton(hDlg, IDC_CONNECT_CORNER_TIPS, BST_CHECKED);
+            CheckDlgButton(hDlg, IDC_CONNECT_ALL_EDGES, BST_UNCHECKED);
+        }
+    }
+    else {
+        // for rendering
+        if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_CHECKED)
+        {
+            // all objects export (i.e. lesser) is now on, so for mosaics make compositing checkable, but off, which is the default for rendering
+            CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_MOSAIC_TEXTURES) ? BST_UNCHECKED : BST_INDETERMINATE);
+            CheckDlgButton(hDlg, IDC_FATTEN, BST_UNCHECKED);
+        }
+        else if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_UNCHECKED)
+        {
+            if (IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES)) {
+                if (messages) {
+                    MessageBox(NULL, _T("Warning: turning details off changes the export mode to \"Export all textures to three large, mosaic images,\" as the \"Export individual textures\" export mode is incompatible with full block export. New textures are created that are composites, e.g., fern atop a grass block."),
+                        _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
+                }
+                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MOSAIC_TEXTURES, 1);
+                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, 0);
+                CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, BST_INDETERMINATE);
+            }
+            // definitely make compositing uncheckable at this point - full blocks mean that composite overlay must be used, vs. separate objects
+            CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
+
+            // just to be safe:
+            CheckDlgButton(hDlg, IDC_DELETE_FLOATERS, BST_UNCHECKED);
+            CheckDlgButton(hDlg, IDC_CONNECT_PARTS, BST_UNCHECKED);
+            CheckDlgButton(hDlg, IDC_CONNECT_CORNER_TIPS, BST_INDETERMINATE);
+            CheckDlgButton(hDlg, IDC_CONNECT_ALL_EDGES, BST_INDETERMINATE);
+        }
+    }
+    // if we're turning it off, always set fatten to indeterminate state
+    if (!IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL)) {
+        CheckDlgButton(hDlg, IDC_FATTEN, BST_INDETERMINATE);
+    }
+}
+
 INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
     char changeString[EP_FIELD_LENGTH];
@@ -498,7 +578,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             if (epd.fileType == FILE_TYPE_USD) {
                 // don't allow anything but tile output
                 CheckDlgButton(hDlg, IDC_RADIO_EXPORT_NO_MATERIALS, 0);
-                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MOSAIC_TEXTURES, (epd.flags& EXPT_3DPRINT) ? 1 : 0);
+                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MOSAIC_TEXTURES, (epd.flags & EXPT_3DPRINT) ? 1 : 0);
                 CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, (epd.flags & EXPT_3DPRINT) ? 0 : 1);
                 SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
             }
@@ -507,7 +587,10 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_WHITE_STRONG_FLEXIBLE, 0);
                 // kinda sleazy: if we go to anything but full textures, turn off exporting all objects
                 // - done because full blocks of the lesser objects usually looks dumb
-                CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_UNCHECKED);
+                if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) != BST_UNCHECKED) {
+                    CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_UNCHECKED);
+                    checkExportDetailed(hDlg, false);
+                }
             }
             CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, BST_INDETERMINATE);
@@ -530,7 +613,10 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 // set the combo box material to color (might already be that, which is fine)
                 SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
                 // kinda sleazy: if we go to anything but full textures, turn off exporting all objects
-                CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_UNCHECKED);
+                if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) != BST_UNCHECKED) {
+                    CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_UNCHECKED);
+                    checkExportDetailed(hDlg, false);
+                }
             }
             CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, BST_INDETERMINATE);
@@ -540,8 +626,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             if (epd.fileType == FILE_TYPE_USD) {
                 // don't allow anything but tile output
                 CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SOLID_TEXTURES, 0);
-                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MOSAIC_TEXTURES, (epd.flags& EXPT_3DPRINT) ? 1 : 0);
-                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, (epd.flags& EXPT_3DPRINT) ? 0 : 1);
+                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MOSAIC_TEXTURES, (epd.flags & EXPT_3DPRINT) ? 1 : 0);
+                CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, (epd.flags & EXPT_3DPRINT) ? 0 : 1);
                 SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
             }
             else if (epd.fileType == FILE_TYPE_ASCII_STL) {
@@ -558,7 +644,10 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 // set the combo box material to color (might already be that, which is fine)
                 SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
                 // kinda sleazy: if we go to anything but full textures, turn off exporting all objects
-                CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_UNCHECKED);
+                if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) != BST_UNCHECKED) {
+                    CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_UNCHECKED);
+                    checkExportDetailed(hDlg, false);
+                }
             }
             CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, BST_INDETERMINATE);
@@ -580,7 +669,10 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 // if this option is picked, assume colored output material
                 SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
                 CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, ((epd.flags & EXPT_3DPRINT) || !epd.chkExportAll) ? BST_INDETERMINATE : epd.chkCompositeOverlay);
-                CheckDlgButton(hDlg, IDC_EXPORT_ALL, (epd.flags & EXPT_3DPRINT) ? BST_UNCHECKED : BST_CHECKED);
+                if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) != (UINT)((epd.flags & EXPT_3DPRINT) ? BST_UNCHECKED : BST_CHECKED)) {
+                    CheckDlgButton(hDlg, IDC_EXPORT_ALL, (epd.flags & EXPT_3DPRINT) ? BST_UNCHECKED : BST_CHECKED);
+                    checkExportDetailed(hDlg, false);
+                }
                 CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ) &&
                     (IsDlgButtonChecked(hDlg, IDC_SEPARATE_TYPES) == BST_CHECKED) || (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_CHECKED) ? epd.chkMaterialPerFamily : BST_INDETERMINATE);
                 CheckDlgButton(hDlg, IDC_SPLIT_BY_BLOCK_TYPE, (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ) &&
@@ -592,13 +684,16 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
         case IDC_RADIO_EXPORT_SEPARATE_TILES:
             if (epd.flags & EXPT_3DPRINT) {
                 // don't allow tile output for 3d printing except for USD
-                if (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ || 
+                if (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ ||
                     epd.fileType == FILE_TYPE_VRML2 || epd.fileType == FILE_TYPE_USD) {
                     // single texture is only allowed type, since we can't use compositing with separate tiles
                     CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MOSAIC_TEXTURES, 1);
                     CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, 0);
                     SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
-                    CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_UNCHECKED);
+                    if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) != BST_UNCHECKED) {
+                        CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_UNCHECKED);
+                        checkExportDetailed(hDlg, false);
+                    }
                 }
                 else if (epd.fileType == FILE_TYPE_ASCII_STL) {
                     CheckDlgButton(hDlg, IDC_RADIO_EXPORT_NO_MATERIALS, 1);
@@ -635,14 +730,31 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                     // set the combo box material to color (might already be that, which is fine)
                     // not used in rendering, but still set it:
                     SendDlgItemMessage(hDlg, IDC_COMBO_PHYSICAL_MATERIAL, CB_SETCURSEL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, 0);
-                    CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_CHECKED);
-                    // if individual blocks is on, this one's indeterminate
-                    CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_CHECKED) ? BST_INDETERMINATE : epd.chkDecimate);
+                    if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) != BST_CHECKED) {
+                        if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) != BST_CHECKED) {
+                            CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_CHECKED);
+                            checkExportDetailed(hDlg, false);
+                        }
+                        // if individual blocks is on, this one's indeterminate
+                        CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, (IsDlgButtonChecked(hDlg, IDC_INDIVIDUAL_BLOCKS) == BST_CHECKED) ? BST_INDETERMINATE : epd.chkDecimate);
+                    }
                 }
             }
             // meaningless whenever individual tiles is set
             CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_INDETERMINATE);
             CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
+            if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_UNCHECKED) {
+                MessageBox(NULL, _T("Warning: individual textures cannot be used with \"Export lesser, detailed blocks\" option being off, so that option will be turned back on."),
+                    _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
+                if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) != BST_CHECKED) {
+                    CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_CHECKED);
+                    checkExportDetailed(hDlg, false);
+                }
+            }
+            // simplify mesh option should again be available if switching to individual tiles
+            if (IsDlgButtonChecked(hDlg, IDC_SIMPLIFY_MESH) == BST_INDETERMINATE) {
+                CheckDlgButton(hDlg, IDC_SIMPLIFY_MESH, BST_UNCHECKED);
+            }
             goto ChangeMaterial;
 
         case IDC_TEXTURE_A:
@@ -1007,74 +1119,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             break;
 
         case IDC_EXPORT_ALL:
-            // if printing, special warning; this is the only time we do something special for printing vs. rendering export in this code.
-            if (epd.flags & EXPT_3DPRINT) {
-                if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_CHECKED)
-                {
-                    // depending on file format, explain problems and solutions
-                    if (epd.fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || epd.fileType == FILE_TYPE_WAVEFRONT_REL_OBJ)
-                        // Sculpteo
-                        MessageBox(NULL, _T("Warning: this checkbox allows tiny features to be exported for 3D printing. Some of these small bits - fences, free-standing signs - may snap off during manufacture. Fattened versions of these objects are used by default, but even these can break. Also, the edge connection and floater checkboxes have been unchecked, since these options can cause problems. Finally, the meshes for some objects have elements that can cause Sculpteo's slicer problems - either visually check the uploaded file carefully or run it through a mesh cleanup system such as Netfabb; old free version: https://github.com/3DprintFIT/netfabb-basic-download."),
-                            _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
-                    else if (epd.fileType == FILE_TYPE_VRML2)
-                        // Shapeways
-                        MessageBox(NULL, _T("Warning: this checkbox allows tiny features to be exported for 3D printing. Some of these small bits - fences, free-standing signs - may snap off during manufacture. Fattened versions of these objects are used by default, but even these can break, so Shapeways may refuse to print the model. Also, the edge connection and floater checkboxes have been unchecked, since these options can cause problems. The one bit of good news is that Shapeways' software will clean up the mesh for you, so at least any geometric inconsistencies will not cause you problems. If you are 3D printing otherwise, you may need to clean up the mesh with a system such as Netfabb; old free version: https://github.com/3DprintFIT/netfabb-basic-download."),
-                            _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
-                    else
-                        MessageBox(NULL, _T("Warning: this checkbox allows tiny features to be exported for 3D printing. Some of these small bits - fences, free-standing signs - may snap off during manufacture. Fattened versions of these objects are used by default, but even these can break. Also, the edge connection and floater checkboxes have been unchecked, since these options can cause problems. Finally, the meshes for some objects have elements that can cause some 3D printer slicers problems; you may need to clean up the mesh with a system such as Netfabb; old free version: https://github.com/3DprintFIT/netfabb-basic-download."),
-                            _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
-                    CheckDlgButton(hDlg, IDC_FATTEN, BST_CHECKED);
-                    CheckDlgButton(hDlg, IDC_DELETE_FLOATERS, BST_UNCHECKED);
-                    CheckDlgButton(hDlg, IDC_CONNECT_PARTS, BST_UNCHECKED);
-                    CheckDlgButton(hDlg, IDC_CONNECT_CORNER_TIPS, BST_INDETERMINATE);
-                    CheckDlgButton(hDlg, IDC_CONNECT_ALL_EDGES, BST_INDETERMINATE);
-                }
-                else if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_UNCHECKED)
-                {
-                    // if lesser is toggled back off, turn on the defaults
-                    if (IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES)) {
-                        MessageBox(NULL, _T("Warning: turning details off changes the export mode to \"Export all textures to three large, mosaic images,\" as the \"Export individual blocks\" export mode is incompatible with full block export. New textures are created that are composites, e.g., fern atop a grass block."),
-                            _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
-                        CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MOSAIC_TEXTURES, 1);
-                        CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, 0);
-                    }
-                    CheckDlgButton(hDlg, IDC_DELETE_FLOATERS, BST_CHECKED);
-                    CheckDlgButton(hDlg, IDC_CONNECT_PARTS, BST_CHECKED);
-                    CheckDlgButton(hDlg, IDC_CONNECT_CORNER_TIPS, BST_CHECKED);
-                    CheckDlgButton(hDlg, IDC_CONNECT_ALL_EDGES, BST_UNCHECKED);
-                }
-            }
-            else {
-                // for rendering
-                if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_CHECKED)
-                {
-                    // all objects export (i.e. lesser) is now on, so for mosaics make compositing checkable, but off, which is the default for rendering
-                    CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_MOSAIC_TEXTURES) ? BST_UNCHECKED : BST_INDETERMINATE);
-                }
-                else if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_UNCHECKED)
-                {
-                    if (IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES)) {
-                        MessageBox(NULL, _T("Warning: turning details off changes the export mode to \"Export all textures to three large, mosaic images,\" as the \"Export individual blocks\" export mode is incompatible with full block export. New textures are created that are composites, e.g., fern atop a grass block."),
-                            _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
-                        CheckDlgButton(hDlg, IDC_RADIO_EXPORT_MOSAIC_TEXTURES, 1);
-                        CheckDlgButton(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES, 0);
-                    }
-                    // definitely make compositing uncheckable at this point - full blocks mean that composite overlay must be used, vs. separate objects
-                    CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
-
-                    // just to be safe:
-                    CheckDlgButton(hDlg, IDC_DELETE_FLOATERS, BST_UNCHECKED);
-                    CheckDlgButton(hDlg, IDC_CONNECT_PARTS, BST_UNCHECKED);
-                    CheckDlgButton(hDlg, IDC_CONNECT_CORNER_TIPS, BST_INDETERMINATE);
-                    CheckDlgButton(hDlg, IDC_CONNECT_ALL_EDGES, BST_INDETERMINATE);
-                }
-            }
-            // if we're turning it off, set fatten to indeterminate state
-            {
-                UINT isLesserChecked = IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL);
-                if (!isLesserChecked)
-                    CheckDlgButton(hDlg, IDC_FATTEN, BST_INDETERMINATE);
-            }
+            checkExportDetailed(hDlg, true);
             break;
 
         case IDC_FATTEN:
