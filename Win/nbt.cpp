@@ -389,9 +389,11 @@ static TranslationTuple* modTranslations = NULL;
 // ignore bottom
 #define PALE_MOSS_CARPET_PROP   69
 // south|west|north|east|down|up: true|false
-#define VINE_PROP	 70
+#define VINE_PROP   70
+// facing, hydration 0-3 shifted up 2, waterlogged
+#define GHAST_PROP  71
 
-#define NUM_TRANS 1113
+#define NUM_TRANS 1114
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1532,6 +1534,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  31,              8, "short_dry_grass", NO_PROP },
     { 0,  31,              9, "tall_dry_grass", NO_PROP },
     { 0,  31,             10, "firefly_bush", NO_PROP },
+    { 0, 235,       HIGH_BIT, "dried_ghast", GHAST_PROP },
 
     // 1.20.3 additions (short_grass added next to "grass", above), https://minecraft.wiki/w/Java_Edition_1.20.3#General_2
 
@@ -3371,7 +3374,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
         up, hanging, crafting;
     int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age,
         delay, locked, sticky, hatch, leaves, single, attachment, honey_level, stairs, bites, tilt,
-        thickness, vertical_direction, berries, flower_amount, orientation;
+        thickness, vertical_direction, berries, flower_amount, orientation, hydration;
     // to avoid Release build warning, but should always be set by code in practice
     int typeIndex = 0;
     half = north = south = east = west = down = lit = powered = triggered = extended = attached = disarmed
@@ -3379,7 +3382,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
         = up = hanging = crafting = false; // waterlogged is always set false in loop
     axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
         delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt =
-        thickness = vertical_direction = berries = flower_amount = orientation = 0;
+        thickness = vertical_direction = berries = flower_amount = orientation = hydration = 0;
     int pmc = 0;
 
     // IMPORTANT: if any PROP field uses any of these:
@@ -4283,6 +4286,11 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             }
                         }
 
+                        else if (strcmp(token, "hydration") == 0) {
+                            // two higher bits, 0x4 and 0x8; door_facing in low bits, GHAST_PROP
+                            hydration = atoi(value);
+                        }
+
 #ifdef _DEBUG
                         else {
                             // ignore, not used by Mineways for now, BlockTranslations[typeIndex]
@@ -4615,6 +4623,12 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 if (dataVal == 0x0) {
                     dataVal = 0x3F; // all sides
                 }
+                break;
+            case GHAST_PROP:
+                // facing, hydration
+                // need to translate into 90 degree rotations for facing
+                dataVal = (hydration << 2) | ((door_facing + 3) % 4);
+                hydration = 0;
                 break;
             case COCOA_PROP:
                 dataVal = ((door_facing + 3) % 4) + (age << 2);

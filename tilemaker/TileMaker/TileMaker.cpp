@@ -174,8 +174,8 @@ void printHelp();
 
 int shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2);
 bool swapFileRecords(FileGrid* pfg, int index1, int index2);
-int checkFileWidth(FileRecord* pfr, int overlayTileSize, bool square, bool isFileGrid, int index, int lavaFlowIndex, int waterFlowIndex);
-int trueWidth(int index, int width, int lavaFlowIndex, int waterFlowIndex);
+int checkFileWidth(FileRecord* pfr, int overlayTileSize, bool square, bool isFileGrid, int index, int lavaFlowIndex, int waterFlowIndex, int tentacleIndexStart);
+int trueWidth(int index, int width, int lavaFlowIndex, int waterFlowIndex, int tentacleIndexStart);
 
 int testFileForPowerOfTwo(int width, int height, const wchar_t* cFileName, bool square);
 
@@ -521,13 +521,14 @@ int wmain(int argc, wchar_t* argv[])
 	// Find largest tile.
 	int lavaFlowIndex = findTileIndex(L"lava_flow", 0);
 	int waterFlowIndex = findTileIndex(L"water_flow", 0);
+	int tentacleIndexStart = findTileIndex(L"dried_ghast_hydration_0_tentacles", 0);
 	assert(lavaFlowIndex >= 0 && waterFlowIndex >= 0);
 	int size;
 	for (catIndex = 0; catIndex < gFG.totalCategories; catIndex++) {
 		for (index = 0; index < gFG.totalTiles; index++) {
 			fullIndex = catIndex * gFG.totalTiles + index;
 			if (gFG.fr[fullIndex].exists) {
-				size = checkFileWidth(&gFG.fr[fullIndex], overlayTileSize, true, true, index, lavaFlowIndex, waterFlowIndex);
+				size = checkFileWidth(&gFG.fr[fullIndex], overlayTileSize, true, true, index, lavaFlowIndex, waterFlowIndex, tentacleIndexStart);
 				if (size == 0) {
 					deleteFileFromGrid(&gFG, fullIndex / gFG.totalTiles, fullIndex);
 				}
@@ -543,7 +544,7 @@ int wmain(int argc, wchar_t* argv[])
 		for (index = 0; index < gCG.totalTiles; index++) {
 			fullIndex = catIndex * gCG.totalTiles + index;
 			if (gCG.cr[fullIndex].exists) {
-				size = checkFileWidth(&gCG.cr[fullIndex], overlayChestSize, false, false, -1, 0, 0);
+				size = checkFileWidth(&gCG.cr[fullIndex], overlayChestSize, false, false, -1, 0, 0, 0);
 				if (size == 0) {
 					deleteChestFromGrid(&gCG, fullIndex / gCG.totalTiles, fullIndex);
 				}
@@ -559,7 +560,7 @@ int wmain(int argc, wchar_t* argv[])
 		for (index = 0; index < gPG.totalTiles; index++) {
 			fullIndex = catIndex * gPG.totalTiles + index;
 			if (gPG.pr[fullIndex].exists) {
-				size = checkFileWidth(&gPG.pr[fullIndex], overlayDecoratedPotSize, false, false, -1, 0, 0);
+				size = checkFileWidth(&gPG.pr[fullIndex], overlayDecoratedPotSize, false, false, -1, 0, 0, 0);
 				if (size == 0) {
 					deleteDecoratedPotFromGrid(&gPG, fullIndex / gPG.totalTiles, fullIndex);
 				}
@@ -1064,7 +1065,7 @@ int wmain(int argc, wchar_t* argv[])
 							}
 						}
 
-						float zoom = (float)destination_ptr->width / (float)(trueWidth(index, tile.width, lavaFlowIndex, waterFlowIndex) * 16);
+						float zoom = (float)destination_ptr->width / (float)(trueWidth(index, tile.width, lavaFlowIndex, waterFlowIndex, tentacleIndexStart) * 16);
 						if (copyPNGTile(destination_ptr, channels, gTilesTable[index].txrX, gTilesTable[index].txrY, chosenTile, &tile, 0, 0, 16, 16, 0, 0, 0x0, zoom)) {
 							// failed to copy, somehow
 							assert(0);
@@ -1593,7 +1594,7 @@ bool swapFileRecords(FileGrid* pfg, int index1, int index2)
 }
 
 
-int checkFileWidth(FileRecord *pfr, int overlayTileSize, bool square, bool isFileGrid, int index, int lavaFlowIndex, int waterFlowIndex) {
+int checkFileWidth(FileRecord *pfr, int overlayTileSize, bool square, bool isFileGrid, int index, int lavaFlowIndex, int waterFlowIndex, int tentacleIndexStart) {
 	// check that width and height make sense.
 	wchar_t inputFile[MAX_PATH_AND_FILE];
 	wcscpy_s(inputFile, MAX_PATH_AND_FILE, pfr->path);
@@ -1617,9 +1618,9 @@ int checkFileWidth(FileRecord *pfr, int overlayTileSize, bool square, bool isFil
 		// usable width
 
 		// Check when this is a file grid.
-		// For water_flow and lava_flow, the image width is twice normal, so halve it for the width we actually use.
+		// For water_flow and lava_flow, and dried ghast tentacles, the image width is twice normal, so halve it for the width we actually use.
 		if (isFileGrid) {
-			tile.width = trueWidth(index, tile.width, lavaFlowIndex, waterFlowIndex);
+			tile.width = trueWidth(index, tile.width, lavaFlowIndex, waterFlowIndex, tentacleIndexStart);
 		}
 
 		if (overlayTileSize < tile.width)
@@ -1630,9 +1631,10 @@ int checkFileWidth(FileRecord *pfr, int overlayTileSize, bool square, bool isFil
 	return overlayTileSize;
 }
 
-int trueWidth(int index, int width, int lavaFlowIndex, int waterFlowIndex)
+int trueWidth(int index, int width, int lavaFlowIndex, int waterFlowIndex, int tentacleIndexStart)
 {
-	return (index == lavaFlowIndex || index == waterFlowIndex) ? width / 2 : width;
+	return (index == lavaFlowIndex || index == waterFlowIndex ||
+		index == tentacleIndexStart || index == tentacleIndexStart + 7 || index == tentacleIndexStart + 14 || index == tentacleIndexStart + 21 ) ? width / 2 : width;
 }
 
 int testFileForPowerOfTwo(int width, int height, const wchar_t* cFileName, bool square)

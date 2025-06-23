@@ -234,6 +234,8 @@ static int gUsingTransform = 0;
 #define REVOLVE_INDICES			0x08
 #define ROTATE_X_FACE_90		0x10
 #define FLIP_TOP_V_VALUES   	0x20
+#define SHIFT_HI_X_FACE_VERTICALLY	0x40
+#define SHIFT_Z_FACE_VERTICALLY 0x80
 
 #define OSQRT2 0.707106781f
 #define OCOS22P5DEG 0.92387953251f
@@ -11708,7 +11710,86 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         gUsingTransform = 0;
         break; // saveBillboardOrGeometry
 
-        // END saveBillboardOrGeometry
+    case BLOCK_DRIED_GHAST: // saveBillboardOrGeometry
+        {
+            facing = dataVal & 0x3;
+            int hydration = (dataVal >> 2) & 0x3;
+            // the default texture is the top, so we need to offset based on hydration and subtract 5 to get to the bottom texture of the proper hydration level
+            swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + 7 * hydration - 5;
+
+            gUsingTransform = 1;
+            totalVertexCount = littleTotalVertexCount = gModel.vertexCount;
+
+            // note all six sides are used, but with different texture coordinates
+            // sides:
+            // rules: the 0,12, 4,16, 4,12 defines the size of the object in X, Y, and Z. These vertices can be reused and assigned new UVs. So this object is 12x12x8.
+            // We first select the Z face, so X 0-12 and Y 4-16 selects from the texture tile and applies that face. FLIP_Z_FACE_VERTICALLY then mirrors the face to the DIRECTION_BLOCK_SIDE_LO_Z side.
+            //saveBoxMultitileGeometry(... DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, xmin, xmax, ymin, ymax, zmin, zmax);
+            swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc+5;
+            swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc;
+            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLoc + 1;    // east
+            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc + 6;    // west
+            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 3;    // south
+            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc + 2;    // north
+            saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, 0x0, SHIFT_HI_X_FACE_VERTICALLY | SHIFT_Z_FACE_VERTICALLY, 0, 0, 10, 6, 16, 0, 10);
+/*            saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 0, 8, 4, 16);
+            // top and bottom: these use xmin,16-zmax and xmax,16-zmin normally. y's are ignored
+            //saveBoxReuseGeometry(... DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, umin, umax, 0, 0, 16 - vmax, 16 - vmin);
+            //saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, 0, 8, 0, 0, 0, 12);
+            saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 0, 8, 4, 16);
+            littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+            identityMtx(mtx);
+            translateMtx(mtx, 2.0f / 16.0f, 0.0f, 0.0f);
+            transformVertices(littleTotalVertexCount, mtx);
+
+            // now add the two supports
+            for (i = 0; i < 2; i++) {
+                swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + 1;
+                littleTotalVertexCount = gModel.vertexCount;
+                // make the 6x6x2 wood axle
+                // rules: the 0,12, 4,16, 4,12 defines the size of the object in X, Y, and Z. These vertices can be reused and assigned new UVs. So this object is 6x6x2.
+                // We first select the Z face, so X 0-12 and Y 4-16 selects from the texture tile and applies that face. FLIP_Z_FACE_VERTICALLY then mirrors the face to the DIRECTION_BLOCK_SIDE_LO_Z side.
+                //saveBoxMultitileGeometry(... DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, xmin, xmax, ymin, ymax, zmin, zmax);
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.print3D ? 0x0 : ((i == 0) ? DIR_HI_Z_BIT : DIR_LO_Z_BIT)), FLIP_Z_FACE_VERTICALLY, 0, 6, 10, 16, 2, 4);
+                // So, X will use U,V = 16-zmax,ymin to 16-zmin,ymax for the mapping to the X faces. (The x values are ignored, they're only used for geometry) In other words, treat Y as X in the texture itself.
+                // This is not the slightest bit entirely confusing. Basically, the y axis gets used for both x and z faces.
+                //saveBoxReuseGeometry(... DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_X_FACE_VERTICALLY, 0, 0, vmin, vmax, 16 - umax, 16 - umin);
+                //saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_X_FACE_VERTICALLY, 0, 0, 10, 16, 8, 10);
+                saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 6, 8, 10, 16);
+                // top and bottom: these use xmin,16-zmax and xmax,16-zmin normally. y's are ignored
+                //saveBoxReuseGeometry(... DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, umin, umax, 0, 0, 16 - vmax, 16 - vmin);
+                //saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, 8, 10, 0, 0, 0, 6);
+                saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 8, 10, 10, 16);
+                littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+                identityMtx(mtx);
+                translateMtx(mtx, 5.0f / 16.0f, -3.0f / 16.0f, (float)i * 10.0f / 16.0f);
+                transformVertices(littleTotalVertexCount, mtx);
+
+                swatchLoc = SWATCH_INDEX(14, 19);
+                littleTotalVertexCount = gModel.vertexCount;
+                // make the 2x7x4 support
+                // rules: the 0,12, 4,16, 4,12 defines the size of the object in X, Y, and Z. These vertices can be reused and assigned new UVs. So this object is 2x7x4.
+                // We first select the Z face, so X 0-12 and Y 4-16 selects from the texture tile and applies that face. FLIP_Z_FACE_VERTICALLY then mirrors the face to the DIRECTION_BLOCK_SIDE_LO_Z side.
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, (gModel.print3D ? 0x0 : DIR_TOP_BIT), FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY | REVOLVE_INDICES, 6, 10, 0, 7, 2, 4);
+                littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+                identityMtx(mtx);
+                translateMtx(mtx, 0.0f, 0.0f, (float)i * 10.0f / 16.0f);
+                transformVertices(littleTotalVertexCount, mtx);
+            }
+*/
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            translateMtx(mtx, 0.1875f, -0.375f, 0.1875f);
+            rotateMtx(mtx, 0.0f, (float)facing * 90.0f, 0.0f);
+            translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(totalVertexCount, mtx);
+
+            gUsingTransform = 0;
+        }
+        break; // saveBillboardOrGeometry
+
+    // END saveBillboardOrGeometry
     //==================================================================================
     default:
         // something tagged as billboard or geometry, but no case here! Examine "type"
@@ -12584,8 +12665,8 @@ static void saveBoxReuseGeometry(int boxIndex, int type, int dataVal, int swatch
     saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, faceMask, rotUVs, 1, minPixX, maxPixX, minPixY, maxPixY, minPixZ, maxPixZ);
 }
 
-// rotUVs == FLIP_X_FACE_VERTICALLY means vertically flip X face
-// rotUVs == FLIP_Z_FACE_VERTICALLY means vertically flip Z face
+// rotUVs == FLIP_X_FACE_VERTICALLY means vertically flip LO X face (i.e. along a Y vertical axis, so flip left and right sides)
+// rotUVs == FLIP_Z_FACE_VERTICALLY means vertically flip LO Z face
 // rotUVs == ROTATE_TOP_AND_BOTTOM means rotate top and bottom tile 90 degrees; for glass panes.
 static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatchLocSet[6], int markFirstFace, int faceMask, int rotUVs, int reuseVerts, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ)
 {
@@ -12736,12 +12817,27 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
                     vindex[2] = 0x4 | 0x1;		// zmin, ymin
                     vindex[3] = 0x4;			// zmax, ymin
                     useRotUVs = (rotUVs & ROTATE_X_FACE_90) ? 1 : 0;
-                    // normal case
-                    // On the hi X face, the Z direction is negative, so we negate
-                    minu = (float)(16.0f - maxPixZ) / 16.0f;
-                    maxu = (float)(16.0f - minPixZ) / 16.0f;
-                    minv = (float)minPixY / 16.0f;
-                    maxv = (float)maxPixY / 16.0f;
+                    if (rotUVs & SHIFT_HI_X_FACE_VERTICALLY)
+                    {
+                        // to mirror the face, use the same coordinates as the HI_X face
+                        minu = (float)minPixZ / 16.0f;
+                        maxu = (float)maxPixZ / 16.0f;
+                        minv = (float)minPixY / 16.0f;
+                        maxv = (float)maxPixY / 16.0f;
+                        // don't want to flip, so commented out:
+                        //useRotUVs += 2;
+                        //reverseLoop = 1;
+                    }
+                    else
+                    {
+                        // normal case
+                        // On the hi X face, the Z direction is negative, so we negate
+                        minu = (float)(16.0f - maxPixZ) / 16.0f;
+                        maxu = (float)(16.0f - minPixZ) / 16.0f;
+                        minv = (float)minPixY / 16.0f;
+                        maxv = (float)maxPixY / 16.0f;
+                    }
+                    break;
                     break;
                 case DIRECTION_BLOCK_SIDE_LO_Z:
                     vindex[0] = 0x2;		// xmin, ymax
@@ -12751,15 +12847,17 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
                     // here for the sides of beds and for doors, and for glass, so one mirrors the other
                     // rotate 180 and flip
                     // when rotUVs are used currently, also reverse the loop
-                    if (rotUVs & FLIP_Z_FACE_VERTICALLY)
+                    if (rotUVs & (FLIP_Z_FACE_VERTICALLY|SHIFT_Z_FACE_VERTICALLY))
                     {
                         // use same coordinates as HI_Z, so that the faces mirror one another
                         minu = (float)minPixX / 16.0f;
                         maxu = (float)maxPixX / 16.0f;
                         minv = (float)minPixY / 16.0f;
                         maxv = (float)maxPixY / 16.0f;
-                        useRotUVs += 2;
-                        reverseLoop = 1;
+                        if (rotUVs & FLIP_Z_FACE_VERTICALLY) {
+                            useRotUVs += 2;
+                            reverseLoop = 1;
+                        }
                     }
                     else
                     {
@@ -35034,6 +35132,7 @@ static bool faceCanTile(int faceId)
     case BLOCK_BAMBOO_HANGING_SIGN:
     case BLOCK_HEAVY_CORE:
     case BLOCK_PINK_PETALS:
+    case BLOCK_DRIED_GHAST:
 
     // Ruled out because complex and used flipIndicesLeftRight
     case BLOCK_BED:

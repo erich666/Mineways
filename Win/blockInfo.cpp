@@ -575,6 +575,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 488 */ "Waxed Weathered Copper Door",  0x6F9972, 1.000f, 0xff7711, 0xff7711, 0.12345f,  6, 66, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
     { /* 489 */ "Waxed Oxidized Copper Door",   0x54A387, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 64, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
     { /* 490 */ "Test Block",                   0xB7A18C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  6, 69, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
+    { /* 491 */ "Dried Ghast",             		0x9D8F8F, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 69, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
 
     // Important note: 396 is skipped, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
 };
