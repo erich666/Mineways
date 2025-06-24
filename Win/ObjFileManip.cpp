@@ -25280,7 +25280,6 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                                 }
                                 // did we find it?
                                 if (curCount != -999) {
-                                    // did not find type/data combinationTOD - add it to list
                                     // did not find type/data combination - add it to list
                                     gMtlList.push_back(typeData);
                                 }
