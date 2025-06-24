@@ -7792,6 +7792,17 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
 
+    case BLOCK_DRIED_GHAST:
+        // uses 0-31
+        addBlock = 1;
+        finalDataVal = (dataVal & 0xF);
+        // waterlogged
+        neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
+        block->grid[neighborIndex] = (unsigned char)(type & 0xff);
+        block->data[neighborIndex] = HIGH_BIT | (unsigned char)finalDataVal | WATERLOGGED_BIT;
+        break;
+
+
         // don't show special blocks to users
 #ifndef _DEBUG
     case BLOCK_UNKNOWN:

@@ -11732,55 +11732,40 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 3;    // south
             swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc + 2;    // north
             saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, 0x0, SHIFT_HI_X_FACE_VERTICALLY | SHIFT_Z_FACE_VERTICALLY, 0, 0, 10, 6, 16, 0, 10);
-/*            saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 0, 8, 4, 16);
-            // top and bottom: these use xmin,16-zmax and xmax,16-zmin normally. y's are ignored
-            //saveBoxReuseGeometry(... DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, umin, umax, 0, 0, 16 - vmax, 16 - vmin);
-            //saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, 0, 8, 0, 0, 0, 12);
-            saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 0, 8, 4, 16);
+
             littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
             identityMtx(mtx);
-            translateMtx(mtx, 2.0f / 16.0f, 0.0f, 0.0f);
+            translateMtx(mtx, 0.1875f, -0.375f, 0.1875f);
             transformVertices(littleTotalVertexCount, mtx);
 
-            // now add the two supports
-            for (i = 0; i < 2; i++) {
-                swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + 1;
-                littleTotalVertexCount = gModel.vertexCount;
-                // make the 6x6x2 wood axle
-                // rules: the 0,12, 4,16, 4,12 defines the size of the object in X, Y, and Z. These vertices can be reused and assigned new UVs. So this object is 6x6x2.
-                // We first select the Z face, so X 0-12 and Y 4-16 selects from the texture tile and applies that face. FLIP_Z_FACE_VERTICALLY then mirrors the face to the DIRECTION_BLOCK_SIDE_LO_Z side.
-                //saveBoxMultitileGeometry(... DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_Z_FACE_VERTICALLY, xmin, xmax, ymin, ymax, zmin, zmax);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.print3D ? 0x0 : ((i == 0) ? DIR_HI_Z_BIT : DIR_LO_Z_BIT)), FLIP_Z_FACE_VERTICALLY, 0, 6, 10, 16, 2, 4);
-                // So, X will use U,V = 16-zmax,ymin to 16-zmin,ymax for the mapping to the X faces. (The x values are ignored, they're only used for geometry) In other words, treat Y as X in the texture itself.
-                // This is not the slightest bit entirely confusing. Basically, the y axis gets used for both x and z faces.
-                //saveBoxReuseGeometry(... DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_X_FACE_VERTICALLY, 0, 0, vmin, vmax, 16 - umax, 16 - umin);
-                //saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_X_FACE_VERTICALLY, 0, 0, 10, 16, 8, 10);
-                saveBoxReuseGeometryXFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 6, 8, 10, 16);
-                // top and bottom: these use xmin,16-zmax and xmax,16-zmin normally. y's are ignored
-                //saveBoxReuseGeometry(... DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, umin, umax, 0, 0, 16 - vmax, 16 - vmin);
-                //saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, REVOLVE_INDICES, 8, 10, 0, 0, 0, 6);
-                saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 8, 10, 10, 16);
-                littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-                identityMtx(mtx);
-                translateMtx(mtx, 5.0f / 16.0f, -3.0f / 16.0f, (float)i * 10.0f / 16.0f);
-                transformVertices(littleTotalVertexCount, mtx);
+            // now add the tentacles
+            // we allow these to be 3d printed, with the assumption that the ghast is on the ground. YMMV.
+            for (i = 0; i < 3; i++) {
+                for (int j = 0; j < 2; j++) {
+                    littleTotalVertexCount = gModel.vertexCount;
 
-                swatchLoc = SWATCH_INDEX(14, 19);
-                littleTotalVertexCount = gModel.vertexCount;
-                // make the 2x7x4 support
-                // rules: the 0,12, 4,16, 4,12 defines the size of the object in X, Y, and Z. These vertices can be reused and assigned new UVs. So this object is 2x7x4.
-                // We first select the Z face, so X 0-12 and Y 4-16 selects from the texture tile and applies that face. FLIP_Z_FACE_VERTICALLY then mirrors the face to the DIRECTION_BLOCK_SIDE_LO_Z side.
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, (gModel.print3D ? 0x0 : DIR_TOP_BIT), FLIP_Z_FACE_VERTICALLY | FLIP_X_FACE_VERTICALLY | REVOLVE_INDICES, 6, 10, 0, 7, 2, 4);
-                littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-                identityMtx(mtx);
-                translateMtx(mtx, 0.0f, 0.0f, (float)i * 10.0f / 16.0f);
-                transformVertices(littleTotalVertexCount, mtx);
+                    // top and bottom good:
+                    saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc + 4, swatchLoc + 4, swatchLoc + 4, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, SHIFT_Z_FACE_VERTICALLY, 3, 5, 6, 7, 0, 3);
+                    // here we add just DIR_HI_X_BIT, as DIR_HI_Z_BIT is the inside of the tentacle that goes against the body and so is not needed.
+                    saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc + 4, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 5, 7, 4, 5, 1, 4);
+                    // and here we add both DIR_LO_X_BIT andDIR_LO_Z_BIT
+                    saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc + 4, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_HI_Z_BIT, 0x0, 9, 11, 4, 5, 12, 15);
+                    //saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_X_FACE_VERTICALLY, 0, 0, 10, 16, 8, 10);
+
+                    littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+                    identityMtx(mtx);
+                    translateMtx(mtx, (float)(j * 4 + 2) / 16.0f, -0.375f, 0.0f);
+                    translateToOriginMtx(mtx, boxIndex);
+                    rotateMtx(mtx, 0.0f, (float)((i + 3) % 4) * 90.0f, 0.0f);
+                    translateFromOriginMtx(mtx, boxIndex);
+                    transformVertices(littleTotalVertexCount, mtx);
+                }
             }
-*/
+
+            // transform the whole thing
             totalVertexCount = gModel.vertexCount - totalVertexCount;
             identityMtx(mtx);
             translateToOriginMtx(mtx, boxIndex);
-            translateMtx(mtx, 0.1875f, -0.375f, 0.1875f);
             rotateMtx(mtx, 0.0f, (float)facing * 90.0f, 0.0f);
             translateFromOriginMtx(mtx, boxIndex);
             transformVertices(totalVertexCount, mtx);
@@ -23212,20 +23197,20 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             if (uvIndices && angle != 0)
                 rotateIndices(localIndices, angle);
             break;
-        case BLOCK_GRINDSTONE:
+        case BLOCK_GRINDSTONE:						// getSwatch
             swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_SMOOTH_STONE].txrX, gBlockDefinitions[BLOCK_SMOOTH_STONE].txrY);
             break;
         case BLOCK_STONECUTTER:						// getSwatch
             SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 5, 41, 6, 41);
             break;
-        case BLOCK_BELL:
+        case BLOCK_BELL:						// getSwatch
             // use gold - why not?
             swatchLoc = SWATCH_INDEX(gBlockDefinitions[BLOCK_OF_GOLD].txrX, gBlockDefinitions[BLOCK_OF_GOLD].txrY);
             break;
-        case BLOCK_SCAFFOLDING:
+        case BLOCK_SCAFFOLDING:						// getSwatch
             SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 9, 40, 106, 40);
             break;
-        case BLOCK_BEE_NEST:
+        case BLOCK_BEE_NEST:						// getSwatch
             // establish top/side/bottom
             switch (dataVal & BIT_32) {
             default:
@@ -24045,6 +24030,53 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             // easy, just add offset, they're in order in tiles.h
             swatchLoc += (dataVal & 0x3);
             break;
+
+        case BLOCK_DRIED_GHAST:
+        {
+            int facing = dataVal & 0x3;
+            int hydration = (dataVal >> 2) & 0x3;
+            // the default texture is the top for this code. Hydration picks age textures.
+            swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + 7 * hydration;
+
+            // faceDirection => north/east/south/west
+            // columns are facings: front/right/back/left
+            // values are offsets to front/right/back/left
+            int ghastOffsets[4] = { -3,-4,-2,1 };
+            switch (faceDirection) {
+            case DIRECTION_BLOCK_TOP:
+                // rotate top
+                if (uvIndices) {
+                    rotateIndices(localIndices, 90 * facing);
+                }
+                break;
+            case DIRECTION_BLOCK_BOTTOM:
+                // rotate bottom
+                swatchLoc -= 5;
+                if (uvIndices) {
+                    rotateIndices(localIndices, 90 * facing);
+                }
+                break;
+
+            case DIRECTION_BLOCK_SIDE_LO_X:
+                // west
+                swatchLoc += ghastOffsets[(5-facing) % 4];
+                break;
+            case DIRECTION_BLOCK_SIDE_LO_Z:
+                // north
+                swatchLoc += ghastOffsets[(6-facing)%4];
+                break;
+            case DIRECTION_BLOCK_SIDE_HI_X:
+                // east
+                swatchLoc += ghastOffsets[(7-facing) % 4];
+                break;
+            case DIRECTION_BLOCK_SIDE_HI_Z:
+                // south
+                swatchLoc += ghastOffsets[(4-facing) % 4];
+                break;
+            }
+        }
+        break;
+
 
         //================================================================================================
         default:
@@ -26923,6 +26955,17 @@ static int createBaseMaterialTexture()
             stretchSwatchToFill(mainprog, SWATCH_INDEX(10, 7), 1, 8, 14, 15);
             stretchSwatchToFill(mainprog, SWATCH_INDEX(11, 7), 1, 8, 14, 15);
             stretchSwatchToFill(mainprog, SWATCH_INDEX(12, 7), 1, 1, 14, 14);
+
+            // dried ghasts
+            // the default texture is the top, so we need to offset based on hydration and subtract 5 to get to the bottom texture of the proper hydration level
+            int swatchLoc = SWATCH_INDEX(10,69);
+            for (i = 0; i < 28; i++) {
+                // don't waste time stretching the tentacles (I never thought I'd write a comment saying this),
+                // since they are not used in full-block mode
+                if ((i % 7) != 4) {
+                    stretchSwatchToFill(mainprog, swatchLoc+i, 0, 0, 10, 10);
+                }
+            }
 
             // add latches to single and double chests, before interpolation, so they're exact
             int pixelsPerTexel = gModel.tileSize / 16;
