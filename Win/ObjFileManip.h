@@ -33,6 +33,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define __cdecl
 #endif
 
+#include <vector>
+
 #include "vector.h"
 #include "blockInfo.h"
 #include "rwpng.h"
@@ -259,8 +261,9 @@ typedef struct Model {
 
     // The absolute maximum number of materials possible. It's actually much smaller than this, as data values
     // do not usually generate sub-materials, but we're playing it safe.
-#define NUM_SUBMATERIALS	2000
-    unsigned int mtlList[NUM_SUBMATERIALS];
+    // Hmmm, bug: if gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK, the number of materials
+    // generated for exporting the whole of BlockWorld (the test world) is quite large: 3242. So, make this 4000.
+//#define NUM_SUBMATERIALS	4000
     bool tileList[TOTAL_CATEGORIES][TOTAL_TILES];
     int tileListCount; // number of tiles actually used in tileList
     bool tileEmissionNeeded[TOTAL_TILES];
@@ -318,10 +321,11 @@ typedef struct Model {
     int groupCount;
     int groupCountSize;
     int* groupCountArray;
+    // TODO - a messy bug, https://github.com/erich666/Mineways/issues/146
+    //int uniqueMeshVal; // give every output USD mesh a suffix with a unique number, to avoid name collisions
 } Model;
 
 extern Model gModel;
-
 
 // translate the world version from https://minecraft.wiki/w/Data_version to a version number: 12, 13, 14, 15, 16, 17, 18, 19...
 #define	DATA_VERSION_TO_RELEASE_NUMBER(worldVersion) ((worldVersion) < 100 ? 8 : \
