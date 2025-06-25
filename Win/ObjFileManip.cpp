@@ -1317,13 +1317,14 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     //UPDATE_PROGRESS(gProgress.start.makeFaces);
 
     // if we have matrix transforms available, transfer the unit and model scale to that scale factor instead
-    if (fileType == FILE_TYPE_USD) {
-        // This logic is more than a bit wedged when it comes to 3D printing. TODO
+    if (fileType == FILE_TYPE_USD && !gModel.print3D) {
+        // This logic is more than a bit wedged when it comes to 3D printing. So, we do it only for rendering exports. TODO - make more consistent.
         // There's a choice between visibility, usability (camera translation speed set too high), and giving the proper cost estimation.
         // Right now, cost estimation is wrong.
+        // For 3D printing, so we don't get a warning, scale down to centimeter per block
+        gModel.scale = 1.0f;    // meter per block, the USD default
         gXformScale = gModel.scale * gUnitsScale * 100.0f;
         gUnitsScale = 1.0f;
-        gModel.scale = 1.0f;
     }
     else {
         // reset, just in case
@@ -31297,9 +31298,11 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
         // go to next group
         startRun = nextStart;
 
-        // if there's a single texture file for colors (the 3-textures thing), should kinda give up here? TODO
-        //if (singleTerrainFile)
-        //    break;
+        // if there's a single texture file for colors (the 3-textures thing), we output just one material with a given name.
+        // Not quite right - there could be multiple materials (some with glass), but we really don't handle this well. TODO
+        // Still, it's better to write out a single material than multiple materials (often identical) with the same name.
+        if (singleTerrainFile)
+            break;
     }
 #endif
 

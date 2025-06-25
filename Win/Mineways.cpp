@@ -5175,6 +5175,12 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                 _T("Export limitation"), MB_OK | MB_ICONWARNING);
         }
 
+        // check if exporting to USD and using the 3-texture format. TODO bug to fix some century in the future. See https://github.com/erich666/Mineways/issues/146
+        if (gModel.instancing && (gpEFD->fileType == FILE_TYPE_USD) && (gOptions.exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES)) {
+            FilterMessageBox(NULL, _T("Warning: Exporting to USD using the three-texture output option along with the Export individual blocks option is likely to give you Meshes with identical names. Sorry, it's a bug, and for an obscure combination of options that would take me a long while to fix. I suggest exporting to individual textures instead. GitHub issue #146."),
+                _T("Export limitation"), MB_OK | MB_ICONWARNING);
+        }
+
         // show errors first
         if (errCode != MW_NO_ERROR)
         {
