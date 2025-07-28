@@ -2642,6 +2642,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     splitToPathAndName(gSelectTerrainPathAndName, gSelectTerrainDir, NULL);
                     formTitle(&gWorldGuide, hWnd);
                 }
+                else if ( wcscmp(spos, L"schem") == 0 ) {
+                    FilterMessageBox(NULL, _T("Mineways does not understand the newer style '.schem' schematic file format at this point. See https://github.com/erich666/Mineways/issues/40 for more information."),
+                        _T("Read error"), MB_OK | MB_ICONWARNING);
+                }
                 else {
                     FilterMessageBox(NULL, _T("Mineways does not understand the type of the file you just dropped. You can drag and drop Mineways exported OBJ, USDA, and WRL files, the TXT files for Mineways STL exports, DAT world and old-school SCHEMATIC files, TerrainExt* PNG texture files, and MWSCRIPT scripting files."),
                         _T("Read error"), MB_OK | MB_ICONWARNING);
