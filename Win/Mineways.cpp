@@ -9377,11 +9377,11 @@ static bool commandLoadWorld(ImportedSet& is, wchar_t* error)
                     break;
 
                 case WORLD_LEVEL_TYPE:
-                    swprintf_s(error, 1024, L"Mineways attempted to load world \"%s\" but could not do so. The full path was \"%s\". Either the world could not be found, or the world name is some wide character string that could not be stored in your import file. Please load the world manually and then try importing again.", warningWorld, gFileOpened);
+                    swprintf_s(error, 1024, L"Mineways attempted to load world \"%s\" but could not do so. The full path was \"%s\". Either the world could not be found, or the world name is some wide character string that could not be stored in your import file, or the world is corrupted and unloadable. Please load the world manually and then try importing again.", warningWorld, gFileOpened);
                     break;
 
                 case WORLD_SCHEMATIC_TYPE:
-                    swprintf_s(error, 1024, L"Mineways attempted to load world \"%s\" but could not do so. Either the world could not be found, or the world name is some wide character string that could not be stored in your import file. Please load the world manually and then try importing again.", warningWorld);
+                    swprintf_s(error, 1024, L"Mineways attempted to load world \"%s\" but could not do so. Either the world could not be found, or the world name is some wide character string that could not be stored in your import file, or the world is corrupted and unloadable. Please load the world manually and then try importing again.", warningWorld);
                     break;
 
                 default:
@@ -9390,8 +9390,12 @@ static bool commandLoadWorld(ImportedSet& is, wchar_t* error)
                 // could not load world, so restore old world, if any;
                 wcscpy_s(gWorldGuide.world, MAX_PATH_AND_FILE, backupWorld);
                 if (gWorldGuide.world[0] != 0) {
+                    // we've "restored" the previous world
                     gWorldGuide.type = backupWorldType;
-                    loadWorld(is.ws.hWnd);	// uses gWorldGuide.world
+                    // but that world may not be loadable - trying to load it will give an internal error.
+                    if (gWorldGuide.type != WORLD_UNLOADED_TYPE) {
+                        loadWorld(is.ws.hWnd);	// uses gWorldGuide.world
+                    }
                 }
                 return false;
             } // else success with just world folder name, and it's already saved to gWorldGuide.world
@@ -9401,7 +9405,7 @@ static bool commandLoadWorld(ImportedSet& is, wchar_t* error)
     }
     else {
         // world didn't convert over - unlikely to hit this one
-        swprintf_s(error, 1024, L"Mineways attempted to load world \"%S\" but could not do so. Either the world could not be found, or the world name is some wide character string that could not be stored in your import file. Please load the world manually and then try importing again.", is.world);
+        swprintf_s(error, 1024, L"Mineways attempted to load world \"%S\" but could not do so. Either the world could not be found, or the world name is some wide character string that could not be stored in your import file, or the world is corrupted and unloadable. Please load the world manually and then try importing again.", is.world);
         return false;
     }
     return true;
