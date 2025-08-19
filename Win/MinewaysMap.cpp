@@ -247,6 +247,13 @@ void GetHighlightState(int* on, int* minx, int* miny, int* minz, int* maxx, int*
     *maxz = gBox.maxZ;
 }
 
+static bool DirectoryExists(const wchar_t* path)
+{
+    DWORD attributes = GetFileAttributesW(path);
+    return (attributes != INVALID_FILE_ATTRIBUTES &&
+        (attributes & FILE_ATTRIBUTE_DIRECTORY));
+}
+
 //world = path to world saves
 //cx = center x world
 //cz = center z world
@@ -275,6 +282,30 @@ int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int mapMaxY
     *                S
     */
 
+    int sumRetCode = 0;
+    if (pWorldGuide->type == WORLD_LEVEL_TYPE) {
+        // check that the directory for data exists - done mainly so we can warn about WorldTools' way of storing world data deep down in its "dimensions" subdirectory
+        wcsncpy_s(pWorldGuide->directory, MAX_PATH_AND_FILE, pWorldGuide->world, MAX_PATH_AND_FILE - 1);
+        wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
+        if (pOpts->worldType & HELL)
+        {
+            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM-1/");
+        }
+        if (pOpts->worldType & ENDER)
+        {
+            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM1/");
+        }
+        wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"region");
+
+        // Test if the region directory exists
+        if (!DirectoryExists(pWorldGuide->directory)) {
+            // region directory doesn't exist
+            // TODO: someday could test if region directory exists but is empty of mca/mcr files
+            // Note we continue on, as we want to draw the (blank) map even if the region directory is not there.
+            sumRetCode |= NBT_WARNING_DIRECTORY_NOT_FOUND;
+        }
+    }
+
     unsigned char* blockbits;
     int z, x, px, py;
     // TODO: zooming out by setting -zl gives a jumpy center point. I can make this smoother by
@@ -295,7 +326,6 @@ int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int mapMaxY
     int shiftx = (int)((startx - startxblock * 16) * zoom);
     int shifty = (int)((startz - startzblock * 16) * zoom);
 
-    int sumRetCode = 0;
     int retCode;
 
     if (shiftx < 0)
@@ -8627,4 +8657,3 @@ void GetBadChunkLocation(int* bx, int* bz)
     *bx = gBx;
     *bz = gBz;
 }
-

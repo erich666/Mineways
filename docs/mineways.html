@@ -1604,7 +1604,7 @@ Mostly defunct, but FYI and because I like to keep track.
 
 Mineways works on only Minecraft <a href="https://minecraft.wiki/w/Java_Edition">Java (aka Classic) Edition</a> worlds, and only on world files you have on your machine. You can determine whether you're using this Classic Edition or the Bedrock Edition by <a href="https://funcaptains.com/blog/java-or-bedrock-what-minecraft-version-do-i-have">following these steps</a>.
 <P>
-If the world you want to use is on a Classic Edition server, you can use <a href="https://modrinth.com/mod/worldtools">WorldTools</a> to take a snapshot from the server and store it locally, which Mineways can then read.
+If the world you want to use is on a Classic Edition server, you can use <a href="https://modrinth.com/mod/worldtools">WorldTools</a> to take a snapshot from the server and store it locally, which Mineways can then read. Well, almost. WorldTools puts the world data directory "region" in some distant subfolder such as "dimensions\minecraft\worlds\2b2t\2b2t_2". Copy the "region" directory to the directory where the "level.dat" folder is and Mineways should load your data. You may then need to hit "F3" (Jump to Player) to see the world.
 <P>
 You can Minecraft Bedrock world to a Minecraft Java Edition one so that Mineways can read it. <B>NOTE:</B> No converter can convert Bedrock Marketplace worlds, see <a href="https://web.archive.org/web/20200925030918/https://www.universalminecraftconverter.com/resources/articles/converting-marketplace-maps">this explanation</a>.
 <P>
@@ -2921,7 +2921,8 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 <LI>Version 12.09, */*/2025 - <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
     <UL>
-	<LI>Warned if new format .schem file is encountered on drag and drop, and properly warn if a .schematic file is corrupt when loaded by a script. <I>(Thanks to Alexandru Cioc for reporting this bug.)</I>
+	<LI>Warn if new format .schem file is encountered on drag and drop, and properly warn if a .schematic file is corrupt when loaded by a script. <I>(Thanks to Alexandru Cioc for reporting this bug.)</I>
+	<LI>Warn if the "region" subdirectory for data does not exist, and give guidance if WorldTools might be used. Added <a href="#mcpe">to docs</a> how to use WorldTools for grabbing server-side world data and use it in Mineways.<I>(Thanks to chim-pan-zee for <a href="https://github.com/erich666/Mineways/issues/147">reporting this bug</a>.)</I>
 	</UL>
 
 <LI>Version 12.08, 6/25/2025 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1208.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
@@ -4340,11 +4341,9 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 8/17/2025</p>
+		<br id="lastUpdate">Last updated 8/19/2025</p>
 	</div>
 </div>
 
 </body>
 </html>
-
-

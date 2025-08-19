@@ -230,6 +230,7 @@ static int gSubError = 0;
 
 static int gOneTimeDrawError = true;
 static int gOneTimeDrawWarning = NBT_WARNING_NAME_NOT_FOUND;
+static int gOneTimeWorldWarning = NBT_WARNING_DIRECTORY_NOT_FOUND;
 
 static int gInstanceError = true;
 
@@ -2398,6 +2399,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     if (!(gOptions.worldType & HELL))
                     {
                         CheckMenuItem(GetMenu(hWnd), IDM_HELL, MF_CHECKED);
+                        gOneTimeWorldWarning = NBT_WARNING_DIRECTORY_NOT_FOUND;
                         gOptions.worldType |= HELL;
                         CheckMenuItem(GetMenu(hWnd), IDM_END, MF_UNCHECKED);
                         gOptions.worldType &= ~ENDER;
@@ -2440,6 +2442,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     {
                         // entering Ender, turn off hell if need be
                         CheckMenuItem(GetMenu(hWnd), IDM_END, MF_CHECKED);
+                        gOneTimeWorldWarning = NBT_WARNING_DIRECTORY_NOT_FOUND;
                         gOptions.worldType |= ENDER;
                         if (gOptions.worldType & HELL)
                         {
@@ -3323,6 +3326,7 @@ static void gotoSurface(HWND hWnd, HWND hwndSlider, HWND hwndLabel)
     }
     // Ender is easy, just turn it off 
     gOptions.worldType &= ~ENDER;
+    gOneTimeWorldWarning = NBT_WARNING_DIRECTORY_NOT_FOUND;
     CheckMenuItem(GetMenu(hWnd), IDM_END, MF_UNCHECKED);
 }
 
@@ -3681,6 +3685,7 @@ static int loadWorld(HWND hWnd)
         // new world loaded
         gOneTimeDrawError = gInstanceError = true;
         gOneTimeDrawWarning = NBT_WARNING_NAME_NOT_FOUND;
+        gOneTimeWorldWarning = NBT_WARNING_DIRECTORY_NOT_FOUND;
 
         gCurX = gSpawnX;
         gCurZ = gSpawnZ;
@@ -6396,6 +6401,7 @@ static int switchToNether(ImportedSet& is)
         saveWarningMessage(is, L"attempt to switch to Nether but this world has none.");
         return INTERPRETER_FOUND_ERROR;
     }
+    gOneTimeWorldWarning = NBT_WARNING_DIRECTORY_NOT_FOUND;
     gOptions.worldType |= HELL;
     gOptions.worldType &= ~ENDER;
     // change scale as needed
@@ -6434,6 +6440,7 @@ static int switchToTheEnd(ImportedSet& is)
         saveWarningMessage(is, L"attempt to switch to The End level but this world has none.");
         return INTERPRETER_FOUND_ERROR;
     }
+    gOneTimeWorldWarning = NBT_WARNING_DIRECTORY_NOT_FOUND;
     CheckMenuItem(GetMenu(is.ws.hWnd), IDM_END, MF_CHECKED);
     // entering Ender, turn off hell if need be
     gOptions.worldType |= ENDER;
@@ -9699,14 +9706,24 @@ static void checkMapDrawErrorCode(int retCode)
                 _T("Warning"), MB_OK | MB_ICONERROR | MB_TOPMOST);
         }
     }
-    else if (gOneTimeDrawWarning & retCode) {
-        // NBT_WARNING_NAME_NOT_FOUND is the only one now
-        // currently the only warning - we will someday look at bits, I guess, in retCode
-        wsprintf(fullbuf, _T("Warning: unknown block types '%S' encountered and turned into '%S'.\n\nIf you are not running a Minecraft beta, mod, or conversion, please download the latest version of Mineways from mineways.com. If you think Mineways has a bug, please report it (see the Help menu)."),
-            MapUnknownBlockName(), gBlockDefinitions[GetUnknownBlockID()].name);
-        FilterMessageBox(NULL, fullbuf,
-            _T("Warning"), MB_OK | MB_ICONWARNING | MB_TOPMOST);
-        gOneTimeDrawWarning &= ~NBT_WARNING_NAME_NOT_FOUND;
+    else {
+        if (gOneTimeDrawWarning & retCode) {
+            // NBT_WARNING_NAME_NOT_FOUND
+            // currently the only warning - we will someday look at bits, I guess, in retCode
+            wsprintf(fullbuf, _T("Warning: unknown block types '%S' encountered and turned into '%S'.\n\nIf you are not running a Minecraft beta, mod, or conversion, please download the latest version of Mineways from mineways.com. If you think Mineways has a bug, please report it (see the Help menu)."),
+                MapUnknownBlockName(), gBlockDefinitions[GetUnknownBlockID()].name);
+            FilterMessageBox(NULL, fullbuf,
+                _T("Warning"), MB_OK | MB_ICONWARNING | MB_TOPMOST);
+            gOneTimeDrawWarning &= ~NBT_WARNING_NAME_NOT_FOUND;
+        }
+        if (gOneTimeWorldWarning & retCode) {
+            // NBT_WARNING_DIRECTORY_NOT_FOUND
+            // currently the only warning - we will someday look at bits, I guess, in retCode
+            wsprintf(fullbuf, _T("Warning: there is no 'region' directory found for this world. It may simply not exist.\n\nAlternately, if you are using WorldTools, for example, you'll need to move the 'region' directory buried in the 'dimensions/minecraft/worlds/2b2t/2b2t_2' or similar subdirectory to the directory where your 'level.dat' file is located.\n") );
+            FilterMessageBox(NULL, fullbuf,
+                _T("Warning"), MB_OK | MB_ICONWARNING | MB_TOPMOST);
+            gOneTimeWorldWarning &= ~NBT_WARNING_DIRECTORY_NOT_FOUND;
+        }
     }
 }
 

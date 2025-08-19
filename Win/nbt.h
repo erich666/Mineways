@@ -74,6 +74,7 @@ enum { BF_BUFFER, BF_GZIP };
 #define     NBT_VALID_BLOCK             1
 #define     NBT_NO_SECTIONS             2
 #define		NBT_WARNING_NAME_NOT_FOUND	0x4
+#define		NBT_WARNING_DIRECTORY_NOT_FOUND	0x8
 
 // Errors
 #define ERROR_GET_FILE_VERSION_DATA     -101
