@@ -489,7 +489,7 @@ static bool commandLoadColorScheme(ImportedSet& is, wchar_t* error, bool invalid
 static bool commandExportFile(ImportedSet& is, wchar_t* error, int fileMode, char* fileName);
 static bool openLogFile(ImportedSet& is);
 //static void logHandles();
-static void showLoadWorldError(int loadErr);
+static bool showLoadWorldError(int loadErr);
 static void checkMapDrawErrorCode(int retCode);
 static bool saveMapFile(int xmin, int zmin, int xmax, int ymax, int zmax, wchar_t* mapFileName);
 static int FilterMessageBox(HWND hWnd, LPCTSTR lpText, LPCTSTR lpCaption, UINT uType);
@@ -1818,8 +1818,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             loadErr = loadWorld(hWnd);
             if (loadErr)
             {
-                showLoadWorldError(loadErr);
-                return 0;
+                // is the error serious enough to abort the load?
+                if (showLoadWorldError(loadErr)) {
+                    return 0;
+                }
             }
             setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
         }
@@ -2963,8 +2965,10 @@ static int loadWorldFromFilename(wchar_t* pathAndFile, HWND hWnd)
         int loadErr = loadWorld(hWnd);
         if (loadErr)
         {
-            showLoadWorldError(loadErr);
-            return 0;
+            // is the error serious enough to abort the load?
+            if (showLoadWorldError(loadErr)) {
+                return 0;
+            }
         }
     }
     // the file read succeeded, so update path to it.
@@ -3576,6 +3580,7 @@ static int loadWorld(HWND hWnd)
     // defaults
     gWorldGuide.minHeight = 0;
     gWorldGuide.maxHeight = 255;
+    int retcode = 0;
 
     // delete schematic data stored, if any, since we're loading a new world
     if (gWorldGuide.sch.blocks != NULL) {
@@ -3620,8 +3625,10 @@ static int loadWorld(HWND hWnd)
         gSubError = GetSpawn(gWorldGuide.world, &gSpawnX, &gSpawnY, &gSpawnZ);
         if (gSubError != 0)
         {
-            gWorldGuide.type = WORLD_UNLOADED_TYPE;
-            return 3;
+            // should just be a warning.
+            // gWorldGuide.type = WORLD_UNLOADED_TYPE;
+            gSpawnX = gSpawnY = gSpawnZ = 0;    // could be more clever here, but good enough
+            retcode = 3;
         }
         int dimension;
         if (GetPlayer(gWorldGuide.world, &gPlayerX, &gPlayerY, &gPlayerZ, &dimension) != 0) {
@@ -3718,7 +3725,7 @@ static int loadWorld(HWND hWnd)
     }
     // now done by setUIOnLoadWorld, which should always be called right after loadWorld
     //gLoaded=TRUE;
-    return 0;
+    return retcode;
 }
 
 #ifdef SKETCHFAB
@@ -9392,6 +9399,7 @@ static bool commandLoadWorld(ImportedSet& is, wchar_t* error)
                     break;
 
                 default:
+                    // well, if you import an OBJ and the world is not named or where expected, you do get an error here
                     MY_ASSERT(gAlwaysFail);
                 }
                 // could not load world, so restore old world, if any;
@@ -9646,7 +9654,7 @@ static void logHandles()
 }
 */
 
-static void showLoadWorldError(int loadErr)
+static bool showLoadWorldError(int loadErr)
 {
     // world not loaded properly
     wchar_t fullbuf[2048];
@@ -9674,16 +9682,19 @@ static void showLoadWorldError(int loadErr)
         GoToBedrockHelpOnOK(retcode);
         break;
     case 3:
-        wsprintf(fullbuf, _T("Error: cannot read world's spawn location - every world should have one.\n\n%s"), extrabuf);
+        wsprintf(fullbuf, _T("Warning: cannot read world's spawn location - every world should have one.\n\n%s"), extrabuf);
         FilterMessageBox(NULL, fullbuf,
-            _T("Read error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
-        break;
+            _T("Read warning"), MB_OK | MB_ICONERROR | MB_TOPMOST);
+        return false;
+        // not a full failure
+
     default:
         wsprintf(fullbuf, _T("Error: cannot read world. Unknown error code, which is very strange... Please send me the level.dat file.\n\n%s"), extrabuf);
         FilterMessageBox(NULL, fullbuf,
             _T("Read error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
         break;
     }
+    return true;
 }
 
 static void checkMapDrawErrorCode(int retCode)
