@@ -9660,7 +9660,7 @@ static bool showLoadWorldError(int loadErr)
     wchar_t fullbuf[2048];
     wchar_t extrabuf[1024];
     int retcode;
-    wsprintf(extrabuf, _T("Sub-error code %d. Please write me at erich@acm.org and, as best you can, tell me the error message, sub-error code, and what directories your world and mineways.exe is located in."), gSubError);
+    wsprintf(extrabuf, _T("Sub-error code %d. Please write me at erich@acm.org and, as best you can, show me this error message and sub-error code. Better still, zip up your world and send it to me."), gSubError);
     switch (loadErr) {
     case 1:
         // To be honest, I'm not sure how -3 could ever be set here, but it evidently can be...
@@ -9684,12 +9684,12 @@ static bool showLoadWorldError(int loadErr)
     case 3:
         wsprintf(fullbuf, _T("Warning: cannot read world's spawn location - every world should have one.\n\n%s"), extrabuf);
         FilterMessageBox(NULL, fullbuf,
-            _T("Read warning"), MB_OK | MB_ICONERROR | MB_TOPMOST);
+            _T("Read warning"), MB_OK | MB_ICONWARNING | MB_TOPMOST);
         return false;
         // not a full failure
 
     default:
-        wsprintf(fullbuf, _T("Error: cannot read world. Unknown error code, which is very strange... Please send me the level.dat file.\n\n%s"), extrabuf);
+        wsprintf(fullbuf, _T("Error: cannot read world. Unknown error code, which is very strange...\n\n%s"), extrabuf);
         FilterMessageBox(NULL, fullbuf,
             _T("Read error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
         break;
