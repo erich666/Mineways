@@ -1968,6 +1968,18 @@ static unsigned int readDword(bfFile* pbf)
     bfread(pbf, buf, 4);
     return (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
 }
+static int readInt(bfFile* pbf)
+{
+    unsigned char buf[4], bufswap[4];
+    //int value;
+    bfread(pbf, buf, 4);
+    // endian swap, old-skool way
+    bufswap[0] = buf[3];
+    bufswap[1] = buf[2];
+    bufswap[2] = buf[1];
+    bufswap[3] = buf[0];
+    return *(int*)&bufswap;
+}
 //static unsigned long long readLong(bfFile *pbf)
 //{
 //    int i;
@@ -5047,7 +5059,7 @@ SectionsCode:
 }
 
 
-int nbtGetSpawn(bfFile* pbf, int* x, int* y, int* z)
+int nbtGetSpawnSimple(bfFile * pbf, int* x, int* y, int* z)
 {
     int len;
     *x = *y = *z = 0;
@@ -5096,6 +5108,47 @@ int nbtGetSpawn(bfFile* pbf, int* x, int* y, int* z)
     *z = readDword(pbf);
     return 0;
 }
+
+// data is in Data / spawn / pos as three integers in a list
+int nbtGetSpawnNew(bfFile* pbf, int* x, int* y, int* z)
+{
+    int len;
+    *x = *y = *z = 0;
+    //Data/Player/Pos
+    // We seek to beginning of file and find "Data" again.
+    if (bfseek(pbf, 0, SEEK_SET) < 0)
+        return LINE_ERROR;
+    if (bfseek(pbf, 1, SEEK_CUR) < 0)
+        return LINE_ERROR; //skip type
+    len = readWord(pbf); //name length
+    if (bfseek(pbf, len, SEEK_CUR) < 0)
+        return LINE_ERROR; //skip name ()
+    if (nbtFindElement(pbf, "Data") != 10)
+        return LINE_ERROR;
+    if (nbtFindElement(pbf, "spawn") != 10)
+        return LINE_ERROR;
+    // The (rather rare) integer list, which seems to be 4 bytes of length, then (in our case, always) 3 integers
+    if (nbtFindElement(pbf, "pos") != 11)
+        return LINE_ERROR;
+    // read array size
+    if (readInt(pbf) != 3)
+        return LINE_ERROR;
+    *x = readInt(pbf);
+    *y = readInt(pbf);
+    *z = readInt(pbf);
+    return 0;
+}
+
+int nbtGetSpawn(bfFile* pbf, int* x, int* y, int* z)
+{
+    if (nbtGetSpawnSimple(pbf, x, y, z)) {
+        // the usual, "old" way didn't work, so try the "new" way.
+        return nbtGetSpawnNew(pbf, x, y, z);
+    }
+    // old way worked
+    return 0;
+}
+
 
 //  The NBT version of the level, 19133. See http://minecraft.wiki/w/Level_format#level.dat_format
 int nbtGetFileVersion(bfFile* pbf, int* version)

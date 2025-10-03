@@ -740,15 +740,20 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                     }
                 }
             }
-            // meaningless whenever individual tiles is set
-            CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_INDETERMINATE);
-            CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
-            if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_UNCHECKED) {
-                MessageBox(NULL, _T("Warning: individual textures cannot be used with \"Export lesser, detailed blocks\" option being off, so that option will be turned back on."),
-                    _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
-                if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) != BST_CHECKED) {
-                    CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_CHECKED);
-                    checkExportDetailed(hDlg, false);
+            // meaningless whenever individual tiles is set - see if it didn't get turned off
+            if (IsDlgButtonChecked(hDlg, IDC_RADIO_EXPORT_SEPARATE_TILES) == BST_CHECKED) {
+                CheckDlgButton(hDlg, IDC_MATERIAL_PER_BLOCK_FAMILY, BST_INDETERMINATE);
+                CheckDlgButton(hDlg, IDC_COMPOSITE_OVERLAY, BST_INDETERMINATE);
+            }
+            else {
+                if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_UNCHECKED) {
+                    // the logic here is more than a bit wonky, and this message might appear twice. TODOTODO
+                    MessageBox(NULL, _T("Warning: individual textures cannot be used with \"Export lesser, detailed blocks\" option being off - turn that option on if desired."),
+                        _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
+                    //if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) != BST_CHECKED) {
+                    //    CheckDlgButton(hDlg, IDC_EXPORT_ALL, BST_CHECKED);
+                    //    checkExportDetailed(hDlg, false);
+                    //}
                 }
             }
             // simplify mesh option should again be available if switching to individual tiles

@@ -9409,7 +9409,16 @@ static bool commandLoadWorld(ImportedSet& is, wchar_t* error)
                     gWorldGuide.type = backupWorldType;
                     // but that world may not be loadable - trying to load it will give an internal error.
                     if (gWorldGuide.type != WORLD_UNLOADED_TYPE) {
-                        loadWorld(is.ws.hWnd);	// uses gWorldGuide.world
+                        // if world loads successfuly, return true, but note that we couldn't load the new world.
+                        if (loadWorld(is.ws.hWnd) == 0) {	// uses gWorldGuide.world
+                            // loaded previous world successfully - warn user
+                            // This is useful when getting an OBJ and world from some other user and you haven't put the world in the same place with the same name.
+                            wchar_t warning[1024];
+                            swprintf_s(warning, 1024, L"Warning: Mineways attempted to load world \"%S\" but could not do so. However, we'll assume you already loaded this world manually before importing, and so will apply your other import settings accordingly.", is.world);
+                            FilterMessageBox(NULL, warning, _T("Read warning"), MB_OK | MB_ICONWARNING | MB_TOPMOST);
+
+                            return true;
+                        }
                     }
                 }
                 return false;

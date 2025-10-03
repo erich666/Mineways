@@ -167,6 +167,7 @@ extern UnitType gUnitTypeTable[];
 #define EXPT_OUTPUT_TEXTURE_IMAGES	    0x00000020
 // Export separate textures, one per tile
 #define EXPT_OUTPUT_SEPARATE_TEXTURE_TILES 0x00000040
+// swatches is the noise texture(s) mosaics (1 or 3), images are the 3 giant mosaics, tiles are the separate textures (lots of them, as needed)
 #define EXPT_OUTPUT_TEXTURE (EXPT_OUTPUT_TEXTURE_SWATCHES|EXPT_OUTPUT_TEXTURE_IMAGES|EXPT_OUTPUT_SEPARATE_TEXTURE_TILES)
 #define EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES (EXPT_OUTPUT_TEXTURE_IMAGES|EXPT_OUTPUT_SEPARATE_TEXTURE_TILES)
 

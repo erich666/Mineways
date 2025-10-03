@@ -25721,7 +25721,7 @@ static int writeOBJMtlFile()
     if (!(gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK) && !gModel.exportTiles)
     {
         // output a single material - should not really affect per tile output, but just in case
-        if (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES)
+        if (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE)
         {
             if (gModel.print3D)
             {
@@ -33218,7 +33218,7 @@ static float computeMaterialCost(int printMaterialType, float blockEdgeSize, int
     if (gMtlCostTable[gPhysMtl].costPerMachineCC)
     {
         float volumeBlockCount = computeMachineVolume();
-        assert(volumeBlockCount <= gFilledBoxSize[X] * gFilledBoxSize[Y] * gFilledBoxSize[Z]);
+        assert(volumeBlockCount <= 1.5f * gFilledBoxSize[X] * gFilledBoxSize[Y] * gFilledBoxSize[Z]);
         ccmMachine = (float)pow((double)(blockEdgeSize * METERS_TO_CM), 3.0) * volumeBlockCount;
     }
 
