@@ -25806,7 +25806,7 @@ static int writeOBJMtlFile()
             }
         }
         else {
-            for (i = 0; i < gMtlList.size(); i++)
+            for (i = 0; i < (int)(gMtlList.size()); i++)
             {
                 int type;
                 int dataVal = 0;
