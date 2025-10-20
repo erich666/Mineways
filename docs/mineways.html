@@ -190,7 +190,7 @@ If you can't find your world in the list, you can select "Find your world..." at
 <P>
 <b>File | Open...:</b> This option is for opening old-style schematic files and worlds. Navigate to wherever your schematic or world is stored and select the level.dat file. On Windows, the default folder for world save files is "%appdata%\.minecraft\saves"; for Mac it's "~/Library/Application Support/minecraft/saves/". Worth saying again: you can also load a world by dragging and dropping its level.dat file on to Mineways. Another pro tip: if you save or rename your schematic file to have the world "repeat" in it, e.g., rename "eiffel.schematic" to "eiffelRepeat.schematic", the schematic will load and be repeated across the map, with a minimum one block gap between each model. This can be useful if you want to create a single 3D print file that has multiple copies of the model. Also, for schematics, only, <B>Control-A</B> will select the whole schematic model.
 <P>
-NOTE: the new schematic file format <a href="https://github.com/erich666/Mineways/issues/40">introduced by FAWE</a> for 1.13 data is currently not supported in Mineways. See <a href="https://github.com/erich666/Mineways/issues/40">this issue report</a> for more information; short version: save you schematic to a world using <a href="https://www.curseforge.com/minecraft/mc-mods/worldedit">WorldEdit</a>, <a href="https://www.curseforge.com/minecraft/mc-mods/litematica">Litematica</a>, <a href="https://intellectualsites.github.io/download/fawe.html">FAWE</a>, or similar, since Mineways can read worlds.
+NOTE: the new schematic file format <a href="https://github.com/erich666/Mineways/issues/40">introduced by FAWE</a> for 1.13 data is currently not supported in Mineways. See <a href="https://github.com/erich666/Mineways/issues/40">this issue report</a> for more information; short version: save your schematic to a world using <a href="https://www.curseforge.com/minecraft/mc-mods/worldedit">WorldEdit</a>, <a href="https://www.curseforge.com/minecraft/mc-mods/litematica">Litematica</a>, <a href="https://intellectualsites.github.io/download/fawe.html">FAWE</a>, or similar, since Mineways can read worlds.
 <P>
 <b>File | <a id="importsettings">Import Settings:</a></b> If you've previously exported a model from your world or schematic, you can select this data file (.OBJ, .WRL, or for STL export, the .TXT file generated) with Import Settings. Doing so will not only open your world, but will also set all the previous export settings you used to make this export file, including the color scheme and the terrain file chosen. Alternately, you can simply drag and drop one of these files on to Mineways to load it.
 <P>
@@ -408,7 +408,7 @@ These options were originally for the "three larger, mosaic images" export optio
 <P>
 If you "Export all textures to three large images", by default there are three types of files that can be output to PNG files, as needed. "RGB" is a colors-only file, "RGBA" is colors and transparency, "A" is just the transparency values. For 3D printing, only the RGB file is exported. For rendering export, if any blocks needing transparency are found in your model, then the "RGBA" and "A" files are also exported. Some rendering systems need only one or two of these file types, not all three. If you know this in advance, turn off the export textures you don't need.
 <P>
-The "texture output" export option can save you much time if you are exporting the same model a few times (e.g., you're editing its bounds), especially while using a large custom terrainExt file (see the next paragraph for what that is). You can export your model once with textures on, then modify your export and, by exporting to the same file name, you don't need to export the textures again.
+The "texture output" export option can also save you much time if you are exporting the same model a few times (e.g., you're editing its bounds), especially while using a large custom terrainExt file (see the next paragraph for what that is). You can export your model once with textures on, then modify your export and, by exporting to the same file name, you don't need to export the textures again.
 <P>
 
 <a id="custom_terrain"><H4>Custom Terrain</H4></a>
@@ -4344,7 +4344,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 10/2/2025</p>
+		<br id="lastUpdate">Last updated 10/20/2025</p>
 	</div>
 </div>
 
