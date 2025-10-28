@@ -22000,16 +22000,27 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             break;
-        case BLOCK_WHEAT:				        // getSwatch
         case BLOCK_NETHER_WART:				    // getSwatch
-        case BLOCK_BEETROOT_SEEDS:				// getSwatch
-        case BLOCK_SWEET_BERRY_BUSH:		    // getSwatch
-        case BLOCK_TORCHFLOWER_CROP:		    // getSwatch
-            // add age to swatch loc
-            swatchLoc += (dataVal & 0x7);
+            // add age to swatch loc, minus max age (has only 3 levels)
+            swatchLoc += (dataVal & 0x3) - 2;
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             break;
-        // weirdly, these count backwards
+        case BLOCK_BEETROOT_SEEDS:				// getSwatch
+        case BLOCK_SWEET_BERRY_BUSH:		    // getSwatch
+            // add age to swatch loc - kind of a bug, I think the default swatchLoc should really be the most mature version, not the youngest. But, mixing red and green for an average swatchloc isn't great.
+            swatchLoc += (dataVal & 0x3);
+            swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
+            break;
+        case BLOCK_TORCHFLOWER_CROP:		    // getSwatch
+            // add age to swatch loc - kind of a bug, I think the default swatchLoc should really be the most mature version, not the youngest. But, avoids mixing colors.
+            swatchLoc += (dataVal & 0x1);
+            swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
+            break;
+        case BLOCK_WHEAT:				        // getSwatch
+            // add age to swatch loc, minus 7, since swatch loc is the most mature wheat here
+            swatchLoc += (dataVal & 0x7) - 7;   // no composite, since wheat actually fills its block (even if young)
+            break;
+        // weirdly, these count backwards; it's because the swatchloc is at the most mature version
         case BLOCK_CARROTS:				        // getSwatch
         case BLOCK_POTATOES:				    // getSwatch
             switch (dataVal & 0x7)
