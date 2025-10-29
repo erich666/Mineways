@@ -22001,8 +22001,20 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             break;
         case BLOCK_NETHER_WART:				    // getSwatch
-            // add age to swatch loc, minus max age (has only 3 levels)
-            swatchLoc += (dataVal & 0x3) - 2;
+            // add age to swatch loc, minus max age (has only 3 levels - 1 and 2 are the mid level)
+            switch (dataVal & 0x3)
+            {
+            case 0:
+                swatchLoc -= 2;
+                break;
+            case 1:
+            case 2:
+                swatchLoc -= 1;
+                break;
+            case 3:
+                // fine as is
+                break;
+            }
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             break;
         case BLOCK_BEETROOT_SEEDS:				// getSwatch

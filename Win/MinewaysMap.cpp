@@ -5890,7 +5890,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_PRISMARINE:
     case BLOCK_NETHER_BRICKS:
     case BLOCK_RED_MUSHROOM:
-    case BLOCK_NETHER_WART:
     case BLOCK_MANGROVE_LEAVES:
         // uses 0-2
         if (dataVal < 3)
@@ -5898,6 +5897,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             addBlock = 1;
         }
         break;
+    case BLOCK_NETHER_WART:
     case BLOCK_STONE_BRICKS:
     case BLOCK_FROSTED_ICE:
     case BLOCK_STRUCTURE_BLOCK:
