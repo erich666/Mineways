@@ -393,7 +393,7 @@ static TranslationTuple* modTranslations = NULL;
 // facing, hydration 0-3 shifted up 2, waterlogged
 #define GHAST_PROP  71
 
-#define NUM_TRANS 1114
+#define NUM_TRANS 1115
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1185,6 +1185,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 107,       HIGH_BIT | 1, "twisting_vines_plant", TRULY_NO_PROP },
     { 0, 107, HIGH_BIT | BIT_32 | 1, "twisting_vines", TRULY_NO_PROP },
     { 0, 108,       HIGH_BIT, "chain", AXIS_PROP },
+    { 0, 108,       HIGH_BIT, "iron_chain", AXIS_PROP },    // Java edition 1.21.9 has renamed "chain" to "iron_chain", wo we have to include both here for compatibility with older versions.
 
     // 1.17
     { 0, 128,       HIGH_BIT, "candle", CANDLE_PROP },  // 129 is lit
