@@ -12398,6 +12398,14 @@ static FaceRecord* allocFaceRecordFromPool()
     return &(gModel.faceRecordPool->fr[gModel.faceRecordPool->count++]);
 }
 
+static void freeFaceRecordToPool(FaceRecord* face)
+{
+    // simply decrement count - we assume faces are freed in reverse order of allocation
+    gModel.faceRecordPool->count--;
+    face;   // done to make Release compiler happy
+    assert(&(gModel.faceRecordPool->fr[gModel.faceRecordPool->count]) == face);
+}
+
 static SimplifyFaceRecord* allocSimplifyFaceRecordFromPool()
 {
     if (gModel.simplifyFaceRecordPool->count >= SIMPLIFY_FACE_RECORD_POOL_SIZE)
@@ -19187,7 +19195,15 @@ static int saveFaceLoop(int boxIndex, int faceDirection, float heights[4], int h
         // I guess we really don't need the swatch location returned; its
         // main effect is to set the proper indices in the texture map itself
         // and note that the swatch is being used
-        (int)getSwatch(face->materialType, dataVal, faceDirection, boxIndex, computedSpecialUVs ? NULL : regularUVindices);
+        int swatchLoc = getSwatch(face->materialType, dataVal, faceDirection, boxIndex, computedSpecialUVs ? NULL : regularUVindices);
+        // extremely rare case: if swatchLoc is -1, it means something's gone very wrong, e.g., a redstone wire hanging in mid-air.
+        // Don't save this face.
+        if (swatchLoc == -1)
+        {
+            freeFaceRecordToPool(face);
+            // we could return an error here, but for now just silently drop the face. TODO
+            return retCode;
+        }
 
         if (computedSpecialUVs)
             for (i = 0; i < 4; i++)
@@ -24131,8 +24147,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
 
     // flag UVs as being used for this swatch, so that the actual four UV values
     // are saved.
-
-    if (uvIndices && gModel.exportTexture)
+    // If something goes very wrong with swatches (e.g. composites are requested but should not be needed), we set swatchLoc < 0:
+    // don't save UVs.
+    if (swatchLoc >= 0 && uvIndices && gModel.exportTexture)
     {
         int standardCorners[4];
         // get four UV texture vertices, based on type of block
@@ -24174,7 +24191,12 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
 // Note that currently we don't rotate the background texture properly compared to the swatch itself - tough.
 static int getCompositeSwatch(int swatchLoc, int backgroundIndex, int faceDirection, int angle)
 {
-    assert(CHECK_COMPOSITE_OVERLAY);
+    if (!CHECK_COMPOSITE_OVERLAY) {
+        // something has gone very wrong - likely it's some illegal data, such as redstone wire hanging in midair.
+        // Recover by returning -1 as an abort signal. See issue #150: https://github.com/erich666/Mineways/issues/150
+        assert(CHECK_COMPOSITE_OVERLAY);
+        return -1;
+    }
     // does library have type/backgroundType desired?
     SwatchComposite* pSwatch = gModel.swatchCompositeList;
     int backgroundSwatchLoc;
