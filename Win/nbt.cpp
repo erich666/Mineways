@@ -3484,7 +3484,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             unknownName++;
                         }
 
-                        // Check for any list of names to translate to known blocks.
+                        // Check for any list of names to Translate to known blocks.
                         // We translate, then go to set palette entry as above.
                         TranslationTuple* ptt = modTranslations;
                         bool matched = false;

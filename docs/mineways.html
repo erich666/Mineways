@@ -277,10 +277,7 @@ Schematic files are commonly used to share constructions among builders. You can
 <P>
 If you want to edit these maps, consider using <a href="https://imagemagick.org">ImageMagick</a>, which lets you perform <a href="https://imagemagick.org/script/command-line-processing.php">all sorts of annotations</a> and much more. See the file mineways_annotate_map.bat, which shows how to create a PNG map file, then run annotate_map.py to create a .bat file that then calls ImageMagick to annotate the map with coordinates and map file areas.
 <P>
-See the file "scripting/make_slice_maps.mwscript" for making a series of layers that you can turn into an animation. You can then make <a href="https://erich.realtimerendering.com/minecraft/public/crazycake_slices.gif">animations like this</a> (and <a href="https://erich.realtimerendering.com/minecraft/public/crazycake_slices_slow.gif">at a slower speed</a>): 
-<P>
-<img src="https://erich.realtimerendering.com/minecraft/public/crazycake_slices.gif" alt="slice animation">
-<img src="https://erich.realtimerendering.com/minecraft/public/crazycake_slices_slow.gif" alt="slice animation slowed">
+See the file "scripting/make_slice_maps.mwscript" for making a series of layers that you can turn into an animation. You can then make <a href="https://erich.realtimerendering.com/minecraft/public/crazycake_slices.gif">animations like this</a> (and <a href="https://erich.realtimerendering.com/minecraft/public/crazycake_slices_slow.gif">at a slower speed</a>).
 <P>
 <H3 id="memory">Out of memory?</H3> Under "Help", the "give more export memory" frees memory as possible while exporting. This option can allow you to export a large model you normally couldn't, at the cost of slower map update and export. What it does is unloads all stored world chunks (the 16x16x256 high pieces of your world) when exporting, reloading these after export. Also, the chunks loaded get reduced in size, which can help showing large maps on extremely limited machines (such as Windows 32). If that fails, you can <a href="scripting.html#uie">use scripting to export your world</a> as separate "hunks."
 
@@ -2925,6 +2922,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 	<LI>Better information for mesh repair if detailed blocks are turned on for 3D printing.
 	<LI>Add "iron_chain" as another name for "chain", a change in 1.21.9.
 	<LI>Avoid crash on "impossible" data, such as <a href="https://github.com/erich666/Mineways/issues/150">redstone wires hanging in space</a>. <I>(Thanks to Fhxa3 for the bug report.)</I>
+	<LI>Comment out first line in OBJ material file
 	</UL>
 
 <UL>
@@ -4354,7 +4352,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 10/26/2025</p>
+		<br id="lastUpdate">Last updated 12/18/2025</p>
 	</div>
 </div>
 

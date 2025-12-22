@@ -25747,7 +25747,7 @@ static int writeOBJMtlFile()
     else {
         num = ((gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK) || gModel.exportTiles) ? (int)gMtlList.size() : 1;
     }
-    sprintf_s(outputString, 2048, "Wavefront OBJ material file\n# Contains %d materials\n", num);
+    sprintf_s(outputString, 2048, "# Wavefront OBJ material file\n# Contains %d materials\n", num);
     WERROR_SPECIFY(PortaWrite(gMtlFile, outputString, strlen(outputString)), gMtlFile);
 
     if (gModel.exportTexture && !gModel.exportTiles)
