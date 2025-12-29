@@ -7,7 +7,7 @@ Mineways is an open-source GUI program that exports Minecraft maps into 3D model
 
 **Homepage is http://mineways.com which redirects to https://www.realtimerendering.com/erich/minecraft/public/mineways/**
 
-The page you're on now holds the open-source code for Mineways. You probably want to go to the homepage above. If you just want to download the package, I also host it on this site, for redundancy. [Download mineways.zip here](https://www.realtimerendering.com/erich/minecraft/public/mineways/mineways.zip).
+The page you're on now holds the open-source code for Mineways. You probably want to go to the homepage above. If you just want to download the package, I also host it on this site, for redundancy. [Download mineways.zip here](https://github.com/erich666/Mineways/raw/refs/heads/master/mineways.zip).
 
 ![Simple example export rendered by spacebanana420](banner.jpg "Simple example export by spacebanana420")
 
