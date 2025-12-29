@@ -15,7 +15,6 @@
 *.aps
 *.opensdf
 *.cppcheck
-*.zip
 *.VC.db
 *.VC.opendb
 copy_*.bat
