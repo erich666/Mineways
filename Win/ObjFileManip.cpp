@@ -284,6 +284,7 @@ static int gUsingTransform = 0;
 #define REDSTONE_WIRE_4_OFF         SWATCH_INDEX( 15,26 )
 
 #define SOUL_TORCH_TOP               SWATCH_INDEX( 9,11 )
+#define COPPER_TORCH_TOP             SWATCH_INDEX( 6,72 )
 
 // these spots are used for compositing, as temporary places to put swatches to edit
 // TODO - make separate hunks of memory that don't get output.
@@ -3784,6 +3785,7 @@ static int computeFlatFlags(int boxIndex)
     case BLOCK_REDSTONE_TORCH_OFF:
     case BLOCK_REDSTONE_TORCH_ON:
     case BLOCK_SOUL_TORCH:
+    case BLOCK_COPPER_TORCH:
         switch (gBoxData[boxIndex].data)
         {
         case 1: // east, +X
@@ -4958,6 +4960,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_REDSTONE_TORCH_OFF:
     case BLOCK_REDSTONE_TORCH_ON:
     case BLOCK_SOUL_TORCH:
+    case BLOCK_COPPER_TORCH:
         return saveBillboardFaces(boxIndex, type, BB_TORCH);
         break; // saveBillboardOrGeometry
     case BLOCK_RAIL:						// saveBillboardOrGeometry
@@ -13882,6 +13885,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     case BLOCK_REDSTONE_TORCH_OFF:
     case BLOCK_REDSTONE_TORCH_ON:
     case BLOCK_SOUL_TORCH:
+    case BLOCK_COPPER_TORCH:
         //case BLOCK_TRIPWIRE:
         // is torch not standing up?
         //if ( dataVal != 5 )
@@ -21412,6 +21416,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_REDSTONE_TORCH_ON:
         case BLOCK_REDSTONE_TORCH_OFF:
         case BLOCK_SOUL_TORCH:
+        case BLOCK_COPPER_TORCH:
             // is torch in middle of block?
             if (dataVal == 5)
             {
@@ -21429,6 +21434,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     break;
                 case BLOCK_SOUL_TORCH:
                     swatchLoc = SOUL_TORCH_TOP;
+                    break;
+                case BLOCK_COPPER_TORCH:
+                    swatchLoc = COPPER_TORCH_TOP;
                     break;
                 }
             }
@@ -24794,6 +24802,7 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
     switch (type) {
     case BLOCK_END_ROD:
     case BLOCK_TORCH:
+    case BLOCK_COPPER_TORCH:
         emission = 14.0f;
         break;
     // note: includes blast furnace and smoker and loom
@@ -26920,7 +26929,13 @@ static int createBaseMaterialTexture()
         SWATCH_TO_COL_ROW(SWATCH_INDEX(11, 42), scol, srow);
         copyPNGTile(mainprog, col, row, gModel.swatchSize, mainprog, scol, srow);
         // clear bottom half of torch
-        setColorPNGArea(mainprog, col * gModel.swatchSize, row * gModel.swatchSize + gModel.tileSize * 10 / 16 + SWATCH_BORDER, gModel.swatchSize, gModel.tileSize * 6 / 16 + SWATCH_BORDER, 0x0);
+        setColorPNGArea(mainprog, col* gModel.swatchSize, row* gModel.swatchSize + gModel.tileSize * 10 / 16 + SWATCH_BORDER, gModel.swatchSize, gModel.tileSize * 6 / 16 + SWATCH_BORDER, 0x0);
+
+        SWATCH_TO_COL_ROW(COPPER_TORCH_TOP, col, row);
+        SWATCH_TO_COL_ROW(SWATCH_INDEX(14, 71), scol, srow);
+        copyPNGTile(mainprog, col, row, gModel.swatchSize, mainprog, scol, srow);
+        // clear bottom half of torch
+        setColorPNGArea(mainprog, col* gModel.swatchSize, row* gModel.swatchSize + gModel.tileSize * 10 / 16 + SWATCH_BORDER, gModel.swatchSize, gModel.tileSize * 6 / 16 + SWATCH_BORDER, 0x0);
 
         // place emissive part of open_eyeblossom atop the open_eyeblossom tile itself.
         // Note that the open_eyeblossom is *NOT* an emitter, so having the emissive bit as a separate texture is not
@@ -35216,6 +35231,7 @@ static bool faceCanTile(int faceId)
     case BLOCK_MANGROVE_SIGN_POST:
     case BLOCK_MANGROVE_WALL_SIGN:
     case BLOCK_TORCH:
+    case BLOCK_COPPER_TORCH:
     case BLOCK_REDSTONE_TORCH_OFF:
     case BLOCK_REDSTONE_TORCH_ON:
     case BLOCK_SOUL_TORCH:

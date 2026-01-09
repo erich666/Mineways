@@ -6760,6 +6760,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_REDSTONE_TORCH_OFF:
     case BLOCK_REDSTONE_TORCH_ON:
     case BLOCK_SOUL_TORCH:
+    case BLOCK_COPPER_TORCH:
         if (dataVal >= 1 && dataVal <= 5)
         {
             addBlock = 1;

@@ -1247,8 +1247,8 @@ static struct {
     {  3, 72, 338, 0, L"exposed_copper_lantern", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     {  4, 72, 338, 0, L"oxidized_copper_lantern", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     {  5, 72, 338, 0, L"weathered_copper_lantern", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
-    {  6, 72,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    {  7, 72,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    {  6, 72, 494, 0, L"MWO_flattened_copper_torch_top", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED used for flattened copper torch top; not used in rendering, but 3D printing uses for composites for torches from above
+    {  7, 72,   0, 0, L"", L"", SWATCH_REPEAT_ALL }, // TBD: chests, golems, shelves
     {  8, 72,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     {  9, 72,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 10, 72,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
