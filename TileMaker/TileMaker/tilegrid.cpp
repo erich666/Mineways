@@ -141,7 +141,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg
 				// considered to be "block" directories.
 				if (topmost ||
 					wcsstr(tilePathAppended + origTPLen, L"block") != NULL ||
-					wcsstr(tilePathAppended + origTPLen, L"decorated_pot") != NULL ||	// for decorated_pot_side.png
+					wcsstr(tilePathAppended + origTPLen, L"decorated_pot_side") != NULL ||	// for decorated_pot_side.png
 					wcsstr(tilePathAppended + origTPLen, L"item") != NULL	// for barrier.png
 					) {
 					int status = testIfTileExists(pfg, tilePathAppended, ffd.cFileName, verbose, alternate, warnUnused, warnDups);

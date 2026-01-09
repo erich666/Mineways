@@ -2231,11 +2231,12 @@ static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* 
     // test if terrainExt.png file does not exist
     if (rc == PNG_FILE_DOES_NOT_EXIST)
     {
-        // if this fails, it means that the terrainData file has not been recreated at the proper size and put in the code.
-        assert(gTerrainExtHeight == VERTICAL_TILES * 16);
         //FILE DOESN'T EXIST
         // if color RGBA, read memory file, setting all fields
         if ((gTerrainExtHeight == VERTICAL_TILES * 16) && category == CATEGORY_RGBA) {
+            // if this fails, it means that the terrainData file has not been recreated at the proper size and put in the code.
+            assert(gTerrainExtHeight == VERTICAL_TILES * 16);
+
             pITI->width = gTerrainExtWidth;
             pITI->height = gTerrainExtHeight;
             pITI->image_data.insert(pITI->image_data.end(), &gTerrainExt[0], &gTerrainExt[gTerrainExtWidth * gTerrainExtHeight * 4]);
@@ -29223,17 +29224,25 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
 
         removeDuplicateNormals();
 
+        // I learned that "uniform" is a better way to specify this than "faceVarying", since there's actually no varying going on. - ASWF Slack discussion 1/6/2026
+        // This also means the number of normal indices must match the number of faces, not the number of vertices.
         strcpy_s(outputString, 256, "            normal3f[] primvars:normals = [");
         WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
         for (i = 0; i < gOutData.vertCountWelded; i++) {
-            sprintf_s(outputString, 256, "(%g, %g, %g)%s", (gOutData.welded[i])[0][X], (gOutData.welded[i])[0][Y], (gOutData.welded[i])[0][Z], (i == gOutData.vertCountWelded - 1) ? "] (\n                interpolation = \"faceVarying\"\n            )\n" : ", ");
+            //sprintf_s(outputString, 256, "(%g, %g, %g)%s", (gOutData.welded[i])[0][X], (gOutData.welded[i])[0][Y], (gOutData.welded[i])[0][Z], (i == gOutData.vertCountWelded - 1) ? "] (\n                interpolation = \"faceVarying\"\n            )\n" : ", ");
+            sprintf_s(outputString, 256, "(%g, %g, %g)%s", (gOutData.welded[i])[0][X], (gOutData.welded[i])[0][Y], (gOutData.welded[i])[0][Z], (i == gOutData.vertCountWelded - 1) ? "] (\n                interpolation = \"uniform\"\n            )\n" : ", ");
             WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
         }
         strcpy_s(outputString, 256, "            int[] primvars:normals:indices = [");
         WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
-        for (i = 0; i < numVerts; i++) {
-            sprintf_s(outputString, 256, "%d%s", gOutData.indicesWelded[i], (i == numVerts - 1) ? "]\n" : ", ");
+        //for (i = 0; i < numVerts; i++) {
+        //    sprintf_s(outputString, 256, "%d%s", gOutData.indicesWelded[i], (i == numVerts - 1) ? "]\n" : ", ");
+        //    WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+        //}
+        for (i = 0; i < numFaces; i++) {
+            sprintf_s(outputString, 256, "%d%s", gOutData.indicesWelded[iv], (i == numFaces - 1) ? "]\n" : ", ");
             WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+            iv += gOutData.faceVertexCounts[i];
         }
 
         // if we're writing out a huge array, take a moment and update the progress
@@ -29260,6 +29269,7 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
 
     // critical if you are not defining subdivision surfaces, which is what USD assumes you're using
     // (I'm told 90% of the meshes in films are subdiv surfaces). See https://openusd.org/dev/api/class_usd_geom_mesh.html
+    // A bug was reported and I thought this might be a problem, https://github.com/erich666/Mineways/issues/151 but it looks like a Blender rendering error.
     strcpy_s(outputString, 256, "            uniform token subdivisionScheme = \"none\"\n");
     WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
 
