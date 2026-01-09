@@ -7352,12 +7352,12 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
 
         if (dataVal & 0x4)
         {
-            // set 0x10 bit
+            // set 0x10 bit for a different bar color
             finalDataVal |= BIT_16;
         }
         if (dataVal & 0x8)
         {
-            // set 0x20 bit
+            // set 0x20 bit for a different bar color
             finalDataVal |= BIT_32;
         }
         if (dataVal & 0x1)
@@ -7696,15 +7696,15 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         else if (dataVal < 9) {
             // show the 3 first copper chains
             addBlock = 1;
-            finalDataVal = dataVal - 6;
+            finalDataVal = dataVal - 6 + 4;
         }
         else if (dataVal < 13) {
             addBlock = 1;
-            finalDataVal = BIT_16 | (dataVal - 9);
+            finalDataVal = BIT_16 | (dataVal - 9) | 4;
         }
         else if (dataVal == 13) {
             addBlock = 1;
-            finalDataVal = BIT_32;
+            finalDataVal = BIT_32 | 4;
         }
         break;
     case BLOCK_CONDUIT:
