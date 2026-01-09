@@ -393,7 +393,7 @@ static TranslationTuple* modTranslations = NULL;
 // facing, hydration 0-3 shifted up 2, waterlogged
 #define GHAST_PROP  71
 
-#define NUM_TRANS 1115
+#define NUM_TRANS 1123
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1536,6 +1536,14 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  31,              9, "tall_dry_grass", NO_PROP },
     { 0,  31,             10, "firefly_bush", NO_PROP },
     { 0, 235,       HIGH_BIT, "dried_ghast", GHAST_PROP },
+    { 0, 236,       HIGH_BIT, "copper_bars", FENCE_PROP },
+    { 0, 236, HIGH_BIT | BIT_16, "exposed_copper_bars", FENCE_PROP },
+    { 0, 236, HIGH_BIT | BIT_32, "weathered_copper_bars", FENCE_PROP },
+    { 0, 236, HIGH_BIT | BIT_32 | BIT_16, "oxidized_copper_bars", FENCE_PROP },
+    { 0, 237,       HIGH_BIT, "waxed_copper_bars", FENCE_PROP },
+    { 0, 237, HIGH_BIT | BIT_16, "waxed_exposed_copper_bars", FENCE_PROP },
+    { 0, 237, HIGH_BIT | BIT_32, "waxed_weathered_copper_bars", FENCE_PROP },
+    { 0, 237, HIGH_BIT | BIT_32 | BIT_16, "waxed_oxidized_copper_bars", FENCE_PROP },
 
     // 1.20.3 additions (short_grass added next to "grass", above), https://minecraft.wiki/w/Java_Edition_1.20.3#General_2
 

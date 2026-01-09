@@ -5405,6 +5405,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
             if ((neighborType == BLOCK_COBBLESTONE_WALL) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
                 (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) || (neighborType == BLOCK_IRON_BARS) ||
+                (neighborType == BLOCK_COPPER_BARS) || (neighborType == BLOCK_WAXED_COPPER_BARS) ||
                 ((gBlockDefinitions[neighborType].flags & BLF_STAIRS) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].data & 0x3)) == 0) ||
                 ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].data & 0x1)) == 0))
             {
@@ -5413,6 +5414,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
             if ((neighborType == BLOCK_COBBLESTONE_WALL) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
                 (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) || (neighborType == BLOCK_IRON_BARS) ||
+                (neighborType == BLOCK_COPPER_BARS) || (neighborType == BLOCK_WAXED_COPPER_BARS) ||
                 ((gBlockDefinitions[neighborType].flags & BLF_STAIRS) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].data & 0x3)) == 1) ||
                 ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].data & 0x1)) == 0))
             {
@@ -5421,6 +5423,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
             if ((neighborType == BLOCK_COBBLESTONE_WALL) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
                 (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) || (neighborType == BLOCK_IRON_BARS) ||
+                (neighborType == BLOCK_COPPER_BARS) || (neighborType == BLOCK_WAXED_COPPER_BARS) ||
                 ((gBlockDefinitions[neighborType].flags & BLF_STAIRS) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].data & 0x3)) == 2) ||
                 ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].data & 0x1)) == 1))
             {
@@ -5429,6 +5432,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
             if ((neighborType == BLOCK_COBBLESTONE_WALL) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
                 (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) || (neighborType == BLOCK_IRON_BARS) ||
+                (neighborType == BLOCK_COPPER_BARS) || (neighborType == BLOCK_WAXED_COPPER_BARS) ||
                 ((gBlockDefinitions[neighborType].flags & BLF_STAIRS) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].data & 0x3)) == 3) ||
                 ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].data & 0x1)) == 1))
             {
@@ -5448,6 +5452,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                     neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X] + 1].origType;
                     if ((neighborType == BLOCK_COBBLESTONE_WALL) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
                         (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) || (neighborType == BLOCK_IRON_BARS) ||
+                        (neighborType == BLOCK_COPPER_BARS) || (neighborType == BLOCK_WAXED_COPPER_BARS) ||
                         ((gBlockDefinitions[neighborType].flags & BLF_STAIRS) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].data & 0x3)) == 0) ||
                         ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].data & 0x1)) == 0))
                     {
@@ -5467,6 +5472,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                     neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X] + 1].origType;
                     if ((neighborType == BLOCK_COBBLESTONE_WALL) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
                         (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) || (neighborType == BLOCK_IRON_BARS) ||
+                        (neighborType == BLOCK_COPPER_BARS) || (neighborType == BLOCK_WAXED_COPPER_BARS) ||
                         ((gBlockDefinitions[neighborType].flags & BLF_STAIRS) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].data & 0x3)) == 1) ||
                         ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].data & 0x1)) == 0))
                     {
@@ -5485,6 +5491,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                     neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z] + 1].origType;
                     if ((neighborType == BLOCK_COBBLESTONE_WALL) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
                         (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) || (neighborType == BLOCK_IRON_BARS) ||
+                        (neighborType == BLOCK_COPPER_BARS) || (neighborType == BLOCK_WAXED_COPPER_BARS) ||
                         ((gBlockDefinitions[neighborType].flags & BLF_STAIRS) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].data & 0x3)) == 2) ||
                         ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].data & 0x1)) == 1))
                     {
@@ -5503,6 +5510,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                     neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z] + 1].origType;
                     if ((neighborType == BLOCK_COBBLESTONE_WALL) || (gBlockDefinitions[neighborType].flags & BLF_FENCE_NEIGHBOR) ||
                         (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) || (neighborType == BLOCK_IRON_BARS) ||
+                        (neighborType == BLOCK_COPPER_BARS) || (neighborType == BLOCK_WAXED_COPPER_BARS) ||
                         ((gBlockDefinitions[neighborType].flags & BLF_STAIRS) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].data & 0x3)) == 3) ||
                         ((gBlockDefinitions[neighborType].flags & BLF_FENCE_GATE) && ((gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].data & 0x1)) == 1))
                     {
@@ -5586,6 +5594,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                         neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
                         if ((neighborType == BLOCK_IRON_BARS) || (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) ||
                             (neighborType == BLOCK_COBBLESTONE_WALL) ||
+                            (neighborType == BLOCK_COPPER_BARS) || (neighborType == BLOCK_WAXED_COPPER_BARS) ||
                             (gBlockDefinitions[neighborType].flags & BLF_WHOLE))
                         {
                             if (xLowWall) {
@@ -5604,6 +5613,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                         neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X] + 1].origType;
                         if ((neighborType == BLOCK_IRON_BARS) || (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) ||
                             (neighborType == BLOCK_COBBLESTONE_WALL) ||
+                            (neighborType == BLOCK_COPPER_BARS) || (neighborType == BLOCK_WAXED_COPPER_BARS) ||
                             (gBlockDefinitions[neighborType].flags & BLF_WHOLE))
                         {
                             if (xHighWall) {
@@ -5621,6 +5631,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                         neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z] + 1].origType;
                         if ((neighborType == BLOCK_IRON_BARS) || (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) ||
                             (neighborType == BLOCK_COBBLESTONE_WALL) ||
+                            (neighborType == BLOCK_COPPER_BARS) || (neighborType == BLOCK_WAXED_COPPER_BARS) ||
                             (gBlockDefinitions[neighborType].flags & BLF_WHOLE))
                         {
                             if (zLowWall) {
@@ -5638,6 +5649,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                         neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z] + 1].origType;
                         if ((neighborType == BLOCK_IRON_BARS) || (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) ||
                             (neighborType == BLOCK_COBBLESTONE_WALL) ||
+                            (neighborType == BLOCK_COPPER_BARS) || (neighborType == BLOCK_WAXED_COPPER_BARS) ||
                             (gBlockDefinitions[neighborType].flags & BLF_WHOLE))
                         {
                             if (zHighWall) {
@@ -9233,6 +9245,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_IRON_BARS:						// saveBillboardOrGeometry
     case BLOCK_GLASS_PANE:
     case BLOCK_STAINED_GLASS_PANE:
+    case BLOCK_COPPER_BARS:
+    case BLOCK_WAXED_COPPER_BARS:
         // dataVal applies only to stained_glass, for which swatch to use
         swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
         switch (type)
@@ -9248,6 +9262,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             topSwatchLoc = swatchLoc + 16;
             break;
         case BLOCK_IRON_BARS:
+            topSwatchLoc = swatchLoc;	// same
+            break;
+        case BLOCK_COPPER_BARS:
+        case BLOCK_WAXED_COPPER_BARS:
+            // get colored swatch
+            swatchLoc += ((dataVal & 0x30) >> 4);
             topSwatchLoc = swatchLoc;	// same
             break;
         }
@@ -9270,6 +9290,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
             if ((neighborType == BLOCK_IRON_BARS) || (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) ||
                 (neighborType == BLOCK_COBBLESTONE_WALL) ||
+                (neighborType == BLOCK_COPPER_BARS) || (neighborType == BLOCK_WAXED_COPPER_BARS) ||
                 (gBlockDefinitions[neighborType].flags & BLF_WHOLE))
             {
                 // north
@@ -9279,6 +9300,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
             if ((neighborType == BLOCK_IRON_BARS) || (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) ||
                 (neighborType == BLOCK_COBBLESTONE_WALL) ||
+                (neighborType == BLOCK_COPPER_BARS) || (neighborType == BLOCK_WAXED_COPPER_BARS) ||
                 (gBlockDefinitions[neighborType].flags & BLF_WHOLE))
             {
                 // east
@@ -9288,6 +9310,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
             if ((neighborType == BLOCK_IRON_BARS) || (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) ||
                 (neighborType == BLOCK_COBBLESTONE_WALL) ||
+                (neighborType == BLOCK_COPPER_BARS) || (neighborType == BLOCK_WAXED_COPPER_BARS) ||
                 (gBlockDefinitions[neighborType].flags & BLF_WHOLE))
             {
                 // south
@@ -9297,6 +9320,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
             if ((neighborType == BLOCK_IRON_BARS) || (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) ||
                 (neighborType == BLOCK_COBBLESTONE_WALL) ||
+                (neighborType == BLOCK_COPPER_BARS) || (neighborType == BLOCK_WAXED_COPPER_BARS) ||
                 (gBlockDefinitions[neighborType].flags & BLF_WHOLE))
             {
                 // west
@@ -9338,9 +9362,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         swatchLocSet[DIRECTION_BLOCK_TOP] = topSwatchLoc;
         swatchLocSet[DIRECTION_BLOCK_BOTTOM] = topSwatchLoc;
 
-        if ((type == BLOCK_IRON_BARS) && !gModel.print3D && (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES))
+        if (((type == BLOCK_IRON_BARS) || (type == BLOCK_COPPER_BARS) || (type == BLOCK_WAXED_COPPER_BARS)) &&
+            !gModel.print3D && (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES))
         {
-            // for rendering iron bars, we just need one side of each wall - easier
+            // for rendering bars, we just need one side of each wall - easier
             switch (filled)
             {
             case 0:
@@ -13220,8 +13245,10 @@ static int lesserNeighborCoversRectangle(int faceDirection, int boxIndex, float 
                 if (!((neighborType == BLOCK_GLASS || neighborType == BLOCK_STAINED_GLASS) && (type == BLOCK_GLASS || type == BLOCK_STAINED_GLASS_PANE)) &&
                     !((neighborType == BLOCK_GLASS_PANE || neighborType == BLOCK_STAINED_GLASS_PANE) && (type == BLOCK_GLASS_PANE || type == BLOCK_STAINED_GLASS_PANE)) &&
                     !((neighborType == BLOCK_VINES) && (type == BLOCK_VINES)) &&
-                    !((neighborType == BLOCK_IRON_BARS) && (type == BLOCK_IRON_BARS)))
-                {
+                    !((neighborType == BLOCK_IRON_BARS) && (type == BLOCK_IRON_BARS)) &&
+                    !((neighborType == BLOCK_COPPER_BARS) && (type == BLOCK_COPPER_BARS)) &&
+                    !((neighborType == BLOCK_WAXED_COPPER_BARS) && (type == BLOCK_WAXED_COPPER_BARS)))
+                    {
                     // neighbor does not cover face, so output the face by returning 0
                     return 0;
                 }
@@ -19504,6 +19531,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_BEACON:
         case BLOCK_CAVE_VINES:  // TODO: see BLOCK_VINES for a different way to handle these - not sure...
         case BLOCK_CAVE_VINES_LIT:
+        case BLOCK_COPPER_BARS:
+        case BLOCK_WAXED_COPPER_BARS:
             // where compositing against black for 3d printing of cutouts is fine, i.e., leave it alone.
             // Case is needed so that the "default:" case assertion doesn't go off, and so we know we've thought about the block
             break;

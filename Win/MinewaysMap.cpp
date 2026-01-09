@@ -2609,6 +2609,36 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Pale Oak Pressure Plate";
         }
         break;
+    case BLOCK_COPPER_BARS:
+        switch ((dataVal & 0x30) >> 4) {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case 1:
+            return "Exposed Copper Bars";
+        case 2:
+            return "Weathered Copper Bars";
+        case 3:
+            return "Oxidized Copper Bars";
+        }
+        break;
+    case BLOCK_WAXED_COPPER_BARS:
+        switch ((dataVal & 0x30) >> 4) {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case 1:
+            return "Waxed Exposed Copper Bars";
+        case 2:
+            return "Waxed Weathered Copper Bars";
+        case 3:
+            return "Waxed Oxidized Copper Bars";
+        }
+        break;
     }
 
     return gBlockDefinitions[type].name;
@@ -5033,6 +5063,8 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             assert(0);
             break;
         case 0:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
             break;
         case 1:
             // Spruce Pressure Plate
@@ -5081,6 +5113,33 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case 12:
             // Pale Oak Pressure Plate
             color = 0xE5DBDA;
+            break;
+        }
+        break;
+
+    case BLOCK_COPPER_BARS:
+    case BLOCK_WAXED_COPPER_BARS:
+        // same colors for both, different names
+        dataVal = block->data[voxel];
+        switch ((dataVal & 0x30) >> 4) {
+        default:
+            assert(0);
+            break;
+        case 0:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 1:
+            // Exposed Copper Bars
+            color = 0x8A6D5B;
+            break;
+        case 2:
+            // Weathered Copper Bars
+            color = 0x417D66;
+            break;
+        case 3:
+            // Oxidized Copper Bars
+            color = 0x587E5F;
             break;
         }
         break;
@@ -7197,6 +7256,49 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             bi = BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
             block->data[bi] = (unsigned char)(0x2 | typeHighBit);
+        }
+        if (dataVal & 0x1)
+        {
+            // put block to south
+            bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
+            block->grid[bi] = (unsigned char)type;
+            block->data[bi] = (unsigned char)(0x4 | typeHighBit);
+        }
+        if (dataVal & 0x2)
+        {
+            // put block to west
+            bi = BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
+            block->grid[bi] = (unsigned char)type;
+            block->data[bi] = (unsigned char)(0x8 | typeHighBit);
+        }
+        break;
+    case BLOCK_COPPER_BARS:
+    case BLOCK_WAXED_COPPER_BARS:
+        // this one is specialized: dataVal says where to put neighbors, NSEW
+        // But, since there are four tyues of copper bars, we need to set high bits, too.
+        addBlock = 1;
+        //bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
+        //block->grid[bi] = (unsigned char)type;
+        //block->data[bi] = (unsigned char)finalDataVal;
+
+        // put block above, too, for every fifth one, just to see it's working
+        if ((dataVal % 5) == 4) {
+            finalDataVal |= (origType > 0xff) ? BIT_32 : 0;
+            bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
+            block->grid[bi] = (unsigned char)type;
+            // just a post
+            block->data[bi] = (unsigned char)(((origType == BLOCK_CHORUS_PLANT) ? BIT_16 : 0) | typeHighBit);
+        }
+
+        if (dataVal & 0x4)
+        {
+            // set 0x10 bit
+            finalDataVal |= BIT_16;
+        }
+        if (dataVal & 0x8)
+        {
+            // set 0x20 bit
+            finalDataVal |= BIT_32;
         }
         if (dataVal & 0x1)
         {
