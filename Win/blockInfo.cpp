@@ -478,7 +478,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 392 */ "Exposed Cut Copper Stairs",    0x9E7B67, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 393 */ "Weathered Cut Copper Stairs",  0x6F936E, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 394 */ "Oxidized Cut Copper Stairs",   0x529D81, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
-    { /* 395 */ "Lightning Rod",                0xC67155, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13, 50, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_DNE_FLUID | BLF_CONNECTS_REDSTONE | BLF_MAYWATERLOG },
+    { /* 395 */ "Lightning Rod",                0xC67155, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13, 50, 0x30, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_DNE_FLUID | BLF_CONNECTS_REDSTONE | BLF_MAYWATERLOG },
     { /* 396 */ "(unused)" /* "Flower Pot" */,  0x7C4536, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 11, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },   //8C
     { /* 397 */ "Double Cut Copper Slab",   	0xC16D53, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 50, 0x17, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_LAME_WATERLOG | BLF_MAYWATERLOG }, // bizarrely, may waterlog, though pretty pointless; important for instancing
     { /* 398 */ "Cut Copper Slab",              0xC16D53, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 50, 0x17, BLF_HALF | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//2c/44 - was 6,0, and 5,0 side
@@ -579,6 +579,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 492 */ "Copper Bars",              	0x9E0000, 1.000f, 0xff7711, 0xff7711, 0.12345f,  6, 71, 0x30, BLF_PANE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_CUTOUTS | BLF_MAYWATERLOG },
     { /* 493 */ "Waxed Copper Bars",      		0x9E533A, 1.000f, 0xff7711, 0xff7711, 0.12345f,  6, 71, 0x30, BLF_PANE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_CUTOUTS | BLF_MAYWATERLOG },   // not visibly different than copper bars, but different names
     { /* 494 */ "Copper Torch",                 0x99EB99, 1.000f, 0xff7711, 0xff7711, 0.12345f, 14, 71, 0x00, BLF_MIDDLER | BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_EMITTER | BLF_DNE_FLUID },	// this (and soul torch) could be merged with torch to save two slots TODO
+    { /* 495 */ "Waxed Lightning Rod",          0xC67155, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13, 50, 0x30, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_DNE_FLUID | BLF_CONNECTS_REDSTONE | BLF_MAYWATERLOG },
 
     // Important note: 396 is skipped, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
 };

@@ -5376,6 +5376,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                         (neighborType == BLOCK_CHAIN) ||
                         (neighborType >= BLOCK_CANDLE && neighborType <= BLOCK_LIT_COLORED_CANDLE) ||
                         (neighborType == BLOCK_LIGHTNING_ROD) ||
+                        (neighborType == BLOCK_WAXED_LIGHTNING_ROD) ||
                         (neighborType == BLOCK_CAVE_VINES) ||
                         (neighborType == BLOCK_CAVE_VINES_LIT) ||
                         (neighborType == BLOCK_GLOW_LICHEN)
@@ -9112,12 +9113,38 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
     case BLOCK_END_ROD:						// saveBillboardOrGeometry
     case BLOCK_LIGHTNING_ROD:				// saveBillboardOrGeometry
-        {
+    case BLOCK_WAXED_LIGHTNING_ROD:				// saveBillboardOrGeometry
+    {
             bool endRod = (type == BLOCK_END_ROD);
             swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-            if (!endRod && (dataVal & 0x8)) {
-                // use lit version of lightning rod if powered
-                swatchLoc++;
+            if (!endRod) {
+                // lightning rod - determine lit or unlit version
+                if (dataVal & 0x8) {
+                    // use lit version of lightning rod if powered (same for all rods)
+                    swatchLoc++;
+                } else {
+                    // retrieve unlit version from 0x30 field
+                    switch (dataVal & 0x30)
+                    {
+                    default:
+                        assert(0);
+                    case 0x00:
+                        // standard version, no change
+                        break;
+                    case 0x10:
+                        // exposed version
+                        swatchLoc = SWATCH_INDEX(15, 71);
+                        break;
+                    case 0x20:
+                        // weathered version
+                        swatchLoc = SWATCH_INDEX(0, 72);
+                        break;
+                    case 0x30:
+                        // oxidized version
+                        swatchLoc = SWATCH_INDEX(1, 72);
+                        break;
+                    }
+                }
             }
             yrot = zrot = 0.0f;
             //dir = DIRECTION_BLOCK_TOP;
@@ -35327,6 +35354,7 @@ static bool faceCanTile(int faceId)
     case BLOCK_LIT_COLORED_CANDLE:
     case BLOCK_AMETHYST_BUD:
     case BLOCK_LIGHTNING_ROD:
+    case BLOCK_WAXED_LIGHTNING_ROD:
     case BLOCK_SPORE_BLOSSOM:
     case BLOCK_FROGSPAWN:
     case BLOCK_SNIFFER_EGG:

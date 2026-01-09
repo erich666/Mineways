@@ -393,7 +393,7 @@ static TranslationTuple* modTranslations = NULL;
 // facing, hydration 0-3 shifted up 2, waterlogged
 #define GHAST_PROP  71
 
-#define NUM_TRANS 1141
+#define NUM_TRANS 1148
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1562,6 +1562,13 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  82, HIGH_BIT | (7 << 1), "waxed_exposed_copper_lantern", LANTERN_PROP },
     { 0,  82, HIGH_BIT | (8 << 1), "waxed_weathered_copper_lantern", LANTERN_PROP },
     { 0,  82, HIGH_BIT | (9 << 1), "waxed_oxidized_copper_lantern", LANTERN_PROP },
+    { 0, 139, HIGH_BIT | (1 << 4), "exposed_lightning_rod", EXTENDED_FACING_PROP },
+    { 0, 139, HIGH_BIT | (2 << 4), "weathered_lightning_rod", EXTENDED_FACING_PROP },
+    { 0, 139, HIGH_BIT | (3 << 4), "oxidized_lightning_rod", EXTENDED_FACING_PROP },
+    { 0, 239,            HIGH_BIT, "waxed_lightning_rod", EXTENDED_FACING_PROP },
+    { 0, 239, HIGH_BIT | (1 << 4), "waxed_exposed_lightning_rod", EXTENDED_FACING_PROP },
+    { 0, 239, HIGH_BIT | (2 << 4), "waxed_weathered_lightning_rod", EXTENDED_FACING_PROP },
+    { 0, 239, HIGH_BIT | (3 << 4), "waxed_oxidized_lightning_rod", EXTENDED_FACING_PROP },
 
     // 1.20.3 additions (short_grass added next to "grass", above), https://minecraft.wiki/w/Java_Edition_1.20.3#General_2
 

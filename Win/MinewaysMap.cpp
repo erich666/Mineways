@@ -984,6 +984,40 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         }
         break;
 
+    case BLOCK_LIGHTNING_ROD:
+        switch (dataVal & 0x30)
+        {
+        default:
+            assert(0);
+            break;
+        case 0: // normal
+            break;
+        case BIT_16:
+            return "Exposed Lightning Rod";
+        case BIT_32:
+            return "Weathered Lightning Rod";
+        case BIT_32 | BIT_16:
+            return "Oxidized Lightning Rod";
+        }
+        break;
+
+    case BLOCK_WAXED_LIGHTNING_ROD:
+        switch (dataVal & 0x30)
+        {
+        default:
+            assert(0);
+            break;
+        case 0: // normal
+            break;
+        case BIT_16:
+            return "Waxed Exposed Lightning Rod";
+        case BIT_32:
+            return "Waxed Weathered Lightning Rod";
+        case BIT_32 | BIT_16:
+            return "Waxed Oxidized Lightning Rod";
+        }
+        break;
+
     case BLOCK_DOUBLE_FLOWER:
         // subtract 256, one Y level, as we need to look at the bottom of the plant to ID its type.
         // This is just a safety net now - we actually shove the data value into the upper part of the plant nowadays, in extractChunk
@@ -3896,6 +3930,29 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         }
         break;
 
+    case BLOCK_LIGHTNING_ROD:
+    case BLOCK_WAXED_LIGHTNING_ROD:
+        dataVal = block->data[voxel];
+        switch (dataVal & 0x30)
+        {
+        default:
+            assert(0);
+        case 0:
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case BIT_16:
+            color = 0xA3796A;
+            break;
+        case BIT_32:
+            color = 0x519E82;
+            break;
+        case BIT_32 | BIT_16:
+            color = 0x64926C;
+            break;
+        }
+        break;
+
     case BLOCK_DOUBLE_FLOWER:
         // Subtract 256, one Y level, as we need to look at the bottom of the plant to ID its type.
         // Guard against a negative voxel value. Use the top half if the bottom half doesn't exist;
@@ -6200,14 +6257,29 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         // TODO: could add vertical versions, joined and unjoined, in my copious free time
         break;
+
     case BLOCK_LIGHTNING_ROD:
-        // uses 0-5 and 8-13 for different slab types + lower or upper
+    case BLOCK_WAXED_LIGHTNING_ROD:
+        // uses 0-5 and 8-13 for different directions
         // or for lightning rod, powered is top bit
         if (dataVal < 6 || (dataVal >= 8 && dataVal <= 13))
         {
             addBlock = 1;
         }
+        else if (dataVal == 6) {
+            addBlock = 1;
+            finalDataVal = BIT_16;
+        }
+        else if (dataVal == 7) {
+            addBlock = 1;
+            finalDataVal = BIT_32;
+        }
+        else if (dataVal == 14) {
+            addBlock = 1;
+            finalDataVal = BIT_32|BIT_16;
+        }
         break;
+
     case BLOCK_DOUBLE_FLOWER:
         // uses 0-6, put flower head above it
         if (dataVal < 7)
