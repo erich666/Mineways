@@ -2639,6 +2639,32 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Waxed Oxidized Copper Bars";
         }
         break;
+    case BLOCK_CHAIN:
+        switch (dataVal & 0x33) {
+        default:
+            assert(0);
+            break;
+        case 0:
+            // iron chain
+            break;
+        case 1:
+            return "Copper Chain";
+        case 2:
+            return "Exposed Copper Chain";
+        case 3:
+            return "Weathered Copper Chain";
+        case BIT_16:
+            return "Oxidized Copper Chain";
+        case BIT_16 | 1:
+            return "Waxed Copper Chain";
+        case BIT_16 | 2:
+            return "Waxed Exposed Copper Chain";
+        case BIT_16 | 3:
+            return "Waxed Weathered Copper Chain";
+        case BIT_32:
+            return "Waxed Oxidized Copper Chain";
+        }
+        break;
     }
 
     return gBlockDefinitions[type].name;
@@ -5144,6 +5170,40 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         }
         break;
 
+    case BLOCK_CHAIN:
+        dataVal = block->data[voxel];
+        switch (dataVal & 0x33) {
+        default:
+            assert(0);
+            break;
+        case 0:
+            // iron chain
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 1:
+        case BIT_16 | 1:
+            // Copper Chain
+            color = 0x995038;
+            break;
+        case 2:
+        case BIT_16 | 2:
+            // Exposed Copper Chain
+            color = 0x816754;
+            break;
+        case 3:
+        case BIT_16 | 3:
+            // Weathered Copper Chain
+            color = 0x3E7764;
+            break;
+        case BIT_16:
+        case BIT_32:
+            // Oxidized Copper Chain
+            color = 0x4B6E5C;
+            break;
+        }
+        break;
+
     default:
         // Everything else
         lightComputed = true;
@@ -7631,6 +7691,20 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
             addBlock = 1;
             finalDataVal = ((dataVal % 3) * 4) | ((dataVal >= 3) ? WATERLOGGED_BIT : 0);	// waterlogged
+        }
+        // show the 8 copper chains
+        else if (dataVal < 9) {
+            // show the 3 first copper chains
+            addBlock = 1;
+            finalDataVal = dataVal - 6;
+        }
+        else if (dataVal < 13) {
+            addBlock = 1;
+            finalDataVal = BIT_16 | (dataVal - 9);
+        }
+        else if (dataVal == 13) {
+            addBlock = 1;
+            finalDataVal = BIT_32;
         }
         break;
     case BLOCK_CONDUIT:

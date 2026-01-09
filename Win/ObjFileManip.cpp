@@ -10623,12 +10623,39 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_CHAIN: // saveBillboardOrGeometry
     {
         if (!gModel.print3D) {
-            swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            switch (dataVal & 0x33) {
+            default:
+                assert(0);
+            case 0:
+                // iron chain
+                swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+                break;
+            case 1:
+            case BIT_16 | 1:
+                // Copper Chain
+                swatchLoc = SWATCH_INDEX(10, 71);
+                break;
+            case 2:
+            case BIT_16 | 2:
+                // Exposed Copper Chain
+                swatchLoc = SWATCH_INDEX(11, 71);
+                break;
+            case 3:
+            case BIT_16 | 3:
+                // Weathered Copper Chain
+                swatchLoc = SWATCH_INDEX(12, 71);
+                break;
+            case BIT_16:
+            case BIT_32:
+                // Oxidized Copper Chain
+                swatchLoc = SWATCH_INDEX(13, 71);
+                break;
+            }
 
             gUsingTransform = 1;
 
             // left half
-            int rotationDV = dataVal & 0xf; // x-axis == 4, z-axis == 8
+            int rotationDV = dataVal & 0xC; // x-axis == 4, z-axis == 8
             littleTotalVertexCount = gModel.vertexCount;
             saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, rotationDV, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_Z_FACE_VERTICALLY, 0, 3, 0, 16, 8, 8);
             littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;

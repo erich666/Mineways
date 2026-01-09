@@ -393,7 +393,7 @@ static TranslationTuple* modTranslations = NULL;
 // facing, hydration 0-3 shifted up 2, waterlogged
 #define GHAST_PROP  71
 
-#define NUM_TRANS 1123
+#define NUM_TRANS 1131
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1544,6 +1544,14 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 237, HIGH_BIT | BIT_16, "waxed_exposed_copper_bars", FENCE_PROP },
     { 0, 237, HIGH_BIT | BIT_32, "waxed_weathered_copper_bars", FENCE_PROP },
     { 0, 237, HIGH_BIT | BIT_32 | BIT_16, "waxed_oxidized_copper_bars", FENCE_PROP },
+    { 0, 108,   HIGH_BIT | 1, "copper_chain", AXIS_PROP },  // annoyingly, copper uses 0x1, exposed 0x2, weathered 0x3, oxidized 0x10..., waxed_oxidized 0x20
+    { 0, 108,   HIGH_BIT | 2, "exposed_copper_chain", AXIS_PROP },
+    { 0, 108,   HIGH_BIT | 3, "weathered_copper_chain", AXIS_PROP },
+    { 0, 108,   HIGH_BIT | BIT_16, "oxidized_copper_chain", AXIS_PROP },
+    { 0, 108,   HIGH_BIT | BIT_16 | 1, "waxed_copper_chain", AXIS_PROP },
+    { 0, 108,   HIGH_BIT | BIT_16 | 2, "waxed_exposed_copper_chain", AXIS_PROP },
+    { 0, 108,   HIGH_BIT | BIT_16 | 3, "waxed_weathered_copper_chain", AXIS_PROP },
+    { 0, 108,   HIGH_BIT | BIT_32, "waxed_oxidized_copper_chain", AXIS_PROP },
 
     // 1.20.3 additions (short_grass added next to "grass", above), https://minecraft.wiki/w/Java_Edition_1.20.3#General_2
 
