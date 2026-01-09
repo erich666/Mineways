@@ -1922,15 +1922,31 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         break;
 
     case BLOCK_LANTERN:
-        switch (dataVal & 0x2)
+        switch (dataVal & 0x1E)
         {
         default:
             assert(0);
             break;
         case 0:
             break;
-        case 2:
+        case 1 << 1:
             return "Soul Lantern";
+        case 2 << 1:
+            return "Copper Lantern";
+        case 3 << 1:
+            return "Exposed Copper Lantern";
+        case 4 << 1:
+            return "Weathered Copper Lantern";
+        case 5 << 1:
+            return "Oxidized Copper Lantern";
+        case 6 << 1:
+            return "Waxed Copper Lantern";
+        case 7 << 1:
+            return "Waxed Exposed Copper Lantern";
+        case 8 << 1:
+            return "Waxed Weathered Copper Lantern";
+        case 9 << 1:
+            return "Waxed Oxidized Copper Lantern";
         }
         break;
 
@@ -5204,6 +5220,45 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         }
         break;
 
+    case BLOCK_LANTERN:
+        dataVal = block->data[voxel];
+        switch (dataVal & 0x1E)
+        {
+        default:
+            assert(0);
+            break;
+        case 0:
+            // normal Lantern
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 1 << 1:
+            // Soul Lantern
+            color = 0x517782;
+            break;
+        case 2 << 1:
+        case 6 << 1:
+            // Copper Lantern
+            color = 0xA37D5B;
+            break;
+        case 3 << 1:
+        case 7 << 1:
+            // Exposed Copper Lantern
+            color = 0x9A8D70;
+            break;
+        case 4 << 1:
+        case 8 << 1:
+            // Weathered Copper Lantern
+            color = 0x5C9476;
+            break;
+        case 5 << 1:
+        case 9 << 1:
+            // Oxidized Copper Lantern
+            color = 0x6B8F6C;
+            break;
+        }
+        break;
+
     default:
         // Everything else
         lightComputed = true;
@@ -7815,15 +7870,13 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
     case BLOCK_LANTERN:
         // uses lowest bit 0 for hanging, 1 for soul lantern, plus waterlogging
-        if ((dataVal & 0xf) < 8)
-        {
-            addBlock = 1;
-            if (dataVal & 0x1) {
-                // put block above lantern
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
-            }
-            finalDataVal = (dataVal & 0x3) | ((dataVal >= 4) ? WATERLOGGED_BIT : 0);
+        // won't show all lanterns - I'll live with that
+        addBlock = 1;
+        if (dataVal & 0x1) {
+            // put block above lantern
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
         }
+        finalDataVal = (dataVal & 0x3) | ((dataVal >= 4) ? WATERLOGGED_BIT : 0);
         break;
     case BLOCK_SCAFFOLDING:
         // uses only bit 0, but put three of them up, and waterlog

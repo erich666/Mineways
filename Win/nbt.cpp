@@ -393,7 +393,7 @@ static TranslationTuple* modTranslations = NULL;
 // facing, hydration 0-3 shifted up 2, waterlogged
 #define GHAST_PROP  71
 
-#define NUM_TRANS 1133
+#define NUM_TRANS 1141
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1178,7 +1178,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, BLOCK_FIRE,  BIT_16, "soul_fire", NO_PROP },
     { 0, 106,       HIGH_BIT, "soul_torch", TORCH_PROP },	// was soul_fire_torch in an earlier 1.16 beta, like 16
     { 0, 106,       HIGH_BIT, "soul_wall_torch", TORCH_PROP },	// was soul_fire_torch in an earlier 1.16 beta, like 16
-    { 0,  82, HIGH_BIT | 0x2, "soul_lantern", LANTERN_PROP },	// uses just "hanging" for bit 0x1
+    { 0,  82, HIGH_BIT | 0x2, "soul_lantern", LANTERN_PROP },
     { 0,  83, HIGH_BIT | 0x8, "soul_campfire", CAMPFIRE_PROP },
     { 0, 107,       HIGH_BIT, "weeping_vines_plant", TRULY_NO_PROP },
     { 0, 107, HIGH_BIT | BIT_32, "weeping_vines", TRULY_NO_PROP },
@@ -1554,6 +1554,14 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 108,   HIGH_BIT | BIT_32, "waxed_oxidized_copper_chain", AXIS_PROP },
     { 0, 238,       HIGH_BIT, "copper_torch", TORCH_PROP },
     { 0, 238,       HIGH_BIT, "copper_wall_torch", TORCH_PROP },
+    { 0,  82, HIGH_BIT | (2 << 1), "copper_lantern", LANTERN_PROP },
+    { 0,  82, HIGH_BIT | (3 << 1), "exposed_copper_lantern", LANTERN_PROP },
+    { 0,  82, HIGH_BIT | (4 << 1), "weathered_copper_lantern", LANTERN_PROP },
+    { 0,  82, HIGH_BIT | (5 << 1), "oxidized_copper_lantern", LANTERN_PROP },
+    { 0,  82, HIGH_BIT | (6 << 1), "waxed_copper_lantern", LANTERN_PROP },
+    { 0,  82, HIGH_BIT | (7 << 1), "waxed_exposed_copper_lantern", LANTERN_PROP },
+    { 0,  82, HIGH_BIT | (8 << 1), "waxed_weathered_copper_lantern", LANTERN_PROP },
+    { 0,  82, HIGH_BIT | (9 << 1), "waxed_oxidized_copper_lantern", LANTERN_PROP },
 
     // 1.20.3 additions (short_grass added next to "grass", above), https://minecraft.wiki/w/Java_Edition_1.20.3#General_2
 

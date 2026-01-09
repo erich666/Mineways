@@ -418,7 +418,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 335 */ "Grindstone",             		0x8E8E8E, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 39, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
     { /* 336 */ "Lectern",                		0xAF8B55, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 40, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
     { /* 337 */ "Bell",					  		0xC69E36, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 38, 0x00, BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
-    { /* 338 */ "Lantern",				  		0x846C5A, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 37, 0x02, BLF_SMALL_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_EMITTER | BLF_MAYWATERLOG },
+    { /* 338 */ "Lantern",				  		0x846C5A, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 37, 0x1E, BLF_SMALL_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_EMITTER | BLF_MAYWATERLOG },
     { /* 339 */ "Campfire",               		0xE0B263, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 39, 0x0c, BLF_FLATTEN | BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_EMITTER | BLF_MAYWATERLOG },
     { /* 340 */ "Scaffolding",			  		0xB38D54, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 40, 0x00, BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_MAYWATERLOG },
     // 1.15
@@ -578,7 +578,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 491 */ "Dried Ghast",             		0x9D8F8F, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 69, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
     { /* 492 */ "Copper Bars",              	0x9E0000, 1.000f, 0xff7711, 0xff7711, 0.12345f,  6, 71, 0x30, BLF_PANE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_CUTOUTS | BLF_MAYWATERLOG },
     { /* 493 */ "Waxed Copper Bars",      		0x9E533A, 1.000f, 0xff7711, 0xff7711, 0.12345f,  6, 71, 0x30, BLF_PANE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_CUTOUTS | BLF_MAYWATERLOG },   // not visibly different than copper bars, but different names
-    { /* 494 */ "Copper Torch",                 0x817F5D, 1.000f, 0xff7711, 0xff7711, 0.12345f, 14, 71, 0x00, BLF_MIDDLER | BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_EMITTER | BLF_DNE_FLUID },	// this (and soul torch) could be merged with torch to save two slots TODO
+    { /* 494 */ "Copper Torch",                 0x99EB99, 1.000f, 0xff7711, 0xff7711, 0.12345f, 14, 71, 0x00, BLF_MIDDLER | BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_EMITTER | BLF_DNE_FLUID },	// this (and soul torch) could be merged with torch to save two slots TODO
 
     // Important note: 396 is skipped, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
 };

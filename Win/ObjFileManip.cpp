@@ -10553,8 +10553,38 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_LANTERN: // saveBillboardOrGeometry
     {
         int hanging = (dataVal & 0x1);
-        int soul = (dataVal & 0x2);
-        swatchLoc = soul ? SWATCH_INDEX(13, 42) : SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+        switch (dataVal & 0x1E) {
+        default:
+            assert(0);
+        case 0:
+            // normal lantern
+            swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            break;
+        case 1 << 1:
+            // Soul Lantern
+            swatchLoc = SWATCH_INDEX(13, 42);
+            break;
+        case 2 << 1:
+        case 6 << 1:
+            // Copper Lantern
+            swatchLoc = SWATCH_INDEX(2, 72);
+            break;
+        case 3 << 1:
+        case 7 << 1:
+            // Exposed Copper Lantern
+            swatchLoc = SWATCH_INDEX(3, 72);
+            break;
+        case 4 << 1:
+        case 8 << 1:
+            // Weathered Copper Lantern
+            swatchLoc = SWATCH_INDEX(4, 72);
+            break;
+        case 5 << 1:
+        case 9 << 1:
+            // Oxidized Copper Lantern
+            swatchLoc = SWATCH_INDEX(5, 72);
+            break;
+        }
 
         gUsingTransform = 1;
 
@@ -24843,9 +24873,9 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
         break;
     case BLOCK_LANTERN:
         if (splitByBlockType) {
-            switch (dataVal & 0xf) {
+            switch (dataVal & 0x1f) {
+                // actually use default, as all the copper variants emit the same
             default:
-                assert(0);
             case 0:
                 // default: emission = 15.0f;
                 break;
