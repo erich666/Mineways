@@ -8621,15 +8621,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             break;
         }
         // latch only if single or right
-        // saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, (chestType == 1), faceMask, 0, 0, (chestType != 2) ? 1.0f : 0.0f, (chestType != 1) ? 15.0f : 16.0f, 0, 14, 1, 15);
+        // the right side face has to be flipped to mirror the left; important for copper chests
         saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, (chestType == 1), faceMask, FLIP_HI_X_FACE_VERTICALLY, 0, (chestType != 2) ? 1.0f : 0.0f, (chestType != 1) ? 15.0f : 16.0f, 0, 14, 1, 15);
-        //saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, (chestType == 1), faceMask | DIR_HI_X_BIT, SHIFT_HI_X_FACE_VERTICALLY, 0, (chestType != 2) ? 1.0f : 0.0f, (chestType != 1) ? 15.0f : 16.0f, 0, 14, 1, 15);
-        // save the right side flipped if full chest or right chest; left chest already does not have face, normally
-        //if (!(faceMask & DIR_HI_X_BIT))
-        //{
-        //    // the right (facing the front) side needs to be flipped, if visible
-        //    saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_LO_X_FACE_VERTICALLY, 1, (chestType != 2) ? 1.0f : 0.0f, (chestType != 1) ? 15.0f : 16.0f, 0, 14, 1, 15);
-        //}
         totalVertexCount = gModel.vertexCount - totalVertexCount;
         gUsingTransform = 0;
         identityMtx(mtx);
