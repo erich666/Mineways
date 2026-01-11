@@ -54,20 +54,27 @@ typedef struct FileGrid {
 static FileGrid gFG;
 
 
-#define	TOTAL_CHEST_TILES	5
+#define	TOTAL_CHEST_TILES	17
 #define CHEST_NORMAL		0
 #define CHEST_NORMAL_DOUBLE	1
 #define CHEST_NORMAL_LEFT	2
 #define CHEST_NORMAL_RIGHT	3
 #define CHEST_ENDER			4
-static const wchar_t* gChestNames[] = { L"normal", L"normal_double", L"normal_left", L"normal_right", L"ender" };
+#define CHEST_COPPER		5
+static const wchar_t* gChestNames[] = { L"normal", L"normal_double", L"normal_left", L"normal_right", L"ender",
+	L"copper", L"copper_left", L"copper_right", L"copper_exposed", L"copper_exposed_left", L"copper_exposed_right",
+	L"copper_oxidized", L"copper_oxidized_left", L"copper_oxidized_right", L"copper_weathered", L"copper_weathered_left", L"copper_weathered_right" };
 // OfTemplesAndTotems and RazzleCore use this alternate name, sigh
-static const wchar_t* gChestNamesAlt[] = { L"", L"double_normal", L"", L"", L"" };
+static const wchar_t* gChestNamesAlt[] = { L"", L"double_normal", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"" };
 
 #define	TOTAL_DECORATED_POT_TILES	1
 static const wchar_t* gDecoratedPotNames[] = { L"decorated_pot_base" };
-// OfTemplesAndTotems and RazzleCore use this alternate name, sigh
 static const wchar_t* gDecoratedPotNamesAlt[] = { L"" };
+
+#define TOTAL_SHELF_TILES	12
+static const wchar_t* gShelfNames[] = { L"acacia_shelf", L"birch_shelf", L"cherry_shelf", L"crimson_shelf", L"dark_oak_shelf",
+	L"jungle_shelf", L"mangrove_shelf", L"oak_shelf", L"pale_oak_shelf", L"warped_shelf", L"bamboo_shelf", L"spruce_shelf" };
+static const wchar_t* gShelfNamesAlt[] = { L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"" };
 
 typedef struct ChestGrid {
 	int chestCount;
@@ -77,7 +84,8 @@ typedef struct ChestGrid {
 	FileRecord cr[TOTAL_CATEGORIES * TOTAL_CHEST_TILES];
 } ChestGrid;
 
-static ChestGrid gCG;
+static ChestGrid gChestGrid;
+static ChestGrid gShelfGrid;
 
 typedef struct DecoratedPotGrid {
 	int decoratedPotCount;
@@ -87,18 +95,18 @@ typedef struct DecoratedPotGrid {
 	FileRecord pr[TOTAL_CATEGORIES * TOTAL_DECORATED_POT_TILES];
 } DecoratedPotGrid;
 
-static DecoratedPotGrid gPG;
+static DecoratedPotGrid gPotGrid;
 
 void initializeFileGrid(FileGrid* pfg);
 void initializeChestGrid(ChestGrid* pcg);
 void initializeDecoratedPotGrid(DecoratedPotGrid* ppg);
 void addBackslashIfNeeded(wchar_t* dir);
-int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, bool topmost, bool warnUnused, bool warnDups);
+int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, ChestGrid *psg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, bool topmost, bool warnUnused, bool warnDups);
 bool dirExists(const wchar_t* path);
 bool createDir(const wchar_t* path);
 int checkTilesInDirectory(FileGrid* pfg, const wchar_t* tilePath, int verbose, int alternate);
 int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose, int alternate, bool warnDNE, bool warnDups);
-int testIfChestFile(ChestGrid* pcg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose);
+int testIfChestFile(ChestGrid* pcg, int totalFiles, const wchar_t* objType, const wchar_t* chestNames[], const wchar_t* chestNamesAlt[], const wchar_t* tilePath, const wchar_t* origTileName, int verbose);
 int testIfDecoratedPotFile(DecoratedPotGrid* ppg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose);
 bool removeFileType(wchar_t* name);
 int isImageFile(wchar_t* name);

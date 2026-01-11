@@ -35,13 +35,13 @@ static const LodePNGColorType gCatFormat[TOTAL_CATEGORIES] = { LCT_RGBA, LCT_RGB
 
 
 typedef struct ChestData {
-	int fromX;
+	int fromX;   // column and row, from upper left, of 64x64 chest tile
 	int fromY;
 	int sizeX;
 	int sizeY;
-	int txrX;   // column and row, from upper left, of 64x64 chest tile
+	int txrX;	// texture destination
 	int txrY;
-	int toX;
+	int toX;	// location in texture (which is 2 wider and higher than 16x16 or whatever)
 	int toY;
 	unsigned int flags;
 } ChestData;
@@ -103,7 +103,7 @@ static ChestData gNormalLeftChest115[] = {
 	{ 43, 33,  15, 10,  10,  2,  0, 6,  0x3 },	// MWO_double_chest_front_left bottom half
 	{ 14, 15,  15,  4,  10,  3,  0, 2,  0x2 },	// MWO_double_chest_back_left top half - should really swap with RightChest, but nah
 	{ 14, 33,  15, 10,  10,  3,  0, 6,  0x2 },	// MWO_double_chest_back_left bottom half - should really swap with RightChest, but nah
-	{ 14, 19,  15, 14,  10, 14,  0, 1,  0x2 },	// MWO_double_chest_top_left
+	{ 29,  0,  15, 14,  10, 14,  0, 1,  0x2 },	// MWO_double_chest_top_left
 };
 
 static ChestData gNormalRightChest115[] = {
@@ -112,7 +112,7 @@ static ChestData gNormalRightChest115[] = {
 	{ 43, 33,  15, 10,   9,  2,  1, 6,  0x3 },	// MWO_double_chest_front_right bottom half
 	{ 14, 15,  15,  4,   9,  3,  1, 2,  0x2 },	// MWO_double_chest_back_right top half
 	{ 14, 33,  15, 10,   9,  3,  1, 6,  0x2 },	// MWO_double_chest_back_right bottom half
-	{ 14, 19,  15, 14,   9, 14,  1, 1,  0x2 },	// MWO_double_chest_top_right - note we don't flip
+	{ 29,  0,  15, 14,   9, 14,  1, 1,  0x2 },	// MWO_double_chest_top_right - note we don't flip
 };
 
 static ChestData gEnderChest115[] = {
@@ -124,6 +124,8 @@ static ChestData gEnderChest115[] = {
 	{ 42, 15,  14,  4,  12, 13,   1, 2,  0x3 },	// top of MWO_ender_chest_front
 	{ 42, 33,  14, 10,  12, 13,   1, 6,  0x3 },	// bottom of MWO_ender_chest_front
 };
+
+ChestData gNormalCopperChests[12][8];
 
 typedef struct Chest {
 	const wchar_t* wname;
@@ -148,6 +150,54 @@ static Chest gChest115[] = {
 	{ L"ender", 6, 64, 64, NULL }
 };
 
+static Chest gChest1219[16] = {
+	{ L"normal", 6, 64, 64, NULL },
+	{ L"normal_left", 5, 64, 64, NULL },
+	{ L"normal_right", 5, 64, 64, NULL },
+	{ L"ender", 6, 64, 64, NULL },
+	{ L"copper", 8, 64, 64, NULL },
+	{ L"copper_left", 5, 64, 64, NULL },
+	{ L"copper_right", 5, 64, 64, NULL },
+	{ L"copper_exposed", 8, 64, 64, NULL },
+	{ L"copper_exposed_left", 5, 64, 64, NULL },
+	{ L"copper_exposed_right", 5, 64, 64, NULL },
+	{ L"copper_oxidized", 8, 64, 64, NULL },
+	{ L"copper_oxidized_left", 5, 64, 64, NULL },
+	{ L"copper_oxidized_right", 5, 64, 64, NULL },
+	{ L"copper_weathered", 8, 64, 64, NULL },
+	{ L"copper_weathered_left", 5, 64, 64, NULL },
+	{ L"copper_weathered_right", 5, 64, 64, NULL },
+};
+
+// Shelf simply uses same structure as Chest, for simplicity
+
+// just one, but the to tile goes up by three times the index of the shelf
+static ChestData gShelfData1219[] = {
+	//  from,    size, to tile,  starting at corner
+	{  0,  0,  16, 16,   3, 75,   0, 0,  0x0 },	// MWO_***_shelf_front
+	{ 16,  0,  16, 16,   4, 75,   0, 0,  0x0 },	// MWO_***_shelf_back
+	{ 16, 16,  16, 16,   5, 75,   0, 0,  0x0 },	// MWO_***_shelf_powered
+};
+
+// transfer the above template to here, then fix "to tile" by incrementing each by 3*index, modulo-ing the tile numbers
+ChestData gShelves[12][3];
+
+// then point the follow NULL pointers to these 12 gShelves.
+static Chest gShelf1219[12] = {
+	{ L"acacia_shelf", 3, 32, 32, NULL },
+	{ L"birch_shelf", 3, 32, 32, NULL },
+	{ L"cherry_shelf", 3, 32, 32, NULL },
+	{ L"crimson_shelf", 3, 32, 32, NULL },
+	{ L"dark_oak_shelf", 3, 32, 32, NULL },
+	{ L"jungle_shelf", 3, 32, 32, NULL },
+	{ L"mangrove_shelf", 3, 32, 32, NULL },
+	{ L"oak_shelf", 3, 32, 32, NULL },
+	{ L"pale_oak_shelf", 3, 32, 32, NULL },
+	{ L"warped_shelf", 3, 32, 32, NULL },
+	{ L"bamboo_shelf", 3, 32, 32, NULL },
+	{ L"spruce_shelf", 3, 32, 32, NULL },
+};
+
 static int gErrorCount = 0;
 static int gWarningCount = 0;
 
@@ -170,6 +220,8 @@ static wchar_t gConcatErrorString[CONCAT_ERROR_LENGTH];
 #endif
 
 //-------------------------------------------------------------------------
+void transferChestData(int catIndex, int numChests, bool& allChests, bool& anyChests, Chest* chest, ChestGrid& chestGrid, const wchar_t* chestNames[], progimage_info* destination_ptr, int& filesProcessed, int channels, bool& normalsZoom, bool verbose, int& rc);
+
 void printHelp();
 
 int shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2);
@@ -238,6 +290,7 @@ int wmain(int argc, wchar_t* argv[])
 	int overlayTileSize = 0;
 	int overlayChestSize = 0;
 	int overlayDecoratedPotSize = 0;
+	int overlayShelfSize = 0;
 	int forcedTileSize = 0;
 	int chosenTile = 0;
 
@@ -261,12 +314,16 @@ int wmain(int argc, wchar_t* argv[])
 
 	bool anyPots = false;
 
+	bool allShelfs = true;	// yeah, I know, "shelves", but going for consistency here so it's easier to edit
+	bool anyShelfs = false;
+
 	bool terrainBaseSet = false;
 	bool warnUnused = false;
 
 	initializeFileGrid(&gFG);
-	initializeChestGrid(&gCG);
-	initializeDecoratedPotGrid(&gPG);
+	initializeChestGrid(&gChestGrid);
+	initializeDecoratedPotGrid(&gPotGrid);
+	initializeChestGrid(&gShelfGrid);
 
 	wcscpy_s(terrainBase, MAX_PATH_AND_FILE, BASE_INPUT_FILENAME);
 	wcscpy_s(terrainExtOutputTemplate, MAX_PATH_AND_FILE, OUTPUT_FILENAME);
@@ -497,9 +554,10 @@ int wmain(int argc, wchar_t* argv[])
 		//  "block" or "blocks" - look through it for block names
 		//  "chest" or "chests" - look for chest names and fill in
 		//  "decorated_pot" or "decorated_pots" - look for decorated pot names and fill in
+		//  "shelf" - look for shelf names and fill in
 		//  "item" or "items" - look for barrier.png, only
 		// If it's none of these, then look through it for directories. Ignore '.' and '..'. Recursively search directories for more directories.
-		int fileCount = searchDirectoryForTiles(&gFG, &gCG, &gPG, *inputDirectoryPtr, wcslen(*inputDirectoryPtr), verbose, alternate, true, warnUnused, warnDups);
+		int fileCount = searchDirectoryForTiles(&gFG, &gChestGrid, &gPotGrid, &gShelfGrid, *inputDirectoryPtr, wcslen(*inputDirectoryPtr), verbose, alternate, true, warnUnused, warnDups);
 		warnDups = false;
 		if (fileCount < 0) {
 			wsprintf(gErrorString, L"***** ERROR: cannot access the directory '%s' (Windows error code # %d). Ignoring directory.\n", *inputDirectoryPtr, GetLastError());
@@ -513,7 +571,7 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
 	// any data found? Not needed if forcing a tile size (resizing the base texture).
-	if ((forcedTileSize == 0) && (gFG.fileCount <= 0 && gCG.chestCount <= 0 && gPG.decoratedPotCount <= 0)) {
+	if ((forcedTileSize == 0) && (gFG.fileCount <= 0 && gChestGrid.chestCount <= 0 && gPotGrid.decoratedPotCount <= 0 && gShelfGrid.chestCount <= 0)) {
 		wprintf(L"***** ERROR: no textures were read in for replacing. Nothing to do!\n  Put your new textures in the 'blocks' directory, or use\n  the '-d directory' command line option to say where your new textures are.\n");
 		return 1;
 	}
@@ -540,13 +598,13 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
 	// check over chest tiles' power of twos, to see if any are in error
-	for (catIndex = 0; catIndex < gCG.totalCategories; catIndex++) {
-		for (index = 0; index < gCG.totalTiles; index++) {
-			fullIndex = catIndex * gCG.totalTiles + index;
-			if (gCG.cr[fullIndex].exists) {
-				size = checkFileWidth(&gCG.cr[fullIndex], overlayChestSize, false, false, -1, 0, 0, 0);
+	for (catIndex = 0; catIndex < gChestGrid.totalCategories; catIndex++) {
+		for (index = 0; index < gChestGrid.totalTiles; index++) {
+			fullIndex = catIndex * gChestGrid.totalTiles + index;
+			if (gChestGrid.cr[fullIndex].exists) {
+				size = checkFileWidth(&gChestGrid.cr[fullIndex], overlayChestSize, false, false, -1, 0, 0, 0);
 				if (size == 0) {
-					deleteChestFromGrid(&gCG, fullIndex / gCG.totalTiles, fullIndex);
+					deleteChestFromGrid(&gChestGrid, fullIndex / gChestGrid.totalTiles, fullIndex);
 				}
 				else {
 					overlayChestSize = size;
@@ -556,16 +614,32 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
 	// check over decorated pot tiles' power of twos, to see if any are in error
-	for (catIndex = 0; catIndex < gPG.totalCategories; catIndex++) {
-		for (index = 0; index < gPG.totalTiles; index++) {
-			fullIndex = catIndex * gPG.totalTiles + index;
-			if (gPG.pr[fullIndex].exists) {
-				size = checkFileWidth(&gPG.pr[fullIndex], overlayDecoratedPotSize, false, false, -1, 0, 0, 0);
+	for (catIndex = 0; catIndex < gPotGrid.totalCategories; catIndex++) {
+		for (index = 0; index < gPotGrid.totalTiles; index++) {
+			fullIndex = catIndex * gPotGrid.totalTiles + index;
+			if (gPotGrid.pr[fullIndex].exists) {
+				size = checkFileWidth(&gPotGrid.pr[fullIndex], overlayDecoratedPotSize, false, false, -1, 0, 0, 0);
 				if (size == 0) {
-					deleteDecoratedPotFromGrid(&gPG, fullIndex / gPG.totalTiles, fullIndex);
+					deleteDecoratedPotFromGrid(&gPotGrid, fullIndex / gPotGrid.totalTiles, fullIndex);
 				}
 				else {
 					overlayDecoratedPotSize = size;
+				}
+			}
+		}
+	}
+
+	// check over shelf tiles' power of twos, to see if any are in error
+	for (catIndex = 0; catIndex < gShelfGrid.totalCategories; catIndex++) {
+		for (index = 0; index < gShelfGrid.totalTiles; index++) {
+			fullIndex = catIndex * gShelfGrid.totalTiles + index;
+			if (gShelfGrid.cr[fullIndex].exists) {
+				size = checkFileWidth(&gShelfGrid.cr[fullIndex], overlayShelfSize, false, false, -1, 0, 0, 0);
+				if (size == 0) {
+					deleteChestFromGrid(&gShelfGrid, fullIndex / gShelfGrid.totalTiles, fullIndex);
+				}
+				else {
+					overlayShelfSize = size;
 				}
 			}
 		}
@@ -824,7 +898,7 @@ int wmain(int argc, wchar_t* argv[])
 	// write out tiles found
 	for (catIndex = 0; catIndex < gFG.totalCategories; catIndex++) {
 		// always export RGBA image, and others if there's content
-		if ((catIndex == CATEGORY_RGBA || gFG.categories[catIndex] > 0 || gCG.categories[catIndex] > 0 || gPG.categories[catIndex] > 0) &&
+		if ((catIndex == CATEGORY_RGBA || gFG.categories[catIndex] > 0 || gChestGrid.categories[catIndex] > 0 || gPotGrid.categories[catIndex] > 0 || gShelfGrid.categories[catIndex] > 0) &&
 			((catIndex == CATEGORY_RGBA) ||
 				(catIndex == CATEGORY_NORMALS) ||	// note that, above, all _normals (LONG) versions have been moved over
 				(catIndex == CATEGORY_METALLIC) ||
@@ -1084,7 +1158,7 @@ int wmain(int argc, wchar_t* argv[])
 			}
 
 			////////////////////////
-			// Special stuff - shulker boxes, and chests, and decorated pot
+			// Special stuff - shulker boxes, and chests, and decorated pot, and shelfs
 			if (catIndex == CATEGORY_RGBA) {
 				// Compute shulker box sides and bottoms, if not input
 
@@ -1161,18 +1235,91 @@ int wmain(int argc, wchar_t* argv[])
 
 			// Note: done for all categories
 			// Test if any chest exists for this category
-			if ((gCG.chestCount > 0) && (
-				gCG.cr[CHEST_NORMAL + catIndex * gCG.totalTiles].exists ||
-				gCG.cr[CHEST_NORMAL_DOUBLE + catIndex * gCG.totalTiles].exists ||
-				gCG.cr[CHEST_NORMAL_LEFT + catIndex * gCG.totalTiles].exists ||
-				gCG.cr[CHEST_NORMAL_RIGHT + catIndex * gCG.totalTiles].exists ||
-				gCG.cr[CHEST_ENDER + catIndex * gCG.totalTiles].exists) 
-			) {
+			bool chest_exists = false;
+			int ic;
+			for (ic = 0; ic < TOTAL_CHEST_TILES; ic++) {
+				if (gChestGrid.cr[ic + catIndex * gChestGrid.totalTiles].exists) {
+					chest_exists = true;
+					break;
+				}
+			}
+			if (chest_exists && (gChestGrid.chestCount > 0))
+			{
 
-				// Test if left chest exists. If so, we assume 1.15 content or newer is being used.
 				int numChests;
 				Chest* chest;
-				if ( gCG.cr[CHEST_NORMAL_LEFT + catIndex*gCG.totalTiles].exists) {
+				if (gChestGrid.cr[CHEST_COPPER + catIndex * gChestGrid.totalTiles].exists) {
+					numChests = TOTAL_CHEST_TILES - 1;
+					gChest1219[0].data = gNormalChest115;
+					gChest1219[1].data = gNormalLeftChest115;
+					gChest1219[2].data = gNormalRightChest115;
+					gChest1219[3].data = gEnderChest115;
+					// starting location 7,72 and count up from there
+					int swatchLoc = 72 * 16 + 7;
+					int elem;
+					// for the four copper chests, set the single, left, and right parameters
+					for (ic = 0; ic < 4; ic++) {
+						int ic3 = ic * 3;
+						// NORMAL copper chest
+						// set proper tile "to" locations, as gNormalCopperChests for the chests start empty.
+						// 5 tiles: normal chest (single): latch, top, side top, side bottom, front top, front bottom;
+						// top get used as bottom, too
+						for (elem = 0; elem < 6; elem++) {
+							gNormalCopperChests[ic3][elem] = gNormalChest115[elem];
+							gNormalCopperChests[ic3][elem].txrX = swatchLoc % 16;
+							gNormalCopperChests[ic3][elem].txrY = (int)(swatchLoc / 16);
+							if (elem != 2 && elem != 4) {
+								// don't increment when doing top of chest side or front
+								swatchLoc++;
+							}
+						}
+						// copy front parameters to back, only difference being the X offset, 14 instead of 42, giving a different texture extracted from
+						// back top
+						gNormalCopperChests[ic3][elem] = gNormalChest115[4];
+						gNormalCopperChests[ic3][elem].fromX = 14;
+						gNormalCopperChests[ic3][elem].txrX = swatchLoc % 16;
+						gNormalCopperChests[ic3][elem].txrY = (int)(swatchLoc / 16);
+						// back bottom
+						elem++;
+						gNormalCopperChests[ic3][elem] = gNormalChest115[5];
+						gNormalCopperChests[ic3][elem].fromX = 14;
+						gNormalCopperChests[ic3][elem].txrX = swatchLoc % 16;
+						gNormalCopperChests[ic3][elem].txrY = (int)(swatchLoc / 16);
+						swatchLoc++;
+						gChest1219[4 + ic3].data = gNormalCopperChests[ic3];
+
+						// LEFT copper chest
+						// 3 tiles: front, back, top (sides come from NORMAL version)
+						ic3++;
+						for (elem = 0; elem < 5; elem++) {
+							gNormalCopperChests[ic3][elem] = gNormalLeftChest115[elem];
+							gNormalCopperChests[ic3][elem].txrX = swatchLoc % 16;
+							gNormalCopperChests[ic3][elem].txrY = (int)(swatchLoc / 16);
+							if (elem != 0 && elem != 2) {
+								// don't increment when doing front or back
+								swatchLoc++;
+							}
+						}
+						gChest1219[4 + ic3].data = gNormalCopperChests[ic3];
+
+						// RIGHT copper chest
+						// 3 tiles: front, back, top (sides come from NORMAL version)
+						ic3++;
+						for (elem = 0; elem < 5; elem++) {
+							gNormalCopperChests[ic3][elem] = gNormalRightChest115[elem];
+							gNormalCopperChests[ic3][elem].txrX = swatchLoc % 16;
+							gNormalCopperChests[ic3][elem].txrY = (int)(swatchLoc / 16);
+							if (elem != 0 && elem != 2) {
+								// don't increment when doing front or back
+								swatchLoc++;
+							}
+						}
+						gChest1219[4 + ic3].data = gNormalCopperChests[ic3];
+					}
+					chest = gChest1219;
+				}
+				// Test if left chest exists. If so, we assume 1.15 content or newer is being used.
+				else if (gChestGrid.cr[CHEST_NORMAL_LEFT + catIndex * gChestGrid.totalTiles].exists) {
 					numChests = 4;
 					gChest115[0].data = gNormalChest115;
 					gChest115[1].data = gNormalLeftChest115;
@@ -1181,6 +1328,7 @@ int wmain(int argc, wchar_t* argv[])
 					chest = gChest115;
 				}
 				else {
+					// old, use "double" data
 					numChests = 3;
 					gChest114[0].data = gNormalChest;
 					gChest114[1].data = gNormalDoubleChest;
@@ -1188,221 +1336,168 @@ int wmain(int argc, wchar_t* argv[])
 					chest = gChest114;
 				}
 
-				// Now for the chests, if any. Look for each chest image file, and use bits as found
-				for (i = 0; i < numChests; i++) {
-					// single chest, double chest, ender chest in \textures\entity\chest
-					Chest* pChest = &chest[i];
+				transferChestData(catIndex, numChests, allChests, anyChests, chest, gChestGrid, gChestNames, destination_ptr, filesProcessed, channels, normalsZoom, verbose, rc);
+			}
 
-					//findChestIndex()
-					index = -1;
-					for (j = 0; j < gCG.totalTiles; j++) {
-						if (_wcsicmp(pChest->wname, gChestNames[j]) == 0) {
-							index = j;
-							break;
-						}
+			// Do shelf stuff now, since it's like chests, calls same method
+			// Test if any shelf exists for this category
+			bool shelf_exists = false;
+			for (ic = 0; ic < TOTAL_SHELF_TILES; ic++) {
+				if (gShelfGrid.cr[ic + catIndex * gShelfGrid.totalTiles].exists) {
+					shelf_exists = true;
+					break;
+				}
+			}
+			if (shelf_exists && (gShelfGrid.chestCount > 0))
+			{
+
+				int numShelfs = TOTAL_SHELF_TILES;
+				Chest* shelf = gShelf1219;
+
+				int swatchLoc = gShelfData1219[0].txrX + 16 * gShelfData1219[0].txrY;
+				for (int is = 0; is < 12; is++) {
+					for (int ip = 0; ip < 3; ip++) {
+						gShelves[is][ip] = gShelfData1219[ip];
+						// set "to tile" loc
+						gShelves[is][ip].txrX = swatchLoc % 16;
+						gShelves[is][ip].txrY = swatchLoc / 16;
+						swatchLoc++;
 					}
-					assert(index >= 0);
-
-					if (gCG.cr[index + catIndex * gCG.totalTiles].exists) {
-
-						// read chest and process
-
-						// chests are normally found in \assets\minecraft\textures\entity\chest
-						wchar_t chestFile[MAX_PATH_AND_FILE];
-						wcscpy_s(chestFile, MAX_PATH_AND_FILE, gCG.cr[index + catIndex * gCG.totalTiles].path);
-						wcscat_s(chestFile, MAX_PATH_AND_FILE, gCG.cr[index + catIndex * gCG.totalTiles].fullFilename);
-
-						// note: we really do need to declare this each time, otherwise you get odd leftovers for some reason.
-						progimage_info chestImage;
-						rc = readImage(&chestImage, chestFile, gCatFormat[catIndex], isImageFile(chestFile));
-						if (rc != 0)
-						{
-							// file not found
-							reportReadError(rc, chestFile);
-							// It's important to note the count is down,
-							// as this determines whether anything was done for the category.
-							deleteChestFromGrid( &gCG, catIndex, index + catIndex * gCG.totalTiles);
-							// try next chest
-							continue;
-						}
-						// chests must be powers of two
-						if (testFileForPowerOfTwo(chestImage.width, chestImage.height, chestFile, false)) {
-							allChests = false;
-							readImage_cleanup(1, &chestImage);
-							// It's important to note the count is down,
-							// as this determines whether anything was done for the category.
-							deleteChestFromGrid(&gCG, catIndex, index + catIndex * gCG.totalTiles);
-							continue;
-						}
-
-						// if we got this far, at least one chest was found
-						anyChests = true;
-
-						// from size figure out scaling factor from chest to terrainExt.png
-
-						// loop through bits to copy
-						for (int copyIndex = 0; copyIndex < pChest->numCopies; copyIndex++) {
-							// clear tile if it's a new one (don't wipe out previous copies)
-							if (catIndex == CATEGORY_RGBA &&
-								((copyIndex == 0) ||
-									(pChest->data[copyIndex].txrX != pChest->data[copyIndex - 1].txrX) ||
-									(pChest->data[copyIndex].txrY != pChest->data[copyIndex - 1].txrY))) {
-								makePNGTileEmpty(destination_ptr, pChest->data[copyIndex].txrX, pChest->data[copyIndex].txrY);
-							}
-
-							// copy from area to area, scaling as needed
-							float zoom = (float)destination_ptr->width / (256.0f * (float)chestImage.width / (float)pChest->defaultResX);
-							copyPNGTile(destination_ptr, channels, pChest->data[copyIndex].txrX, pChest->data[copyIndex].txrY, 0,
-								&chestImage,
-								pChest->data[copyIndex].toX, pChest->data[copyIndex].toY,
-								pChest->data[copyIndex].toX + pChest->data[copyIndex].sizeX, pChest->data[copyIndex].toY + pChest->data[copyIndex].sizeY,
-								pChest->data[copyIndex].fromX, pChest->data[copyIndex].fromY,
-								pChest->data[copyIndex].flags,
-								zoom);	// default is 256 / 64 * 4 or 128 * 2
-
-							if (zoom != 1.0f && catIndex == CATEGORY_NORMALS) {
-								normalsZoom = true;
-							}
-
-						}
-						filesProcessed++;
-//wprintf(L"%s\n", gCG.cr[index + catIndex * gCG.totalTiles].fullFilename);
-						if (verbose)
-							wprintf(L"Chest file '%s' merged.\n", chestFile);
-
-						// clean up
-						readImage_cleanup(1, &chestImage);
-					}
+					gShelf1219[is].data = gShelves[is];
 				}
 
-				// Note: done for all categories
-				// Test if any decorated pot exists for this category.
-				// Really, there's just one tile which makes four textures, MW_decorated_pot_base[1-4], so do things manually
-				if ((gPG.decoratedPotCount > 0) && gPG.pr[catIndex * gPG.totalTiles].exists ) {
+				// set up the 12 shelf records, similar to above.
 
-					if (gPG.pr[catIndex * gPG.totalTiles].exists) {
+				transferChestData(catIndex, numShelfs, allShelfs, anyShelfs, shelf, gShelfGrid, gShelfNames, destination_ptr, filesProcessed, channels, normalsZoom, verbose, rc);
+			}
 
-						// read decorated pot and process
+			// Note: done for all categories
+			// Test if any decorated pot exists for this category.
+			// Really, there's just one tile which makes four textures, MW_decorated_pot_base[1-4], so do things manually
+			if ((gPotGrid.decoratedPotCount > 0) && gPotGrid.pr[catIndex * gPotGrid.totalTiles].exists ) {
 
-						// decorated pots are normally found in \assets\minecraft\textures\entity\decorated_pot
-						wchar_t potFile[MAX_PATH_AND_FILE];
-						wcscpy_s(potFile, MAX_PATH_AND_FILE, gPG.pr[catIndex * gPG.totalTiles].path);
-						wcscat_s(potFile, MAX_PATH_AND_FILE, gPG.pr[catIndex * gPG.totalTiles].fullFilename);
+				if (gPotGrid.pr[catIndex * gPotGrid.totalTiles].exists) {
 
-						// note: we really do need to declare this each time, otherwise you get odd leftovers for some reason.
-						progimage_info potImage;
-						rc = readImage(&potImage, potFile, gCatFormat[catIndex], isImageFile(potFile));
-						if (rc != 0)
-						{
-							// file not found
-							reportReadError(rc, potFile);
-							// It's important to note the count is down,
-							// as this determines whether anything was done for the category.
-							deleteDecoratedPotFromGrid(&gPG, catIndex, index + catIndex * gPG.totalTiles);
+					// read decorated pot and process
+
+					// decorated pots are normally found in \assets\minecraft\textures\entity\decorated_pot
+					wchar_t potFile[MAX_PATH_AND_FILE];
+					wcscpy_s(potFile, MAX_PATH_AND_FILE, gPotGrid.pr[catIndex * gPotGrid.totalTiles].path);
+					wcscat_s(potFile, MAX_PATH_AND_FILE, gPotGrid.pr[catIndex * gPotGrid.totalTiles].fullFilename);
+
+					// note: we really do need to declare this each time, otherwise you get odd leftovers for some reason.
+					progimage_info potImage;
+					rc = readImage(&potImage, potFile, gCatFormat[catIndex], isImageFile(potFile));
+					if (rc != 0)
+					{
+						// file not found
+						reportReadError(rc, potFile);
+						// It's important to note the count is down,
+						// as this determines whether anything was done for the category.
+						deleteDecoratedPotFromGrid(&gPotGrid, catIndex, index + catIndex * gPotGrid.totalTiles);
+					}
+					// decorated pots must be powers of two
+					else if (testFileForPowerOfTwo(potImage.width, potImage.height, potFile, false)) {
+						readImage_cleanup(1, &potImage);
+						// It's important to note the count is down,
+						// as this determines whether anything was done for the category.
+						deleteDecoratedPotFromGrid(&gPotGrid, catIndex, index + catIndex * gPotGrid.totalTiles);
+					}
+					else {
+
+						// if we got this far, at least one pot was found
+						anyPots = true;
+
+						// from size figure out scaling factor from pot to terrainExt.png
+
+						// clear tiles if it's a new one (don't wipe out previous copies). Not sure this is needed, but we
+						// did it for chests for some reason, so let's do it here.
+						if (catIndex == CATEGORY_RGBA) {
+							makePNGTileEmpty(destination_ptr, 1, 61);
+							makePNGTileEmpty(destination_ptr, 2, 61);
+							makePNGTileEmpty(destination_ptr, 3, 61);
+							makePNGTileEmpty(destination_ptr, 4, 61);
 						}
-						// decorated pots must be powers of two
-						else if (testFileForPowerOfTwo(potImage.width, potImage.height, potFile, false)) {
-							readImage_cleanup(1, &potImage);
-							// It's important to note the count is down,
-							// as this determines whether anything was done for the category.
-							deleteDecoratedPotFromGrid(&gPG, catIndex, index + catIndex * gPG.totalTiles);
+
+						// copy from area to area, scaling as needed; pot tile is 32x32 default
+						float zoom = (float)destination_ptr->width / (256.0f * (float)potImage.width / 32.0f);
+
+						// copy bits:
+						// MW_decorated_pot_base1
+						//   8,0 to 15,7 -> 0,0 to 7,7
+						//   0,8 to 15,10 -> 0,8 to 15,10
+						//   0,11 to 11,11 -> 0,11 to 11,11
+						copyPNGTile(destination_ptr, channels, 1, 61, 0,
+							&potImage,
+							0, 0, 8, 8,	// to rectangle
+							8, 0,		// from upper left
+							0x0,
+							zoom);	// default is 256 / 64 * 4 or 128 * 2
+						copyPNGTile(destination_ptr, channels, 1, 61, 0,
+							&potImage,
+							0, 8, 16, 11,	// to rectangle
+							0, 8,		// from upper left
+							0x0,
+							zoom);	// default is 256 / 64 * 4 or 128 * 2
+						copyPNGTile(destination_ptr, channels, 1, 61, 0,
+							&potImage,
+							0, 11, 12, 12,	// to rectangle
+							0, 11,		// from upper left
+							0x0,
+							zoom);	// default is 256 / 64 * 4 or 128 * 2
+
+						// MW_decorated_pot_base2
+						//   16,0 to 23,7 -> 0,0 to 7,7
+						//   16,8 to 31,10 -> 0,8 to 15,10
+						//   12,11 to 23,11 -> 0,11 to 11,11
+						copyPNGTile(destination_ptr, channels, 2, 61, 0,
+							&potImage,
+							0, 0, 8, 8,	// to rectangle
+							16, 0,		// from upper left
+							0x0,
+							zoom);	// default is 256 / 64 * 4 or 128 * 2
+						copyPNGTile(destination_ptr, channels, 2, 61, 0,
+							&potImage,
+							0, 8, 16, 11,	// to rectangle
+							16, 8,		// from upper left
+							0x0,
+							zoom);	// default is 256 / 64 * 4 or 128 * 2
+						copyPNGTile(destination_ptr, channels, 2, 61, 0,
+							&potImage,
+							0, 11, 12, 12,	// to rectangle
+							12, 11,		// from upper left
+							0x0,
+							zoom);	// default is 256 / 64 * 4 or 128 * 2
+
+						// MW_decorated_pot_base3
+						//   0,13 to 13,26 -> 1,1 to 14,14
+						copyPNGTile(destination_ptr, channels, 3, 61, 0,
+							&potImage,
+							1, 1, 15, 15,	// to rectangle
+							0, 13,		// from upper left
+							0x0,
+							zoom);	// default is 256 / 64 * 4 or 128 * 2
+
+						// MW_decorated_pot_base4
+						//   14,13 to 13,26 -> 1,1 to 14,14
+						copyPNGTile(destination_ptr, channels, 4, 61, 0,
+							&potImage,
+							1, 1, 15, 15,	// to rectangle
+							14, 13,		// from upper left
+							0x0,
+							zoom);	// default is 256 / 64 * 4 or 128 * 2
+
+						if (zoom != 1.0f && catIndex == CATEGORY_NORMALS) {
+							normalsZoom = true;
 						}
-						else {
 
-							// if we got this far, at least one pot was found
-							anyPots = true;
+						filesProcessed++;
+						//wprintf(L"%s\n", gPotGrid.pr[index + catIndex * gPotGrid.totalTiles].fullFilename);
+						if (verbose)
+							wprintf(L"Decorated pot file '%s' merged.\n", potFile);
 
-							// from size figure out scaling factor from pot to terrainExt.png
-
-							// clear tiles if it's a new one (don't wipe out previous copies). Not sure this is needed, but we
-							// did it for chests for some reason, so let's do it here.
-							if (catIndex == CATEGORY_RGBA) {
-								makePNGTileEmpty(destination_ptr, 1, 61);
-								makePNGTileEmpty(destination_ptr, 2, 61);
-								makePNGTileEmpty(destination_ptr, 3, 61);
-								makePNGTileEmpty(destination_ptr, 4, 61);
-							}
-
-							// copy from area to area, scaling as needed; pot tile is 32x32 default
-							float zoom = (float)destination_ptr->width / (256.0f * (float)potImage.width / 32.0f);
-
-							// copy bits:
-							// MW_decorated_pot_base1
-							//   8,0 to 15,7 -> 0,0 to 7,7
-							//   0,8 to 15,10 -> 0,8 to 15,10
-							//   0,11 to 11,11 -> 0,11 to 11,11
-							copyPNGTile(destination_ptr, channels, 1, 61, 0,
-								&potImage,
-								0, 0, 8, 8,	// to rectangle
-								8, 0,		// from upper left
-								0x0,
-								zoom);	// default is 256 / 64 * 4 or 128 * 2
-							copyPNGTile(destination_ptr, channels, 1, 61, 0,
-								&potImage,
-								0, 8, 16, 11,	// to rectangle
-								0, 8,		// from upper left
-								0x0,
-								zoom);	// default is 256 / 64 * 4 or 128 * 2
-							copyPNGTile(destination_ptr, channels, 1, 61, 0,
-								&potImage,
-								0, 11, 12, 12,	// to rectangle
-								0, 11,		// from upper left
-								0x0,
-								zoom);	// default is 256 / 64 * 4 or 128 * 2
-
-							// MW_decorated_pot_base2
-							//   16,0 to 23,7 -> 0,0 to 7,7
-							//   16,8 to 31,10 -> 0,8 to 15,10
-							//   12,11 to 23,11 -> 0,11 to 11,11
-							copyPNGTile(destination_ptr, channels, 2, 61, 0,
-								&potImage,
-								0, 0, 8, 8,	// to rectangle
-								16, 0,		// from upper left
-								0x0,
-								zoom);	// default is 256 / 64 * 4 or 128 * 2
-							copyPNGTile(destination_ptr, channels, 2, 61, 0,
-								&potImage,
-								0, 8, 16, 11,	// to rectangle
-								16, 8,		// from upper left
-								0x0,
-								zoom);	// default is 256 / 64 * 4 or 128 * 2
-							copyPNGTile(destination_ptr, channels, 2, 61, 0,
-								&potImage,
-								0, 11, 12, 12,	// to rectangle
-								12, 11,		// from upper left
-								0x0,
-								zoom);	// default is 256 / 64 * 4 or 128 * 2
-
-							// MW_decorated_pot_base3
-							//   0,13 to 13,26 -> 1,1 to 14,14
-							copyPNGTile(destination_ptr, channels, 3, 61, 0,
-								&potImage,
-								1, 1, 15, 15,	// to rectangle
-								0, 13,		// from upper left
-								0x0,
-								zoom);	// default is 256 / 64 * 4 or 128 * 2
-
-							// MW_decorated_pot_base4
-							//   14,13 to 13,26 -> 1,1 to 14,14
-							copyPNGTile(destination_ptr, channels, 4, 61, 0,
-								&potImage,
-								1, 1, 15, 15,	// to rectangle
-								14, 13,		// from upper left
-								0x0,
-								zoom);	// default is 256 / 64 * 4 or 128 * 2
-
-							if (zoom != 1.0f && catIndex == CATEGORY_NORMALS) {
-								normalsZoom = true;
-							}
-
-							filesProcessed++;
-							//wprintf(L"%s\n", gPG.pr[index + catIndex * gPG.totalTiles].fullFilename);
-							if (verbose)
-								wprintf(L"Decorated pot file '%s' merged.\n", potFile);
-
-							// clean up
-							readImage_cleanup(1, &potImage);
-						}
+						// clean up
+						readImage_cleanup(1, &potImage);
 					}
 				}
 
@@ -1430,7 +1525,7 @@ int wmain(int argc, wchar_t* argv[])
 				wprintf(L"Opening '%s' for output.\n", terrainExtOutput);
 
 			// write out the result if anything was actually written
-			if (catIndex == CATEGORY_RGBA || gFG.categories[catIndex] > 0 || gCG.categories[catIndex] > 0 || gPG.categories[catIndex] > 0) {
+			if (catIndex == CATEGORY_RGBA || gFG.categories[catIndex] > 0 || gChestGrid.categories[catIndex] > 0 || gPotGrid.categories[catIndex] > 0 || gShelfGrid.categories[catIndex] > 0) {
 				rc = writepng(destination_ptr, channels, terrainExtOutput);
 				if (rc != 0)
 				{
@@ -1487,12 +1582,16 @@ int wmain(int argc, wchar_t* argv[])
 
 	// warn user that nothing was done
 	// 3 is the number of MW_*.png files that are sometimes used with TileMaker
-	if (gFG.fileCount <= 3 && !anyChests && !anyPots) {
+	if (gFG.fileCount <= 3 && !anyChests && !anyPots && !anyShelfs) {
 		wprintf(L"SERIOUS WARNING: It's likely no real work was done. To use TileMaker, you need to put\n  all the images from your resource pack's 'assets\\minecraft\\textures'\n  block and entity\\chest directories into TileMaker's 'blocks' and\n  'blocks\\chest' directories. See http://mineways.com for more about TileMaker.\n");
 		gWarningCount++;
 	}
 	else if (!allChests) {
 		wprintf(L"WARNING: Not all relevant chest images were found in the 'blocks\\chest' directory.\n  TileMaker worked, but you can add chest images if you like. You can provide\n  the images normal.png, normal_left.png, normal_right.png\n  (or normal_double.png for 1.14 and earlier), and ender.png.\n  Copy these texture resources from Minecraft's jar-file\n  'assets\\minecraft\\textures\\entity\\chest' directory to\n  Mineways' subdirectory blocks\\chest.\n");
+		gWarningCount++;
+	}
+	else if (!allShelfs) {
+		wprintf(L"WARNING: Not all relevant shelf images were found in the 'blocks\\shelf' directory.\n  TileMaker worked, but you can add shelf images if you like.\n  Copy these texture resources from Minecraft's jar-file\n  'assets\\minecraft\\textures' directory to\n  Mineways' subdirectory blocks\\shelf.\n");
 		gWarningCount++;
 	}
 
@@ -1511,12 +1610,103 @@ int wmain(int argc, wchar_t* argv[])
 	return 0;
 }
 
+void transferChestData( int catIndex, int numChests, bool &allChests, bool &anyChests, Chest *chest, ChestGrid &chestGrid, const wchar_t* chestNames[], progimage_info* destination_ptr, int& filesProcessed, int channels, bool& normalsZoom, bool verbose, int& rc)
+{
+	// Now for the chests, if any. Look for each chest image file, and use bits as found
+	int index;
+	for (int i = 0; i < numChests; i++) {
+		// single chest, double chest, ender chest in \textures\entity\chest
+		Chest* pChest = &chest[i];
+
+		//findChestIndex()
+		index = -1;
+		for (int j = 0; j < chestGrid.totalTiles; j++) {
+			if (_wcsicmp(pChest->wname, chestNames[j]) == 0) {
+				index = j;
+				break;
+			}
+		}
+		assert(index >= 0);
+
+		if (chestGrid.cr[index + catIndex * chestGrid.totalTiles].exists) {
+
+			// read chest and process
+
+			// chests are normally found in \assets\minecraft\textures\entity\chest
+			wchar_t chestFile[MAX_PATH_AND_FILE];
+			wcscpy_s(chestFile, MAX_PATH_AND_FILE, chestGrid.cr[index + catIndex * chestGrid.totalTiles].path);
+			wcscat_s(chestFile, MAX_PATH_AND_FILE, chestGrid.cr[index + catIndex * chestGrid.totalTiles].fullFilename);
+
+			// note: we really do need to declare this each time, otherwise you get odd leftovers for some reason.
+			progimage_info chestImage;
+			rc = readImage(&chestImage, chestFile, gCatFormat[catIndex], isImageFile(chestFile));
+			if (rc != 0)
+			{
+				// file not found
+				reportReadError(rc, chestFile);
+				// It's important to note the count is down,
+				// as this determines whether anything was done for the category.
+				deleteChestFromGrid(&chestGrid, catIndex, index + catIndex * chestGrid.totalTiles);
+				// try next chest
+				continue;
+			}
+			// chests must be powers of two
+			if (testFileForPowerOfTwo(chestImage.width, chestImage.height, chestFile, false)) {
+				allChests = false;
+				readImage_cleanup(1, &chestImage);
+				// It's important to note the count is down,
+				// as this determines whether anything was done for the category.
+				deleteChestFromGrid(&chestGrid, catIndex, index + catIndex * chestGrid.totalTiles);
+				continue;
+			}
+
+			// if we got this far, at least one chest was found
+			anyChests = true;
+
+			// from size figure out scaling factor from chest to terrainExt.png
+
+			// loop through bits to copy
+			for (int copyIndex = 0; copyIndex < pChest->numCopies; copyIndex++) {
+				// clear tile if it's a new one (don't wipe out previous copies)
+				if (catIndex == CATEGORY_RGBA &&
+					((copyIndex == 0) ||
+						(pChest->data[copyIndex].txrX != pChest->data[copyIndex - 1].txrX) ||
+						(pChest->data[copyIndex].txrY != pChest->data[copyIndex - 1].txrY))) {
+					makePNGTileEmpty(destination_ptr, pChest->data[copyIndex].txrX, pChest->data[copyIndex].txrY);
+				}
+
+				// copy from area to area, scaling as needed
+				float zoom = (float)destination_ptr->width / (256.0f * (float)chestImage.width / (float)pChest->defaultResX);
+				copyPNGTile(destination_ptr, channels, pChest->data[copyIndex].txrX, pChest->data[copyIndex].txrY, 0,
+					&chestImage,
+					pChest->data[copyIndex].toX, pChest->data[copyIndex].toY,
+					pChest->data[copyIndex].toX + pChest->data[copyIndex].sizeX, pChest->data[copyIndex].toY + pChest->data[copyIndex].sizeY,
+					pChest->data[copyIndex].fromX, pChest->data[copyIndex].fromY,
+					pChest->data[copyIndex].flags,
+					zoom);	// default is 256 / 64 * 4 or 128 * 2
+
+				if (zoom != 1.0f && catIndex == CATEGORY_NORMALS) {
+					normalsZoom = true;
+				}
+
+			}
+			filesProcessed++;
+			//wprintf(L"%s\n", chestGrid.cr[index + catIndex * chestGrid.totalTiles].fullFilename);
+			if (verbose)
+				wprintf(L"Chest file '%s' merged.\n", chestFile);
+
+			// clean up
+			readImage_cleanup(1, &chestImage);
+		}
+	}
+}
+
 void printHelp()
 {
 	wprintf(L"TileMaker version %s\n", VERSION_STRING);
 	wprintf(L"usage: TileMaker [-v] [-i terrainBase.png] [-d blocks] [-o terrainExt.png]\n        [-t tileSize] [-h #] [-c chosenTile] [-nb] [-nt] [-r] [-m] [-s] [-S] [-dcn] [-u]\n");
 	wprintf(L"  -v - verbose, explain everything going on. Default: display only warnings and errors.\n");
-	wprintf(L"  -i terrainBase.png - image containing the base set of terrain blocks\n    (includes special chest tiles). Default is 'terrainBase.png'.\n");
+	wprintf(L"  -i terrainBase.png - image containing the base set of terrain blocks\n    (includes special chest/pot/shelf tiles). Default is 'terrainBase.png'.\n");
 	wprintf(L"  -d blocks - directory of block textures to overlay on top of the base.\n    Default directory is 'blocks'. Can be set multiple times to include\n    multiple directories.\n");
 	//wprintf(L"  -z zip - optional directory where a texture resource pack has been unzipped.\n");
 	wprintf(L"  -o terrainExt.png - the resulting terrain image, used by Mineways. Default is\n    terrainExt.png.\n");
@@ -1531,7 +1721,7 @@ void printHelp()
 	wprintf(L"  -S - as above, but preserve the cutout transparent areas.\n");
 	wprintf(L"  -dcn - don't clean normals. Many normal maps are poorly formed, with normals pointing\n    down into the surface, or the normals are not normalized, or Z is always 255.\n    This option turns off the normal cleaning feature.\n");
 	wprintf(L"  -fnormal - normally we favor _n.png (Java) files over _normal.png (Bedrock).\n    Set this option to favor using _normal.png instead of _n.png.\n");
-	wprintf(L"  -u - report all image files encountered that are not standard Minecraft block or chest names.\n");
+	wprintf(L"  -u - report all image files encountered that are not standard Minecraft block or chest/pot/shelf names.\n");
 }
 
 // Shares textures found, as possible. If both or neither exist, nothing to do.
@@ -1816,6 +2006,7 @@ static int setBlackToNearlyBlack(progimage_info* src)
 // Give the destination image, the tile location on that destination (multiplied by destination width/16),
 // the source image, the upper left and lower right destination pixels, the upper left source location + 1 (limit), any flags,
 // and the zoom factor for going from source to destination - zoom > 1 means destination is larger, zoom < 1 means source is larger
+// flags: 0x1 flip horizontally, 0x2 flip vertically, can be OR'ed together
 static int copyPNGTile(progimage_info* dst, int channels, unsigned long dst_x, unsigned long dst_y, unsigned long chosenTile, progimage_info* src,
 	unsigned long dst_x_lo, unsigned long dst_y_lo, unsigned long dst_x_hi, unsigned long dst_y_hi, unsigned long src_x_lo, unsigned long src_y_lo, unsigned long flags, float zoom)
 {

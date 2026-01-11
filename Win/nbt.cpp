@@ -393,7 +393,7 @@ static TranslationTuple* modTranslations = NULL;
 // facing, hydration 0-3 shifted up 2, waterlogged
 #define GHAST_PROP  71
 
-#define NUM_TRANS 1148
+#define NUM_TRANS 1156
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1569,6 +1569,14 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 239, HIGH_BIT | (1 << 4), "waxed_exposed_lightning_rod", EXTENDED_FACING_PROP },
     { 0, 239, HIGH_BIT | (2 << 4), "waxed_weathered_lightning_rod", EXTENDED_FACING_PROP },
     { 0, 239, HIGH_BIT | (3 << 4), "waxed_oxidized_lightning_rod", EXTENDED_FACING_PROP },
+    { 0, 240,            HIGH_BIT, "copper_chest", CHEST_PROP },
+    { 0, 240,   HIGH_BIT | BIT_32, "exposed_copper_chest", CHEST_PROP },
+    { 0, 241,            HIGH_BIT, "oxidized_copper_chest", CHEST_PROP },
+    { 0, 241,   HIGH_BIT | BIT_32, "weathered_copper_chest", CHEST_PROP },
+    { 0, 242,            HIGH_BIT, "waxed_copper_chest", CHEST_PROP },
+    { 0, 242,   HIGH_BIT | BIT_32, "waxed_exposed_copper_chest", CHEST_PROP },
+    { 0, 243,            HIGH_BIT, "waxed_oxidized_copper_chest", CHEST_PROP },
+    { 0, 243,   HIGH_BIT | BIT_32, "waxed_weathered_copper_chest", CHEST_PROP },
 
     // 1.20.3 additions (short_grass added next to "grass", above), https://minecraft.wiki/w/Java_Edition_1.20.3#General_2
 
@@ -4351,6 +4359,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             else if (strcmp(token, "bloom") == 0) {}	// for sculk catalyst
                             else if (strcmp(token, "cracked") == 0) {}	// for decorated pot - ignored
                             else if (strcmp(token, "natural") == 0) {}	// for creaking_heart - ignored, has to do with experience
+                            else if (strcmp(token, "side_chain") == 0) {}	// for shelf - ignored, no one knows what this is for
+                            else if (strcmp(token, "copper_golem_pose") == 0) {}	// for copper golem - ignored for now - TODO someday
                             else {
                                 // unknown property - look at token and value
                                 static int ignore = 0;

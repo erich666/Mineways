@@ -8344,6 +8344,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
     case BLOCK_CHEST:						// saveBillboardOrGeometry
     case BLOCK_TRAPPED_CHEST:
+    case BLOCK_COPPER_CHEST:
+    case BLOCK_WAXED_COPPER_CHEST:
+    case BLOCK_OXIDIZED_COPPER_CHEST:
+    case BLOCK_WAXED_OXIDIZED_COPPER_CHEST:
         // Decide if chest is a left side, right side, or single. Get angle for rotation.
         // If it's a right-side chest or a single, make the latch (left-side chests don't get the latch, so that the right side makes just one latch).
         chestType = 0;	// single is 0, left is 1, right is 2
@@ -8456,7 +8460,23 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // TODO: if a chest is chopped, its latch will appear only on the left-hand side.
         // A bug, but so obscure that I'm not going to spend an hour to fix it right now.
         if (chestType != 1) {
-            swatchLoc = SWATCH_INDEX(7, 26);
+            // get chest material for the top, single chest
+            switch (type) {
+            default:
+                assert(0);
+            case BLOCK_CHEST:
+            case BLOCK_TRAPPED_CHEST:
+                swatchLoc = SWATCH_INDEX(7, 26);
+                break;
+            case BLOCK_COPPER_CHEST:
+            case BLOCK_WAXED_COPPER_CHEST:
+                swatchLoc = (dataVal & 0x20) ? SWATCH_INDEX(2, 73) : SWATCH_INDEX(7, 72);
+                break;
+            case BLOCK_OXIDIZED_COPPER_CHEST:
+            case BLOCK_WAXED_OXIDIZED_COPPER_CHEST:
+                swatchLoc = (dataVal & 0x20) ? SWATCH_INDEX(8, 74) : SWATCH_INDEX(13, 73);
+                break;
+            }
             // note all six sides are used, but with different texture coordinates
             // front is LO_X - 0,1 is thickness, 11,15 is height, 1,3 is width
             saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 0, 1, 11, 15, 1, 3);
@@ -8479,25 +8499,69 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         }
 
         // chest itself - facing south
+        // TOP
         // get tiles based on left/right/single
         faceMask = 0x0;
         switch (chestType & 0x3) {
         case 0:
-            swatchLoc = SWATCH_INDEX(9, 1);
+            // get chest material for the top, single chest
+            switch (type) {
+            default:
+                assert(0);
+            case BLOCK_CHEST:
+            case BLOCK_TRAPPED_CHEST:
+                swatchLoc = SWATCH_INDEX(9, 1);
+                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 1;    // back is side
+                break;
+            case BLOCK_COPPER_CHEST:
+            case BLOCK_WAXED_COPPER_CHEST:
+                swatchLoc = (dataVal & 0x20) ? SWATCH_INDEX(3, 73) : SWATCH_INDEX(8, 72);
+                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 3;    // separate back
+                break;
+            case BLOCK_OXIDIZED_COPPER_CHEST:
+            case BLOCK_WAXED_OXIDIZED_COPPER_CHEST:
+                swatchLoc = (dataVal & 0x20) ? SWATCH_INDEX(9, 74) : SWATCH_INDEX(14, 73);
+                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 3;    // separate back
+                break;
+            }
+            // happily, these all nicely increment from the top tile's swatchLoc
             swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc;
             swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc;
             swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLoc + 1;
             swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc + 1;
-            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 1;
             swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc + 2;	// front
             faceMask = 0x0;
             break;
         case 1:	// left
-            swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLocSet[DIRECTION_BLOCK_BOTTOM] = SWATCH_INDEX(9, 14);
-            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = SWATCH_INDEX(10, 1);
-            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = SWATCH_INDEX(10, 1);	// not actually used
-            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = SWATCH_INDEX(10, 3);
-            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX(9, 2);	// front
+            switch (type) {
+            default:
+                assert(0);
+            case BLOCK_CHEST:
+            case BLOCK_TRAPPED_CHEST:
+                swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLocSet[DIRECTION_BLOCK_BOTTOM] = SWATCH_INDEX(9, 14);
+                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = SWATCH_INDEX(10, 1);	// not actually used, open
+                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = SWATCH_INDEX(10, 3);  // back
+                swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX(9, 2);	// front
+                break;
+            case BLOCK_COPPER_CHEST:
+            case BLOCK_WAXED_COPPER_CHEST:
+                // start of copper double chest front left (so we can go backward for the sides)
+                swatchLoc = SWATCH_INDEX(12, 72) + ((dataVal & 0x20) ? 11 : 0);
+                swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc + 5; // top
+                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc - 3; // sides
+                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 1;  	// back - there's a flip here, actually; I could fix it in TileMaker, but that involves more special cases there
+                swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc + 3;    // front
+                break;
+            case BLOCK_OXIDIZED_COPPER_CHEST:
+            case BLOCK_WAXED_OXIDIZED_COPPER_CHEST:
+                // start of copper double chest front left (so we can go backward for the sides)
+                swatchLoc = SWATCH_INDEX(2, 74) + ((dataVal & 0x20) ? 11 : 0);
+                swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc + 5; // top
+                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc - 3; // sides
+                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 1;  	// back - there's a flip here, actually; I could fix it in TileMaker, but that involves more special cases there
+                swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc + 3;    // front
+                break;
+            }
             // Check if neighboring half of chest is actually there, and we're showing border faces.
             // If half of check is outside of the export area (type != origType, basically type == AIR), then faceMask here should be 0x0
             if (gModel.options->pEFD->chkBlockFacesAtBorders && (gBoxData[boxIndex + neighborIndex].type == 0)) {
@@ -8508,11 +8572,35 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             }
             break;
         case 2:	// right
-            swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLocSet[DIRECTION_BLOCK_BOTTOM] = SWATCH_INDEX(10, 14);
-            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = SWATCH_INDEX(10, 1);	// not actually used
-            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = SWATCH_INDEX(10, 1);
-            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = SWATCH_INDEX(9, 3);
-            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX(10, 2);	// front
+            switch (type) {
+            default:
+                assert(0);
+            case BLOCK_CHEST:
+            case BLOCK_TRAPPED_CHEST:
+                swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLocSet[DIRECTION_BLOCK_BOTTOM] = SWATCH_INDEX(10, 14);
+                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = SWATCH_INDEX(10, 1);	// not actually used, open
+                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = SWATCH_INDEX(9, 3);	// back
+                swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX(10, 2);	// front
+                break;
+            case BLOCK_COPPER_CHEST:
+            case BLOCK_WAXED_COPPER_CHEST:
+                // start of copper double chest front left (so we can go backward for the sides)
+                swatchLoc = SWATCH_INDEX(12, 72) + ((dataVal & 0x20) ? 11 : 0);
+                swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc + 2; // top
+                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc - 3; // sides
+                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 4;	// back - there's a flip here, actually; I could fix it in TileMaker, but that involves more special cases there
+                swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc;	// front
+                break;
+            case BLOCK_OXIDIZED_COPPER_CHEST:
+            case BLOCK_WAXED_OXIDIZED_COPPER_CHEST:
+                // start of copper double chest front left (so we can go backward for the sides)
+                swatchLoc = SWATCH_INDEX(2, 74) + ((dataVal & 0x20) ? 11 : 0);
+                swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc + 2; // top
+                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc - 3; // sides
+                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 4;	// back - there's a flip here, actually; I could fix it in TileMaker, but that involves more special cases there
+                swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc;	// front
+                break;
+            }
             // Check if neighboring half of chest is actually there, and we're showing border faces.
             // If half of check is outside of the export area (type != origType, basically type == AIR), then faceMask here should be 0x0
             if (gModel.options->pEFD->chkBlockFacesAtBorders && (gBoxData[boxIndex + neighborIndex].type == 0)) {
@@ -21515,6 +21603,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             break;
         case BLOCK_CHEST:						// getSwatch
         case BLOCK_TRAPPED_CHEST:
+        case BLOCK_COPPER_CHEST:
+        case BLOCK_WAXED_COPPER_CHEST:
+        case BLOCK_OXIDIZED_COPPER_CHEST:
+        case BLOCK_WAXED_OXIDIZED_COPPER_CHEST:
             // for these full blocks, note we have stretched the input data to fit, and put a latch on
             // set side of chest as default
             SWATCH_SWITCH_SIDE(faceDirection, 10, 1);
@@ -35295,6 +35387,10 @@ static bool faceCanTile(int faceId)
     case BLOCK_CHEST:
     case BLOCK_ENDER_CHEST:
     case BLOCK_TRAPPED_CHEST:
+    case BLOCK_COPPER_CHEST:
+    case BLOCK_WAXED_COPPER_CHEST:
+    case BLOCK_OXIDIZED_COPPER_CHEST:
+    case BLOCK_WAXED_OXIDIZED_COPPER_CHEST:
     case BLOCK_CAKE:
     case BLOCK_CACTUS:
     case BLOCK_LEVER:

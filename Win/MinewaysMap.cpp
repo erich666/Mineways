@@ -2715,6 +2715,54 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Waxed Oxidized Copper Chain";
         }
         break;
+    case BLOCK_COPPER_CHEST:
+        switch (dataVal & 0x20) {
+        default:
+            assert(0);
+            break;
+        case 0:
+            // default copper chest
+            break;
+        case 0x20:
+            return "Exposed Copper Chest";
+        }
+        break;
+    case BLOCK_OXIDIZED_COPPER_CHEST:
+        switch (dataVal & 0x20) {
+        default:
+            assert(0);
+            break;
+        case 0:
+            // default Oxidised chest
+            break;
+        case 0x20:
+            return "Weathered Copper Chest";
+        }
+        break;
+    case BLOCK_WAXED_COPPER_CHEST:
+        switch (dataVal & 0x20) {
+        default:
+            assert(0);
+            break;
+        case 0:
+            // default copper chest
+            break;
+        case 0x20:
+            return "Waxed Exposed Copper Chest";
+        }
+        break;
+    case BLOCK_WAXED_OXIDIZED_COPPER_CHEST:
+        switch (dataVal & 0x20) {
+        default:
+            assert(0);
+            break;
+        case 0:
+            // default Oxidised chest
+            break;
+        case 0x20:
+            return "Waxed Weathered Copper Chest";
+        }
+        break;
     }
 
     return gBlockDefinitions[type].name;
@@ -5316,6 +5364,40 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         }
         break;
 
+    case BLOCK_COPPER_CHEST:
+    case BLOCK_WAXED_COPPER_CHEST:
+        dataVal = block->data[voxel];
+        switch (dataVal & 0x20) {
+        default:
+            assert(0);
+        case 0:
+            // default copper chest
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 0x20:
+            // Exposed Copper Chest
+            color = 0x9F7866;
+        }
+        break;
+
+    case BLOCK_OXIDIZED_COPPER_CHEST:
+    case BLOCK_WAXED_OXIDIZED_COPPER_CHEST:
+        dataVal = block->data[voxel];
+        switch (dataVal & 0x20) {
+        default:
+            assert(0);
+        case 0:
+            // default Oxidised chest
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 0x20:
+            // Weathered Copper Chest"
+            color = 0x69976B;
+        }
+        break;
+
     default:
         // Everything else
         lightComputed = true;
@@ -6002,7 +6084,7 @@ void addDiagonalBlocksToMap(int maxCount, int y, int type, int dataVal, int fina
 void testBlock(WorldBlock* block, int origType, int y, int dataVal)
 {
     int bi = 0;
-    int trimVal;
+    int trimVal, trimAndMtlVal;
     int addBlock = 0;
 
     assert(dataVal < 16);
@@ -7675,6 +7757,43 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (trimVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
             block->data[bi] |= (unsigned char)(trimVal | typeHighBit);
+            break;
+        default:
+            break;
+        }
+        break;
+    case BLOCK_COPPER_CHEST:
+    case BLOCK_OXIDIZED_COPPER_CHEST:
+    case BLOCK_WAXED_COPPER_CHEST:
+    case BLOCK_WAXED_OXIDIZED_COPPER_CHEST:
+        // uses 2-5, we add an extra chest on 0x8
+        trimVal = dataVal & 0x7;
+        // 8-15 are the second type of chest (different material)
+        trimAndMtlVal = trimVal | (dataVal >= 8 ? 0x2 : 0x0);
+        if (trimVal >= 2 && trimVal <= 5)
+        {
+            // Note that we use trimVal here, different than the norm
+            bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (trimVal % 2) * 8);
+            block->grid[bi] = (unsigned char)type;
+            block->data[bi] |= (unsigned char)(trimAndMtlVal | typeHighBit);
+        }
+        // double-chest on 0x8 (for mapping - in Minecraft chests have just 2,3,4,5)
+        // - locked chests (April Fool's joke) don't really have doubles, but whatever
+        switch (dataVal)
+        {
+        case 0x8 | 2:
+        case 0x8 | 3:
+            // north/south, so put one to west (-1 X)
+            bi = BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (trimVal % 2) * 8);
+            block->grid[bi] = (unsigned char)type;
+            block->data[bi] |= (unsigned char)(trimAndMtlVal | typeHighBit);
+            break;
+        case 0x8 | 4:
+        case 0x8 | 5:
+            // west/east, so put one to north (-1 Z)
+            bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (trimVal % 2) * 8);
+            block->grid[bi] = (unsigned char)type;
+            block->data[bi] |= (unsigned char)(trimAndMtlVal | typeHighBit);
             break;
         default:
             break;

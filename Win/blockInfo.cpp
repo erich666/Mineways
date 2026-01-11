@@ -580,6 +580,15 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 493 */ "Waxed Copper Bars",      		0x9E533A, 1.000f, 0xff7711, 0xff7711, 0.12345f,  6, 71, 0x30, BLF_PANE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_CUTOUTS | BLF_MAYWATERLOG },   // not visibly different than copper bars, but different names
     { /* 494 */ "Copper Torch",                 0x99EB99, 1.000f, 0xff7711, 0xff7711, 0.12345f, 14, 71, 0x00, BLF_MIDDLER | BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_EMITTER | BLF_DNE_FLUID },	// this (and soul torch) could be merged with torch to save two slots TODO
     { /* 495 */ "Waxed Lightning Rod",          0xC67155, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13, 50, 0x30, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_DNE_FLUID | BLF_CONNECTS_REDSTONE | BLF_MAYWATERLOG },
+    { /* 496 */ "Copper Chest",           		0xBF6B4F, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 72, 0x20, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
+    { /* 497 */ "Oxidised Copper Chest",        0x52A386, 1.000f, 0xff7711, 0xff7711, 0.12345f, 14, 73, 0x20, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
+    { /* 498 */ "Waxed Copper Chest",           0xBF6B4F, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 72, 0x20, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
+    { /* 499 */ "Waxed Oxidised Copper Chest",  0x52A386, 1.000f, 0xff7711, 0xff7711, 0.12345f, 14, 73, 0x20, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
+    { /* 500 */ "Acacia Shelf",                 0x9F5636, 1.000f, 0xff7711, 0xff7711, 0.12345f,  3, 75, 0x28, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
+    { /* 501 */ "Pale Oak Shelf",               0xE9E1E0, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 76, 0x28, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
+    // Copper Golems - someday, maybe. They're pretty complex, lots of textures in their 64x64 texture atlas
+    //{ /* 500 */ "Copper Golem",                	0xAF8B55, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 40, 0x20, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
+    //{ /* 501 */ "Waxed Copper Golem",           0xAF8B55, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 40, 0x20, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
 
     // Important note: 396 is skipped, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
 };

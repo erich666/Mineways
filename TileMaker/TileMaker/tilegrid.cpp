@@ -71,7 +71,7 @@ void addBackslashIfNeeded(wchar_t* dir)
 // return negative number for error type;
 // otherwise returns number of files that we care about, i.e., ones that we'll want to read in later. Note: this number includes duplicates,
 // but does not include tiles that we simply don't care about (on the gUnneeded list).
-int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, bool topmost, bool warnUnused, bool warnDups)
+int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, ChestGrid* psg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, bool topmost, bool warnUnused, bool warnDups)
 {
 	int filesProcessed = 0;
 	int filesSubProcessed = 0;
@@ -91,6 +91,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg
 	assert(pfg->totalTiles > 0);
 	assert(pcg->totalTiles > 0);
 	assert(ppg->totalTiles > 0);
+	assert(psg->totalTiles > 0);
 
 	if (hFind == INVALID_HANDLE_VALUE)
 	{
@@ -102,6 +103,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg
 	else {
 		bool chestFound = false;
 		bool decoratedPotFound = false;
+		bool shelfFound = false;
 		do {
 			if (verbose) {
 				wprintf(L"File %s in directory %s being examined.\n", ffd.cFileName, tilePath);
@@ -123,7 +125,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg
 				wcscat_s(subdir, MAX_PATH_AND_FILE, ffd.cFileName);
 				addBackslashIfNeeded(subdir);
 
-				int fileCount = searchDirectoryForTiles(pfg, pcg, ppg, subdir, origTPLen, verbose, alternate, false, warnUnused, warnDups);
+				int fileCount = searchDirectoryForTiles(pfg, pcg, ppg, psg, subdir, origTPLen, verbose, alternate, false, warnUnused, warnDups);
 				if (fileCount < 0) {
 					// error, cannot read subdirectory for some reason - we just ignore it for now; main test is the top directory test, above.
 					//return -2;
@@ -144,23 +146,45 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg
 					wcsstr(tilePathAppended + origTPLen, L"decorated_pot_side") != NULL ||	// for decorated_pot_side.png
 					wcsstr(tilePathAppended + origTPLen, L"item") != NULL	// for barrier.png
 					) {
-					int status = testIfTileExists(pfg, tilePathAppended, ffd.cFileName, verbose, alternate, warnUnused, warnDups);
-					if (status == FILE_FOUND || status == FILE_FOUND_AND_DUPLICATE) {
-						used = 1;
+
+					// with my scheme, shelf files can be found in the main blocks area, or in the "shelf" directory. Here we check the main directory,
+					// normally used by ChannelMixer
+					// check for shelf vs. anything else:
+					used = testIfChestFile(psg, TOTAL_SHELF_TILES, L"shelf", gShelfNames, gShelfNamesAlt, tilePathAppended, ffd.cFileName, verbose) ? 1 : 0;
+					if (used) {
 						filesProcessed++;
+						shelfFound = true;
 					}
-					else if (status == FILE_FOUND_AND_IGNORED) {
-						// file not really processed, just ignored.
-						used = 1;
+					else {
+
+						int status = testIfTileExists(pfg, tilePathAppended, ffd.cFileName, verbose, alternate, warnUnused, warnDups);
+						if (status == FILE_FOUND || status == FILE_FOUND_AND_DUPLICATE) {
+							used = 1;
+							filesProcessed++;
+						}
+						else if (status == FILE_FOUND_AND_IGNORED) {
+							// file not really processed, just ignored.
+							used = 1;
+						}
 					}
 				}
 				// chest
 				if (used == 0) {
 					if (topmost || wcsstr(tilePathAppended + origTPLen, L"chest") != NULL) {
-						used = testIfChestFile(pcg, tilePathAppended, ffd.cFileName, verbose) ? 1 : 0;
+						used = testIfChestFile(pcg, TOTAL_CHEST_TILES, L"chest", gChestNames, gChestNamesAlt, tilePathAppended, ffd.cFileName, verbose) ? 1 : 0;
 						if (used) {
 							filesProcessed++;
 							chestFound = true;
+						}
+					}
+				}
+				// shelf - check shelf subdirectory, if any
+				if (used == 0) {
+					if (topmost || wcsstr(tilePathAppended + origTPLen, L"shelf") != NULL) {
+						used = testIfChestFile(psg, TOTAL_SHELF_TILES, L"shelf", gShelfNames, gShelfNamesAlt, tilePathAppended, ffd.cFileName, verbose) ? 1 : 0;
+						if (used) {
+							filesProcessed++;
+							shelfFound = true;
 						}
 					}
 				}
@@ -180,7 +204,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg
 				if (!used) {
 					int flag = 0x0;
 					int imageFileType = isImageFile(ffd.cFileName);
-					if (filesProcessed > 0 && !chestFound && !decoratedPotFound && (imageFileType == PNG_EXTENSION_FOUND || imageFileType == TGA_EXTENSION_FOUND)) {
+					if (filesProcessed > 0 && !chestFound && !decoratedPotFound && !shelfFound && (imageFileType == PNG_EXTENSION_FOUND || imageFileType == TGA_EXTENSION_FOUND)) {
 						// we already found some good files in this directory, so don't use this unused one.
 						//wprintf(L"WARNING: The file '%s' in directory '%s' is not recognized and so is not used.\n", ffd.cFileName, tilePath);
 					}
@@ -375,7 +399,7 @@ int testIfTileExists(FileGrid* pfg, const wchar_t* tilePath, const wchar_t* orig
 }
 
 // returns true if file exists and is usable (not a duplicate, alternate name of something already in use)
-int testIfChestFile(ChestGrid* pcg, const wchar_t* tilePath, const wchar_t* origTileName, int verbose)
+int testIfChestFile(ChestGrid* pcg, int totalFiles, const wchar_t* objType, const wchar_t* chestNames[], const wchar_t* chestNamesAlt[], const wchar_t* tilePath, const wchar_t* origTileName, int verbose)
 {
 	wchar_t tileName[MAX_PATH_AND_FILE];
 
@@ -390,12 +414,12 @@ int testIfChestFile(ChestGrid* pcg, const wchar_t* tilePath, const wchar_t* orig
 		// the four PNG/TGA files we care about
 		bool found = false;
 		int index = 0;
-		for (int i = 0; i < TOTAL_CHEST_TILES && !found; i++) {
-			if (_wcsicmp(tileName, gChestNames[i]) == 0) {
+		for (int i = 0; i < totalFiles && !found; i++) {
+			if (_wcsicmp(tileName, chestNames[i]) == 0) {
 				index = i;
 				found = true;
 			}
-			else if (_wcsicmp(tileName, gChestNamesAlt[i]) == 0) {
+			else if (_wcsicmp(tileName, chestNamesAlt[i]) == 0) {
 				index = i;
 				found = true;
 			}
@@ -406,13 +430,13 @@ int testIfChestFile(ChestGrid* pcg, const wchar_t* tilePath, const wchar_t* orig
 			if (pcg->cr[fullIndex].exists) {
 				// duplicate, so warn and exit
 				if (wcscmp(origTileName, pcg->cr[fullIndex].fullFilename) == 0) {
-					wprintf(L"DUP WARNING: Duplicate chest file ignored. File '%s' in directory '%s' is in a different location for the same texture '%s' in '%s'.\n", origTileName, tilePath, pcg->cr[fullIndex].fullFilename, pcg->cr[fullIndex].path);
+					wprintf(L"DUP WARNING: Duplicate %s file ignored. File '%s' in directory '%s' is in a different location for the same texture '%s' in '%s'.\n", objType, origTileName, tilePath, pcg->cr[fullIndex].fullFilename, pcg->cr[fullIndex].path);
 				}
 				else if (verbose) {
-					wprintf(L"DUP WARNING: Duplicate chest file ignored. File '%s' in directory '%s' is a different name for the same texture '%s' in '%s'.\n", origTileName, tilePath, pcg->cr[fullIndex].fullFilename, pcg->cr[fullIndex].path);
+					wprintf(L"DUP WARNING: Duplicate %s file ignored. File '%s' in directory '%s' is a different name for the same texture '%s' in '%s'.\n", objType, origTileName, tilePath, pcg->cr[fullIndex].fullFilename, pcg->cr[fullIndex].path);
 				}
 				else {
-					wprintf(L"DUP WARNING: Duplicate chest file ignored. File '%s' is a different name for the same texture '%s'.\n", origTileName, pcg->cr[fullIndex].fullFilename);
+					wprintf(L"DUP WARNING: Duplicate %s file ignored. File '%s' is a different name for the same texture '%s'.\n", objType, origTileName, pcg->cr[fullIndex].fullFilename);
 				}
 				return FILE_NOT_FOUND;
 			}
@@ -667,3 +691,5 @@ void deleteDecoratedPotFromGrid(DecoratedPotGrid* ppg, int category, int fullInd
 		assert(0);
 	}
 }
+
+
