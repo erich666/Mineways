@@ -7768,8 +7768,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_WAXED_OXIDIZED_COPPER_CHEST:
         // uses 2-5, we add an extra chest on 0x8
         trimVal = dataVal & 0x7;
-        // 8-15 are the second type of chest (different material)
-        trimAndMtlVal = trimVal | (dataVal >= 8 ? 0x2 : 0x0);
+        // 10-13 are the second type of chest (different material)
+        trimAndMtlVal = trimVal | (dataVal >= 8 ? 0x20 : 0x00);
         if (trimVal >= 2 && trimVal <= 5)
         {
             // Note that we use trimVal here, different than the norm
