@@ -392,8 +392,11 @@ static TranslationTuple* modTranslations = NULL;
 #define VINE_PROP   70
 // facing, hydration 0-3 shifted up 2, waterlogged
 #define GHAST_PROP  71
+// facing: south|west|north|east 0-3
+// powered: true|false 0/4
+#define SHELF_PROP	72
 
-#define NUM_TRANS 1156
+#define NUM_TRANS 1168
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1577,6 +1580,18 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 242,   HIGH_BIT | BIT_32, "waxed_exposed_copper_chest", CHEST_PROP },
     { 0, 243,            HIGH_BIT, "waxed_oxidized_copper_chest", CHEST_PROP },
     { 0, 243,   HIGH_BIT | BIT_32, "waxed_weathered_copper_chest", CHEST_PROP },
+    { 0, 244,            HIGH_BIT, "acacia_shelf", SHELF_PROP },
+    { 0, 244, HIGH_BIT | (1 << 3), "birch_shelf", SHELF_PROP },
+    { 0, 244, HIGH_BIT | (2 << 3), "cherry_shelf", SHELF_PROP },
+    { 0, 244, HIGH_BIT | (3 << 3), "crimson_shelf", SHELF_PROP },
+    { 0, 244, HIGH_BIT | (4 << 3), "dark_oak_shelf", SHELF_PROP },
+    { 0, 244, HIGH_BIT | (5 << 3), "jungle_shelf", SHELF_PROP },
+    { 0, 244, HIGH_BIT | (6 << 3), "mangrove_shelf", SHELF_PROP },
+    { 0, 244, HIGH_BIT | (7 << 3), "oak_shelf", SHELF_PROP },
+    { 0, 245,            HIGH_BIT, "pale_oak_shelf", SHELF_PROP },
+    { 0, 245, HIGH_BIT | (1 << 3), "warped_shelf", SHELF_PROP },
+    { 0, 245, HIGH_BIT | (2 << 3), "bamboo_shelf", SHELF_PROP },
+    { 0, 245, HIGH_BIT | (3 << 3), "spruce_shelf", SHELF_PROP },
 
     // 1.20.3 additions (short_grass added next to "grass", above), https://minecraft.wiki/w/Java_Edition_1.20.3#General_2
 
@@ -4420,6 +4435,12 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 honey_level = 0;
                 break;
 
+            case SHELF_PROP:
+                dataVal = door_facing | (powered ? 4 : 0);
+                door_facing = face = 0; // don't need to do door_facing, and in fact the rest of the code doesn't reset this, as it should always be set by this prop anyway.
+                powered = false;
+                break;
+
             case NO_PROP:
                 // these are also ones where nothing needs to be done. They could all be called NO_PROP,
                 // but it's handy to know what blocks have what properties associated with them.
@@ -4610,7 +4631,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 lit = false;
                 break;
             case BUTTON_PROP:
-                // dataVal is set fron "facing" already (1234), just need face & powered
+                // dataVal is set from "facing" already (1234), just need face & powered
                 // check for top or bottom facing
                 // if button is on top or bottom, "facing" affects angle, bit 16
                 if (face == 0) {

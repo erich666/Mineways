@@ -1305,7 +1305,7 @@ static struct {
     { 13, 75, 497, 0, L"MWO_weathered_copper_double_chest_top_right", L"", SWATCH_REPEAT_ALL },
     { 14, 75, 497, 0, L"MWO_weathered_copper_double_chest_bottom_right", L"", SWATCH_REPEAT_ALL },
     { 15, 75, 500, 0, L"MWO_acacia_shelf_front", L"", SWATCH_REPEAT_ALL },
-    {  0, 76, 500, 0, L"MWO_acacia_shelf_back", L"", SWATCH_REPEAT_ALL },
+    {  0, 76, 500, 0, L"MWO_acacia_shelf_back", L"", SWATCH_REPEAT_ALL },   // and top and bottom elements
     {  1, 76, 500, 0, L"MWO_acacia_shelf_powered", L"", SWATCH_REPEAT_ALL },
     {  2, 76, 500, 0, L"MWO_birch_shelf_front", L"", SWATCH_REPEAT_ALL },
     {  3, 76, 500, 0, L"MWO_birch_shelf_back", L"", SWATCH_REPEAT_ALL },

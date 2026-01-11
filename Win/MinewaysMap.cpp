@@ -2763,6 +2763,47 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Waxed Weathered Copper Chest";
         }
         break;
+    case BLOCK_ACACIA_SHELF:
+        switch ((dataVal & 0x28) >> 3)
+        {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case 1:
+            return "Birch Shelf";
+        case 2:
+            return "Cherry Shelf";
+        case 3:
+            return "Crimson Shelf";
+        case 4:
+            return "Dark Oak Shelf";
+        case 5:
+            return "Jungle Shelf";
+        case 6:
+            return "Mangrove Shelf";
+        case 7:
+            return "Oak Shelf";
+        }
+        break;
+    case BLOCK_PALE_OAK_SHELF:
+        switch ((dataVal & 0x28)>>3)
+        {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case 1:
+            return "Warped Shelf";
+        case 2:
+            return "Bamboo Shelf";
+        case 3:
+            return "Spruce Shelf";
+        }
+        break;
+
     }
 
     return gBlockDefinitions[type].name;
@@ -5395,6 +5436,54 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case 0x20:
             // Weathered Copper Chest"
             color = 0x69976B;
+        }
+        break;
+
+    case BLOCK_ACACIA_SHELF:
+        dataVal = block->data[voxel];
+        switch ((dataVal & 0x28) >> 3)
+        {
+        default:
+            assert(0);
+        case 0:
+            // default
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 1:
+            color = 0xC2AE75;
+        case 2:
+            color = 0xD69194;
+        case 3:
+            color = 0x8C3A5B;
+        case 4:
+            color = 0x483823;
+        case 5:
+            color = 0xAB8455;
+        case 6:
+            color = 0x76362F;
+        case 7:
+            color = 0xB08E55;
+        }
+        break;
+
+    case BLOCK_PALE_OAK_SHELF:
+        dataVal = block->data[voxel];
+        switch ((dataVal & 0x28) >> 3)
+        {
+        default:
+            assert(0);
+        case 0:
+            // default
+            lightComputed = true;
+            color = gBlockColors[type * 16 + light];
+            break;
+        case 1:
+            color = 0x3A9793;
+        case 2:
+            color = 0xC3AF51;
+        case 3:
+            color = 0x6F5734;
         }
         break;
 
@@ -8253,6 +8342,47 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         block->data[neighborIndex] = HIGH_BIT | (unsigned char)finalDataVal | WATERLOGGED_BIT;
         break;
 
+    case BLOCK_ACACIA_SHELF:
+    case BLOCK_PALE_OAK_SHELF:
+        // there are 8 materials for acacia shelves and 4 for pale oak shelves. Rather than going absolutely nuts, we change the dataVal for each.
+        // directions are 2-5, so allow those and 10-13
+        if ((dataVal & 0x7) >= 2 && (dataVal & 0x7) <= 5)
+        {
+            addBlock = 1;
+            // set higher bits BIT_8 and BIT_16
+            if (origType == BLOCK_ACACIA_SHELF) {
+                // cycle 8 materials
+                finalDataVal = ((dataVal % 8) << 3) | (dataVal & 0x7);
+            }
+            else {
+                // cycle 4 materials
+                finalDataVal = ((dataVal % 4) << 3) | (dataVal & 0x7);
+            }
+
+            switch (dataVal & 0x7)
+            {
+                // do all the wood types
+            default:
+                assert(0);
+            case 2:
+                // put block to south
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                break;
+            case 3:
+                // put block to north
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                break;
+            case 4:
+                // put block to east
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                break;
+            case 5:
+                // put block to west
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                break;
+            }
+        }
+        break;
 
         // don't show special blocks to users
 #ifndef _DEBUG
