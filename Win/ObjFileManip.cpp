@@ -8515,18 +8515,18 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 break;
             case BLOCK_COPPER_CHEST:
             case BLOCK_WAXED_COPPER_CHEST:
-                swatchLoc = (dataVal & 0x20) ? SWATCH_INDEX(3, 73) : SWATCH_INDEX(8, 72);
+                swatchLoc = (dataVal & 0x20) ? SWATCH_INDEX(6, 73) : SWATCH_INDEX(8, 72);
                 swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 3;    // separate back
                 break;
             case BLOCK_OXIDIZED_COPPER_CHEST:
             case BLOCK_WAXED_OXIDIZED_COPPER_CHEST:
-                swatchLoc = (dataVal & 0x20) ? SWATCH_INDEX(9, 74) : SWATCH_INDEX(14, 73);
+                swatchLoc = (dataVal & 0x20) ? SWATCH_INDEX(15, 74) : SWATCH_INDEX(4, 74);
                 swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 3;    // separate back
                 break;
             }
             // happily, these all nicely increment from the top tile's swatchLoc
             swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc;
-            swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc;
+            swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc + 4;
             swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLoc + 1;
             swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc + 1;
             swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc + 2;	// front
@@ -8546,20 +8546,22 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             case BLOCK_COPPER_CHEST:
             case BLOCK_WAXED_COPPER_CHEST:
                 // start of copper double chest front left (so we can go backward for the sides)
-                swatchLoc = SWATCH_INDEX(12, 72) + ((dataVal & 0x20) ? 11 : 0);
-                swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc + 5; // top
-                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc - 3; // sides
-                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 1;  	// back - there's a flip here, actually; I could fix it in TileMaker, but that involves more special cases there
-                swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc + 3;    // front
+                swatchLoc = SWATCH_INDEX(13, 72) + ((dataVal & 0x20) ? 14 : 0);
+                swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc + 2; // top
+                swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc + 3;
+                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc - 4; // sides
+                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 7;  	// back - there's a flip here, actually; I could fix it in TileMaker, but that involves more special cases there
+                swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc;    // front
                 break;
             case BLOCK_OXIDIZED_COPPER_CHEST:
             case BLOCK_WAXED_OXIDIZED_COPPER_CHEST:
                 // start of copper double chest front left (so we can go backward for the sides)
-                swatchLoc = SWATCH_INDEX(2, 74) + ((dataVal & 0x20) ? 11 : 0);
-                swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc + 5; // top
-                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc - 3; // sides
-                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 1;  	// back - there's a flip here, actually; I could fix it in TileMaker, but that involves more special cases there
-                swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc + 3;    // front
+                swatchLoc = SWATCH_INDEX(9, 74) + ((dataVal & 0x20) ? 14 : 0);
+                swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc + 2; // top
+                swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc + 3;
+                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc - 4; // sides
+                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 7;  	// back - there's a flip here, actually; I could fix it in TileMaker, but that involves more special cases there
+                swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc;    // front
                 break;
             }
             // Check if neighboring half of chest is actually there, and we're showing border faces.
@@ -8585,20 +8587,22 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             case BLOCK_COPPER_CHEST:
             case BLOCK_WAXED_COPPER_CHEST:
                 // start of copper double chest front left (so we can go backward for the sides)
-                swatchLoc = SWATCH_INDEX(12, 72) + ((dataVal & 0x20) ? 11 : 0);
-                swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc + 2; // top
-                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc - 3; // sides
-                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 4;	// back - there's a flip here, actually; I could fix it in TileMaker, but that involves more special cases there
-                swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc;	// front
+                swatchLoc = SWATCH_INDEX(13, 72) + ((dataVal & 0x20) ? 14 : 0);
+                swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc + 6; // top right
+                swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc + 7;
+                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc - 4; // sides
+                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 5;	// back - there's a flip here, actually; I could fix it in TileMaker, but that involves more special cases there
+                swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc + 4;	// front
                 break;
             case BLOCK_OXIDIZED_COPPER_CHEST:
             case BLOCK_WAXED_OXIDIZED_COPPER_CHEST:
                 // start of copper double chest front left (so we can go backward for the sides)
-                swatchLoc = SWATCH_INDEX(2, 74) + ((dataVal & 0x20) ? 11 : 0);
-                swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc + 2; // top
-                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc - 3; // sides
-                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 4;	// back - there's a flip here, actually; I could fix it in TileMaker, but that involves more special cases there
-                swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc;	// front
+                swatchLoc = SWATCH_INDEX(9, 74) + ((dataVal & 0x20) ? 14 : 0);
+                swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc + 6; // top right
+                swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc + 7;
+                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc - 4; // sides
+                swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 5;	// back - there's a flip here, actually; I could fix it in TileMaker, but that involves more special cases there
+                swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc + 4;	// front
                 break;
             }
             // Check if neighboring half of chest is actually there, and we're showing border faces.

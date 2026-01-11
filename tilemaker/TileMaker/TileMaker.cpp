@@ -125,7 +125,7 @@ static ChestData gEnderChest115[] = {
 	{ 42, 33,  14, 10,  12, 13,   1, 6,  0x3 },	// bottom of MWO_ender_chest_front
 };
 
-ChestData gNormalCopperChests[12][8];
+ChestData gNormalCopperChests[12][9];
 
 typedef struct Chest {
 	const wchar_t* wname;
@@ -155,18 +155,18 @@ static Chest gChest1219[16] = {
 	{ L"normal_left", 5, 64, 64, NULL },
 	{ L"normal_right", 5, 64, 64, NULL },
 	{ L"ender", 6, 64, 64, NULL },
-	{ L"copper", 8, 64, 64, NULL },
-	{ L"copper_left", 5, 64, 64, NULL },
-	{ L"copper_right", 5, 64, 64, NULL },
-	{ L"copper_exposed", 8, 64, 64, NULL },
-	{ L"copper_exposed_left", 5, 64, 64, NULL },
-	{ L"copper_exposed_right", 5, 64, 64, NULL },
-	{ L"copper_oxidized", 8, 64, 64, NULL },
-	{ L"copper_oxidized_left", 5, 64, 64, NULL },
-	{ L"copper_oxidized_right", 5, 64, 64, NULL },
-	{ L"copper_weathered", 8, 64, 64, NULL },
-	{ L"copper_weathered_left", 5, 64, 64, NULL },
-	{ L"copper_weathered_right", 5, 64, 64, NULL },
+	{ L"copper", 9, 64, 64, NULL },
+	{ L"copper_left", 6, 64, 64, NULL },
+	{ L"copper_right", 6, 64, 64, NULL },
+	{ L"copper_exposed", 9, 64, 64, NULL },
+	{ L"copper_exposed_left", 6, 64, 64, NULL },
+	{ L"copper_exposed_right", 6, 64, 64, NULL },
+	{ L"copper_oxidized", 9, 64, 64, NULL },
+	{ L"copper_oxidized_left", 6, 64, 64, NULL },
+	{ L"copper_oxidized_right", 6, 64, 64, NULL },
+	{ L"copper_weathered", 9, 64, 64, NULL },
+	{ L"copper_weathered_left", 6, 64, 64, NULL },
+	{ L"copper_weathered_right", 6, 64, 64, NULL },
 };
 
 // Shelf simply uses same structure as Chest, for simplicity
@@ -174,9 +174,9 @@ static Chest gChest1219[16] = {
 // just one, but the to tile goes up by three times the index of the shelf
 static ChestData gShelfData1219[] = {
 	//  from,    size, to tile,  starting at corner
-	{  0,  0,  16, 16,   3, 75,   0, 0,  0x0 },	// MWO_***_shelf_front
-	{ 16,  0,  16, 16,   4, 75,   0, 0,  0x0 },	// MWO_***_shelf_back
-	{ 16, 16,  16, 16,   5, 75,   0, 0,  0x0 },	// MWO_***_shelf_powered
+	{  0,  0,  16, 16,  15, 75,   0, 0,  0x0 },	// MWO_***_shelf_front
+	{ 16,  0,  16, 16,   0, 76,   0, 0,  0x0 },	// MWO_***_shelf_back
+	{ 16, 16,  16, 16,   1, 76,   0, 0,  0x0 },	// MWO_***_shelf_powered
 };
 
 // transfer the above template to here, then fix "to tile" by incrementing each by 3*index, modulo-ing the tile numbers
@@ -1286,6 +1286,14 @@ int wmain(int argc, wchar_t* argv[])
 						gNormalCopperChests[ic3][elem].txrX = swatchLoc % 16;
 						gNormalCopperChests[ic3][elem].txrY = (int)(swatchLoc / 16);
 						swatchLoc++;
+						// bottom
+						elem++;
+						gNormalCopperChests[ic3][elem] = gNormalChest115[1];
+						gNormalCopperChests[ic3][elem].fromX = 14;
+						gNormalCopperChests[ic3][elem].fromY = 19;
+						gNormalCopperChests[ic3][elem].txrX = swatchLoc % 16;
+						gNormalCopperChests[ic3][elem].txrY = (int)(swatchLoc / 16);
+						swatchLoc++;
 						gChest1219[4 + ic3].data = gNormalCopperChests[ic3];
 
 						// LEFT copper chest
@@ -1300,6 +1308,13 @@ int wmain(int argc, wchar_t* argv[])
 								swatchLoc++;
 							}
 						}
+						// bottom
+						gNormalCopperChests[ic3][elem] = gNormalLeftChest115[4];
+						gNormalCopperChests[ic3][elem].fromX = 14;
+						gNormalCopperChests[ic3][elem].fromY = 19;
+						gNormalCopperChests[ic3][elem].txrX = swatchLoc % 16;
+						gNormalCopperChests[ic3][elem].txrY = (int)(swatchLoc / 16);
+						swatchLoc++;
 						gChest1219[4 + ic3].data = gNormalCopperChests[ic3];
 
 						// RIGHT copper chest
@@ -1314,6 +1329,13 @@ int wmain(int argc, wchar_t* argv[])
 								swatchLoc++;
 							}
 						}
+						// bottom
+						gNormalCopperChests[ic3][elem] = gNormalRightChest115[4];
+						gNormalCopperChests[ic3][elem].fromX = 14;
+						gNormalCopperChests[ic3][elem].fromY = 19;
+						gNormalCopperChests[ic3][elem].txrX = swatchLoc % 16;
+						gNormalCopperChests[ic3][elem].txrY = (int)(swatchLoc / 16);
+						swatchLoc++;
 						gChest1219[4 + ic3].data = gNormalCopperChests[ic3];
 					}
 					chest = gChest1219;
