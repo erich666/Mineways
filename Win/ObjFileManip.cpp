@@ -6966,17 +6966,27 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         gUsingTransform = 1;
         // Main slab
         // if powered, need to shift face up by 4.
-        saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | (powered ? DIR_HI_Z_BIT : 0), 0x0, 0, 0.0f, 16.0f, 0.0f, 16.0f, 0.0f, 3.0f);
+        saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_Z_BIT, 0x0, 0, 0.0f, 16.0f, 0.0f, 16.0f, 0.0f, 3.0f);
         saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLocSet[DIRECTION_BLOCK_TOP], DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0.0f, 16.0f, 0.0f, 16.0f, 7.0f, 10.0f);
         if (powered) {
             littleTotalVertexCount = gModel.vertexCount;
-            saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 0, 0.0f, 16.0f, 8.0f, 16.0f, 0.0f, 3.0f);
+            // reminder: textures for Y coordinate start from the lower edges, so going from 0.0f to 8.0f says "take the bottom half of the texture and apply it."
+            saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 0, 0.0f, 16.0f, 0.0f, 8.0f, 0.0f, 3.0f);
             littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
             // shift powered up 4 units
             identityMtx(mtx);
-            translateMtx(mtx, 0.0f, -4.0f / 16.0f, 0.0f);
+            translateMtx(mtx, 0.0f, 4.0f / 16.0f, 0.0f);
             transformVertices(littleTotalVertexCount, mtx);
         }
+        else {
+            // unpowered - fill in the middle of the front face, but no translation shift is needed
+            saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 0, 0.0f, 16.0f, 4.0f, 12.0f, 0.0f, 3.0f);
+        }
+        // add the two front blocks for the shelf:
+        // switch front to the unpowered version for these blocks, which are the same either way
+        swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc;
+        saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT, 0x0, 0, 0.0f, 16.0f, 0.0f, 4.0f, 3.0f, 5.0f);
+        saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT, 0x0, 0, 0.0f, 16.0f,12.0f, 16.0f, 3.0f, 5.0f);
         totalVertexCount = gModel.vertexCount - totalVertexCount;
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);

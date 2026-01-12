@@ -8346,37 +8346,36 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_PALE_OAK_SHELF:
         // there are 8 materials for acacia shelves and 4 for pale oak shelves. Rather than going absolutely nuts, we change the dataVal for each.
         // directions are 2-5, so allow those and 10-13
-        if ((dataVal & 0x7) >= 2 && (dataVal & 0x7) <= 5)
-        {
-            addBlock = 1;
-            // set higher bits BIT_8 and BIT_16
-            if (origType == BLOCK_ACACIA_SHELF) {
-                // cycle 8 materials
-                finalDataVal = ((dataVal % 8) << 3) | (dataVal & 0x7);
-            }
-            else {
-                // cycle 4 materials
-                finalDataVal = ((dataVal % 4) << 3) | (dataVal & 0x7);
-            }
+        addBlock = 1;
+        // set higher bits BIT_8 and BIT_16
+        if (origType == BLOCK_ACACIA_SHELF) {
+            // cycle 8 materials, alternate powered
+            finalDataVal = (((dataVal/2) % 8) << 3) | (dataVal & 0x3) | ((dataVal & 0x1) << 2);
+        }
+        else {
+            // cycle 4 materials, alternate powered
+            finalDataVal = (((dataVal/4) % 4) << 3) | (dataVal & 0x3) | ((dataVal & 0x1) << 2);
+        }
 
-            switch (dataVal & 0x7)
+        // for first 4, show with extra block, so it looks mounted
+        if (dataVal < 4) {
+            switch (dataVal & 0x3)
             {
-                // do all the wood types
             default:
                 assert(0);
-            case 2:
+            case 3:
                 // put block to south
                 block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
                 break;
-            case 3:
+            case 1:
                 // put block to north
                 block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
                 break;
-            case 4:
+            case 2:
                 // put block to east
                 block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
                 break;
-            case 5:
+            case 0:
                 // put block to west
                 block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
                 break;
