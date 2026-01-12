@@ -21701,231 +21701,420 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_WAXED_OXIDIZED_COPPER_CHEST:
             // for these full blocks, note we have stretched the input data to fit, and put a latch on
             // set side of chest as default
-            SWATCH_SWITCH_SIDE(faceDirection, 10, 1);
-            angle = 0;
-            switch (dataVal & 0x7)
-            {
-            case 2: // facing north
-                if (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z)
+            // 1.13 on have a nice "single" property, which we use here to override things.
+            if (((dataVal & 0x18) >> 3) > 0x0) {
+                // has "single" property
+                int chestType = ((dataVal & 0x18) >> 3) - 1;
+                assert(chestType >= 0 && chestType <= 2);
+                switch (dataVal & 0x7)
                 {
-                    swatchLoc = SWATCH_INDEX(11, 1);
-                    if (gBoxData[backgroundIndex - gBoxSizeYZ].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(9, 2);
-                    }
-                    else if (gBoxData[backgroundIndex + gBoxSizeYZ].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(10, 2);
-                    }
-                }
-                else if (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z)
-                {
-                    // back of chest, on possibly long face
-                    // is neighbor to north a chest, too?
-                    if (gBoxData[backgroundIndex - gBoxSizeYZ].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(10, 3);
-                    }
-                    else if (gBoxData[backgroundIndex + gBoxSizeYZ].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(9, 3);
-                    }
-                }
-                else if (faceDirection == DIRECTION_BLOCK_TOP || faceDirection == DIRECTION_BLOCK_BOTTOM) // top or bottom
-                {
-                    // back of chest, on possibly long face - keep it a "side" unless changed by neighbor
-                    if (gBoxData[backgroundIndex - gBoxSizeYZ].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(9, 14);
-                    }
-                    else if (gBoxData[backgroundIndex + gBoxSizeYZ].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(10, 14);
-                    }
+                case 2: // facing north
                     angle = 180;
-                }
-                break;
-            case 3: // facing south
-                if (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z) // south
-                {
-                    // front of chest, on possibly long face
-                    swatchLoc = SWATCH_INDEX(11, 1);	// front
-                    // is neighbor to east also a chest?
-                    if (gBoxData[backgroundIndex + gBoxSizeYZ].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(9, 2);
-                    }
-                    // else, is neighbor to west also a chest?
-                    else if (gBoxData[backgroundIndex - gBoxSizeYZ].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(10, 2);
-                    }
-                }
-                else if (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z) // north
-                {
-                    // back of chest, on possibly long face - keep it a "side" unless changed by neighbor
-                    if (gBoxData[backgroundIndex + gBoxSizeYZ].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(10, 3);
-                    }
-                    else if (gBoxData[backgroundIndex - gBoxSizeYZ].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(9, 3);
-                    }
-                }
-                else if (faceDirection == DIRECTION_BLOCK_TOP || faceDirection == DIRECTION_BLOCK_BOTTOM) // top or bottom
-                {
-                    // back of chest, on possibly long face - keep it a "side" unless changed by neighbor
-                    if (gBoxData[backgroundIndex + gBoxSizeYZ].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(9, 14);
-                    }
-                    else if (gBoxData[backgroundIndex - gBoxSizeYZ].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(10, 14);
-                    }
-                }
-                break;
-            case 4: // facing west
-                if (faceDirection == DIRECTION_BLOCK_SIDE_LO_X) // west
-                {
-                    swatchLoc = SWATCH_INDEX(11, 1);
-                    if (gBoxData[backgroundIndex - gBoxSize[Y]].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(10, 2);
-                    }
-                    else if (gBoxData[backgroundIndex + gBoxSize[Y]].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(9, 2);
-                    }
-                }
-                else if (faceDirection == DIRECTION_BLOCK_SIDE_HI_X) // east
-                {
-                    // back of chest, on possibly long face
-                    // is neighbor to north a chest, too?
-                    if (gBoxData[backgroundIndex - gBoxSize[Y]].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(9, 3);
-                    }
-                    else if (gBoxData[backgroundIndex + gBoxSize[Y]].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(10, 3);
-                    }
-                }
-                else if (faceDirection == DIRECTION_BLOCK_TOP || faceDirection == DIRECTION_BLOCK_BOTTOM) // top or bottom
-                {
-                    // back of chest, on possibly long face - keep it a "side" unless changed by neighbor
-                    if (gBoxData[backgroundIndex - gBoxSize[Y]].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(9, 14);
-                    }
-                    else if (gBoxData[backgroundIndex + gBoxSize[Y]].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(10, 14);
-                    }
-                    angle = 270;
-                }
-                break;
-            case 5: // facing east
-                if (faceDirection == DIRECTION_BLOCK_SIDE_HI_X)
-                {
-                    swatchLoc = SWATCH_INDEX(11, 1);
-                    if (gBoxData[backgroundIndex + gBoxSize[Y]].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(10, 2);
-                    }
-                    else if (gBoxData[backgroundIndex - gBoxSize[Y]].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(9, 2);
-                    }
-                }
-                else if (faceDirection == DIRECTION_BLOCK_SIDE_LO_X)
-                {
-                    // back of chest, on possibly long face
-                    // is neighbor to north a chest, too?
-                    if (gBoxData[backgroundIndex + gBoxSize[Y]].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(9, 3);
-                    }
-                    else if (gBoxData[backgroundIndex - gBoxSize[Y]].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(10, 3);
-                    }
-                }
-                else if (faceDirection == DIRECTION_BLOCK_TOP || faceDirection == DIRECTION_BLOCK_BOTTOM) // top or bottom
-                {
-                    // back of chest, on possibly long face - keep it a "side" unless changed by neighbor
-                    if (gBoxData[backgroundIndex + gBoxSize[Y]].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(9, 14);
-                    }
-                    else if (gBoxData[backgroundIndex - gBoxSize[Y]].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(10, 14);
-                    }
+                    break;
+                case 3: // facing south
+                    angle = 0;
+                    break;
+                case 4: // facing west
                     angle = 90;
+                    break;
+                case 5: // facing east
+                    angle = 270;
+                    break;
+                default:
+                    assert(0);
+                    break;
                 }
-                break;
-            case 0:
-                // old bad data, so this code matches it.
-                // In reality, in 1.8 such chests just disappear! The data's still
-                // in the world, but you can't see or interact with the chests.
-                // We leave this code here for older worlds encountered.
-                if (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z)
+                // chest itself - facing south
+                // Put all the swatchLocs into swatchLocSet, then pick and adjust from there based on angle
+                // get tiles based on left/right/single
+                // This is admittedly overkill: we get all 6 sides, then pick from them. Easier, believe me.
+                int swatchLocSet[6];
+                switch (chestType & 0x3) {
+                case 0:
+                    // get chest material for the top, single chest
+                    switch (type) {
+                    default:
+                        assert(0);
+                    case BLOCK_CHEST:
+                    case BLOCK_TRAPPED_CHEST:
+                        swatchLoc = SWATCH_INDEX(9, 1);
+                        swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 1;    // back is side
+                        break;
+                    case BLOCK_COPPER_CHEST:
+                    case BLOCK_WAXED_COPPER_CHEST:
+                        swatchLoc = (dataVal & 0x20) ? SWATCH_INDEX(6, 73) : SWATCH_INDEX(8, 72);
+                        swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 3;    // separate back
+                        break;
+                    case BLOCK_OXIDIZED_COPPER_CHEST:
+                    case BLOCK_WAXED_OXIDIZED_COPPER_CHEST:
+                        swatchLoc = (dataVal & 0x20) ? SWATCH_INDEX(2, 75) : SWATCH_INDEX(4, 74);
+                        swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 3;    // separate back
+                        break;
+                    }
+                    // happily, these all nicely increment from the top tile's swatchLoc
+                    swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc;
+                    swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc + 4;
+                    swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLoc + 1;
+                    swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc + 1;
+                    swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc + 2;	// front
+                    break;
+                case 1:	// left
+                    switch (type) {
+                    default:
+                        assert(0);
+                    case BLOCK_CHEST:
+                    case BLOCK_TRAPPED_CHEST:
+                        swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLocSet[DIRECTION_BLOCK_BOTTOM] = SWATCH_INDEX(9, 14);
+                        swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = SWATCH_INDEX(10, 1);	// not actually used, open
+                        swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = SWATCH_INDEX(10, 3);  // back
+                        swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX(9, 2);	// front
+                        break;
+                    case BLOCK_COPPER_CHEST:
+                    case BLOCK_WAXED_COPPER_CHEST:
+                        // start of copper double chest front left (so we can go backward for the sides)
+                        swatchLoc = SWATCH_INDEX(13, 72) + ((dataVal & 0x20) ? 14 : 0);
+                        swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc + 6; // top
+                        swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc + 7;
+                        swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc - 4; // sides
+                        swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 1;  	// back (it's the "right" back)
+                        swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc + 4;    // front
+                        break;
+                    case BLOCK_OXIDIZED_COPPER_CHEST:
+                    case BLOCK_WAXED_OXIDIZED_COPPER_CHEST:
+                        // start of copper double chest front left (so we can go backward for the sides)
+                        swatchLoc = SWATCH_INDEX(9, 74) + ((dataVal & 0x20) ? 14 : 0);
+                        // note: same as above for other copper chest types, just a different swatchLoc start
+                        swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc + 6; // top
+                        swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc + 7;
+                        swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc - 4; // sides
+                        swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 1;  	// back (it's the "right" back)
+                        swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc + 4;    // front
+                        break;
+                    }
+                    break;
+                case 2:	// right
+                    switch (type) {
+                    default:
+                        assert(0);
+                    case BLOCK_CHEST:
+                    case BLOCK_TRAPPED_CHEST:
+                        swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLocSet[DIRECTION_BLOCK_BOTTOM] = SWATCH_INDEX(10, 14);
+                        swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = SWATCH_INDEX(10, 1);	// not actually used, open
+                        swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = SWATCH_INDEX(9, 3);	// back
+                        swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX(10, 2);	// front
+                        break;
+                    case BLOCK_COPPER_CHEST:
+                    case BLOCK_WAXED_COPPER_CHEST:
+                        // start of copper double chest front left (so we can go backward for the sides)
+                        swatchLoc = SWATCH_INDEX(13, 72) + ((dataVal & 0x20) ? 14 : 0);
+                        swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc + 2; // top
+                        swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc + 3;
+                        swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc - 4; // sides
+                        swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 5;  	// back (it's the "left" back)
+                        swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc;    // front
+                        break;
+                    case BLOCK_OXIDIZED_COPPER_CHEST:
+                    case BLOCK_WAXED_OXIDIZED_COPPER_CHEST:
+                        // start of copper double chest front left (so we can go backward for the sides)
+                        swatchLoc = SWATCH_INDEX(9, 74) + ((dataVal & 0x20) ? 14 : 0);
+                        swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc + 2; // top
+                        swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc + 3;
+                        swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc - 4; // sides
+                        swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 5;  	// back (it's the "left" back)
+                        swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc;    // front
+                        break;
+                    };
+                    break;
+                default:
+                    assert(0);
+                    break;
+                }
+                // now pay attention to angle to pick which face we want, or rotate top or bottom
+                if (faceDirection == DIRECTION_BLOCK_TOP) // top
                 {
-                    if (gBoxData[backgroundIndex - gBoxSizeYZ].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(9, 2);
-                    }
-                    else if (gBoxData[backgroundIndex + gBoxSizeYZ].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(10, 2);
-                    }
+                    swatchLoc = swatchLocSet[faceDirection];
+                    if (angle != 0 && uvIndices)
+                        rotateIndices(localIndices, angle);
                 }
-                else if (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z)
+                else if (faceDirection == DIRECTION_BLOCK_BOTTOM) // top or bottom
                 {
-                    // back of chest, on possibly long face
-                    // is neighbor to north a chest, too?
-                    if (gBoxData[backgroundIndex - gBoxSizeYZ].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(10, 3);
+                    swatchLoc = swatchLocSet[faceDirection];
+                    // reverse angle for bottom face
+                    if (angle != 0 && uvIndices)
+                        rotateIndices(localIndices, -angle);
+                }
+                else {
+                    // side face - pick based on angle
+                    int fd4;
+                    // convert current direction to 0-3 range, rotate, then convert back.
+                    switch (faceDirection) {
+                    default:
+                        assert(0);
+                    case DIRECTION_BLOCK_SIDE_LO_X:
+                        fd4 = 0;
+                        break;
+                    case DIRECTION_BLOCK_SIDE_LO_Z:
+                        fd4 = 1;
+                        break;
+                    case DIRECTION_BLOCK_SIDE_HI_X:
+                        fd4 = 2;
+                        break;
+                    case DIRECTION_BLOCK_SIDE_HI_Z:
+                        fd4 = 3;
+                        break;
                     }
-                    else if (gBoxData[backgroundIndex + gBoxSizeYZ].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(9, 3);
+                    // rotate based on angle
+                    fd4 = (fd4 - (angle / 90) + 4) % 4;
+                    switch (fd4) {
+                    default:
+                        assert(0);
+                    case 0:
+                        swatchLoc = swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X];
+                        break;
+                    case 1:
+                        swatchLoc = swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z];
+                        break;
+                    case 2:
+                        // right side
+                        swatchLoc = swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X];
+                        // gets flipped
+                        if (uvIndices)
+                        	flipIndicesLeftRight(localIndices);
+                        break;
+                    case 3:
+                        swatchLoc = swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z];
+                        break;
                     }
                 }
-                else if (faceDirection == DIRECTION_BLOCK_SIDE_HI_X)
+
+            } else {
+                // old way, wooden chest only, paying attention to neighbors for double chest
+                SWATCH_SWITCH_SIDE(faceDirection, 10, 1);
+                angle = 0;
+                switch (dataVal & 0x7)
                 {
-                    if (gBoxData[backgroundIndex + gBoxSize[Y]].origType == type)
+                case 2: // facing north
+                    if (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z)
                     {
-                        swatchLoc = SWATCH_INDEX(10, 2);
+                        swatchLoc = SWATCH_INDEX(11, 1);
+                        if (gBoxData[backgroundIndex - gBoxSizeYZ].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(9, 2);
+                        }
+                        else if (gBoxData[backgroundIndex + gBoxSizeYZ].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(10, 2);
+                        }
                     }
-                    else if (gBoxData[backgroundIndex - gBoxSize[Y]].origType == type)
+                    else if (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z)
                     {
-                        swatchLoc = SWATCH_INDEX(9, 2);
+                        // back of chest, on possibly long face
+                        // is neighbor to north a chest, too?
+                        if (gBoxData[backgroundIndex - gBoxSizeYZ].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(10, 3);
+                        }
+                        else if (gBoxData[backgroundIndex + gBoxSizeYZ].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(9, 3);
+                        }
                     }
+                    else if (faceDirection == DIRECTION_BLOCK_TOP || faceDirection == DIRECTION_BLOCK_BOTTOM) // top or bottom
+                    {
+                        // back of chest, on possibly long face - keep it a "side" unless changed by neighbor
+                        if (gBoxData[backgroundIndex - gBoxSizeYZ].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(9, 14);
+                        }
+                        else if (gBoxData[backgroundIndex + gBoxSizeYZ].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(10, 14);
+                        }
+                        angle = 180;
+                    }
+                    break;
+                case 3: // facing south
+                    if (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z) // south
+                    {
+                        // front of chest, on possibly long face
+                        swatchLoc = SWATCH_INDEX(11, 1);	// front
+                        // is neighbor to east also a chest?
+                        if (gBoxData[backgroundIndex + gBoxSizeYZ].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(9, 2);
+                        }
+                        // else, is neighbor to west also a chest?
+                        else if (gBoxData[backgroundIndex - gBoxSizeYZ].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(10, 2);
+                        }
+                    }
+                    else if (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z) // north
+                    {
+                        // back of chest, on possibly long face - keep it a "side" unless changed by neighbor
+                        if (gBoxData[backgroundIndex + gBoxSizeYZ].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(10, 3);
+                        }
+                        else if (gBoxData[backgroundIndex - gBoxSizeYZ].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(9, 3);
+                        }
+                    }
+                    else if (faceDirection == DIRECTION_BLOCK_TOP || faceDirection == DIRECTION_BLOCK_BOTTOM) // top or bottom
+                    {
+                        // back of chest, on possibly long face - keep it a "side" unless changed by neighbor
+                        if (gBoxData[backgroundIndex + gBoxSizeYZ].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(9, 14);
+                        }
+                        else if (gBoxData[backgroundIndex - gBoxSizeYZ].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(10, 14);
+                        }
+                    }
+                    break;
+                case 4: // facing west
+                    if (faceDirection == DIRECTION_BLOCK_SIDE_LO_X) // west
+                    {
+                        swatchLoc = SWATCH_INDEX(11, 1);
+                        if (gBoxData[backgroundIndex - gBoxSize[Y]].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(10, 2);
+                        }
+                        else if (gBoxData[backgroundIndex + gBoxSize[Y]].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(9, 2);
+                        }
+                    }
+                    else if (faceDirection == DIRECTION_BLOCK_SIDE_HI_X) // east
+                    {
+                        // back of chest, on possibly long face
+                        // is neighbor to north a chest, too?
+                        if (gBoxData[backgroundIndex - gBoxSize[Y]].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(9, 3);
+                        }
+                        else if (gBoxData[backgroundIndex + gBoxSize[Y]].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(10, 3);
+                        }
+                    }
+                    else if (faceDirection == DIRECTION_BLOCK_TOP || faceDirection == DIRECTION_BLOCK_BOTTOM) // top or bottom
+                    {
+                        // back of chest, on possibly long face - keep it a "side" unless changed by neighbor
+                        if (gBoxData[backgroundIndex - gBoxSize[Y]].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(9, 14);
+                        }
+                        else if (gBoxData[backgroundIndex + gBoxSize[Y]].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(10, 14);
+                        }
+                        angle = 270;
+                    }
+                    break;
+                case 5: // facing east
+                    if (faceDirection == DIRECTION_BLOCK_SIDE_HI_X)
+                    {
+                        swatchLoc = SWATCH_INDEX(11, 1);
+                        if (gBoxData[backgroundIndex + gBoxSize[Y]].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(10, 2);
+                        }
+                        else if (gBoxData[backgroundIndex - gBoxSize[Y]].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(9, 2);
+                        }
+                    }
+                    else if (faceDirection == DIRECTION_BLOCK_SIDE_LO_X)
+                    {
+                        // back of chest, on possibly long face
+                        // is neighbor to north a chest, too?
+                        if (gBoxData[backgroundIndex + gBoxSize[Y]].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(9, 3);
+                        }
+                        else if (gBoxData[backgroundIndex - gBoxSize[Y]].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(10, 3);
+                        }
+                    }
+                    else if (faceDirection == DIRECTION_BLOCK_TOP || faceDirection == DIRECTION_BLOCK_BOTTOM) // top or bottom
+                    {
+                        // back of chest, on possibly long face - keep it a "side" unless changed by neighbor
+                        if (gBoxData[backgroundIndex + gBoxSize[Y]].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(9, 14);
+                        }
+                        else if (gBoxData[backgroundIndex - gBoxSize[Y]].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(10, 14);
+                        }
+                        angle = 90;
+                    }
+                    break;
+                case 0:
+                    // old bad data, so this code matches it.
+                    // In reality, in 1.8 such chests just disappear! The data's still
+                    // in the world, but you can't see or interact with the chests.
+                    // We leave this code here for older worlds encountered.
+                    if (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z)
+                    {
+                        if (gBoxData[backgroundIndex - gBoxSizeYZ].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(9, 2);
+                        }
+                        else if (gBoxData[backgroundIndex + gBoxSizeYZ].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(10, 2);
+                        }
+                    }
+                    else if (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z)
+                    {
+                        // back of chest, on possibly long face
+                        // is neighbor to north a chest, too?
+                        if (gBoxData[backgroundIndex - gBoxSizeYZ].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(10, 3);
+                        }
+                        else if (gBoxData[backgroundIndex + gBoxSizeYZ].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(9, 3);
+                        }
+                    }
+                    else if (faceDirection == DIRECTION_BLOCK_SIDE_HI_X)
+                    {
+                        if (gBoxData[backgroundIndex + gBoxSize[Y]].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(10, 2);
+                        }
+                        else if (gBoxData[backgroundIndex - gBoxSize[Y]].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(9, 2);
+                        }
+                    }
+                    else if (faceDirection == DIRECTION_BLOCK_SIDE_LO_X)
+                    {
+                        // back of chest, on possibly long face
+                        // is neighbor to north a chest, too?
+                        if (gBoxData[backgroundIndex + gBoxSize[Y]].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(9, 3);
+                        }
+                        else if (gBoxData[backgroundIndex - gBoxSize[Y]].origType == type)
+                        {
+                            swatchLoc = SWATCH_INDEX(10, 3);
+                        }
+                    }
+                    break;
+                default:
+                    assert(0);
+                    break;
                 }
-                else if (faceDirection == DIRECTION_BLOCK_SIDE_LO_X)
-                {
-                    // back of chest, on possibly long face
-                    // is neighbor to north a chest, too?
-                    if (gBoxData[backgroundIndex + gBoxSize[Y]].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(9, 3);
-                    }
-                    else if (gBoxData[backgroundIndex - gBoxSize[Y]].origType == type)
-                    {
-                        swatchLoc = SWATCH_INDEX(10, 3);
-                    }
-                }
-                break;
-            default:
-                assert(0);
-                break;
+                if (angle != 0 && uvIndices)
+                    rotateIndices(localIndices, angle);
             }
-            if (angle != 0 && uvIndices)
-                rotateIndices(localIndices, angle);
             //if (flip && uvIndices)
             //	flipIndicesLeftRight(localIndices);
             break;
@@ -27386,16 +27575,16 @@ static int createBaseMaterialTexture()
                 stretchSwatchToFill(mainprog, swatchLoc, 1, 1, 14, 14);
                 stretchSwatchToFill(mainprog, swatchLoc + 1, 1, 2, 14, 15);
                 stretchSwatchToFill(mainprog, swatchLoc + 2, 1, 2, 14, 15);
-                stretchSwatchToFill(mainprog, swatchLoc + 3, 1, 2, 14, 15); // back single
-                stretchSwatchToFill(mainprog, swatchLoc + 4, 1, 1, 14, 14); // bottom single
-                stretchSwatchToFill(mainprog, swatchLoc + 5, 1, 2, 15, 15);
-                stretchSwatchToFill(mainprog, swatchLoc + 9, 0, 2, 14, 15);
-                stretchSwatchToFill(mainprog, swatchLoc + 6, 1, 2, 15, 15);
-                stretchSwatchToFill(mainprog, swatchLoc + 10, 0, 2, 14, 15);
-                stretchSwatchToFill(mainprog, swatchLoc + 7, 1, 1, 15, 14);
-                stretchSwatchToFill(mainprog, swatchLoc + 11, 0, 1, 14, 14);
-                stretchSwatchToFill(mainprog, swatchLoc + 8, 1, 1, 15, 14);
-                stretchSwatchToFill(mainprog, swatchLoc + 12, 0, 1, 14, 14);
+                stretchSwatchToFill(mainprog, swatchLoc + 3, 1, 2, 14, 15);     // back single
+                stretchSwatchToFill(mainprog, swatchLoc + 4, 1, 1, 14, 14);     // bottom single
+                stretchSwatchToFill(mainprog, swatchLoc + 5, 0, 2, 14, 15);
+                stretchSwatchToFill(mainprog, swatchLoc + 9, 1, 2, 15, 15);
+                stretchSwatchToFill(mainprog, swatchLoc + 6, 0, 2, 14, 15);
+                stretchSwatchToFill(mainprog, swatchLoc + 10, 1, 2, 15, 15);
+                stretchSwatchToFill(mainprog, swatchLoc + 7, 0, 1, 14, 14);
+                stretchSwatchToFill(mainprog, swatchLoc + 11, 1, 1, 15, 14);
+                stretchSwatchToFill(mainprog, swatchLoc + 8, 0, 1, 14, 14);     // bottom left double
+                stretchSwatchToFill(mainprog, swatchLoc + 12, 1, 1, 15, 14);    // bottom left single
             }
 
             // cactus top and bottom
