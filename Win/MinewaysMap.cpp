@@ -2764,7 +2764,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         }
         break;
     case BLOCK_ACACIA_SHELF:
-        switch ((dataVal & 0x28) >> 3)
+        switch ((dataVal & 0x38) >> 3)
         {
         default:
             assert(0);
@@ -2788,7 +2788,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         }
         break;
     case BLOCK_PALE_OAK_SHELF:
-        switch ((dataVal & 0x28)>>3)
+        switch ((dataVal & 0x38)>>3)
         {
         default:
             assert(0);

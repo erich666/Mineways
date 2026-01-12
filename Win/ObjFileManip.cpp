@@ -3847,6 +3847,8 @@ static int computeFlatFlags(int boxIndex)
     case BLOCK_GREEN_WALL_BANNER:
     case BLOCK_RED_WALL_BANNER:
     case BLOCK_BLACK_WALL_BANNER:
+    case BLOCK_ACACIA_SHELF:
+    case BLOCK_PALE_OAK_SHELF:
         switch (gBoxData[boxIndex].data & 0x7)
         {
         case 2: // north, -Z
@@ -6925,6 +6927,67 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         transformVertices(8, mtx);
         break; // saveBillboardOrGeometry
 
+    case BLOCK_ACACIA_SHELF:
+    case BLOCK_PALE_OAK_SHELF:
+    {
+        int powered = (dataVal & 0x4) ? 1 : 0;
+        if (type == BLOCK_ACACIA_SHELF) {
+            swatchLoc = SWATCH_INDEX(15, 75) + 3 * ((dataVal >> 3) & 0x7);
+        }
+        else {
+            // pale oak shelf
+            swatchLoc = SWATCH_INDEX(7, 77) + 3 * ((dataVal >> 3) & 0x7);
+        }
+        swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc + 1; // top
+        swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc + 1;
+        swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc + 1; // sides
+        swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 1;  	// back (it's the "right" back)
+        swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc + (powered ? 2 : 0);    // front
+
+        // rotate based on direction
+        switch (dataVal & 0x3)
+        {
+        default:
+            assert(0);  // yes, fall-through
+        case 1: // north
+            angle = 0.0f;
+            break;
+        case 3: // south
+            angle = 180.0f;
+            break;
+        case 0: // west
+            angle = 270.0f;
+            break;
+        case 2: // east
+            angle = 90.0f;
+            break;
+        }
+        totalVertexCount = gModel.vertexCount;
+        gUsingTransform = 1;
+        // Main slab
+        // if powered, need to shift face up by 4.
+        saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | (powered ? DIR_HI_Z_BIT : 0), 0x0, 0, 0.0f, 16.0f, 0.0f, 16.0f, 0.0f, 3.0f);
+        saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLocSet[DIRECTION_BLOCK_TOP], DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0.0f, 16.0f, 0.0f, 16.0f, 7.0f, 10.0f);
+        if (powered) {
+            littleTotalVertexCount = gModel.vertexCount;
+            saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 0, 0.0f, 16.0f, 8.0f, 16.0f, 0.0f, 3.0f);
+            littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
+            // shift powered up 4 units
+            identityMtx(mtx);
+            translateMtx(mtx, 0.0f, -4.0f / 16.0f, 0.0f);
+            transformVertices(littleTotalVertexCount, mtx);
+        }
+        totalVertexCount = gModel.vertexCount - totalVertexCount;
+        identityMtx(mtx);
+        translateToOriginMtx(mtx, boxIndex);
+        rotateMtx(mtx, 0.0f, angle, 0.0f);
+        // undo translation
+        translateFromOriginMtx(mtx, boxIndex);
+        transformVertices(totalVertexCount, mtx);
+        gUsingTransform = 0;
+        break; // saveBillboardOrGeometry
+    }
+
     case BLOCK_WALL_BANNER:						// saveBillboardOrGeometry
     case BLOCK_ORANGE_WALL_BANNER:
     case BLOCK_MAGENTA_WALL_BANNER:
@@ -8621,7 +8684,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             break;
         }
         // latch only if single or right
-        // the right side face has to be flipped to mirror the left; important for copper chests
+        // the right side face has to be flipped to mirror the left; important for copper chests.
+        // First fact only if right side is output, as else the latch above is first.
         saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, (chestType == 1), faceMask, FLIP_HI_X_FACE_VERTICALLY, 0, (chestType != 2) ? 1.0f : 0.0f, (chestType != 1) ? 15.0f : 16.0f, 0, 14, 1, 15);
         totalVertexCount = gModel.vertexCount - totalVertexCount;
         gUsingTransform = 0;
@@ -35482,6 +35546,9 @@ static bool faceCanTile(int faceId)
     case BLOCK_HEAVY_CORE:
     case BLOCK_PINK_PETALS:
     case BLOCK_DRIED_GHAST:
+    // these two do cover one face, but rotated into place so good luck.
+    case BLOCK_ACACIA_SHELF:
+    case BLOCK_PALE_OAK_SHELF:
 
     // Ruled out because complex and used flipIndicesLeftRight
     case BLOCK_BED:
