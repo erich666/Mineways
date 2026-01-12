@@ -24993,7 +24993,6 @@ bool IsASubblock(int type, int dataVal)
         break;
 
         // All of these have colors or types or other characteristics, for all versions, beyond the generic name such as "Wool".
-        // TODO - really, all these could be deleted and then have their names fixed in blockInfo.cpp, I think, but leave it be.
     case BLOCK_WOOL:
     case BLOCK_STAINED_GLASS:
     case BLOCK_STAINED_GLASS_PANE:
@@ -27371,15 +27370,33 @@ static int createBaseMaterialTexture()
             );
 
             // chest
-            stretchSwatchToFill(mainprog, SWATCH_INDEX(9, 1), 1, 1, 14, 14);
-            stretchSwatchToFill(mainprog, SWATCH_INDEX(10, 1), 1, 2, 14, 15);
-            stretchSwatchToFill(mainprog, SWATCH_INDEX(11, 1), 1, 2, 14, 15);
-            stretchSwatchToFill(mainprog, SWATCH_INDEX(9, 2), 1, 2, 15, 15);
-            stretchSwatchToFill(mainprog, SWATCH_INDEX(10, 2), 0, 2, 14, 15);
-            stretchSwatchToFill(mainprog, SWATCH_INDEX(9, 3), 1, 2, 15, 15);
-            stretchSwatchToFill(mainprog, SWATCH_INDEX(10, 3), 0, 2, 14, 15);
-            stretchSwatchToFill(mainprog, SWATCH_INDEX(9, 14), 1, 1, 15, 14);
-            stretchSwatchToFill(mainprog, SWATCH_INDEX(10, 14), 0, 1, 14, 14);
+            stretchSwatchToFill(mainprog, SWATCH_INDEX(9, 1), 1, 1, 14, 14);    // top single
+            stretchSwatchToFill(mainprog, SWATCH_INDEX(10, 1), 1, 2, 14, 15);   // side (also used for back)
+            stretchSwatchToFill(mainprog, SWATCH_INDEX(11, 1), 1, 2, 14, 15);   // front single
+            stretchSwatchToFill(mainprog, SWATCH_INDEX(9, 2), 1, 2, 15, 15);    // front left double
+            stretchSwatchToFill(mainprog, SWATCH_INDEX(10, 2), 0, 2, 14, 15);   // front right double
+            stretchSwatchToFill(mainprog, SWATCH_INDEX(9, 3), 1, 2, 15, 15);    // back left double
+            stretchSwatchToFill(mainprog, SWATCH_INDEX(10, 3), 0, 2, 14, 15);   // back right double
+            stretchSwatchToFill(mainprog, SWATCH_INDEX(9, 14), 1, 1, 15, 14);   // top left double
+            stretchSwatchToFill(mainprog, SWATCH_INDEX(10, 14), 0, 1, 14, 14);  // top right double
+
+            // stretch all the copper chest types
+            for (i = 0; i < 8; i++) {
+                swatchLoc = SWATCH_INDEX(8, 72) + 14*i; // top
+                stretchSwatchToFill(mainprog, swatchLoc, 1, 1, 14, 14);
+                stretchSwatchToFill(mainprog, swatchLoc + 1, 1, 2, 14, 15);
+                stretchSwatchToFill(mainprog, swatchLoc + 2, 1, 2, 14, 15);
+                stretchSwatchToFill(mainprog, swatchLoc + 3, 1, 2, 14, 15); // back single
+                stretchSwatchToFill(mainprog, swatchLoc + 4, 1, 1, 14, 14); // bottom single
+                stretchSwatchToFill(mainprog, swatchLoc + 5, 1, 2, 15, 15);
+                stretchSwatchToFill(mainprog, swatchLoc + 9, 0, 2, 14, 15);
+                stretchSwatchToFill(mainprog, swatchLoc + 6, 1, 2, 15, 15);
+                stretchSwatchToFill(mainprog, swatchLoc + 10, 0, 2, 14, 15);
+                stretchSwatchToFill(mainprog, swatchLoc + 7, 1, 1, 15, 14);
+                stretchSwatchToFill(mainprog, swatchLoc + 11, 0, 1, 14, 14);
+                stretchSwatchToFill(mainprog, swatchLoc + 8, 1, 1, 15, 14);
+                stretchSwatchToFill(mainprog, swatchLoc + 12, 0, 1, 14, 14);
+            }
 
             // cactus top and bottom
             stretchSwatchToFill(mainprog, SWATCH_INDEX(5, 4), 1, 1, 14, 14);

@@ -1145,7 +1145,7 @@ Another alternative is, when exporting from Mineways, make the model smaller. In
 <P>
 To get back to rendering, the render will look pretty much like what you already see on the screen. To use a higher-quality, but slower, renderer, do this: Along the top of the program click on the gray "Rendering" (<i>not</i> white "Render") menu item, towards the middle. In the upper right, under "Scene," you'll see "Render Engine". Pick "Cycles" instead of "Eevee." Now on the top edge click on "Layout", which is what was selected originally. Things will look nicer, but interaction will be laggy. If you want faster interaction, in the upper right corner of the viewport select the second-from-the-right sphere icon, the material preview mode. What F12 does is uses the renderer you select. If you chose Cycles, it will progressively improve the result, by default running 4096 passes to give a nice final image. You can see the Sample counter along the upper edge of the image for progress. Save your image using the Image menu along the top. Close this window when you're done.
 <P>
-<a id="blender_blocky"><B>9) Material Conversion:</B></a> This step will improve OBJ files, and can make USD textures look "chunky". Low resolution textures are fuzzy, not blocky like in Minecraft. Transparent objects such as water and glass may not look quite right. Cutout objects have poor blending modes assigned, and anything with transparency will not cast shadows properly. The fastest way (by far) to fix these problems in OBJ files is to use the Prep Materials button in <a href="https://theduckcow.com/dev/blender/mcprep/">the free MCprep addon</a>. <a href="https://youtu.be/XndRsS6KWkw">Here's my short video</a> on how to install and use it. They also have a <a href="https://discord.gg/mb8hBUC">MCprep Blender Discord server</a> with people that are quick to respond to Minecraft + Blender questions.
+<a id="blender_blocky"><B>9) Material Conversion:</B></a> This step will improve OBJ files, and can make USD textures look "chunky". Low resolution textures are fuzzy, not blocky like in Minecraft. Transparent objects such as water and glass may not look quite right. Cutout objects have poor blending modes assigned, and anything with transparency will not cast shadows properly. The fastest way (by far) to fix these problems in OBJ files is to use the Prep Materials button in <a href="https://theduckcow.com/dev/blender/mcprep/">the free MCprep addon</a>. <a href="https://youtu.be/XndRsS6KWkw">Here's my short video</a> on how to install and use it. With newer versions of Blender the "Install from Disk..." option is found under the "down arrow" in the upper right of the Add-ons Preferences dialog. The MCprep people also have a <a href="https://discord.gg/mb8hBUC">MCprep Blender Discord server</a> with people that are quick to respond to Minecraft + Blender questions.
 <P>
 As I say, USD imports can be made to look chunky. Unfortunately, the MCprep add-on also seems to remove normal maps. So, read on.
 <P>
@@ -1894,7 +1894,7 @@ Chests (#54, #95, #146)
 <center>Proper geometry</center>
 </td>
 <td>
-The chest textures in terrainExt.png are created by TileMaker using assets/minecraft/textures/entity/chest normal.png and normal_double.png.
+For normal and trapped chests, the chest textures in terrainExt.png are created by TileMaker using assets/minecraft/textures/entity/chest normal.png, normal_left.png, and normal_right.png. Trapped chests use the same textures as normal chests, mostly to save a bit of texture memory. Ender chests use ender.png.
 </td>
 </tr>
 
@@ -2915,17 +2915,18 @@ The textures and rules used in Minecraft for how blocks appear and connect have 
 From newest to oldest. The very newest is sometimes unreleased work in progress, with "*" meaning "to do" and "**" meaning "stretch goal."
 
 <UL>
-<LI>Version 12.10, 1/9/2026 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1210.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 12.10, 1/12/2026 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1210.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
     <UL>
-	<LI>Partial update to 1.21.9, just to get most of the new blocks in. Shelves, copper chests, and copper golems will get added eventually, but they're a bit more complicated. Let's get the easy ones done first: copper bars, chain, lantern, torch, lightning rod.
+	<LI>Mostly update to 1.21.9. Copper golems will get added eventually (maybe...), but they're a bit more complicated. All the rest are in: copper bars, chain, lantern, torch, lightning rod, copper chests, and shelves.
 	<LI>Fix long-standing 3D print bug: wheat and nether wart blocks now properly choose the right textures. <I>(Thanks to Alek Broman for the bug report.)</I>
 	<LI>Better information for mesh repair if detailed blocks are turned on for 3D printing.
 	<LI>Add "iron_chain" as another name for "chain", a change in 1.21.9.
 	<LI>Avoid crash on "impossible" data, such as <a href="https://github.com/erich666/Mineways/issues/150">redstone wires hanging in space</a>. <I>(Thanks to Fhxa3 for the bug report.)</I>
 	<LI>Comment out first line in OBJ material file, "Wavefront OBJ material file".
-	<LI>Change UDS mesh normal interpolation from "faceVarying" to "uniform", on the advice of 
-	<LI>Don't give a warning in ChannelMixer about decorated_pot_base.png not being used - it is used.
+	<LI>Change UDS mesh normal interpolation from "faceVarying" to "uniform", on the advice of Jesse Y.
+	<LI>Other little cleanup fixes.
+	<LI>Avoid warning in ChannelMixer about texture decorated_pot_base.png not being used - it is used.
 	<LI>ChannelMixer is now release 1.20, TileMaker is 3.27.
 	</UL>
 
@@ -4356,7 +4357,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 1/9/2026</p>
+		<br id="lastUpdate">Last updated 1/12/2026</p>
 	</div>
 </div>
 
