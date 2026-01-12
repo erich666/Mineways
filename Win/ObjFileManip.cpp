@@ -27571,6 +27571,8 @@ static int createBaseMaterialTexture()
 
             // stretch all the copper chest types
             for (i = 0; i < 8; i++) {
+                // note: there's some left/right flipping here for the doubles, reversed from the above. Naming seems inconsistent.
+                // Ignoring this; verified visually.
                 swatchLoc = SWATCH_INDEX(8, 72) + 14*i; // top
                 stretchSwatchToFill(mainprog, swatchLoc, 1, 1, 14, 14);
                 stretchSwatchToFill(mainprog, swatchLoc + 1, 1, 2, 14, 15);
