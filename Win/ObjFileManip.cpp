@@ -27138,22 +27138,53 @@ static int createBaseMaterialTexture()
                 // copy left edge from left side of tile
                 copyPNGArea(mainprog,
                     gModel.swatchSize * col,    // copy to rightmost column
-                    gModel.swatchSize * row,  // full column
-                    SWATCH_BORDER, gModel.swatchSize,  // 1 wide
+                    gModel.swatchSize * row,
+                    SWATCH_BORDER, gModel.swatchSize,  // 1 wide, full column
                     mainprog,
                     gModel.swatchSize * col - 2 * SWATCH_BORDER,
                     gModel.swatchSize * row
                 );
                 copyPNGArea(mainprog,
-                    gModel.swatchSize * col - SWATCH_BORDER,    // copy to rightmost column
-                    gModel.swatchSize * row,  // full column
-                    SWATCH_BORDER, gModel.swatchSize,  // 1 wide
+                    gModel.swatchSize * col - SWATCH_BORDER,    // copy to leftmost column
+                    gModel.swatchSize * row,
+                    SWATCH_BORDER, gModel.swatchSize,  // 1 wide, full column
                     mainprog,
                     gModel.swatchSize * col + SWATCH_BORDER,
                     gModel.swatchSize * row
                 );
             }
-        }
+            // copper chest corrective for doubled-chest connections
+            // go through all 4 chests
+            for (i = 0; i < 4; i++)
+            {
+                // go through all 4 doubled sides: top, bottom, front, back
+                for (j = 0; j < 4; j++) {
+                    int rightcol, rightrow, leftcol, leftrow;
+                    int swatchLoc = SWATCH_INDEX(13, 72) + i * 14 + j;
+                    SWATCH_TO_COL_ROW(swatchLoc, rightcol, rightrow);
+                    swatchLoc += 4;
+                    SWATCH_TO_COL_ROW(swatchLoc, leftcol, leftrow);
+                    // copy right edge of left tile to left edge of right tile
+                    copyPNGArea(mainprog,
+                        gModel.swatchSize * rightcol,    // copy to leftmost border column
+                        gModel.swatchSize * rightrow,  // full column
+                        SWATCH_BORDER, gModel.swatchSize,  // 1 wide
+                        mainprog,
+                        gModel.swatchSize * (leftcol + 1) - 2 * SWATCH_BORDER,    // right existing edge of left tile
+                        gModel.swatchSize * leftrow
+                    );
+                    // copy left edge of right tile to right edge of left tile
+                    copyPNGArea(mainprog,
+                        gModel.swatchSize * (leftcol + 1) - SWATCH_BORDER,    // copy to rightmost border column
+                        gModel.swatchSize * leftrow,
+                        SWATCH_BORDER, gModel.swatchSize,  // 1 wide, full column
+                        mainprog,
+                        gModel.swatchSize * rightcol + SWATCH_BORDER,   // left existing edge of right tile
+                        gModel.swatchSize * rightrow
+                    );
+                }
+            }
+       }
 
         // The tile for water in 1.13 is gray now, so for all worlds we need to make it blue
         idx = SWATCH_INDEX(15, 13);
