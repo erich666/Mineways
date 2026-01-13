@@ -79,12 +79,11 @@ You can apply <a href="https://minecraft.wiki/w/Resource_Pack">resource packs</a
 
 <H2>Pre-Built Terrain Files</H2>
 
-The larger <a href="https://www.realtimerendering.com/erich/minecraft/public/mineways">Mineways download</a> comes with the following five terrain files, plus one physically based terrain file set. The physically based material renderings were done with the free <a href="mineways.html#ovcreate">Omniverse USD Composer</a> program.
+You can separately download <a href="https://erich.realtimerendering.com/minecraft/public/mineways/mineways_texture_packs.zip">four terrain files</a> for use with Mineways, with the kind permission of their creators. Unzip and put the files into the same directory as your mineways.exe program. These should then show up in Mineways using "File | Choose Terrain File".
 
-<div class="inliner">
-  <p>Here are some of the terrain file sets downloadable (with permission from their creators) for use with Mineways, displayed with 
-  <a href="#g3d">G3D</a>. Note that some tiles in these resource packs may be missing or distorted in the terrainExt*.png files that come with Mineways, due to differing naming conventions and texture layouts.</p>
-  <p>Click on an image for the larger version.</p>
+<h3><a href="https://dokucraft.co.uk/">Dokucraft</a></h3>
+  Note that some tiles in these resource packs may be missing or distorted in the terrainExt*.png files that come with Mineways, due to differing naming conventions and texture layouts.</p>
+  <p>Click on an image for the larger version, rendered with <a href="mineways.html#g3d">G3D</a>.</p>
 </div>
 <div id="texturePacks">
   <div class="textureBox">
@@ -105,23 +104,23 @@ The larger <a href="https://www.realtimerendering.com/erich/minecraft/public/min
     <a href="https://dokucraft.co.uk/">DokuCraft Light</a><span>by Hickerydickery</span>
 	<b><a href="https://skfb.ly/QsEH">View on Sketchfab</a></b>
   </div>
-</div>
+
 <P>
 Two physically based material terrain file sets are also included: JG-RTX and LunaHD.
 
 <h3><a href="https://github.com/jasonjgardner/jg-rtx/releases">JG RTX</a></h3>
-Provided at two resolutions. Released under Creative Commons. The version with Mineways is the core resource pack. I have a few shots using it <a href="https://photos.app.goo.gl/gSzLeFGAN5rrfjER7">here</a>.
+Provided at two resolutions. Released under Creative Commons. The Mineways downloadable version is the core resource pack. I have a few shots using it <a href="https://photos.app.goo.gl/gSzLeFGAN5rrfjER7">here</a>.
 <P>
-Here's an example of the core pack, rendered using the free <a href="mineways.html#ovcreate">Omniverse USD Composer</a> program:
+Here's an example of the core pack, rendered with a path tracer (Omniverse's, if you must know):
 <P>
 <div>
    <a id="jgrtx"><img src="images/jgrtx_pbr.jpg" alt="JG RTX"></a>
 </div>
 
 <h3><a href="https://lunahd.com">LunaHD</a></h3>
-The LunaHD developer provides this free low-res 32x32 version his work. With his permission, we made this terrain file set. When used with USDA export, I recommend turning off the "Custom Material" setting (having this setting on gives the default blocky Minecraft look). See the <a href="https://lunahd.com">LunaHD</a> site for details on getting higher resolution versions of these textures, which can then be used within Mineways by substituting them into the USDA output textures directory, or by making your own terrainExt set of files.
+The LunaHD developer provides this free low-res 32x32 version his work. With his permission, we made this terrain file set. See the <a href="https://lunahd.com">LunaHD</a> site for details on getting higher resolution versions of these textures, which can then be used within Mineways by substituting them into the USDA output textures directory, or by making your own terrainExt set of files.
 <P>
-Some of <a href="https://lunahd.com">LunaHD</a> shown alongside some unmodified classic Minecraft textures:
+Here are some of <a href="https://lunahd.com">LunaHD</a> shown alongside some unmodified classic Minecraft textures:
 <P>
 <div>
    <a id="lunahd"><img src="images/lunahd_pbr.jpg" alt="LunaHD"></a>
@@ -129,7 +128,7 @@ Some of <a href="https://lunahd.com">LunaHD</a> shown alongside some unmodified 
 
 <h2 id="dl">Additional Terrain File Downloads</h2>
 
-So as to not bloat the Mineways distribution too much, we've put more pre-made terrain files on our site for download. These currently include special purpose default terrain files, and potentially other <a href="https://minecraft.wiki/w/Resource_Pack">resource packs</a> converted to Mineways terrain files. Download, unzip if needed, and put the files into the same directory as your mineways.exe program.
+There are more pre-made terrain files on our site for download. Download and put the files into the same directory as your mineways.exe program. These should then show up in Mineways by using "File | Choose Terrain File".
 
 <P>
 <b>Specialized files (you will need to right click and select "Save link as..."):</b> The <b><a href="https://erich.realtimerendering.com/minecraft/public/mineways/downloads/terrainExt1024.png">terrainExt1024.png</a></b> and <b><a href="https://erich.realtimerendering.com/minecraft/public/mineways/downloads/terrainExt8192.png">terrainExt8192.png</a></b> files can be used to make the default Minecraft textures look sharp and pixel-like, in renderer that do not support "nearest neighbor" filtering. See <a href="mineways.html#blurry">here</a> for more information. If you don't know what I'm talking about, you likely don't need these.
@@ -143,7 +142,7 @@ Don't like reading? <B><a href="https://youtu.be/RpN1grOLocg">Here's a video</a>
 Mineways relies on a single, giant texture (the "terrain file") that contains all the block face textures ("tiles"). This single "terrain file" image has roots in the early design of Minecraft itself, which used to use the same exact single texture. Minecraft now uses a separate texture tile for each block face; Mineways has kept with the single, giant texture of doom for input, but can output separate textures by using the "Export individual textures" option.
 
 <P>
-This terrain file that Mineways reads has some advantages, such as being a single PNG image vs. a giant set of individual texture images. By looking at one image, and knowing where to look, you can see all the textures Mineways will use. (Where to look? <a href="https://github.com/erich666/Mineways/blob/master/Win/tiles.h#L87">Here</a>. All the tiles are listed by their column and row positions, e.g., gravel is at column 3, row 1 of the terrain image, starting counting from the upper left as 0,0.)
+This terrain file that Mineways reads has some advantages, such as being a single PNG image vs. a giant set of individual texture images. By looking at one image, and knowing where to look, you can see all the textures Mineways will use. (Where to look? <a href="https://github.com/erich666/Mineways/blob/master/Win/tiles.h#L91">Here</a>. All the tiles are listed by their column and row positions, e.g., gravel is at column 3, row 1 of the terrain image, starting counting from the upper left as 0,0.)
 
 <h2>Making Your Own Terrain Files</h2>
 <P>
@@ -387,7 +386,7 @@ Pro tip: if you want to see what blocks have what roughness, normals, or other t
 <P>
 
 <P>
-And, one last trick: I picked and chose a little with the JG RTX resource pack, as there were a few variant brick patterns and I didn't like the default (everyone's a critic...). If you use the JG RTX terrain set, but wish a few block faces were different, there are two ways to make that happen. You can always edit the resulting USDA file in Omniverse USD Composer, by hand or by using a Python script (and I have no idea how to do that). If you want to make a more permanent change to a terrain file, you can do so pretty easily. You put the new block textures in some directory, say it's "new_blocks". You then do:
+And, one last trick: I picked and chose a little with the JG RTX resource pack, as there were a few variant brick patterns and I didn't like the default (everyone's a critic...). If you use the JG RTX terrain set, but wish a few block faces were different, there are two ways to make that happen. You can always edit the resulting USDA file in Blender, by hand or by using a Python script (and I have no idea how to do that). If you want to make a more permanent change to a terrain file, you can do so pretty easily. You put the new block textures in some directory, say it's "new_blocks". You then do:
 
 <PRE>
 TileMaker.exe -i terrainExt_JG-RTX.png -d new_blocks -o terrainExt_JG-RTX_improved.png
@@ -503,7 +502,7 @@ on the command line.
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 11/7/2024</p>
+		<br id="lastUpdate">Last updated 1/12/2026</p>
 	</div>
 </div>
 

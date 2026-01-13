@@ -150,8 +150,9 @@ static Chest gChest115[] = {
 	{ L"ender", 6, 64, 64, NULL }
 };
 
-static Chest gChest1219[16] = {
+static Chest gChest1219[17] = {
 	{ L"normal", 6, 64, 64, NULL },
+	{ L"normal_double", 10, 128, 64, NULL },
 	{ L"normal_left", 5, 64, 64, NULL },
 	{ L"normal_right", 5, 64, 64, NULL },
 	{ L"ender", 6, 64, 64, NULL },
@@ -802,8 +803,8 @@ int wmain(int argc, wchar_t* argv[])
 				if (gFG.fr[fullIndexNormals].exists) {
 					// delete Java _n.png or Bedrock _normal.png?
 					if (favor_normal_over_n) {
-						// favor Bedrock _normal
-						deleteFileFromGrid(&gFG, CATEGORY_NORMALS_LONG, fullIndexNormals);
+						// favor Bedrock _normal - delete _n entry, copy _normal entry to _n location, delete _normal entry
+						deleteFileFromGrid(&gFG, CATEGORY_NORMALS, fullIndexN);
 						copyFileRecord(&gFG, CATEGORY_NORMALS, fullIndexN, &gFG.fr[fullIndexNormals]);
 						deleteFileFromGrid(&gFG, CATEGORY_NORMALS_LONG, fullIndexNormals);
 						wprintf(L"DUP WARNING: File '%s' and '%s' specify the same texture, _normal files are set as preferred, so the second file is ignored.\n", gFG.fr[fullIndexNormals].fullFilename, gFG.fr[fullIndexN].fullFilename);
@@ -1248,12 +1249,47 @@ int wmain(int argc, wchar_t* argv[])
 
 				int numChests;
 				Chest* chest;
-				if (gChestGrid.cr[CHEST_COPPER + catIndex * gChestGrid.totalTiles].exists) {
-					numChests = TOTAL_CHEST_TILES - 1;
-					gChest1219[0].data = gNormalChest115;
-					gChest1219[1].data = gNormalLeftChest115;
-					gChest1219[2].data = gNormalRightChest115;
-					gChest1219[3].data = gEnderChest115;
+
+				// Test if left chest exists. If so, we assume 1.15 content or newer is being used.
+				bool doubled;
+				if (gChestGrid.cr[CHEST_NORMAL_LEFT + catIndex * gChestGrid.totalTiles].exists) {
+					numChests = 4;
+					gChest115[0].data = gNormalChest115;
+					gChest115[1].data = gNormalLeftChest115;
+					gChest115[2].data = gNormalRightChest115;
+					gChest115[3].data = gEnderChest115;
+					chest = gChest115;
+					doubled = false;
+				}
+				else {
+					// old, use "double" data
+					numChests = 3;
+					gChest114[0].data = gNormalChest;
+					gChest114[1].data = gNormalDoubleChest;
+					gChest114[2].data = gEnderChest;
+					chest = gChest114;
+					doubled = true;
+				}
+				// any normal copper chest exist?
+				if (gChestGrid.cr[CHEST_COPPER + catIndex * gChestGrid.totalTiles].exists ||
+					gChestGrid.cr[CHEST_COPPER + 3 + catIndex * gChestGrid.totalTiles].exists ||
+					gChestGrid.cr[CHEST_COPPER + 6 + catIndex * gChestGrid.totalTiles].exists ||
+					gChestGrid.cr[CHEST_COPPER + 9 + catIndex * gChestGrid.totalTiles].exists) {
+					int count = 0;
+					if (doubled) {
+						numChests = TOTAL_CHEST_TILES - 2;
+						gChest1219[count++].data = gNormalChest;
+						gChest1219[count++].data = gNormalDoubleChest;
+						count += 2;	// skip left/right
+						gChest1219[count++].data = gEnderChest;
+					} else {
+						numChests = TOTAL_CHEST_TILES - 1;
+						gChest1219[count++].data = gNormalChest115;
+						count++;	// skip double
+						gChest1219[count++].data = gNormalLeftChest115;
+						gChest1219[count++].data = gNormalRightChest115;
+						gChest1219[count++].data = gEnderChest115;
+					}
 					// starting location 7,72 and count up from there
 					int swatchLoc = 72 * 16 + 7;
 					int elem;
@@ -1294,7 +1330,7 @@ int wmain(int argc, wchar_t* argv[])
 						gNormalCopperChests[ic3][elem].txrX = swatchLoc % 16;
 						gNormalCopperChests[ic3][elem].txrY = (int)(swatchLoc / 16);
 						swatchLoc++;
-						gChest1219[4 + ic3].data = gNormalCopperChests[ic3];
+						gChest1219[count + ic3].data = gNormalCopperChests[ic3];
 
 						// LEFT copper chest
 						// 3 tiles: front, back, top (sides come from NORMAL version)
@@ -1315,7 +1351,7 @@ int wmain(int argc, wchar_t* argv[])
 						gNormalCopperChests[ic3][elem].txrX = swatchLoc % 16;
 						gNormalCopperChests[ic3][elem].txrY = (int)(swatchLoc / 16);
 						swatchLoc++;
-						gChest1219[4 + ic3].data = gNormalCopperChests[ic3];
+						gChest1219[count + ic3].data = gNormalCopperChests[ic3];
 
 						// RIGHT copper chest
 						// 3 tiles: front, back, top (sides come from NORMAL version)
@@ -1336,28 +1372,10 @@ int wmain(int argc, wchar_t* argv[])
 						gNormalCopperChests[ic3][elem].txrX = swatchLoc % 16;
 						gNormalCopperChests[ic3][elem].txrY = (int)(swatchLoc / 16);
 						swatchLoc++;
-						gChest1219[4 + ic3].data = gNormalCopperChests[ic3];
+						gChest1219[count + ic3].data = gNormalCopperChests[ic3];
 					}
 					chest = gChest1219;
 				}
-				// Test if left chest exists. If so, we assume 1.15 content or newer is being used.
-				else if (gChestGrid.cr[CHEST_NORMAL_LEFT + catIndex * gChestGrid.totalTiles].exists) {
-					numChests = 4;
-					gChest115[0].data = gNormalChest115;
-					gChest115[1].data = gNormalLeftChest115;
-					gChest115[2].data = gNormalRightChest115;
-					gChest115[3].data = gEnderChest115;
-					chest = gChest115;
-				}
-				else {
-					// old, use "double" data
-					numChests = 3;
-					gChest114[0].data = gNormalChest;
-					gChest114[1].data = gNormalDoubleChest;
-					gChest114[2].data = gEnderChest;
-					chest = gChest114;
-				}
-
 				transferChestData(catIndex, numChests, allChests, anyChests, chest, gChestGrid, gChestNames, destination_ptr, filesProcessed, channels, normalsZoom, verbose, rc);
 			}
 
@@ -1589,6 +1607,13 @@ int wmain(int argc, wchar_t* argv[])
 					wprintf(L"WARNING: TileMaker needs a tile named '%s.png' that was not replaced.\n", gTilesTable[i].filename);
 					gWarningCount++;
 				}
+				if (wcslen(gTilesTable[i].filename) > 0 &&
+					wcsncmp(gTilesTable[i].filename, L"MW", 2) == 0 &&
+					wcsstr(gTilesTable[i].filename, L"chest") != 0
+					) {
+					wprintf(L"WARNING: TileMaker needs a chest subdirectory tile named '%s.png' that was not replaced.\n", gTilesTable[i].filename);
+					gWarningCount++;
+				}
 			}
 		}
 	}
@@ -1719,6 +1744,9 @@ void transferChestData( int catIndex, int numChests, bool &allChests, bool &anyC
 
 			// clean up
 			readImage_cleanup(1, &chestImage);
+		}
+		else {
+			// else we need to copy from the terrainBase.png
 		}
 	}
 }

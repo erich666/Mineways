@@ -133,7 +133,6 @@ Read on if you want to understand how to make your models less expensive, use di
  <LI><a href="#rendering">Rendering Tips</a> - help for importing to different renderers.
 <UL>
  <LI><a href="#blender">Blender</a>
- <LI><a href="#ovcreate">Omniverse USD Composer</a>
  <LI><a href="#c4d">Cinema 4D</a>
  <LI><a href="#houdini">Houdini</a> 
  <LI><a href="#3dsmax">3DS MAX</a>
@@ -750,20 +749,18 @@ What follows are how various options apply to USD export. Also, Mineways' "View 
 <B>Export individual blocks:</B> With USD export, two additional USD files are produced, "*_BlockLibrary.usda" and "*_MaterialLibrary.usda". USD structures its data in different forms. These additional files contain the individual blocks and materials, in case these are of use as-is.
 
 <P>
-<B>Export MDL:</B> Applies only to USD export. <a href="https://www.nvidia.com/en-us/design-visualization/technologies/material-definition-language/">MDL material descriptions</a> are exported. These generally give higher-quality looks to glass objects, for example. <a href="https://www.nvidia.com/en-us/omniverse/apps/create/">Omniverse USD Composer</a> is the main user of MDL at this point, with other applications coming up to speed. Turning this off will export only <a href="https://openusd.org/release/spec_usdpreviewsurface.html">UsdPreviewSurface material descriptions</a>. Note that UsdPreviewSurface descriptions are always exported.
+<B>Export MDL:</B> Applies only to USD export. If turned on, <a href="https://www.nvidia.com/en-us/design-visualization/technologies/material-definition-language/">MDL material descriptions</a> are exported. These generally give higher-quality looks to glass objects, for example. <a href="https://www.nvidia.com/en-us/omniverse/apps/create/">Omniverse libraries</a> and some commercial packages use MDL. With this off (the default) Mineways will export only <a href="https://openusd.org/release/spec_usdpreviewsurface.html">UsdPreviewSurface material descriptions</a>, which are always exported.
 
 <P>
-<B>Custom material:</B> This option is ignored if Export MDL is off. For USDA export, the Custom material setting mainly has the effects of making the texture's texels appear blocky, in Minecraft fashion, and present stripped down materials in <a href="#ovcreate">Omniverse USD Composer</a>. I uncheck this box for higher-resolution resource packs (basically 64x64 or larger tiles) so that the textures interpolate more smoothly. This option is also discussed in <a href="https://youtu.be/lpFpj84eFgw">this video</a>.
+<B>Custom material:</B> This option is ignored if Export MDL is off. For USDA export, the Custom material setting mainly has the effects of making the texture's texels appear blocky, in Minecraft fashion, and present stripped down materials in <a href="https://www.nvidia.com/en-us/omniverse/apps/create/">Omniverse libraries</a>. I uncheck this box for higher-resolution resource packs (basically 64x64 or larger tiles) so that the textures interpolate more smoothly. This option is also discussed in <a href="https://youtu.be/lpFpj84eFgw">this video</a>.
 
 <P>
-<B><a name="opt_lighting">Light scale:</a></B> Used only by USD. This has a value of 30 by default. You can change the intensity of the lights exported to USD - the sun and dome light - by changing this value. The sun is normally at 30, the surrounding dome light is 6. Nighttime lighting of 2 and 2 respectively, is used if you toggle on the View | Lighting option before export. If you set the light scale to 0, the two lights will not be exported to the USD file <I>and</I> the default camera will also not be exported.
+<B><a name="opt_lighting">Light scale:</a></B> Used only by USD. This has a value of 15 by default. You can change the intensity of the lights exported to USD - the sun and dome light - by changing this value. A setting of 30 sets the sun strength to 3120 and the surrounding dome light to 1, which works well with Blender. Nighttime lighting (set in Mineways by selecting View | Lighting) gives a moon of strength 208 and dome of 0.5 respectively. If you set the light scale to 0, the two lights will not be exported to the USD file <I>and</I> the default camera will also not be exported.
 <P>
-As of August 2023 lighting in the USD specification is not well defined, meaning programs will be (sometimes radically) different in their interpretation of intensity values. Currently "30" means a value of 1560 for the sun and 312 for the dome light. These work well with Omniverse's USD Composer and the upcoming Blender 4.0.0 release. For the UsdView viewer, I have found that 40,000 and 0.5 are better values, respectively. Since light scale is one control for two intensities, you will likely need to hand-edit the resulting USDA file to such values. Alternately, set the scale to 0 and no lights are output.
+As of January 2026 lighting in the USD specification is still not well defined, meaning programs will be (sometimes radically) different in their interpretation of intensity values. Currently "15" means a value of 3120 for the sun and 1 for the dome light. For the UsdView viewer, I have found that 40,000 and 0.5, respectively, are better values.
 
 <P>
-<B>Surface emit scale:</B> Used only by USD. This has a value of 1000 by default. It's more or less a <a href="https://en.wikipedia.org/wiki/Candela_per_square_metre">nit</a> value for emitting surfaces. Omniverse USD Composer looks good with the default, though realistically the emitters are then quite bright (but look good for interior scenes or when the sun is turned off). Adjusting the camera exposure is another way to deal with this situation.
-<P>
-The default of 1000 converts to an internal value of 20.0 for inputs:scale. For UsdView this can give a washed out look; a value of 50 may be more appropriate.
+<B>Surface emit scale:</B> In my perfect world this would be "nits", but it is currently not defined. 20 looks fairly good in Blender, though higher will shed more light for night scenes. In Blender this displays as a Material Emission Multiplier. 
 
 
 <a id="opt_globals">
@@ -1057,7 +1054,6 @@ Rendering Tips
   This section covers the basics on importing Mineways files into various renderers:
   <a href="#blender">Blender</a>,
   <a href="#c4d">Cinema 4D</a>,
-  <a href="#ovcreate">Omniverse USD Composer</a>,
   <a href="#3dsmax">3DS MAX</a>,
   <a href="#maya">Maya</a>,
   and <a href="#houdini">Houdini</a>.
@@ -1205,85 +1201,6 @@ There are plenty of other material properties you can modify, these are just a s
 <b>12) Upload</b> pictures of your creation to <a href="https://discord.gg/wfayQA6Dyc">the Mineways Discord</a> #showcase channel or <a href="https://www.reddit.com/r/mineways/">the reddit group</a>. (Optional, but I hope you do - I like seeing what people make.) You can also look in the <a href="https://www.realtimerendering.com/erich/minecraft/public/mineways/community.html">website gallery</a> or old <a href="https://www.flickr.com/groups/mineways/pool/">Mineways Flickr group</a> for some past screenshots.
 <P>
 I'll again note that you should probably be using <a href="https://theduckcow.com/dev/blender/mcprep/">MCprep</a> to convert your OBJ materials. <a href="https://youtu.be/XndRsS6KWkw">Here's my short video</a> on how to install and use it. They also have a <a href="https://discord.gg/mb8hBUC">MCprep Blender Discord server</a> for asking questions.
-
-<HR>
-<H4 id="ovcreate">Omniverse USD Composer</H4><p>
-<a href="https://www.nvidia.com/en-us/omniverse/apps/create/"><img id="productLogo" src="images/ov_create_icon.jpg" alt="Omniverse USD Composer icon"></a>
-<P>
-Here is how to import a model into the free Omniverse USD Composer program. First, download the <a href="https://www.nvidia.com/en-us/omniverse/apps/create/">Omniverse Launcher</a>, install and run it, then from the launcher install and launch Omniverse USD Composer.
-<P>
-See <a href="https://youtu.be/tBDGH5v40x8">the tutorial video</a>. It runs through a lot of the common operations for Omniverse USD Composer: moving the camera, modifying the lighting and materials, etc. There's a lot of documentation on <a href="https://docs.omniverse.nvidia.com/">Omniverse</a> and <a href="https://docs.omniverse.nvidia.com/composer/latest/overview.html">Composer</a>, but the video will get you started. I also give some tips and tricks in <a href="https://youtu.be/lpFpj84eFgw">this "the whole process" video</a>. I also show Omniverse in action <a href="https://youtu.be/EH8NhyusZBU">here</a>. What follows are the steps in the first video.
-<P>
-<b>Step 1:</b> Select your world and region for export in Mineways, then from the menu choose File | Export Rendering.
-</P>
-<P>
-<b>Step 1a:</b> I highly recommend doing "File -> Choose Terrain File" and selecting the terrainExt_JG-RTX64.png file that comes with Mineways. This will give you more interesting and physically realistic materials for some blocks.
-</P>
-<P>
-<b>Step 2:</b> Save as the file type 'USDA'. This is the <a href="https://openusd.org/release/usdfaq.html">Universal Scene Description ASCII file format</a>. USD is a format developed by Pixar that is used in film studios and other applications. You can see my <a href="https://github.com/erich666/McUsd">test scene project</a> (updated <a href="https://github.com/usd-wg/assets/tree/main/full_assets/McUsd">here</a>) for an idea of how various renderers handle this file format as of August 2022 (they're always improving).
-<P>
-After choosing the file name, you are faced with many export options. Most are grayed out in the upper left part of this dialog, with one important exception: "Custom material." By default this box is checked. Doing so gives the distinctive blocky look for Minecraft textures. However, if you are using higher resolution textures, 64x64 or larger, I recommend unchecking this box. You will then use Omniverse default materials, which blend smoothly between texture texels. Also, these default materials will display much more quickly; the custom materials need to be compiled when viewed in Omniverse USD Composer for the first time.
-<P>
-Setting the "Light scale" to 0 will turn off export of lights and camera. The "Export individual blocks" option works, though has not undergone much testing.
-<P>
-As far as other export options go, best of luck. USDA export is a new feature, so some modes to be unlikely to work fully. I am happy to listen to requests for improvements in any of these areas.
-<P>
-Note that Pixar USD files can be read in by other applications, for example the free <a href="#houdini">Houdini Apprentice</a> and <a href="mineways.html#c4d">Cinema 4D</a>.
-</P>
-<P>
-<b>Step 3:</b> Load the model into Omniverse USD Composer. Easiest is to copy and paste the directory where the USDA model is located into the Content directory bar, towards the lower left, here highlighted in red:
-<p class="center">
-<img src="images/ov_content_bar.jpg">
-</p>
-Hit "Enter" and below this line you should see the USDA file, some MDL (material) files, and a texture directory. Double-click the USDA file to load it. The scene may take a while to resolve and look good, as two things are happening: textures are loading, and material shaders are being compiled (if "Custom material" was checked - see Step 2). This compilation can take a while, but after the first time you do it for a directory it should be faster.
-<P>
-Pro tip: if you click on the bookmark icon, highlighted in green (and already clicked) in the image above, you will add a bookmark to the list of files at the lower left. Clicking that bookmark entry takes you to this directory.
-<P>
-Note: one glitch in the beta is that the directory shown in Create does not refresh when new files are added to it, or deleted. If you save and don't see your file, right-click in the window to the lower right and select "Refresh" (highlighted in orange).
-<b>Step 3a:</b> Adjust the orientation of the dome (environment) light. As of August 2023 there is a bug in USD Composer (and possibly other packages) in which the Dome light comes in sideways. The fix is to select the "DomeLight" in the hierarchy list in the upper right. Then in the Transform section in the lower right, change the Rotate X value from 0 to 270.
-<P>
-<b>Step 4:</b> Move your camera around. Easiest is to right-click-and-hold in the viewport. Mouse rotates the view, WASD moves you, QE move up and down, and holding Shift during any of these key presses doubles your speed (and Control halves it). If you get lost, the F key will frame your model, i.e., pull you all the way back so you can see the whole thing. One gotcha is camera speed: you can adjust this by clicking on the gear icon in the upper left of the viewport and adjusting the first slider, Camera Speed. To go faster than 10, you can Control-Click on the slider and type a number.
-</P>
-<P>
-<b>Step 5:</b> Adjust the lighting. Look in the upper right. Select the Stage tab, if not selected. You'll see the sun and a dome light. You can toggle these on and off by clicking the eye icon to the right of each. You can move the position of the sun by selecting it, then clicking and dragging in the box highlighted to rotate its angle. You can also adjust the sun and dome light's intensity in the Light dialog area below. Also, note that if you toggle the "lighting" view in Mineways (the "L" key), so that the map is shown in a nighttime mode, nighttime lighting will be exported to USDA instead.
-<p class="center">
-<img src="images/ov_sun.jpg">
-</p>
-<P>
-<b>Step 6:</b> Take a screenshot. First, you'll need to adjust one property. On the menu choose Edit | Preferences. At the bottom left see the Preferences dialog. Click on Capture Screenshot, and then on the right check "Capture only the 3D viewport":
-<p class="center">
-<img src="images/ov_preferences.jpg">
-</p>
-Take note of the "Path to save screenshots", just above - I copy and paste this and go to it in my file explorer. Now, each time you press F10, a screenshot is generated and put in this directory.
-<p class="center">
-<img src="images/ov_post.jpg">
-</p>
-I have noticed this feature can sometimes be a bit flakey, with F10 not consistently working after adjusting this. Restarting Create seems to help.
-<P>
-<b>Step 7:</b> Adjust the camera exposure. By default, the camera exposure is set for a daylit, outdoor scene. If you go inside, it'll likely be dark. In the menu, choose Rendering | Render Settings, if not already checked. In the upper right should appear "RTX Settings". By default, Mineways uses the Path tracer, so select "Path-Traced" for the Renderer, then "Post Processing", below that to the right. Open the Tone Mapping menu. You can then fiddle with the Film ISO, Camera Shutter, and f-Number/f-Stop to adjust the exposure. If you're feeling bold, you can also try the Auto Exposure feature in the menu below Tone Mapping.
-<P>
-<b>Step 8:</b> Edit a material. Click on an object in the scene, or in the content hierarchy in the Stage list in the upper right (pro tip: you can type. Below a picture of a sphere should appear. Click the sphere and you will see below a long list of material settings. Have at it! Note that you can also simply replace textures in the "textures" directory created by Mineways and then read the scene in again.
-<P>
-Bonus feature: I've included a water_normal.png normals map (from the open source <a href="https://www.nvidia.com/en-us/design-visualization/technologies/material-definition-language/">MDL material set</a>) in the Mineways distribution. Resource pack authors basically never include a normal map for water, because the renderer usually generates this. You can include this in your "block-and-chest" directory when <a href="textures.html">making a terrain file set</a> using TileMaker or assign it manually in Create or other applications.
-<p class="center">
-<img src="images/ov_material.jpg">
-</p>
-<P>
-<b>Step 9:</b> Save your work. You can simple choose "File | Save", but for faster loading in the future, you could do "File | Save As...", check that "USD" (no "A") is selected in the lower right of the save dialog, and click "Save". The binary USD format is about 30% more compact and faster to load.
-<P>
-For more about physical materials and how to add them into Mineways, see the <a href="textures.html">texture tutorial page</a>.
-<P>
-By default the RTX Path-Traced renderer is used, as shown in the upper left corner of the Omniverse USD Composer viewport. Changing this to "RTX Real-Time" will give faster, lower quality renders. If you want even faster interactivity - useful for large scenes - click on the Render Settings tab in the upper right, select "Real-Time" for the Renderer if not already selected, choose the "Ray Tracing" option just below, then under Translucency uncheck the box "Enable Fractional Cutout Opacity." Having this box checked can be up to 3x slower than unchecked.
-<P>
-This is as far as I'm going, as explaining <a href="https://docs.omniverse.nvidia.com/app_create/app_create/materials.html">materials</a>, <a href="https://docs.omniverse.nvidia.com/app_create/prod_extensions/ext_animation.html">animation</a>, and <a href="https://docs.omniverse.nvidia.com/app_create/app_create/overview.html">many other features</a> is definitely beyond the scope. But, notice that last sentence has links to documentation for these topics. Some people <a href="https://www.youtube.com/embed/fCLE_9SNL8M">know <i>way</i> more</a> than I do about Omniverse.
-<P>
-Since you got this far, I'll note one option you <i>can</i> choose at Mineways export: the "Custom material" checkbox on the export dialog. By default it is checked. This exports a custom Minecraft.mdl material that gives textures the classic blocky look. However, if you are using a high resolution texture you likely won't care about this look. Unchecking the box means to use the default materials, no MDL files written out. A minor thing, but you may prefer it.
-
-<P>
-Here's <a href="https://github.com/jasonjgardner/jg-rtx">JG RTX</a> in action (and <a href="https://photos.app.goo.gl/sUbwZjZ6JxgPGU4HA">more resource pack previews</a> - these are not included in Mineways):
-<P>
-<a id="jgrtx"><img src="images/jgrtx_pbr.jpg" alt="JG RTX"></a>
-
 
 <HR>
 <H4 id="c4d">Cinema 4D</H4><p>
@@ -2918,7 +2835,9 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 <LI>Version 12.10, 1/12/2026 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1210.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
     <UL>
-	<LI>Mostly update to 1.21.9. Copper golems will get added eventually (maybe...), but they're a bit more complicated. All the rest are in: copper bars, chain, lantern, torch, lightning rod, copper chests, and shelves.
+	<LI>Mostly update to 1.21.9. Copper golems will get added eventually (maybe...), but they're a bit more complicated. All the rest are in: copper bars, chains, lanterns, torch, lightning rods, chests, and shelves.
+	<LI>Modify USDA lighting and emission values to better work in Blender.
+	<LI>Remove Omniverse Composer documentation, as that product is now unavailable.
 	<LI>Fix long-standing 3D print bug: wheat and nether wart blocks now properly choose the right textures. <I>(Thanks to Alek Broman for the bug report.)</I>
 	<LI>Better information for mesh repair if detailed blocks are turned on for 3D printing.
 	<LI>Add "iron_chain" as another name for "chain", a change in 1.21.9.

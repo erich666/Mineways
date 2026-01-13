@@ -6938,9 +6938,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             // pale oak shelf
             swatchLoc = SWATCH_INDEX(7, 77) + 3 * ((dataVal >> 3) & 0x7);
         }
-        swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc + 1; // top
+        swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc + 1; // top (actually called back)
         swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc + 1;
-        swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc + 1; // sides
+        swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc + 1; // sides (actually back)
         swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc + 1;  	// back (it's the "right" back)
         swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc + (powered ? 2 : 0);    // front
 
@@ -6965,9 +6965,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         totalVertexCount = gModel.vertexCount;
         gUsingTransform = 1;
         // Main slab
-        // if powered, need to shift face up by 4.
         saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_Z_BIT, 0x0, 0, 0.0f, 16.0f, 0.0f, 16.0f, 0.0f, 3.0f);
         saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLocSet[DIRECTION_BLOCK_TOP], DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0.0f, 16.0f, 0.0f, 16.0f, 7.0f, 10.0f);
+        // if powered, need to shift face up by 4.
         if (powered) {
             littleTotalVertexCount = gModel.vertexCount;
             // reminder: textures for Y coordinate start from the lower edges, so going from 0.0f to 8.0f says "take the bottom half of the texture and apply it."
@@ -6985,8 +6985,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // add the two front blocks for the shelf:
         // switch front to the unpowered version for these blocks, which are the same either way
         swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc;
-        saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT, 0x0, 0, 0.0f, 16.0f, 0.0f, 4.0f, 3.0f, 5.0f);
-        saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT, 0x0, 0, 0.0f, 16.0f,12.0f, 16.0f, 3.0f, 5.0f);
+        // establish the geometry sticking out, but add textures only for the sides and front; don't ever output back
+        saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT, 0x0, 0, 0.0f, 16.0f, 0.0f, 4.0f, 3.0f, 5.0f);
+        // then texture the top and bottom
+        saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLocSet[DIRECTION_BLOCK_TOP], DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0.0f, 16.0f, 0.0f, 4.0f, 10.0f, 12.0f);
+        saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT, 0x0, 0, 0.0f, 16.0f,12.0f, 16.0f, 3.0f, 5.0f);
+        saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLocSet[DIRECTION_BLOCK_TOP], DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0.0f, 16.0f, 12.0f, 16.0f, 10.0f, 12.0f);
         totalVertexCount = gModel.vertexCount - totalVertexCount;
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
@@ -29790,6 +29794,7 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
         //    sprintf_s(outputString, 256, "%d%s", gOutData.indicesWelded[i], (i == numVerts - 1) ? "]\n" : ", ");
         //    WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
         //}
+        iv = 0;
         for (i = 0; i < numFaces; i++) {
             sprintf_s(outputString, 256, "%d%s", gOutData.indicesWelded[iv], (i == numFaces - 1) ? "]\n" : ", ");
             WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
@@ -31143,7 +31148,8 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
 
                         // Omniverse rejiggers stuff and the emissive intensity needs to get multiplied by 90;
                         // I don't want all those 0's in the interface
-                        sprintf_s(outputString, 256, "                float inputs:emissive_intensity = %g (\n", gModel.options->pEFD->scaleEmittersVal * emission * 90.0f);
+                        //sprintf_s(outputString, 256, "                float inputs:emissive_intensity = %g (\n", gModel.options->pEFD->scaleEmittersVal * emission * 90.0f);
+                        sprintf_s(outputString, 256, "                float inputs:emissive_intensity = %g (\n", gModel.options->pEFD->scaleEmittersVal * emission * 50.0f * 90.0f);
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                         if (outputCustomData) {
                             strcpy_s(outputString, 256, "                    customData = {\n");
@@ -31868,9 +31874,11 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     // pack system, where the emissive texture is expected to be a grayscale image. We could take corrective actions, e.g.,
                     // offer the option to multiply the emissive texture by the hue (not intensity) of the diffuse texture. TODO - that's not a terrible idea.
                     // Perhaps: don't use rgb color and don't divide by 255 here - should just use emission value for all three, once emitter texture is fixed.
-                    float escale = gModel.options->pEFD->scaleEmittersVal * emission * 0.02f;   // UsdPrevSurface was rebalanced to be about 20 as a good scale for lava.
+                    //float escale = gModel.options->pEFD->scaleEmittersVal * emission * 0.02f;   // UsdPrevSurface was rebalanced to be about 20 as a good scale for lava.
+                    float escale = gModel.options->pEFD->scaleEmittersVal * emission;   // UsdPrevSurface was rebalanced to be about 20 as a good scale for lava.
                     sprintf_s(outputString, 256, "                float4 inputs:scale = (%g, %g, %g, 1.0)\n", escale, escale, escale);
-                    
+                    WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
+
                     // do not use sRGB for the emitter color space - this generates an error in UsdView, which makes sense;
                     // it's a one-channel emitter that should get multiplied by the albedo texture
                     //strcpy_s(outputString, 256, "                token inputs:sourceColorSpace = \"sRGB\"\n");
@@ -32237,7 +32245,10 @@ static int createLightingUSD(char *texturePath)
 
     // low for the nighttime sky, but making it higher makes the background surrounding map too bright.
     // used to multiply by 52.0f - let's not
-    lightIntensity = (float)(gModel.options->pEFD->scaleLightsVal * 52.0f * (nightLight ? 2.0 / 30.0 : 6.0 / 30.0));
+    //lightIntensity = (float)(gModel.options->pEFD->scaleLightsVal * 52.0f * (nightLight ? 2.0 / 30.0 : 6.0 / 30.0));
+    // Blender 5.0 likes good ole 1.0 so let's use that for daytime, half that for nighttime. Scale down scale val by its default of 15.0f.
+    lightIntensity = (float)(gModel.options->pEFD->scaleLightsVal / 15.0f) * (nightLight ? 0.5f : 1.0f);
+
     sprintf_s(outputString, 256, "            float inputs:intensity = %f\n", lightIntensity);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "            float inputs:shaping:cone:angle = 180\n");

@@ -85,6 +85,7 @@ typedef struct ChestGrid {
 } ChestGrid;
 
 static ChestGrid gChestGrid;
+// very stupid code! Shares ChestGrid, but "cr" is not properly allocated for shelfs (but there are more chests than shelves, so it works). UGH.
 static ChestGrid gShelfGrid;
 
 typedef struct DecoratedPotGrid {
