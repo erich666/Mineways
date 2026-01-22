@@ -471,12 +471,12 @@ The Minecraft block textures are normally put in one large texture and each is g
 
 If you find you want your model data to be arranged a bit differently for your rendering system, there are a bunch of options. These vary how Minecraft blocks are grouped and how materials are shared among different block types. Every rendering system imports OBJ files differently, so try different combinations and see what you prefer. Most of these options do not affect display. These options are mostly for determining how much control you have over modifying materials and moving blocks around.
 <P>
-<a href="https://en.wikipedia.org/wiki/Wavefront_.obj_file">Wavefront OBJ</a> has two concepts when it comes to polygon faces: named objects and named groups. In Mineways there can be one or more objects in a scene, each object can have zero, one, or more groups inside of it. Normally there is just one object exported; the "Make groups objects" creates a separate object which then contains a corresponding group.
+<a href="https://en.wikipedia.org/wiki/Wavefront_.obj_file">Wavefront OBJ</a> has two concepts when it comes to polygon faces: named objects and named groups. In Mineways there can be one or more objects in a scene, each object can have zero, one, or more groups inside of it. The <a href="#make_groups_objects">Make groups objects</a> option creates separate objects which then contain a corresponding group, which is good for Blender, for example. If you want just one giant object, uncheck this box.
 <P>Mineways has (rough) "block families." For example, the <a href="https://minecraft-ids.grahamedgecombe.com/">Stone family</a> has stone, granite, polished granite, diorite, and so on. Each block in this family has a separate "type." Materials can be output by one per family or one per type.
 <P>Any number of polygons can be in an object or group. There is also a set of materials (defined in the .mtl file). One and only one material is applied to each polygon.
 <UL>
 <LI>Export separate types: on by default, this option says each type of block - stone, logs, fences, and so on - are put in a separate group. Turning this option off means no groups are created, which can be useful for simplifying import into rendering packages but can make editing more difficult. This option does not affect how many materials are generated.
-<LI id="individual" class="ib">Export individual blocks: This option is mutually exclusive with the previous option, "Export separate types." Normally Mineways exports only those faces that are visible. By checking this box, <i>all</i> faces of <i>every</i> block are output, allowing you to animate such operations as mining or explosions. This considerably increases file size and render time, so use it only if you need it. You may also want to check the <a href="#make_groups_objects">Make groups objects</a> option, e.g., for Blender export, as each group will then be a separate object you can manipulate. For Blender you'll also want to make sure "Material per family" is checked. Note that the individual blocks option will change the appearance of some blocks, such as water and glass blocks, as all faces now have sides, which are visible. Normally Minecraft removes these interior sides (e.g., where two glass blocks share a face), but this option makes them visible. This option works for OBJ and <a href="#usd_export_options">USD export</a>.
+<LI id="individual" class="ib">Export individual blocks: This option is mutually exclusive with the previous option, "Export separate types." Normally Mineways exports only those faces that are visible. By checking this box, <i>all</i> faces of <i>every</i> block are output, allowing you to animate such operations as mining or explosions. This considerably increases file size and render time, so use it only if you need it. For Blender you'll also want to make sure "Material per family" is checked. Note that the individual blocks option will change the appearance of some blocks, such as water and glass blocks, as all faces now have sides, which are visible. Normally Minecraft removes these interior sides (e.g., where two glass blocks share a face), but this option makes them visible. This option works for OBJ and <a href="#usd_export_options">USD export</a>.
 <LI>Material per family: on by default. <i>Only affects export when exporting the three large mosaic textures</i>. When on, the default, blocks in a family (or type; see next option) have their own material. If turned off, a single material is used for all objects. When exporting individual blocks, this checkbox affects whether each block is in its own group (making it easier to edit: move, delete, etc.) or whether individual blocks are grouped by material. To reiterate, this option does not affect anything when exporting individual textures, as each individual texture needs its own material and so materials cannot be grouped.
 <LI><a id="material_subtypes">Split by block type</a>: Blocks have a family and a type. When checked (the default), the individual types are used for grouping polygons and, for mosaics, generating materials. You can see many of the families <a href="https://minecraft-ids.grahamedgecombe.com/">on this page</a>, e.g., Stone, Granite, Polished Granite..., through Polished Andesite are a family. New groups are generated when there's a physical difference in the material itself, not just geometric changes. For example, campfires, sea pickles, and respawn anchors will be given <a href="https://minecraft.wiki/w/Light">separate emission levels</a> when this box is checked; else the maximum light level is assumed. Usually you'll want this box checked, unless you're finding you would rather have fewer groups (and fewer materials, for mosaics).
 </UL>
@@ -713,7 +713,7 @@ For mosaics, each block <i>type</i> has a separate material. Result is three mat
 When exporting <B>individual textures</B> these settings have slightly different meanings, because separate materials are created depending on the texture needed, not the Minecraft block family or type. "Export individual blocks" then means that "Split by block type" has no effect, since materials are set as needed. Similarly, if neither "Export separate types" nor "Export individual blocks" is on, materials are output as needed, since there can be no "single material for all" with "individual textures." Long and short: try various options out and see what they do.
 
 <P>
-<b><a id="make_groups_objects">Make groups objects:</a></b> By default, the OBJ file produced has just one object, consisting of everything exported. If you want to make each group into its own separate object, which can be useful if you are trying to <a href="#individual">export individual blocks</a> and animate them in the scene, check this box. This is useful in Blender, for example.
+<b><a id="make_groups_objects">Make groups objects:</a></b> By default, this option is on. It's useful when importing into Blender, for example, as each different type of object is easier to edit. If you prefer having a single object, which avoids possible problems with objects getting moved around separately, uncheck this box.
 
 <a id="full_material"><H4>Custom material</H4></a>
 
@@ -2835,6 +2835,13 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 
 
 
+<LI>Version 12.11, */**/2026 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1211.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+  <BR>
+    <UL>
+	<LI>Blender import and individual block export work better with separate types, so the "Make groups objects" export option is now on by default. Tooltip also corrected.
+	</UL>
+
+
 <LI>Version 12.10, 1/12/2026 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1210.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
     <UL>
@@ -4278,7 +4285,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 1/12/2026</p>
+		<br id="lastUpdate">Last updated 1/21/2026</p>
 	</div>
 </div>
 

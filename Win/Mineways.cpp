@@ -5518,7 +5518,7 @@ static void initializePrintExportData(ExportFileData& printData)
     INIT_ALL_FILE_TYPES(printData.chkIndividualBlocks, 0, 0, 0, 0, 0, 0, 0, 0);
     printData.chkMaterialPerFamily = 0;
     printData.chkSplitByBlockType = 0;
-    printData.chkMakeGroupsObjects = 0;
+    printData.chkMakeGroupsObjects = 1;
     // shouldn't really matter, now that both versions don't use the diffuse color when texturing
     INIT_ALL_FILE_TYPES(printData.chkCustomMaterial, 0, 0, 0, 0, 0, 0, 0, 0);
     printData.chkExportMDL = 0;
@@ -5609,7 +5609,8 @@ static void initializeViewExportData(ExportFileData& viewData)
     INIT_ALL_FILE_TYPES(viewData.chkIndividualBlocks, 0, 0, 0, 0, 0, 0, 0, 0);
     viewData.chkMaterialPerFamily = 1;
     viewData.chkSplitByBlockType = 1;
-    viewData.chkMakeGroupsObjects = 0;  // keeping the training wheels on for Blender. Setting to 1 can be "surprising".
+    // Blender import and individual block export work better with separate types, so the "Make groups objects" export option is now on by default.
+    viewData.chkMakeGroupsObjects = 1;
     INIT_ALL_FILE_TYPES(viewData.chkCustomMaterial, 1, 1, 0, 0, 0, 0, 0, 0);
     viewData.chkCompositeOverlay = 0;
     viewData.chkBlockFacesAtBorders = 1;

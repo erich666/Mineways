@@ -64,7 +64,7 @@ TooltipDefinition g_epTT[EP_TOOLTIP_COUNT] = {
     { IDC_INDIVIDUAL_BLOCKS,{1,1,1,0,0,0,0,0}, L"All faces of every block are output. Useful if you are animating blocks; you may also then want to 'Make groups objects', below.", L""},
     { IDC_MATERIAL_PER_BLOCK_FAMILY,{1,1,0,0,0,0,0,0}, L"For mosaic texures only: if unchecked, a single material is shared by **all** blocks. Rarely a good idea.", L""},
     { IDC_SPLIT_BY_BLOCK_TYPE,  {1,1,0,0,0,0,0,0}, L"Checked, every type of block has a separate material. Unchecked, blocks in a 'family' (such as 'planks') share a single material.", L""},
-    { IDC_MAKE_GROUPS_OBJECTS,  {1,1,0,0,0,0,0,0}, L"Checked, there is one object. Unchecked, each OBJ group is a separate object; useful for animation.", L""},
+    { IDC_MAKE_GROUPS_OBJECTS,  {1,1,0,0,0,0,0,0}, L"Unchecked, there is one object. Checked, each OBJ group is a separate object; useful for setting materials and for animation.", L""},
     { IDC_G3D_MATERIAL,     {1,1,2,0,0,0,0,0}, L"Output extended PBR materials and textures, such as roughness, normals, and emission, as available", L"Use custom 'blocky' shaders for MDL. Uncheck if your textures are high resolution."},
     { IDC_EXPORT_MDL,       {0,0,1,0,0,0,0,0}, L"Export MDL shaders. Unchecked means export only UsdPreviewSurface materials.", L""},
     { IDC_MAKE_Z_UP,        {1,1,1,1,1,1,1,1}, L"The Y axis is up by default; check to instead use Z as the up direction", L""},
