@@ -87,6 +87,7 @@ enum { BF_BUFFER, BF_GZIP };
 typedef struct {
     int type;
     unsigned char* buf;
+    int buflen;     // total size of buf (for BF_BUFFER bounds checking)
     int* offset;
     int _offset;
     gzFile gz;

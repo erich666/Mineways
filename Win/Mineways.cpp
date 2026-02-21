@@ -53,7 +53,7 @@ static bool gAlwaysFail = false;
 
 #define MY_ASSERT(val) if ((val) == 0) { \
     wchar_t assertbuf[1024]; \
-    wsprintf(assertbuf, L"Serious error in file %S on line %d. Please write me at erich@acm.org and, as best you can, tell me the steps that caused it.", __FILENAME__, __LINE__); \
+    swprintf_s(assertbuf, _countof(assertbuf), L"Serious error in file %S on line %d. Please write me at erich@acm.org and, as best you can, tell me the steps that caused it.", __FILENAME__, __LINE__); \
     FilterMessageBox(NULL, assertbuf, L"Error", MB_OK | MB_TOPMOST); \
 } \
 
@@ -1893,14 +1893,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     // should never reach here, as this control should be off if there's no world loaded
                     assert(0);
                 case WORLD_TEST_BLOCK_TYPE:
-                    wsprintf(infoString, L"World is the built-in [Block Test World]");
+                    swprintf_s(infoString, _countof(infoString), L"World is the built-in [Block Test World]");
                     break;
                 case WORLD_LEVEL_TYPE:
                     // TODO: add this table to convert to strings https://minecraft.wiki/w/Data_version
                     char levelName[MAX_PATH_AND_FILE];
                     // the only place we ever need the level name, other than populating the world list
                     GetLevelName(gWorldGuide.world, levelName, MAX_PATH_AND_FILE);
-                    wsprintf(infoString, L"Level name: %S\nDirectory name: %s\n\nMajor version: 1.%d%s\nData version: %d\nSee http://bit.ly/minedv to convert this\ndata version value more precisely.\n\nSpawn location: %d, %d, %d\n",
+                    swprintf_s(infoString, _countof(infoString), L"Level name: %S\nDirectory name: %s\n\nMajor version: 1.%d%s\nData version: %d\nSee http://bit.ly/minedv to convert this\ndata version value more precisely.\n\nSpawn location: %d, %d, %d\n",
                         levelName, stripWorldName(gWorldGuide.world),
                         gMinecraftVersion,
                         (gMinecraftVersion == 8 ? L" or earlier" : L""),
@@ -1913,14 +1913,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     }
                     else {
                         TCHAR playerString[1024];
-                        wsprintf(playerString, L"Player location : %d, %d, %d",
+                        swprintf_s(playerString, _countof(playerString), L"Player location : %d, %d, %d",
                             gPlayerX, gPlayerY, gPlayerZ
                         );
                         wcscat_s(infoString, 1024, playerString);
                     }
                     break;
                 case WORLD_SCHEMATIC_TYPE:
-                    wsprintf(infoString, L"Schematic name: %s\n\nWidth (X - east/west): %d\nHeight (Y - vertical): %d\nLength (Z - north/south): %d",
+                    swprintf_s(infoString, _countof(infoString), L"Schematic name: %s\n\nWidth (X - east/west): %d\nHeight (Y - vertical): %d\nLength (Z - north/south): %d",
                         stripWorldName(gWorldGuide.world),
                         gWorldGuide.sch.width, gWorldGuide.sch.height, gWorldGuide.sch.length
                     );
@@ -3000,7 +3000,7 @@ static int getWorldSaveDirectoryFromCommandLine(wchar_t* saveWorldDirectory, con
                 if (!PathFileExists(saveWorldDirectory)) {
                     LOG_INFO(gExecutionLogfile, " getWorldSaveDirectoryFromCommandLine path does not exist\n");
                     wchar_t message[1024];
-                    wsprintf(message, _T("Warning:\nThe path \"%s\" you specified on the command line for your saved worlds location does not exist, so default worlds directory will be used. Use \"-s none\" to load no worlds."), saveWorldDirectory);
+                    swprintf_s(message, _countof(message), _T("Warning:\nThe path \"%s\" you specified on the command line for your saved worlds location does not exist, so default worlds directory will be used. Use \"-s none\" to load no worlds."), saveWorldDirectory);
                     FilterMessageBox(NULL, message,
                         _T("Warning"), MB_OK | MB_ICONWARNING);
                     return 0;
@@ -3091,7 +3091,7 @@ static int getTerrainFileFromCommandLine(wchar_t* terrainFile, const LPWSTR* arg
                 if (!PathFileExists(terrainFile)) {
                     LOG_INFO(gExecutionLogfile, " getTerrainFileFromCommandLine path does not exist\n");
                     wchar_t message[1024];
-                    wsprintf(message, _T("Warning:\nThe path \"%s\" you specified on the command line for your terrain file does not exist, so the default terrain is used."), terrainFile);
+                    swprintf_s(message, _countof(message), _T("Warning:\nThe path \"%s\" you specified on the command line for your terrain file does not exist, so the default terrain is used."), terrainFile);
                     FilterMessageBox(NULL, message,
                         _T("Warning"), MB_OK | MB_ICONWARNING);
                     return 0;
@@ -3379,19 +3379,19 @@ static void updateStatus(int mx, int mz, int my, const char* blockLabel, int typ
     if (my < -1 + gMinHeight || my >= gMaxHeight + 1)
     {
         //wsprintf(buf,L"%S \t\tBottom %d",blockLabel,gTargetDepth);
-        wsprintf(buf, L"%S", blockLabel);	// char to wchar
+        swprintf_s(buf, _countof(buf), L"%S", blockLabel);	// char to wchar
     }
     else
     {
         // In Nether, show corresponding overworld coordinates
         if (gOptions.worldType & HELL)
             //wsprintf(buf,L"%d,%d; y=%d[%d,%d] %S \t\tBtm %d",mx,mz,my,mx*8,mz*8,blockLabel,gTargetDepth);
-            wsprintf(buf, L"%d,%d,y=%d[%d,%d]; %S%S%S%S%S%S", mx, mz, my, mx * 8, mz * 8, 
+            swprintf_s(buf, _countof(buf), L"%d,%d,y=%d[%d,%d]; %S%S%S%S%S%S", mx, mz, my, mx * 8, mz * 8, 
                 WATERLOGGED_LABEL(type, dataVal) ? "waterlogged " : "",
                 blockLabel, sbuftype, sbufbiome, sbufselect, sbufmap);	// char to wchar
         else
             //wsprintf(buf,L"%d,%d; y=%d %S \t\tBottom %d",mx,mz,my,blockLabel,gTargetDepth);
-            wsprintf(buf, L"%d,%d,y=%d; %S%S%S%S%S%S", mx, mz, my, 
+            swprintf_s(buf, _countof(buf), L"%d,%d,y=%d; %S%S%S%S%S%S", mx, mz, my, 
                 WATERLOGGED_LABEL(type, dataVal) ? "waterlogged " : "",
                 blockLabel, sbuftype, sbufbiome, sbufselect, sbufmap);	// char to wchar
     }
@@ -3533,6 +3533,13 @@ static int loadSchematic(wchar_t* pathAndFile)
 
     gWorldGuide.sch.blocks = (unsigned char*)malloc(gWorldGuide.sch.numBlocks);
     gWorldGuide.sch.data = (unsigned char*)malloc(gWorldGuide.sch.numBlocks);
+    if (gWorldGuide.sch.blocks == NULL || gWorldGuide.sch.data == NULL) {
+        free(gWorldGuide.sch.blocks);
+        gWorldGuide.sch.blocks = NULL;
+        free(gWorldGuide.sch.data);
+        gWorldGuide.sch.data = NULL;
+        return 100 + 5;
+    }
 
     // explicit CHECK_READ_SCHEMATIC_QUIT( b, e ) since we want to take a corrective action
     // This is where things will fail when the schematic is a FAWE file for 1.13 or newer. See issue https://github.com/erich666/Mineways/issues/40
@@ -3843,7 +3850,7 @@ void flagUnreadableWorld(wchar_t* wcWorld, char* charWorld, int errCode)
 
     if (errCode < 0) {
         wchar_t msgString[1024];
-        wsprintf(msgString, _T("Warning: The level.dat of world file %s appears to be missing important information. World ignored, error code %d."), wcWorld, errCode);
+        swprintf_s(msgString, _countof(msgString), _T("Warning: The level.dat of world file %s appears to be missing important information. World ignored, error code %d."), wcWorld, errCode);
         FilterMessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
     }
     //else {
@@ -4004,7 +4011,7 @@ static int loadWorldList(HMENU menu)
                 // display the "given name" followed by / the world folder name; both can be useful
                 TCHAR worldIDString[MAX_PATH_AND_FILE], wLevelName[MAX_PATH_AND_FILE];
                 MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, levelName, -1, wLevelName, MAX_PATH_AND_FILE);
-                wsprintf(worldIDString, L"%s\t/ %s", wLevelName, ffd.cFileName);
+                swprintf_s(worldIDString, _countof(worldIDString), L"%s\t/ %s", wLevelName, ffd.cFileName);
 
                 info.cch = (UINT)wcslen(worldIDString);
                 info.dwTypeData = worldIDString;
@@ -4034,6 +4041,8 @@ static int loadWorldList(HMENU menu)
                 InsertMenuItem(menu, IDM_TEST_WORLD, FALSE, &info);
                 size_t strLen = wcslen(testAnvil) + 1;
                 gWorlds[gNumWorlds] = (TCHAR*)malloc(sizeof(TCHAR) * strLen);
+                if (gWorlds[gNumWorlds] == NULL)
+                    break;
                 wcscpy_s(gWorlds[gNumWorlds], strLen, testAnvil);
 
                 // was: setWorldPath(worlds[numWorlds]);
@@ -4048,7 +4057,7 @@ static int loadWorldList(HMENU menu)
         // Any bad worlds detected? Give advice
         if (failedLoads) {
             // prints the line in the code where the error was returned via (a negated) LINE_ERROR.
-            wsprintf(msgString, L"The world%S not loaded may be in a different ('Bedrock') format, used by Minecraft for Windows 10. Click 'OK' to go to https://bit.ly/mcbedrock and follow the instructions there to convert this type of world to the 'Classic' Java format, which Mineways can read. If instead this world is from an early version of Classic Minecraft, load it into the latest Minecraft to convert it. A third possibility is that this is some modded world in a format that Mineways does not support. There's not a lot that can be done about that, but feel free to contact me on Discord or by email. See the http://mineways.com site for support information.", (failedLoads > 1) ? L"s" : L"");
+            swprintf_s(msgString, _countof(msgString), L"The world%s not loaded may be in a different ('Bedrock') format, used by Minecraft for Windows 10. Click 'OK' to go to https://bit.ly/mcbedrock and follow the instructions there to convert this type of world to the 'Classic' Java format, which Mineways can read. If instead this world is from an early version of Classic Minecraft, load it into the latest Minecraft to convert it. A third possibility is that this is some modded world in a format that Mineways does not support. There's not a lot that can be done about that, but feel free to contact me on Discord or by email. See the http://mineways.com site for support information.", (failedLoads > 1) ? L"s" : L"");
 
             int retcode = FilterMessageBox(NULL, msgString,
                 _T("Read error"), MB_OKCANCEL | MB_ICONWARNING | MB_TOPMOST);
@@ -4156,6 +4165,8 @@ static int loadTerrainList(HMENU menu)
 
                     InsertMenuItem(menu, IDM_DEFAULT_TERRAIN, FALSE, &info);
                     gTerrainFiles[gNumTerrainFiles] = (TCHAR*)malloc(sizeof(TCHAR) * MAX_PATH_AND_FILE);
+                    if (gTerrainFiles[gNumTerrainFiles] == NULL)
+                        break;
                     wcscpy_s(gTerrainFiles[gNumTerrainFiles], MAX_PATH_AND_FILE, ffd.cFileName);
                     gNumTerrainFiles++;
                     sprintf_s(outputString, 1024, "    gNumTerrainFiles is now %d\n", gNumTerrainFiles);
@@ -4610,7 +4621,7 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileNa
         if (retSize == 0) {
             // abort - conversion did not work
             wchar_t errbuf[1024];
-            wsprintf(errbuf, L"ERROR: I am afraid you have a path name \"%s\" that cannot be converted to a multi-byte character path that Sketchfab can use. If you want to upload to Sketchfab, you will have to do it manually: Export for Rendering, check the \"Create a ZIP file\" box, and then upload the resulting zip file.", wcZip);
+            swprintf_s(errbuf, _countof(errbuf), L"ERROR: I am afraid you have a path name \"%s\" that cannot be converted to a multi-byte character path that Sketchfab can use. If you want to upload to Sketchfab, you will have to do it manually: Export for Rendering, check the \"Create a ZIP file\" box, and then upload the resulting zip file.", wcZip);
             FilterMessageBox(NULL, errbuf, _T("File Path Error"), MB_OK | MB_ICONERROR);
 
             // clean up - sloppy code, I admit
@@ -5144,7 +5155,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                         DWORD errorCode = GetLastError();
                         // if we need to get really fancy, include code at https://docs.microsoft.com/en-us/windows/win32/debug/retrieving-the-last-error-code
                         wchar_t errbuf[1024];
-                        wsprintf(errbuf, L"Warning: Not all files were saved to the ZIP file! Error code: %d. Please report this problem to me at erich@acm.org.", (int)errorCode); \
+                        swprintf_s(errbuf, _countof(errbuf), L"Warning: Not all files were saved to the ZIP file! Error code: %d. Please report this problem to me at erich@acm.org.", (int)errorCode); \
                         FilterMessageBox(NULL, errbuf, _T("Internal ZIP error"), MB_OK | MB_ICONERROR);
                         break;
                     }
@@ -5318,7 +5329,7 @@ static void PopupErrorDialogs(int errCode)
                 size_t newsize = strlen(lodepng_error_text(pngError)) + 1;
                 size_t convertedChars = 0;
                 mbstowcs_s(&convertedChars, wcString, newsize, lodepng_error_text(pngError), _TRUNCATE);
-                wsprintf(errString, gPopupInfo[errNo + 1].text, wcString);
+                swprintf_s(errString, _countof(errString), gPopupInfo[errNo + 1].text, wcString);
                 FilterMessageBox(
                     NULL,
                     errString,
@@ -5330,7 +5341,7 @@ static void PopupErrorDialogs(int errCode)
             {
                 // Show what the group sizes are.
                 TCHAR errString[1024], sizesString[20];
-                wsprintf(errString, L"%s\n\nNumber of separate floating groups: %d\nSizes:", gPopupInfo[errNo + 1].text, gGroupCount);
+                swprintf_s(errString, _countof(errString), L"%s\n\nNumber of separate floating groups: %d\nSizes:", gPopupInfo[errNo + 1].text, gGroupCount);
                 // sort values in gGroupArray by size, largest to smallest
                 int i, j;
                 int size = min(gGroupCount, gGroupCountSize);
@@ -5348,7 +5359,7 @@ static void PopupErrorDialogs(int errCode)
 
                 for (i = 0; i < gGroupCount && i < gGroupCountSize; i++) {
                     // output number
-                    wsprintf(sizesString, L" %d", gGroupCountArray[i]);
+                    swprintf_s(sizesString, _countof(sizesString), L" %d", gGroupCountArray[i]);
                     wcscat_s(errString, 1024, sizesString);
                     if (i < gGroupCount - 1 && i < gGroupCountSize - 1) {
                         wcscat_s(errString, 1024, L",");
@@ -5821,7 +5832,7 @@ static int importSettings(wchar_t* importFile, ImportedSet& is, bool dialogOnSuc
 
     if (err != 0) {
         wchar_t buf[MAX_PATH_AND_FILE];
-        wsprintf(buf, L"Error: could not read file %s", importFile);
+        swprintf_s(buf, _countof(buf), L"Error: could not read file %s", importFile);
         FilterMessageBox(NULL, buf, _T("Read error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
         retCode = IMPORT_FAILED;
         goto Exit;
@@ -5875,6 +5886,8 @@ Exit:
                 // convert to char
                 length++;
                 pConverted = (char*)malloc(length * sizeof(char));
+                if (pConverted == NULL)
+                    goto OnDone;
                 WcharToChar(is.errorMessages, pConverted, (int)length);
                 if (PortaWrite(is.logfile, pConverted, strlen(pConverted))) {
                     goto OnDone;
@@ -5953,7 +5966,7 @@ static bool importModelFile(wchar_t* importFile, ImportedSet& is)
 
     if (err != 0) {
         wchar_t buf[MAX_PATH_AND_FILE];
-        wsprintf(buf, L"Error: could not read file %s", importFile);
+        swprintf_s(buf, _countof(buf), L"Error: could not read file %s", importFile);
         saveErrorMessage(is, buf);
         return false;
     }
@@ -6033,7 +6046,7 @@ static bool readAndExecuteScript(wchar_t* importFile, ImportedSet& is)
 
     if (err != 0) {
         wchar_t buf[MAX_PATH_AND_FILE];
-        wsprintf(buf, L"Error: could not read file %s", importFile);
+        swprintf_s(buf, _countof(buf), L"Error: could not read file %s", importFile);
         saveErrorMessage(is, buf);
         return false;
     }
@@ -6146,7 +6159,7 @@ static bool readAndExecuteScript(wchar_t* importFile, ImportedSet& is)
     err = _wfopen_s(&fh, importFile, L"rt");
     if (err != 0) {
         wchar_t buf[MAX_PATH_AND_FILE];
-        wsprintf(buf, L"Error: could not read file %s", importFile);
+        swprintf_s(buf, _countof(buf), L"Error: could not read file %s", importFile);
         saveErrorMessage(is, buf);
         return false;
     }
@@ -8056,7 +8069,7 @@ JumpToSpawn:
         }
 
         if (minHeight < gMinHeight || minHeight > gMaxHeight) {
-            wsprintf(error, L"value must be between %d and %d, inclusive, for Select minimum height command.", gMinHeight, gMaxHeight);
+            swprintf_s(error, 1024, L"value must be between %d and %d, inclusive, for Select minimum height command.", gMinHeight, gMaxHeight);
             saveErrorMessage(is, error, strPtr); return INTERPRETER_FOUND_ERROR;
         }
 
@@ -8078,7 +8091,7 @@ JumpToSpawn:
             saveErrorMessage(is, L"could not find boolean value for 'Select maximum height' command."); return INTERPRETER_FOUND_ERROR;
         }
         if (maxHeight < gMinHeight || maxHeight > gMaxHeight) {
-            wsprintf(error, L"value must be between %d and %d, inclusive, for Select maximum height command.", gMinHeight, gMaxHeight);
+            swprintf_s(error, 1024, L"value must be between %d and %d, inclusive, for Select maximum height command.", gMinHeight, gMaxHeight);
             saveErrorMessage(is, error, strPtr); return INTERPRETER_FOUND_ERROR;
         }
 
@@ -8215,11 +8228,11 @@ JumpToSpawn:
         }
         // if either block has a colon in it, the person needs to read the docs
         if (strchr(string1, ':') ) {
-            wsprintf(error, L"first name %S should not include a colon in it for the 'Translate' command.", string1);
+            swprintf_s(error, 1024, L"first name %S should not include a colon in it for the 'Translate' command.", string1);
             saveErrorMessage(is, error); return INTERPRETER_FOUND_ERROR;
         }
         if (strchr(string2, ':') ) {
-            wsprintf(error, L"second name %S should not include a colon in it for the 'Translate' command.", string2);
+            swprintf_s(error, 1024, L"second name %S should not include a colon in it for the 'Translate' command.", string2);
             saveErrorMessage(is, error); return INTERPRETER_FOUND_ERROR;
         }
         // find if the second name has a "+" at the end. This means "use its data".
@@ -8233,7 +8246,7 @@ JumpToSpawn:
         // find if second name is a valid block
         int typeValue = SlowFindIndexFromName(string2);
         if (typeValue < 0 ) {
-            wsprintf(error, L"second name %S is not a valid block name for the 'Translate' command. See https://bit.ly/minewaysnames for valid names.", string2);
+            swprintf_s(error, 1024, L"second name %S is not a valid block name for the 'Translate' command. See https://bit.ly/minewaysnames for valid names.", string2);
             saveErrorMessage(is, error); return INTERPRETER_FOUND_ERROR;
         }
 
@@ -8251,8 +8264,14 @@ JumpToSpawn:
 
             // not in the list, so add to list of translations, just a simple linked list of tuples
             ptt = (TranslationTuple*)malloc(sizeof(TranslationTuple));
+            if (ptt == NULL)
+                return INTERPRETER_FOUND_ERROR;
             size_t stringLength = strlen(string1) + 1;
             ptt->name = (char*)malloc(stringLength);
+            if (ptt->name == NULL) {
+                free(ptt);
+                return INTERPRETER_FOUND_ERROR;
+            }
             strcpy_s(ptt->name, stringLength, string1);
             ptt->type = typeValue;
             ptt->useData = useData;
@@ -8387,6 +8406,8 @@ JumpToSpawn:
                 }
                 size_t size = (strlen(buf) + 1) * sizeof(wchar_t);
                 gCustomCurrency = (wchar_t*)malloc(size);
+                if (gCustomCurrency == NULL)
+                    return INTERPRETER_FOUND_ERROR;
                 size_t dummySize = 0;
                 mbstowcs_s(&dummySize, gCustomCurrency, size / 2, buf, (size / 2) - 1);
             }
@@ -8404,7 +8425,7 @@ JumpToSpawn:
             }
 
             else {
-                wsprintf(error, L"could not understand command %S", line);
+                swprintf_s(error, 1024, L"could not understand command %S", line);
                 saveErrorMessage(is, error);
                 return INTERPRETER_FOUND_ERROR;
             }
@@ -8447,7 +8468,7 @@ static bool findBitToggle(char* line, ImportedSet& is, char* type, unsigned int 
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
             wchar_t error[1024];
-            wsprintf(error, L"could not find boolean value for '%S' command.", type);
+            swprintf_s(error, 1024, L"could not find boolean value for '%S' command.", type);
             saveErrorMessage(is, error);
             *pRetCode = INTERPRETER_FOUND_ERROR;
             return true;
@@ -8870,17 +8891,17 @@ static char* findBlockTypeAndData(char* line, int* pType, int* pData, unsigned s
             }
         }
         // could not find type in list
-        wsprintf(error, L"block type is unknown. Rest of line: %S", strPtr); return line;
+        swprintf_s(error, 1024, L"block type is unknown. Rest of line: %S", strPtr); return line;
     }
     else {
         // scan for an integer identifier
         if (1 != sscanf_s(strPtr, "%d", pType))
         {
-            wsprintf(error, L"block type number or name not found. Rest of line: %S", strPtr); return line;
+            swprintf_s(error, 1024, L"block type number or name not found. Rest of line: %S", strPtr); return line;
         }
         // found it - is it legal?
         if (*pType < 0 || *pType > 255) {
-            wsprintf(error, L"block type must be between 0 and 255, inclusive. Rest of line: %S", strPtr); return line;
+            swprintf_s(error, 1024, L"block type must be between 0 and 255, inclusive. Rest of line: %S", strPtr); return line;
         }
         strPtr = skipPastUnsignedInteger(strPtr);
     }
@@ -8892,29 +8913,29 @@ TestForDataString:
         strPtr++;
         if (1 != sscanf_s(strPtr, "%d", pData))
         {
-            wsprintf(error, L"data value for block not found after colon. Rest of line: %S", strPtr); return line;
+            swprintf_s(error, 1024, L"data value for block not found after colon. Rest of line: %S", strPtr); return line;
         }
         if (*pData < 0 || *pData > 15) {
-            wsprintf(error, L"first data value %d must be in the range 0 to 15. Rest of line: %S", *pData, strPtr); return line;
+            swprintf_s(error, 1024, L"first data value %d must be in the range 0 to 15. Rest of line: %S", *pData, strPtr); return line;
         }
         strPtr = skipPastUnsignedInteger(strPtr);
         // so is there a range of data? Rare, but possible... Valid only if pDataBits is needed (i.e., is "from")
         int secondData = *pData;
         if (*strPtr == '-') {
             if (pDataBits == NULL) {
-                wsprintf(error, L"second data value in range should not be there; only a single data value should be specified, if at all. Rest of line: %S", strPtr); return line;
+                swprintf_s(error, 1024, L"second data value in range should not be there; only a single data value should be specified, if at all. Rest of line: %S", strPtr); return line;
             }
             strPtr++;
             // look for second data type
             if (1 != sscanf_s(strPtr, "%d", &secondData))
             {
-                wsprintf(error, L"second data value in range for block not found. Rest of line: %S", strPtr); return line;
+                swprintf_s(error, 1024, L"second data value in range for block not found. Rest of line: %S", strPtr); return line;
             }
             if (secondData < 0 || secondData > 15) {
-                wsprintf(error, L"second data value %d must be in the range 0 to 15. Rest of line: %S", secondData, strPtr); return line;
+                swprintf_s(error, 1024, L"second data value %d must be in the range 0 to 15. Rest of line: %S", secondData, strPtr); return line;
             }
             if (*pData > secondData) {
-                wsprintf(error, L"first data value %d must not be greater than second %d. Rest of line: %S", *pData, secondData, strPtr); return line;
+                swprintf_s(error, 1024, L"first data value %d must not be greater than second %d. Rest of line: %S", *pData, secondData, strPtr); return line;
             }
             strPtr = skipPastUnsignedInteger(strPtr);
         }
@@ -9047,6 +9068,8 @@ static void saveMessage(ImportedSet& is, wchar_t* error, wchar_t* msgType, int i
     if (is.errorMessages == NULL) {
         is.errorMessagesStringSize = 1024;
         is.errorMessages = (wchar_t*)malloc(is.errorMessagesStringSize * sizeof(wchar_t));
+        if (is.errorMessages == NULL)
+            return;
         is.errorMessages[0] = (wchar_t)0;
     }
 
@@ -9059,7 +9082,10 @@ static void saveMessage(ImportedSet& is, wchar_t* error, wchar_t* msgType, int i
         // just to be really really sure, add some more
         is.errorMessagesStringSize += addlength;
         //wchar_t* oldStr = is.errorMessages;
-        is.errorMessages = (wchar_t*)realloc(is.errorMessages, is.errorMessagesStringSize * sizeof(wchar_t));
+        wchar_t* newMessages = (wchar_t*)realloc(is.errorMessages, is.errorMessagesStringSize * sizeof(wchar_t));
+        if (newMessages == NULL)
+            return;  // keep existing messages, stop appending
+        is.errorMessages = newMessages;
         //memcpy(is.errorMessages, oldStr, (oldlength + 1) * sizeof(wchar_t));
         //free(oldStr);
     }
@@ -9067,14 +9093,14 @@ static void saveMessage(ImportedSet& is, wchar_t* error, wchar_t* msgType, int i
     // If a suppressed message, just output directly
     wchar_t buf[50];
     if (wcscmp(L"Suppressed", msgType) == 0) {
-        wsprintf(buf, L"Run-time problem executing line %d: ", is.lineNumber);
+        swprintf_s(buf, _countof(buf), L"Run-time problem executing line %d: ", is.lineNumber);
         wcscat_s(is.errorMessages, is.errorMessagesStringSize, buf);
     }
     else {
         // If error does not start with "Error" or "Warning" then add this, and line number.
         if (wcsstr(error, msgType) != error)
         {
-            wsprintf(buf, L"%s reading line %d: ", msgType, is.lineNumber);
+            swprintf_s(buf, _countof(buf), L"%s reading line %d: ", msgType, is.lineNumber);
             wcscat_s(is.errorMessages, is.errorMessagesStringSize, buf);
         }
         // add the message to the long string.
@@ -9184,7 +9210,7 @@ void formTitle(WorldGuide* pWorldGuide, HWND hWnd)
     }
 
     TCHAR infoString[1024];
-    wsprintf(infoString, L" (1.%d%s)",
+    swprintf_s(infoString, _countof(infoString), L" (1.%d%s)",
         gMinecraftVersion,
         (gMinecraftVersion == 8 ? L"?" : L""));
     wcscat_s(title, MAX_PATH_AND_FILE - 1, infoString);
@@ -9554,7 +9580,7 @@ static bool commandExportFile(ImportedSet& is, wchar_t* error, int fileMode, cha
     wchar_t statusbuf[MAX_PATH_AND_FILE];
     wchar_t exportName[MAX_PATH_AND_FILE];
     splitToPathAndName(wcharFileName, NULL, exportName);
-    wsprintf(statusbuf, L"Script exporting %s", exportName);
+    swprintf_s(statusbuf, _countof(statusbuf), L"Script exporting %s", exportName);
     sendStatusMessage(is.ws.hwndStatus, statusbuf);
 
     if (gPrintModel == MAP_EXPORT) {
@@ -9670,36 +9696,36 @@ static bool showLoadWorldError(int loadErr)
     wchar_t fullbuf[2048];
     wchar_t extrabuf[1024];
     int retcode;
-    wsprintf(extrabuf, _T("Sub-error code %d. Please write me at erich@acm.org and, as best you can, show me this error message and sub-error code. Better still, zip up your world and send it to me."), gSubError);
+    swprintf_s(extrabuf, _countof(extrabuf), _T("Sub-error code %d. Please write me at erich@acm.org and, as best you can, show me this error message and sub-error code. Better still, zip up your world and send it to me."), gSubError);
     switch (loadErr) {
     case 1:
         // To be honest, I'm not sure how -3 could ever be set here, but it evidently can be...
         if (gSubError == ERROR_GET_FILE_VERSION_DATA || gSubError == ERROR_GET_FILE_VERSION_VERSION ) {
-            wsprintf(fullbuf, _T("Error: cannot read world's file version.\n\nThe world may be in a different ('Bedrock') format, used by Minecraft for Windows 10 and 11. Click 'OK' to go to https://bit.ly/mcbedrock and follow the instructions there to tell if you're using Bedrock and to convert this type of world to the 'Classic' Java format, which Mineways can read. If instead this world is from an early version of Classic Minecraft, load it into the latest Minecraft to convert it. A third possibility is that this is some modded world in a format that Mineways does not support. There's not a lot that can be done about that, but feel free to contact me on Discord or by email. See the http://mineways.com site for support information.\n\nPath attempted: \"%s\"\n\n%s"), gFileOpened, extrabuf);
+            swprintf_s(fullbuf, _countof(fullbuf), _T("Error: cannot read world's file version.\n\nThe world may be in a different ('Bedrock') format, used by Minecraft for Windows 10 and 11. Click 'OK' to go to https://bit.ly/mcbedrock and follow the instructions there to tell if you're using Bedrock and to convert this type of world to the 'Classic' Java format, which Mineways can read. If instead this world is from an early version of Classic Minecraft, load it into the latest Minecraft to convert it. A third possibility is that this is some modded world in a format that Mineways does not support. There's not a lot that can be done about that, but feel free to contact me on Discord or by email. See the http://mineways.com site for support information.\n\nPath attempted: \"%s\"\n\n%s"), gFileOpened, extrabuf);
         }
         else {
-            wsprintf(fullbuf, _T("Error: cannot find or read your world for some reason. The world may be in a different ('Bedrock') format, used by Minecraft for Windows 10 and 11. Click 'OK' to go to https://bit.ly/mcbedrock and follow the instructions there to tell if you're using Bedrock and to convert this type of world to the 'Classic' Java format, which Mineways can read. If instead this world is from an early version of Classic Minecraft, load it into the latest Minecraft to convert it. A third possibility is that this is some modded world in a format that Mineways does not support. There's not a lot that can be done about that, but feel free to contact me on Discord or by email. See the http://mineways.com site for support information. If yours is a Java (Classic) world, one idea: try copying your world save directory to some simple location such as C:\\temp and use File | Open...\n\nPath attempted: \"%s\"\n\n%s"), gFileOpened, extrabuf);
+            swprintf_s(fullbuf, _countof(fullbuf), _T("Error: cannot find or read your world for some reason. The world may be in a different ('Bedrock') format, used by Minecraft for Windows 10 and 11. Click 'OK' to go to https://bit.ly/mcbedrock and follow the instructions there to tell if you're using Bedrock and to convert this type of world to the 'Classic' Java format, which Mineways can read. If instead this world is from an early version of Classic Minecraft, load it into the latest Minecraft to convert it. A third possibility is that this is some modded world in a format that Mineways does not support. There's not a lot that can be done about that, but feel free to contact me on Discord or by email. See the http://mineways.com site for support information. If yours is a Java (Classic) world, one idea: try copying your world save directory to some simple location such as C:\\temp and use File | Open...\n\nPath attempted: \"%s\"\n\n%s"), gFileOpened, extrabuf);
         }
         retcode = FilterMessageBox(NULL, fullbuf,
             _T("Read error"), MB_OKCANCEL | MB_ICONERROR | MB_TOPMOST);
         GoToBedrockHelpOnOK(retcode);
         break;
     case 2:
-        wsprintf(fullbuf, _T("Error: world has not been converted to the Anvil format.\n\nTo make a world readable by Mineways, install the latest Classic (Java) Minecraft you can, load the world in it, then quit. Doing so will convert your world to a format Mineways understands.\n\nIf this does not work, the world may be in a different ('Bedrock') format, used in Minecraft for Windows 10. Click 'OK' to go to https://bit.ly/mcbedrock and follow the instructions there to tell if you're using Bedrock and how to convert this type of world to the 'Classic' Java format, which Mineways can read. A third possibility is that this is some modded world in a format that Mineways does not support. There's not a lot that can be done about that, but feel free to contact me on Discord or by email. See the http://mineways.com site for support information."));
+        swprintf_s(fullbuf, _countof(fullbuf), _T("Error: world has not been converted to the Anvil format.\n\nTo make a world readable by Mineways, install the latest Classic (Java) Minecraft you can, load the world in it, then quit. Doing so will convert your world to a format Mineways understands.\n\nIf this does not work, the world may be in a different ('Bedrock') format, used in Minecraft for Windows 10. Click 'OK' to go to https://bit.ly/mcbedrock and follow the instructions there to tell if you're using Bedrock and how to convert this type of world to the 'Classic' Java format, which Mineways can read. A third possibility is that this is some modded world in a format that Mineways does not support. There's not a lot that can be done about that, but feel free to contact me on Discord or by email. See the http://mineways.com site for support information."));
 
         retcode = FilterMessageBox(NULL, fullbuf,
             _T("Read error"), MB_OKCANCEL | MB_ICONERROR | MB_TOPMOST);
         GoToBedrockHelpOnOK(retcode);
         break;
     case 3:
-        wsprintf(fullbuf, _T("Warning: cannot read world's spawn location - every world should have one.\n\n%s"), extrabuf);
+        swprintf_s(fullbuf, _countof(fullbuf), _T("Warning: cannot read world's spawn location - every world should have one.\n\n%s"), extrabuf);
         FilterMessageBox(NULL, fullbuf,
             _T("Read warning"), MB_OK | MB_ICONWARNING | MB_TOPMOST);
         return false;
         // not a full failure
 
     default:
-        wsprintf(fullbuf, _T("Error: cannot read world. Unknown error code, which is very strange...\n\n%s"), extrabuf);
+        swprintf_s(fullbuf, _countof(fullbuf), _T("Error: cannot read world. Unknown error code, which is very strange...\n\n%s"), extrabuf);
         FilterMessageBox(NULL, fullbuf,
             _T("Read error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
         break;
@@ -9716,12 +9742,12 @@ static void checkMapDrawErrorCode(int retCode)
         if (gOneTimeDrawError) {
             gOneTimeDrawError = false;
             if (retCode == ERROR_INFLATE) {
-                wsprintf(fullbuf, _T("Error: status != Z_STREAM_END error. Tell Eric to increase the size of CHUNK_INFLATE_MAX again and cross his fingers."));
+                swprintf_s(fullbuf, _countof(fullbuf), _T("Error: status != Z_STREAM_END error. Tell Eric to increase the size of CHUNK_INFLATE_MAX again and cross his fingers."));
             }
             else {
                 int bx, bz;
                 GetBadChunkLocation(&bx, &bz);
-                wsprintf(fullbuf, _T("Error: chunk (%d, %d) read error at nbt.cpp line %d. Mineways does not support betas or mods. Also, make sure you have downloaded the latest version of Mineways from mineways.com. If it's neither of these, please report it as a bug (see the Help menu)."), bx, bz, -retCode);
+                swprintf_s(fullbuf, _countof(fullbuf), _T("Error: chunk (%d, %d) read error at nbt.cpp line %d. Mineways does not support betas or mods. Also, make sure you have downloaded the latest version of Mineways from mineways.com. If it's neither of these, please report it as a bug (see the Help menu)."), bx, bz, -retCode);
             }
             FilterMessageBox(NULL, fullbuf,
                 _T("Warning"), MB_OK | MB_ICONERROR | MB_TOPMOST);
@@ -9731,7 +9757,7 @@ static void checkMapDrawErrorCode(int retCode)
         if (gOneTimeDrawWarning & retCode) {
             // NBT_WARNING_NAME_NOT_FOUND
             // currently the only warning - we will someday look at bits, I guess, in retCode
-            wsprintf(fullbuf, _T("Warning: unknown block types '%S' encountered and turned into '%S'.\n\nIf you are not running a Minecraft beta, mod, or conversion, please download the latest version of Mineways from mineways.com. If you think Mineways has a bug, please report it (see the Help menu)."),
+            swprintf_s(fullbuf, _countof(fullbuf), _T("Warning: unknown block types '%S' encountered and turned into '%S'.\n\nIf you are not running a Minecraft beta, mod, or conversion, please download the latest version of Mineways from mineways.com. If you think Mineways has a bug, please report it (see the Help menu)."),
                 MapUnknownBlockName(), gBlockDefinitions[GetUnknownBlockID()].name);
             FilterMessageBox(NULL, fullbuf,
                 _T("Warning"), MB_OK | MB_ICONWARNING | MB_TOPMOST);
@@ -9740,7 +9766,7 @@ static void checkMapDrawErrorCode(int retCode)
         if (gOneTimeWorldWarning & retCode) {
             // NBT_WARNING_DIRECTORY_NOT_FOUND
             // currently the only warning - we will someday look at bits, I guess, in retCode
-            wsprintf(fullbuf, _T("Warning: there is no 'region' directory found for this world. It may simply not exist.\n\nAlternately, if you are using WorldTools, for example, you'll need to move the 'region' directory buried in the 'dimensions/minecraft/worlds/2b2t/2b2t_2' or similar subdirectory to the directory where your 'level.dat' file is located.\n") );
+            swprintf_s(fullbuf, _countof(fullbuf), _T("Warning: there is no 'region' directory found for this world. It may simply not exist.\n\nAlternately, if you are using WorldTools, for example, you'll need to move the 'region' directory buried in the 'dimensions/minecraft/worlds/2b2t/2b2t_2' or similar subdirectory to the directory where your 'level.dat' file is located.\n") );
             FilterMessageBox(NULL, fullbuf,
                 _T("Warning"), MB_OK | MB_ICONWARNING | MB_TOPMOST);
             gOneTimeWorldWarning &= ~NBT_WARNING_DIRECTORY_NOT_FOUND;

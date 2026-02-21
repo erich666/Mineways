@@ -2846,6 +2846,7 @@ static void blit(unsigned char* block, unsigned char* bits, int px, int py,
 void CloseAll()
 {
     Cache_Empty();
+    regionCleanup();
 }
 
 static unsigned short retrieveType(WorldBlock* block, unsigned int voxel)

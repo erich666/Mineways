@@ -68,6 +68,9 @@ deflated data is the chunk length - 1.
 
 #define RERROR(x) if(x) { PortaClose(regionFile); return 0; }
 
+static z_stream strm;
+static int strm_initialized = 0;
+
 static int regionPrepareBuffer(bfFile & bf, wchar_t* directory, int cx, int cz)
 {
     wchar_t filename[256];
@@ -81,9 +84,6 @@ static int regionPrepareBuffer(bfFile & bf, wchar_t* directory, int cx, int cz)
     int sectorNumber, offset, chunkLength;
 
     int status;
-
-    static z_stream strm;
-    static int strm_initialized = 0;
 
     // open the region file - note we get the new mca 1.2 file type here!
     swprintf_s(filename, 256, L"%sregion/r.%d.%d.mca", directory, cx >> 5, cz >> 5);
@@ -131,7 +131,8 @@ static int regionPrepareBuffer(bfFile & bf, wchar_t* directory, int cx, int cz)
         strm.zalloc = (alloc_func)NULL;
         strm.zfree = (free_func)NULL;
         strm.opaque = NULL;
-        inflateInit(&strm);
+        if (inflateInit(&strm) != Z_OK)
+            return ERROR_INFLATE;
         strm_initialized = 1;
     }
 
@@ -150,6 +151,7 @@ static int regionPrepareBuffer(bfFile & bf, wchar_t* directory, int cx, int cz)
 
     bf.type = BF_BUFFER;
     bf.buf = out;
+    bf.buflen = CHUNK_INFLATE_MAX - (int)strm.avail_out;
     bf._offset = 0;
     bf.offset = &bf._offset;
 
@@ -187,5 +189,13 @@ int regionTestHeights(wchar_t* directory, int& minHeight, int& maxHeight, int mc
     }
 
     return nbtGetHeights(&bf, minHeight, maxHeight, mcVersion);
+}
+
+void regionCleanup()
+{
+    if (strm_initialized) {
+        inflateEnd(&strm);
+        strm_initialized = 0;
+    }
 }
 

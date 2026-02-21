@@ -1970,7 +1970,11 @@ int findIndexFromBiomeName(char* name)
 // return -1 if error (corrupt file)
 int bfread(bfFile* pbf, void* target, int len)
 {
+    if (len < 0)
+        return -1;
     if (pbf->type == BF_BUFFER) {
+        if (*pbf->offset + len > pbf->buflen)
+            return -1;  // would read past end of buffer
         memcpy(target, pbf->buf + *pbf->offset, len);
         *pbf->offset += len;
     }
@@ -1984,10 +1988,16 @@ int bfread(bfFile* pbf, void* target, int len)
 int bfseek(bfFile* pbf, int offset, int whence)
 {
     if (pbf->type == BF_BUFFER) {
+        int newOffset;
         if (whence == SEEK_CUR)
-            *pbf->offset += offset;
+            newOffset = *pbf->offset + offset;
         else if (whence == SEEK_SET)
-            *pbf->offset = offset;
+            newOffset = offset;
+        else
+            return -1;
+        if (newOffset < 0 || newOffset > pbf->buflen)
+            return -1;
+        *pbf->offset = newOffset;
     }
     else if (pbf->type == BF_GZIP) {
         return gzseek(pbf->gz, offset, whence);
@@ -1999,6 +2009,8 @@ bfFile newNBT(const wchar_t* filename, int* err)
 {
     bfFile ret;
     ret.type = BF_GZIP;
+    ret.buf = NULL;
+    ret.buflen = 0;
 
     *err = _wfopen_s(&ret.fptr, filename, L"rb");
     if (ret.fptr == NULL || *err != 0)
@@ -2199,6 +2211,8 @@ static int compare(bfFile* pbf, char* name)
     int ret = 0;
     int len = readWord(pbf);
     char thisName[MAX_NAME_LENGTH];
+    if (len >= MAX_NAME_LENGTH)
+        return -1;
     if (bfread(pbf, thisName, len) < 0)
         return -1;
     thisName[len] = 0;
@@ -2587,6 +2601,8 @@ SectionsCode:
                 if (type == 0)
                     break;
                 len = readWord(pbf);
+                if (len >= MAX_NAME_LENGTH)
+                    return LINE_ERROR;
                 if (bfread(pbf, thisName, len) < 0)
                     return LINE_ERROR;
                 thisName[len] = 0;
@@ -2595,6 +2611,8 @@ SectionsCode:
                     //found++;
                     ret = 1;
                     len = readDword(pbf); //array length
+                    if (y < 0 || 16 * (y + 1) > heightAlloc || len > 16 * 16 * 8)
+                        return LINE_ERROR;
                     if (bfread(pbf, blockLight + 16 * 16 * 8 * y, len) < 0)
                         return LINE_ERROR;
                 }
@@ -2603,6 +2621,8 @@ SectionsCode:
                     //found++;
                     ret = 1;
                     len = readDword(pbf); //array length
+                    if (y < 0 || 16 * (y + 1) > heightAlloc || len > 16 * 16 * 16)
+                        return LINE_ERROR;
                     if (bfread(pbf, buff + 16 * 16 * 16 * y, len) < 0)
                         return LINE_ERROR;
                     // and update the maxFilledSectionHeight
@@ -2617,6 +2637,8 @@ SectionsCode:
                     //found++;
                     ret = 1;
                     len = readDword(pbf); //array length
+                    if (y < 0 || 16 * (y + 1) > heightAlloc || len > 16 * 16 * 8)
+                        return LINE_ERROR;
                     // transfer the data from 4-bits to 8-bits; needed for 1.13
                     unsigned char data4buff[16 * 16 * 8];
                     if (bfread(pbf, data4buff, len) < 0)
@@ -2653,6 +2675,8 @@ SectionsCode:
                 if (type == 0)
                     break;
                 len = readWord(pbf);
+                if (len >= MAX_NAME_LENGTH)
+                    return LINE_ERROR;
                 if (bfread(pbf, thisName, len) < 0)
                     return LINE_ERROR;
                 thisName[len] = 0;
@@ -2662,14 +2686,15 @@ SectionsCode:
                     len = readDword(pbf); //array length
                     // really need just y < 16 at this point, level y = -1 doesn't have much on it, but let's future proof it here
                     if (y >= minHeight16 && y < maxHeight16) {
+                        if (len > 16 * 16 * 8)
+                            return LINE_ERROR;
                         if (bfread(pbf, blockLight + 16 * 16 * 8 * (y - minHeight16), len) < 0)
                             return LINE_ERROR;
                     }
                     else {
                         // dummy read - the 1.14 format has blocks at Y = -1 and Y = 16 that have no data
-                        // except for BlockLight and SkyLight
-                        unsigned char dummyBlockLight[16 * 16 * 128];
-                        if (bfread(pbf, dummyBlockLight, len) < 0)
+                        // except for BlockLight and SkyLight; skip past the data
+                        if (bfseek(pbf, len, SEEK_CUR) < 0)
                             return LINE_ERROR;
                     }
                 }
@@ -2708,6 +2733,8 @@ SectionsCode:
                         if (type == 0)
                             break;
                         len = readWord(pbf);
+                        if (len >= MAX_NAME_LENGTH)
+                            return LINE_ERROR;
                         if (bfread(pbf, thisName, len) < 0)
                             return LINE_ERROR;
                         thisName[len] = 0;
@@ -2762,6 +2789,8 @@ SectionsCode:
                         if (type == 0)
                             break;
                         len = readWord(pbf);
+                        if (len >= MAX_NAME_LENGTH)
+                            return LINE_ERROR;
                         if (bfread(pbf, thisName, len) < 0)
                             return LINE_ERROR;
                         thisName[len] = 0;
@@ -3214,6 +3243,8 @@ SectionsCode:
 
                     // always read name of field
                     len = readWord(pbf);
+                    if (len >= MAX_NAME_LENGTH)
+                        return LINE_ERROR;
                     if (bfread(pbf, thisName, len) < 0)
                         return LINE_ERROR;
 
@@ -3240,6 +3271,8 @@ SectionsCode:
                         {
                             len = readWord(pbf);
                             char idName[MAX_NAME_LENGTH];
+                            if (len >= MAX_NAME_LENGTH)
+                                return LINE_ERROR;
                             if (bfread(pbf, idName, len) < 0)
                                 return LINE_ERROR;
                             idName[len] = 0;
@@ -3266,6 +3299,8 @@ SectionsCode:
                         {
                             len = readWord(pbf);
                             char idName[MAX_NAME_LENGTH];
+                            if (len >= MAX_NAME_LENGTH)
+                                return LINE_ERROR;
                             if (bfread(pbf, idName, len) < 0)
                                 return LINE_ERROR;
                             idName[len] = 0;
@@ -3360,9 +3395,10 @@ SectionsCode:
 static int readBlockData(bfFile* pbf, int& bigbufflen, unsigned char *bigbuff)
 {
     bigbufflen = readDword(pbf); //array length
-    if (bigbufflen > MAX_BLOCK_STATES_ARRAY)
+    // read 8 byte records (longs), so total bytes is bigbufflen * 8
+    if (bigbufflen * 8 > MAX_BLOCK_STATES_ARRAY)
         return LINE_ERROR;	// TODO make better unique return codes, with names
-    // read 8 byte records, so note len is adjusted here from longs (which are 8 bytes long) to the number of bytes to read.
+    // note len is adjusted here from longs (which are 8 bytes long) to the number of bytes to read.
     if (bfread(pbf, bigbuff, bigbufflen * 8) < 0)
         return LINE_ERROR;
 
@@ -3389,7 +3425,8 @@ static int readBiomePalette(bfFile* pbf, unsigned char* paletteBiomeEntry, int& 
     int nentries = readDword(pbf);
     if (nentries <= 0)
         return LINE_ERROR;	// TODO someday need to clean up these error codes and treat them right
-    if (nentries > MAX_PALETTE)
+    // paletteBiomeEntry is 4*4*4 = 64 entries max (one per biome cell in a 16x16x16 section)
+    if (nentries > 4 * 4 * 4)
         return LINE_ERROR;
 
     char thisBiomeName[MAX_NAME_LENGTH];
@@ -3397,7 +3434,7 @@ static int readBiomePalette(bfFile* pbf, unsigned char* paletteBiomeEntry, int& 
     // go through entries in Palette
     while (nentries--) {
         len = readWord(pbf);
-        if (len <= 1)
+        if (len <= 1 || len >= MAX_NAME_LENGTH)
             return LINE_ERROR;  // really, should not reach here if the data's OK
         if (bfread(pbf, thisBiomeName, len) < 0)
             return LINE_ERROR;
@@ -3485,6 +3522,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             if (type == 0)
                 break;
             len = readWord(pbf);
+            if (len >= MAX_NAME_LENGTH)
+                return LINE_ERROR;
             if (bfread(pbf, thisBlockName, len) < 0)
                 return LINE_ERROR;
             thisBlockName[len] = 0;
@@ -5057,6 +5096,8 @@ SectionsCode:
             if (type == 0)
                 break;
             len = readWord(pbf);
+            if (len >= MAX_NAME_LENGTH)
+                return LINE_ERROR;
             if (bfread(pbf, thisName, len) < 0)
                 return LINE_ERROR;
             thisName[len] = 0;
@@ -5086,6 +5127,8 @@ SectionsCode:
                     if (type == 0)
                         break;
                     len = readWord(pbf);
+                    if (len >= MAX_NAME_LENGTH)
+                        return LINE_ERROR;
                     if (bfread(pbf, thisName, len) < 0)
                         return LINE_ERROR;
                     thisName[len] = 0;
@@ -5370,6 +5413,8 @@ int nbtGetDimension(bfFile * pbf, int* dimension)
         return LINE_ERROR;
     len = readWord(pbf);
     char dimension_string[256];
+    if (len >= (int)sizeof(dimension_string))
+        return LINE_ERROR;
     if (bfread(pbf, dimension_string, len) < 0)
         return LINE_ERROR;
     // doesn't return a null-terminated string, so add one
@@ -5422,6 +5467,8 @@ int nbtGetSchematicBlocksAndData(bfFile* pbf, int numBlocks, unsigned char* sche
             break;
         len = readWord(pbf);
         char thisName[MAX_NAME_LENGTH];
+        if (len >= MAX_NAME_LENGTH)
+            return LINE_ERROR;
         if (bfread(pbf, thisName, len) < 0)
             return LINE_ERROR;
         thisName[len] = 0;

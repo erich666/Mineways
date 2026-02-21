@@ -95,7 +95,10 @@ void Change_Cache_Size(int size)
     else {
         // all's fine as is, the hash table of chunks stays as is, just need to make the gCacheHistory larger
         // and reset the cache LRU counter
-        gCacheHistory = (IPoint2*)realloc(gCacheHistory, sizeof(IPoint2) * size);
+        IPoint2* newHistory = (IPoint2*)realloc(gCacheHistory, sizeof(IPoint2) * size);
+        if (newHistory == NULL)
+            return;  // allocation failed, keep existing cache unchanged
+        gCacheHistory = newHistory;
         // We now have more room for entries in the history table, so can allocate more chunks.
         // To reflect this, set the gCacheN counter to the last free entry of the new history table.
         // Then Cache_Add will add new chunks and put their locations in this history table, until full
@@ -365,20 +368,21 @@ void block_realloc(WorldBlock* block)
             int heightAlloc = block->maxFilledHeight + 1;
 
             unsigned char* grid = (unsigned char*)realloc(block->grid, 256 * heightAlloc);
+            if (grid == NULL)
+                return;  // allocation failed, keep existing block unchanged
+            block->grid = grid;
+
             unsigned char* data = (unsigned char*)realloc(block->data, 256 * heightAlloc);
+            if (data == NULL)
+                return;
+            block->data = data;
+
             unsigned char* light = (unsigned char*)realloc(block->light, 128 * heightAlloc);
-            if (grid && data && light) {
-                block->grid = grid;
-                block->data = data;
-                block->light = light;
-                block->heightAlloc = heightAlloc;
-            }
-            else {
-                // we failed, but at least stop trying to realloc if we're really unable to do so.
-                // By setting the maxHeight here, we signal that we at least tried
-                block->heightAlloc = heightAlloc;
-                //assert(0);
-            }
+            if (light == NULL)
+                return;
+            block->light = light;
+
+            block->heightAlloc = heightAlloc;
         }
     }
 }
