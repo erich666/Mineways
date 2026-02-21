@@ -380,6 +380,7 @@ static struct {
 #define RUNNING_SCRIPT_STATUS_MESSAGE L"Running script commands"
 
 #define IMPORT_LINE_LENGTH	1024
+#define ERROR_MESSAGE_BUFFER_SIZE	1024
 
 
 // Forward declarations of functions included in this code module:
@@ -4422,7 +4423,7 @@ static bool commandSketchfabPublish(ImportedSet& is, wchar_t* error)
     if (!gHighlightOn)
     {
         // we keep the export options ungrayed now so that they're selectable when the world is loaded
-        swprintf_s(error, 1024, L"no volume is selected for export; click and drag using the right-mouse button.");
+        swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"no volume is selected for export; click and drag using the right-mouse button.");
         return false;
     }
 
@@ -6499,7 +6500,7 @@ static int interpretImportLine(char* line, ImportedSet& is)
     char* strPtr;
     int i, ret;
     char string1[100], string2[100], string3[100], string4[100];
-    wchar_t error[1024];
+    wchar_t error[ERROR_MESSAGE_BUFFER_SIZE];
     int modelStyle = ISE_NO_DATA_TYPE_FOUND;
     //int mx, my, mz, type, dataVal, biome;
 
@@ -7675,7 +7676,7 @@ static int interpretScriptLine(char* line, ImportedSet& is)
     char* strPtr, * strPtr2;
     char string1[100], string2[100], string3[100];
     int on, minx, miny, minz, maxx, maxy, maxz;
-    wchar_t error[1024];
+    wchar_t error[ERROR_MESSAGE_BUFFER_SIZE];
     int retCode = INTERPRETER_FOUND_VALID_LINE;
 
     // if line is blank, let's move on, shall we? By saying this is valid, we say we have processed it.
@@ -8069,7 +8070,7 @@ JumpToSpawn:
         }
 
         if (minHeight < gMinHeight || minHeight > gMaxHeight) {
-            swprintf_s(error, 1024, L"value must be between %d and %d, inclusive, for Select minimum height command.", gMinHeight, gMaxHeight);
+            swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"value must be between %d and %d, inclusive, for Select minimum height command.", gMinHeight, gMaxHeight);
             saveErrorMessage(is, error, strPtr); return INTERPRETER_FOUND_ERROR;
         }
 
@@ -8091,7 +8092,7 @@ JumpToSpawn:
             saveErrorMessage(is, L"could not find boolean value for 'Select maximum height' command."); return INTERPRETER_FOUND_ERROR;
         }
         if (maxHeight < gMinHeight || maxHeight > gMaxHeight) {
-            swprintf_s(error, 1024, L"value must be between %d and %d, inclusive, for Select maximum height command.", gMinHeight, gMaxHeight);
+            swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"value must be between %d and %d, inclusive, for Select maximum height command.", gMinHeight, gMaxHeight);
             saveErrorMessage(is, error, strPtr); return INTERPRETER_FOUND_ERROR;
         }
 
@@ -8228,11 +8229,11 @@ JumpToSpawn:
         }
         // if either block has a colon in it, the person needs to read the docs
         if (strchr(string1, ':') ) {
-            swprintf_s(error, 1024, L"first name %S should not include a colon in it for the 'Translate' command.", string1);
+            swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"first name %S should not include a colon in it for the 'Translate' command.", string1);
             saveErrorMessage(is, error); return INTERPRETER_FOUND_ERROR;
         }
         if (strchr(string2, ':') ) {
-            swprintf_s(error, 1024, L"second name %S should not include a colon in it for the 'Translate' command.", string2);
+            swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"second name %S should not include a colon in it for the 'Translate' command.", string2);
             saveErrorMessage(is, error); return INTERPRETER_FOUND_ERROR;
         }
         // find if the second name has a "+" at the end. This means "use its data".
@@ -8246,7 +8247,7 @@ JumpToSpawn:
         // find if second name is a valid block
         int typeValue = SlowFindIndexFromName(string2);
         if (typeValue < 0 ) {
-            swprintf_s(error, 1024, L"second name %S is not a valid block name for the 'Translate' command. See https://bit.ly/minewaysnames for valid names.", string2);
+            swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"second name %S is not a valid block name for the 'Translate' command. See https://bit.ly/minewaysnames for valid names.", string2);
             saveErrorMessage(is, error); return INTERPRETER_FOUND_ERROR;
         }
 
@@ -8425,7 +8426,7 @@ JumpToSpawn:
             }
 
             else {
-                swprintf_s(error, 1024, L"could not understand command %S", line);
+                swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"could not understand command %S", line);
                 saveErrorMessage(is, error);
                 return INTERPRETER_FOUND_ERROR;
             }
@@ -8467,8 +8468,8 @@ static bool findBitToggle(char* line, ImportedSet& is, char* type, unsigned int 
         char string1[100];
         if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
         {
-            wchar_t error[1024];
-            swprintf_s(error, 1024, L"could not find boolean value for '%S' command.", type);
+            wchar_t error[ERROR_MESSAGE_BUFFER_SIZE];
+            swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"could not find boolean value for '%S' command.", type);
             saveErrorMessage(is, error);
             *pRetCode = INTERPRETER_FOUND_ERROR;
             return true;
@@ -8512,7 +8513,7 @@ static bool testChangeBlockCommand(char* line, ImportedSet& is, int* pRetCode)
         // We need at least a from, a to, or a location
         //
         // look for "from"
-        wchar_t error[1024];
+        wchar_t error[ERROR_MESSAGE_BUFFER_SIZE];
         bool foundSomething = false;
         if (strstr(strPtr, "from ") == strPtr) {
             // found "from ", so digest it.
@@ -8891,17 +8892,17 @@ static char* findBlockTypeAndData(char* line, int* pType, int* pData, unsigned s
             }
         }
         // could not find type in list
-        swprintf_s(error, 1024, L"block type is unknown. Rest of line: %S", strPtr); return line;
+        swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"block type is unknown. Rest of line: %S", strPtr); return line;
     }
     else {
         // scan for an integer identifier
         if (1 != sscanf_s(strPtr, "%d", pType))
         {
-            swprintf_s(error, 1024, L"block type number or name not found. Rest of line: %S", strPtr); return line;
+            swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"block type number or name not found. Rest of line: %S", strPtr); return line;
         }
         // found it - is it legal?
         if (*pType < 0 || *pType > 255) {
-            swprintf_s(error, 1024, L"block type must be between 0 and 255, inclusive. Rest of line: %S", strPtr); return line;
+            swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"block type must be between 0 and 255, inclusive. Rest of line: %S", strPtr); return line;
         }
         strPtr = skipPastUnsignedInteger(strPtr);
     }
@@ -8913,29 +8914,29 @@ TestForDataString:
         strPtr++;
         if (1 != sscanf_s(strPtr, "%d", pData))
         {
-            swprintf_s(error, 1024, L"data value for block not found after colon. Rest of line: %S", strPtr); return line;
+            swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"data value for block not found after colon. Rest of line: %S", strPtr); return line;
         }
         if (*pData < 0 || *pData > 15) {
-            swprintf_s(error, 1024, L"first data value %d must be in the range 0 to 15. Rest of line: %S", *pData, strPtr); return line;
+            swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"first data value %d must be in the range 0 to 15. Rest of line: %S", *pData, strPtr); return line;
         }
         strPtr = skipPastUnsignedInteger(strPtr);
         // so is there a range of data? Rare, but possible... Valid only if pDataBits is needed (i.e., is "from")
         int secondData = *pData;
         if (*strPtr == '-') {
             if (pDataBits == NULL) {
-                swprintf_s(error, 1024, L"second data value in range should not be there; only a single data value should be specified, if at all. Rest of line: %S", strPtr); return line;
+                swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"second data value in range should not be there; only a single data value should be specified, if at all. Rest of line: %S", strPtr); return line;
             }
             strPtr++;
             // look for second data type
             if (1 != sscanf_s(strPtr, "%d", &secondData))
             {
-                swprintf_s(error, 1024, L"second data value in range for block not found. Rest of line: %S", strPtr); return line;
+                swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"second data value in range for block not found. Rest of line: %S", strPtr); return line;
             }
             if (secondData < 0 || secondData > 15) {
-                swprintf_s(error, 1024, L"second data value %d must be in the range 0 to 15. Rest of line: %S", secondData, strPtr); return line;
+                swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"second data value %d must be in the range 0 to 15. Rest of line: %S", secondData, strPtr); return line;
             }
             if (*pData > secondData) {
-                swprintf_s(error, 1024, L"first data value %d must not be greater than second %d. Rest of line: %S", *pData, secondData, strPtr); return line;
+                swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"first data value %d must not be greater than second %d. Rest of line: %S", *pData, secondData, strPtr); return line;
             }
             strPtr = skipPastUnsignedInteger(strPtr);
         }
@@ -9414,15 +9415,15 @@ static bool commandLoadWorld(ImportedSet& is, wchar_t* error)
             {
                 switch (gWorldGuide.type) {
                 case WORLD_TEST_BLOCK_TYPE:
-                    swprintf_s(error, 1024, L"Mineways attempted to load world \"%s\" but could not do so. This is extremely strange, as this is the built-in test world. Please report this problem to Eric at erich@acm.org.", warningWorld);
+                    swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"Mineways attempted to load world \"%s\" but could not do so. This is extremely strange, as this is the built-in test world. Please report this problem to Eric at erich@acm.org.", warningWorld);
                     break;
 
                 case WORLD_LEVEL_TYPE:
-                    swprintf_s(error, 1024, L"Mineways attempted to load world \"%s\" but could not do so. The full path was \"%s\". Either the world could not be found, or the world name is some wide character string that could not be stored in your import file, or the world is corrupted and unloadable. Please load the world manually and then try importing again.", warningWorld, gFileOpened);
+                    swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"Mineways attempted to load world \"%s\" but could not do so. The full path was \"%s\". Either the world could not be found, or the world name is some wide character string that could not be stored in your import file, or the world is corrupted and unloadable. Please load the world manually and then try importing again.", warningWorld, gFileOpened);
                     break;
 
                 case WORLD_SCHEMATIC_TYPE:
-                    swprintf_s(error, 1024, L"Mineways attempted to load world \"%s\" but could not do so. Either the world could not be found, or the world name is some wide character string that could not be stored in your import file, or the world is corrupted and unloadable. Please load the world manually and then try importing again.", warningWorld);
+                    swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"Mineways attempted to load world \"%s\" but could not do so. Either the world could not be found, or the world name is some wide character string that could not be stored in your import file, or the world is corrupted and unloadable. Please load the world manually and then try importing again.", warningWorld);
                     break;
 
                 default:
@@ -9456,7 +9457,7 @@ static bool commandLoadWorld(ImportedSet& is, wchar_t* error)
     }
     else {
         // world didn't convert over - unlikely to hit this one
-        swprintf_s(error, 1024, L"Mineways attempted to load world \"%S\" but could not do so. Either the world could not be found, or the world name is some wide character string that could not be stored in your import file, or the world is corrupted and unloadable. Please load the world manually and then try importing again.", is.world);
+        swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"Mineways attempted to load world \"%S\" but could not do so. Either the world could not be found, or the world name is some wide character string that could not be stored in your import file, or the world is corrupted and unloadable. Please load the world manually and then try importing again.", is.world);
         return false;
     }
     return true;
@@ -9485,14 +9486,14 @@ static bool commandLoadTerrainFile(ImportedSet& is, wchar_t* error)
             }
             else {
                 // something odd happened - filename is empty
-                swprintf_s(error, 1024, L"Terrain file \"%S\" not possible to convert to a file name. Please select the terrain file manually.", is.terrainFile);
+                swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"Terrain file \"%S\" not possible to convert to a file name. Please select the terrain file manually.", is.terrainFile);
                 formTitle(&gWorldGuide, is.ws.hWnd);
                 return false;
             }
             err = _wfopen_s(&fh, terrainFileName, L"rt");
             if (err != 0) {
                 // can't find it at all, so generate error.
-                swprintf_s(error, 1024, L"Terrain file \"%S\" was not found. Please select the terrain file manually.", is.terrainFile);
+                swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"Terrain file \"%S\" was not found. Please select the terrain file manually.", is.terrainFile);
                 formTitle(&gWorldGuide, is.ws.hWnd);
                 return false;
             }
@@ -9507,7 +9508,7 @@ static bool commandLoadTerrainFile(ImportedSet& is, wchar_t* error)
         err = _wfopen_s(&fh, terrainFileName, L"rt");
         if (err != 0) {
             // can't find it at all, so generate error.
-            swprintf_s(error, 1024, L"Terrain file \"%S\" was not found. Please select the terrain file manually.", is.terrainFile);
+            swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"Terrain file \"%S\" was not found. Please select the terrain file manually.", is.terrainFile);
             formTitle(&gWorldGuide, is.ws.hWnd);
             return false;
         }
@@ -9542,7 +9543,7 @@ static bool commandLoadColorScheme(ImportedSet& is, wchar_t* error, bool invalid
         else
         {
             // warning - not found, so don't use it.
-            swprintf_s(error, 1024, L"Warning: Mineways attempted to load color scheme \"%s\" but could not do so. Either the color scheme could not be found, or the scheme name is some wide character string that could not be stored in your import file. Please select the color scheme from the menu manually.", gSchemeSelected);
+            swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"Warning: Mineways attempted to load color scheme \"%s\" but could not do so. Either the color scheme could not be found, or the scheme name is some wide character string that could not be stored in your import file. Please select the color scheme from the menu manually.", gSchemeSelected);
 
             // restore old scheme
             wcscpy_s(gSchemeSelected, 255, backupColorScheme);
@@ -9559,7 +9560,7 @@ static bool commandExportFile(ImportedSet& is, wchar_t* error, int fileMode, cha
     if (!gHighlightOn)
     {
         // we keep the export options ungrayed now so that they're selectable when the world is loaded
-        swprintf_s(error, 1024, L"no volume is selected for export; click and drag using the right-mouse button.");
+        swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"no volume is selected for export; click and drag using the right-mouse button.");
         return false;
     }
 
@@ -9590,7 +9591,7 @@ static bool commandExportFile(ImportedSet& is, wchar_t* error, int fileMode, cha
         gExported = saveMapFile(gpEFD->minxVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, wcharFileName);
         if (gExported == 0) {
             sendStatusMessage(is.ws.hwndStatus, L"Script export map operation failed");
-            swprintf_s(error, 1024, L"export map operation failed.");
+            swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"export map operation failed.");
             return false;
         }
     }
@@ -9600,7 +9601,7 @@ static bool commandExportFile(ImportedSet& is, wchar_t* error, int fileMode, cha
         if (gExported == 0)
         {
             sendStatusMessage(is.ws.hwndStatus, L"Script export operation failed");
-            swprintf_s(error, 1024, L"export operation failed.");
+            swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"export operation failed.");
             return false;
         }
     }
