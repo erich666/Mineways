@@ -96,6 +96,31 @@ void SetSeparatorMap(const wchar_t* separator)
     wcscpy_s(gSeparator, 3, separator);
 }
 
+// Builds the dimension-specific directory path into pWorldGuide->directory.
+// Uses the newFormat flag to determine old (DIM-1/DIM1) vs new (dimensions/minecraft/...) layout.
+void SetDimensionDirectory(WorldGuide* pWorldGuide, unsigned int worldType)
+{
+    wcsncpy_s(pWorldGuide->directory, MAX_PATH_AND_FILE, pWorldGuide->world, MAX_PATH_AND_FILE - 1);
+    wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
+
+    if (pWorldGuide->newFormat) {
+        // New format (snapshot 25w02a+): dimensions/minecraft/{overworld,the_nether,the_end}/
+        if (worldType & HELL)
+            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"dimensions/minecraft/the_nether/");
+        else if (worldType & ENDER)
+            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"dimensions/minecraft/the_end/");
+        else
+            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"dimensions/minecraft/overworld/");
+    }
+    else {
+        // Old format: DIM-1/ or DIM1/ (overworld has no prefix)
+        if (worldType & HELL)
+            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM-1/");
+        else if (worldType & ENDER)
+            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM1/");
+    }
+}
+
 // push - if true, save the previous selection away, for undo
 void SetHighlightState(int on, int minx, int miny, int minz, int maxx, int maxy, int maxz, int mapMinHeight, int mapMaxHeight, int push)
 {
@@ -284,17 +309,8 @@ int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int mapMaxY
 
     int sumRetCode = 0;
     if (pWorldGuide->type == WORLD_LEVEL_TYPE) {
-        // check that the directory for data exists - done mainly so we can warn about WorldTools' way of storing world data deep down in its "dimensions" subdirectory
-        wcsncpy_s(pWorldGuide->directory, MAX_PATH_AND_FILE, pWorldGuide->world, MAX_PATH_AND_FILE - 1);
-        wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
-        if (pOpts->worldType & HELL)
-        {
-            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM-1/");
-        }
-        if (pOpts->worldType & ENDER)
-        {
-            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM1/");
-        }
+        // check that the directory for data exists
+        SetDimensionDirectory(pWorldGuide, pOpts->worldType);
         wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"region");
 
         // Test if the region directory exists
@@ -5648,16 +5664,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
 
     if (!found)
     {
-        wcsncpy_s(pWorldGuide->directory, MAX_PATH_AND_FILE, pWorldGuide->world, MAX_PATH_AND_FILE - 1);
-        wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
-        if (pOpts->worldType & HELL)
-        {
-            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM-1/");
-        }
-        if (pOpts->worldType & ENDER)
-        {
-            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM1/");
-        }
+        SetDimensionDirectory(pWorldGuide, pOpts->worldType);
 
         //char debugString[256];
         //sprintf_s(debugString, 256, "DEBUG: loading %d %d\n", bx, bz);
@@ -6109,8 +6116,8 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
 // if it fails, that's OK, it just does nothing
 void GetChunkHeights(WorldGuide* pWorldGuide, int& minHeight, int& maxHeight, int mcVersion, int mx, int mz)
 {
-    wcsncpy_s(pWorldGuide->directory, MAX_PATH_AND_FILE, pWorldGuide->world, MAX_PATH_AND_FILE - 1);
-    wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
+    // Always called for overworld during initial load, so worldType is 0 (no HELL/ENDER)
+    SetDimensionDirectory(pWorldGuide, 0);
 
     // if it's not a level type world, return
     if (pWorldGuide->type != WORLD_LEVEL_TYPE) {

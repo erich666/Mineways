@@ -2587,17 +2587,7 @@ static void findChunkBounds(WorldGuide* pWorldGuide, int bx, int bz, IBox* world
 
     if (!found)
     {
-        wcsncpy_s(pWorldGuide->directory, MAX_PATH_AND_FILE, pWorldGuide->world, MAX_PATH_AND_FILE - 1);
-        wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
-        if (gModel.options->worldType & HELL)
-        {
-            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM-1");
-        }
-        if (gModel.options->worldType & ENDER)
-        {
-            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM1");
-        }
-        wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
+        SetDimensionDirectory(pWorldGuide, gModel.options->worldType);
 
         block = LoadBlock(pWorldGuide, bx, bz, mcVersion, versionID, gBlockRetCode);
         Cache_Add(bx, bz, block);
@@ -2695,17 +2685,7 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
 
     if (!found)
     {
-        wcsncpy_s(pWorldGuide->directory, MAX_PATH_AND_FILE, pWorldGuide->world, MAX_PATH_AND_FILE - 1);
-        wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"/");
-        if (gModel.options->worldType & HELL)
-        {
-            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM-1");
-        }
-        if (gModel.options->worldType & ENDER)
-        {
-            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM1");
-        }
-        wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
+        SetDimensionDirectory(pWorldGuide, gModel.options->worldType);
 
         block = LoadBlock(pWorldGuide, bx, bz, mcVersion, versionID, gBlockRetCode);
         Cache_Add(bx, bz, block);
@@ -35402,17 +35382,7 @@ static int analyzeChunk(WorldGuide* pWorldGuide, Options* pOptions, int bx, int 
 
     if (!found)
     {
-        wcsncpy_s(pWorldGuide->directory, MAX_PATH_AND_FILE, pWorldGuide->world, MAX_PATH_AND_FILE - 1);
-        wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"/");
-        if (pOptions->worldType & HELL)
-        {
-            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM-1");
-        }
-        if (pOptions->worldType & ENDER)
-        {
-            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM1");
-        }
-        wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
+        SetDimensionDirectory(pWorldGuide, pOptions->worldType);
 
         block = LoadBlock(pWorldGuide, bx, bz, mcVersion, versionID, gBlockRetCode);
         Cache_Add(bx, bz, block);

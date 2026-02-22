@@ -3602,6 +3602,20 @@ static int loadWorld(HWND hWnd)
 
     gWorldGuide.nbtVersion = 0;
     gWorldGuide.isServerWorld = false;
+
+    // Detect new directory layout (snapshot 25w02a+) by checking for dimensions/ subdirectory
+    gWorldGuide.newFormat = false;
+    if (gWorldGuide.world[0] != 0) {
+        wchar_t testDir[MAX_PATH_AND_FILE];
+        wcsncpy_s(testDir, MAX_PATH_AND_FILE, gWorldGuide.world, MAX_PATH_AND_FILE - 1);
+        wcscat_s(testDir, MAX_PATH_AND_FILE, gPreferredSeparatorString);
+        wcscat_s(testDir, MAX_PATH_AND_FILE, L"dimensions");
+        DWORD attr = GetFileAttributesW(testDir);
+        if (attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_DIRECTORY)) {
+            gWorldGuide.newFormat = true;
+        }
+    }
+
     switch (gWorldGuide.type) {
     case WORLD_TEST_BLOCK_TYPE:
         // load test world
@@ -9767,7 +9781,7 @@ static void checkMapDrawErrorCode(int retCode)
         if (gOneTimeWorldWarning & retCode) {
             // NBT_WARNING_DIRECTORY_NOT_FOUND
             // currently the only warning - we will someday look at bits, I guess, in retCode
-            swprintf_s(fullbuf, _countof(fullbuf), _T("Warning: there is no 'region' directory found for this world. It may simply not exist.\n\nAlternately, if you are using WorldTools, for example, you'll need to move the 'region' directory buried in the 'dimensions/minecraft/worlds/2b2t/2b2t_2' or similar subdirectory to the directory where your 'level.dat' file is located.\n") );
+            swprintf_s(fullbuf, _countof(fullbuf), _T("Warning: there is no 'region' directory found for this world. It may simply not exist.\n\nMineways checks for both the old format (e.g. 'region', 'DIM-1/region') and the new format used by snapshot 25w02a and later (e.g. 'dimensions/minecraft/overworld/region').\n\nIf you are using WorldTools, you may need to move the 'region' directory to the correct location relative to your 'level.dat' file.\n") );
             FilterMessageBox(NULL, fullbuf,
                 _T("Warning"), MB_OK | MB_ICONWARNING | MB_TOPMOST);
             gOneTimeWorldWarning &= ~NBT_WARNING_DIRECTORY_NOT_FOUND;

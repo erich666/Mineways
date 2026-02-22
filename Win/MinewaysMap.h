@@ -77,6 +77,7 @@ typedef struct WorldGuide {
     Schematic sch;
     int nbtVersion;
     bool isServerWorld;
+    bool newFormat;         // true if world uses new directory layout (snapshot 25w02a+)
     int minHeight;
     int maxHeight;
 } WorldGuide;
@@ -97,6 +98,7 @@ typedef struct HighlightBox {
 #define HIGHLIGHT_UNDO_CLEAR    2
 
 void SetSeparatorMap(const wchar_t* separator);
+void SetDimensionDirectory(WorldGuide* pWorldGuide, unsigned int worldType);
 void SaveHighlightState();
 bool UndoHighlightExists();
 void UndoHighlight();
