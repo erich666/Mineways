@@ -33162,7 +33162,7 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
     //}
     //else
     //{
-    //	// get past \\ 
+    //	// get past '\\'
     //	outPtr++;
     //}
     //sprintf_s(outputString, 256, "# Terrain file name: %s\n", outPtr);
