@@ -396,7 +396,7 @@ static TranslationTuple* modTranslations = NULL;
 // powered: true|false 0/4
 #define SHELF_PROP	72
 
-#define NUM_TRANS 1168
+#define NUM_TRANS 1170
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1592,6 +1592,8 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 245, HIGH_BIT | (1 << 3), "warped_shelf", SHELF_PROP },
     { 0, 245, HIGH_BIT | (2 << 3), "bamboo_shelf", SHELF_PROP },
     { 0, 245, HIGH_BIT | (3 << 3), "spruce_shelf", SHELF_PROP },
+    { 0,  37,                   5, "golden_dandelion", NO_PROP },
+    { 0, BLOCK_FLOWER_POT,  YELLOW_FLOWER_FIELD | 5, "potted_golden_dandelion", NO_PROP },
 
     // 1.20.3 additions (short_grass added next to "grass", above), https://minecraft.wiki/w/Java_Edition_1.20.3#General_2
 
@@ -3320,7 +3322,7 @@ SectionsCode:
                             ...
                             warped_roots    red_flower      15
                             dandelion		yellow_flower	0
-                            torchflower		yellow_flower	1
+                            torchflower		yellow_flower	1 - and more after this...
                             red mushroom	red_mushroom	0
                             brown mushroom	brown_mushroom	0
                             oak sapling		sapling			0

@@ -8147,6 +8147,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             case YELLOW_FLOWER_FIELD | 0x2:
             case YELLOW_FLOWER_FIELD | 0x3:
             case YELLOW_FLOWER_FIELD | 0x4:
+            case YELLOW_FLOWER_FIELD | 0x5:
                 typeB = BLOCK_DANDELION;
                 dataValB = dataVal & 0xf;
                 break;
@@ -14331,6 +14332,10 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         case 4:
             // pale oak sapling - yeah, it's weird to have it here, but we're out of sapling space
             swatchLoc = SWATCH_INDEX(9, 67);
+            break;
+        case 5:
+            // golden dandelion
+            //swatchLoc = SWATCH_INDEX(9, 67);    // TODOTODO! need to add swatch and access it here
             break;
         }
         break;
@@ -22459,6 +22464,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             case 4:
                 // pale oak sapling - yeah, it's weird to have it here, but we're out of sapling space
                 swatchLoc = SWATCH_INDEX(9, 67);
+                break;
+            case 5:
+                // golden dandelion
+                //swatchLoc = SWATCH_INDEX(9, 67);    // TODOTODO! need to add swatch and access it here
                 break;
             }
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);

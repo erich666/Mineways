@@ -1340,7 +1340,7 @@ static struct {
     {  0, 78, 501, 0, L"MWO_spruce_shelf_front", L"", SWATCH_REPEAT_ALL },
     {  1, 78, 501, 0, L"MWO_spruce_shelf_back", L"", SWATCH_REPEAT_ALL },
     {  2, 78, 501, 0, L"MWO_spruce_shelf_powered", L"", SWATCH_REPEAT_ALL },
-    {  3, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    {  3, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },    // TODOTODO golden dandelion, whatever it's calle
     {  4, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     {  5, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     {  6, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },

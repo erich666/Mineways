@@ -843,6 +843,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Potted Open Eyeblossom";
         case YELLOW_FLOWER_FIELD | 4:
             return "Potted Pale Oak Sapling";
+        case YELLOW_FLOWER_FIELD | 5:
+            return "Potted Golden Dandelion";
         case 1:
         case RED_FLOWER_FIELD | 0:
             return "Potted Poppy";
@@ -997,6 +999,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Open Eyeblossom";
         case 4:
             return "Pale Oak Sapling";
+        case 5:
+            return "Golden Dandelion";
         }
         break;
 
@@ -4033,6 +4037,10 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
             // pale oak sapling - yeah, it's weird, but we're out of sapling space
             color = 0x9FA498;
             break;
+        case 5:
+            // golden dandelion
+            color = 0xD3DD05;   // TODOTODO! need average color
+            break;
         }
         break;
 
@@ -6357,8 +6365,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_CRIMSON_DOUBLE_SLAB:
     case BLOCK_RESPAWN_ANCHOR:
     case BLOCK_DANDELION:
-        // uses 0-4
-        if (dataVal < 5)
+        // uses 0-5
+        if (dataVal < 6)
         {
             addBlock = 1;
         }
