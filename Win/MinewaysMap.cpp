@@ -9052,6 +9052,54 @@ int GetPlayer(const wchar_t* world, int* px, int* py, int* pz, int* dimension)
     int retval = nbtGetPlayer(&bf, px, py, pz);
     nbtClose(&bf);
 
+    if (retval != 0) {
+        // For newer worlds (26.1+), player data is in players/data/*.dat
+        wchar_t playerDataPath[300];
+        wcsncpy_s(playerDataPath, 300, world, wcslen(world) + 1);
+        wcscat_s(playerDataPath, 300, gSeparator);
+        wcscat_s(playerDataPath, 300, L"players");
+        wcscat_s(playerDataPath, 300, gSeparator);
+        wcscat_s(playerDataPath, 300, L"data");
+        wcscat_s(playerDataPath, 300, gSeparator);
+        wcscat_s(playerDataPath, 300, L"*.dat");
+
+        WIN32_FIND_DATA ffd;
+        HANDLE hFind = FindFirstFile(playerDataPath, &ffd);
+        if (hFind != INVALID_HANDLE_VALUE) {
+            do {
+                // Skip _old backup files
+                if (wcsstr(ffd.cFileName, L"_old") != NULL)
+                    continue;
+
+                wchar_t playerFile[300];
+                wcsncpy_s(playerFile, 300, world, wcslen(world) + 1);
+                wcscat_s(playerFile, 300, gSeparator);
+                wcscat_s(playerFile, 300, L"players");
+                wcscat_s(playerFile, 300, gSeparator);
+                wcscat_s(playerFile, 300, L"data");
+                wcscat_s(playerFile, 300, gSeparator);
+                wcscat_s(playerFile, 300, ffd.cFileName);
+
+                bf = newNBT(playerFile, &err);
+                if (bf.gz == 0x0) continue;
+                retval = nbtGetPlayerDirect(&bf, px, py, pz);
+                nbtClose(&bf);
+
+                if (retval == 0) {
+                    // Found player position, now get dimension from same file
+                    bf = newNBT(playerFile, &err);
+                    if (bf.gz != 0x0) {
+                        nbtGetDimensionDirect(&bf, dimension);
+                        nbtClose(&bf);
+                    }
+                    break;
+                }
+            } while (FindNextFile(hFind, &ffd) != 0);
+            FindClose(hFind);
+        }
+        return retval;
+    }
+
     bf = newNBT(filename, &err);
     if (bf.gz == 0x0) return err;
     retval = nbtGetDimension(&bf, dimension);

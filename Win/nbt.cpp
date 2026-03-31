@@ -5425,6 +5425,53 @@ int nbtGetDimension(bfFile * pbf, int* dimension)
         *dimension = 2;
     return 0;
 }
+// For newer worlds (26.1+), Pos is directly in the player .dat file, not under Data/Player
+int nbtGetPlayerDirect(bfFile* pbf, int* px, int* py, int* pz)
+{
+    int len;
+    *px = *py = *pz = 0;
+    //Pos (directly in root compound)
+    if (bfseek(pbf, 1, SEEK_CUR) < 0)
+        return LINE_ERROR; //skip type
+    len = readWord(pbf); //name length
+    if (bfseek(pbf, len, SEEK_CUR) < 0)
+        return LINE_ERROR; //skip name ()
+    if (nbtFindElement(pbf, "Pos") != 9)
+        return LINE_ERROR;
+    if (bfseek(pbf, 5, SEEK_CUR) < 0)
+        return LINE_ERROR; //skip subtype and num items
+    *px = (int)readDouble(pbf);
+    *py = (int)readDouble(pbf);
+    *pz = (int)readDouble(pbf);
+    return 0;
+}
+// For newer worlds (26.1+), Dimension is directly in the player .dat file
+int nbtGetDimensionDirect(bfFile* pbf, int* dimension)
+{
+    int len;
+    *dimension = 0; // overworld
+    //Dimension (directly in root compound)
+    if (bfseek(pbf, 1, SEEK_CUR) < 0)
+        return LINE_ERROR; //skip type
+    len = readWord(pbf); //name length
+    if (bfseek(pbf, len, SEEK_CUR) < 0)
+        return LINE_ERROR; //skip name ()
+    if (nbtFindElement(pbf, "Dimension") != 8)
+        return LINE_ERROR;
+    len = readWord(pbf);
+    char dimension_string[256];
+    if (len >= (int)sizeof(dimension_string))
+        return LINE_ERROR;
+    if (bfread(pbf, dimension_string, len) < 0)
+        return LINE_ERROR;
+    // doesn't return a null-terminated string, so add one
+    dimension_string[len] = 0;
+    if (strstr(dimension_string, "nether") != NULL)
+        *dimension = 1;
+    else if (strstr(dimension_string, "end") != NULL)
+        *dimension = 2;
+    return 0;
+}
 
 //////////// schematic
 //  http://minecraft.wiki/w/Schematic_file_format
