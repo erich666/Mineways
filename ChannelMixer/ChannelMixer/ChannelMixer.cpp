@@ -173,8 +173,8 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
 	// add \ to end of directory paths
-	addBackslashIfNeeded(inputDirectory);
-	addBackslashIfNeeded(outputDirectory);
+	addBackslashIfNeeded(inputDirectory, MAX_PATH);
+	addBackslashIfNeeded(outputDirectory, MAX_PATH);
 
 #ifdef _DEBUG
 	// reality check - make sure data in gTilesAlternates is correct
@@ -199,7 +199,7 @@ int wmain(int argc, wchar_t* argv[])
 	int filesFound = 0;
 	int fileCount = searchDirectoryForTiles(&gFG, &gChestGrid, &gPotGrid, &gShelfGrid, inputDirectory, wcslen(inputDirectory), verbose, alternate, true, warnUnused, true);
 	if (fileCount < 0) {
-		wsprintf(gErrorString, L"***** ERROR: cannot access the directory '%s' (Windows error code # %d). Ignoring directory.\n", inputDirectory, GetLastError());
+		swprintf_s(gErrorString, 1000, L"***** ERROR: cannot access the directory '%s' (Windows error code # %d). Ignoring directory.\n", inputDirectory, GetLastError());
 		saveErrorForEnd();
 		gErrorCount++;
 	}
@@ -364,7 +364,7 @@ static int copyFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, Chest
 								gWriteProtectCount++;
 							}
 							else {
-								wsprintf(gErrorString, L"***** ERROR: file '%s' could not be copied to '%s'.\n", inputFile, outputFile);
+								swprintf_s(gErrorString, 1000, L"***** ERROR: file '%s' could not be copied to '%s'.\n", inputFile, outputFile);
 								saveErrorForEnd();
 								gErrorCount++;
 							}
@@ -438,7 +438,7 @@ static int copyFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, Chest
 								gWriteProtectCount++;
 							}
 							else {
-								wsprintf(gErrorString, L"***** ERROR: file '%s' could not be copied to '%s'.\n", inputFile, outputFile);
+								swprintf_s(gErrorString, 1000, L"***** ERROR: file '%s' could not be copied to '%s'.\n", inputFile, outputFile);
 								saveErrorForEnd();
 								gErrorCount++;
 							}
@@ -513,7 +513,7 @@ static int copyFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, Chest
 								gWriteProtectCount++;
 							}
 							else {
-								wsprintf(gErrorString, L"***** ERROR: file '%s' could not be copied to '%s'.\n", inputFile, outputFile);
+								swprintf_s(gErrorString, 1000, L"***** ERROR: file '%s' could not be copied to '%s'.\n", inputFile, outputFile);
 								saveErrorForEnd();
 								gErrorCount++;
 							}
@@ -587,7 +587,7 @@ static int copyFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, Chest
 								gWriteProtectCount++;
 							}
 							else {
-								wsprintf(gErrorString, L"***** ERROR: file '%s' could not be copied to '%s'.\n", inputFile, outputFile);
+								swprintf_s(gErrorString, 1000, L"***** ERROR: file '%s' could not be copied to '%s'.\n", inputFile, outputFile);
 								saveErrorForEnd();
 								gErrorCount++;
 							}
@@ -724,6 +724,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 						if (rc != 0)
 						{
 							reportReadError(rc, outputFile);
+							writepng_cleanup(destination_ptr);
 							// quit - if we can't write one file, we're unlikely to write the rest.
 							return filesRead;
 						}
@@ -744,6 +745,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 						if (rc != 0)
 						{
 							reportReadError(rc, outputFile);
+							writepng_cleanup(mer_ptr);
 							// quit
 							return filesRead;
 						}
@@ -765,6 +767,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 								copyOneChannel(destination_ptr, 3, &tile, readColorType);
 								// if all 255, then emission is not being used
 								if (channelEqualsValue(destination_ptr, 0, 1, 255, 0)) {
+									writepng_cleanup(destination_ptr);
 									continue;
 								}
 								// change all 255's to 0 for emission
@@ -788,6 +791,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
                                 if (rc != 0)
                                 {
                                     reportReadError(rc, outputFile);
+                                    writepng_cleanup(destination_ptr);
                                     // quit - if we can't write one file, we're unlikely to write the rest.
                                     return filesRead;
                                 }
@@ -810,6 +814,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 							if (rc != 0)
 							{
 								reportReadError(rc, outputFile);
+								writepng_cleanup(smer_ptr);
 								// quit
 								return filesRead;
 							}
@@ -881,6 +886,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 						if (rc != 0)
 						{
 							reportReadError(rc, outputFile);
+							writepng_cleanup(destination_ptr);
 							// quit - if we can't write one file, we're unlikely to write the rest.
 							return filesRead;
 						}
@@ -901,6 +907,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 						if (rc != 0)
 						{
 							reportReadError(rc, outputFile);
+							writepng_cleanup(mer_ptr);
 							// quit
 							return filesRead;
 						}
@@ -933,6 +940,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 								if (rc != 0)
 								{
 									reportReadError(rc, outputFile);
+									writepng_cleanup(destination_ptr);
 									// quit - if we can't write one file, we're unlikely to write the rest.
 									return filesRead;
 								}
@@ -955,6 +963,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 							if (rc != 0)
 							{
 								reportReadError(rc, outputFile);
+								writepng_cleanup(smer_ptr);
 								// quit
 								return filesRead;
 							}
@@ -1025,6 +1034,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 						if (rc != 0)
 						{
 							reportReadError(rc, outputFile);
+							writepng_cleanup(destination_ptr);
 							// quit - if we can't write one file, we're unlikely to write the rest.
 							return filesRead;
 						}
@@ -1045,6 +1055,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 						if (rc != 0)
 						{
 							reportReadError(rc, outputFile);
+							writepng_cleanup(mer_ptr);
 							// quit
 							return filesRead;
 						}
@@ -1077,6 +1088,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 								if (rc != 0)
 								{
 									reportReadError(rc, outputFile);
+									writepng_cleanup(destination_ptr);
 									// quit - if we can't write one file, we're unlikely to write the rest.
 									return filesRead;
 								}
@@ -1099,6 +1111,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 							if (rc != 0)
 							{
 								reportReadError(rc, outputFile);
+								writepng_cleanup(smer_ptr);
 								// quit
 								return filesRead;
 							}
@@ -1169,6 +1182,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 						if (rc != 0)
 						{
 							reportReadError(rc, outputFile);
+							writepng_cleanup(destination_ptr);
 							// quit - if we can't write one file, we're unlikely to write the rest.
 							return filesRead;
 						}
@@ -1189,6 +1203,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 						if (rc != 0)
 						{
 							reportReadError(rc, outputFile);
+							writepng_cleanup(mer_ptr);
 							// quit
 							return filesRead;
 						}
@@ -1221,6 +1236,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 								if (rc != 0)
 								{
 									reportReadError(rc, outputFile);
+									writepng_cleanup(destination_ptr);
 									// quit - if we can't write one file, we're unlikely to write the rest.
 									return filesRead;
 								}
@@ -1243,6 +1259,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 							if (rc != 0)
 							{
 								reportReadError(rc, outputFile);
+								writepng_cleanup(smer_ptr);
 								// quit
 								return filesRead;
 							}
@@ -1326,6 +1343,7 @@ static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg,
 						if (rc != 0)
 						{
 							reportReadError(rc, outputFile);
+							writepng_cleanup(destination_ptr);
 							// quit - if we can't write one file, we're unlikely to write the rest.
 							return filesRead;
 						}
@@ -1396,6 +1414,7 @@ static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg,
 						if (rc != 0)
 						{
 							reportReadError(rc, outputFile);
+							writepng_cleanup(destination_ptr);
 							// quit - if we can't write one file, we're unlikely to write the rest.
 							return filesRead;
 						}
@@ -1465,6 +1484,7 @@ static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg,
 						if (rc != 0)
 						{
 							reportReadError(rc, outputFile);
+							writepng_cleanup(destination_ptr);
 							// quit - if we can't write one file, we're unlikely to write the rest.
 							return filesRead;
 						}
@@ -1534,6 +1554,7 @@ static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg,
 						if (rc != 0)
 						{
 							reportReadError(rc, outputFile);
+							writepng_cleanup(destination_ptr);
 							// quit - if we can't write one file, we're unlikely to write the rest.
 							return filesRead;
 						}
@@ -1569,7 +1590,7 @@ static bool setChestDirectory(const wchar_t* outputDirectory, wchar_t* outputChe
 		gChestDirectoryExists = true;
 		if (!createDir(outputChestDirectory)) {
 			// does not exist and could not create it
-			wsprintf(gErrorString, L"***** ERROR: Output chest directory %s cannot be accessed. No chest tiles will be saved.\n", outputChestDirectory);
+			swprintf_s(gErrorString, 1000, L"***** ERROR: Output chest directory %s cannot be accessed. No chest tiles will be saved.\n", outputChestDirectory);
 			saveErrorForEnd();
 			gErrorCount++;
 			gChestDirectoryFailed = true;
@@ -1592,7 +1613,7 @@ static bool setPotDirectory(const wchar_t* outputDirectory, wchar_t* outputPotDi
 		gDecoratedPotDirectoryExists = true;
 		if (!createDir(outputPotDirectory)) {
 			// does not exist and could not create it
-			wsprintf(gErrorString, L"***** ERROR: Output decorated pot directory %s cannot be accessed. No decorated pot tiles will be saved.\n", outputPotDirectory);
+			swprintf_s(gErrorString, 1000, L"***** ERROR: Output decorated pot directory %s cannot be accessed. No decorated pot tiles will be saved.\n", outputPotDirectory);
 			saveErrorForEnd();
 			gErrorCount++;
 			gDecoratedPotDirectoryFailed = true;
@@ -1615,7 +1636,7 @@ static bool setShelfDirectory(const wchar_t* outputDirectory, wchar_t* outputShe
 		gShelfDirectoryExists = true;
 		if (!createDir(outputShelfDirectory)) {
 			// does not exist and could not create it
-			wsprintf(gErrorString, L"***** ERROR: Output shelf directory %s cannot be accessed. No shelf tiles will be saved.\n", outputShelfDirectory);
+			swprintf_s(gErrorString, 1000, L"***** ERROR: Output shelf directory %s cannot be accessed. No shelf tiles will be saved.\n", outputShelfDirectory);
 			saveErrorForEnd();
 			gErrorCount++;
 			gShelfDirectoryFailed = true;
@@ -1736,41 +1757,41 @@ static void reportReadError(int rc, const wchar_t* filename)
 {
 	switch (rc) {
 	case 1:
-		wsprintf(gErrorString, L"***** ERROR [%s] is not a PNG file: incorrect signature.\n", filename);
+		swprintf_s(gErrorString, 1000, L"***** ERROR [%s] is not a PNG file: incorrect signature.\n", filename);
 		break;
 	case 2:
-		wsprintf(gErrorString, L"***** ERROR [%s] has bad IHDR (libpng longjmp).\n", filename);
+		swprintf_s(gErrorString, 1000, L"***** ERROR [%s] has bad IHDR (libpng longjmp).\n", filename);
 		break;
 	case 4:
-		wsprintf(gErrorString, L"***** ERROR [%s] read failed - insufficient memory.\n", filename);
+		swprintf_s(gErrorString, 1000, L"***** ERROR [%s] read failed - insufficient memory.\n", filename);
 		break;
 	case 63:
-		wsprintf(gErrorString, L"***** ERROR [%s] read failed - chunk too long.\n", filename);
+		swprintf_s(gErrorString, 1000, L"***** ERROR [%s] read failed - chunk too long.\n", filename);
 		break;
 	case 78:
-		wsprintf(gErrorString, L"***** ERROR [%s] read failed - file not found or could not be read.\n", filename);
+		swprintf_s(gErrorString, 1000, L"***** ERROR [%s] read failed - file not found or could not be read.\n", filename);
 		break;
 	case 102:
-		wsprintf(gErrorString, L"***** ERROR [%s] - could not read Targa TGA file header.\n", filename);
+		swprintf_s(gErrorString, 1000, L"***** ERROR [%s] - could not read Targa TGA file header.\n", filename);
 		break;
 	case 103:
-		wsprintf(gErrorString, L"***** ERROR [%s] - could not read Targa TGA file data.\n", filename);
+		swprintf_s(gErrorString, 1000, L"***** ERROR [%s] - could not read Targa TGA file data.\n", filename);
 		break;
 	case 104:
-		wsprintf(gErrorString, L"***** ERROR [%s] - unsupported Targa TGA file type.\n", filename);
+		swprintf_s(gErrorString, 1000, L"***** ERROR [%s] - unsupported Targa TGA file type.\n", filename);
 		break;
 	case 999:
-		wsprintf(gErrorString, L"***** ERROR [%s] - unknown image file type.\n", filename);
+		swprintf_s(gErrorString, 1000, L"***** ERROR [%s] - unknown image file type.\n", filename);
 		break;
 	default:
-		wsprintf(gErrorString, L"***** ERROR [%s] read failed - unknown readpng_init() error.\n", filename);
+		swprintf_s(gErrorString, 1000, L"***** ERROR [%s] read failed - unknown readpng_init() error.\n", filename);
 		break;
 	}
 	saveErrorForEnd();
 	gErrorCount++;
 
 	if (rc != 78 && rc < 100) {
-		wsprintf(gErrorString, L"Often this means the PNG file has some small bit of information that ChannelMixer cannot\n    handle. You might be able to fix this error by opening this PNG file in\n    Irfanview or other viewer and then saving it again. This has been known to clear\n    out any irregularity that ChannelMixer's somewhat-fragile PNG reader dies on.\n");
+		swprintf_s(gErrorString, 1000, L"Often this means the PNG file has some small bit of information that ChannelMixer cannot\n    handle. You might be able to fix this error by opening this PNG file in\n    Irfanview or other viewer and then saving it again. This has been known to clear\n    out any irregularity that ChannelMixer's somewhat-fragile PNG reader dies on.\n");
 	}
 	saveErrorForEnd();
 }
@@ -1834,7 +1855,8 @@ static void invertChannel(progimage_info* dst)
 	{
 		for (col = 0; col < dst->width; col++)
 		{
-			*dst_data++ = 255 - *dst_data;
+			*dst_data = 255 - *dst_data;
+			dst_data++;
 		}
 	}
 }

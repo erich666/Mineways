@@ -101,7 +101,7 @@ static DecoratedPotGrid gPotGrid;
 void initializeFileGrid(FileGrid* pfg);
 void initializeChestGrid(ChestGrid* pcg);
 void initializeDecoratedPotGrid(DecoratedPotGrid* ppg);
-void addBackslashIfNeeded(wchar_t* dir);
+void addBackslashIfNeeded(wchar_t* dir, size_t dirSize);
 int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, ChestGrid *psg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, bool topmost, bool warnUnused, bool warnDups);
 bool dirExists(const wchar_t* path);
 bool createDir(const wchar_t* path);

@@ -59,12 +59,12 @@ void initializeDecoratedPotGrid(DecoratedPotGrid* ppg)
 	}
 }
 
-void addBackslashIfNeeded(wchar_t* dir)
+void addBackslashIfNeeded(wchar_t* dir, size_t dirSize)
 {
-	if (wcslen(dir) > 0 && 
+	if (wcslen(dir) > 0 &&
 	    ((wcscmp(&dir[wcslen(dir) - 1], L"\\") != 0) && (wcscmp(&dir[wcslen(dir) - 1], L"/") != 0)))
 	{
-		wcscat_s(dir, MAX_PATH, L"\\");
+		wcscat_s(dir, dirSize, L"\\");
 	}
 }
 
@@ -80,7 +80,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg
 
 	wchar_t tilePathAppended[MAX_PATH_AND_FILE];
 	wcscpy_s(tilePathAppended, MAX_PATH_AND_FILE, tilePath);
-	addBackslashIfNeeded(tilePathAppended);
+	addBackslashIfNeeded(tilePathAppended, MAX_PATH_AND_FILE);
 
 	wchar_t tileSearch[MAX_PATH_AND_FILE];
 	wcscpy_s(tileSearch, MAX_PATH_AND_FILE, tilePathAppended);
@@ -123,7 +123,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg
 				wchar_t subdir[MAX_PATH_AND_FILE];
 				wcscpy_s(subdir, MAX_PATH_AND_FILE, tilePathAppended);
 				wcscat_s(subdir, MAX_PATH_AND_FILE, ffd.cFileName);
-				addBackslashIfNeeded(subdir);
+				addBackslashIfNeeded(subdir, MAX_PATH_AND_FILE);
 
 				int fileCount = searchDirectoryForTiles(pfg, pcg, ppg, psg, subdir, origTPLen, verbose, alternate, false, warnUnused, warnDups);
 				if (fileCount < 0) {
@@ -221,7 +221,9 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg
 								if (!pfg->fr[fullIndex].exists) {
 									pfg->fr[fullIndex].alternateExtensionFound |= flag;
 
-									// TODO PNG might be found later, which could lead to a memory leak when it overwrites these files names
+									// Free any previously allocated strings before overwriting
+									free(pfg->fr[fullIndex].fullFilename);
+									free(pfg->fr[fullIndex].path);
 									pfg->fr[fullIndex].fullFilename = _wcsdup(ffd.cFileName);
 									pfg->fr[fullIndex].path = _wcsdup(tilePath);
 								}
@@ -285,9 +287,9 @@ int checkTilesInDirectory(FileGrid* pfg, const wchar_t* tilePath, int verbose, i
 	WIN32_FIND_DATA ffd;
 	int filesFound = 0;
 
-	wchar_t tileSearch[MAX_PATH];
-	wcscpy_s(tileSearch, MAX_PATH, tilePath);
-	wcscat_s(tileSearch, MAX_PATH, L"*.png");
+	wchar_t tileSearch[MAX_PATH_AND_FILE];
+	wcscpy_s(tileSearch, MAX_PATH_AND_FILE, tilePath);
+	wcscat_s(tileSearch, MAX_PATH_AND_FILE, L"*.png");
 	hFind = FindFirstFile(tileSearch, &ffd);
 
 	if (hFind != INVALID_HANDLE_VALUE)

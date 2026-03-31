@@ -42,11 +42,15 @@ int readtga(progimage_info* im, wchar_t* filename, LodePNGColorType colortype)
 
     FILE* f;
     _wfopen_s(&f, filename, L"rb");
+    if (f == NULL)
+        return 105;
     tga::StdioFileInterface file(f);
     tga::Decoder decoder(&file);
     tga::Header header;
-    if (!decoder.readHeader(header))
+    if (!decoder.readHeader(header)) {
+        fclose(f);
         return 102;
+    }
 
     bool match = false;
     int channels_in = header.bytesPerPixel();
@@ -68,6 +72,7 @@ int readtga(progimage_info* im, wchar_t* filename, LodePNGColorType colortype)
         break;
     default:
         // unsupported file type, we assume
+        fclose(f);
         return 104;
     }
 
@@ -81,13 +86,17 @@ int readtga(progimage_info* im, wchar_t* filename, LodePNGColorType colortype)
     std::vector<uint8_t> buffer(image.rowstride * header.height);
     image.pixels = &buffer[0];
 
-    if (!decoder.readImage(header, image, nullptr))
+    if (!decoder.readImage(header, image, nullptr)) {
+        fclose(f);
         return 103;
+    }
 
     // Optional post-process to fix the alpha channel in
     // some TGA files where alpha=0 for all pixels when
     // it shouldn't.
     decoder.postProcessImage(header, image);
+
+    fclose(f);
 
     if (match) {
         im->image_data = buffer;
@@ -103,7 +112,7 @@ int readtga(progimage_info* im, wchar_t* filename, LodePNGColorType colortype)
             break;
         case 3:
             // RGB to gray or RGBA
-            channels_out = (colortype == LCT_RGBA) ? 1 : 4;
+            channels_out = (colortype == LCT_RGBA) ? 4 : 1;
             break;
         case 4:
             // RGBA to gray or RGB (ignore alpha, I guess...)
@@ -192,11 +201,15 @@ int readtgaheader(progimage_info* im, wchar_t* filename, LodePNGColorType& color
 
     FILE* f;
     _wfopen_s(&f, filename, L"rb");
+    if (f == NULL)
+        return 105;
     tga::StdioFileInterface file(f);
     tga::Decoder decoder(&file);
     tga::Header header;
-    if (!decoder.readHeader(header))
+    if (!decoder.readHeader(header)) {
+        fclose(f);
         return 102;
+    }
 
     im->width = (int)header.width;
     im->height = (int)header.height;
