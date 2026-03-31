@@ -9066,6 +9066,7 @@ int GetPlayer(const wchar_t* world, int* px, int* py, int* pz, int* dimension)
         WIN32_FIND_DATA ffd;
         HANDLE hFind = FindFirstFile(playerDataPath, &ffd);
         if (hFind != INVALID_HANDLE_VALUE) {
+            // we simply look for the first player *.dat file that works.
             do {
                 // Skip _old backup files
                 if (wcsstr(ffd.cFileName, L"_old") != NULL)
