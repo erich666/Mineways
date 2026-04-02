@@ -4086,7 +4086,7 @@ static int loadWorldList(HMENU menu)
     char charMsgString[1024];
     if (worldFound)
     {
-        sprintf_s(charMsgString, 1024, "Warning: more that %d files detected. Not all worlds have been added to the Open World list.\n", MAX_WORLDS);
+        sprintf_s(charMsgString, 1024, "Warning: more than %d files detected. Not all worlds have been added to the Open World list.\n", MAX_WORLDS);
         LOG_INFO(gExecutionLogfile, charMsgString);
         swprintf_s(msgString, 1024, L"Warning: more that %d files detected in %s. Not all worlds have been added to the Open World list.", MAX_WORLDS, saveFilesPath);
         FilterMessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
