@@ -2899,6 +2899,1625 @@ static unsigned int scaleColor(unsigned int color, float scale)
     return (r << 16) | (g << 8) | b;
 }
 
+// Given a block type and dataVal, return the raw color (no light, biome, alpha premultiplication).
+// When dataVal is 0 or the type doesn't have special handling, returns gBlockDefinitions[type].color.
+unsigned int GetBlockDataColor(int type, int dataVal)
+{
+    unsigned int color;
+
+    switch (type)
+    {
+    case BLOCK_WOOL:
+    case BLOCK_CARPET:
+        switch (dataVal & 0x1f)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:
+            return 0xDA8248;
+        case 2:
+            return 0xBA5EC2;
+        case 3:
+            return 0x7B96CD;
+        case 4:
+            return 0xC1B52A;
+        case 5:
+            return 0x46BA3A;
+        case 6:
+            return 0xD597A7;
+        case 7:
+            return 0x434343;
+        case 8:
+            return 0xA6ACAC;
+        case 9:
+            return 0x307592;
+        case 10:
+            return 0x8643BF;
+        case 11:
+            return 0x2E3B97;
+        case 12:
+            return 0x53351F;
+        case 13:
+            return 0x384B1B;
+        case 14:
+            return 0xA23732;
+        case 15:
+            return 0x1D1818;
+        case 16:    // moss
+            return 0x5B6F2E;
+        }
+
+    case BLOCK_COLORED_TERRACOTTA:
+        switch (dataVal & 0xf)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:
+            return 0x9D5021;
+        case 2:
+            return 0x925469;
+        case 3:
+            return 0x6D6987;
+        case 4:
+            return 0xB6801F;
+        case 5:
+            return 0x647230;
+        case 6:
+            return 0x9D4A4B;
+        case 7:
+            return 0x362621;
+        case 8:
+            return 0x84665D;
+        case 9:
+            return 0x535758;
+        case 10:
+            return 0x734253;
+        case 11:
+            return 0x473858;
+        case 12:
+            return 0x4A2F21;
+        case 13:
+            return 0x484F27;
+        case 14:
+            return 0x8B392B;
+        case 15:
+            return 0x21120D;
+        }
+
+    case BLOCK_STAINED_GLASS:
+    case BLOCK_STAINED_GLASS_PANE:
+        switch (dataVal & 0xf)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:
+            return 0xDFBB9D;
+        case 2:
+            return 0xCFA7DF;
+        case 3:
+            return 0xB1C5DF;
+        case 4:
+            return 0xE3E39D;
+        case 5:
+            return 0xBBD995;
+        case 6:
+            return 0xE9BBCB;
+        case 7:
+            return 0xA7A7A7;
+        case 8:
+            return 0xC5C5C5;
+        case 9:
+            return 0xA7BBC5;
+        case 10:
+            return 0xBBA1CF;
+        case 11:
+            return 0x9DA7CF;
+        case 12:
+            return 0xB1A79D;
+        case 13:
+            return 0xB1BB9D;
+        case 14:
+            return 0xC59D9D;
+        case 15:
+            return 0x959595;
+        }
+
+    case BLOCK_OAK_PLANKS:
+        switch (dataVal & 0xf)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:	// spruce
+            return gBlockDefinitions[BLOCK_SPRUCE_WOOD_STAIRS].pcolor;
+        case 2:	// birch
+            return gBlockDefinitions[BLOCK_BIRCH_WOOD_STAIRS].pcolor;
+        case 3:	// jungle
+            return gBlockDefinitions[BLOCK_JUNGLE_WOOD_STAIRS].pcolor;
+        case 4:	// acacia
+            return gBlockDefinitions[BLOCK_ACACIA_WOOD_STAIRS].pcolor;
+        case 5:	// dark oak
+            return gBlockDefinitions[BLOCK_DARK_OAK_WOOD_STAIRS].pcolor;
+        case 6: // Crimson Planks
+            return gBlockDefinitions[BLOCK_CRIMSON_STAIRS].pcolor;
+        case 7: // Warped Planks
+            return gBlockDefinitions[BLOCK_WARPED_STAIRS].pcolor;
+        case 8: // Mangrove Planks
+            return gBlockDefinitions[BLOCK_MANGROVE_STAIRS].pcolor;
+        case 9: // Cherry Planks
+            return gBlockDefinitions[BLOCK_CHERRY_STAIRS].pcolor;
+        case 10: // Bamboo Planks
+            return gBlockDefinitions[BLOCK_BAMBOO_STAIRS].pcolor;
+        case 11: // Bamboo Mosaic (Planks)
+            return gBlockDefinitions[BLOCK_BAMBOO_MOSAIC_STAIRS].pcolor;
+        case 12: // Pale Oak Planks
+            return gBlockDefinitions[BLOCK_PALE_OAK_STAIRS].pcolor;
+        }
+
+    case BLOCK_WOODEN_DOUBLE_SLAB:
+    case BLOCK_WOODEN_SLAB:
+        switch (dataVal & 0x7)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:	// spruce
+            return gBlockDefinitions[BLOCK_SPRUCE_WOOD_STAIRS].pcolor;
+        case 2:	// birch
+            return gBlockDefinitions[BLOCK_BIRCH_WOOD_STAIRS].pcolor;
+        case 3:	// jungle
+            return gBlockDefinitions[BLOCK_JUNGLE_WOOD_STAIRS].pcolor;
+        case 4:	// acacia
+            return gBlockDefinitions[BLOCK_ACACIA_WOOD_STAIRS].pcolor;
+        case 5:	// dark oak
+            return gBlockDefinitions[BLOCK_DARK_OAK_WOOD_STAIRS].pcolor;
+        case 6: // cherry
+            return gBlockDefinitions[BLOCK_CHERRY_STAIRS].pcolor;
+        case 7: // bamboo
+            return gBlockDefinitions[BLOCK_BAMBOO_STAIRS].pcolor;
+        }
+
+    case BLOCK_CRIMSON_DOUBLE_SLAB:
+    case BLOCK_CRIMSON_SLAB:
+        switch (dataVal & 0x7)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:	// warped
+            return 0x2D6D68;
+        case 2:	// blackstone top
+            return 0x2D282F;
+        case 3:	// polished blackstone
+            return 0x37333D;
+        case 4:	// polished blackstone brick
+            return 0x322E36;
+        case 5:	// bamboo mosaic
+            return 0xC0AC4F;
+        case 6:	// pale oak
+            return 0xE5DBDA;
+        case 7:	// resin brick
+            return 0xD05F1D;
+        }
+
+    case BLOCK_WEEPING_VINES:
+        switch (dataVal & 0xf)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:	// twisting
+            return 0x148C7C;
+        case 2:	// hanging roots
+            return 0xA37661;
+        }
+
+    case BLOCK_CAVE_VINES:
+        switch (dataVal & 0x1)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1: // plant
+            return 0x6B7252;
+        }
+
+    case BLOCK_CAVE_VINES_LIT:
+        switch (dataVal & 0x1)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1: // plant berries (lit)
+            return 0x74712B;
+        }
+
+    case BLOCK_STONE:
+        switch (dataVal & 0x1f)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:	// granite
+            return 0xA77562;
+        case 2:	// polished granite
+            return 0x946251;
+        case 3:	// diorite
+            return 0x9B9B9E;
+        case 4:	// polished diorite
+            return 0xC9C9CD;
+        case 5:	// andesite
+            return gBlockDefinitions[BLOCK_ANDESITE_SLAB].pcolor;
+        case 6:	// polished andesite
+            return 0x7F7F84;
+        case 7: // blackstone
+            return 0x2D282F;
+        case 8: // chiseled_polished_blackstone
+            return 0x39353E;
+        case 9: // polished_blackstone
+            return 0x37333D;
+        case 10: // gilded_blackstone
+            return 0x4A392D;
+        case 11: // polished_blackstone_bricks
+            return 0x322E36;
+        case 12: // cracked_polished_blackstone_bricks
+            return 0x2F2B32;
+        case 13: // netherite_block
+            return 0x444042;
+        case 14: // ancient_debris
+            return 0x67504A;
+        case 15: // nether_gold_ore
+            return 0x7E4E31;
+        case 16: // test_instance_block
+            return 0x908C8B;
+        }
+
+    case BLOCK_GLASS:
+        switch (dataVal & 0xf)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:	// tinted glass
+            return 0xA2A1A2;
+        }
+
+    case BLOCK_NETHER_BRICKS:
+        switch (dataVal & 0xf)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:	// chiseled
+            return 0x331A1E;
+        case 2:	// cracked
+            return 0x2B1519;
+        }
+
+    case BLOCK_SOUL_SAND:
+        switch (dataVal & 0xf)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:	// soul soil
+            return 0x4E3B30;
+        }
+
+    case BLOCK_GLOWSTONE:
+        switch (dataVal & 0xf)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:	// shroomlight
+            return 0xF29C5E;
+        }
+
+    case BLOCK_DIRT:
+        switch (dataVal & 0xf)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:	// coarse dirt
+            return 0x7D5A3F;
+        case 2:	// podzol
+            return 0x5F4118;
+        case SNOWY_BIT | 2:	// podzol with snow
+            return 0xFCFFFF;
+        case 3:	// crimson nylium
+            return 0x852727;
+        case 4:	// warped nylium
+            return 0x347568;
+        case 5: // reinforced deepslate
+            return 0x5B6057;
+        }
+
+    case BLOCK_CRYING_OBSIDIAN:
+        switch (dataVal & 0xf)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1: // Sculk Catalyst
+            return 0x143036;
+        }
+
+    case BLOCK_PINK_PETALS:
+        switch (dataVal & 0x30)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 16: // Leaf Litter
+            return 0x9f744a;
+        case 32: // Wildflowers
+            return 0xEFD897;
+        }
+
+    case BLOCK_NETHER_WART_BLOCK:
+        switch (dataVal & 0xf)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:	// warped wart block
+            return 0x177A7A;
+        }
+
+    case BLOCK_SAND:
+        switch (dataVal & 0xf)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:	// red sand
+            return 0xA85420;
+        }
+
+    case BLOCK_TNT:
+        switch (dataVal & 0xf)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:	// target
+            return 0xE7C7BE;
+        }
+
+    case BLOCK_RED_MUSHROOM:
+        switch (dataVal & 0xf)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:
+            return 0x9D3F2B;
+        case 2:
+            return 0x777965;
+        }
+
+    case BLOCK_FIRE:
+        switch (dataVal & BIT_16)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case BIT_16:	// soul fire
+            return 0x6BD0D5;
+        }
+
+    case BLOCK_LOG:
+    case BLOCK_STRIPPED_OAK:
+    case BLOCK_STRIPPED_OAK_WOOD:
+        switch (dataVal & 0x3)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:	// spruce
+            return 0x291806;
+        case 2:	// birch
+            return 0xE2E8DF;
+        case 3:	// jungle
+            return 0x584419;
+        }
+
+    case BLOCK_BONE_BLOCK:
+        switch (dataVal & 0x13)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:	// basalt
+            return 0x565659;
+        case 2:	// polished basalt
+            return 0x676667;
+        case 3:
+        case BIT_16: // (infested) deepslate
+            return 0x5e5e5e;
+        }
+
+    case BLOCK_LEAVES:
+        switch (dataVal & 0x3)
+        {
+        default:
+        case 0:	// oak or mangrove
+        case 3:	// jungle
+            // For biome-affected entries, return the base definition color
+            return gBlockDefinitions[type].color;
+        case 1:	// spruce
+            return 0x3D623D;
+        case 2:	// birch
+            return 0x6B8D46;
+        }
+
+    case BLOCK_AD_LEAVES:
+        if (dataVal & 0x2) {
+            // azalea, flowering or not
+            return (dataVal & 0x1) ? 0x6B7252 : 0x5D762C;
+        }
+        else {
+            // acacia / dark oak - biome-affected, return base color
+            return gBlockDefinitions[type].color;
+        }
+
+    case BLOCK_MANGROVE_LEAVES:
+        switch (dataVal & 0x3f)
+        {
+        default:
+        case 0:
+            // mangrove, affected by biome - return base color
+            return gBlockDefinitions[type].color;
+        case 1:
+            // cherry
+            return 0xE9B1CC;
+        case 2:
+            // pale oak
+            return 0x7A7F77;
+        }
+
+    case BLOCK_GRASS:
+        switch (dataVal & 0xf)
+        {
+        case 0: // dead bush
+            return 0x946428;
+        default:
+        case 1:	// grass
+        case 2:	// fern
+        case 6:	// bush
+            // biome-affected grass/fern - return base color
+            return gBlockDefinitions[type].color;
+        case 3:	// nether sprouts
+            return 0x149985;
+        case 4:	// crimson roots
+            return 0x83092B;
+        case 5:	// warped roots
+            return 0x148E7E;
+        case 7:	// cactus_flower
+            return 0xD67D89;
+        case 8:	// short_dry_grass
+            return 0xBCA272;
+        case 9:	// tall_dry_grass
+            return 0xC6AF80;
+        case 10:	// firefly_bush
+            return 0x62592E;
+        }
+
+    case BLOCK_GRASS_BLOCK:
+        // biome-affected, skip
+        if (dataVal & SNOWY_BIT) {
+            return 0xFCFFFF;
+        }
+        return gBlockDefinitions[type].color;
+
+    case BLOCK_SCULK_SENSOR:
+        if (dataVal & 0x4) {
+            // calibrated top
+            return 0xCEA9E2;
+        }
+        return gBlockDefinitions[type].color;
+
+    case BLOCK_AD_LOG:
+    case BLOCK_STRIPPED_ACACIA:
+    case BLOCK_STRIPPED_ACACIA_WOOD:
+        switch (dataVal & 0x3)
+        {
+        default:
+        case 0: // acacia
+            return gBlockDefinitions[type].color;
+        case 1:	// dark oak
+            return 0x342816;
+        case 2:	// crimson
+            return 0x7B3953;
+        case 3:	// warped
+            return 0x35837F;
+        }
+
+    case BLOCK_STONE_DOUBLE_SLAB:
+    case BLOCK_STONE_SLAB:
+        switch (dataVal & 0xf)
+        {
+        default:
+        case 0:
+        case 8:	// full stone
+            return gBlockDefinitions[type].color;
+        case 1:	// sandstone
+        case 9:	// full sandstone
+            return gBlockDefinitions[BLOCK_SANDSTONE].pcolor;
+        case 2:	// wooden
+            return gBlockDefinitions[BLOCK_OAK_PLANKS].pcolor;
+        case 3:	// cobblestone
+        case 11:	// cobblestone
+            return gBlockDefinitions[BLOCK_COBBLESTONE].pcolor;
+        case 4:	// bricks
+        case 12:	// bricks
+            return gBlockDefinitions[BLOCK_BRICK].pcolor;
+        case 5:	// stone brick
+        case 13:	// stone brick
+            return gBlockDefinitions[BLOCK_STONE_BRICKS].pcolor;
+        case 6:	// nether brick
+        case 14:	// nether brick
+            return gBlockDefinitions[BLOCK_NETHER_BRICKS].pcolor;
+        case 7:	// quartz
+        case 15:	// quartz
+            return gBlockDefinitions[BLOCK_QUARTZ_BLOCK].pcolor;
+        case 10:	// tile quartz or upper wooden slab
+            return gBlockDefinitions[(type == BLOCK_STONE_DOUBLE_SLAB) ? BLOCK_QUARTZ_BLOCK : BLOCK_OAK_PLANKS].pcolor;
+        }
+
+    case BLOCK_RED_SANDSTONE_DOUBLE_SLAB:
+    case BLOCK_RED_SANDSTONE_SLAB:
+        switch (dataVal & 0x7)
+        {
+        default:
+        case 0:
+        case 1:	// cut red sandstone
+        case 2:	// smooth red sandstone
+            return gBlockDefinitions[type].color;
+        case 3: // cut sandstone
+        case 4: // smooth sandstone
+            return gBlockDefinitions[BLOCK_SANDSTONE].pcolor;
+        case 5:	// granite
+            return 0xA77562;
+        case 6:	// polished granite
+            return 0x946251;
+        case 7:	// smooth quartz
+            return gBlockDefinitions[BLOCK_QUARTZ_BLOCK].pcolor;
+        }
+
+    case BLOCK_ANDESITE_DOUBLE_SLAB:
+    case BLOCK_ANDESITE_SLAB:
+        switch (dataVal & 0x7)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:	// polished andesite
+            return 0x7F7F84;
+        case 2:	// diorite
+            return 0x9B9B9E;
+        case 3: // polished diorite slab
+            return 0xC9C9CD;
+        case 4: // end stone brick slab
+            return gBlockDefinitions[BLOCK_END_BRICKS].pcolor;
+        case 5:	// stone slab
+            return gBlockDefinitions[BLOCK_STONE].pcolor;
+        case 6: // mangrove
+            return 0x773932;
+        case 7: // mud brick
+            return 0x8B6950;
+        }
+
+    case BLOCK_CUT_COPPER_DOUBLE_SLAB:
+    case BLOCK_CUT_COPPER_SLAB:
+        switch (dataVal & 0x17)
+        {
+        default:
+        case 0:
+        case 4:	// Waxed Cut Copper Slab
+            return gBlockDefinitions[type].color;
+        case 1:	// Exposed Cut Copper Slab
+        case 5:	// Waxed Exposed Cut Copper Slab
+            return 0xA37E69;
+        case 2:	// Weathered Cut Copper Slab
+        case 6:	// Waxed Weathered Cut Copper Slab
+            return 0x6F936E;
+        case 3: // Oxidized Cut Copper Slab
+        case 7:	// Waxed Oxidized Cut Copper Slab
+            return 0x54A587;
+        case BIT_16 | 0: // Cobbled Deepslate Slab
+            return 0x515153;
+        case BIT_16 | 1: // Polished Deepslate Slab
+            return 0x4C4C4C;
+        case BIT_16 | 2: // Deepslate Brick Slab
+            return 0x4B4B4B;
+        case BIT_16 | 3: // Deepslate Tile Slab
+            return 0x39393A;
+        case BIT_16 | 4: // Tuff Slab
+            return 0x6F6F69;
+        case BIT_16 | 5: // Polished Tuff Slab
+            return 0x636965;
+        case BIT_16 | 6: // Tuff Brick Slab
+            return 0x656962;
+        }
+
+    case BLOCK_POPPY:
+        switch (dataVal & 0xf)
+        {
+        default:
+        case 0: // poppy
+            return gBlockDefinitions[type].color;
+        case 1:	// blue orchid
+            return 0x26ABF8;
+        case 2:	// allium
+            return 0xB562F8;
+        case 3:	// azure bluet
+            return 0xE1E7EF;
+        case 4:	// red tulip
+            return 0xC02905;
+        case 5:	// orange tulip
+            return 0xDE6E20;
+        case 6:	// white tulip
+            return 0xE4E4E4;
+        case 7:	// pink tulip
+            return 0xE7BBE7;
+        case 8:	// oxeye daisy
+            return 0xE7D941;
+        case 9: // cornflower
+            return 0x547CAB;
+        case 10: // lily of the valley
+            return 0x93B588;
+        case 11: // wither rose
+            return 0x2D3119;
+        case 12:    // crimson fungus
+            return 0x9D3F2B;
+        case 13:    // warped fungus
+            return 0x777965;
+        case 14:    // crimson root
+            return 0x3092B;
+        case 15:    // warped root
+            return 0x148E7E;
+        }
+
+    case BLOCK_DANDELION:
+        switch (dataVal & 0xf)
+        {
+        default:
+        case 0: // dandelion
+            return gBlockDefinitions[type].color;
+        case 1:	// torchflower
+            return 0xF6B927;
+        case 2: // closed_eyeblossom
+            return 0xBCAEB9;
+        case 3: // opened_eyeblossom
+            return 0xEEEEEE;
+        case 4: // pale oak sapling
+            return 0x9FA498;
+        case 5: // golden dandelion
+            return 0xD3DD05;
+        }
+
+    case BLOCK_LIGHTNING_ROD:
+    case BLOCK_WAXED_LIGHTNING_ROD:
+        switch (dataVal & 0x30)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case BIT_16:
+            return 0xA3796A;
+        case BIT_32:
+            return 0x519E82;
+        case BIT_32 | BIT_16:
+            return 0x64926C;
+        }
+
+    case BLOCK_DOUBLE_FLOWER:
+        // masking just in case it's a top half (and probably bogus)
+        switch (dataVal & 0x7)
+        {
+        case 0:	// sunflower
+            return 0xEAD31F;
+        case 1:	// lilac
+            return 0xB79ABB;
+        default:
+        case 2:	// tall grass - biome-affected
+            return gBlockDefinitions[type].color;
+        case 3:	// large fern - biome-affected
+            return gBlockDefinitions[type].color;
+        case 4:	// rose bush
+            return 0xF4210B;
+        case 5:	// peony
+            return 0xE3BCF4;
+        case 6: // pitcher plant
+            return 0x7D9BC2;
+        }
+
+    case BLOCK_SPONGE:
+        switch (dataVal & 0xf)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:	// wet sponge
+            return 0x999829;
+        }
+
+    case BLOCK_CONCRETE:
+        switch (dataVal & 0xf)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:
+            return 0xE06101;
+        case 2:
+            return 0xA9309F;
+        case 3:
+            return 0x2489C7;
+        case 4:
+            return 0xF1AF15;
+        case 5:
+            return 0x5EA919;
+        case 6:
+            return 0xD6658F;
+        case 7:
+            return 0x373A3E;
+        case 8:
+            return 0x7D7D73;
+        case 9:
+            return 0x157788;
+        case 10:
+            return 0x64209C;
+        case 11:
+            return 0x2D2F8F;
+        case 12:
+            return 0x603C20;
+        case 13:
+            return 0x495B24;
+        case 14:
+            return 0x8E2121;
+        case 15:
+            return 0x080A0F;
+        }
+
+    case BLOCK_CONCRETE_POWDER:
+        switch (dataVal & 0xf)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:
+            return 0xE38423;
+        case 2:
+            return 0xC155B9;
+        case 3:
+            return 0x4BB5D6;
+        case 4:
+            return 0xE9C739;
+        case 5:
+            return 0x7EBD2B;
+        case 6:
+            return 0xE59AB6;
+        case 7:
+            return 0x4D5155;
+        case 8:
+            return 0x9B9B95;
+        case 9:
+            return 0x25959D;
+        case 10:
+            return 0x8438B2;
+        case 11:
+            return 0x474AA7;
+        case 12:
+            return 0x7E5536;
+        case 13:
+            return 0x61782D;
+        case 14:
+            return 0xA93633;
+        case 15:
+            return 0x1B1C21;
+        }
+
+    case BLOCK_PURPUR_DOUBLE_SLAB:
+    case BLOCK_PURPUR_SLAB:
+        switch (dataVal & 0x7)
+        {
+        default:
+        case 0:	// full stone
+        case 1:	// purpur, just in case
+            return gBlockDefinitions[type].color;
+        case 2:	// prismarine
+            return gBlockDefinitions[BLOCK_PRISMARINE].pcolor;
+        case 3:	// prismarine block
+            return gBlockDefinitions[BLOCK_PRISMARINE_BRICK_STAIRS].pcolor;
+        case 4:	// dark prismarine
+            return gBlockDefinitions[BLOCK_DARK_PRISMARINE_STAIRS].pcolor;
+        case 5:	// red nether brick
+            return gBlockDefinitions[BLOCK_RED_NETHER_BRICK].pcolor;
+        case 6:	// mossy stone brick
+            return 0x767B6E;
+        case 7:	// mossy cobblestone
+            return gBlockDefinitions[BLOCK_MOSSY_COBBLESTONE].pcolor;
+        }
+
+    case BLOCK_CORAL_BLOCK:
+    case BLOCK_CORAL:
+    case BLOCK_CORAL_FAN:
+    case BLOCK_CORAL_WALL_FAN:
+        switch (dataVal & 0x7)
+        {
+        default:
+        case 0:	// tube coral - as is
+            return gBlockDefinitions[type].color;
+        case 1:	// brain
+            return 0xC85D9B;
+        case 2:	// bubble
+            return 0xA61EA2;
+        case 3:	// fire
+            return 0xAC282F;
+        case 4:	// horn
+            return 0xD2BE40;
+        }
+
+    case BLOCK_SIGN_POST:
+        switch (dataVal & (BIT_16 | BIT_32))
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case BIT_16:	// spruce
+            return 0x745632;
+        case BIT_32:	// birch
+            return 0xC2B17A;
+        case BIT_32 | BIT_16:	// jungle
+            return 0xA37654;
+        }
+
+    case BLOCK_ACACIA_SIGN_POST:
+        switch (dataVal & (BIT_16 | BIT_32))
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case BIT_16:	// dark oak
+            return 0x442C15;
+        case BIT_32:	// crimson
+            return 0x7B3953;
+        case BIT_32 | BIT_16:	// warped
+            return 0x35837F;
+        }
+
+    case BLOCK_MANGROVE_SIGN_POST:
+        switch (dataVal & (BIT_16 | BIT_32))
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case BIT_16:	// cherry
+            return gBlockDefinitions[BLOCK_CHERRY_STAIRS].pcolor;
+        case BIT_32:	// bamboo
+            return gBlockDefinitions[BLOCK_BAMBOO_STAIRS].pcolor;
+        case BIT_32 | BIT_16:	// pale oak
+            return gBlockDefinitions[BLOCK_PALE_OAK_STAIRS].pcolor;
+        }
+
+    case BLOCK_WALL_SIGN:
+        switch (dataVal & (BIT_8 | BIT_16 | BIT_32))
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case BIT_8:	// spruce
+            return 0x745632;
+        case BIT_16:	// birch
+            return 0xC2B17A;
+        case BIT_16 | BIT_8:	// jungle
+            return 0xA37654;
+        case BIT_32:	// acacia
+            return 0xA95B33;
+        case BIT_32 | BIT_8:	// dark oak
+            return 0x442C15;
+        case BIT_32 | BIT_16:   // crimson
+            return 0x7B3953;
+        case BIT_32 | BIT_16 | BIT_8:   // warped
+            return 0x35837F;
+        }
+
+    case BLOCK_MANGROVE_WALL_SIGN:
+        switch (dataVal & (BIT_8 | BIT_16 | BIT_32))
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case BIT_8:	// cherry
+            return 0xE3B4AE;
+        case BIT_16:	// bamboo
+            return 0xC4AF52;
+        case BIT_16 | BIT_8:	// pale oak
+            return 0xE5DBDA;
+        }
+
+    case BLOCK_SMOOTH_STONE:
+        switch (dataVal & 0x3)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1: // smooth sandstone
+            return gBlockDefinitions[BLOCK_SANDSTONE].pcolor;
+        case 2: // red sandstone
+            return gBlockDefinitions[BLOCK_RED_SANDSTONE].pcolor;
+        case 3: // quartz
+            return gBlockDefinitions[BLOCK_QUARTZ_BLOCK].pcolor;
+        }
+
+    case BLOCK_COBBLESTONE_WALL:
+        switch (dataVal & 0x1f) {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1: // mossy cobblestone
+            return gBlockDefinitions[BLOCK_MOSSY_COBBLESTONE].pcolor;
+        case 2: // brick wall
+            return gBlockDefinitions[BLOCK_BRICK].pcolor;
+        case 3: // granite wall
+            return 0xA77562;
+        case 4: // diorite wall
+            return 0x9B9B9E;
+        case 5: // andesite wall
+            return gBlockDefinitions[BLOCK_ANDESITE_SLAB].pcolor;
+        case 6: // prismarine wall
+            return gBlockDefinitions[BLOCK_PRISMARINE].pcolor;
+        case 7: // stone brick wall
+            return gBlockDefinitions[BLOCK_STONE_BRICKS].pcolor;
+        case 8: // mossy stone brick wall
+            return 0x767B6E;
+        case 9: // end stone brick wall
+            return 0xDBE2A4;
+        case 10: // nether brick wall
+            return gBlockDefinitions[BLOCK_NETHER_BRICKS].pcolor;
+        case 11: // red nether brick wall
+            return gBlockDefinitions[BLOCK_RED_NETHER_BRICK].pcolor;
+        case 12: // sandstone wall
+            return gBlockDefinitions[BLOCK_SANDSTONE].pcolor;
+        case 13: // red sandstone wall
+            return gBlockDefinitions[BLOCK_RED_SANDSTONE].pcolor;
+        case 14: // blackstone wall
+            return 0x2D272E;
+        case 15: // polished blackstone wall
+            return 0x37333D;
+        case 16: // polished blackstone brick wall
+            return 0x322E36;
+        case 17: // Cobbled Deepslate
+            return 0x515153;
+        case 18: // Polished Deepslate
+            return 0x4C4C4C;
+        case 19: // Deepslate Bricks
+            return 0x4B4B4B;
+        case 20: // Deepslate Tiles
+            return 0x39393A;
+        case 21: // Mud brick wall
+            return 0x8B6950;
+        case 22: // Tuff wall
+            return 0x6F6F69;
+        case 23: // Polished Tuff wall
+            return 0x636965;
+        case 24: // Tuff Brick wall
+            return 0x656962;
+        case 25: // Resin Brick wall
+            return 0xD05F1D;
+        }
+
+    case BLOCK_PRISMARINE:
+        switch (dataVal & 0xf) {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1: // bricks
+            return gBlockDefinitions[BLOCK_PRISMARINE_BRICK_STAIRS].pcolor;
+        case 2:	// dark prismarine
+            return gBlockDefinitions[BLOCK_DARK_PRISMARINE_STAIRS].pcolor;
+        }
+
+    case BLOCK_FURNACE:
+    case BLOCK_BURNING_FURNACE:
+        switch (dataVal & (BIT_32 | BIT_16)) {
+        default:
+        case 0x0:
+            return gBlockDefinitions[type].color;
+        case BIT_16:	// loom
+            return 0x9A836C;
+        case BIT_32:	// smoker
+            return 0x5C5A59;
+        case BIT_32 | BIT_16:	// blast furnace
+            return 0x535253;
+        }
+
+    case BLOCK_BOOKSHELF:
+        if (dataVal & BIT_16) {
+            return 0xB3925A;
+        }
+        return gBlockDefinitions[type].color;
+
+    case BLOCK_CRAFTING_TABLE:
+        switch (dataVal & 0xf) {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1: // cartography
+            return 0x81756D;
+        case 2:	// fletching
+            return 0xC8B78C;
+        case 3:	// smithing
+            return 0x3B3C49;
+        case 4:	// lodestone
+            return 0x7D7E80;
+        }
+
+    case BLOCK_BEE_NEST:
+        if (dataVal & BIT_32) {
+            // beehive
+            return 0xB5935B;
+        }
+        return gBlockDefinitions[type].color;
+
+    case BLOCK_COLORED_CANDLE:
+        switch (dataVal & 0xf)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:
+            return 0xDD5F00;
+        case 2:
+            return 0xA02A98;
+        case 3:
+            return 0x2089C9;
+        case 4:
+            return 0xCFA12C;
+        case 5:
+            return 0x5EAD14;
+        case 6:
+            return 0xD15F8B;
+        case 7:
+            return 0x4E5D5E;
+        case 8:
+            return 0x73766C;
+        case 9:
+            return 0x0F7877;
+        case 10:
+            return 0x6620A0;
+        case 11:
+            return 0x374A9F;
+        case 12:
+            return 0x6B4224;
+        case 13:
+            return 0x445B12;
+        case 14:
+            return 0x992421;
+        case 15:
+            return 0x201F32;
+        }
+
+    case BLOCK_LIT_COLORED_CANDLE:
+        switch (dataVal & 0xf)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:
+            return 0xFFDA4B;
+        case 2:
+            return 0xFF9CC2;
+        case 3:
+            return 0xBFF0E1;
+        case 4:
+            return 0xFDFF9A;
+        case 5:
+            return 0xD2DA3B;
+        case 6:
+            return 0xFFDDBF;
+        case 7:
+            return 0xEDC591;
+        case 8:
+            return 0xFFE5A8;
+        case 9:
+            return 0x8ADCB0;
+        case 10:
+            return 0xCB2172;
+        case 11:
+            return 0x6A83F5;
+        case 12:
+            return 0xFFB55F;
+        case 13:
+            return 0xC0B419;
+        case 14:
+            return 0xFF9456;
+        case 15:
+            return 0xCF5C20;
+        }
+
+    case BLOCK_AMETHYST:
+        switch (dataVal & 0x3f)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:	// amethyst cluster
+            return 0x8E69BF;
+        case 2:	// calcite
+            return 0xE0E1DE;
+        case 3:	// tuff
+            return 0x6F6F69;
+        case 4:	// Dripstone Block
+            return 0x886E5E;
+        case 5:	// Copper Ore
+            return 0x936C45;
+        case 6:	// Deepslate Copper Ore
+            return 0x63421F;
+        case 7: // Block of Copper
+        case 15: // Waxed Block of Copper
+            return 0xC26D52;
+        case 8: // Exposed Copper
+        case 16: // Waxed Exposed Copper
+            return 0xA37E69;
+        case 9: // Weathered Copper
+        case 17: // Waxed Weathered Copper
+            return 0x6F936E;
+        case 10: // Oxidized Copper
+        case 18: // Waxed Oxidized Copper
+            return 0x54A587;
+        case 11: // Cut Copper
+        case 19: // Waxed Cut Copper
+            return 0xC16D53;
+        case 12: // Exposed Cut Copper
+        case 20: // Waxed Exposed Cut Copper
+            return 0x9E7B67;
+        case 13: // Weathered Cut Copper
+        case 21: // Waxed Weathered Cut Copper
+            return 0x6F936E;
+        case 14: // Oxidized Cut Copper
+        case 22: // Waxed Oxidized Cut Copper
+            return 0x529D81;
+        case 23: // Moss Block
+            return 0x5B6F2E;
+        case 24: // Rooted Dirt
+            return 0x946B52;
+        case 25: // Powder Snow
+            return 0xF8FDFD;
+        case 26: // Cobbled Deepslate
+            return 0x515153;
+        case 27: // Chiseled Deepslate
+            return 0x39393A;
+        case 28: // Polished Deepslate
+            return 0x4C4C4C;
+        case 29: // Deepslate Bricks
+            return 0x4B4B4B;
+        case 30: // Deepslate Tiles
+            return 0x39393A;
+        case 31: // Cracked Deepslate Bricks
+            return 0x454546;
+        case 32: // Cracked Deepslate Tiles
+            return 0x373737;
+        case 33: // Smooth Basalt
+            return 0x4B4B4F;
+        case 34: // Block of Raw Iron
+            return 0xAC8D74;
+        case 35: // Block of Raw Copper
+            return 0xA36D53;
+        case 36: // Block of Raw Gold
+            return 0xE0B03E;
+        case 37: // Deepslate Coal Ore
+            return 0x515152;
+        case 38: // Deepslate Iron Ore
+            return 0x756A63;
+        case 39: // Deepslate Gold Ore
+            return 0x847256;
+        case 40: // Deepslate Redstone Ore
+            return 0x785152;
+        case 41: // Deepslate Emerald Ore
+            return 0x5A7760;
+        case 42: // Deepslate Lapis Lazuli Ore
+            return 0x575F7F;
+        case 43: // Deepslate Diamond Ore
+            return 0x5B7876;
+        case 44: // Mud
+            return 0x3D3A3D;
+        case 45: // Mud Bricks
+            return 0x8B6950;
+        case 46: // Packed Mud
+            return 0x8F6B50;
+        case 47: // Sculk
+            return 0x0E2025;
+        case 48: // Polished Tuff
+            return 0x636965;
+        case 49:
+        case 53: // Chiseled Copper / Waxed Chiseled Copper
+            return 0xBA674D;
+        case 50:
+        case 54: // Exposed Chiseled Copper / Waxed Exposed Chiseled Copper
+            return 0x9E7866;
+        case 51:
+        case 55: // Weathered Chiseled Copper / Waxed Weathered Chiseled Copper
+            return 0x6A9A73;
+        case 52:
+        case 56: // Oxidized Chiseled Copper / Waxed Oxidized Chiseled Copper
+            return 0x55A587;
+        case 57: // Tuff Bricks
+            return 0x656962;
+        case 58: // chiseled_tuff_top
+            return 0x61655E;
+        case 59: // chiseled_tuff_bricks_top
+            return 0x71736C;
+        case 60: // pale_moss_block
+            return 0x6C726A;
+        case 61: // chiseled_resin_bricks
+            return 0xCB5B1D;
+        case 62: // resin_block
+            return 0xDA681F;
+        case 63: // resin_bricks
+            return 0xD05F1D;
+        }
+
+    case BLOCK_AZALEA:
+        switch (dataVal & 0x1)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:	// flowering azalea
+            return 0x757B54;
+        }
+
+    case BLOCK_FROGLIGHT:
+        switch (dataVal & 0x3)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:	// Verdant Froglight
+            return 0xF6F1F0;
+        case 2:	// Pearlescent Froglight
+            return 0xE7F5E6;
+        }
+
+    case BLOCK_MANGROVE_LOG:
+    case BLOCK_STRIPPED_MANGROVE:
+    case BLOCK_STRIPPED_MANGROVE_WOOD:
+        switch (dataVal & 0x3)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:	// cherry
+            return 0xCA9C96;
+        case 2:	// pale oak
+            return 0xD1C8C7;
+        }
+
+    case BLOCK_HAY:
+        switch (dataVal & 0x3)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:	// block of bamboo
+            return 0x909143;
+        case 2:	// block of stripped bamboo
+            return 0xB8A44D;
+        }
+
+    case BLOCK_SUSPICIOUS_GRAVEL:
+        switch (dataVal & 0x4)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 4:	// suspicious sand
+            return 0xDACDA1;
+        }
+
+    case BLOCK_OAK_WALL_HANGING_SIGN:
+        switch (dataVal & (0xC | BIT_16 | BIT_32))
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1 << 2:	// spruce
+            return 0x745A35;
+        case 2 << 2:	// birch
+            return 0xC5B077;
+        case 3 << 2:	// jungle
+            return 0xAC8555;
+        case 4 << 2:	// acacia
+            return 0xAF5D3C;
+        case 5 << 2:	// dark oak
+            return 0x493924;
+        case 6 << 2:   // crimson
+            return 0x8A3A5A;
+        case 7 << 2:   // warped
+            return 0x3A9794;
+        case 8 << 2:    // mangrove
+            return 0x783730;
+        case 9 << 2:	// cherry
+            return 0xDDA7A0;
+        case 10 << 2:	// bamboo
+            return 0xC4AF52;
+        case 11 << 2:	// pale oak
+            return 0xE5DBDA;
+        }
+
+    case BLOCK_OAK_HANGING_SIGN:
+        if (dataVal & BIT_32) {
+            return 0x745632;   // spruce
+        }
+        return gBlockDefinitions[type].color;
+
+    case BLOCK_BIRCH_HANGING_SIGN:
+        if (dataVal & BIT_32) {
+            return 0xAC8555;   // jungle
+        }
+        return gBlockDefinitions[type].color;
+
+    case BLOCK_ACACIA_HANGING_SIGN:
+        if (dataVal & BIT_32) {
+            return 0x745632;   // dark oak
+        }
+        return gBlockDefinitions[type].color;
+
+    case BLOCK_CRIMSON_HANGING_SIGN:
+        if (dataVal & BIT_32) {
+            return 0x745632;   // warped
+        }
+        return gBlockDefinitions[type].color;
+
+    case BLOCK_MANGROVE_HANGING_SIGN:
+        if (dataVal & BIT_32) {
+            return 0x745632;   // mangrove
+        }
+        return gBlockDefinitions[type].color;
+
+    case BLOCK_TRIAL_SPAWNER:
+        switch (dataVal & 0x7)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:	// active
+        case 2: // waiting_for_player
+            return 0x545863;
+        case 3:	// ejecting
+            return 0x4E484F;
+        case 4:	// ominous inactive
+            return 0x355161;
+        case 5:	// ominous active
+        case 6:	// ominous waiting_for_player
+            return 0x365E6C;
+        case 7:	// ominous ejecting
+            return 0x2B505A;
+        }
+
+    case BLOCK_VAULT:
+        switch (dataVal & 0x1C)
+        {
+        default:
+        case 0:     // inactive
+        case 0x8:	// active
+        case 0x10:	// unlocking
+            return gBlockDefinitions[type].color;
+        case 4:	    // ominous inactive
+        case 0xC:	// ominous active
+        case 0x14:	// ominous unlocking
+            return 0x3B4245;
+        case 0x18:	// ejecting
+            return 0x3C403F;
+        case 0x1C:	// ominous ejecting
+            return 0x4A4E4B;
+        }
+
+    case BLOCK_COPPER_BULB:
+        switch (dataVal & 0xf) {
+        default:
+        case 0:
+        case 4: // Waxed Copper Bulb
+            return gBlockDefinitions[type].color;
+        case 1:
+        case 5: // Exposed / Waxed Exposed Copper Bulb
+            return 0x8E6E5D;
+        case 2:
+        case 6: // Weathered / Waxed Weathered Copper Bulb
+            return 0x5F8467;
+        case 3:
+        case 7: // Oxidized / Waxed Oxidized Copper Bulb
+            return 0x498B73;
+        case 0x8 | 0:
+        case 0x8 | 4: // lit Waxed Copper Bulb
+            return 0xDCA478;
+        case 0x8 | 1:
+        case 0x8 | 5: // lit Exposed / Waxed Exposed Copper Bulb
+            return 0xC9976C;
+        case 0x8 | 2:
+        case 0x8 | 6: // lit Weathered / Waxed Weathered Copper Bulb
+            return 0xABA067;
+        case 0x8 | 3:
+        case 0x8 | 7: // lit Oxidized / Waxed Oxidized Copper Bulb
+            return 0x989E70;
+        }
+
+    case BLOCK_COPPER_GRATE:
+        switch (dataVal & 0x7) {
+        default:
+        case 0:
+        case 4: // Waxed Copper Grate
+            return gBlockDefinitions[type].color;
+        case 1:
+        case 5: // Exposed / Waxed Exposed Copper Grate
+            return 0xA47F6A;
+        case 2:
+        case 6: // Weathered / Waxed Weathered Copper Grate
+            return 0x54A486;
+        case 3:
+        case 7: // Oxidized / Waxed Oxidized Copper Grate
+            return 0x6B9B72;
+        }
+
+    case BLOCK_STONE_PRESSURE_PLATE:
+        switch ((dataVal & 0x7e) >> 1) {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1: // Spruce Pressure Plate
+            return 0x6B5030;
+        case 2: // Birch Pressure Plate
+            return 0x9E7250;
+        case 3: // Jungle Pressure Plate
+            return 0xC5B57C;
+        case 4: // Acacia Pressure Plate
+            return 0xAB5D34;
+        case 5: // Dark Oak Pressure Plate
+            return 0x3F2813;
+        case 6: // Crimson Pressure Plate
+            return 0x693249;
+        case 7: // Warped Pressure Plate
+            return 0x2D6D68;
+        case 8: // Polished Blackstone Pressure Plate
+            return 0x37333D;
+        case 9: // Mangrove Pressure Plate
+            return 0x773932;
+        case 10: // Cherry Pressure Plate
+            return 0xE3B4AE;
+        case 11: // Bamboo Pressure Plate
+            return 0xC4AF52;
+        case 12: // Pale Oak Pressure Plate
+            return 0xE5DBDA;
+        }
+
+    case BLOCK_COPPER_BARS:
+    case BLOCK_WAXED_COPPER_BARS:
+        switch ((dataVal & 0x30) >> 4) {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1: // Exposed Copper Bars
+            return 0x8A6D5B;
+        case 2: // Weathered Copper Bars
+            return 0x417D66;
+        case 3: // Oxidized Copper Bars
+            return 0x587E5F;
+        }
+
+    case BLOCK_CHAIN:
+        switch (dataVal & 0x33) {
+        default:
+        case 0: // iron chain
+            return gBlockDefinitions[type].color;
+        case 1:
+        case BIT_16 | 1: // Copper Chain
+            return 0x995038;
+        case 2:
+        case BIT_16 | 2: // Exposed Copper Chain
+            return 0x816754;
+        case 3:
+        case BIT_16 | 3: // Weathered Copper Chain
+            return 0x3E7764;
+        case BIT_16:
+        case BIT_32: // Oxidized Copper Chain
+            return 0x4B6E5C;
+        }
+
+    case BLOCK_LANTERN:
+        switch (dataVal & 0x1E)
+        {
+        default:
+        case 0: // normal Lantern
+            return gBlockDefinitions[type].color;
+        case 1 << 1: // Soul Lantern
+            return 0x517782;
+        case 2 << 1:
+        case 6 << 1: // Copper Lantern
+            return 0xA37D5B;
+        case 3 << 1:
+        case 7 << 1: // Exposed Copper Lantern
+            return 0x9A8D70;
+        case 4 << 1:
+        case 8 << 1: // Weathered Copper Lantern
+            return 0x5C9476;
+        case 5 << 1:
+        case 9 << 1: // Oxidized Copper Lantern
+            return 0x6B8F6C;
+        }
+
+    case BLOCK_COPPER_CHEST:
+    case BLOCK_WAXED_COPPER_CHEST:
+        switch (dataVal & 0x20) {
+        default:
+        case 0: // default copper chest
+            return gBlockDefinitions[type].color;
+        case 0x20: // Exposed Copper Chest
+            return 0x9F7866;
+        }
+
+    case BLOCK_OXIDIZED_COPPER_CHEST:
+    case BLOCK_WAXED_OXIDIZED_COPPER_CHEST:
+        switch (dataVal & 0x20) {
+        default:
+        case 0: // default Oxidised chest
+            return gBlockDefinitions[type].color;
+        case 0x20: // Weathered Copper Chest
+            return 0x69976B;
+        }
+
+    case BLOCK_ACACIA_SHELF:
+        switch ((dataVal & 0x28) >> 3)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:
+            return 0xC2AE75;
+        case 2:
+            return 0xD69194;
+        case 3:
+            return 0x8C3A5B;
+        case 4:
+            return 0x483823;
+        case 5:
+            return 0xAB8455;
+        case 6:
+            return 0x76362F;
+        case 7:
+            return 0xB08E55;
+        }
+
+    case BLOCK_PALE_OAK_SHELF:
+        switch ((dataVal & 0x28) >> 3)
+        {
+        default:
+        case 0:
+            return gBlockDefinitions[type].color;
+        case 1:
+            return 0x3A9793;
+        case 2:
+            return 0xC3AF51;
+        case 3:
+            return 0x6F5734;
+        }
+
+    default:
+        // Everything else
+        color = gBlockDefinitions[type].color;
+        break;
+    }
+
+    return color;
+}
+
 static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel, unsigned short type, int light, char useBiome, char useElevation)
 {
     unsigned int color = 0xFFFFFF;

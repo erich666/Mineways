@@ -26430,9 +26430,11 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
     else
     {
         // use color in file, which is nice for previewing. Blender and 3DS MAX like this, for example. G3D does not.
-        fRed = (gBlockDefinitions[type].color >> 16) / 255.0f;
-        fGreen = ((gBlockDefinitions[type].color >> 8) & 0xff) / 255.0f;
-        fBlue = (gBlockDefinitions[type].color & 0xff) / 255.0f;
+        // Use dataVal-aware color so that e.g. colored wool, concrete, terracotta get their proper subtype colors.
+        unsigned int dataColor = GetBlockDataColor(type, dataVal);
+        fRed = (dataColor >> 16) / 255.0f;
+        fGreen = ((dataColor >> 8) & 0xff) / 255.0f;
+        fBlue = (dataColor & 0xff) / 255.0f;
     }
 
     // good for blender:
@@ -28338,9 +28340,11 @@ static int writeVRMLAttributeShapeSplit(int type, int dataVal, char* mtlName, ch
     }
     else
     {
-        fRed = (gBlockDefinitions[type].color >> 16) / 255.0f;
-        fGreen = ((gBlockDefinitions[type].color >> 8) & 0xff) / 255.0f;
-        fBlue = (gBlockDefinitions[type].color & 0xff) / 255.0f;
+        // Use dataVal-aware color for solid material export
+        unsigned int dataColor = GetBlockDataColor(type, dataVal);
+        fRed = (dataColor >> 16) / 255.0f;
+        fGreen = ((dataColor >> 8) & 0xff) / 255.0f;
+        fBlue = (dataColor & 0xff) / 255.0f;
     }
 
     // good for blender:
@@ -30448,8 +30452,9 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             }
         }
 
-        // get map color, for things such as emission color
-        unsigned int color = gBlockDefinitions[pFace->materialType].read_color;
+        // get map color, for things such as diffuse fallback and emission color;
+        // use dataVal-aware color so subtypes (wool, concrete, etc.) get proper colors
+        unsigned int color = GetBlockDataColor(pFace->materialType, pFace->materialDataVal);
         unsigned char r, g, b;
         r = (unsigned char)(color >> 16);
         g = (unsigned char)(color >> 8);
