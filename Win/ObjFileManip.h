@@ -287,6 +287,8 @@ typedef struct Model {
     SwatchComposite* swatchCompositeList;   // additional swatches of combinations of two types
     SwatchComposite* swatchCompositeListEnd;   // last one on list
     progimage_info* pPNGtexture;
+    progimage_info* pPBRtexture[TOTAL_CATEGORIES];  // PBR mosaic images; [0] unused (RGBA uses pPNGtexture)
+    bool hasPBRmosaic[TOTAL_CATEGORIES];             // true if PBR mosaic was created for this category
     int usesRGB;    // 1 if the RGB (only) texture is used and so should be output
     int usesRGBA;   // 1 if the RGBA texture is used
     int usesAlpha;   // 1 if the Alpha-only texture is used

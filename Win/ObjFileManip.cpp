@@ -836,6 +836,8 @@ static float retrieveMtlAlpha(int type);
 static int createBaseMaterialTexture();
 
 static void copyPNGArea(progimage_info* dst, int dst_x_min, int dst_y_min, int size_x, int size_y, progimage_info* src, int src_x_min, int src_y_min);
+static void copyPNGAreaChannels(progimage_info* dst, int dst_x_min, int dst_y_min, int size_x, int size_y, progimage_info* src, int src_x_min, int src_y_min, int channels);
+static void extendPBRSwatchBorder(progimage_info* dst, int swatchCol, int swatchRow, int swatchSize, int tileSize, int channels);
 static void setColorPNGArea(progimage_info* dst, int dst_x_min, int dst_y_min, int size_x, int size_y, unsigned int value);
 static void stretchSwatchToTop(progimage_info* dst, int swatchIndex, float startStretch);
 static void stretchSwatchToFill(progimage_info* dst, int swatchIndex, int xlo, int ylo, int xhi, int yhi);
@@ -1113,6 +1115,10 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
             else if (fileType == FILE_TYPE_USD) {
                 gTotalInputTextures = 5;
             }
+        }
+        else if (fileType == FILE_TYPE_USD) {
+            // For USD mosaic mode, also try to load PBR textures for mosaic export
+            gTotalInputTextures = 5;
         }
 
         // try reading each category's file type
@@ -1949,10 +1955,24 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
             wchar_t textureFileName[MAX_PATH_AND_FILE];
             // hack for USD: add the textures path
             if (gModel.options->pEFD->fileType == FILE_TYPE_USD) {
-                // use the directory associated with the model file
-                // hacky - really should properly match with what actually sets _materials in the string
-                concatFileName3(textureFileName, gMaterialDirectoryPath, gOutputFileRootClean, L".png");
-                wcscpy_s(gTextureDirectoryPath, MAX_PATH_AND_FILE, gMaterialDirectoryPath);
+                // Create the tex subdirectory within the material directory, matching the
+                // relative path used by the USDA file to reference textures (tileDirString).
+                if (strlen(gModel.options->pEFD->tileDirString) > 0) {
+                    wchar_t subpath[MAX_PATH_AND_FILE];
+                    charToWchar(gModel.options->pEFD->tileDirString, subpath);
+                    wcscat_s(subpath, MAX_PATH_AND_FILE, L"\\");
+                    concatFileName2(gTextureDirectoryPath, gMaterialDirectoryPath, subpath);
+                    if (!(CreateDirectoryW(gTextureDirectoryPath, NULL) ||
+                        ERROR_ALREADY_EXISTS == GetLastError()))
+                    {
+                        retCode |= MW_CANNOT_CREATE_DIRECTORY;
+                        return retCode;
+                    }
+                }
+                else {
+                    wcscpy_s(gTextureDirectoryPath, MAX_PATH_AND_FILE, gMaterialDirectoryPath);
+                }
+                concatFileName3(textureFileName, gTextureDirectoryPath, gOutputFileRootClean, L".png");
             }
             else {
                 concatFileName3(textureFileName, gOutputFilePath, gOutputFileRootClean, L".png");
@@ -1969,6 +1989,18 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
             }
             assert(rc == 0);
             retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
+
+            // Write PBR mosaic files for USD
+            for (int cat = 1; cat < TOTAL_CATEGORIES; cat++) {
+                if (gModel.pPBRtexture[cat] != NULL) {
+                    wchar_t pbrFileName[MAX_PATH_AND_FILE];
+                    concatFileName4(pbrFileName, gTextureDirectoryPath, gOutputFileRootClean, gCatSuffixes[cat], L".png");
+                    rc = writepng(gModel.pPBRtexture[cat], gCatChannels[cat], pbrFileName);
+                    assert(rc == 0);
+                    addOutputFilenameToList(pbrFileName);
+                    retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
+                }
+            }
         }
 
         writepng_cleanup(gModel.pPNGtexture);
@@ -25027,6 +25059,14 @@ static void freeModel(Model* pModel)
         pModel->pPNGtexture = NULL;
     }
 
+    for (int cat = 1; cat < TOTAL_CATEGORIES; cat++) {
+        if (pModel->pPBRtexture[cat]) {
+            writepng_cleanup(pModel->pPBRtexture[cat]);
+            delete pModel->pPBRtexture[cat];
+            pModel->pPBRtexture[cat] = NULL;
+        }
+    }
+
     SwatchComposite* pSwatch = gModel.swatchCompositeList;
     while (pSwatch)
     {
@@ -27723,6 +27763,55 @@ static int createBaseMaterialTexture()
                     break;
                 }
             }
+        }
+    }
+
+    // Create PBR mosaic textures (normals, metallic, emission, roughness) for USD mosaic export.
+    // These mirror the RGBA mosaic layout but skip RGBA-specific post-processing.
+    if (useTextureImage && gModel.options->pEFD->fileType == FILE_TYPE_USD && !gModel.exportTiles) {
+        for (int cat = 1; cat < gTotalInputTextures; cat++) {
+            if (gModel.pInputTerrainImage[cat] == NULL)
+                continue;
+
+            int channels = gCatChannels[cat];
+            progimage_info* pbrProg = new progimage_info();
+            pbrProg->width = gModel.textureResolution;
+            pbrProg->height = gModel.textureResolution;
+
+            // Default fill: normals = (128,128,255) for up-facing neutral; others = 0
+            unsigned char defaultByte = (cat == CATEGORY_NORMALS) ? 128 : 0;
+            pbrProg->image_data.resize(gModel.textureResolution * gModel.textureResolution * channels, defaultByte);
+
+            // For normals, fix the blue channel to 255 (every 3rd byte starting at index 2)
+            if (cat == CATEGORY_NORMALS) {
+                for (size_t ii = 2; ii < pbrProg->image_data.size(); ii += 3) {
+                    pbrProg->image_data[ii] = 255;
+                }
+            }
+
+            // Copy terrain tiles into mosaic at same swatch positions as RGBA.
+            // NUM_BLOCKS_MAP is the starting swatch index for terrain tiles (after solid-color swatches).
+            int pbrSwatchCount = NUM_BLOCKS_MAP;
+            for (int pbrRow = 0; pbrRow < gModel.verticalTiles; pbrRow++) {
+                for (int pbrCol = 0; pbrCol < 16; pbrCol++) {
+                    int dstCol2, dstRow2;
+                    SWATCH_TO_COL_ROW(pbrSwatchCount, dstCol2, dstRow2);
+                    copyPNGAreaChannels(pbrProg,
+                        gModel.swatchSize * dstCol2 + SWATCH_BORDER,
+                        gModel.swatchSize * dstRow2 + SWATCH_BORDER,
+                        gModel.tileSize, gModel.tileSize,
+                        gModel.pInputTerrainImage[cat],
+                        gModel.tileSize * pbrCol,
+                        gModel.tileSize * pbrRow,
+                        channels);
+                    // extend borders for UV filtering
+                    extendPBRSwatchBorder(pbrProg, dstCol2, dstRow2, gModel.swatchSize, gModel.tileSize, channels);
+                    pbrSwatchCount++;
+                }
+            }
+
+            gModel.pPBRtexture[cat] = pbrProg;
+            gModel.hasPBRmosaic[cat] = true;
         }
     }
 
@@ -30503,6 +30592,13 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             }
         }
 
+        // For PBR texture references: in per-tile mode, use per-swatch tileList;
+        // in mosaic mode, use the global hasPBRmosaic flags.
+        bool hasNormals = singleTerrainFile ? gModel.hasPBRmosaic[CATEGORY_NORMALS] : gModel.tileList[CATEGORY_NORMALS][swatchLoc];
+        bool hasMetallic = singleTerrainFile ? gModel.hasPBRmosaic[CATEGORY_METALLIC] : gModel.tileList[CATEGORY_METALLIC][swatchLoc];
+        bool hasEmission = singleTerrainFile ? gModel.hasPBRmosaic[CATEGORY_EMISSION] : gModel.tileList[CATEGORY_EMISSION][swatchLoc];
+        bool hasRoughness = singleTerrainFile ? gModel.hasPBRmosaic[CATEGORY_ROUGHNESS] : gModel.tileList[CATEGORY_ROUGHNESS][swatchLoc];
+
         sprintf_s(outputString, 256, "%s        def Material \"%s\"\n", startRun ? "\n" : "", mtlName);
         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
         strcpy_s(outputString, 256, "        {\n");
@@ -30604,7 +30700,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     float depth = isWater ? 10.0f : 1.0f;
 
                     // normal map?
-                    if (gModel.tileList[CATEGORY_NORMALS][swatchLoc]) {
+                    if (hasNormals) {
                         sprintf_s(outputString, 256, "                asset inputs:coat_normal_image = @%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_NORMALS]);
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                         strcpy_s(outputString, 256, "                    colorSpace = \"raw\"\n"); // "raw" is the right choice for normals - see Absolution.
@@ -30709,7 +30805,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
 
                     // if there is a specular roughness map, set roughness to 1 as it acts as a influence for the roughness map
-                    sprintf_s(outputString, 256, "                float inputs:specular_reflection_roughness = %g (\n", gModel.tileList[CATEGORY_ROUGHNESS][swatchLoc] ? 1.0f : specRoughness);
+                    sprintf_s(outputString, 256, "                float inputs:specular_reflection_roughness = %g (\n", hasRoughness ? 1.0f : specRoughness);
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     if (outputCustomData) {
                         strcpy_s(outputString, 256, "                    customData = {\n");
@@ -30734,7 +30830,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     strcpy_s(outputString, 256, "                )\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
 
-                    if (gModel.tileList[CATEGORY_ROUGHNESS][swatchLoc]) {
+                    if (hasRoughness) {
                         sprintf_s(outputString, 256, "                asset inputs:specular_reflection_roughness_image = @%s/%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_ROUGHNESS]);
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                         strcpy_s(outputString, 256, "                    colorSpace = \"auto\"\n");
@@ -31054,7 +31150,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     emission = getEmitterLevel(pFace->materialType, pFace->materialDataVal, true, 1.0f);
 
                     // if some block is being coerced into emitting, i.e., normally has no emissive component, give it a value
-                    if (emission == 0.0f && gModel.tileList[CATEGORY_EMISSION][swatchLoc]) {
+                    if (emission == 0.0f && hasEmission) {
                         // could instead analyze the mask and get a value? TODO
                         emission = 1.0f;
                     }
@@ -31071,9 +31167,10 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     if (emission > 0.0f) {
 #ifdef GENERATE_EMISSION_TILES
                         // we flag emitters that don't have an emissive so need to have a texture synthesized for them
-                        if (!gModel.tileList[CATEGORY_EMISSION][swatchLoc]) {
+                        if (!hasEmission) {
                             gModel.tileEmissionNeeded[swatchLoc] = true;
-                            gModel.tileList[CATEGORY_EMISSION][swatchLoc] = true;  // means has a texture
+                            gModel.tileList[CATEGORY_EMISSION][swatchLoc] = true;
+                            hasEmission = true;  // means has a texture
                         }
 #endif
 
@@ -31176,7 +31273,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
 #endif
                         // Here's more convoluted logic, with the color texture getting used as the emitter mask, which is usually A Bad Idea.
                         //sprintf_s(outputString, 256, "                asset inputs:emissive_mask_texture = @./%s%s%s.png@ (\n", texturePath, mtlName,
-                        //    gModel.tileList[CATEGORY_EMISSION][swatchLoc] ? "_e" : 
+                        //    hasEmission ? "_e" : 
                         //        (gModel.exportTiles && (gTilesTable[swatchLoc].flags & SBIT_SYNTHESIZED)) ? "_y" : "");
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
 
@@ -31261,7 +31358,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 }
 
                 // normals? If custom material, output the normal strength UI
-                if (gModel.customMaterial && gModel.tileList[CATEGORY_NORMALS][swatchLoc]) {
+                if (gModel.customMaterial && hasNormals) {
                     strcpy_s(outputString, 256, "                float inputs:geometry_normal_strength = 1 (\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     if (outputCustomData) {
@@ -31289,7 +31386,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 }
 
                 // metallic?
-                if (gModel.tileList[CATEGORY_METALLIC][swatchLoc]) {
+                if (hasMetallic) {
                     sprintf_s(outputString, 256, "                asset inputs:metallic_texture = @./%s%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_METALLIC]);
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "                    colorSpace = \"raw\"\n");
@@ -31349,7 +31446,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             }
 
             // normals? Note that semitransparent custom material OmniSurfaceUber already output "coat_normal_image" above, so don't do it here
-            if (gModel.tileList[CATEGORY_NORMALS][swatchLoc]) {
+            if (hasNormals) {
                 sprintf_s(textureString, 256, "%s%s%s.png", texturePath, mtlName, gCatStrSuffixes[CATEGORY_NORMALS]);
             }
             else {
@@ -31489,7 +31586,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             }
 
             // roughness
-            if (gModel.tileList[CATEGORY_ROUGHNESS][swatchLoc]) {
+            if (hasRoughness) {
                 if (isSemitransparent) {
                     // slightly different naming - good times!
                     sprintf_s(outputString, 256, "                asset inputs:roughness_texture = @./%s%s%s.png@ (\n", texturePath, mtlName, gCatStrSuffixes[CATEGORY_ROUGHNESS]);
@@ -31638,7 +31735,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             }
 
             // - metallic input
-            if (gModel.tileList[CATEGORY_METALLIC][swatchLoc]) {
+            if (hasMetallic) {
                 sprintf_s(outputString, 256, "                float inputs:metallic.connect = <%s%s/Looks/%s/metallic_texture.outputs:r>\n", prefixPath, slashDefaultPrim, mtlName);
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             }
@@ -31648,7 +31745,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             }
 
             // - normal input
-            if (gModel.tileList[CATEGORY_NORMALS][swatchLoc]) {
+            if (hasNormals) {
                 // was normal3f, which works, but is not strictly correct
                 sprintf_s(outputString, 256, "                float3 inputs:normal.connect = <%s%s/Looks/%s/normal_texture.outputs:rgb>\n", prefixPath, slashDefaultPrim, mtlName);
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -31677,7 +31774,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             }
 
             // - roughness input
-            if (gModel.tileList[CATEGORY_ROUGHNESS][swatchLoc]) {
+            if (hasRoughness) {
                 sprintf_s(outputString, 256, "                float inputs:roughness.connect = <%s%s/Looks/%s/roughness_texture.outputs:r>\n", prefixPath, slashDefaultPrim, mtlName);
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             }
@@ -31718,7 +31815,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
 
             // Roughness
 
-            if (gModel.tileList[CATEGORY_ROUGHNESS][swatchLoc]) {
+            if (hasRoughness) {
                 strcpy_s(outputString, 256, "\n            def Shader \"roughness_texture\"\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "            {\n");
@@ -31743,7 +31840,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
 
             // Normals
 
-            if (gModel.tileList[CATEGORY_NORMALS][swatchLoc]) {
+            if (hasNormals) {
                 strcpy_s(outputString, 256, "\n            def Shader \"normal_texture\"\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "            {\n");
@@ -31773,7 +31870,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
 
             // Metallic
 
-            if (gModel.tileList[CATEGORY_METALLIC][swatchLoc]) {
+            if (hasMetallic) {
                 strcpy_s(outputString, 256, "\n            def Shader \"metallic_texture\"\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "            {\n");
@@ -31833,7 +31930,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 emission = getEmitterLevel(pFace->materialType, pFace->materialDataVal, true, 1.0f);
 
                 // if some block is being coerced into emitting, i.e., normally has no emissive component, give it a value
-                if (emission == 0.0f && gModel.tileList[CATEGORY_EMISSION][swatchLoc]) {
+                if (emission == 0.0f && hasEmission) {
                     // could instead analyze the mask and get a value? TODO
                     emission = 1.0f;
                 }
@@ -31841,9 +31938,10 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 if (emission > 0.0f) {
 #ifdef GENERATE_EMISSION_TILES
                     // we flag emitters that don't have an emissive so need to have a texture synthesized for them
-                    if (!gModel.tileList[CATEGORY_EMISSION][swatchLoc]) {
+                    if (!hasEmission) {
                         gModel.tileEmissionNeeded[swatchLoc] = true;
-                        gModel.tileList[CATEGORY_EMISSION][swatchLoc] = true;  // means has a texture
+                        gModel.tileList[CATEGORY_EMISSION][swatchLoc] = true;
+                        hasEmission = true;  // means has a texture
                     }
 #endif
                     float max = (r > g) ? ((r > b) ? r : b) : ((g > b) ? g : b);
@@ -33914,6 +34012,56 @@ static void copyPNGArea(progimage_info* dst, int dst_x_min, int dst_y_min, int s
         src_offset = ((src_y_min + row) * src->width + src_x_min) * 4;
         memcpy(&dst->image_data[dst_offset], &src->image_data[src_offset], size_x * 4);
     }
+}
+
+// Channel-aware variant of copyPNGArea, for PBR mosaic textures with 1 or 3 channels
+static void copyPNGAreaChannels(progimage_info* dst, int dst_x_min, int dst_y_min, int size_x, int size_y, progimage_info* src, int src_x_min, int src_y_min, int channels)
+{
+    int row;
+    int dst_offset, src_offset;
+
+    for (row = 0; row < size_y; row++)
+    {
+        dst_offset = ((dst_y_min + row) * dst->width + dst_x_min) * channels;
+        src_offset = ((src_y_min + row) * src->width + src_x_min) * channels;
+        memcpy(&dst->image_data[dst_offset], &src->image_data[src_offset], size_x * channels);
+    }
+}
+
+// Extend swatch borders for a PBR mosaic tile to prevent UV filtering artifacts.
+// Copies edge pixels into the 1-pixel SWATCH_BORDER around the tile.
+static void extendPBRSwatchBorder(progimage_info* dst, int swatchCol, int swatchRow, int swatchSize, int tileSize, int channels)
+{
+    int tileX = swatchCol * swatchSize + SWATCH_BORDER;
+    int tileY = swatchRow * swatchSize + SWATCH_BORDER;
+
+    // extend left and right edges
+    for (int row = 0; row < tileSize; row++) {
+        int y = tileY + row;
+        int leftSrc = (y * dst->width + tileX) * channels;
+        int leftDst = (y * dst->width + tileX - SWATCH_BORDER) * channels;
+        memcpy(&dst->image_data[leftDst], &dst->image_data[leftSrc], channels);
+
+        int rightSrc = (y * dst->width + tileX + tileSize - 1) * channels;
+        int rightDst = (y * dst->width + tileX + tileSize) * channels;
+        memcpy(&dst->image_data[rightDst], &dst->image_data[rightSrc], channels);
+    }
+
+    // extend top and bottom edges (including corners already filled above)
+    int fullWidth = tileSize + 2 * SWATCH_BORDER;
+    int topSrcY = tileY;
+    int topDstY = tileY - SWATCH_BORDER;
+    int botSrcY = tileY + tileSize - 1;
+    int botDstY = tileY + tileSize;
+    int startX = tileX - SWATCH_BORDER;
+
+    int topSrc = (topSrcY * dst->width + startX) * channels;
+    int topDst = (topDstY * dst->width + startX) * channels;
+    memcpy(&dst->image_data[topDst], &dst->image_data[topSrc], fullWidth * channels);
+
+    int botSrc = (botSrcY * dst->width + startX) * channels;
+    int botDst = (botDstY * dst->width + startX) * channels;
+    memcpy(&dst->image_data[botDst], &dst->image_data[botSrc], fullWidth * channels);
 }
 
 static void setColorPNGArea(progimage_info* dst, int dst_x_min, int dst_y_min, int size_x, int size_y, unsigned int value)
