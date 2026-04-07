@@ -1116,8 +1116,9 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
                 gTotalInputTextures = 5;
             }
         }
-        else if (fileType == FILE_TYPE_USD) {
-            // For USD mosaic mode, also try to load PBR textures for mosaic export
+        else if (fileType == FILE_TYPE_USD ||
+                 fileType == FILE_TYPE_WAVEFRONT_REL_OBJ || fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ) {
+            // For USD and OBJ mosaic mode, also try to load PBR textures for mosaic export
             gTotalInputTextures = 5;
         }
 
@@ -1947,6 +1948,18 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
                 addOutputFilenameToList(textureAlpha);
                 UPDATE_PROGRESS(gProgress.start.texture + gProgress.absolute.texture * 0.99f);
                 retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
+            }
+
+            // Write PBR mosaic files for OBJ
+            for (int cat = 1; cat < TOTAL_CATEGORIES; cat++) {
+                if (gModel.pPBRtexture[cat] != NULL) {
+                    wchar_t pbrFileName[MAX_PATH_AND_FILE];
+                    concatFileName4(pbrFileName, gOutputFilePath, gOutputFileRootClean, gCatSuffixes[cat], L".png");
+                    rc = writepng(gModel.pPBRtexture[cat], gCatChannels[cat], pbrFileName);
+                    assert(rc == 0);
+                    addOutputFilenameToList(pbrFileName);
+                    retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
+                }
             }
         }
         else
@@ -26614,6 +26627,55 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
             }
         }
     }
+    else if (!gModel.exportTiles && gModel.customMaterial) {
+        // Mosaic mode: reference PBR mosaic textures if they were created
+        for (int i = 1; i < gTotalInputTextures; i++) {
+            if (gModel.hasPBRmosaic[i]) {
+                // Build mosaic PBR filename: e.g., "silver_n.png", "silver_r.png"
+                formCategoryFileName(pbrFile, i, gOutputFileRootCleanChar);
+                for (int alt = 0; alt < 2; alt++) {
+                    bool hasAlt = false;
+                    switch (i) {
+                    default:
+                        assert(0);
+                    case CATEGORY_NORMALS:
+                        if (alt == 0) {
+                            strcat_s(pbrString, MAX_PATH * 6 + 100, "map_Kn ");
+                        }
+                        else {
+                            strcat_s(pbrString, MAX_PATH * 6 + 100, "norm ");
+                            hasAlt = true;
+                        }
+                        break;
+                    case CATEGORY_METALLIC:
+                        if (alt == 0) {
+                            strcat_s(pbrString, MAX_PATH * 6 + 100, "map_Pm ");
+                        }
+                        break;
+                    case CATEGORY_EMISSION:
+                        if (alt == 0) {
+                            strcat_s(pbrString, MAX_PATH * 6 + 100, "map_Ke ");
+                            foundMapKe = true;
+                        }
+                        break;
+                    case CATEGORY_ROUGHNESS:
+                        if (alt == 0) {
+                            strcat_s(pbrString, MAX_PATH * 6 + 100, "map_ns ");
+                        }
+                        else {
+                            strcat_s(pbrString, MAX_PATH * 6 + 100, "map_Ns ");
+                            hasAlt = true;
+                        }
+                        break;
+                    }
+                    if (alt == 0 || hasAlt) {
+                        strcat_s(pbrString, MAX_PATH * 6 + 100, pbrFile);
+                        strcat_s(pbrString, MAX_PATH * 6 + 100, "\n");
+                    }
+                }
+            }
+        }
+    }
 
     keString[0] = '\0';
     mapKeString[0] = '\0';
@@ -27766,9 +27828,9 @@ static int createBaseMaterialTexture()
         }
     }
 
-    // Create PBR mosaic textures (normals, metallic, emission, roughness) for USD mosaic export.
+    // Create PBR mosaic textures (normals, metallic, emission, roughness) for mosaic export.
     // These mirror the RGBA mosaic layout but skip RGBA-specific post-processing.
-    if (useTextureImage && gModel.options->pEFD->fileType == FILE_TYPE_USD && !gModel.exportTiles) {
+    if (useTextureImage && !gModel.exportTiles) {
         for (int cat = 1; cat < gTotalInputTextures; cat++) {
             if (gModel.pInputTerrainImage[cat] == NULL)
                 continue;
