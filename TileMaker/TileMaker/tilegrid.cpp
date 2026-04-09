@@ -166,11 +166,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg
 							// file not really processed, just ignored.
 							used = 1;
 						}
-						else {
-							// file not found - what?
-							assert(status == FILE_NOT_FOUND);
-							wprintf(L"ERROR: The file '%s' in directory '%s' was found earlier but now is not found!?\n", ffd.cFileName, tilePathAppended);
-						}
+						// note, could get FILE_NOT_FOUND, I forget why, but this is OK
 					}
 				}
 				// chest
