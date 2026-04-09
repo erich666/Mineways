@@ -1340,7 +1340,7 @@ static struct {
     {  0, 78, 501, 0, L"MWO_spruce_shelf_front", L"", SWATCH_REPEAT_ALL },
     {  1, 78, 501, 0, L"MWO_spruce_shelf_back", L"", SWATCH_REPEAT_ALL },
     {  2, 78, 501, 0, L"MWO_spruce_shelf_powered", L"", SWATCH_REPEAT_ALL },
-    {  3, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },    // TODOTODO golden dandelion, whatever it's calle
+    {  3, 78,  37, 0, L"golden_dandelion", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  4, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     {  5, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     {  6, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
@@ -1515,7 +1515,7 @@ static const struct {
     { L"seagrass_doubletall_top", L"tall_seagrass_top" },   // JG-RTX; there's also a "_b" version...
     { L"seagrass_doubletall_top_a", L"tall_seagrass_top" },   // JG-RTX; there's also a "_b" version...
     { L"silver_glazed_terracotta", L"light_gray_glazed_terracotta"}, // Ultimate Immersion
-	{ L"spruce_planks", L"" },    // LunaHD uses "spruce" for planks, but "spruce" is used in Minecraft itself for hanging signs, etc.
+    { L"spruce_planks", L"" },    // LunaHD uses "spruce" for planks, but "spruce" is used in Minecraft itself for hanging signs, etc.
     { L"spruce_door_lower", L"spruce_door_bottom" },    // Absolution
     { L"spruce_door_upper", L"spruce_door_top" },    // Absolution
     { L"spruce_needles", L"spruce_leaves" },    // Ultimate Immersion
@@ -1565,13 +1565,13 @@ static const wchar_t* gUnneeded[] = {
     L"leaves_oak_opaque",
     L"leaves_spruce_opaque",
     L"pale_oak_leaves_opaque",  // JG-RTX
-    L"fire_1",
+    L"fire_1", // seems to be just more animations
     L"glow_item_frame",
     L"item_frame",
     L"item_frame_front",
     L"itemframe_background", // Absolution
     L"shulker_box", // generic 1.13; specific colors now used per box
-    L"soul_fire_1",
+    L"soul_fire_1", // seems to be just more animations
     L"structure_block", // only used in inventory, not used when placed: http://minecraft.wiki/w/Structure_Block - we use the other ones of this type
 
     L"flower_paeonia", // experimental block, never used: https://minecraft.wiki/w/Java_Edition_removed_features#Paeonia

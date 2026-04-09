@@ -14380,7 +14380,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
             break;
         case 5:
             // golden dandelion
-            //swatchLoc = SWATCH_INDEX(9, 67);    // TODOTODO! need to add swatch and access it here
+            swatchLoc = SWATCH_INDEX(3, 78);
             break;
         }
         break;
@@ -21266,7 +21266,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             break;
         case BLOCK_STICKY_PISTON:						// getSwatch
         case BLOCK_PISTON:
-            // TODOTODO: should use the R texture pack to get these exactly right someday. They're fine for now.
+            // TODO: should use the R texture pack to get these exactly right someday. They're fine for now.
             // 10,6 sticky head, 11,6 head, 12,6 side, 13,6 bottom, 14,6 extended top
             head = bottom = 0;
             dir = dataVal & 7;
@@ -22512,7 +22512,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case 5:
                 // golden dandelion
-                //swatchLoc = SWATCH_INDEX(9, 67);    // TODOTODO! need to add swatch and access it here
+                swatchLoc = SWATCH_INDEX(3, 78);
                 break;
             }
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);

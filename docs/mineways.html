@@ -1423,6 +1423,7 @@ Here are some related (free) tools that are handy, collected in one spot:
 <LI><a href="https://www.amuletmc.com/">Amulet</a> lets you convert from and to Bedrock and Java worlds, and lets you edit them. Also, open source, and actively maintained. For example, you could trim away objects near your model to make a cleaner export. You can also read in model schematic files you've downloaded. To use a schematic with Mineways, import the schematic into an empty world and save the world, then use Mineways on that world.
 <LI>Use the <a href="https://github.com/mircokroon/minecraft-world-downloader">Minecraft World Downloader</a> to download chunks from multiplayer worlds, which you can then use with Mineways.
 <LI><a href="https://minecraft.curseforge.com/projects/worldedit">WorldEdit</a> is another mod that lets you make large edits to your world. It can load and save (old style and new) .schematic/.schem files. It also allows a huge number of modeling operations, including <a href="https://www.reddit.com/r/Minecraft/comments/12lzmb/my_first_hour_with_worldedit/">procedurally-generated models</a>. It differs from Amulet in that it is a plug-in to Minecraft, while Amulet is standalone.
+<LI><a href="https://arnismc.com/">Arnis</a> attempts to convert anywhere in the world into a Minecraft world. It's free and easy to use, see <a href="https://www.youtube.com/watch?v=4ZpLVAnW_wk">this video</a>. The results are not great if the buildings are not axis-aligned, but it's still pretty cool.
 <LI><a href="https://www.curseforge.com/minecraft/mc-mods/litematica">Litematica</a> is a tool for reading, examining, and writing new-style schematic (.schem) files and pasting them into your world.
 <LI><a href="https://intellectualsites.github.io/download/fawe.html">FAWE</a> is an alternate to WorldEdit, part of the Spigot system.
 <LI>There is also a browser-based utility to <a href="https://puregero.github.io/SchemToSchematic/">convert old schematic files to new ones</a>, if that's a help.
@@ -2839,6 +2840,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 	<LI>Update to Minecraft 26.1's new file format. Add golden dandelions.
 	<LI>Blender import and individual block export work better with separate types, so the "Make groups objects" export option is now on by default. Tooltip also corrected.
 	<LI>Export better block colors when "solid materials" export is chosen. <a href="https://github.com/erich666/Mineways/issues/148">Issue #148</a>.
+	<LI>For mosaic (3 texture) export, if PBR textures are available, also export mosaics for these, for OBJ and USD file formats. <a href="https://github.com/erich666/Mineways/issues/155">Issue #155</a>.
 	<LI>ChannelMixer and TileMaker updated.
 	<LI>Typo fix in warning pop-up, "that" to "than". <I>(Thanks to ilovesoggycate for <a href="https://github.com/erich666/Mineways/issues/158">the bug report</a>.)</I>
 	</UL>
@@ -4286,7 +4288,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 1/21/2026</p>
+		<br id="lastUpdate">Last updated 4/8/2026</p>
 	</div>
 </div>
 

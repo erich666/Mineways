@@ -1149,7 +1149,7 @@ int wmain(int argc, wchar_t* argv[])
 						if (zoom != 1.0f && catIndex == CATEGORY_NORMALS) {
 							normalsZoom = true;
 						}
-//wprintf(L"%s\n", gFG.fr[fullIndex].fullFilename);
+wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 						filesProcessed++;
 						if (verbose)
 							wprintf(L"File '%s' merged.\n", gFG.fr[fullIndex].fullFilename);

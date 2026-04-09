@@ -3599,7 +3599,7 @@ unsigned int GetBlockDataColor(int type, int dataVal)
         case 4: // pale oak sapling
             return 0x9FA498;
         case 5: // golden dandelion
-            return 0xD3DD05;
+            return 0xAD884C;
         }
 
     case BLOCK_LIGHTNING_ROD:

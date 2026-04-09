@@ -747,7 +747,7 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             }
             else {
                 if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) == BST_UNCHECKED) {
-                    // the logic here is more than a bit wonky, and this message might appear twice. TODOTODO
+                    // the logic here is more than a bit wonky, and this message might appear twice. TODO
                     MessageBox(NULL, _T("Warning: individual textures cannot be used with \"Export lesser, detailed blocks\" option being off - turn that option on if desired."),
                         _T("Warning"), MB_OK | MB_ICONWARNING | MB_SYSTEMMODAL);
                     //if (IsDlgButtonChecked(hDlg, IDC_EXPORT_ALL) != BST_CHECKED) {
