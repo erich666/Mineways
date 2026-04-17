@@ -653,6 +653,8 @@ static bool isWorldVolumeEmpty();
 static void computeRedstoneConnectivity(int boxIndex);
 static int computeFlatFlags(int boxIndex);
 static bool isBlockTypeIndividual(int type, int dataVal = 0);
+static bool isBoxIndividual(int boxIndex);
+static bool boxesInDifferentOutputGroups(int boxIndex, int neighborBoxIndex);
 static int firstFaceModifier(int isFirst, int type, int dataVal, int faceIndex);
 static void wobbleObjectLocation(int boxIndex, float &shiftX, float &shiftZ);
 static void randomRotation(int boxIndex, int &angle);
@@ -4617,6 +4619,30 @@ static bool isBlockTypeIndividual(int type, int dataVal)
         }
         return true;
     }
+    return false;
+}
+
+static bool isBoxIndividual(int boxIndex)
+{
+    return isBlockTypeIndividual(gBoxData[boxIndex].origType, gBoxData[boxIndex].data);
+}
+
+static bool boxesInDifferentOutputGroups(int boxIndex, int neighborBoxIndex)
+{
+    if (!(gModel.options->exportFlags & EXPT_OUTPUT_OBJ_SEPARATE_TYPES))
+        return false;
+
+    int type = gBoxData[boxIndex].origType;
+    int neighborType = gBoxData[neighborBoxIndex].origType;
+    if (type != neighborType)
+        return true;
+
+    if (gModel.options->exportFlags & EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE)
+    {
+        return getSignificantMaterial(type, gBoxData[boxIndex].data) !=
+               getSignificantMaterial(neighborType, gBoxData[neighborBoxIndex].data);
+    }
+
     return false;
 }
 
@@ -14075,7 +14101,7 @@ static int lesserNeighborCoversRectangle(int faceDirection, int boxIndex, float 
     int type, neighborType, neighborBoxIndex;
     float neighborRect[4];
 
-    if (isBlockTypeIndividual(gBoxData[boxIndex].origType, gBoxData[boxIndex].data))
+    if (isBoxIndividual(boxIndex))
     {
         // mode where every block is output regardless of neighbors, so return false
         return 0;
@@ -14086,6 +14112,11 @@ static int lesserNeighborCoversRectangle(int faceDirection, int boxIndex, float 
     // old comment: in this case we use the actual type (not origType), since we're checking coverage
     // But that is wrong for, say, snow, where the type gets set to 0 after its output and so can't be used to tell what disappears.
     neighborType = gBoxData[neighborBoxIndex].origType;
+    if (isBoxIndividual(neighborBoxIndex) || boxesInDifferentOutputGroups(boxIndex, neighborBoxIndex))
+    {
+        // If the neighbor is exported as a separate object/group, keep this face too so hidden groups do not expose holes.
+        return 0;
+    }
     // super-quick out: is neighbor air? Common enough case, let's test for it.
     if (neighborType == BLOCK_AIR)
         return 0;
@@ -19439,7 +19470,9 @@ static int checkMakeFace(int type, int neighborType, int view3D, int testPartial
     // face is hidden and can be discarded instead of output.
 
     // if neighboring face does not cover block type fully, or if individual (i.e., all) blocks are being output as separate entities, then output the face.
-    if (!neighborMayCoverFace(neighborType, view3D, testPartial, faceDirection, neighborBoxIndex) || isBlockTypeIndividual(type, gBoxData[boxIndex].data))
+    if (!neighborMayCoverFace(neighborType, view3D, testPartial, faceDirection, neighborBoxIndex) ||
+        isBoxIndividual(boxIndex) || isBoxIndividual(neighborBoxIndex) ||
+        (view3D && boxesInDifferentOutputGroups(boxIndex, neighborBoxIndex)))
     {
         // Face is visible for sure, it is not fully covered by the neighbor, so return.
         // A return value of 0 means our block is exposed to air and so is fully visible or neighbor is not a full block and doesn't cover face,
