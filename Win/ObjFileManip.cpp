@@ -26886,6 +26886,7 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
     convertWcharPathUnderlined(worldNameUnderlined, pWorldGuide->world, false);
 
     int mkGroupsObjs = (gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MAKE_GROUPS_OBJECTS);
+    int mkPerBlockObjs = mkGroupsObjs || (gModel.options->exportFlags & EXPT_OUTPUT_EACH_BLOCK_A_GROUP);
     if (!mkGroupsObjs)
     {
         // Output just one object. Else we output an object every time we output a group
@@ -27044,7 +27045,7 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
                                 // New group for each block (materials not sorted)
                                 char blockInstanceName[MAX_PATH_AND_FILE];
                                 getBlockInstanceName(prevType, prevDataVal, groupCount + 1, blockInstanceName, MAX_PATH_AND_FILE);
-                                if (mkGroupsObjs)
+                                if (mkPerBlockObjs)
                                 {
                                     sprintf_s(outputString, 256, "o %s\n", blockInstanceName); // don't increment it here
                                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -27196,7 +27197,7 @@ static int writeOBJBox(WorldGuide *pWorldGuide, IBox *worldBox, IBox *tightenedW
             char blockInstanceName[MAX_PATH_AND_FILE];
             getBlockInstanceName(pFace->materialType, pFace->materialDataVal, groupCount + 1, blockInstanceName, MAX_PATH_AND_FILE);
 
-            if (mkGroupsObjs)
+            if (mkPerBlockObjs)
             {
                 sprintf_s(outputString, 256, "o %s\n", blockInstanceName); // don't increment it here
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
