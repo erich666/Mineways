@@ -247,6 +247,11 @@ static bool gShowInformational = true;
 static bool gShowWarning = true;
 static bool gShowError = true;
 
+static bool gHeadless = false;
+// Cached stdin handle captured before AttachConsole is called.
+// AttachConsole may replace the standard handles, so we save the original (potentially inherited pipe) here.
+static HANDLE gHeadlessStdIn = NULL;
+
 // left mouse button maps to left by default, etc.
 // The left mouse button pans the view, middle selects height of the bottom, right sets or adjusts the selection rectangle
 // If, say, gRemapMouse[LEFT_MOUSE_BUTTON_INDEX] is set to 1, that remaps
@@ -399,6 +404,7 @@ static int getZoomLevelFromCommandLine(float* minZoom, const LPWSTR* argList, in
 static int getTerrainFileFromCommandLine(wchar_t* TerrainFile, const LPWSTR* argList, int argCount);
 static bool processCreateArguments(WindowSet& ws, const char** pBlockLabel, LPARAM holdlParam, const LPWSTR* argList, int argCount);
 static void runImportOrScript(wchar_t* importFile, WindowSet& ws, const char** pBlockLabel, LPARAM holdlParam, bool dialogOnSuccess);
+static void runStdinLoop();
 static int loadSchematic(wchar_t* pathAndFile);
 static void setHeightsFromVersionID();
 static void testWorldHeight(int& minHeight, int& maxHeight, int mcVersion, int spawnX, int spawnZ, int playerX, int playerZ);
@@ -559,6 +565,66 @@ int APIENTRY _tWinMain(
         exit(EXIT_FAILURE);
     }
 
+    // Pre-scan for -headless flag before window creation
+    for (int i = 1; i < gArgCount; i++) {
+        if (wcscmp(gArgList[i], L"-headless") == 0) {
+            gHeadless = true;
+            break;
+        }
+    }
+    if (gHeadless) {
+        // Set up CRT stdout/stderr so printf/fprintf work for responses and status messages.
+        // stdin is read via raw Win32 ReadFile (see runStdinLoop) so no CRT setup is needed for it.
+        // stdout/stderr may each be independently redirected (pipe from subprocess.Popen, file via >)
+        // or not (launched from cmd.exe/PowerShell where stdout goes to the console).
+        //
+        // CRITICAL: cache the stdin handle NOW, before AttachConsole() is called.
+        // AttachConsole() can replace STD_INPUT_HANDLE with a console handle even when
+        // stdin was originally a pipe, which would cause runStdinLoop to read from the console
+        // instead of the inherited pipe.
+        gHeadlessStdIn = GetStdHandle(STD_INPUT_HANDLE);
+        HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+        HANDLE hStdErr = GetStdHandle(STD_ERROR_HANDLE);
+
+        auto isRedirected = [](HANDLE h) -> bool {
+            if (h == NULL || h == INVALID_HANDLE_VALUE) return false;
+            DWORD t = GetFileType(h);
+            return (t == FILE_TYPE_PIPE || t == FILE_TYPE_DISK);
+        };
+
+        bool stdoutRedirected = isRedirected(hStdOut);
+        bool stderrRedirected = isRedirected(hStdErr);
+
+        // Attach to parent console only if stdout or stderr needs it.
+        bool consoleAttached = false;
+        if (!stdoutRedirected || !stderrRedirected) {
+            consoleAttached = (AttachConsole(ATTACH_PARENT_PROCESS) != 0);
+        }
+
+        FILE* fp;
+        int fd;
+
+        if (stdoutRedirected) {
+            fd = _open_osfhandle((intptr_t)hStdOut, _O_WRONLY | _O_TEXT);
+            if (fd != -1) _dup2(fd, _fileno(stdout));
+        }
+        else if (consoleAttached) {
+            freopen_s(&fp, "CONOUT$", "w", stdout);
+        }
+
+        if (stderrRedirected) {
+            fd = _open_osfhandle((intptr_t)hStdErr, _O_WRONLY | _O_TEXT);
+            if (fd != -1) _dup2(fd, _fileno(stderr));
+        }
+        else if (consoleAttached) {
+            freopen_s(&fp, "CONOUT$", "w", stderr);
+        }
+
+        // Unbuffered so responses/status messages reach the parent or console immediately
+        setvbuf(stdout, NULL, _IONBF, 0);
+        setvbuf(stderr, NULL, _IONBF, 0);
+    }
+
     char outputString[1024];
     if (gExecutionLogfile) {
         sprintf_s(outputString, 1024, "Preferred separator: %c\n", (char)gPreferredSeparator);
@@ -629,6 +695,38 @@ int APIENTRY _tWinMain(
     gWeCursor = LoadCursor(NULL, IDC_SIZEWE);
     gNeswCursor = LoadCursor(NULL, IDC_SIZENESW);
     gNwseCursor = LoadCursor(NULL, IDC_SIZENWSE);
+
+    // Headless mode: bypass the Windows message loop entirely.
+    // Scripts from the command line were already executed during WM_CREATE.
+    // If no scripts were provided, enter interactive stdin mode.
+    if (gHeadless) {
+        // Check if any script files were provided on command line
+        bool hasScriptFiles = false;
+        for (int i = 1; i < gArgCount; i++) {
+            if (gArgList[i][0] != L'-') {
+                hasScriptFiles = true;
+                break;
+            }
+            // skip flags that consume following argument(s)
+            if (wcscmp(gArgList[i], L"-w") == 0) { i += 2; continue; }
+            if (wcscmp(gArgList[i], L"-l") == 0 || wcscmp(gArgList[i], L"-s") == 0 ||
+                wcscmp(gArgList[i], L"-t") == 0 || wcscmp(gArgList[i], L"-zl") == 0) {
+                i++; continue;
+            }
+        }
+
+        if (!hasScriptFiles) {
+            // No scripts — enter interactive stdin mode
+            runStdinLoop();
+        }
+        // else: scripts already executed during WM_CREATE, just exit
+
+        // Cleanup without PostQuitMessage (we never entered the message loop)
+        if (gArgList) { LocalFree(gArgList); gArgList = NULL; }
+        if (gExecutionLogfile) { PortaClose(gExecutionLogfile); gExecutionLogfile = 0x0; }
+        Cache_Empty();
+        return 0;
+    }
 
     // Main message loop:
     LOG_INFO(gExecutionLogfile, "execute GetMessage while loop\n");
@@ -750,7 +848,12 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
         return FALSE;
     }
 
-    ShowWindow(hWnd, (windowStatus == 2) ? SW_SHOWMINIMIZED : nCmdShow);
+    if (gHeadless) {
+        ShowWindow(hWnd, SW_HIDE);
+    }
+    else {
+        ShowWindow(hWnd, (windowStatus == 2) ? SW_SHOWMINIMIZED : nCmdShow);
+    }
     DragAcceptFiles(hWnd, TRUE);
     UpdateWindow(hWnd);
 
@@ -835,9 +938,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         validateItems(GetMenu(hWnd));
 
         int val = getSuppressFromCommandLine(gArgList, gArgCount);
-        if (val > 0) {
-            // -suppress found on command line.
-            LOG_INFO(gExecutionLogfile, " getSuppressFromCommandLine successful\n");
+        if (val > 0 || gHeadless) {
+            // -suppress or -headless found on command line.
+            LOG_INFO(gExecutionLogfile, gHeadless ? " headless mode - suppressing dialogs\n" : " getSuppressFromCommandLine successful\n");
             gShowInformational = false;
             gShowWarning = false;
             gShowError = false;
@@ -3156,13 +3259,16 @@ static bool processCreateArguments(WindowSet& ws, const char** pBlockLabel, LPAR
             argIndex += 2;
         }
         else if (wcscmp(argList[argIndex], L"-suppress") == 0) {
-            // skip minimum zoom level (experimental feature)
             LOG_INFO(gExecutionLogfile, " skip suppressing all popups\n");
+            argIndex++;
+        }
+        else if (wcscmp(argList[argIndex], L"-headless") == 0) {
+            LOG_INFO(gExecutionLogfile, " skip headless flag\n");
             argIndex++;
         }
         else if (*argList[argIndex] == '-') {
             // unknown argument, so list out arguments
-            FilterMessageBox(NULL, L"Warning:\nUnknown argument on command line.\nUsage: mineways.exe [-w X Y] [-m] [-s UserSaveDirectory|none] [-t terrainExtYourfile.png] [-l mineways_exec.log] [file1.mwscript [file2.mwscript [...]]]", _T("Warning"), MB_OK | MB_ICONWARNING);
+            FilterMessageBox(NULL, L"Warning:\nUnknown argument on command line.\nUsage: mineways.exe [-headless] [-w X Y] [-m] [-s UserSaveDirectory|none] [-t terrainExtYourfile.png] [-l mineways_exec.log] [file1.mwscript [file2.mwscript [...]]]", _T("Warning"), MB_OK | MB_ICONWARNING);
             // abort
             return true;
         }
@@ -3402,6 +3508,10 @@ static void updateStatus(int mx, int mz, int my, const char* blockLabel, int typ
 static void sendStatusMessage(HWND hwndStatus, wchar_t* buf)
 {
     SendMessage(hwndStatus, SB_SETTEXT, 0, (LPARAM)buf);
+    if (gHeadless && buf != NULL && wcslen(buf) > 0) {
+        fprintf(stderr, "STATUS: %ls\n", buf);
+        fflush(stderr);
+    }
 }
 
 
@@ -5819,6 +5929,156 @@ static void runImportOrScript(wchar_t* importFile, WindowSet& ws, const char** p
     }
 }
 
+// Read one line from the stdin Win32 handle, up to bufSize-1 characters (plus null terminator).
+// Strips trailing \r and \n. Returns true if a line was read, false on EOF or error.
+static bool readStdinLine(HANDLE hStdIn, char* buf, int bufSize)
+{
+    int pos = 0;
+    while (pos < bufSize - 1) {
+        char c;
+        DWORD bytesRead = 0;
+        if (!ReadFile(hStdIn, &c, 1, &bytesRead, NULL) || bytesRead == 0) {
+            // EOF or pipe closed
+            if (pos == 0) return false;  // nothing read
+            break;
+        }
+        if (c == '\n') break;     // end of line
+        if (c == '\r') continue;  // strip CR from CRLF pairs
+        buf[pos++] = c;
+    }
+    buf[pos] = '\0';
+    return true;
+}
+
+// Interactive stdin loop for headless mode. Reads commands line-by-line from stdin,
+// executes them through the existing script command interpreter, and writes responses to stdout.
+// The world and all state persist between commands, so a parent process can load a world once
+// and issue multiple export commands without restarting. Reads stdin via the raw Win32 handle
+// (rather than fgets/stdin) because a Windows subsystem app's CRT stdio can be unreliable
+// when launched with pipe redirection.
+static void runStdinLoop()
+{
+    // Use the stdin handle cached BEFORE AttachConsole was called — that call can replace
+    // STD_INPUT_HANDLE with a console handle, which would prevent us from reading piped input.
+    HANDLE hStdIn = gHeadlessStdIn;
+    if (hStdIn == NULL || hStdIn == INVALID_HANDLE_VALUE) {
+        // Fall back to whatever is currently set
+        hStdIn = GetStdHandle(STD_INPUT_HANDLE);
+    }
+    // ownedConsoleIn tracks whether we opened CONIN$ ourselves (and therefore need to close it).
+    HANDLE ownedConsoleIn = INVALID_HANDLE_VALUE;
+    if (hStdIn == NULL || hStdIn == INVALID_HANDLE_VALUE) {
+        // No pipe or file redirection — try opening the console input directly.
+        // This happens when launched directly from cmd.exe without redirection.
+        ownedConsoleIn = CreateFileW(L"CONIN$", GENERIC_READ | GENERIC_WRITE,
+            FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
+        hStdIn = ownedConsoleIn;
+    }
+    if (hStdIn == NULL || hStdIn == INVALID_HANDLE_VALUE) {
+        fprintf(stdout, "ERROR: no stdin handle available in headless mode\n");
+        fflush(stdout);
+        return;
+    }
+
+    char lineString[IMPORT_LINE_LENGTH];
+
+    // Set up ImportedSet for interactive execution
+    ImportedSet is;
+    is.ws = gWS;
+    ExportFileData dummyEfd;
+    initializeImportedSet(is, &dummyEfd, L"<stdin>");
+    is.readingModel = false;
+    is.processData = true;  // Execute commands immediately (no validation pass)
+    gpIS = &is;
+
+    fprintf(stdout, "READY\n");
+    fflush(stdout);
+
+    bool commentBlock = false;
+    bool userClosed = false;
+    HANDLE hConsoleIn = INVALID_HANDLE_VALUE;  // opened lazily on pipe EOF
+
+    while (true) {
+        if (!readStdinLine(hStdIn, lineString, IMPORT_LINE_LENGTH)) {
+            // EOF on the current stdin. If the current stdin was a pipe/file and we have a
+            // console available, fall back to reading from the console so the user can continue
+            // interactively after the piped commands finish (e.g. `echo cmd | mineways -headless`).
+            if (hConsoleIn == INVALID_HANDLE_VALUE) {
+                HANDLE hTry = CreateFileW(L"CONIN$", GENERIC_READ | GENERIC_WRITE,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
+                if (hTry != INVALID_HANDLE_VALUE) {
+                    hConsoleIn = hTry;
+                    hStdIn = hConsoleIn;
+                    continue;  // retry reading from the console
+                }
+            }
+            // No console available (e.g. pure pipe-only mode from a parent process) — exit.
+            break;
+        }
+
+        // Skip empty lines
+        if (strlen(lineString) == 0) continue;
+
+        char* cleanedLine = lineString;
+        bool nextCommentBlock = dealWithCommentBlocks(cleanedLine, commentBlock);
+
+        if (!commentBlock) {
+            cleanedLine = prepareLineData(cleanedLine, false);
+
+            if (cleanedLine == NULL || strlen(cleanedLine) == 0) {
+                commentBlock = nextCommentBlock;
+                continue;
+            }
+
+            int ret = interpretScriptLine(cleanedLine, is);
+            if (ret & INTERPRETER_FOUND_NOTHING_USEFUL) {
+                ret = interpretImportLine(cleanedLine, is);
+            }
+
+            if (ret & INTERPRETER_FOUND_ERROR) {
+                if (is.errorMessages) {
+                    fprintf(stdout, "ERROR: %ls\n", is.errorMessages);
+                    free(is.errorMessages);
+                    is.errorMessages = NULL;
+                    is.errorMessagesStringSize = 0;
+                }
+                else {
+                    fprintf(stdout, "ERROR: unknown error\n");
+                }
+                is.errorsFound = 0;  // Reset for next command
+            }
+            else if (ret & INTERPRETER_FOUND_CLOSE) {
+                fprintf(stdout, "CLOSING\n");
+                fflush(stdout);
+                userClosed = true;
+                commentBlock = nextCommentBlock;
+                break;
+            }
+            else if (ret & (INTERPRETER_FOUND_VALID_LINE | INTERPRETER_FOUND_VALID_EXPORT_LINE)) {
+                fprintf(stdout, "OK\n");
+                if (ret & INTERPRETER_REDRAW_SCREEN) {
+                    drawInvalidateUpdate(is.ws.hWnd);  // harmless on hidden window
+                }
+            }
+            else if (ret & INTERPRETER_FOUND_NOTHING_USEFUL) {
+                fprintf(stdout, "ERROR: unrecognized command: %s\n", lineString);
+            }
+            fflush(stdout);
+            is.lineNumber++;
+        }
+        commentBlock = nextCommentBlock;
+    }
+
+    if (hConsoleIn != INVALID_HANDLE_VALUE) {
+        CloseHandle(hConsoleIn);
+    }
+    if (ownedConsoleIn != INVALID_HANDLE_VALUE) {
+        CloseHandle(ownedConsoleIn);
+    }
+    (void)userClosed;
+    gpIS = NULL;
+}
+
 // True means script ran successfully, false that something bad happened. This code generates and displays the error messages found.
 static int importSettings(wchar_t* importFile, ImportedSet& is, bool dialogOnSuccess)
 {
@@ -6327,7 +6587,7 @@ static char* prepareLineData(char* line, bool model)
         *strPtr = (char)0;
     }
 
-    // ignore pound comment, space, and tab characters
+    // ignore initial pound comment, space, and tab characters
     boolean cont = true;
     while ((*lineLoc != (char)0) && cont) {
         if ((*lineLoc == '#' && model) || (*lineLoc == ' ') || (*lineLoc == '\t')) {
@@ -6345,7 +6605,7 @@ static char* prepareLineData(char* line, bool model)
         char* parseLoc = lineLoc;
         while (*parseLoc != (char)0) {
             if (*parseLoc == '"') {
-                // delete the current character, i.e., " 
+                // delete the current character, i.e., "
                 char* delLoc = parseLoc;
                 while (*delLoc != (char)0) {
                     *delLoc++ = delLoc[1];
@@ -6353,6 +6613,12 @@ static char* prepareLineData(char* line, bool model)
             }
             parseLoc++;
         }
+    }
+
+    // strip trailing spaces and tabs (e.g., from an "echo ... | mineways.exe" where the shell added trailing whitespace)
+    size_t endLen = strlen(lineLoc);
+    while (endLen > 0 && (lineLoc[endLen - 1] == ' ' || lineLoc[endLen - 1] == '\t')) {
+        lineLoc[--endLen] = (char)0;
     }
 
     return lineLoc;
@@ -9425,9 +9691,12 @@ static bool commandLoadWorld(ImportedSet& is, wchar_t* error)
         //{
             // not the same, attempt to load!
             gSameWorld = FALSE;
+            // Save the attempted world type: loadWorld() may reset gWorldGuide.type
+            // to WORLD_UNLOADED_TYPE on failure, which would hit the default-case assertion below.
+            int attemptedType = gWorldGuide.type;
             if (loadWorld(is.ws.hWnd))	// uses gWorldGuide.world
             {
-                switch (gWorldGuide.type) {
+                switch (attemptedType) {
                 case WORLD_TEST_BLOCK_TYPE:
                     swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"Mineways attempted to load world \"%s\" but could not do so. This is extremely strange, as this is the built-in test world. Please report this problem to Eric at erich@acm.org.", warningWorld);
                     break;
@@ -9442,7 +9711,8 @@ static bool commandLoadWorld(ImportedSet& is, wchar_t* error)
 
                 default:
                     // well, if you import an OBJ and the world is not named or where expected, you do get an error here
-                    MY_ASSERT(gAlwaysFail);
+                    swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"Mineways attempted to load world \"%s\" but could not do so. No world type was found!", warningWorld);
+                    break;
                 }
                 // could not load world, so restore old world, if any;
                 wcscpy_s(gWorldGuide.world, MAX_PATH_AND_FILE, backupWorld);

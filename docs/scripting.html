@@ -901,7 +901,7 @@ You can <a href="https://www.makeuseof.com/tag/write-simple-batch-bat-file/">sto
 Syntax:
 <P>
 <div id="code">
-mineways.exe [-w X Y] [-m] [-s UserSaveDirectory|none] [-t terrainExtYourfile.png] [-l mineways_exec.log] [-suppress] [-zl #] [file1.mwscript|obj|wrl [file2.mwscript [...]]]
+mineways.exe [-headless] [-w X Y] [-m] [-s UserSaveDirectory|none] [-t terrainExtYourfile.png] [-l mineways_exec.log] [-suppress] [-zl #] [file1.mwscript|obj|wrl [file2.mwscript [...]]]
 </div>
 <P>
 The command-line options are:
@@ -923,6 +923,37 @@ Specify the terrain file to use initially. See <a href="mineways.html#texture_ou
 <P>
 -l <i>mineways_exec.log</i><br>
 For debugging startup problems; you'll normally never use this. This option saves a log of startup and commands executed. The file mineways_debug_log.bat runs Mineways in this way.
+<P>
+-headless<br>
+Run Mineways without displaying any window, for fully automated command-line operation. <B>BEWARE! This is all a bit experimental and can be wifty!</B> All dialogs are automatically suppressed (as if <b>-suppress</b> were also specified). Status and progress messages are written to stderr, so they can be captured or ignored independently.
+<P>
+When used with mwscript files on the command line, Mineways executes them and exits automatically when done - no "Close" command is needed in the script. When used with no script files, Mineways enters <b>interactive stdin mode</b>: it reads script commands one per line from standard input, executes each immediately, and writes a response to standard output. This allows a parent program to keep Mineways running with a world loaded in memory and issue commands on demand. See the examples below for details.
+<P>
+The stdin protocol works as follows: Mineways prints <b>READY</b> to stdout when it is initialized and accepting commands. For each command, it responds with <b>OK</b> on success, <b>ERROR: <i>description</i></b> on failure, or <b>CLOSING</b> in response to a "Close" command (after which the process exits).
+<P>
+When stdin reaches end-of-file, Mineways behaves differently depending on how it was launched. If it was launched from a console (e.g., <b>cmd.exe</b> or <b>PowerShell</b>), Mineways falls back to reading commands from the console's keyboard input. This means a pipe such as <code>echo World: [Block Test World] | mineways.exe -headless</code> runs the piped command, then returns control to your keyboard so you can continue issuing commands interactively. In this mode, Mineways exits only when you type the "Close" command or send EOF (Ctrl+Z then Enter on Windows). If Mineways was launched without a console (for example, as a child process with all standard handles redirected, as is typical when using <b>subprocess.Popen</b>), it exits as soon as stdin reaches end-of-file.
+<P>
+<b>Interactive use from a cmd.exe or PowerShell window:</b> Mineways is a Windows GUI application, and <b>cmd.exe</b> <I>does not wait for GUI programs to exit</i> - it returns to its prompt immediately after launching them. So if you type:
+<div id="code">
+mineways.exe -headless
+</div>
+and then try to type commands, your keystrokes are intercepted by cmd.exe (which then reports "not recognized as an internal or external command") instead of reaching Mineways.
+<P>
+To work around this, use Windows' <b>start /wait</b> command, which forces the shell to block until Mineways exits:
+<div id="code">
+start /wait mineways.exe -headless
+</div>
+<P>
+With this, keystrokes reach Mineways, you can type commands interactively, and <b>start /wait</b> returns to the cmd.exe prompt only after you issue a "Close" command or press Ctrl+Z+Enter. The same <b>start /wait</b> command works in PowerShell as well. Piping commands to Mineways (e.g, <code>echo Simplify mesh: no | mineways.exe -headless</code>) works without <b>start /wait</b> because cmd.exe waits for the piped command source (echo) to complete, during which time Mineways also finishes processing the piped input.
+<P>
+<b>Recovering from a stuck interactive session:</b> If you typed <code>mineways.exe -headless</code> (without <b>start /wait</b>) and some of your keystrokes went to cmd.exe instead of Mineways, the Mineways process is likely still running in the background with its own <b>CONIN$</b> read pending (don't ask...). You can tell this is happening when you see Mineways's error format <code>ERROR: unrecognized command: ...</code> (rather than cmd.exe's <code>'...' is not recognized as an internal or external command</code>) for text you type. To recover, simply type <b>Close</b> at the prompt and press Enter - the running Mineways will receive it, print <b>CLOSING</b>, and exit. If multiple sessions have piled up or <b>Close</b> doesn't seem to work, force-terminate them from a new cmd window with:
+<div id="code">
+taskkill /f /im mineways.exe
+</div>
+<P>
+Then start fresh using <code>start /wait mineways.exe -headless</code>.
+<P>
+You made it this far? Congratulations! For some examples of 
 <P>
 -suppress<br>
 Suppress all informational, warning, and error popups. Equivalent to "Show informational: false", "Show warning: false", and "Show error: false", but performed before any other operations are done in Mineways. This allows a nearly-batch mode for Mineways with no pauses, as no popups will appear at startup (such as "bad world" warnings) or during execution of any scripts executed. You can turn popup display back on during execution normally, e.g., a script with "Show error: true", "Show warning: YES", etc.
@@ -972,6 +1003,70 @@ mineways.exe -s none
 <P>
 Do not load any list of worlds on startup.
 This can be useful if Mineways does not start properly, to rule out world files causing the problem, or if you're running a script on startup and do not need the world list loaded.
+<P>
+<div id="code">
+mineways.exe -headless scripts\export_castle.mwscript
+</div>
+<P>
+Run the script entirely headless - no window appears. The script (which you need to create beforehand) executes and the process exits automatically when done. No "Close" command is needed in the script. This is ideal for batch processing or calling Mineways from build scripts.
+<P>
+<div id="code">
+mineways.exe -headless -l export.log scripts\export_castle.mwscript
+</div>
+<P>
+Same as above, but also writes an execution log to export.log for troubleshooting.
+<P>
+<div id="code">
+echo Close | mineways.exe -headless
+</div>
+<P>
+A minimal test of the interactive stdin mode. Mineways starts headless, prints "READY" to stdout, reads "Close" from stdin, responds with "CLOSING", and exits.
+<P>
+<div id="code">
+echo World: [Block Test World] | mineways.exe -headless
+</div>
+<P>
+Pipe an initial command (here, loading the built-in Block Test World) to Mineways. You can then continue typing commands interactively from the keyboard. Mineways runs the piped command, prints "OK", and then reads from the console so you can issue more commands. Type <b>Close</b> (followed by Enter) to exit, or send EOF with Ctrl+Z then Enter. This pattern is useful for scripted setup followed by manual exploration. Note: if you don't include "-headless", no piping will take place.
+<P>
+<div id="code">
+start /wait mineways.exe -headless
+</div>
+<P>
+Start a purely interactive session from cmd.exe or PowerShell. The <b>start /wait</b> prefix is required so that the shell waits for Mineways to exit instead of returning to its prompt immediately (see the explanation above about cmd.exe and GUI apps). After "READY" appears, type script commands one per line and press Enter. Type <b>Close</b> (or press Ctrl+Z then Enter) to exit.
+<P>
+<div id="code">
+python scripting\stdin_mode.py
+</div>
+<P>
+Interactive stdin mode is designed for integration with other programs. A parent process can launch Mineways with piped stdin/stdout and send commands on demand. This Python script runs Mineways.exe (assumed to be in the current directory) and performs a few export commands. Here is the script, just in case:
+<div id="code">
+<pre>import subprocess
+proc = subprocess.Popen(
+    ["mineways.exe", "-headless"],
+    stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+    text=True, bufsize=1  # line-buffered
+)
+print(proc.stdout.readline().strip())  # reads "READY"
+
+# Load a world and export
+for cmd in [
+    'World: [Block Test World]',
+    'Set render type: Wavefront OBJ absolute indices',
+    'Selection location min to max: 8, -2, -35 to 143, 319, 130',
+    'Export for Rendering: C:/tmp/block_test.obj',
+    'Close'
+]:
+    proc.stdin.write(cmd + '\n')
+    proc.stdin.flush()
+    response = proc.stdout.readline().strip()
+    print(f"{cmd[:40]:40s} -> {response}")
+
+# Wait for Mineways to exit cleanly after the Close command
+proc.wait()
+</pre>
+</div>
+<P>
+The world stays loaded in memory between commands, so you can issue multiple exports with different selections or settings without reloading the world each time.
 
 <H1 id="amfwm">Associating .mwscript files with Mineways</H1>
 

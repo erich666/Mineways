@@ -65,6 +65,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <memory.h>
 #include <tchar.h>
 #include <stdio.h>
+#include <io.h>
+#include <fcntl.h>
 
 #define MINEWAYS_MAJOR_VERSION 12
 #define MINEWAYS_MINOR_VERSION 12
