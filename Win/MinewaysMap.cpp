@@ -8334,7 +8334,11 @@ int GetPlayer(const wchar_t* world, int* px, int* py, int* pz, int* dimension)
     nbtClose(&bf);
 
     if (retval != 0) {
-        // For newer worlds (26.1+), player data is in players/data/*.dat
+        // For newer worlds (26.1+), player data is in players/data/<uuid>.dat
+        // There may be many .dat files (one per player who has joined), but only the
+        // currently-active player's file has a matching <uuid>.dat_old backup that Minecraft
+        // creates when it saves the .dat. Find that .dat_old marker, then read the matching .dat.
+        // Note: if there are multiple players in the world, some random player gets picked, I guess.
         wchar_t playerDataPath[300];
         wcsncpy_s(playerDataPath, 300, world, wcslen(world) + 1);
         wcscat_s(playerDataPath, 300, gSeparator);
@@ -8342,16 +8346,22 @@ int GetPlayer(const wchar_t* world, int* px, int* py, int* pz, int* dimension)
         wcscat_s(playerDataPath, 300, gSeparator);
         wcscat_s(playerDataPath, 300, L"data");
         wcscat_s(playerDataPath, 300, gSeparator);
-        wcscat_s(playerDataPath, 300, L"*.dat");
+        wcscat_s(playerDataPath, 300, L"*.dat_old");
 
         WIN32_FIND_DATA ffd;
         HANDLE hFind = FindFirstFile(playerDataPath, &ffd);
         if (hFind != INVALID_HANDLE_VALUE) {
-            // we simply look for the first player *.dat file that works.
             do {
-                // Skip _old backup files
-                if (wcsstr(ffd.cFileName, L"_old") != NULL)
-                    continue;
+                // Strip the trailing "_old" to get the matching .dat filename.
+                wchar_t baseName[MAX_PATH];
+                wcsncpy_s(baseName, MAX_PATH, ffd.cFileName, _TRUNCATE);
+                size_t baseLen = wcslen(baseName);
+                const size_t oldSuffixLen = 4;  // "_old"
+                if (baseLen <= oldSuffixLen ||
+                    _wcsicmp(&baseName[baseLen - oldSuffixLen], L"_old") != 0) {
+                    continue;  // not actually a *.dat_old file
+                }
+                baseName[baseLen - oldSuffixLen] = L'\0';
 
                 wchar_t playerFile[300];
                 wcsncpy_s(playerFile, 300, world, wcslen(world) + 1);
@@ -8360,7 +8370,7 @@ int GetPlayer(const wchar_t* world, int* px, int* py, int* pz, int* dimension)
                 wcscat_s(playerFile, 300, gSeparator);
                 wcscat_s(playerFile, 300, L"data");
                 wcscat_s(playerFile, 300, gSeparator);
-                wcscat_s(playerFile, 300, ffd.cFileName);
+                wcscat_s(playerFile, 300, baseName);
 
                 bf = newNBT(playerFile, &err);
                 if (bf.gz == 0x0) continue;
