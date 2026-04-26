@@ -205,6 +205,12 @@ The first image is a schematic <i>pikachu7795240.schematic</i> loaded via "File 
 Here is a 3x3 set of objects output and viewed with <a href="#g3d">G3D</a>:
 <P>
 <img src="images/pika_army.jpg">
+<P>
+<b>File | <a id="recentexports">Recent Exports:</a></b> A submenu lists the last five model files you successfully exported. Click an entry to re-open it - this is exactly the same action as <a href="#importsettings">File | Import Settings</a> on that file. The world reloads at the model's location and your previous export settings come back. Entries are ordered newest-first and show the filename followed by the full path, so you can tell apart same-named exports in different folders.
+<P>
+What goes into the list: any export that produces a model file with settings saved for the file: <i>Export for Rendering</i>, <i>Export for 3D Printing</i>, and <i>Export Schematic</i>, whether triggered from the menu, repeated via <i>Repeat Export</i>, or driven by a script in headless mode. <i>Export Map</i> is intentionally <b>not</b> recorded, because the resulting .png has no settings to re-import.
+<P>
+Technical note: The list is persisted across sessions in the Windows registry under <tt>HKEY_CURRENT_USER\Software\Eric Haines\Mineways\RecentExports</tt>, deduplicated (re-exporting to a path already in the list moves it to the top instead of duplicating), and self-cleaned: entries pointing at files you've since deleted or moved are dropped automatically (at startup, or with a one-time popup if you click such an entry).
 <H2 id="map">
 Mapping
 </H2>
@@ -2842,6 +2848,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 	<LI>Fixed USD export name collisions in the mesh block library: when many blocks were exported, multiple USD mesh prims could end up with the same name, which caused Blender's USD importer to drop the mesh library and materials and load only the point cloud. Every emitted USD mesh now gets a unique numeric suffix. <a href="https://github.com/erich666/Mineways/issues/146">Issue #146</a>. <I>(Thanks to zNightLord for reporting this bug, and to Fingie for help diagnosing it.)</I>
 	<LI>Various fixes to problems found in ChannelMixer (now version 1.22).
 	<LI>Fixed Tilemaker (now version 3.29) miscount of chest tiles used, <a href="https://github.com/erich666/Mineways/issues/160">issue #160</a>. Textures regenerated, so that copper_weathered chests are processed properly.
+	<LI>Added a "Recent Exports" submenu under the File menu, listing the last five successfully exported model files. Click an entry to re-open that export's settings (the same action as File &gt; Import Settings). The list is persisted in the registry across sessions, deduped, and self-cleans entries pointing at files that no longer exist. <a href="https://github.com/erich666/Mineways/issues/138">Issue #138</a>.
 	</UL>
 
 <LI>Version 12.11, 4/9/2026 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1211.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.

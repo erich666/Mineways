@@ -195,6 +195,14 @@ static int gPrintModel = RENDERING_EXPORT;
 static BOOL gExported = 0;
 static TCHAR gExportPath[MAX_PATH_AND_FILE] = _T("");
 
+// Issue #138: Recent Exports submenu state. gRecentExports holds up to MAX_RECENT_EXPORTS
+// full paths to previously-exported model files (newest at index 0). Persisted in the registry
+// at HKCU\Software\Eric Haines\Mineways\RecentExports as Recent0..Recent4 REG_SZ values.
+// Map exports (.png) are intentionally excluded — runImportOrScript can't reopen them.
+static wchar_t gRecentExports[MAX_RECENT_EXPORTS][MAX_PATH_AND_FILE];
+static int gRecentExportCount = 0;
+#define RECENT_EXPORTS_REGKEY L"Software\\Eric Haines\\Mineways\\RecentExports"
+
 static WORD gMinewaysMajorVersion = 0;
 static WORD gMinewaysMinorVersion = 0;
 static WORD gBuildNumber = 0;
@@ -416,6 +424,12 @@ static void enableBottomControl(int state, /* HWND hwndBottomSlider, HWND hwndBo
 static void validateItems(HMENU menu);
 static int loadWorldList(HMENU menu);
 static int loadTerrainList(HMENU menu);
+static void loadRecentExportsFromRegistry();
+static void saveRecentExportsToRegistry();
+static void addToRecentExports(const wchar_t* path);
+static void populateRecentExportsMenu(HWND hWnd);
+static HMENU findRecentExportsSubmenu(HWND hWnd);
+static void appendDefaultExportSuffix(wchar_t* path, int fileType);
 static void drawTheMap();
 static void setUIOnLoadWorld(HWND hWnd, HWND hwndSlider, HWND hwndLabel, HWND hwndInfoLabel, HWND hwndBottomSlider, HWND hwndBottomLabel);
 static void updateCursor(LPARAM lParam, BOOL hdragging);
@@ -1022,6 +1036,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         LOG_INFO(gExecutionLogfile, " populateColorSchemes\n");
         populateColorSchemes(GetMenu(hWnd));
         CheckMenuItem(GetMenu(hWnd), IDM_CUSTOMCOLOR, MF_CHECKED);
+
+        // Issue #138: load the persisted Recent Exports list and populate the submenu.
+        LOG_INFO(gExecutionLogfile, " loadRecentExportsFromRegistry\n");
+        loadRecentExportsFromRegistry();
+        populateRecentExportsMenu(hWnd);
 
         ctlBrush = CreateSolidBrush(GetSysColor(COLOR_WINDOW));
 
@@ -1903,6 +1922,39 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
             useCustomColor(wmId, hWnd);
         }
+        else if (wmId >= IDM_RECENT_EXPORT_BASE && wmId < IDM_RECENT_EXPORT_BASE + MAX_RECENT_EXPORTS)
+        {
+            // Issue #138: a Recent Exports submenu item was clicked. Re-open the file via
+            // the same path used by File > Import Settings (mirrors lines around 2199-2207).
+            int idx = wmId - IDM_RECENT_EXPORT_BASE;
+            if (idx < gRecentExportCount) {
+                if (GetFileAttributesW(gRecentExports[idx]) == INVALID_FILE_ATTRIBUTES) {
+                    // File no longer exists — drop it from the list and tell the user.
+                    wchar_t msg[MAX_PATH_AND_FILE + 200];
+                    swprintf_s(msg, _countof(msg),
+                        L"The recent export file\n\n    %s\n\nis no longer at that location, so it has been removed from the list.",
+                        gRecentExports[idx]);
+                    FilterMessageBox(NULL, msg, _T("File not found"), MB_OK | MB_ICONWARNING);
+                    for (int j = idx; j < gRecentExportCount - 1; j++) {
+                        wcscpy_s(gRecentExports[j], MAX_PATH_AND_FILE, gRecentExports[j + 1]);
+                    }
+                    gRecentExportCount--;
+                    gRecentExports[gRecentExportCount][0] = 0;
+                    saveRecentExportsToRegistry();
+                    populateRecentExportsMenu(hWnd);
+                }
+                else {
+                    // Take a copy first because addToRecentExports rewrites gRecentExports[].
+                    wchar_t chosen[MAX_PATH_AND_FILE];
+                    wcscpy_s(chosen, MAX_PATH_AND_FILE, gRecentExports[idx]);
+                    wcscpy_s(gImportFile, MAX_PATH_AND_FILE, chosen);
+                    splitToPathAndName(gImportFile, gImportPath, NULL);
+                    runImportOrScript(gImportFile, gWS, &gBlockLabel, gHoldlParam, true);
+                    // Bump the just-opened file to the top of the list.
+                    addToRecentExports(chosen);
+                }
+            }
+        }
         else if (wmId > IDM_WORLD && wmId < IDM_WORLD + MAX_WORLDS)
         {
             // Load world from list that's real (not Block Test World, which is IDM_TEST_WORLD, below)
@@ -2336,6 +2388,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     }
                     else {
                         gExported = saveObjFile(hWnd, gExportPath, gPrintModel, gSelectTerrainPathAndName, gSchemeSelected, (gExported == 0), gShowPrintStats);
+                    }
+                    // Issue #138: record successful model exports in the Recent Exports menu.
+                    // Map exports (.png) are excluded — they have no embedded settings to re-import.
+                    if (gExported > 0 && gPrintModel != MAP_EXPORT) {
+                        // gExportPath is the user-typed name; SaveVolume adds the type's
+                        // suffix on disk if missing — match it so the menu entry resolves.
+                        wchar_t recordedPath[MAX_PATH_AND_FILE];
+                        wcscpy_s(recordedPath, MAX_PATH_AND_FILE, gExportPath);
+                        appendDefaultExportSuffix(recordedPath, gpEFD->fileType);
+                        addToRecentExports(recordedPath);
                     }
                     SetHighlightState(1, gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_IGNORE);
                     enableBottomControl(1, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
@@ -3983,6 +4045,190 @@ void flagUnreadableWorld(wchar_t* wcWorld, char* charWorld, int errCode)
         //swprintf_s(msgString, 1024, L"Warning: The level.dat of world file %s could not be read, error code %d. World ignored. Please report this problem to erich@acm.org if you think it is in error.", wcWorld, errCode);
         //FilterMessageBox(NULL, msgString, _T("Warning"), MB_OK | MB_ICONWARNING);
     //}
+}
+
+// Issue #138: SaveVolume() appends a fileType-specific suffix when writing to disk if the
+// user didn't include one. gExportPath / the script's wcharFileName retain the original
+// (suffix-less) name, so we apply the same suffix here before recording in Recent Exports —
+// otherwise the menu entry points at a path that doesn't exist on disk.
+// Mirrors the suffix mapping in badFileSuffix (Mineways.cpp:2877) and the SaveVolume calls
+// in ObjFileManip.cpp:25641 / 28069 / 28216 / 28653 / 32596.
+static void appendDefaultExportSuffix(wchar_t* path, int fileType)
+{
+    if (path == NULL || path[0] == 0) return;
+    // Locate the basename (after the last \ or /), then look for a '.' in it. If absent,
+    // the user typed no suffix and SaveVolume added the default — match it here.
+    wchar_t* basename = path;
+    for (wchar_t* p = path; *p; p++) {
+        if (*p == L'\\' || *p == L'/') basename = p + 1;
+    }
+    if (wcsrchr(basename, L'.') != NULL) return;  // already has a suffix
+
+    const wchar_t* suffix = NULL;
+    switch (fileType) {
+    case FILE_TYPE_WAVEFRONT_REL_OBJ:
+    case FILE_TYPE_WAVEFRONT_ABS_OBJ: suffix = L".obj"; break;
+    case FILE_TYPE_USD:               suffix = L".usda"; break;
+    case FILE_TYPE_VRML2:             suffix = L".wrl"; break;
+    case FILE_TYPE_BINARY_MAGICS_STL:
+    case FILE_TYPE_BINARY_VISCAM_STL:
+    case FILE_TYPE_ASCII_STL:         suffix = L".stl"; break;
+    case FILE_TYPE_SCHEMATIC:         suffix = L".schematic"; break;
+    default:                          return;  // unknown — leave alone
+    }
+    wcscat_s(path, MAX_PATH_AND_FILE, suffix);
+}
+
+// Issue #138: load the persisted Recent Exports list from the registry into gRecentExports.
+// Drops entries whose files no longer exist. Compacts the list. Called once at startup.
+static void loadRecentExportsFromRegistry()
+{
+    HKEY key = NULL;
+    if (RegCreateKeyEx(HKEY_CURRENT_USER, RECENT_EXPORTS_REGKEY, 0, NULL,
+        REG_OPTION_NON_VOLATILE, KEY_READ | KEY_WRITE, NULL, &key, NULL) != ERROR_SUCCESS) {
+        return;
+    }
+
+    gRecentExportCount = 0;
+    for (int i = 0; i < MAX_RECENT_EXPORTS; i++) {
+        wchar_t valueName[32];
+        swprintf_s(valueName, 32, L"Recent%d", i);
+        wchar_t buf[MAX_PATH_AND_FILE];
+        DWORD bufBytes = sizeof(buf);
+        DWORD type = 0;
+        if (RegQueryValueEx(key, valueName, NULL, &type, (LPBYTE)buf, &bufBytes) == ERROR_SUCCESS
+            && type == REG_SZ
+            && bufBytes >= sizeof(wchar_t)
+            && buf[0] != 0) {
+            // Drop entries that no longer point at an existing file.
+            if (GetFileAttributesW(buf) != INVALID_FILE_ATTRIBUTES) {
+                wcscpy_s(gRecentExports[gRecentExportCount], MAX_PATH_AND_FILE, buf);
+                gRecentExportCount++;
+            }
+        }
+    }
+    RegCloseKey(key);
+}
+
+// Issue #138: write the current gRecentExports[0..gRecentExportCount-1] into the registry,
+// and delete any leftover slots so a shorter list doesn't leave stale entries behind.
+static void saveRecentExportsToRegistry()
+{
+    HKEY key = NULL;
+    if (RegCreateKeyEx(HKEY_CURRENT_USER, RECENT_EXPORTS_REGKEY, 0, NULL,
+        REG_OPTION_NON_VOLATILE, KEY_READ | KEY_WRITE, NULL, &key, NULL) != ERROR_SUCCESS) {
+        return;
+    }
+
+    for (int i = 0; i < MAX_RECENT_EXPORTS; i++) {
+        wchar_t valueName[32];
+        swprintf_s(valueName, 32, L"Recent%d", i);
+        if (i < gRecentExportCount) {
+            DWORD bytes = (DWORD)((wcslen(gRecentExports[i]) + 1) * sizeof(wchar_t));
+            RegSetValueEx(key, valueName, 0, REG_SZ, (LPBYTE)gRecentExports[i], bytes);
+        }
+        else {
+            RegDeleteValue(key, valueName);
+        }
+    }
+    RegCloseKey(key);
+}
+
+// Issue #138: add `path` to the front of the Recent Exports list. If it's already present,
+// move it to the front (no duplicates). Persists to the registry and refreshes the menu.
+static void addToRecentExports(const wchar_t* path)
+{
+    if (path == NULL || path[0] == 0)
+        return;
+
+    // Normalize for stable comparison/storage. rationalizeFilePath modifies in place,
+    // so make a local copy.
+    wchar_t normalized[MAX_PATH_AND_FILE];
+    wcscpy_s(normalized, MAX_PATH_AND_FILE, path);
+    rationalizeFilePath(normalized);
+
+    // If already in the list, find and remove that entry; we'll re-insert at the top.
+    int existingIdx = -1;
+    for (int i = 0; i < gRecentExportCount; i++) {
+        if (_wcsicmp(gRecentExports[i], normalized) == 0) {
+            existingIdx = i;
+            break;
+        }
+    }
+    if (existingIdx >= 0) {
+        for (int i = existingIdx; i < gRecentExportCount - 1; i++) {
+            wcscpy_s(gRecentExports[i], MAX_PATH_AND_FILE, gRecentExports[i + 1]);
+        }
+        gRecentExportCount--;
+    }
+
+    // Shift everything down to make room at index 0; drop oldest if full.
+    int shiftEnd = (gRecentExportCount < MAX_RECENT_EXPORTS) ? gRecentExportCount : MAX_RECENT_EXPORTS - 1;
+    for (int i = shiftEnd; i > 0; i--) {
+        wcscpy_s(gRecentExports[i], MAX_PATH_AND_FILE, gRecentExports[i - 1]);
+    }
+    wcscpy_s(gRecentExports[0], MAX_PATH_AND_FILE, normalized);
+    if (gRecentExportCount < MAX_RECENT_EXPORTS) gRecentExportCount++;
+
+    saveRecentExportsToRegistry();
+    populateRecentExportsMenu(gWS.hWnd);
+}
+
+// Issue #138: locate the "Recent Exports" submenu within the File menu. Identified by the
+// presence of the IDM_FILE_RECENTEXPORTS_PLACEHOLDER item OR by any IDM_RECENT_EXPORT_BASE
+// entry that has been added to it.
+static HMENU findRecentExportsSubmenu(HWND hWnd)
+{
+    HMENU menuBar = GetMenu(hWnd);
+    if (!menuBar) return NULL;
+    HMENU fileMenu = GetSubMenu(menuBar, 0);  // File is the first top-level menu
+    if (!fileMenu) return NULL;
+    int count = GetMenuItemCount(fileMenu);
+    for (int i = 0; i < count; i++) {
+        HMENU sub = GetSubMenu(fileMenu, i);
+        if (sub) {
+            int subCount = GetMenuItemCount(sub);
+            for (int j = 0; j < subCount; j++) {
+                UINT id = GetMenuItemID(sub, j);
+                if (id == IDM_FILE_RECENTEXPORTS_PLACEHOLDER ||
+                    (id >= IDM_RECENT_EXPORT_BASE && id < IDM_RECENT_EXPORT_BASE + MAX_RECENT_EXPORTS)) {
+                    return sub;
+                }
+            }
+        }
+    }
+    return NULL;
+}
+
+// Issue #138: rebuild the Recent Exports submenu from gRecentExports[]. If empty, show a
+// disabled "(no recent exports)" placeholder so the submenu indicator doesn't lead nowhere.
+static void populateRecentExportsMenu(HWND hWnd)
+{
+    HMENU sub = findRecentExportsSubmenu(hWnd);
+    if (!sub) return;
+
+    // Clear existing items.
+    int count = GetMenuItemCount(sub);
+    for (int i = count - 1; i >= 0; i--) {
+        RemoveMenu(sub, i, MF_BYPOSITION);
+    }
+
+    if (gRecentExportCount == 0) {
+        AppendMenu(sub, MF_STRING | MF_GRAYED, IDM_FILE_RECENTEXPORTS_PLACEHOLDER, L"(no recent exports)");
+    }
+    else {
+        for (int i = 0; i < gRecentExportCount; i++) {
+            // Find the basename of the path (last \ or /).
+            const wchar_t* basename = gRecentExports[i];
+            for (const wchar_t* p = gRecentExports[i]; *p; p++) {
+                if (*p == L'\\' || *p == L'/') basename = p + 1;
+            }
+            // Format: "&N basename (full\path)" — N is a 1-based digit accelerator.
+            wchar_t label[MAX_PATH_AND_FILE + 32];
+            swprintf_s(label, _countof(label), L"&%d %s (%s)", i + 1, basename, gRecentExports[i]);
+            AppendMenu(sub, MF_STRING, IDM_RECENT_EXPORT_BASE + i, label);
+        }
+    }
 }
 
 static int loadWorldList(HMENU menu)
@@ -9888,6 +10134,12 @@ static bool commandExportFile(ImportedSet& is, wchar_t* error, int fileMode, cha
             swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"export operation failed.");
             return false;
         }
+        // Issue #138: record successful script-driven model exports in the Recent Exports menu.
+        // Match SaveVolume's automatic suffix-on-disk if the script omitted one.
+        wchar_t recordedPath[MAX_PATH_AND_FILE];
+        wcscpy_s(recordedPath, MAX_PATH_AND_FILE, wcharFileName);
+        appendDefaultExportSuffix(recordedPath, gpEFD->fileType);
+        addToRecentExports(recordedPath);
     }
     // back to normal
     sendStatusMessage(is.ws.hwndStatus, RUNNING_SCRIPT_STATUS_MESSAGE);
