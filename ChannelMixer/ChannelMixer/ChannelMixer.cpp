@@ -8,7 +8,7 @@
 #include "tiles.h"
 #include "tilegrid.h"
 
-#define	VERSION_STRING	L"1.21"
+#define	VERSION_STRING	L"1.22"
 
 // how the green and blue tiles get tinted
 //#define FOLIAGE_GREEN	0x8cbd57
@@ -275,7 +275,7 @@ int wmain(int argc, wchar_t* argv[])
 		wprintf(L"ChannelMixer summary: %d relevant PNG and TGA files discovered and %d of these were used.\n", filesFound, filesProcessed);
 	}
 	if (filesFound > filesProcessed + gWriteProtectCount + gIgnoredCount) {
-		wprintf(L"    This difference of %d files means that some duplicate files were found and not used.\n", filesFound - filesProcessed - gWriteProtectCount);
+		wprintf(L"    This difference of %d files means that some duplicate files were found and not used.\n", filesFound - filesProcessed - gWriteProtectCount - gIgnoredCount);
 		wprintf(L"    Look through the 'DUP WARNING's and rename or delete those files you do not want to use, clear the directory, and run again.\n");
 	}
 
@@ -334,7 +334,7 @@ static int copyFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, Chest
 	for (int category = 0; category < numCats; category++) {
 		// does this category have any input files? If not, skip it - just a small speed-up.
 		if (pfg->categories[copyCategories[category]] > 0 ) {
-			if (gUseCategory[category]) {
+			if (gUseCategory[copyCategories[category]]) {
 				// there are files to copy
 				for (int i = 0; i < pfg->totalTiles; i++) {
 					int fullIndex = copyCategories[category] * pfg->totalTiles + i;
@@ -401,7 +401,7 @@ static int copyFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, Chest
 		// Chests
 		// does this chest category have any input files? If not, skip it - just a small speed-up.
 		if (pcg->categories[copyCategories[category]] > 0 ) {
-			if (gUseCategory[category]) {
+			if (gUseCategory[copyCategories[category]]) {
 				//gChestCount += pcg->categories[copyCategories[category]];
 				// there are files to copy
 				for (int i = 0; i < pcg->totalTiles; i++) {
@@ -476,7 +476,7 @@ static int copyFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, Chest
 		// Decorated Pots
 		// does this pot category have any input files? If not, skip it - just a small speed-up.
 		if (ppg->categories[copyCategories[category]] > 0) {
-			if (gUseCategory[category]) {
+			if (gUseCategory[copyCategories[category]]) {
 				//gDecoratedPotCount += ppg->categories[copyCategories[category]];
 				// there are files to copy
 				for (int i = 0; i < ppg->totalTiles; i++) {
@@ -550,7 +550,7 @@ static int copyFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, Chest
 		// Shelf
 		// does this shelf category have any input files? If not, skip it - just a small speed-up.
 		if (psg->categories[copyCategories[category]] > 0) {
-			if (gUseCategory[category]) {
+			if (gUseCategory[copyCategories[category]]) {
 				//gShelfCount += psg->categories[copyCategories[category]];
 				// there are files to copy
 				for (int i = 0; i < psg->totalTiles; i++) {
