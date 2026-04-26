@@ -323,8 +323,12 @@ typedef struct Model {
     int groupCount;
     int groupCountSize;
     int* groupCountArray;
-    // TODO - a messy bug, https://github.com/erich666/Mineways/issues/146
-    //int uniqueMeshVal; // give every output USD mesh a suffix with a unique number, to avoid name collisions
+    // Counter used to suffix every USD mesh name with a unique value, so that two face groups
+    // in the same parent Xform/Scope cannot collide. USD requires unique sibling prim names;
+    // Blender's importer silently drops colliding prims (and the rest of the block library and
+    // materials with them, leaving only the point cloud). Fixes Mineways issue #146.
+    // Zero-initialized by the existing memset(&gModel, 0, sizeof(Model)) at process start.
+    int uniqueMeshVal;
 } Model;
 
 extern Model gModel;

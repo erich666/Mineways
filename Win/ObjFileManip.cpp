@@ -29793,17 +29793,18 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
     //sprintf_s(outputString, 256, "%s    def Mesh \"%s\"\n    {\n", startingFace ? "\n" : "", mtlName);
     // was: sprintf_s(outputString, 256, "\n    def Mesh \"%s\"\n    {\n", mtlName);
     // Newer USD spec needs the MaterialBindingAPI.
-    // Are we outputting an instance? If so, save mesh with an extended name scheme
+    // Always append gModel.uniqueMeshVal as the final suffix so that every emitted mesh prim
+    // has a unique name within its parent. Multiple face groups inside the same Block_TYPE_DATAVAL
+    // Xform (or in the consolidated case, across the whole document) can share the same mtlName,
+    // and USD requires unique sibling prim names. Without the suffix, Blender silently drops
+    // colliding prims. Fixes Mineways issue #146.
     if (type >= 0) {
-        // instancing
-        sprintf_s(outputString, 256, "\n        def Mesh \"%s_%d_%d\" (\n            prepend apiSchemas = [\"MaterialBindingAPI\"]\n        )\n        {\n", mtlName, type, dataVal);
-        // someday should do this - but hash map of IDs then needs serious redoing; also should do for consolidated mesh.
-        // A messy bug, https://github.com/erich666/Mineways/issues/146
-        //sprintf_s(outputString, 256, "\n        def Mesh \"%s_%d_%d_%d\" (\n            prepend apiSchemas = [\"MaterialBindingAPI\"]\n        )\n        {\n", mtlName, type, dataVal, gModel.uniqueMeshVal++);
+        // instancing: name is mtlName_type_dataVal_uniqueId
+        sprintf_s(outputString, 256, "\n        def Mesh \"%s_%d_%d_%d\" (\n            prepend apiSchemas = [\"MaterialBindingAPI\"]\n        )\n        {\n", mtlName, type, dataVal, gModel.uniqueMeshVal++);
     }
     else {
-        // consolidated mesh - just use the name of the texture associated with the material
-        sprintf_s(outputString, 256, "\n        def Mesh \"%s\" (\n            prepend apiSchemas = [\"MaterialBindingAPI\"]\n        )\n        {\n", mtlName);
+        // consolidated mesh: name is mtlName_uniqueId
+        sprintf_s(outputString, 256, "\n        def Mesh \"%s_%d\" (\n            prepend apiSchemas = [\"MaterialBindingAPI\"]\n        )\n        {\n", mtlName, gModel.uniqueMeshVal++);
     }
     WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
 

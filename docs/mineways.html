@@ -2839,6 +2839,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
     <UL>
 	<LI>Fixed "Jump to Spawn" a bit. The previous version jumped to some location the player had been, instead of the current location. Should jump to the current location now. If there are multiple players, one random player is chosen, I guess.
 	<LI>Implemented the ability to pipe data into Mineways in a "headless" mode. See <a href="scripting.html#clo">scripting</a> for documentation and examples. <a href="https://github.com/erich666/Mineways/issues/49">Issue #49</a>. <I>(Thanks to TheDuckCow for this suggestion.)</I>
+	<LI>Fixed USD export name collisions in the mesh block library: when many blocks were exported, multiple USD mesh prims could end up with the same name, which caused Blender's USD importer to drop the mesh library and materials and load only the point cloud. Every emitted USD mesh now gets a unique numeric suffix. <a href="https://github.com/erich666/Mineways/issues/146">Issue #146</a>. <I>(Thanks to zNightLord for reporting this bug, and to Fingie for help diagnosing it.)</I>
 	<LI>Various fixes to problems found in ChannelMixer (now version 1.22).
 	<LI>Fixed Tilemaker (now version 3.29) miscount of chest tiles used, <a href="https://github.com/erich666/Mineways/issues/160">issue #160</a>. Textures regenerated, so that copper_weathered chests are processed properly.
 	</UL>
