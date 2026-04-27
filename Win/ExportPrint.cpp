@@ -39,7 +39,7 @@ static int curPhysMaterial;
 static HINSTANCE g_hInst;
 
 // OBJ, OBJ, USD, MAGICS STL, VISCAM STL, ASCII STL, VRML2, SCHEMATIC
-#define EP_TOOLTIP_COUNT 56
+#define EP_TOOLTIP_COUNT 57
 TooltipDefinition g_epTT[EP_TOOLTIP_COUNT] = {
     { IDC_WORLD_MIN_X,      {1,1,1,1,1,1,1,1}, L"Western edge of volume exported", L""},
     { IDC_WORLD_MIN_Y,      {1,1,1,1,1,1,1,1}, L"Lower bound of volume exported", L""},
@@ -67,6 +67,7 @@ TooltipDefinition g_epTT[EP_TOOLTIP_COUNT] = {
     { IDC_MAKE_GROUPS_OBJECTS,  {1,1,0,0,0,0,0,0}, L"Unchecked, there is one object. Checked, each OBJ group is a separate object; useful for setting materials and for animation.", L""},
     { IDC_G3D_MATERIAL,     {1,1,2,0,0,0,0,0}, L"Output extended PBR materials and textures, such as roughness, normals, and emission, as available", L"Use custom 'blocky' shaders for MDL. Uncheck if your textures are high resolution."},
     { IDC_EXPORT_MDL,       {0,0,1,0,0,0,0,0}, L"Export MDL shaders. Unchecked means export only UsdPreviewSurface materials.", L""},
+    { IDC_EXPORT_FACE_LIGHT,{0,0,1,0,0,0,0,0}, L"USD only: emit Minecraft's per-face BlockLight and SkyLight (0-15) as 'uniform' int primvars on each mesh, for renderer-side lighting effects (issue #157).", L""},
     { IDC_MAKE_Z_UP,        {1,1,1,1,1,1,1,1}, L"The Y axis is up by default; check to instead use Z as the up direction", L""},
     { IDC_SIMPLIFY_MESH,    {1,1,1,0,0,0,0,0}, L"Check to reduce the polygon count, as possible. Downside is that textures are not randomly rotated on grass, etc., to break up pattern repetition.", L""},
     { IDC_CENTER_MODEL,     {1,1,1,1,1,1,1,1}, L"Checked means model is roughly centered around (0,0,0); unchecked means use the world's coordinates", L""},
@@ -391,6 +392,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
         CheckDlgButton(hDlg, IDC_BLOCKS_AT_BORDERS, (epd.flags & EXPT_3DPRINT) ? BST_INDETERMINATE : epd.chkBlockFacesAtBorders);
         // disallow biome color if full texture and tile texture is off
         CheckDlgButton(hDlg, IDC_BIOME, (epd.radioExportFullTexture[epd.fileType] || epd.radioExportTileTextures[epd.fileType]) ? epd.chkBiome : BST_INDETERMINATE);
+        // per-face light export is USD-only
+        CheckDlgButton(hDlg, IDC_EXPORT_FACE_LIGHT, (epd.fileType == FILE_TYPE_USD) ? epd.chkExportLight : BST_INDETERMINATE);
 
         CheckDlgButton(hDlg, IDC_RADIO_ROTATE_0, epd.radioRotate0);
         CheckDlgButton(hDlg, IDC_RADIO_ROTATE_90, epd.radioRotate90);
@@ -856,6 +859,21 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 UINT isIndeterminate = (IsDlgButtonChecked(hDlg, IDC_BIOME) == BST_INDETERMINATE);
                 if (isIndeterminate)
                     CheckDlgButton(hDlg, IDC_BIOME, BST_UNCHECKED);
+            }
+        }
+        break;
+        case IDC_EXPORT_FACE_LIGHT:
+        {
+            // per-face light export is USD-only
+            if (epd.fileType != FILE_TYPE_USD)
+            {
+                CheckDlgButton(hDlg, IDC_EXPORT_FACE_LIGHT, BST_INDETERMINATE);
+            }
+            else
+            {
+                UINT isIndeterminate = (IsDlgButtonChecked(hDlg, IDC_EXPORT_FACE_LIGHT) == BST_INDETERMINATE);
+                if (isIndeterminate)
+                    CheckDlgButton(hDlg, IDC_EXPORT_FACE_LIGHT, BST_UNCHECKED);
             }
         }
         break;
@@ -1391,6 +1409,8 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
             lepd.chkLeavesSolid = (epd.flags & EXPT_3DPRINT) ? 1 : (IsDlgButtonChecked(hDlg, IDC_TREE_LEAVES_SOLID) == BST_CHECKED);
             lepd.chkBlockFacesAtBorders = (epd.flags & EXPT_3DPRINT) ? 1 : (IsDlgButtonChecked(hDlg, IDC_BLOCKS_AT_BORDERS) == BST_CHECKED);
             lepd.chkBiome = (IsDlgButtonChecked(hDlg, IDC_BIOME) == BST_CHECKED);
+            // per-face light export only meaningful for USD
+            lepd.chkExportLight = (lepd.fileType == FILE_TYPE_USD) ? (IsDlgButtonChecked(hDlg, IDC_EXPORT_FACE_LIGHT) == BST_CHECKED) : 0;
 
             lepd.radioRotate0 = IsDlgButtonChecked(hDlg, IDC_RADIO_ROTATE_0);
             lepd.radioRotate90 = IsDlgButtonChecked(hDlg, IDC_RADIO_ROTATE_90);

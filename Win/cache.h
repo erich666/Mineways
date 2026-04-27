@@ -56,6 +56,7 @@ typedef struct WorldBlock {
     // unsigned char add[16*16*128];   // the Add tag - see http://www.minecraftwiki.net/wiki/Anvil_file_format
     unsigned char *data;  // half-byte additional data about each block, i.e., subtype such as log type, etc. -> [16 * 16 * 384]
     unsigned char *light; // half-byte lighting data -> [16 * 16 * 384/2]
+    unsigned char *skylight; // half-byte sky-light data, NULL unless caller asked NBT to populate it (issue #157)
 
     unsigned char rendercache[16 * 16 * 4]; // bitmap of last render
     short heightmap[16 * 16]; // height of rendered block [x+z*16]
@@ -98,3 +99,8 @@ WorldBlock* block_alloc(int minHeight, int maxHeight);           // allocate mem
 void block_free(WorldBlock* block); // release memory for a block
 void block_force_free(WorldBlock* block); // no single block cache test - clears the cache, too
 void block_realloc(WorldBlock* block);   // realloc and copy over
+// Lazily allocate the sky-light buffer on a WorldBlock (issue #157). Returns true if the buffer is present after the call.
+bool block_ensure_skylight(WorldBlock* block);
+
+// Set true while an export needs sky-light data; LoadBlock will allocate the SkyLight buffer per chunk (issue #157).
+extern bool gWantSkylight;

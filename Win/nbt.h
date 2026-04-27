@@ -109,7 +109,8 @@ typedef struct TranslationTuple {
 } TranslationTuple;
 
 bfFile newNBT(const wchar_t* filename, int* err);
-int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int minHeight, int maxHeight, int& mfsHeight, char* unknownBlock, int unknownBlockID);
+// skyLight may be NULL when the caller doesn't need sky-light values; the reader skips past those bytes as before (issue #157).
+int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned char* blockLight, unsigned char* skyLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int minHeight, int maxHeight, int& mfsHeight, char* unknownBlock, int unknownBlockID);
 int nbtGetHeights(bfFile* pbf, int & minHeight, int & maxHeight, int mcVersion);
 int nbtGetSpawn(bfFile* pbf, int* x, int* y, int* z);
 int nbtGetFileVersion(bfFile* pbf, int* version);

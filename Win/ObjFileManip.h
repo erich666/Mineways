@@ -164,6 +164,8 @@ typedef struct FaceRecord {
     unsigned short materialDataVal;	// extended data value, identifying unique block materials
     short normalIndex;    // always the same! normals all the same for the face - shared, so need only around 335
     short uvIndex[4];	// around 3800 unique values, since we use sharing.
+    unsigned char blockLight; // 0..15 from Minecraft, set only when EXPT_OUTPUT_FACE_LIGHT is on (issue #157)
+    unsigned char skyLight;   // 0..15 from Minecraft, set only when EXPT_OUTPUT_FACE_LIGHT is on (issue #157)
 } FaceRecord;
 
 #define FACE_RECORD_POOL_SIZE 10000

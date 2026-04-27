@@ -331,11 +331,12 @@ Create block faces at the borders: <i>YES</i><br>
 Tree leaves solid: <i>no</i><br>
 Make Z the up direction instead of Y: <i>no</i><br>
 Melt snow blocks: <i>no</i><br>
+Export per-face light: <i>no</i><br>
 Debug: show separate parts as colors: <i>no</i><br>
 Debug: show weld blocks in bright colors: <i>no</i>
 </td>
 <td>
-Booleans. Boolean values are set as YES/yes/TRUE/true/1; anything else found for a boolean is considered false. See <a href="mineways.html#options">the export options</a> for more information. "Use biomes: YES" also turns on biome display, so that the effect is seen.
+Booleans. Boolean values are set as YES/yes/TRUE/true/1; anything else found for a boolean is considered false. See <a href="mineways.html#options">the export options</a> for more information. "Use biomes: YES" also turns on biome display, so that the effect is seen. "Export per-face light: YES" is USD-only; it writes Minecraft's per-face BlockLight and SkyLight (0&ndash;15) as <code>uniform int[]</code> primvars on each emitted mesh.
 </td>
 </tr>
 

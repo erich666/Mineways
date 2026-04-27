@@ -260,6 +260,9 @@ void Cache_Empty()
 
 static WorldBlock* last_block = NULL;
 
+// Issue #157: when true, LoadBlock allocates the SkyLight buffer per chunk so the NBT reader can populate it.
+bool gWantSkylight = false;
+
 WorldBlock* block_alloc(int minHeight, int maxHeight)
 {
     int height = maxHeight - minHeight + 1;
@@ -297,6 +300,7 @@ WorldBlock* block_alloc(int minHeight, int maxHeight)
 	    ret->light = (unsigned char*)malloc(16 * 16 * height * sizeof(unsigned char) / 2);
 	    if (ret->light == NULL)
 	        return NULL;
+	    ret->skylight = NULL;   // allocated lazily by NBT reader when caller asks for sky-light (issue #157)
 	    ret->entities = NULL;
 	    ret->numEntities = 0;
 	    ret->heightAlloc = height;    // for some betas of 1.17 it is 384 - change by checking versionID
@@ -348,6 +352,10 @@ void block_force_free(WorldBlock* block)
         free(block->light);
         block->light = NULL;
     }
+    if (block->skylight != NULL) {
+        free(block->skylight);
+        block->skylight = NULL;
+    }
     free(block);
 }
 
@@ -355,6 +363,16 @@ void block_force_free(WorldBlock* block)
 void MinimizeCacheBlocks(bool min)
 {
     gMinimizeBlockSize = min;
+}
+
+bool block_ensure_skylight(WorldBlock* block)
+{
+    if (block == NULL)
+        return false;
+    if (block->skylight != NULL)
+        return true;
+    block->skylight = (unsigned char*)malloc(16 * 16 * block->heightAlloc * sizeof(unsigned char) / 2);
+    return block->skylight != NULL;
 }
 
 void block_realloc(WorldBlock* block)
@@ -381,6 +399,13 @@ void block_realloc(WorldBlock* block)
             if (light == NULL)
                 return;
             block->light = light;
+
+            if (block->skylight != NULL) {
+                unsigned char* skylight = (unsigned char*)realloc(block->skylight, 128 * heightAlloc);
+                if (skylight == NULL)
+                    return;
+                block->skylight = skylight;
+            }
 
             block->heightAlloc = heightAlloc;
         }

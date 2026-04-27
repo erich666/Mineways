@@ -5454,6 +5454,12 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         gOptions.exportFlags |= EXPT_BIOME;
     }
 
+    // per-face light export is USD-only (issue #157)
+    if (gpEFD->chkExportLight && gpEFD->fileType == FILE_TYPE_USD)
+    {
+        gOptions.exportFlags |= EXPT_OUTPUT_FACE_LIGHT;
+    }
+
     // if showing debug groups, we need to turn off full image texturing so we get the largest group as semitransparent
     // (and full textures would just be confusing for debug, anyway)
     if (gOptions.exportFlags & EXPT_DEBUG_SHOW_GROUPS)
@@ -5861,6 +5867,7 @@ static void initializePrintExportData(ExportFileData& printData)
     printData.chkExportAll = 0;
     printData.chkFatten = 0;
     printData.chkBiome = 0;
+    printData.chkExportLight = 0;
     printData.chkCompositeOverlay = 1;	// never allow 0 for 3D printing, as this would create tiles floating above the surface
     printData.chkBlockFacesAtBorders = 1; // never allow 0 for 3D printing, as this would make the surface non-manifold
     printData.chkDecimate = 0; // never allow 0 for 3D printing, as this would make the surface potentially have T-junctions
@@ -7845,6 +7852,19 @@ static int interpretImportLine(char* line, ImportedSet& is)
             }
         }
         return INTERPRETER_FOUND_VALID_EXPORT_LINE | INTERPRETER_REDRAW_SCREEN;
+    }
+
+    strPtr = findLineDataNoCase(line, "Export per-face light:");
+    if (strPtr != NULL) {
+        if (1 != sscanf_s(strPtr, "%s", string1, (unsigned)_countof(string1)))
+        {
+            saveErrorMessage(is, L"could not find boolean value for 'Export per-face light' command."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+
+        if (is.processData)
+            is.pEFD->chkExportLight = interpretBoolean(string1);
+        return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 
     float floatVal = 0.0f;

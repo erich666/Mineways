@@ -7922,6 +7922,9 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
         memset(block->data, 0, 16 * 16 * block->maxHeight);
         memset(block->biome, 1, 16 * 16);
         memset(block->light, 0xff, 16 * 16 * block->maxHeight/2);
+        // Issue #157: synthetic test world is fully sunlit; populate sky-light if requested.
+        if (gWantSkylight && block_ensure_skylight(block))
+            memset(block->skylight, 0xff, 16 * 16 * block->heightAlloc / 2);
         block->renderhilitID = 0;
 
         if (type >= 0 && type < NUM_BLOCKS_DEFINED && cz >= 0 && cz < 8)
@@ -8025,9 +8028,13 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
             // Well, I guess this could go bad if the heights are way larger, due to a data pack?
             BlockEntity blockEntities[NUM_BLOCK_ENTITIES];
 
+            // Issue #157: when an export needs sky-light, lazily allocate the buffer for this chunk.
+            if (gWantSkylight)
+                block_ensure_skylight(block);
+
             // Given coordinates, check if the file for that location exists, data for the chunk exists, and populate the block.
-            // Return 
-            retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion, block->minHeight, block->maxHeight, block->maxFilledSectionHeight, gUnknownBlockName, gUnknownBlockID);
+            // Return
+            retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->skylight, block->biome, blockEntities, &block->numEntities, block->mcVersion, block->minHeight, block->maxHeight, block->maxFilledSectionHeight, gUnknownBlockName, gUnknownBlockID);
             assert(block->numEntities <= 384);  // if higher, the allocation above needs to change!
 
             if (retCode == ERROR_INFLATE) {

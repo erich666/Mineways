@@ -2258,7 +2258,7 @@ unsigned char mod16(int val)
 #define FORMAT_1_13_THROUGH_1_17    1
 #define FORMAT_1_18_AND_NEWER       2
 // return negative value on error, 1 on read OK, 2 on read and it's empty, and higher bits than 1 or 2 are warnings
-int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int minHeight, int maxHeight, int & mfsHeight, char* unknownBlock, int unknownBlockID)
+int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned char* blockLight, unsigned char* skyLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int minHeight, int maxHeight, int & mfsHeight, char* unknownBlock, int unknownBlockID)
 {
     int len, nsections, i;
     int biome_save;
@@ -2519,6 +2519,8 @@ SectionsCode:
     memset(buff, 0, 16 * 16 * heightAlloc);
     memset(data, 0, 16 * 16 * heightAlloc);
     memset(blockLight, 0, 16 * 16 * heightAlloc / 2);
+    if (skyLight != NULL)
+        memset(skyLight, 0, 16 * 16 * heightAlloc / 2);
 
     // the maximum relative height compared to Y, i.e., divided by 16 (not the allocation size, heightAlloc). For 1.18, for example, it should be 20,
     // with minHeight16 being -4
@@ -2618,6 +2620,22 @@ SectionsCode:
                     if (bfread(pbf, blockLight + 16 * 16 * 8 * y, len) < 0)
                         return LINE_ERROR;
                 }
+                else if (strcmp(thisName, "SkyLight") == 0)
+                {
+                    // Read sky-light when the caller asked for it; otherwise skip past (issue #157).
+                    ret = 1;
+                    len = readDword(pbf); //array length
+                    if (y < 0 || 16 * (y + 1) > heightAlloc || len > 16 * 16 * 8)
+                        return LINE_ERROR;
+                    if (skyLight != NULL) {
+                        if (bfread(pbf, skyLight + 16 * 16 * 8 * y, len) < 0)
+                            return LINE_ERROR;
+                    }
+                    else {
+                        if (bfseek(pbf, len, SEEK_CUR) < 0)
+                            return LINE_ERROR;
+                    }
+                }
                 else if (strcmp(thisName, "Blocks") == 0)
                 {
                     //found++;
@@ -2696,6 +2714,22 @@ SectionsCode:
                     else {
                         // dummy read - the 1.14 format has blocks at Y = -1 and Y = 16 that have no data
                         // except for BlockLight and SkyLight; skip past the data
+                        if (bfseek(pbf, len, SEEK_CUR) < 0)
+                            return LINE_ERROR;
+                    }
+                }
+                else if (strcmp(thisName, "SkyLight") == 0)
+                {
+                    // Read sky-light when the caller asked for it; otherwise skip past (issue #157).
+                    ret = 1;
+                    len = readDword(pbf); //array length
+                    if (skyLight != NULL && y >= minHeight16 && y < maxHeight16) {
+                        if (len > 16 * 16 * 8)
+                            return LINE_ERROR;
+                        if (bfread(pbf, skyLight + 16 * 16 * 8 * (y - minHeight16), len) < 0)
+                            return LINE_ERROR;
+                    }
+                    else {
                         if (bfseek(pbf, len, SEEK_CUR) < 0)
                             return LINE_ERROR;
                     }

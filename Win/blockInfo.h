@@ -255,6 +255,9 @@ extern UnitType gUnitTypeTable[];
 // export MDL or not for USD (affects custom material display, too)
 #define EXPT_EXPORT_MDL                         0x08000000
 
+// export per-face block-light and sky-light values as USD primvars (issue #157)
+#define EXPT_OUTPUT_FACE_LIGHT                  0x10000000
+
 // string length for export dialog, etc.
 #define EP_FIELD_LENGTH 20
 
@@ -359,6 +362,7 @@ typedef struct ExportFileData
     UINT chkBlockFacesAtBorders;    // should block faces be generated at the borders of the export? True for rendering. Doesn't affect 3D printing.
     UINT chkDecimate;    // Decimate meshes as possible
     UINT chkBiome;
+    UINT chkExportLight;    // export per-face BlockLight & SkyLight as USD primvars (issue #157)
     UINT chkCompositeOverlay;	// true means we'll make a composite texture of anything such as redstone wire that overlays a tile; false means make a separate floating object above the tile.
 
     UINT chkFillBubbles;

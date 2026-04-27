@@ -96,6 +96,9 @@ typedef struct BoxGroup
 
 static BoxCell* gBoxData = NULL;
 static unsigned char* gBiomeArray = NULL;
+// Per-voxel block-light & sky-light parallel arrays, allocated only when EXPT_OUTPUT_FACE_LIGHT is set (issue #157).
+static unsigned char* gBoxBlockLight = NULL;
+static unsigned char* gBoxSkyLight = NULL;
 static IPoint gBoxSize;
 static int gBoxSizeYZ = UNINITIALIZED_INT;
 static int gBoxSizeXYZ = UNINITIALIZED_INT;
@@ -151,6 +154,10 @@ static int gGroupCount = UNINITIALIZED_INT;
 static int gFaceOffset[6];
 // flat flag for a neighbor that points to the original block
 static int gFlagPointsTo[6];
+
+// Tracks which box voxel is currently emitting faces, for per-face light export (issue #157).
+// Set at the entry of each face-emitting function that knows its boxIndex; -1 means not set.
+static int gCurrentBoxIndex = -1;
 
 static ProgressCallback* gpCallback = NULL;
 
@@ -640,6 +647,7 @@ static bool badNeighborTest(int& neighborIndex, int boxIndex, int offset);
 static unsigned int getStairMask(int boxIndex, int dataVal);
 static void setDefaultUVs(Point2 uvs[3], int skip);
 static FaceRecord* allocFaceRecordFromPool();
+static void recordFaceLight(FaceRecord* face, int faceDirection, bool useNeighbor);
 static SimplifyFaceRecord* allocSimplifyFaceRecordFromPool();
 static unsigned short getSignificantMaterial(int type, int dataVal);
 static int saveTriangleFace(int boxIndex, int swatchLoc, int type, int dataVal, int faceDirection, int startVertexIndex, int vindex[3], Point2 uvs[3]);
@@ -1033,6 +1041,8 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
 
     gBoxData = NULL;
     gBiomeArray = NULL;
+    gBoxBlockLight = NULL;
+    gBoxSkyLight = NULL;
 
     gMinorBlockCount = 0;
 
@@ -1412,6 +1422,16 @@ Exit:
     if (gBiomeArray)
         free(gBiomeArray);
     gBiomeArray = NULL;
+
+    if (gBoxBlockLight)
+        free(gBoxBlockLight);
+    gBoxBlockLight = NULL;
+
+    if (gBoxSkyLight)
+        free(gBoxSkyLight);
+    gBoxSkyLight = NULL;
+
+    gWantSkylight = false;
 
     if (gBadBlocksInModel)
         // if ( UnknownBlockRead() && gBadBlocksInModel )
@@ -2522,6 +2542,20 @@ static int populateBox(WorldGuide* pWorldGuide, ChangeBlockCommand* pCBC, IBox* 
         //memset(gBiomeArray, 0x1, gBoxSize[X] * gBoxSize[Z] * sizeof(unsigned char));
     }
 
+    // Per-face light export (issue #157): allocate parallel light arrays sized to gBoxData.
+    if (gModel.options->exportFlags & EXPT_OUTPUT_FACE_LIGHT)
+    {
+        gBoxBlockLight = (unsigned char*)calloc(gBoxSizeXYZ, sizeof(unsigned char));
+        gBoxSkyLight = (unsigned char*)calloc(gBoxSizeXYZ, sizeof(unsigned char));
+        if (gBoxBlockLight == NULL || gBoxSkyLight == NULL)
+        {
+            return MW_WORLD_EXPORT_TOO_LARGE;
+        }
+        // Tell the chunk-loader to allocate per-chunk SkyLight buffers so the NBT reader can populate them.
+        // Already-cached chunks lack the buffer; for those, gBoxSkyLight stays at zero (skyLight reports 0 there).
+        gWantSkylight = true;
+    }
+
     // Now actually copy the relevant data over to the newly-allocated box data grid.
     // x increases east, decreases west.
 
@@ -2792,6 +2826,18 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
                     gBoxData[boxIndex].data = dataVal;
                     blockID = gBoxData[boxIndex].origType =
                         gBoxData[boxIndex].type = block->grid[chunkIndex];
+                }
+
+                // Per-face light export (issue #157): unpack the half-nibble light values into parallel arrays.
+                if (gBoxBlockLight && block->light) {
+                    unsigned char nibble = block->light[chunkIndex / 2];
+                    if (chunkIndex & 1) nibble >>= 4;
+                    gBoxBlockLight[boxIndex] = nibble & 0xf;
+                }
+                if (gBoxSkyLight && block->skylight) {
+                    unsigned char nibble = block->skylight[chunkIndex / 2];
+                    if (chunkIndex & 1) nibble >>= 4;
+                    gBoxSkyLight[boxIndex] = nibble & 0xf;
                 }
 
                 // tile entities needed if using old data format
@@ -12225,6 +12271,9 @@ static int saveTriangleGeometry(int type, int dataVal, int boxIndex, int typeBel
         getSwatch(type, dataVal, DIRECTION_BLOCK_TOP, boxIndexBelow, uvSlopeIndices);
     }
 
+    // For per-face light export (issue #157): the slope face belongs to the block below.
+    gCurrentBoxIndex = boxIndexBelow;
+
     switch (choppedSide)
     {
     case DIR_LO_X_BIT:
@@ -12707,7 +12756,29 @@ static FaceRecord* allocFaceRecordFromPool()
             assert(pFRP);
         }
     }
-    return &(gModel.faceRecordPool->fr[gModel.faceRecordPool->count++]);
+    FaceRecord* face = &(gModel.faceRecordPool->fr[gModel.faceRecordPool->count++]);
+    face->blockLight = 0;
+    face->skyLight = 0;
+    return face;
+}
+
+// Per-face light recording (issue #157). Reads the static gCurrentBoxIndex and writes
+// blockLight/skyLight into the face record. If useNeighbor is true and faceDirection is one of
+// the 6 axis-aligned directions, samples the outward neighbor box; otherwise samples gCurrentBoxIndex.
+// No-op when EXPT_OUTPUT_FACE_LIGHT is off or the parallel arrays haven't been allocated.
+static void recordFaceLight(FaceRecord* face, int faceDirection, bool useNeighbor)
+{
+    if (face == NULL || gBoxBlockLight == NULL) return;
+    int idx = gCurrentBoxIndex;
+    if (idx < 0) return;
+    if (useNeighbor && faceDirection >= 0 && faceDirection < 6) {
+        int neighbor = idx + gFaceOffset[faceDirection];
+        if (neighbor >= 0 && neighbor < gBoxSizeXYZ)
+            idx = neighbor;
+    }
+    face->blockLight = gBoxBlockLight[idx];
+    if (gBoxSkyLight)
+        face->skyLight = gBoxSkyLight[idx];
 }
 
 static void freeFaceRecordToPool(FaceRecord* face)
@@ -12847,6 +12918,10 @@ static int saveTriangleFace(int boxIndex, int swatchLoc, int type, int dataVal, 
         retCode |= checkFaceListSize();
         if (retCode >= MW_BEGIN_ERRORS) return retCode;
 
+        // Per-face light export (issue #157): triangle slopes use own-block light (no clear neighbor for sloped sides).
+        gCurrentBoxIndex = boxIndex;
+        recordFaceLight(face, faceDirection, false);
+
         gModel.faceList[gModel.faceCount++] = face;
     //}
 
@@ -12981,6 +13056,8 @@ static void saveBoxReuseGeometry(int boxIndex, int type, int dataVal, int swatch
 // rotUVs == ROTATE_TOP_AND_BOTTOM means rotate top and bottom tile 90 degrees; for glass panes.
 static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatchLocSet[6], int markFirstFace, int faceMask, int rotUVs, int reuseVerts, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ)
 {
+    // For per-face light export (issue #157): track current voxel for face emission below.
+    gCurrentBoxIndex = boxIndex;
     int i;
     int swatchLoc;
     int faceDirection;
@@ -13954,6 +14031,10 @@ static int saveBoxFaceUVs(int type, int dataVal, int faceDirection, int markFirs
     retCode |= checkFaceListSize();
     if (retCode >= MW_BEGIN_ERRORS) return retCode;
 
+    // Per-face light export (issue #157): take the outward neighbor's light for axis-aligned faces;
+    // for slope corner directions (faceDirection >= 6), recordFaceLight falls back to own-block.
+    recordFaceLight(face, faceDirection, true);
+
     gModel.faceList[gModel.faceCount++] = face;
 
     return retCode;
@@ -13970,6 +14051,8 @@ static int saveBillboardFaces(int boxIndex, int type, int billboardType)
 
 static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType, int dataVal, int firstFace, bool dontWobbleOverride /*= false*/)
 {
+    // For per-face light export (issue #157): billboards have no outward neighbor, so use own-block light.
+    gCurrentBoxIndex = boxIndex;
     int i, j, fc, swatchLoc;  // cppcheck-suppress 398
     FaceRecord* face;
     int faceDir[2 * 6];			// vines need 6 total
@@ -15255,6 +15338,9 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
                 // all set, so save it away
                 retCode |= checkFaceListSize();
                 if (retCode >= MW_BEGIN_ERRORS) return retCode;
+
+                // Per-face light export (issue #157): billboards use own-block light.
+                recordFaceLight(face, faceDir[i], false);
 
                 gModel.faceList[gModel.faceCount++] = face;
             }
@@ -19553,6 +19639,10 @@ static int saveFaceLoop(int boxIndex, int faceDirection, float heights[4], int h
 
     retCode |= checkFaceListSize();
     if (retCode >= MW_BEGIN_ERRORS) return retCode;
+
+    // Per-face light export (issue #157): saveFaceLoop emits axis-aligned faces (block / fluid) — use neighbor's light.
+    gCurrentBoxIndex = boxIndex;
+    recordFaceLight(face, faceDirection, true);
 
     gModel.faceList[gModel.faceCount++] = face;
     // make sure we're not running off the edge, out of memory.
@@ -29851,6 +29941,25 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
             WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
         }
 
+        // Per-face Minecraft light values as USD primvars (issue #157). For point-instancing the prototype's faces only -
+        // each instance carries the prototype's light values, so users wanting per-block lighting should disable instancing.
+        if (gModel.options->exportFlags & EXPT_OUTPUT_FACE_LIGHT) {
+            strcpy_s(outputString, 256, "            int[] primvars:blockLight = [");
+            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+            for (i = 0; i < numFaces; i++) {
+                sprintf_s(outputString, 256, "%d%s", gModel.faceList[startingFace + i]->blockLight,
+                    (i == numFaces - 1) ? "] (\n                interpolation = \"uniform\"\n            )\n" : ", ");
+                WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+            }
+            strcpy_s(outputString, 256, "            int[] primvars:skyLight = [");
+            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+            for (i = 0; i < numFaces; i++) {
+                sprintf_s(outputString, 256, "%d%s", gModel.faceList[startingFace + i]->skyLight,
+                    (i == numFaces - 1) ? "] (\n                interpolation = \"uniform\"\n            )\n" : ", ");
+                WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+            }
+        }
+
         // if we're writing out a huge array, take a moment and update the progress
         if (numFaces > 10000)
             UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)(startingFace + numFaces) / (float)gModel.faceCount));
@@ -29944,6 +30053,24 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
             sprintf_s(outputString, 256, "%d%s", gOutData.indicesWelded[iv], (i == numFaces - 1) ? "]\n" : ", ");
             WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
             iv += gOutData.faceVertexCounts[i];
+        }
+
+        // Per-face Minecraft light values as USD primvars (issue #157). One int per face, raw 0-15 from the world.
+        if (gModel.options->exportFlags & EXPT_OUTPUT_FACE_LIGHT) {
+            strcpy_s(outputString, 256, "            int[] primvars:blockLight = [");
+            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+            for (i = 0; i < numFaces; i++) {
+                sprintf_s(outputString, 256, "%d%s", gModel.faceList[startingFace + i]->blockLight,
+                    (i == numFaces - 1) ? "] (\n                interpolation = \"uniform\"\n            )\n" : ", ");
+                WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+            }
+            strcpy_s(outputString, 256, "            int[] primvars:skyLight = [");
+            WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+            for (i = 0; i < numFaces; i++) {
+                sprintf_s(outputString, 256, "%d%s", gModel.faceList[startingFace + i]->skyLight,
+                    (i == numFaces - 1) ? "] (\n                interpolation = \"uniform\"\n            )\n" : ", ");
+                WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
+            }
         }
 
         // if we're writing out a huge array, take a moment and update the progress
@@ -33686,6 +33813,9 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
         sprintf_s(outputString, 256, "# Use biomes: no\n");
         WRITE_STAT;
     }
+
+    sprintf_s(outputString, 256, "# Export per-face light: %s\n", (gModel.options->exportFlags & EXPT_OUTPUT_FACE_LIGHT) ? "YES" : "no");
+    WRITE_STAT;
 
     // options only available when rendering.
     if (!gModel.print3D)
