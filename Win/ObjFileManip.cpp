@@ -40,6 +40,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <time.h>
 
 #include <vector>
+#include <string>
 
 // Set to a tiny number to have front and back faces of billboards be separated a bit.
 // TODO: currently works only for those billboards made by using the various multitile calls,
@@ -799,11 +800,14 @@ static int closeUSDFile(PORTAFILE& modelFile);
 static int writeUSDTextures();
 
 static int writeSchematicBox();
+static int writeSpongeSchematicBox();
 static int schematicWriteCompoundTag(gzFile gz, char* tag);
 static int schematicWriteShortTag(gzFile gz, char* tag, short value);
+static int schematicWriteIntTag(gzFile gz, char* tag, int value);
 static int schematicWriteEmptyListTag(gzFile gz, char* tag);
 static int schematicWriteString(gzFile gz, char* tag, char* field);
 static int schematicWriteByteArrayTag(gzFile gz, char* tag, unsigned char* byteData, int totalSize);
+static int schematicWriteIntArrayTag(gzFile gz, char* tag, int* intData, int count);
 
 static int schematicWriteTagValue(gzFile gz, unsigned char tagValue, char* tag);
 static int schematicWriteUnsignedCharValue(gzFile gz, unsigned char charValue);
@@ -811,6 +815,9 @@ static int schematicWriteUnsignedShortValue(gzFile gz, unsigned short shortValue
 static int schematicWriteShortValue(gzFile gz, short shortValue);
 static int schematicWriteIntValue(gzFile gz, int intValue);
 static int schematicWriteStringValue(gzFile gz, char* stringValue);
+// issue #157 follow-up not relevant here — Sponge v2 uses Sponge palette helpers below (issue #40):
+static int spongeWriteVarint(gzFile gz, unsigned int value, unsigned char* outBytes);
+static int spongeBlockStateString(int type, int dataVal, char* out, size_t outSize);
 
 static int writeEmissiveScaledTile(wchar_t* filename, int index);
 static int writeTileFromCategoryInput(wchar_t* filename, int index, int category);
@@ -1313,6 +1320,11 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         retCode |= writeSchematicBox();
         goto Exit;
     }
+    if (fileType == FILE_TYPE_SPONGE_SCHEMATIC)
+    {
+        retCode |= writeSpongeSchematicBox();
+        goto Exit;
+    }
 
     UPDATE_PROGRESS(gProgress.start.readBlocks + 0.90f * gProgress.absolute.readBlocks);
 
@@ -1466,6 +1478,7 @@ static void determineProgressValues(int fileType, int xdim, int zdim)
         gProgress.relative.texture = 350;
         break;
     case FILE_TYPE_SCHEMATIC:
+    case FILE_TYPE_SPONGE_SCHEMATIC:
         // very fast
         gProgress.relative.readTextures = 0;
         gProgress.relative.readBlocks = 100;
@@ -3064,7 +3077,7 @@ static int filterBox(ChangeBlockCommand* pCBC)
     // 1) determine redstone connectivity
     // 2) output billboards and small stuff, or flatten stuff onto other blocks
     // 3) output billboard again, for offset object output, which is not done in first pass.
-    if (gModel.options->pEFD->fileType != FILE_TYPE_SCHEMATIC) {
+    if (gModel.options->pEFD->fileType != FILE_TYPE_SCHEMATIC && gModel.options->pEFD->fileType != FILE_TYPE_SPONGE_SCHEMATIC) {
         if (gExportBillboards && !CHECK_COMPOSITE_OVERLAY)
         {
             // Special pass: if we are outputting billboards and we're not doing composites,
@@ -32961,6 +32974,248 @@ static int schematicWriteStringValue(gzFile gz, char* stringValue)
     return totWrite;
 }
 
+// === Sponge Schematic v2 helpers (issue #40) ===
+
+// TAG_Int = 3
+static int schematicWriteIntTag(gzFile gz, char* tag, int value)
+{
+    int totWrite = schematicWriteTagValue(gz, 0x03, tag);
+    totWrite += schematicWriteIntValue(gz, value);
+    assert(totWrite);
+    return totWrite;
+}
+
+// TAG_Int_Array = 11
+static int schematicWriteIntArrayTag(gzFile gz, char* tag, int* intData, int count)
+{
+    int totWrite = schematicWriteTagValue(gz, 0x0B, tag);
+    totWrite += schematicWriteIntValue(gz, count);
+    for (int i = 0; i < count; i++) {
+        totWrite += schematicWriteIntValue(gz, intData[i]);
+    }
+    assert(totWrite);
+    return totWrite;
+}
+
+// Encode a single unsigned varint (Protobuf / Minecraft-protocol style: 7 bits per byte, MSB = continuation).
+// `outBytes[0..4]` receives the encoded bytes; returns the number of bytes used (1..5).
+// If `gz` is non-NULL, also writes the bytes via gzwrite.
+static int spongeWriteVarint(gzFile gz, unsigned int value, unsigned char* outBytes)
+{
+    int n = 0;
+    while (true) {
+        if ((value & ~0x7Fu) == 0) {
+            outBytes[n++] = (unsigned char)(value & 0x7F);
+            break;
+        }
+        outBytes[n++] = (unsigned char)((value & 0x7F) | 0x80);
+        value >>= 7;
+    }
+    if (gz != NULL) {
+        int wrote = gzwrite(gz, outBytes, n);
+        assert(wrote);
+        (void)wrote;
+    }
+    return n;
+}
+
+// Thin wrapper over the reverse-mapper that lives in nbt.cpp (where BlockTranslations[]
+// is defined). Delegates so the real palette work happens next to the read-side code that
+// produced the encoding in the first place.
+static int spongeBlockStateString(int type, int dataVal, char* out, size_t outSize)
+{
+    return spongeBuildBlockStateString(type, dataVal, out, (int)outSize);
+}
+
+// Writes a Sponge Schematic v2 (.schem) file. Spec: https://github.com/SpongePowered/Schematic-Specification
+// File is gzipped NBT, big-endian. Voxel index = x + z*Width + y*Width*Length.
+// Stage 1 stub: emits a structurally-valid file with a single-entry palette ("minecraft:air") and
+// an all-zero BlockData (one varint zero per voxel = exactly W*H*L bytes). Once Stage 2 lands,
+// the palette and BlockData paths below are extended to walk gBoxData and emit real state strings.
+static int writeSpongeSchematicBox()
+{
+    FILE* fptr;
+    int err;
+    gzFile gz;
+    wchar_t schematicFileNameWithSuffix[MAX_PATH_AND_FILE];
+    int retCode = MW_NO_ERROR;
+
+    int width = gSolidBox.max[X] - gSolidBox.min[X] + 1;
+    int height = gSolidBox.max[Y] - gSolidBox.min[Y] + 1;
+    int length = gSolidBox.max[Z] - gSolidBox.min[Z] + 1;
+
+    // Sponge v2 dimensions are read as `& 0xFFFF` so technically support 0..65535, but staying within signed-short
+    // range keeps every consumer tool happy (issue #40 risk note).
+    if (width > 32767 || height > 32767 || length > 32767) {
+        return retCode | MW_DIMENSION_TOO_LARGE;
+    }
+
+    // Apply rotation 0/90/180/270 — same X/Z swap convention as writeSchematicBox.
+    int xStart, xEnd, xIncr, zStart, zEnd, zIncr;
+    int rotateQuarter = 0;
+    if (gModel.options->pEFD->radioRotate0) {
+        xStart = gSolidBox.min[X]; xEnd = gSolidBox.max[X]; xIncr = 1;
+        zStart = gSolidBox.min[Z]; zEnd = gSolidBox.max[Z]; zIncr = 1;
+    }
+    else if (gModel.options->pEFD->radioRotate90) {
+        xStart = gSolidBox.max[Z]; xEnd = gSolidBox.min[Z]; xIncr = -1;
+        zStart = gSolidBox.min[X]; zEnd = gSolidBox.max[X]; zIncr = 1;
+        rotateQuarter = 1;
+    }
+    else if (gModel.options->pEFD->radioRotate180) {
+        xStart = gSolidBox.max[X]; xEnd = gSolidBox.min[X]; xIncr = -1;
+        zStart = gSolidBox.max[Z]; zEnd = gSolidBox.min[Z]; zIncr = -1;
+    }
+    else {
+        assert(gModel.options->pEFD->radioRotate270);
+        xStart = gSolidBox.min[Z]; xEnd = gSolidBox.max[Z]; xIncr = 1;
+        zStart = gSolidBox.max[X]; zEnd = gSolidBox.min[X]; zIncr = -1;
+        rotateQuarter = 1;
+    }
+    if (rotateQuarter) {
+        int swapper = width; width = length; length = swapper;
+    }
+
+    concatFileName3(schematicFileNameWithSuffix, gOutputFilePath, gOutputFileRoot, L".schem");
+
+    err = _wfopen_s(&fptr, schematicFileNameWithSuffix, L"wb");
+    if (fptr == NULL || err != 0) {
+        return retCode | MW_CANNOT_CREATE_FILE;
+    }
+    gz = gzdopen(_fileno(fptr), "wb");
+    if (gz == NULL) {
+        return retCode | MW_CANNOT_CREATE_FILE;
+    }
+    addOutputFilenameToList(schematicFileNameWithSuffix);
+
+#define CHECK_SPONGE_QUIT( b )                              \
+    if ( (b) == 0 ) {                                       \
+        gzflush(gz, Z_FINISH);                              \
+        fclose(fptr);                                       \
+        return retCode|MW_CANNOT_WRITE_TO_FILE;             \
+    }
+
+    // Root TAG_Compound "Schematic"
+    CHECK_SPONGE_QUIT(schematicWriteCompoundTag(gz, "Schematic"));
+
+    CHECK_SPONGE_QUIT(schematicWriteIntTag(gz, "Version", 2));
+    // DataVersion = MC 1.20 (3463). A single pinned value keeps the writer self-contained;
+    // see plan risk note about DataVersion choice.
+    CHECK_SPONGE_QUIT(schematicWriteIntTag(gz, "DataVersion", 3463));
+
+    CHECK_SPONGE_QUIT(schematicWriteShortTag(gz, "Width", (short)width));
+    CHECK_SPONGE_QUIT(schematicWriteShortTag(gz, "Height", (short)height));
+    CHECK_SPONGE_QUIT(schematicWriteShortTag(gz, "Length", (short)length));
+
+    // Offset relative to the schematic's origin (defaults to 0,0,0 if omitted, but emit explicitly for clarity).
+    int offset[3] = { 0, 0, 0 };
+    CHECK_SPONGE_QUIT(schematicWriteIntArrayTag(gz, "Offset", offset, 3));
+
+    // ===== Pass 1: walk gBoxData, build the palette, and encode BlockData varints into a buffer =====
+    //
+    // Sponge v2 voxel ordering is i = x + z*W + y*W*L (X innermost, Y outermost) and matches the
+    // existing legacy schematic loop. The palette is a string→int map; we cache assigned indices per
+    // (type, dataVal) so the per-voxel cost is one table lookup + one varint encode.
+
+    // (type, dataVal) → palette index. -1 = not assigned yet. Allocated on the heap (~514 KB).
+    int* paletteIndexLookup = (int*)malloc((size_t)NUM_BLOCKS_DEFINED * 256 * sizeof(int));
+    if (paletteIndexLookup == NULL) {
+        gzflush(gz, Z_FINISH);
+        fclose(fptr);
+        return retCode | MW_WORLD_EXPORT_TOO_LARGE;
+    }
+    for (int i = 0; i < NUM_BLOCKS_DEFINED * 256; i++) paletteIndexLookup[i] = -1;
+
+    std::vector<std::string> paletteNames;
+    paletteNames.reserve(256);
+
+    std::vector<unsigned char> blockData;
+    blockData.reserve((size_t)width * height * length);   // 1 byte per voxel typical
+
+    int totalSize = width * height * length;
+
+    int unknownBlockExports = 0;
+    char nameBuf[256];
+    unsigned char varintBytes[5];
+
+    IPoint loc;
+    for (loc[Y] = gSolidBox.min[Y]; loc[Y] <= gSolidBox.max[Y]; loc[Y]++) {
+        float localT = ((float)(loc[Y] - gSolidBox.min[Y] + 1) / (float)(gSolidBox.max[Y] - gSolidBox.min[Y] + 1));
+        UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * localT * 0.5f);
+
+        for (loc[Z] = zStart; loc[Z] * zIncr <= zEnd * zIncr; loc[Z] += zIncr) {
+            for (loc[X] = xStart; loc[X] * xIncr <= xEnd * xIncr; loc[X] += xIncr) {
+                int boxIndex = rotateQuarter
+                    ? BOX_INDEX(loc[Z], loc[Y], loc[X])
+                    : BOX_INDEX(loc[X], loc[Y], loc[Z]);
+
+                int type = (int)gBoxData[boxIndex].type;
+                int dataVal = (int)gBoxData[boxIndex].data;
+
+                int lookupKey = (type & 0x1FF) * 256 + (dataVal & 0xFF);
+                if (lookupKey < 0 || lookupKey >= NUM_BLOCKS_DEFINED * 256) {
+                    // unknown block — fall back to air, count it for the user-facing warning
+                    type = 0;
+                    dataVal = 0;
+                    lookupKey = 0;
+                    unknownBlockExports++;
+                }
+
+                int paletteIndex = paletteIndexLookup[lookupKey];
+                if (paletteIndex < 0) {
+                    int n = spongeBlockStateString(type, dataVal, nameBuf, sizeof(nameBuf));
+                    if (n <= 0) {
+                        // shouldn't happen with sensible block IDs, but be safe
+                        snprintf(nameBuf, sizeof(nameBuf), "minecraft:air");
+                    }
+                    paletteIndex = (int)paletteNames.size();
+                    paletteNames.emplace_back(nameBuf);
+                    paletteIndexLookup[lookupKey] = paletteIndex;
+                }
+
+                int nb = spongeWriteVarint(NULL, (unsigned int)paletteIndex, varintBytes);
+                blockData.insert(blockData.end(), varintBytes, varintBytes + nb);
+            }
+        }
+    }
+
+    free(paletteIndexLookup);
+    if (unknownBlockExports > 0) {
+        retCode |= MW_UNKNOWN_BLOCK_TYPE_ENCOUNTERED;
+    }
+
+    // ===== Pass 2: write PaletteMax, Palette compound, and the BlockData byte_array =====
+
+    CHECK_SPONGE_QUIT(schematicWriteIntTag(gz, "PaletteMax", (int)paletteNames.size()));
+
+    CHECK_SPONGE_QUIT(schematicWriteCompoundTag(gz, "Palette"));
+    for (size_t i = 0; i < paletteNames.size(); i++) {
+        // Each palette entry is TAG_Int <state-string> <index>. The string is the *tag name*; the int is the value.
+        CHECK_SPONGE_QUIT(schematicWriteIntTag(gz, (char*)paletteNames[i].c_str(), (int)i));
+    }
+    CHECK_SPONGE_QUIT(schematicWriteUnsignedCharValue(gz, 0x0));    // TAG_End closing the Palette compound
+
+    // BlockData: TAG_Byte_Array. Length is the encoded byte count, not the voxel count.
+    CHECK_SPONGE_QUIT(schematicWriteTagValue(gz, 0x07, (char*)"BlockData"));
+    CHECK_SPONGE_QUIT(schematicWriteIntValue(gz, (int)blockData.size()));
+    if (!blockData.empty()) {
+        CHECK_SPONGE_QUIT(gzwrite(gz, blockData.data(), (unsigned int)blockData.size()));
+    }
+    (void)totalSize;
+
+    // BlockEntities and Entities: empty lists. Stage 4 will populate BlockEntities for signs/banners/heads/pots.
+    CHECK_SPONGE_QUIT(schematicWriteEmptyListTag(gz, "BlockEntities"));
+    CHECK_SPONGE_QUIT(schematicWriteEmptyListTag(gz, "Entities"));
+
+    // TAG_End closing the root Schematic compound.
+    CHECK_SPONGE_QUIT(schematicWriteUnsignedCharValue(gz, 0x0));
+
+    gzflush(gz, Z_FINISH);
+    fclose(fptr);
+
+    return retCode;
+}
+
 static int writeEmissiveScaledTile(wchar_t* filename, int index)
 {
     int rc = MW_NO_ERROR;
@@ -35457,6 +35712,9 @@ static void getPathAndRoot(const wchar_t* src, int fileType, wchar_t* path, wcha
         break;
     case FILE_TYPE_SCHEMATIC:
         removeSuffix(root, tfilename, L".schematic");
+        break;
+    case FILE_TYPE_SPONGE_SCHEMATIC:
+        removeSuffix(root, tfilename, L".schem");
         break;
     }
 }

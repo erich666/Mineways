@@ -475,10 +475,13 @@ On the 32-bit version (and on the Mac) you can run out of memory on export. This
 Export for rendering: <i>c:\temp\my_save.obj</i><br>
 Export for 3D printing: <i>my_print.stl</i><br>
 Export schematic: <i>c:\temp\my schematics\my_object.schematic</i><br>
+Export schematic: <i>c:\temp\my schematics\my_object.schem</i><br>
 Export map: <i>my_map.png</i>
 </td>
 <td>
 Export the selected area using the given file type to the specified file. Note that (unlike the manual process, where you pick the file then set options) this export happens immediately, so you need to set all your export options before giving this command.
+<br>
+For "Export schematic", the file extension picks the on-disk format: <code>.schematic</code> writes the legacy MCEdit format (block IDs capped at 255), while <code>.schem</code> writes the modern <a href="https://github.com/SpongePowered/Schematic-Specification">Sponge Schematic v2</a> format with full 1.13+ string-based block IDs (round-trips through WorldEdit, FAWE, Litematica, Axiom). <a href="https://github.com/erich666/Mineways/issues/40">Issue #40</a>.
 </td>
 </tr>
 

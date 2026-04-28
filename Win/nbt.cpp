@@ -5554,6 +5554,313 @@ int nbtGetSchematicBlocksAndData(bfFile* pbf, int numBlocks, unsigned char* sche
 }
 
 
+// === Sponge Schematic v2 export support (issue #40) ===
+// Builds a Minecraft block-state string ("minecraft:name[prop=val,prop=val]") from Mineways'
+// internal (type, dataVal) representation. The reverse of readPalette() above. Properties are
+// emitted in alphabetical order as the Sponge v2 spec requires.
+
+// Reverse-index from full-type (blockId | (highBit<<8)) to BlockTranslator entries.
+// Built once on first call; covers up to 32 subtypes per type which is comfortably above the
+// real maximum (banner family has 16).
+#define SPONGE_MAX_SUBTYPES 32
+static const BlockTranslator* gSpongeReverse[NUM_BLOCKS_DEFINED][SPONGE_MAX_SUBTYPES];
+static int gSpongeReverseCount[NUM_BLOCKS_DEFINED];
+static bool gSpongeReverseBuilt = false;
+
+static void buildSpongeReverseIndex()
+{
+    if (gSpongeReverseBuilt) return;
+    memset(gSpongeReverseCount, 0, sizeof(gSpongeReverseCount));
+    for (int i = 0; i < NUM_TRANS; i++) {
+        const BlockTranslator* e = &BlockTranslations[i];
+        int fullType = e->blockId | ((e->dataVal & HIGH_BIT) ? 0x100 : 0);
+        if (fullType < NUM_BLOCKS_DEFINED && gSpongeReverseCount[fullType] < SPONGE_MAX_SUBTYPES) {
+            gSpongeReverse[fullType][gSpongeReverseCount[fullType]++] = e;
+        }
+    }
+    gSpongeReverseBuilt = true;
+}
+
+// Pick the BlockTranslator entry for a runtime (type, dataVal). For multi-subtype blocks
+// (planks, wool, stone, banners, …) we mask dataVal by the block's subtype_mask and find an exact
+// subtype match. Falls back to the first registered entry for the type if no exact match.
+static const BlockTranslator* findSpongeTranslator(int type, int dataVal)
+{
+    int fullType = type & 0x1FF;
+    if (fullType <= 0 || fullType >= NUM_BLOCKS_DEFINED) {
+        return (fullType == 0 && gSpongeReverseCount[0] > 0) ? gSpongeReverse[0][0] : NULL;
+    }
+    int n = gSpongeReverseCount[fullType];
+    if (n == 0) return NULL;
+    if (n == 1) return gSpongeReverse[fullType][0];
+
+    unsigned int mask = (unsigned int)gBlockDefinitions[fullType].subtype_mask & 0x7Fu;
+    int subtype = (mask != 0) ? ((unsigned int)dataVal & mask) : 0;
+    for (int i = 0; i < n; i++) {
+        if (((unsigned int)gSpongeReverse[fullType][i]->dataVal & 0x7Fu) == (unsigned int)subtype) {
+            return gSpongeReverse[fullType][i];
+        }
+    }
+    return gSpongeReverse[fullType][0];
+}
+
+// Append "key=val" to the running properties buffer. Caller is responsible for ordering keys
+// alphabetically (Sponge v2 spec). Inserts the leading '[' on the first call and ',' between
+// subsequent calls. Returns true on success, false if the buffer would overflow.
+static bool spongeAppendProp(char* buf, int bufSize, int* len, bool* started, const char* key, const char* val)
+{
+    int written = snprintf(buf + *len, (size_t)(bufSize - *len), "%s%s=%s", *started ? "," : "[", key, val);
+    if (written < 0 || written >= bufSize - *len) return false;
+    *len += written;
+    *started = true;
+    return true;
+}
+
+static const char* spongeFacing4FromDataVal(int dataVal)
+{
+    // FACING_PROP / FURNACE_PROP encoding: dataVal = 6 - facing_index_with_bit_0_set,
+    // which collapses to runtime { 2:north, 3:south, 4:west, 5:east }.
+    switch (dataVal & 0x7) {
+    case 2: return "north";
+    case 3: return "south";
+    case 4: return "west";
+    case 5: return "east";
+    default: return "north";
+    }
+}
+
+static const char* spongeSwneFromDataVal(int dataVal)
+{
+    // SWNE_FACING_PROP / ANVIL_PROP / BED_PROP / REPEATER_PROP / COMPARATOR_PROP / COCOA_PROP /
+    // ATTACHED_HANGING_SIGN encoding: dataVal & 0x3 = (door_facing+3)%4 = south/west/north/east.
+    switch (dataVal & 0x3) {
+    case 0: return "south";
+    case 1: return "west";
+    case 2: return "north";
+    case 3: return "east";
+    }
+    return "south";
+}
+
+static const char* spongeAxisFromDataVal(int dataVal)
+{
+    // AXIS_PROP encoding: bits 0xC = 0/4/8 → y/x/z.
+    switch (dataVal & 0xC) {
+    case 0: return "y";
+    case 4: return "x";
+    case 8: return "z";
+    }
+    return "y";
+}
+
+int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
+{
+    if (out == NULL || outSize <= 0) return -1;
+    buildSpongeReverseIndex();
+
+    const BlockTranslator* e = findSpongeTranslator(type, dataVal);
+    if (e == NULL) {
+        int n = snprintf(out, (size_t)outSize, "minecraft:air");
+        return (n > 0 && n < outSize) ? n : -1;
+    }
+
+    char props[256];
+    props[0] = '\0';
+    int plen = 0;
+    bool started = false;
+    unsigned long tf = e->translateFlags;
+
+    // Per-family property emission. Alphabetical order is enforced by hand per arm so we don't
+    // need a sort step. Unhandled property families fall through to the waterlogged check below
+    // and emit no properties — readers will still load the base block correctly.
+    switch (tf) {
+    case AXIS_PROP:
+    case CREAKING_HEART_PROP:
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "axis", spongeAxisFromDataVal(dataVal));
+        break;
+
+    case NETHER_PORTAL_AXIS_PROP: {
+        // dataVal = axis>>2 in this case: 0=y(unused), 1=x, 2=z
+        const char* a = "x";
+        if ((dataVal & 0x3) == 2) a = "z";
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "axis", a);
+        break;
+    }
+
+    case FACING_PROP:
+    case FURNACE_PROP:
+    case CHEST_PROP:                // facing only, type omitted (Mineways doesn't track left/right halves cleanly)
+    case EXTENDED_FACING_PROP:      // == BARREL_PROP, WALL_SIGN_PROP, DROPPER_PROP, PISTON_*_PROP, COMMAND_BLOCK_PROP, HOPPER_PROP, OBSERVER_PROP
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeFacing4FromDataVal(dataVal));
+        break;
+
+    case SWNE_FACING_PROP:
+    case ANVIL_PROP:
+    case EXTENDED_SWNE_FACING_PROP: // == GRINDSTONE_PROP, LECTERN_PROP, BELL_PROP, CAMPFIRE_PROP
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeSwneFromDataVal(dataVal));
+        break;
+
+    case STAIRS_PROP: {
+        // bits 0-1 = facing (0=east,1=west,2=south,3=north); bit 2 = half (0=bottom,1=top)
+        const char* facing;
+        switch (dataVal & 0x3) {
+        case 0: facing = "east"; break;
+        case 1: facing = "west"; break;
+        case 2: facing = "south"; break;
+        default: facing = "north"; break;
+        }
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "half", (dataVal & 0x4) ? "top" : "bottom");
+        // shape is always emitted as straight; Mineways doesn't track inner/outer corner shape.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "shape", "straight");
+        break;
+    }
+
+    case SLAB_PROP:
+        // top/bottom only — Mineways encodes "double" as a separate block ID. Rare in exports.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "type", (dataVal & 0x8) ? "top" : "bottom");
+        break;
+
+    case TALL_FLOWER_PROP:
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "half", (dataVal & 0x8) ? "upper" : "lower");
+        break;
+
+    case BED_PROP: {
+        // dataVal = swne_facing + part(0|8) + occupied(0|4)
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeSwneFromDataVal(dataVal));
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "occupied", (dataVal & 0x4) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "part", (dataVal & 0x8) ? "head" : "foot");
+        break;
+    }
+
+    case REPEATER_PROP: {
+        // dataVal = swne_facing | (delay << 2) | (locked << 4); active form is +1 in block ID
+        char delayStr[2] = { (char)('1' + ((dataVal >> 2) & 0x3)), '\0' };
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "delay", delayStr);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeSwneFromDataVal(dataVal));
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "locked", (dataVal & 0x10) ? "true" : "false");
+        // Mineways shifts the block type by +1 when powered, so we don't add a "powered" prop here.
+        break;
+    }
+
+    case COMPARATOR_PROP: {
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeSwneFromDataVal(dataVal));
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "mode", (dataVal & 0x4) ? "subtract" : "compare");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x8) ? "true" : "false");
+        break;
+    }
+
+    case COCOA_PROP: {
+        // dataVal = swne_facing + (age << 2)
+        char ageStr[2] = { (char)('0' + ((dataVal >> 2) & 0x3)), '\0' };
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "age", ageStr);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeSwneFromDataVal(dataVal));
+        break;
+    }
+
+    case TRAPDOOR_PROP: {
+        // dataVal = (half<<3) | (open<<2) | (4 - facing_bits); facing bits come from FACING_PROP path
+        const char* facing;
+        switch (dataVal & 0x3) {
+        case 0: facing = "east"; break;     // 4 - 4 = 0 ⇒ originally north (door_facing 3, dataVal |= 4)
+        case 1: facing = "north"; break;    // 4 - 3 = 1 ⇒ south
+        case 2: facing = "south"; break;    // 4 - 2 = 2 ⇒ west
+        default: facing = "west"; break;    // 4 - 1 = 3 ⇒ east
+        }
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "half", (dataVal & 0x8) ? "top" : "bottom");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "open", (dataVal & 0x4) ? "true" : "false");
+        break;
+    }
+
+    case DOOR_PROP: {
+        // upper half: dataVal = 8 | hinge | (powered<<1); lower half: dataVal = open(0|4) | door_facing(0..3)
+        if (dataVal & 0x8) {
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "half", "upper");
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "hinge", (dataVal & 0x1) ? "right" : "left");
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x2) ? "true" : "false");
+        }
+        else {
+            // door_facing: 0=east, 1=south, 2=west, 3=north
+            const char* facing;
+            switch (dataVal & 0x3) {
+            case 0: facing = "east"; break;
+            case 1: facing = "south"; break;
+            case 2: facing = "west"; break;
+            default: facing = "north"; break;
+            }
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "half", "lower");
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "open", (dataVal & 0x4) ? "true" : "false");
+        }
+        break;
+    }
+
+    case FENCE_GATE_PROP: {
+        // dataVal = (open<<2) | ((door_facing+3)%4) | (in_wall<<5)
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeSwneFromDataVal(dataVal));
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "in_wall", (dataVal & 0x20) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "open", (dataVal & 0x4) ? "true" : "false");
+        break;
+    }
+
+    case LANTERN_PROP:
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "hanging", (dataVal & 0x1) ? "true" : "false");
+        break;
+
+    case HEAD_WALL_PROP: {
+        // Stored as 2/3/4/5 = north/south/west/east per readPalette HEAD_WALL_PROP arm.
+        const char* facing;
+        switch (dataVal & 0x7) {
+        case 2: facing = "north"; break;
+        case 3: facing = "south"; break;
+        case 4: facing = "west"; break;
+        case 5: facing = "east"; break;
+        default: facing = "north"; break;
+        }
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
+        break;
+    }
+
+    case HEAD_PROP: {
+        // High bit (0x80) signals "rotation" mode; lower 4 bits encode the 16 floor-rotation positions.
+        char rotStr[3];
+        snprintf(rotStr, sizeof(rotStr), "%d", dataVal & 0xF);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "rotation", rotStr);
+        break;
+    }
+
+    default:
+        // Unhandled property family — emit base name only. Readers still place a usable block;
+        // orientation/state may not survive the round-trip. Listed roughly by frequency:
+        // BUTTON_PROP, LEVER_PROP, RAIL_PROP, FENCE_PROP, MUSHROOM_PROP, MUSHROOM_STEM_PROP,
+        // TORCH_PROP, WIRE_PROP, TRIPWIRE_PROP, TRIPWIRE_HOOK_PROP, END_PORTAL_PROP, BIG_DRIPLEAF_PROP,
+        // SMALL_DRIPLEAF_PROP, etc. — extend here as needed.
+        break;
+    }
+
+    // Waterlogged is additive across many block families.
+    if (dataVal & WATERLOGGED_BIT) {
+        // Most families don't have waterlogged; the extra prop is harmless on those that do.
+        // The block families that *do* support waterlogged include stairs, slabs, fences, walls,
+        // chests, signs, ladders, glow lichen, etc. Mineways uses bit 0x40 internally for this.
+        // Insert in alphabetical position. Since "waterlogged" comes last alphabetically anyway
+        // for almost every family we emit, we just append it.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "waterlogged", "true");
+    }
+
+    if (started) {
+        // Close the bracket
+        if (plen + 1 < (int)sizeof(props)) {
+            props[plen++] = ']';
+            props[plen] = '\0';
+        }
+    }
+
+    int n = snprintf(out, (size_t)outSize, "minecraft:%s%s", e->name, props);
+    return (n > 0 && n < outSize) ? n : -1;
+}
+
 void nbtClose(bfFile* pbf)
 {
     // For some reason, this gzclose() call causes Mineways to then shut down with an exception.
