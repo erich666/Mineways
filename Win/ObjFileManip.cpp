@@ -2488,6 +2488,16 @@ static int populateBox(WorldGuide* pWorldGuide, ChangeBlockCommand* pCBC, IBox* 
     VecScalar(gSolidWorldBox.min, =, INT_MAX);
     VecScalar(gSolidWorldBox.max, =, INT_MIN);
 
+    // Issue #157: when this export needs sky-light, the chunk-loader has to allocate the per-chunk
+    // SkyLight buffer *before* the first LoadBlock call below. Empty the cache too — any chunk that
+    // the map view already loaded for display lacks the buffer and would otherwise come through with
+    // skyLight stuck at zero (the very symptom @Joegenco saw).
+    if (gModel.options->exportFlags & EXPT_OUTPUT_FACE_LIGHT)
+    {
+        gWantSkylight = true;
+        Cache_Empty();
+    }
+
     // We now extract twice: first time is just to get bounds of solid stuff we'll actually output.
     // Results of this first pass are put in gSolidWorldBox.
     for (blockX = startxblock; blockX <= endxblock; blockX++)
@@ -2543,6 +2553,8 @@ static int populateBox(WorldGuide* pWorldGuide, ChangeBlockCommand* pCBC, IBox* 
     }
 
     // Per-face light export (issue #157): allocate parallel light arrays sized to gBoxData.
+    // gWantSkylight was set earlier (before the findChunkBounds pass) so chunks loaded by either
+    // pass already have block->skylight populated by the NBT reader.
     if (gModel.options->exportFlags & EXPT_OUTPUT_FACE_LIGHT)
     {
         gBoxBlockLight = (unsigned char*)calloc(gBoxSizeXYZ, sizeof(unsigned char));
@@ -2551,9 +2563,6 @@ static int populateBox(WorldGuide* pWorldGuide, ChangeBlockCommand* pCBC, IBox* 
         {
             return MW_WORLD_EXPORT_TOO_LARGE;
         }
-        // Tell the chunk-loader to allocate per-chunk SkyLight buffers so the NBT reader can populate them.
-        // Already-cached chunks lack the buffer; for those, gBoxSkyLight stays at zero (skyLight reports 0 there).
-        gWantSkylight = true;
     }
 
     // Now actually copy the relevant data over to the newly-allocated box data grid.
