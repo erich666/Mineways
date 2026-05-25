@@ -5851,6 +5851,28 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "snowy", (dataVal & SNOWY_BIT) ? "true" : "false");
         break;
 
+    case AGE_PROP: {
+        // wheat/beetroots/melon_stem/pumpkin_stem (0-7), cactus/sugar_cane (0-15),
+        // nether_wart/frosted_ice/sweet_berry_bush (0-3). The "age" property in NBT
+        // is OR'd straight into dataVal (see AGE_PROP parse in readPalette: `dataVal |= atoi(value)`);
+        // the low 4 bits are enough to cover every AGE_PROP block.
+        char ageStr[3];
+        snprintf(ageStr, sizeof(ageStr), "%d", dataVal & 0xF);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "age", ageStr);
+        break;
+    }
+
+    case FARMLAND_PROP: {
+        // The "moisture" property (0=dry, 7=fully hydrated) is stored verbatim in dataVal
+        // (see readPalette: `dataVal = atoi(value)`). Without this case the block was emitting
+        // as bare `minecraft:farmland` and some readers (or strict-mode renderers) dropped it,
+        // leaving the underlying grass visible.
+        char moistureStr[2];
+        snprintf(moistureStr, sizeof(moistureStr), "%d", dataVal & 0x7);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "moisture", moistureStr);
+        break;
+    }
+
     case TALL_FLOWER_PROP:
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "half", (dataVal & 0x8) ? "upper" : "lower");
         break;
