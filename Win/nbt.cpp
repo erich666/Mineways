@@ -5709,6 +5709,27 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         }
     }
 
+    // Double slab fixup: Mineways stores doubled slabs as a separate block ID one below the
+    // matching single-slab ID (see SLAB_PROP arm in readPalette where reading `type=double`
+    // does `paletteBlockEntry[entryIndex]--`). BlockTranslations has no entries for the
+    // BLOCK_*_DOUBLE_SLAB IDs, so without this remap they fall through to "minecraft:air"
+    // (silently dropped by WorldEdit). Remap to the single slab and emit `type=double` below.
+    bool isDoubleSlab = false;
+    switch (type & 0x1FF) {
+    case BLOCK_STONE_DOUBLE_SLAB:           // 43 → 44 (smooth_stone_slab/sandstone_slab/...)
+    case BLOCK_WOODEN_DOUBLE_SLAB:          // 125 → 126 (oak_slab/spruce_slab/...)
+    case BLOCK_RED_SANDSTONE_DOUBLE_SLAB:   // 181 → 182
+    case BLOCK_PURPUR_DOUBLE_SLAB:          // 204 → 205
+    case BLOCK_ANDESITE_DOUBLE_SLAB:        // 329 → 330
+    case BLOCK_CRIMSON_DOUBLE_SLAB:         // 360 → 361
+    case BLOCK_CUT_COPPER_DOUBLE_SLAB:      // 397 → 398
+        type = type + 1;
+        isDoubleSlab = true;
+        break;
+    default:
+        break;
+    }
+
     const BlockTranslator* e = findSpongeTranslator(type, dataVal);
     if (e == NULL) {
         int n = snprintf(out, (size_t)outSize, "minecraft:air");
@@ -5789,8 +5810,10 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case SLAB_PROP:
-        // top/bottom only — Mineways encodes "double" as a separate block ID. Rare in exports.
-        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "type", (dataVal & 0x8) ? "top" : "bottom");
+        // type = "double" if Mineways had a BLOCK_*_DOUBLE_SLAB ID (remapped above), else
+        // top/bottom from dataVal bit 0x8.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "type",
+            isDoubleSlab ? "double" : ((dataVal & 0x8) ? "top" : "bottom"));
         break;
 
     case RAIL_PROP: {
@@ -5964,7 +5987,17 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         }
     }
 
-    int n = snprintf(out, (size_t)outSize, "minecraft:%s%s", e->name, props);
+    // Some BlockTranslations entries carry the legacy pre-1.13 name as the first match in their
+    // (blockId, dataVal) bucket, which isn't a valid block in modern Minecraft. Substitute the
+    // canonical modern equivalent so consumer tools (WorldEdit, FAWE, Litematica) don't silently
+    // drop the block to air.
+    const char* name = e->name;
+    if (strcmp(name, "bed") == 0) {
+        // Mineways stores only one bed kind (BLOCK_BED, no per-color tracking). Export as red_bed.
+        name = "red_bed";
+    }
+
+    int n = snprintf(out, (size_t)outSize, "minecraft:%s%s", name, props);
     return (n > 0 && n < outSize) ? n : -1;
 }
 
