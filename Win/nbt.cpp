@@ -5619,9 +5619,25 @@ static bool spongeAppendProp(char* buf, int bufSize, int* len, bool* started, co
 
 static const char* spongeFacing4FromDataVal(int dataVal)
 {
-    // FACING_PROP / FURNACE_PROP encoding: dataVal = 6 - facing_index_with_bit_0_set,
-    // which collapses to runtime { 2:north, 3:south, 4:west, 5:east }.
+    // FACING_PROP / FURNACE_PROP / CHEST_PROP encoding: dataVal = 6 - facing_index_with_bit_0_set,
+    // which collapses to runtime { 2:north, 3:south, 4:west, 5:east }. No up/down for these blocks.
     switch (dataVal & 0x7) {
+    case 2: return "north";
+    case 3: return "south";
+    case 4: return "west";
+    case 5: return "east";
+    default: return "north";
+    }
+}
+
+static const char* spongeFacing6FromDataVal(int dataVal)
+{
+    // EXTENDED_FACING_PROP encoding (dispenser/dropper/piston/hopper/observer/command_block/etc.):
+    // dataVal low 3 bits hold Minecraft's 6-way facing enum directly (see EXTENDED_FACING_PROP
+    // arm in readPalette: dataVal = dropper_facing).
+    switch (dataVal & 0x7) {
+    case 0: return "down";
+    case 1: return "up";
     case 2: return "north";
     case 3: return "south";
     case 4: return "west";
@@ -5659,6 +5675,40 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     if (out == NULL || outSize <= 0) return -1;
     buildSpongeReverseIndex();
 
+    // Log family quirk: Mineways uses dataVal bits 0xC == 0xC to mean "all faces are sides"
+    // (see ObjFileManip.cpp's getSwatch arm for BLOCK_LOG and friends). In modern Minecraft this
+    // is the `xxx_wood` block variant rather than a property of `xxx_log`. Remap so the right
+    // palette entry is picked. After the remap the axis bits are gone, so AXIS_PROP below
+    // emits the default `axis=y` — correct, since a `_wood` block has the same texture on every face.
+    if ((dataVal & 0xC) == 0xC) {
+        int subtype = dataVal & 0x3;
+        switch (type & 0x1FF) {
+        case BLOCK_LOG:                 // BlockTranslations: blockId 17, dataVal=BIT_16|subtype → oak/spruce/birch/jungle_wood
+        case BLOCK_AD_LOG:              // blockId 162, BIT_16|subtype → acacia/dark_oak_wood
+        case BLOCK_MANGROVE_LOG:        // blockId 160 + HIGH_BIT, BIT_16 → mangrove_wood
+            dataVal = BIT_16 | subtype;
+            break;
+        case BLOCK_STRIPPED_OAK:        // wood form lives at a different Mineways block ID
+            type = BLOCK_STRIPPED_OAK_WOOD;
+            dataVal = subtype;
+            break;
+        case BLOCK_STRIPPED_ACACIA:
+            type = BLOCK_STRIPPED_ACACIA_WOOD;
+            dataVal = subtype;
+            break;
+        case BLOCK_STRIPPED_MANGROVE:
+            type = BLOCK_STRIPPED_MANGROVE_WOOD;
+            dataVal = subtype;
+            break;
+        // BLOCK_STRIPPED_OAK_WOOD / _ACACIA_WOOD / _MANGROVE_WOOD: already the wood form; AXIS_PROP
+        //   will emit axis=y by default for 0xC. No remap needed.
+        // BLOCK_MUDDY_MANGROVE_ROOTS, BLOCK_FROGLIGHT, BLOCK_CREAKING_HEART: standalone blocks with
+        //   no separate wood form; their name doesn't change, and AXIS_PROP defaults to axis=y.
+        default:
+            break;
+        }
+    }
+
     const BlockTranslator* e = findSpongeTranslator(type, dataVal);
     if (e == NULL) {
         int n = snprintf(out, (size_t)outSize, "minecraft:air");
@@ -5691,9 +5741,30 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     case FACING_PROP:
     case FURNACE_PROP:
     case CHEST_PROP:                // facing only, type omitted (Mineways doesn't track left/right halves cleanly)
-    case EXTENDED_FACING_PROP:      // == BARREL_PROP, WALL_SIGN_PROP, DROPPER_PROP, PISTON_*_PROP, COMMAND_BLOCK_PROP, HOPPER_PROP, OBSERVER_PROP
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeFacing4FromDataVal(dataVal));
         break;
+
+    case EXTENDED_FACING_PROP: {    // == BARREL_PROP, WALL_SIGN_PROP, DROPPER_PROP, PISTON_*_PROP, COMMAND_BLOCK_PROP, HOPPER_PROP, OBSERVER_PROP
+        // 6-way facing: dispensers/droppers etc. use the Minecraft enum directly (0=down, 1=up,
+        // 2=north, 3=south, 4=west, 5=east). Without this split, "down" and "up" were exporting as "north".
+        //
+        // Bit 0x8 is overloaded across this prop family (see EXTENDED_FACING_PROP arm in readPalette):
+        //   piston / sticky_piston -> extended
+        //   observer               -> powered
+        //   hopper                 -> enabled
+        //   command_block          -> conditional
+        //   dispenser / dropper    -> triggered (non-graphical)
+        // For now we only emit it for pistons (visually significant: it controls whether the head
+        // is out). The others can be added the same way if requested.
+        int fullType = type & 0x1FF;
+        bool isPiston = (fullType == BLOCK_PISTON || fullType == BLOCK_STICKY_PISTON);
+        // Alphabetical: extended < facing
+        if (isPiston) {
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "extended", (dataVal & 0x8) ? "true" : "false");
+        }
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeFacing6FromDataVal(dataVal));
+        break;
+    }
 
     case SWNE_FACING_PROP:
     case ANVIL_PROP:
@@ -5721,6 +5792,34 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         // top/bottom only — Mineways encodes "double" as a separate block ID. Rare in exports.
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "type", (dataVal & 0x8) ? "top" : "bottom");
         break;
+
+    case RAIL_PROP: {
+        // Plain rail (block 66) can take any of 10 shapes (low 4 bits, 0-9 incl. corners).
+        // Powered / detector / activator rails take only 6 shapes (low 3 bits, 0-5) and add
+        // a "powered" bool in bit 0x8 (see RAIL_PROP arm in readPalette: dataVal = rails | (powered<<3)).
+        int blockId = type & 0xFF;
+        bool isPlainRail = (blockId == BLOCK_RAIL);
+        int shape = isPlainRail ? (dataVal & 0xF) : (dataVal & 0x7);
+        const char* shapeStr;
+        switch (shape) {
+        case 1:  shapeStr = "east_west"; break;
+        case 2:  shapeStr = "ascending_east"; break;
+        case 3:  shapeStr = "ascending_west"; break;
+        case 4:  shapeStr = "ascending_north"; break;
+        case 5:  shapeStr = "ascending_south"; break;
+        case 6:  shapeStr = "south_east"; break;
+        case 7:  shapeStr = "south_west"; break;
+        case 8:  shapeStr = "north_west"; break;
+        case 9:  shapeStr = "north_east"; break;
+        default: shapeStr = "north_south"; break;
+        }
+        // Alphabetical: "powered" before "shape" for the powered family; plain rail has no "powered".
+        if (!isPlainRail) {
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x8) ? "true" : "false");
+        }
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "shape", shapeStr);
+        break;
+    }
 
     case SNOWY_PROP:
         // grass_block / podzol / mycelium: SNOWY_BIT (0x08) is the only bit used by these blocks.
