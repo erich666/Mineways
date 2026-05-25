@@ -2844,6 +2844,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
   <BR>
     <UL>
 	<LI>Added <b><a href="https://github.com/SpongePowered/Schematic-Specification/blob/master/versions/schematic-3.md">Sponge Schematic v3</a> export</b> (<code>.schem</code>). The legacy MCEdit <code>.schematic</code> writer caps block IDs at 255 and loses 1.13+ blocks; the new format uses Minecraft's modern string-based palette (<code>minecraft:oak_log[axis=y]</code>) and round-trips through WorldEdit, FAWE, Litematica, and Axiom. Pick the format from the dropdown in the File &gt; Export Schematic dialog (Sponge <code>.schem</code> is the new default). The writer emits the base block name plus state properties for the most common block families (logs, stairs, slabs, doors, trapdoors, beds, repeaters, comparators, fence gates, lanterns, beds, heads, anvils, etc.); a few less-common families currently export as base name only. Block entities (signs, banners, heads, flower pots) emit an empty list for now. <a href="https://github.com/erich666/Mineways/issues/40">Issue #40</a>.
+	<LI>Torchflower export was choosing the wrong texture, closed eyeblossom. Fixed.
 	</UL>
 
 <LI>Version 12.12, 4/25/2026 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1212.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
@@ -4311,7 +4312,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 4/26/2026</p>
+		<br id="lastUpdate">Last updated 5/25/2026</p>
 	</div>
 </div>
 

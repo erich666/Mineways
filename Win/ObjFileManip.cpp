@@ -14380,6 +14380,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         case 1:
             // torchflower
             swatchLoc = SWATCH_INDEX(2, 60);
+            break;
         case 2:
             // closed_eyeblossom
             swatchLoc = SWATCH_INDEX(3, 68);
@@ -22512,6 +22513,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             case 1:
                 // torchflower
                 swatchLoc = SWATCH_INDEX(2, 60);
+                break;
             case 2:
                 // closed_eyeblossom
                 swatchLoc = SWATCH_INDEX(3, 68);
@@ -24131,6 +24133,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 {
                 case DIRECTION_BLOCK_TOP:
                     swatchLoc = SWATCH_INDEX(2, 57);
+                    // falls through in order to rotate it
                 case DIRECTION_BLOCK_BOTTOM:
                     // fine as is, but might be rotated
                     switch (((dataVal & 0x3)+1)%4)

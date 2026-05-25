@@ -2379,7 +2379,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     // TODO: this whole export file name and path stuff could use some work.
                     wcscpy_s(gImportPath, MAX_PATH_AND_FILE, gExportPath);
 
-                    // Yes, have the code drop through at this point, we're all set up to export, so it's like a "repeat"
+                    // Yes, have the code fall through at this point, we're all set up to export, so it's like a "repeat"
 
                 case IDM_FILE_REPEATPREVIOUSEXPORT:
                     if (gPrintModel == MAP_EXPORT) {
