@@ -4756,6 +4756,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 break;
             case HIGH_FACING_PROP:
                 dataVal = 0xf | (door_facing << 4);
+                break;
             case QUARTZ_PILLAR_PROP:
                 // for quartz pillar, change data val based on axis
                 switch (axis) {
@@ -5735,6 +5736,29 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         isLitRedstoneOre = true;
     }
 
+    // CANDLE_PROP lit-fixup: same `++blockId on lit` pattern (readPalette CANDLE_PROP arm
+    // ~nbt.cpp:4515). The lit forms (BLOCK_LIT_CANDLE=385, BLOCK_LIT_COLORED_CANDLE=387) have
+    // no BlockTranslations entries. Remap to their unlit twins so the right palette entry is
+    // chosen, then emit `lit=true` in the CANDLE_PROP arm.
+    bool isLitCandle = false;
+    if ((type & 0x1FF) == BLOCK_LIT_CANDLE) {
+        type = BLOCK_CANDLE;
+        isLitCandle = true;
+    } else if ((type & 0x1FF) == BLOCK_LIT_COLORED_CANDLE) {
+        type = BLOCK_COLORED_CANDLE;
+        isLitCandle = true;
+    }
+
+    // BERRIES_PROP berries-fixup: BLOCK_CAVE_VINES_LIT (405) is created by the read side
+    // when berries=true (BERRIES_PROP arm at nbt.cpp:4942 increments the block ID). BlockTranslations
+    // has no 405 entry, so without a remap the berry-bearing cave vines would drop to air.
+    // Remap to BLOCK_CAVE_VINES (404) and emit berries=true below.
+    bool isBerriesLit = false;
+    if ((type & 0x1FF) == BLOCK_CAVE_VINES_LIT) {
+        type = BLOCK_CAVE_VINES;
+        isBerriesLit = true;
+    }
+
     // Double slab fixup: Mineways stores doubled slabs as a separate block ID one below the
     // matching single-slab ID (see SLAB_PROP arm in readPalette where reading `type=double`
     // does `paletteBlockEntry[entryIndex]--`). BlockTranslations has no entries for the
@@ -5960,6 +5984,409 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         // remapped the lit form (74 or 124) back to the unlit block ID.
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "lit", isLitRedstoneOre ? "true" : "false");
         break;
+
+    case CANDLE_PROP: {
+        // Standalone candles: uncolored (block 384) and 16 colored (block 386). The lit variants
+        // (385, 387) were remapped above and flagged via isLitCandle. dataVal layout
+        // (CANDLE_PROP parse at nbt.cpp:4200 packs `((count - 1) << 4)`):
+        //   bits 0x0F: color subtype (only for colored candles; picked up by findSpongeTranslator)
+        //   bits 0x30: candle count - 1, range 0..3 (= 1..4 candles)
+        //   bit  0x40: waterlogged (handled by generic check at the bottom)
+        char candlesStr[2];
+        snprintf(candlesStr, sizeof(candlesStr), "%d", ((dataVal >> 4) & 0x3) + 1);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "candles", candlesStr);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "lit", isLitCandle ? "true" : "false");
+        break;
+    }
+
+    case AMETHYST_PROP: {
+        // Block 133 + HIGH_BIT: small/medium/large amethyst bud + amethyst cluster (4 subtype
+        // entries, picked by findSpongeTranslator). Read-side packs `dataVal = dropper_facing << 2`
+        // (nbt.cpp:4923), so the 6-way facing enum lives in bits 0x1C (2-4):
+        //   0 = down, 1 = up, 2 = north, 3 = south, 4 = west, 5 = east  (Minecraft enum)
+        // Pass (dataVal >> 2) to the 6-way decoder; it masks 0x7.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeFacing6FromDataVal(dataVal >> 2));
+        break;
+    }
+
+    case DRIPSTONE_PROP: {
+        // pointed_dripstone (block 134 + HIGH_BIT). Read-side packs `dataVal = thickness | vertical_direction`
+        // (nbt.cpp:4928):
+        //   bits 0x7: thickness — 0=tip, 1=tip_merge, 2=frustum, 3=middle, 4=base
+        //   bit 0x8: vertical_direction (0=up, 1=down)
+        // waterlogged falls through to the generic check.
+        const char* thickness;
+        switch (dataVal & 0x7) {
+        case 0: thickness = "tip"; break;
+        case 1: thickness = "tip_merge"; break;
+        case 2: thickness = "frustum"; break;
+        case 3: thickness = "middle"; break;
+        default: thickness = "base"; break;  // 4
+        }
+        // Alphabetical: thickness < vertical_direction.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "thickness", thickness);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "vertical_direction", (dataVal & 0x8) ? "down" : "up");
+        break;
+    }
+
+    case BERRIES_PROP: {
+        // cave_vines (BLOCK_CAVE_VINES=404) and cave_vines_plant (same block, dataVal subtype bit 0x1).
+        // BLOCK_CAVE_VINES_LIT (405) gets remapped above to 404 with isBerriesLit=true. The age
+        // property exists on cave_vines but Mineways doesn't track it (read-side `dataVal = 0`,
+        // nbt.cpp:4939), so we omit it and let it default to 0 in Minecraft.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "berries", isBerriesLit ? "true" : "false");
+        break;
+    }
+
+    case PRESSURE_PROP:
+        // wooden/stone/polished_blackstone pressure plate (also nether bricks, etc.).
+        // Read-side packs `dataVal = powered ? 1 : 0` (nbt.cpp:4563).
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x1) ? "true" : "false");
+        break;
+
+    case WT_PRESSURE_PROP: {
+        // light/heavy weighted pressure plate. Read-side parses the "power" property straight
+        // into dataVal via the generic `dataVal |= atoi(value)` at nbt.cpp:3899 — so low 4 bits
+        // hold the analog power value (0..15).
+        char powerStr[3];
+        snprintf(powerStr, sizeof(powerStr), "%d", dataVal & 0xF);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "power", powerStr);
+        break;
+    }
+
+    case FAN_PROP: {
+        // Wall variants of the dead/live coral fans. Read-side packs `dataVal = ((door_facing+3)%4) << 4`
+        // (nbt.cpp:4914) — same SWNE order as anvil/bed, just shifted into bits 0x30.
+        // Pass dataVal>>4 to the SWNE decoder; it masks 0x3.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeSwneFromDataVal(dataVal >> 4));
+        break;
+    }
+
+    case PICKLE_PROP: {
+        // sea_pickle. Read-side packs `dataVal = atoi(pickles) - 1` (nbt.cpp:4082) → 0..3 = 1..4 pickles.
+        char nStr[2];
+        snprintf(nStr, sizeof(nStr), "%d", (dataVal & 0x3) + 1);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "pickles", nStr);
+        break;
+    }
+
+    case EGG_PROP: {
+        // turtle_egg. Read-side packs `dataVal = (eggs - 1) | (hatch << 2)` (nbt.cpp:4085, 4917):
+        //   bits 0x3: eggs - 1 (range 0..3 = 1..4 eggs)
+        //   bits 0xC (>>2): hatch (0..2)
+        char eggsStr[2], hatchStr[2];
+        snprintf(eggsStr, sizeof(eggsStr), "%d", (dataVal & 0x3) + 1);
+        snprintf(hatchStr, sizeof(hatchStr), "%d", (dataVal >> 2) & 0x3);
+        // Alphabetical: eggs < hatch.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "eggs", eggsStr);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "hatch", hatchStr);
+        break;
+    }
+
+    case QUARTZ_PILLAR_PROP: {
+        // quartz_pillar. Read-side sets `dataVal = 2|3|4` based on axis y|x|z (nbt.cpp:4764-4771).
+        const char* axis;
+        switch (dataVal & 0x7) {
+        case 3: axis = "x"; break;
+        case 4: axis = "z"; break;
+        default: axis = "y"; break;  // 2 (or anything unexpected)
+        }
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "axis", axis);
+        break;
+    }
+
+    case DAYLIGHT_PROP: {
+        // daylight_sensor / inverted_daylight_sensor (block ID is swapped on read at nbt.cpp:4864
+        // when inverted=true — so the right name is already chosen via findSpongeTranslator).
+        // The "power" property goes into dataVal via the generic `dataVal |= atoi(value)` (nbt.cpp:3899),
+        // so low 4 bits hold the power level (0..15).
+        char powerStr[3];
+        snprintf(powerStr, sizeof(powerStr), "%d", dataVal & 0xF);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "power", powerStr);
+        break;
+    }
+
+    case FLUID_PROP: {
+        // water / lava: `dataVal = atoi(level)` at nbt.cpp:3687. Low 4 bits = 0..15 (0=source,
+        // 1-7=flowing, 8+=falling).
+        char levelStr[3];
+        snprintf(levelStr, sizeof(levelStr), "%d", dataVal & 0xF);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "level", levelStr);
+        break;
+    }
+
+    case ATTACHED_HANGING_SIGN: {
+        // Hanging signs (blocks 203-208, 2 wood variants each via BIT_32 subtype). Read-side
+        // packs `dataVal |= (attached ? BIT_16 : 0)` (nbt.cpp:4965) on top of "rotation" which
+        // was assigned earlier (nbt.cpp:3691: `dataVal = atoi(value)`). So:
+        //   bits 0x0F: rotation (0..15)
+        //   bit  0x10 (BIT_16): attached
+        //   bit  0x20 (BIT_32): wood subtype (picked up via subtype lookup)
+        //   bit  0x40 (WATERLOGGED_BIT): waterlogged (generic check)
+        char rotStr[3];
+        snprintf(rotStr, sizeof(rotStr), "%d", dataVal & 0xF);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "attached", (dataVal & 0x10) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "rotation", rotStr);
+        break;
+    }
+
+    case HIGH_FACING_PROP: {
+        // attached_pumpkin_stem (block 104, subtype 0xF), attached_melon_stem (block 105, subtype 0xF).
+        // Read-side sets `dataVal = 0xf | (door_facing << 4)` (nbt.cpp:4758), so bits 0x30 hold
+        // the door_facing value: 0=east, 1=south, 2=west, 3=north (the parser's own enum, NOT the
+        // SWNE order used elsewhere). NOTE: there's a missing `break` after that line in
+        // readPalette which lets the QUARTZ_PILLAR_PROP arm overwrite dataVal — so in practice
+        // the facing bits may be lost on real chunk reads. If that hits, we fall back to
+        // facing=east (the default for bits=0).
+        const char* facing;
+        switch ((dataVal >> 4) & 0x3) {
+        case 0: facing = "east"; break;
+        case 1: facing = "south"; break;
+        case 2: facing = "west"; break;
+        default: facing = "north"; break;  // 3
+        }
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
+        break;
+    }
+
+    case LEAF_SIZE_PROP: {
+        // bamboo. Read-side packs `dataVal = (leaves << 1) | age` (nbt.cpp:4755):
+        //   bit 0x01: age (0=juvenile, 1=adult)
+        //   bits 0x06 (>>1): leaves (0=none, 1=small, 2=large)
+        // stage isn't tracked; let it default to 0.
+        const char* leaves;
+        switch ((dataVal >> 1) & 0x3) {
+        case 0: leaves = "none"; break;
+        case 1: leaves = "small"; break;
+        case 2: leaves = "large"; break;
+        default: leaves = "none"; break;
+        }
+        char ageStr[2];
+        snprintf(ageStr, sizeof(ageStr), "%d", dataVal & 0x1);
+        // Alphabetical: age < leaves.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "age", ageStr);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "leaves", leaves);
+        break;
+    }
+
+    case VINE_PROP: {
+        // vine (106), chorus_plant (199 - no HIGH_BIT? actually subtype 0), glow_lichen (154+HIGH_BIT),
+        // sculk_vein (178+HIGH_BIT), resin_clump (186+HIGH_BIT). Read-side packs the six face flags
+        // into bits 0x1=south, 0x02=west, 0x04=north, 0x08=east, 0x10 (BIT_16)=down, 0x20 (BIT_32)=up.
+        // If all six were originally false, the read side stamps dataVal to 0x3F ("all sides"); that
+        // shows up here as a fully-covered block. Plain "vine" doesn't have a `down` property in
+        // modern MC (it grows down by hanging from above), so skip emitting it for that one block.
+        bool isVineBlock = (strcmp(e->name, "vine") == 0);
+        // Alphabetical: (down,) east, north, south, up, west.
+        if (!isVineBlock) {
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "down",  (dataVal & 0x10) ? "true" : "false");
+        }
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "east",  (dataVal & 0x08) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "north", (dataVal & 0x04) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "south", (dataVal & 0x01) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "up",    (dataVal & 0x20) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "west",  (dataVal & 0x02) ? "true" : "false");
+        break;
+    }
+
+    case GHAST_PROP: {
+        // dried_ghast (block 235 + HIGH_BIT). Read-side packs
+        // `dataVal = (hydration << 2) | ((door_facing+3)%4)` (nbt.cpp:4748):
+        //   bits 0x03: SWNE facing (0=south, 1=west, 2=north, 3=east)
+        //   bits 0x0C (>>2): hydration (0..3)
+        char hydrStr[2];
+        snprintf(hydrStr, sizeof(hydrStr), "%d", (dataVal >> 2) & 0x3);
+        // Alphabetical: facing < hydration.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeSwneFromDataVal(dataVal));
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "hydration", hydrStr);
+        break;
+    }
+
+    case SHELF_PROP: {
+        // Wood-type shelves (blocks 244/245 + HIGH_BIT, subtype in bits 0x38). Read-side packs
+        // `dataVal = door_facing | (powered ? 4 : 0)` (nbt.cpp:4480). door_facing's encoding is
+        // *not* the same SWNE order as anvil/bed/etc. — it's the literal facing-parser values:
+        //   0 = east, 1 = south, 2 = west, 3 = north  (see facing parse at nbt.cpp:3822-3848)
+        const char* facing;
+        switch (dataVal & 0x3) {
+        case 0: facing = "east"; break;
+        case 1: facing = "south"; break;
+        case 2: facing = "west"; break;
+        default: facing = "north"; break;  // 3
+        }
+        // Alphabetical: facing < powered.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x4) ? "true" : "false");
+        break;
+    }
+
+    case CALIBRATED_SCULK_SENSOR_PROP: {
+        // sculk_sensor (block 155 + HIGH_BIT, subtype 0) and calibrated_sculk_sensor (subtype 0x4).
+        // Read-side packs `dataVal = ((door_facing+3)%4) | (dataVal & BIT_16)` (nbt.cpp:4724):
+        //   bits 0x03: SWNE facing (only meaningful for the calibrated variant)
+        //   bit  0x04: calibrated subtype flag (BlockTranslations: picks the name via subtype lookup)
+        //   bit  0x10 (BIT_16): sculk_sensor_phase, true=active / false=inactive
+        // power and cooldown phase aren't tracked.
+        bool isCalibrated = (dataVal & 0x4) != 0;
+        if (isCalibrated) {
+            // facing < sculk_sensor_phase alphabetically
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeSwneFromDataVal(dataVal));
+        }
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "sculk_sensor_phase",
+            (dataVal & 0x10) ? "active" : "inactive");
+        break;
+    }
+
+    case PINK_PETALS_PROP: {
+        // pink_petals (block 197 + HIGH_BIT). Read-side packs
+        // `dataVal = (door_facing % 4) | ((flower_amount - 1) << 2)` (nbt.cpp:4957):
+        //   bits 0x03: SWNE facing (0=south, 1=west, 2=north, 3=east)
+        //   bits 0x0C (>>2): flower_amount - 1, range 0..3 (= 1..4 petals)
+        char petalsStr[2];
+        snprintf(petalsStr, sizeof(petalsStr), "%d", ((dataVal >> 2) & 0x3) + 1);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeSwneFromDataVal(dataVal));
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "flower_amount", petalsStr);
+        break;
+    }
+
+    case PITCHER_CROP_PROP: {
+        // pitcher_crop (block 198 + HIGH_BIT). Read-side packs `dataVal = age | (half ? 0x8 : 0)`
+        // (nbt.cpp:4961):
+        //   bits 0x07: age (0..4)
+        //   bit  0x08: half (0=lower, 1=upper)
+        char ageStr[2];
+        snprintf(ageStr, sizeof(ageStr), "%d", dataVal & 0x7);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "age", ageStr);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "half", (dataVal & 0x8) ? "upper" : "lower");
+        break;
+    }
+
+    case CRAFTER_PROP: {
+        // crafter (block 211 + HIGH_BIT). Read-side packs
+        // `dataVal = orientation | (crafting ? BIT_16 : 0) | (triggered ? BIT_32 : 0)` (nbt.cpp:4969):
+        //   bits 0x0F: orientation enum (12 values; see readPalette orientation parse ~nbt.cpp:4143)
+        //   bit  0x10 (BIT_16): crafting
+        //   bit  0x20 (BIT_32): triggered
+        const char* orientation;
+        switch (dataVal & 0xF) {
+        case 0:  orientation = "south_up"; break;
+        case 1:  orientation = "west_up"; break;
+        case 2:  orientation = "north_up"; break;
+        case 3:  orientation = "east_up"; break;
+        case 4:  orientation = "up_south"; break;
+        case 5:  orientation = "up_west"; break;
+        case 6:  orientation = "up_north"; break;
+        case 7:  orientation = "up_east"; break;
+        case 8:  orientation = "down_south"; break;
+        case 9:  orientation = "down_west"; break;
+        case 10: orientation = "down_north"; break;
+        case 11: orientation = "down_east"; break;
+        default: orientation = "north_up"; break;
+        }
+        // Alphabetical: crafting, orientation, triggered.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "crafting", (dataVal & 0x10) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "orientation", orientation);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "triggered", (dataVal & 0x20) ? "true" : "false");
+        break;
+    }
+
+    case BULB_PROP: {
+        // BULB_PROP covers TWO Mineways-internal families: copper_bulb variants (block 213 + HIGH_BIT)
+        // and chiseled_copper variants (block 132 + HIGH_BIT, dataVal 49..52). Read-side packs
+        // `dataVal |= (lit ? 0x8 : 0) | (powered ? BIT_16 : 0)` for bulbs (nbt.cpp:4973). The
+        // chiseled_copper entries don't actually have lit/powered in modern Minecraft, so we only
+        // emit the bulb properties when the underlying block is in the copper_bulb family.
+        if ((type & 0x1FF) == (256 + 213)) {
+            // Alphabetical: lit < powered.
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "lit", (dataVal & 0x8) ? "true" : "false");
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x10) ? "true" : "false");
+        }
+        // chiseled_copper has no per-block properties beyond the name (already chosen by subtype lookup).
+        break;
+    }
+
+    case PALE_MOSS_CARPET_PROP: {
+        // pale_moss_carpet (block 103 + HIGH_BIT). Read-side stores per-side state and a "bottom"
+        // flag (nbt.cpp:4984 + per-side parsing 3922-3970):
+        //   bit 0x01: bottom (from "bottom" property)
+        //   bit 0x02: north_tall (set when north == "tall")
+        //   bit 0x04: east_tall
+        //   bit 0x08: south_tall
+        //   bit 0x10: west_tall
+        //   bit 0x20 (BIT_32): set if any side is "low" or "tall" (we don't use it here)
+        // Mineways doesn't differentiate per-side "low" from "none" (it collapses both unless
+        // "tall"), so each side exports as either "tall" or "none". Acceptable lossy round-trip.
+        // Alphabetical: bottom, east, north, south, west.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "bottom", (dataVal & 0x01) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "east",  (dataVal & 0x04) ? "tall" : "none");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "north", (dataVal & 0x02) ? "tall" : "none");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "south", (dataVal & 0x08) ? "tall" : "none");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "west",  (dataVal & 0x10) ? "tall" : "none");
+        break;
+    }
+
+    case PROPAGULE_PROP: {
+        // mangrove_propagule (block 164 + HIGH_BIT). Read-side packs
+        // `dataVal = hanging ? (0x8 | age) : 0` (nbt.cpp:4950):
+        //   bit 0x08: hanging
+        //   bits 0-2: age (0-4) — only meaningful when hanging
+        // The "stage" property (0-1) isn't tracked by Mineways. waterlogged falls through.
+        char ageStr[2];
+        snprintf(ageStr, sizeof(ageStr), "%d", dataVal & 0x7);
+        // Alphabetical: age < hanging.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "age", ageStr);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "hanging", (dataVal & 0x8) ? "true" : "false");
+        break;
+    }
+
+    case BIG_DRIPLEAF_PROP: {
+        // Block 152 + HIGH_BIT. Read-side packs `(door_facing | (tilt << 2)) << 1` (nbt.cpp:4932):
+        //   bit 0x01: stem flag (BlockTranslations: 0 = big_dripleaf, 1 = big_dripleaf_stem)
+        //             — picked up by findSpongeTranslator via subtype lookup.
+        //   bits 0x06 (>>1): SWNE facing (0=south, 1=west, 2=north, 3=east).
+        //   bits 0x18 (>>3): tilt enum (0=none, 1=unstable, 2=partial, 3=full).
+        // The leaf has facing + tilt; the stem has facing only (no tilt). Both can be waterlogged
+        // (generic check at bottom).
+        const char* facing;
+        switch ((dataVal >> 1) & 0x3) {
+        case 0: facing = "south"; break;
+        case 1: facing = "west"; break;
+        case 2: facing = "north"; break;
+        default: facing = "east"; break;
+        }
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
+        if (!(dataVal & 0x1)) {
+            // big_dripleaf (leaf): emit tilt
+            const char* tilt;
+            switch ((dataVal >> 3) & 0x3) {
+            case 0: tilt = "none"; break;
+            case 1: tilt = "unstable"; break;
+            case 2: tilt = "partial"; break;
+            default: tilt = "full"; break;
+            }
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "tilt", tilt);
+        }
+        break;
+    }
+
+    case SMALL_DRIPLEAF_PROP: {
+        // Block 153 + HIGH_BIT. Read-side packs `(door_facing << 1) | (half ? 0 : 1)` (nbt.cpp:4936)
+        // — note `half` was set when value=="upper", and the bit ends up as `0` for upper, `1` for lower.
+        //   bit 0x01: half (0=upper, 1=lower — INVERTED from the usual convention)
+        //   bits 0x06 (>>1): SWNE facing (0=south, 1=west, 2=north, 3=east).
+        // Modern Minecraft has small_dripleaf with facing + half (upper|lower) + waterlogged.
+        const char* facing;
+        switch ((dataVal >> 1) & 0x3) {
+        case 0: facing = "south"; break;
+        case 1: facing = "west"; break;
+        case 2: facing = "north"; break;
+        default: facing = "east"; break;
+        }
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
+        // Alphabetical: facing < half.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "half", (dataVal & 0x1) ? "lower" : "upper");
+        break;
+    }
 
     case END_PORTAL_PROP: {
         // end_portal_frame: low 2 bits = SWNE facing, bit 0x4 = eye. See readPalette
