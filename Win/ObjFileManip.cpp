@@ -41,6 +41,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <vector>
 #include <string>
+#include <unordered_map>
 
 // Set to a tiny number to have front and back faces of billboards be separated a bit.
 // TODO: currently works only for those billboards made by using the various multitile calls,
@@ -33126,7 +33127,16 @@ static int writeSpongeSchematicBox()
     // existing legacy schematic loop. The palette is a string→int map; we cache assigned indices per
     // (type, dataVal) so the per-voxel cost is one table lookup + one varint encode.
 
-    // (type, dataVal) → palette index. -1 = not assigned yet. Allocated on the heap (~514 KB).
+    // The palette must dedupe by *string*, not by (type, dataVal): different Mineways encodings
+    // can collapse to the same canonical Minecraft block-state ("minecraft:air" for any unknown
+    // block, "minecraft:stone" for variants whose subtype we don't track, etc.). An NBT compound
+    // can't hold two entries with the same key, so duplicate strings would silently drop palette
+    // IDs on read and crash WorldEdit when the Data array referenced a dropped index.
+    //
+    // Two-tier cache:
+    //   1. (type, dataVal) -> palette index  : fast path, avoids rebuilding the state string
+    //   2. string -> palette index           : dedupe across distinct (type, dataVal) sources
+
     int* paletteIndexLookup = (int*)malloc((size_t)NUM_BLOCKS_DEFINED * 256 * sizeof(int));
     if (paletteIndexLookup == NULL) {
         gzflush(gz, Z_FINISH);
@@ -33137,6 +33147,8 @@ static int writeSpongeSchematicBox()
 
     std::vector<std::string> paletteNames;
     paletteNames.reserve(256);
+    std::unordered_map<std::string, int> paletteByName;
+    paletteByName.reserve(256);
 
     std::vector<unsigned char> blockData;
     blockData.reserve((size_t)width * height * length);   // 1 byte per voxel typical
@@ -33177,8 +33189,15 @@ static int writeSpongeSchematicBox()
                         // shouldn't happen with sensible block IDs, but be safe
                         snprintf(nameBuf, sizeof(nameBuf), "minecraft:air");
                     }
-                    paletteIndex = (int)paletteNames.size();
-                    paletteNames.emplace_back(nameBuf);
+                    auto it = paletteByName.find(nameBuf);
+                    if (it != paletteByName.end()) {
+                        paletteIndex = it->second;
+                    }
+                    else {
+                        paletteIndex = (int)paletteNames.size();
+                        paletteNames.emplace_back(nameBuf);
+                        paletteByName.emplace(paletteNames.back(), paletteIndex);
+                    }
                     paletteIndexLookup[lookupKey] = paletteIndex;
                 }
 
