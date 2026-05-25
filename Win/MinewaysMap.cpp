@@ -5536,6 +5536,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 // soul fire
                 finalDataVal = BIT_16;
             }
+            // add netherrack underneath
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = BLOCK_NETHERRACK;
         }
         break;
     case BLOCK_SCULK_SENSOR:
