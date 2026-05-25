@@ -5722,6 +5722,13 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "type", (dataVal & 0x8) ? "top" : "bottom");
         break;
 
+    case SNOWY_PROP:
+        // grass_block / podzol / mycelium: SNOWY_BIT (0x08) is the only bit used by these blocks.
+        // Block Test World places dataVal=0x8 for snowy variants (MinewaysMap.cpp BLOCK_GRASS_BLOCK
+        // arm in testBlock); without this case those exported as a plain `grass_block`.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "snowy", (dataVal & SNOWY_BIT) ? "true" : "false");
+        break;
+
     case TALL_FLOWER_PROP:
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "half", (dataVal & 0x8) ? "upper" : "lower");
         break;
