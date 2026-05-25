@@ -5540,6 +5540,19 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = BLOCK_NETHERRACK;
         }
         break;
+    case BLOCK_SUGAR_CANE:
+        // uses 0-1, with 1 meaning stack it higher
+        if (dataVal < 2)
+        {
+            addBlock = 1;
+            if (dataVal == 1) {
+                // higher
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_SUGAR_CANE;
+            }
+            // add stationary water, below, so that sugar cane will survive .schem export
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 5 + (dataVal % 2) * 8)] = BLOCK_STATIONARY_WATER;
+        }
+        break;
     case BLOCK_SCULK_SENSOR:
         // uses 0-4 and 8-12, 0 is the sculk, 1-4 calibrated rotated, 8 bit activated
         switch (dataVal & 0x7)
@@ -7217,6 +7230,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             block->data[bi] |= 3 | typeHighBit;	// jungle
         }
         break;
+
     case BLOCK_TRIPWIRE_HOOK:
         addBlock = 1;
         switch (dataVal & 0x3)

@@ -5709,6 +5709,32 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         }
     }
 
+    // Burning-furnace fixup: lit furnace / smoker / blast_furnace all land under
+    // BLOCK_BURNING_FURNACE (62) on the read side — see FURNACE_PROP arm in readPalette
+    // where `if (lit) paletteBlockEntry[entryIndex] = 62;`. BlockTranslations has no entries
+    // for blockId 62 (those slots are reserved for the *_coral_fan family via HIGH_BIT), so
+    // without this remap the burning variants fall through to "minecraft:air". Remap to
+    // BLOCK_FURNACE (61) — which has "furnace" / "loom" / "smoker" / "blast_furnace" entries
+    // distinguished by BIT_16 / BIT_32 in dataVal — and emit `lit=true` in the FURNACE_PROP arm.
+    bool isLitFurnace = false;
+    if ((type & 0x1FF) == BLOCK_BURNING_FURNACE) {
+        type = BLOCK_FURNACE;
+        isLitFurnace = true;
+    }
+
+    // REDSTONE_ORE_PROP lit-fixup: Mineways stores the lit form at blockId + 1 (see arm in
+    // readPalette: `if (lit) paletteBlockEntry[entryIndex]++;`). The "unlit" entries
+    // ("redstone_ore" at 73, "redstone_lamp" at 123) are in BlockTranslations; the lit ones
+    // (74, 124) are not, so they fell to "minecraft:air". Remap and emit `lit=true` below.
+    bool isLitRedstoneOre = false;
+    if ((type & 0x1FF) == BLOCK_GLOWING_REDSTONE_ORE) {
+        type = BLOCK_REDSTONE_ORE;
+        isLitRedstoneOre = true;
+    } else if ((type & 0x1FF) == 124) {  // lit redstone_lamp; no named constant in blockInfo.h
+        type = 123;                       // unlit redstone_lamp
+        isLitRedstoneOre = true;
+    }
+
     // Double slab fixup: Mineways stores doubled slabs as a separate block ID one below the
     // matching single-slab ID (see SLAB_PROP arm in readPalette where reading `type=double`
     // does `paletteBlockEntry[entryIndex]--`). BlockTranslations has no entries for the
@@ -5741,6 +5767,9 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     int plen = 0;
     bool started = false;
     unsigned long tf = e->translateFlags;
+    // Default to the translator's name; arms that disambiguate (e.g. TORCH_PROP picking
+    // wall_torch vs torch) and the legacy-name remap further down may override this.
+    const char* name = e->name;
 
     // Per-family property emission. Alphabetical order is enforced by hand per arm so we don't
     // need a sort step. Unhandled property families fall through to the waterlogged check below
@@ -5763,6 +5792,12 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     case FURNACE_PROP:
     case CHEST_PROP:                // facing only, type omitted (Mineways doesn't track left/right halves cleanly)
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeFacing4FromDataVal(dataVal));
+        // Alphabetical: "facing" < "lit". isLitFurnace is set only when we remapped from
+        // BLOCK_BURNING_FURNACE above, which always has FURNACE_PROP, so it never fires for
+        // plain FACING_PROP/CHEST_PROP blocks.
+        if (isLitFurnace) {
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "lit", "true");
+        }
         break;
 
     case EXTENDED_FACING_PROP: {    // == BARREL_PROP, WALL_SIGN_PROP, DROPPER_PROP, PISTON_*_PROP, COMMAND_BLOCK_PROP, HOPPER_PROP, OBSERVER_PROP
@@ -5870,6 +5905,105 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         char moistureStr[2];
         snprintf(moistureStr, sizeof(moistureStr), "%d", dataVal & 0x7);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "moisture", moistureStr);
+        break;
+    }
+
+    case STANDING_SIGN_PROP: {
+        // Free-standing signs and standing banners: 16-position "rotation" stored verbatim in
+        // dataVal (see readPalette: `dataVal = atoi(value)`). Wall variants live under different
+        // block IDs / props (HEAD_WALL_PROP, EXTENDED_FACING_PROP for wall_sign), so this arm
+        // is only ever reached by the standing forms.
+        char rotStr[3];
+        snprintf(rotStr, sizeof(rotStr), "%d", dataVal & 0xF);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "rotation", rotStr);
+        break;
+    }
+
+    case SNOW_PROP: {
+        // Snow-layer block (BLOCK_SNOW). Minecraft's "layers" property is 1-8; Mineways stores
+        // it as 0-7 (read side does `dataVal = atoi(value) - 1`, nbt.cpp:3751), so we add 1 back.
+        char layersStr[2];
+        snprintf(layersStr, sizeof(layersStr), "%d", (dataVal & 0x7) + 1);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "layers", layersStr);
+        break;
+    }
+
+    case MUSHROOM_PROP:
+    case MUSHROOM_STEM_PROP: {
+        // red_mushroom_block (100), brown_mushroom_block (99), mushroom_stem (also 100).
+        // Read-side packs six face-on flags + a stem marker into dataVal (nbt.cpp:4798-4799):
+        //   bit 0x01 = west
+        //   bit 0x02 = down
+        //   bit 0x04 = north
+        //   bit 0x08 = east
+        //   bit 0x10 = up
+        //   bit 0x20 = south
+        //   bit 0x40 = mushroom_stem (steals the WATERLOGGED_BIT slot — mushrooms never waterlog).
+        // Our reverse-lookup at blockId 100 picks "red_mushroom_block" first, so when bit 0x40
+        // is set we swap the name to "mushroom_stem". The waterlogged check below skips this prop family.
+        if (dataVal & 0x40) {
+            name = "mushroom_stem";
+        }
+        // Alphabetical: down, east, north, south, up, west.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "down",  (dataVal & 0x02) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "east",  (dataVal & 0x08) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "north", (dataVal & 0x04) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "south", (dataVal & 0x20) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "up",    (dataVal & 0x10) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "west",  (dataVal & 0x01) ? "true" : "false");
+        break;
+    }
+
+    case REDSTONE_ORE_PROP:
+        // Shared by minecraft:redstone_ore (block 73) and minecraft:redstone_lamp (123). Both
+        // have a single `lit` boolean property in modern MC. The flag was set above when we
+        // remapped the lit form (74 or 124) back to the unlit block ID.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "lit", isLitRedstoneOre ? "true" : "false");
+        break;
+
+    case END_PORTAL_PROP: {
+        // end_portal_frame: low 2 bits = SWNE facing, bit 0x4 = eye. See readPalette
+        // nbt.cpp:4878: `dataVal = ((door_facing+3)%4) | (eye ? 4 : 0)`.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "eye", (dataVal & 0x4) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeSwneFromDataVal(dataVal));
+        break;
+    }
+
+    case TRIPWIRE_PROP: {
+        // Tripwire string (block 132). Read-side packs `dataVal = powered | (attached<<2) | (disarmed<<3)`
+        // (nbt.cpp:4868). N/E/S/W connection booleans aren't tracked by Mineways — Minecraft
+        // re-derives those from neighboring tripwire on paste, so omitting them is safe.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "attached", (dataVal & 0x4) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "disarmed", (dataVal & 0x8) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x1) ? "true" : "false");
+        break;
+    }
+
+    case TRIPWIRE_HOOK_PROP: {
+        // Tripwire hook (block 131). Read-side packs `dataVal = ((door_facing+3)%4) | (attached<<2) | (powered<<3)`
+        // (nbt.cpp:4873) — same SWNE layout as ANVIL_PROP / BED_PROP.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "attached", (dataVal & 0x4) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeSwneFromDataVal(dataVal));
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x8) ? "true" : "false");
+        break;
+    }
+
+    case CANDLE_CAKE_PROP: {
+        // CANDLE_CAKE_PROP shared by plain cake + uncolored candle_cake + 16 colored *_candle_cake.
+        // Encoding (see readPalette ~nbt.cpp:4533: `dataVal |= bites | (lit ? BIT_32 : 0)`):
+        //   plain cake          : low 3 bits = bites (0..6)
+        //   uncolored candle_cake: low 3 bits = 7, BIT_32 = lit
+        //   colored *_candle_cake: BIT_16 set, low 4 bits = color index, BIT_32 = lit
+        // The reverse-lookup picks the right name; here we just decide which property to emit.
+        if ((dataVal & BIT_16) || (dataVal & 0x7) == 7) {
+            // any candle-cake variant — emit lit only (no bites; candle cakes are always whole)
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "lit", (dataVal & BIT_32) ? "true" : "false");
+        } else {
+            // plain cake — emit bites, slice count
+            char bitesStr[2];
+            snprintf(bitesStr, sizeof(bitesStr), "%d", dataVal & 0x7);
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "bites", bitesStr);
+        }
         break;
     }
 
@@ -5982,17 +6116,120 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         break;
     }
 
+    case TORCH_PROP: {
+        // Runtime dataVal layout (see TORCH_PROP arm in readPalette and FACING_PROP parse):
+        //   1=east, 2=west, 3=south, 4=north (wall-mounted)
+        //   5 (or 0, normalized) = floor
+        // Mineways picks BLOCK_REDSTONE_TORCH_OFF (75) vs _ON (76) by block ID for the lit/unlit
+        // redstone torch distinction; modern Minecraft uses a single name plus `lit`.
+        // BlockTranslations has two entries with the same (blockId, dataVal=0) — "torch" and
+        // "wall_torch" — which differ only by name. We pick the right one from runtime dataVal.
+        int facing = dataVal & 0x7;
+        bool isWall = (facing >= 1 && facing <= 4);
+        int fullType = type & 0x1FF;
+        bool isRedstone = (fullType == BLOCK_REDSTONE_TORCH_OFF || fullType == BLOCK_REDSTONE_TORCH_ON);
+        if (isRedstone) {
+            name = isWall ? "redstone_wall_torch" : "redstone_torch";
+        } else {
+            name = isWall ? "wall_torch" : "torch";
+        }
+        if (isWall) {
+            const char* facingStr;
+            switch (facing) {
+            case 1: facingStr = "east"; break;
+            case 2: facingStr = "west"; break;
+            case 3: facingStr = "south"; break;
+            default: facingStr = "north"; break;    // 4
+            }
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facingStr);
+        }
+        if (isRedstone) {
+            // Alphabetical: facing < lit. lit=true is the default for redstone_torch but emit
+            // it explicitly so unlit (75) is unambiguous.
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "lit",
+                (fullType == BLOCK_REDSTONE_TORCH_ON) ? "true" : "false");
+        }
+        break;
+    }
+
+    case BUTTON_PROP: {
+        // Runtime dataVal layout (see BUTTON_PROP arm in readPalette ~nbt.cpp:4674):
+        //   low 3 bits 0x7:
+        //     0  -> face=ceiling
+        //     5  -> face=floor
+        //     1-4 -> face=wall, facing=east/west/south/north
+        //   BIT_16 (0x10): for floor/ceiling, the original "facing" was east/west (set) vs south/north (cleared)
+        //   bit 0x8: powered
+        // For floor/ceiling buttons the on-disk distinction between east-vs-west and
+        // south-vs-north is collapsed by Mineways; pick the east or south representative.
+        int lo = dataVal & 0x7;
+        const char* face;
+        const char* facing;
+        if (lo == 5) {
+            face = "floor";
+            facing = (dataVal & BIT_16) ? "east" : "south";
+        } else if (lo == 0) {
+            face = "ceiling";
+            facing = (dataVal & BIT_16) ? "east" : "south";
+        } else {
+            face = "wall";
+            switch (lo) {
+            case 1: facing = "east"; break;
+            case 2: facing = "west"; break;
+            case 3: facing = "south"; break;
+            default: facing = "north"; break;   // 4
+            }
+        }
+        // Alphabetical: face < facing < powered.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "face", face);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x8) ? "true" : "false");
+        break;
+    }
+
+    case LEVER_PROP: {
+        // Legacy 1.12 lever encoding produced by LEVER_PROP arm in readPalette (~nbt.cpp:4581):
+        //   low 3 bits 0x7:
+        //     0  -> ceiling east/west axis
+        //     1  -> wall east, 2 -> wall west, 3 -> wall south, 4 -> wall north
+        //     5  -> floor south/north axis
+        //     6  -> floor east/west axis
+        //     7  -> ceiling north/south axis
+        //   bit 0x8: powered
+        // For floor/ceiling levers, the precise direction within the axis isn't preserved by
+        // Mineways; pick a representative.
+        int lo = dataVal & 0x7;
+        const char* face;
+        const char* facing;
+        switch (lo) {
+        case 0: face = "ceiling"; facing = "east"; break;   // east/west axis
+        case 1: face = "wall";    facing = "east"; break;
+        case 2: face = "wall";    facing = "west"; break;
+        case 3: face = "wall";    facing = "south"; break;
+        case 4: face = "wall";    facing = "north"; break;
+        case 5: face = "floor";   facing = "south"; break;  // south/north axis
+        case 6: face = "floor";   facing = "east"; break;   // east/west axis
+        default: face = "ceiling"; facing = "north"; break; // 7: north/south axis
+        }
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "face", face);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x8) ? "true" : "false");
+        break;
+    }
+
     default:
         // Unhandled property family — emit base name only. Readers still place a usable block;
         // orientation/state may not survive the round-trip. Listed roughly by frequency:
-        // BUTTON_PROP, LEVER_PROP, RAIL_PROP, FENCE_PROP, MUSHROOM_PROP, MUSHROOM_STEM_PROP,
-        // TORCH_PROP, WIRE_PROP, TRIPWIRE_PROP, TRIPWIRE_HOOK_PROP, END_PORTAL_PROP, BIG_DRIPLEAF_PROP,
+        // RAIL_PROP (now handled), FENCE_PROP, MUSHROOM_PROP, MUSHROOM_STEM_PROP,
+        // WIRE_PROP, TRIPWIRE_PROP, TRIPWIRE_HOOK_PROP, END_PORTAL_PROP, BIG_DRIPLEAF_PROP,
         // SMALL_DRIPLEAF_PROP, etc. — extend here as needed.
         break;
     }
 
-    // Waterlogged is additive across many block families.
-    if (dataVal & WATERLOGGED_BIT) {
+    // Waterlogged is additive across many block families — but a few props steal bit 0x40 for
+    // their own purposes (MUSHROOM_PROP/MUSHROOM_STEM_PROP use it as the stem flag), so skip
+    // the check for those families.
+    if ((dataVal & WATERLOGGED_BIT) && tf != MUSHROOM_PROP && tf != MUSHROOM_STEM_PROP) {
         // Most families don't have waterlogged; the extra prop is harmless on those that do.
         // The block families that *do* support waterlogged include stairs, slabs, fences, walls,
         // chests, signs, ladders, glow lichen, etc. Mineways uses bit 0x40 internally for this.
@@ -6012,9 +6249,8 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     // Some BlockTranslations entries carry the legacy pre-1.13 name as the first match in their
     // (blockId, dataVal) bucket, which isn't a valid block in modern Minecraft. Substitute the
     // canonical modern equivalent so consumer tools (WorldEdit, FAWE, Litematica) don't silently
-    // drop the block to air.
-    const char* name = e->name;
-    if (strcmp(name, "bed") == 0) {
+    // drop the block to air. Only applied if no earlier arm already overrode `name`.
+    if (name == e->name && strcmp(name, "bed") == 0) {
         // Mineways stores only one bed kind (BLOCK_BED, no per-color tracking). Export as red_bed.
         name = "red_bed";
     }
