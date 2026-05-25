@@ -815,7 +815,7 @@ static int schematicWriteUnsignedShortValue(gzFile gz, unsigned short shortValue
 static int schematicWriteShortValue(gzFile gz, short shortValue);
 static int schematicWriteIntValue(gzFile gz, int intValue);
 static int schematicWriteStringValue(gzFile gz, char* stringValue);
-// issue #157 follow-up not relevant here — Sponge v2 uses Sponge palette helpers below (issue #40):
+// Sponge Schematic v3 palette helpers (issue #40):
 static int spongeWriteVarint(gzFile gz, unsigned int value, unsigned char* outBytes);
 static int spongeBlockStateString(int type, int dataVal, char* out, size_t outSize);
 
@@ -32974,7 +32974,7 @@ static int schematicWriteStringValue(gzFile gz, char* stringValue)
     return totWrite;
 }
 
-// === Sponge Schematic v2 helpers (issue #40) ===
+// === Sponge Schematic v3 helpers (issue #40) ===
 
 // TAG_Int = 3
 static int schematicWriteIntTag(gzFile gz, char* tag, int value)
@@ -33027,11 +33027,13 @@ static int spongeBlockStateString(int type, int dataVal, char* out, size_t outSi
     return spongeBuildBlockStateString(type, dataVal, out, (int)outSize);
 }
 
-// Writes a Sponge Schematic v2 (.schem) file. Spec: https://github.com/SpongePowered/Schematic-Specification
+// Writes a Sponge Schematic v3 (.schem) file. Spec:
+//   https://github.com/SpongePowered/Schematic-Specification/blob/master/versions/schematic-3.md
 // File is gzipped NBT, big-endian. Voxel index = x + z*Width + y*Width*Length.
-// Stage 1 stub: emits a structurally-valid file with a single-entry palette ("minecraft:air") and
-// an all-zero BlockData (one varint zero per voxel = exactly W*H*L bytes). Once Stage 2 lands,
-// the palette and BlockData paths below are extended to walk gBoxData and emit real state strings.
+// The v3 layout (versus v2): all fields live inside a "Schematic" compound that itself sits
+// inside an unnamed root compound; Palette/Data/BlockEntities are grouped under a "Blocks"
+// sub-compound; the v2 "BlockData" tag is renamed to "Data"; the v2 "PaletteMax" int is removed
+// (the palette size is implicit in the compound).
 static int writeSpongeSchematicBox()
 {
     FILE* fptr;
@@ -33044,8 +33046,8 @@ static int writeSpongeSchematicBox()
     int height = gSolidBox.max[Y] - gSolidBox.min[Y] + 1;
     int length = gSolidBox.max[Z] - gSolidBox.min[Z] + 1;
 
-    // Sponge v2 dimensions are read as `& 0xFFFF` so technically support 0..65535, but staying within signed-short
-    // range keeps every consumer tool happy (issue #40 risk note).
+    // Sponge dimensions are read as `& 0xFFFF` so technically support 0..65535, but staying within
+    // signed-short range keeps every consumer tool happy (issue #40 risk note).
     if (width > 32767 || height > 32767 || length > 32767) {
         return retCode | MW_DIMENSION_TOO_LARGE;
     }
@@ -33095,10 +33097,17 @@ static int writeSpongeSchematicBox()
         return retCode|MW_CANNOT_WRITE_TO_FILE;             \
     }
 
-    // Root TAG_Compound "Schematic"
+    // v3 root: an unnamed TAG_Compound holding a single child compound named "Schematic".
+    // schematicWriteCompoundTag emits TAG_Compound + 2-byte name length + name bytes; for the
+    // unnamed root we write the three header bytes directly so we don't trip the empty-string
+    // assertion inside schematicWriteStringValue.
+    {
+        unsigned char rootHdr[3] = { 0x0A, 0x00, 0x00 };    // TAG_Compound, name length 0
+        CHECK_SPONGE_QUIT(gzwrite(gz, rootHdr, 3));
+    }
     CHECK_SPONGE_QUIT(schematicWriteCompoundTag(gz, "Schematic"));
 
-    CHECK_SPONGE_QUIT(schematicWriteIntTag(gz, "Version", 2));
+    CHECK_SPONGE_QUIT(schematicWriteIntTag(gz, "Version", 3));
     // DataVersion = MC 1.20 (3463). A single pinned value keeps the writer self-contained;
     // see plan risk note about DataVersion choice.
     CHECK_SPONGE_QUIT(schematicWriteIntTag(gz, "DataVersion", 3463));
@@ -33113,7 +33122,7 @@ static int writeSpongeSchematicBox()
 
     // ===== Pass 1: walk gBoxData, build the palette, and encode BlockData varints into a buffer =====
     //
-    // Sponge v2 voxel ordering is i = x + z*W + y*W*L (X innermost, Y outermost) and matches the
+    // Sponge voxel ordering is i = x + z*W + y*W*L (X innermost, Y outermost) and matches the
     // existing legacy schematic loop. The palette is a string→int map; we cache assigned indices per
     // (type, dataVal) so the per-voxel cost is one table lookup + one varint encode.
 
@@ -33184,9 +33193,12 @@ static int writeSpongeSchematicBox()
         retCode |= MW_UNKNOWN_BLOCK_TYPE_ENCOUNTERED;
     }
 
-    // ===== Pass 2: write PaletteMax, Palette compound, and the BlockData byte_array =====
+    // ===== Pass 2: write the Blocks compound (Palette + Data + BlockEntities) =====
+    //
+    // v3 groups these three under a "Blocks" compound. PaletteMax (a v2 top-level int)
+    // is no longer part of the spec — readers count the palette compound's children.
 
-    CHECK_SPONGE_QUIT(schematicWriteIntTag(gz, "PaletteMax", (int)paletteNames.size()));
+    CHECK_SPONGE_QUIT(schematicWriteCompoundTag(gz, "Blocks"));
 
     CHECK_SPONGE_QUIT(schematicWriteCompoundTag(gz, "Palette"));
     for (size_t i = 0; i < paletteNames.size(); i++) {
@@ -33195,20 +33207,27 @@ static int writeSpongeSchematicBox()
     }
     CHECK_SPONGE_QUIT(schematicWriteUnsignedCharValue(gz, 0x0));    // TAG_End closing the Palette compound
 
-    // BlockData: TAG_Byte_Array. Length is the encoded byte count, not the voxel count.
-    CHECK_SPONGE_QUIT(schematicWriteTagValue(gz, 0x07, (char*)"BlockData"));
+    // Data: TAG_Byte_Array of varint-encoded palette indices. Length is the encoded byte count,
+    // not the voxel count (renamed from v2's "BlockData").
+    CHECK_SPONGE_QUIT(schematicWriteTagValue(gz, 0x07, (char*)"Data"));
     CHECK_SPONGE_QUIT(schematicWriteIntValue(gz, (int)blockData.size()));
     if (!blockData.empty()) {
         CHECK_SPONGE_QUIT(gzwrite(gz, blockData.data(), (unsigned int)blockData.size()));
     }
     (void)totalSize;
 
-    // BlockEntities and Entities: empty lists. Stage 4 will populate BlockEntities for signs/banners/heads/pots.
+    // BlockEntities: empty list, moved under Blocks in v3 (was at root in v2). Stage 4 will
+    // populate this for signs/banners/heads/pots.
     CHECK_SPONGE_QUIT(schematicWriteEmptyListTag(gz, "BlockEntities"));
+
+    CHECK_SPONGE_QUIT(schematicWriteUnsignedCharValue(gz, 0x0));    // TAG_End closing the Blocks compound
+
+    // Entities stays at the Schematic level in v3. Empty list for now — Mineways doesn't track
+    // mobs/item-frames/etc. in its world model.
     CHECK_SPONGE_QUIT(schematicWriteEmptyListTag(gz, "Entities"));
 
-    // TAG_End closing the root Schematic compound.
-    CHECK_SPONGE_QUIT(schematicWriteUnsignedCharValue(gz, 0x0));
+    CHECK_SPONGE_QUIT(schematicWriteUnsignedCharValue(gz, 0x0));    // TAG_End closing the Schematic compound
+    CHECK_SPONGE_QUIT(schematicWriteUnsignedCharValue(gz, 0x0));    // TAG_End closing the unnamed root compound
 
     gzflush(gz, Z_FINISH);
     fclose(fptr);

@@ -10123,7 +10123,7 @@ static bool commandExportFile(ImportedSet& is, wchar_t* error, int fileMode, cha
 
     if (gPrintModel == SCHEMATIC_EXPORT) {
         // Script-driven schematic export: pick the on-disk format from the file extension.
-        // .schem  → Sponge Schematic v2 (issue #40)
+        // .schem  → Sponge Schematic v3 (issue #40)
         // .schematic (or anything else) → legacy MCEdit format
         size_t nameLen = wcslen(wcharFileName);
         bool isSpongeExt = (nameLen >= 6 && _wcsicmp(wcharFileName + nameLen - 6, L".schem") == 0);

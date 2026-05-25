@@ -128,7 +128,7 @@ void nbtClose(bfFile* pbf);
 int SlowFindIndexFromName(char* name);
 void SetModTranslations(TranslationTuple* mt);
 
-// Sponge Schematic v2 export (issue #40): build the canonical Minecraft block-state string
+// Sponge Schematic v3 export (issue #40): build the canonical Minecraft block-state string
 // for a Mineways internal (type, dataVal). Writes "minecraft:name[prop=val,...]" into `out`.
 // Properties are emitted in alphabetical order as required by the v2 spec. Returns the
 // number of bytes written (excluding the NUL), or -1 if the buffer was too small.

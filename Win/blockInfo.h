@@ -270,7 +270,7 @@ extern UnitType gUnitTypeTable[];
 #define FILE_TYPE_VRML2             6
 // this is an entirely separate file type, only exportable through the schematic export option
 #define FILE_TYPE_SCHEMATIC         7
-// Sponge Schematic v2 (.schem). Issue #40. Modern 1.13+ string-keyed palette format consumed by WorldEdit/FAWE/Litematica/Axiom.
+// Sponge Schematic v3 (.schem). Issue #40. Modern 1.13+ string-keyed palette format consumed by WorldEdit/FAWE/Litematica/Axiom.
 #define FILE_TYPE_SPONGE_SCHEMATIC  8
 
 #define FILE_TYPE_TOTAL         9

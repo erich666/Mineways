@@ -5554,10 +5554,11 @@ int nbtGetSchematicBlocksAndData(bfFile* pbf, int numBlocks, unsigned char* sche
 }
 
 
-// === Sponge Schematic v2 export support (issue #40) ===
+// === Sponge Schematic v3 export support (issue #40) ===
 // Builds a Minecraft block-state string ("minecraft:name[prop=val,prop=val]") from Mineways'
 // internal (type, dataVal) representation. The reverse of readPalette() above. Properties are
-// emitted in alphabetical order as the Sponge v2 spec requires.
+// emitted in alphabetical order; the Sponge v3 spec doesn't require ordering but consistent
+// ordering keeps palette entries deduplicated.
 
 // Reverse-index from full-type (blockId | (highBit<<8)) to BlockTranslator entries.
 // Built once on first call; covers up to 32 subtypes per type which is comfortably above the
@@ -5605,7 +5606,7 @@ static const BlockTranslator* findSpongeTranslator(int type, int dataVal)
 }
 
 // Append "key=val" to the running properties buffer. Caller is responsible for ordering keys
-// alphabetically (Sponge v2 spec). Inserts the leading '[' on the first call and ',' between
+// alphabetically (keeps palette entries deduplicated). Inserts the leading '[' on the first call and ',' between
 // subsequent calls. Returns true on success, false if the buffer would overflow.
 static bool spongeAppendProp(char* buf, int bufSize, int* len, bool* started, const char* key, const char* val)
 {
