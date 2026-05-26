@@ -7583,16 +7583,21 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         // Runtime dataVal layout (see TORCH_PROP arm in readPalette and FACING_PROP parse):
         //   1=east, 2=west, 3=south, 4=north (wall-mounted)
         //   5 (or 0, normalized) = floor
-        // Mineways picks BLOCK_REDSTONE_TORCH_OFF (75) vs _ON (76) by block ID for the lit/unlit
-        // redstone torch distinction; modern Minecraft uses a single name plus `lit`.
-        // BlockTranslations has two entries with the same (blockId, dataVal=0) — "torch" and
-        // "wall_torch" — which differ only by name. We pick the right one from runtime dataVal.
+        // BlockTranslations has wall+floor pairs that share (blockId, dataVal) and differ only by
+        // name. We pick wall vs floor from runtime dataVal, and pick the variety (plain / redstone
+        // / soul / copper) from the *original* caller block id — `origType`, captured before the
+        // BLOCK_REDSTONE_TORCH_OFF -> _ON remap above. Without consulting origType the soul and
+        // copper variants exported as plain `torch` / `wall_torch`.
         int facing = dataVal & 0x7;
         bool isWall = (facing >= 1 && facing <= 4);
         int fullType = type & 0x1FF;
         bool isRedstone = (fullType == BLOCK_REDSTONE_TORCH_OFF || fullType == BLOCK_REDSTONE_TORCH_ON);
         if (isRedstone) {
             name = isWall ? "redstone_wall_torch" : "redstone_torch";
+        } else if (origType == BLOCK_SOUL_TORCH) {
+            name = isWall ? "soul_wall_torch" : "soul_torch";
+        } else if (origType == BLOCK_COPPER_TORCH) {
+            name = isWall ? "copper_wall_torch" : "copper_torch";
         } else {
             name = isWall ? "wall_torch" : "torch";
         }
