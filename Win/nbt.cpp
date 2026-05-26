@@ -6810,7 +6810,16 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         break;
     }
 
-    const BlockTranslator* e = findSpongeTranslator(type, dataVal);
+    // Copper bulbs include bit 0x8 ("lit") in their subtype_mask (set at nbt.cpp:1719 so the
+    // renderer treats lit and unlit as different materials). That bit pollutes the subtype index
+    // used for the palette lookup — a lit `exposed_copper_bulb` (oxidation=1, lit=1, subtype=9)
+    // matches no stored entry (those go 0..7) and falls back to the first row, `copper_bulb`.
+    // Strip the lit bit just for the lookup; the BULB_PROP arm still reads it from `dataVal`.
+    int lookupDataVal = dataVal;
+    if ((type & 0x1FF) == BLOCK_COPPER_BULB) {
+        lookupDataVal &= ~0x8;
+    }
+    const BlockTranslator* e = findSpongeTranslator(type, lookupDataVal);
     if (e == NULL) {
         int n = snprintf(out, (size_t)outSize, "minecraft:air");
         return (n > 0 && n < outSize) ? n : -1;
@@ -7712,6 +7721,23 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         }
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "ominous", (dataVal & 0x4) ? "true" : "false");
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "trial_spawner_state", state);
+    }
+
+    // BLOCK_VAULT, same pattern as trial_spawner. Read-side at nbt.cpp:4338+ packs ominous into
+    // bit 0x4 and vault_state into bits 0x18 (index << 3): 0=inactive, 1=active, 2=unlocking,
+    // 3=ejecting. The MinewaysMap.cpp color switch (case BLOCK_VAULT, mask 0x1C) confirms this
+    // layout. Alphabetical: ominous < vault_state.
+    if ((type & 0x1FF) == BLOCK_VAULT) {
+        const char* state;
+        switch ((dataVal >> 3) & 0x3) {
+        default:
+        case 0: state = "inactive"; break;
+        case 1: state = "active"; break;
+        case 2: state = "unlocking"; break;
+        case 3: state = "ejecting"; break;
+        }
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "ominous", (dataVal & 0x4) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "vault_state", state);
     }
 
     // Waterlogged is additive across many block families — but a few props steal bit 0x40 for
