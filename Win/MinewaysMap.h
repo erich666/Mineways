@@ -68,6 +68,7 @@ typedef struct Schematic {
     int length;	// Z
     int numBlocks;	// width * height * length
     bool repeat;	// should the object be repeated in the map?
+    bool isSponge;	// true means a .schem (Sponge Schematic v3) file; false means legacy .schematic (MCEdit format). Issue #40.
 } Schematic;
 
 typedef struct WorldGuide {
@@ -124,6 +125,10 @@ int GetPlayer(const wchar_t* world, int* px, int* py, int* pz, int* dimension);
 unsigned int GetBlockDataColor(int type, int dataVal);
 int GetSchematicWord(const wchar_t* schematic, char* field, int* word);
 int GetSchematicBlocksAndData(const wchar_t* schematic, int numBlocks, unsigned char* schematicBlocks, unsigned char* schematicBlockData);
+// Sponge Schematic v3 reader (issue #40). On success, returns 1 and malloc's the blocks/data arrays
+// (caller frees). On parse failure returns 0. On file open failure returns -1.
+int GetSpongeSchematic(const wchar_t* schematic, int* width, int* height, int* length,
+    unsigned char** blocks, unsigned char** data);
 // palette should be in RGBA format, num colors in the palette
 void SetMapPremultipliedColors(int start);
 void SetMapPalette(unsigned int* palette, int num);

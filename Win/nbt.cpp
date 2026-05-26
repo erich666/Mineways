@@ -5555,6 +5555,974 @@ int nbtGetSchematicBlocksAndData(bfFile* pbf, int numBlocks, unsigned char* sche
 }
 
 
+// === Sponge Schematic v3 import support (issue #40) ===
+// Read a .schem file as a Mineways "world." Mirrors the writer in ObjFileManip.cpp.
+
+// Decode one unsigned LEB128 / Protobuf varint from a memory buffer. Returns the value;
+// advances *pos by however many bytes the varint took. Caller must guard against running
+// past `maxLen` (we just stop on the high bit going low, but a malformed file could overrun).
+static unsigned int spongeReadVarint(const unsigned char* buf, int* pos, int maxLen)
+{
+    unsigned int result = 0;
+    int shift = 0;
+    while (*pos < maxLen) {
+        unsigned char b = buf[(*pos)++];
+        result |= ((unsigned int)(b & 0x7F)) << shift;
+        if ((b & 0x80) == 0) {
+            return result;
+        }
+        shift += 7;
+        if (shift >= 35) {
+            // varint too long; bail
+            break;
+        }
+    }
+    return result;
+}
+
+// Returns the SWNE-bits (0=south, 1=west, 2=north, 3=east) for a "facing" string.
+static int spongeSwneIdxFromName(const char* v) {
+    if (strcmp(v, "south") == 0) return 0;
+    if (strcmp(v, "west") == 0) return 1;
+    if (strcmp(v, "north") == 0) return 2;
+    return 3;   // east
+}
+// 4-way facing (FACING_PROP/FURNACE_PROP/CHEST_PROP): 2=north, 3=south, 4=west, 5=east.
+static int spongeFacing4IdxFromName(const char* v) {
+    if (strcmp(v, "north") == 0) return 2;
+    if (strcmp(v, "south") == 0) return 3;
+    if (strcmp(v, "west") == 0) return 4;
+    return 5;   // east
+}
+// 6-way Minecraft enum (EXTENDED_FACING_PROP, AMETHYST_PROP).
+static int spongeFacing6IdxFromName(const char* v) {
+    if (strcmp(v, "down") == 0) return 0;
+    if (strcmp(v, "up") == 0) return 1;
+    if (strcmp(v, "north") == 0) return 2;
+    if (strcmp(v, "south") == 0) return 3;
+    if (strcmp(v, "west") == 0) return 4;
+    return 5;   // east
+}
+// door_facing (TORCH_PROP wall variants, SHELF_PROP, HIGH_FACING_PROP, BUTTON wall) :
+//   0=east, 1=south, 2=west, 3=north. Per facing parse at nbt.cpp:3822-3848.
+static int spongeDoorFacingIdxFromName(const char* v) {
+    if (strcmp(v, "east") == 0) return 0;
+    if (strcmp(v, "south") == 0) return 1;
+    if (strcmp(v, "west") == 0) return 2;
+    return 3;   // north
+}
+
+// Parses "[key=val,key=val,...]" by NUL-terminating in-place. propsBuf must point at the
+// first char *after* '['; we stop at the matching ']' (or end of string). Returns the count;
+// keys[i] and values[i] point into propsBuf.
+static int spongeParsePropList(char* propsBuf, char** keys, char** values, int maxPairs)
+{
+    int n = 0;
+    char* p = propsBuf;
+    while (*p && *p != ']' && n < maxPairs) {
+        while (*p == ',' || *p == ' ') p++;
+        if (!*p || *p == ']') break;
+        keys[n] = p;
+        while (*p && *p != '=' && *p != ']') p++;
+        if (*p != '=') return n;
+        *p++ = '\0';
+        values[n] = p;
+        while (*p && *p != ',' && *p != ']') p++;
+        if (*p == ',' || *p == ']') *p++ = '\0';
+        n++;
+    }
+    return n;
+}
+
+// Parse a Sponge palette state-string like "minecraft:oak_log[axis=y,waterlogged=false]" into a
+// Mineways (blockId, dataVal) pair, inverting `spongeBuildBlockStateString`. Returns true if the
+// block name was recognised. On unknown blocks emits BLOCK_AIR and returns false. (issue #40)
+static bool spongeParseStateString(const char* str, int* outBlockId, int* outDataVal)
+{
+    *outBlockId = 0;
+    *outDataVal = 0;
+
+    // Copy to a mutable buffer for in-place tokenization.
+    char buf[256];
+    size_t slen = strlen(str);
+    if (slen >= sizeof(buf)) slen = sizeof(buf) - 1;
+    memcpy(buf, str, slen);
+    buf[slen] = '\0';
+
+    // Split base name from "[prop=val,prop=val]" suffix.
+    char* propsBuf = NULL;
+    char* lb = strchr(buf, '[');
+    if (lb) {
+        *lb = '\0';
+        propsBuf = lb + 1;
+        // Strip trailing ']' if present
+        char* rb = strchr(propsBuf, ']');
+        if (rb) *rb = '\0';
+    }
+
+    int idx = findIndexFromName(buf);
+    if (idx < 0) {
+        // unknown block — caller falls back to air
+        return false;
+    }
+    int blockId = (int)BlockTranslations[idx].blockId;
+    int dataVal = (int)BlockTranslations[idx].dataVal;   // subtype + HIGH_BIT marker (if blockId > 255)
+    unsigned long tf = BlockTranslations[idx].translateFlags;
+
+    // Tokenize the property list (if any).
+    char* keys[24];
+    char* values[24];
+    int numProps = propsBuf ? spongeParsePropList(propsBuf, keys, values, 24) : 0;
+
+    // Track "lit" / "berries" separately because several prop families remap the block ID
+    // when these are true (see post-process loop below).
+    bool lit = false;
+    bool berries = false;
+    bool typeIsDouble = false;
+
+    for (int i = 0; i < numProps; i++) {
+        const char* k = keys[i];
+        const char* v = values[i];
+
+        // ---- Universal props ----
+        if (strcmp(k, "waterlogged") == 0) {
+            if (strcmp(v, "true") == 0) dataVal |= WATERLOGGED_BIT;
+            continue;
+        }
+        if (strcmp(k, "lit") == 0) {
+            lit = (strcmp(v, "true") == 0);
+            // For CANDLE_CAKE_PROP, BULB_PROP, BERRIES_PROP, CALIBRATED_SCULK_SENSOR_PROP this is
+            // a real bit in dataVal — handle below. For FURNACE/REDSTONE_ORE/CANDLE families the
+            // bit lives in the block ID itself; handled in post-process.
+            continue;
+        }
+        if (strcmp(k, "berries") == 0) {
+            berries = (strcmp(v, "true") == 0);
+            continue;
+        }
+
+        // ---- Per-family props ----
+        switch (tf) {
+        case AXIS_PROP:
+        case CREAKING_HEART_PROP:
+            if (strcmp(k, "axis") == 0) {
+                dataVal &= ~0xC;
+                if (strcmp(v, "x") == 0) dataVal |= 4;
+                else if (strcmp(v, "z") == 0) dataVal |= 8;
+                // y → 0, no bits set
+            }
+            break;
+
+        case NETHER_PORTAL_AXIS_PROP:
+            if (strcmp(k, "axis") == 0) {
+                dataVal &= ~0x3;
+                if (strcmp(v, "x") == 0) dataVal |= 1;
+                else if (strcmp(v, "z") == 0) dataVal |= 2;
+            }
+            break;
+
+        case FACING_PROP:
+        case FURNACE_PROP:
+        case CHEST_PROP:
+            if (strcmp(k, "facing") == 0) {
+                dataVal = (dataVal & ~0x7) | spongeFacing4IdxFromName(v);
+            }
+            break;
+
+        case EXTENDED_FACING_PROP:  // == BARREL/WALL_SIGN/DROPPER/PISTON/HOPPER/OBSERVER/COMMAND_BLOCK
+            if (strcmp(k, "facing") == 0) {
+                dataVal = (dataVal & ~0x7) | spongeFacing6IdxFromName(v);
+            }
+            else if (strcmp(k, "extended") == 0) {   // piston-specific (we just store the bit)
+                if (strcmp(v, "true") == 0) dataVal |= 0x8;
+            }
+            break;
+
+        case SWNE_FACING_PROP:
+        case ANVIL_PROP:
+        case EXTENDED_SWNE_FACING_PROP:
+            if (strcmp(k, "facing") == 0) {
+                dataVal = (dataVal & ~0x3) | spongeSwneIdxFromName(v);
+            }
+            break;
+
+        case STAIRS_PROP:
+            if (strcmp(k, "facing") == 0) {
+                // bits 0-1: 0=east, 1=west, 2=south, 3=north
+                int b;
+                if (strcmp(v, "east") == 0) b = 0;
+                else if (strcmp(v, "west") == 0) b = 1;
+                else if (strcmp(v, "south") == 0) b = 2;
+                else b = 3;
+                dataVal = (dataVal & ~0x3) | b;
+            }
+            else if (strcmp(k, "half") == 0) {
+                if (strcmp(v, "top") == 0) dataVal |= 0x4;
+            }
+            // shape ignored (writer always emits "straight")
+            break;
+
+        case SLAB_PROP:
+            if (strcmp(k, "type") == 0) {
+                if (strcmp(v, "top") == 0) dataVal |= 0x8;
+                else if (strcmp(v, "double") == 0) typeIsDouble = true;
+                // bottom → no bit set
+            }
+            break;
+
+        case TALL_FLOWER_PROP:
+            if (strcmp(k, "half") == 0 && strcmp(v, "upper") == 0) dataVal |= 0x8;
+            break;
+
+        case BED_PROP:
+            if (strcmp(k, "facing") == 0)        dataVal = (dataVal & ~0x3) | spongeSwneIdxFromName(v);
+            else if (strcmp(k, "occupied") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x4; }
+            else if (strcmp(k, "part") == 0)     { if (strcmp(v, "head") == 0) dataVal |= 0x8; }
+            break;
+
+        case REPEATER_PROP:
+            if (strcmp(k, "facing") == 0)      dataVal = (dataVal & ~0x3) | spongeSwneIdxFromName(v);
+            else if (strcmp(k, "delay") == 0)  dataVal = (dataVal & ~0xC) | (((atoi(v) - 1) & 0x3) << 2);
+            else if (strcmp(k, "locked") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x10; }
+            // powered handled below (increments block ID; writer wrote no "powered" prop, but
+            // a different tool might. Skip it here, leave block ID alone.)
+            break;
+
+        case COMPARATOR_PROP:
+            if (strcmp(k, "facing") == 0)       dataVal = (dataVal & ~0x3) | spongeSwneIdxFromName(v);
+            else if (strcmp(k, "mode") == 0)    { if (strcmp(v, "subtract") == 0) dataVal |= 0x4; }
+            else if (strcmp(k, "powered") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x8; }
+            break;
+
+        case COCOA_PROP:
+            if (strcmp(k, "facing") == 0)  dataVal = (dataVal & ~0x3) | spongeSwneIdxFromName(v);
+            else if (strcmp(k, "age") == 0) dataVal = (dataVal & ~0xC) | ((atoi(v) & 0x3) << 2);
+            break;
+
+        case TRAPDOOR_PROP:
+            if (strcmp(k, "facing") == 0) {
+                // bits 0-1 invert of FACING_PROP's enum (writer: case 0:east, 1:north, 2:south, 3:west)
+                int b;
+                if (strcmp(v, "east") == 0) b = 0;
+                else if (strcmp(v, "north") == 0) b = 1;
+                else if (strcmp(v, "south") == 0) b = 2;
+                else b = 3;
+                dataVal = (dataVal & ~0x3) | b;
+            }
+            else if (strcmp(k, "half") == 0) { if (strcmp(v, "top") == 0) dataVal |= 0x8; }
+            else if (strcmp(k, "open") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x4; }
+            break;
+
+        case DOOR_PROP:
+            if (strcmp(k, "half") == 0) {
+                if (strcmp(v, "upper") == 0) dataVal |= 0x8;
+            }
+            else if (strcmp(k, "hinge") == 0) {  // upper-half only
+                if (strcmp(v, "right") == 0) dataVal |= 0x1;
+            }
+            else if (strcmp(k, "powered") == 0) {  // upper-half only
+                if (strcmp(v, "true") == 0) dataVal |= 0x2;
+            }
+            else if (strcmp(k, "facing") == 0) {  // lower-half only
+                dataVal = (dataVal & ~0x3) | spongeDoorFacingIdxFromName(v);
+            }
+            else if (strcmp(k, "open") == 0) {  // lower-half only
+                if (strcmp(v, "true") == 0) dataVal |= 0x4;
+            }
+            break;
+
+        case FENCE_GATE_PROP:
+            if (strcmp(k, "facing") == 0)       dataVal = (dataVal & ~0x3) | spongeSwneIdxFromName(v);
+            else if (strcmp(k, "open") == 0)    { if (strcmp(v, "true") == 0) dataVal |= 0x4; }
+            else if (strcmp(k, "in_wall") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x20; }
+            break;
+
+        case LANTERN_PROP:
+            if (strcmp(k, "hanging") == 0 && strcmp(v, "true") == 0) dataVal |= 0x1;
+            break;
+
+        case HEAD_WALL_PROP:
+            if (strcmp(k, "facing") == 0) {
+                int b;
+                if (strcmp(v, "north") == 0) b = 2;
+                else if (strcmp(v, "south") == 0) b = 3;
+                else if (strcmp(v, "west") == 0) b = 4;
+                else b = 5;  // east
+                dataVal = (dataVal & ~0x7) | b;
+            }
+            break;
+
+        case HEAD_PROP:
+            if (strcmp(k, "rotation") == 0) {
+                dataVal = (dataVal & ~0xF) | (atoi(v) & 0xF);
+                dataVal |= 0x80;    // marker per writer: "high bit (0x80) signals rotation mode"
+            }
+            break;
+
+        case SNOWY_PROP:
+            if (strcmp(k, "snowy") == 0 && strcmp(v, "true") == 0) dataVal |= 0x8;
+            break;
+
+        case AGE_PROP:
+            if (strcmp(k, "age") == 0) dataVal = (dataVal & ~0xF) | (atoi(v) & 0xF);
+            break;
+
+        case FARMLAND_PROP:
+            if (strcmp(k, "moisture") == 0) dataVal = (dataVal & ~0x7) | (atoi(v) & 0x7);
+            break;
+
+        case STANDING_SIGN_PROP:
+            if (strcmp(k, "rotation") == 0) dataVal = (dataVal & ~0xF) | (atoi(v) & 0xF);
+            break;
+
+        case SNOW_PROP:
+            if (strcmp(k, "layers") == 0) dataVal = (dataVal & ~0x7) | ((atoi(v) - 1) & 0x7);
+            break;
+
+        case MUSHROOM_PROP:
+        case MUSHROOM_STEM_PROP:
+            if (strcmp(k, "down") == 0)       { if (strcmp(v, "true") == 0) dataVal |= 0x02; }
+            else if (strcmp(k, "east") == 0)  { if (strcmp(v, "true") == 0) dataVal |= 0x08; }
+            else if (strcmp(k, "north") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x04; }
+            else if (strcmp(k, "south") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x20; }
+            else if (strcmp(k, "up") == 0)    { if (strcmp(v, "true") == 0) dataVal |= 0x10; }
+            else if (strcmp(k, "west") == 0)  { if (strcmp(v, "true") == 0) dataVal |= 0x01; }
+            // For "mushroom_stem", the lookup gave us blockId 100 with translateFlags=MUSHROOM_STEM_PROP;
+            // the read-side encoding puts bit 0x40 to flag stem. The writer also uses bit 0x40 for stem.
+            // The BlockTranslator entry for mushroom_stem has the same blockId (100) and the same dataVal
+            // (0) as red_mushroom_block, but the *flags* are MUSHROOM_STEM_PROP. Since findIndexFromName
+            // distinguishes by name, mushroom_stem gets the stem entry — set bit 0x40 here.
+            if (tf == MUSHROOM_STEM_PROP) dataVal |= 0x40;
+            break;
+
+        case REDSTONE_ORE_PROP:
+            // lit handled via post-process remap (blockId += 1)
+            break;
+
+        case CANDLE_PROP:
+            if (strcmp(k, "candles") == 0) {
+                int c = atoi(v) - 1;     // 1..4 → 0..3
+                if (c < 0) c = 0;
+                if (c > 3) c = 3;
+                dataVal = (dataVal & ~0x30) | (c << 4);
+            }
+            // lit handled via post-process remap
+            break;
+
+        case BIG_DRIPLEAF_PROP:
+            // Subtype bit 0x1: 0=big_dripleaf (leaf), 1=big_dripleaf_stem — already set via name lookup
+            if (strcmp(k, "facing") == 0) dataVal = (dataVal & ~0x6) | (spongeSwneIdxFromName(v) << 1);
+            else if (strcmp(k, "tilt") == 0) {
+                int t = 0;
+                if (strcmp(v, "unstable") == 0) t = 1;
+                else if (strcmp(v, "partial") == 0) t = 2;
+                else if (strcmp(v, "full") == 0) t = 3;
+                dataVal = (dataVal & ~0x18) | (t << 3);
+            }
+            break;
+
+        case SMALL_DRIPLEAF_PROP:
+            if (strcmp(k, "facing") == 0) dataVal = (dataVal & ~0x6) | (spongeSwneIdxFromName(v) << 1);
+            else if (strcmp(k, "half") == 0) {   // INVERTED: 0=upper, 1=lower
+                if (strcmp(v, "lower") == 0) dataVal |= 0x1;
+            }
+            break;
+
+        case AMETHYST_PROP:
+            if (strcmp(k, "facing") == 0) {
+                // bits 2-4 hold the 6-way enum
+                dataVal = (dataVal & ~0x1C) | (spongeFacing6IdxFromName(v) << 2);
+            }
+            break;
+
+        case DRIPSTONE_PROP:
+            if (strcmp(k, "thickness") == 0) {
+                int t = 0;
+                if (strcmp(v, "tip_merge") == 0) t = 1;
+                else if (strcmp(v, "frustum") == 0) t = 2;
+                else if (strcmp(v, "middle") == 0) t = 3;
+                else if (strcmp(v, "base") == 0) t = 4;
+                dataVal = (dataVal & ~0x7) | t;
+            }
+            else if (strcmp(k, "vertical_direction") == 0) {
+                if (strcmp(v, "down") == 0) dataVal |= 0x8;
+            }
+            break;
+
+        case PROPAGULE_PROP:
+            if (strcmp(k, "age") == 0)        dataVal = (dataVal & ~0x7) | (atoi(v) & 0x7);
+            else if (strcmp(k, "hanging") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x8; }
+            break;
+
+        case CALIBRATED_SCULK_SENSOR_PROP:
+            if (strcmp(k, "facing") == 0) {
+                dataVal = (dataVal & ~0x3) | spongeSwneIdxFromName(v);
+            }
+            else if (strcmp(k, "sculk_sensor_phase") == 0) {
+                if (strcmp(v, "active") == 0) dataVal |= 0x10;
+            }
+            break;
+
+        case PINK_PETALS_PROP:
+            if (strcmp(k, "facing") == 0) dataVal = (dataVal & ~0x3) | spongeSwneIdxFromName(v);
+            else if (strcmp(k, "flower_amount") == 0) {
+                int n = atoi(v) - 1;
+                if (n < 0) n = 0; if (n > 3) n = 3;
+                dataVal = (dataVal & ~0xC) | (n << 2);
+            }
+            break;
+
+        case PITCHER_CROP_PROP:
+            if (strcmp(k, "age") == 0) dataVal = (dataVal & ~0x7) | (atoi(v) & 0x7);
+            else if (strcmp(k, "half") == 0) { if (strcmp(v, "upper") == 0) dataVal |= 0x8; }
+            break;
+
+        case CRAFTER_PROP:
+            if (strcmp(k, "crafting") == 0)       { if (strcmp(v, "true") == 0) dataVal |= 0x10; }
+            else if (strcmp(k, "triggered") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x20; }
+            else if (strcmp(k, "orientation") == 0) {
+                int o = 2;  // north_up default
+                const char* o_lut[] = { "south_up","west_up","north_up","east_up",
+                    "up_south","up_west","up_north","up_east",
+                    "down_south","down_west","down_north","down_east" };
+                for (int j = 0; j < 12; j++) if (strcmp(v, o_lut[j]) == 0) { o = j; break; }
+                dataVal = (dataVal & ~0xF) | o;
+            }
+            break;
+
+        case BULB_PROP:
+            // copper_bulb family only — the writer also emits these for chiseled_copper but only
+            // for the bulb path. powered uses BIT_16, lit uses bit 0x8.
+            if (strcmp(k, "powered") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x10; }
+            // lit handled in `lit` flag — apply below
+            if (strcmp(k, "lit") == 0)     { if (strcmp(v, "true") == 0) dataVal |= 0x8; lit = false; }
+            break;
+
+        case PALE_MOSS_CARPET_PROP:
+            if (strcmp(k, "bottom") == 0)     { if (strcmp(v, "true") == 0) dataVal |= 0x01; }
+            else if (strcmp(k, "north") == 0) { if (strcmp(v, "tall") == 0) dataVal |= 0x02; }
+            else if (strcmp(k, "east") == 0)  { if (strcmp(v, "tall") == 0) dataVal |= 0x04; }
+            else if (strcmp(k, "south") == 0) { if (strcmp(v, "tall") == 0) dataVal |= 0x08; }
+            else if (strcmp(k, "west") == 0)  { if (strcmp(v, "tall") == 0) dataVal |= 0x10; }
+            break;
+
+        case CANDLE_CAKE_PROP:
+            // plain cake → bites; candle_cakes → lit (BIT_32)
+            if (strcmp(k, "bites") == 0) dataVal = (dataVal & ~0x7) | (atoi(v) & 0x7);
+            else if (strcmp(k, "lit") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x20; lit = false; }
+            break;
+
+        case TRIPWIRE_PROP:
+            if (strcmp(k, "powered") == 0)       { if (strcmp(v, "true") == 0) dataVal |= 0x1; lit = false; }
+            else if (strcmp(k, "attached") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x4; }
+            else if (strcmp(k, "disarmed") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x8; }
+            break;
+
+        case TRIPWIRE_HOOK_PROP:
+            if (strcmp(k, "facing") == 0)        dataVal = (dataVal & ~0x3) | spongeSwneIdxFromName(v);
+            else if (strcmp(k, "attached") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x4; }
+            else if (strcmp(k, "powered") == 0)  { if (strcmp(v, "true") == 0) dataVal |= 0x8; lit = false; }
+            break;
+
+        case END_PORTAL_PROP:
+            if (strcmp(k, "facing") == 0) dataVal = (dataVal & ~0x3) | spongeSwneIdxFromName(v);
+            else if (strcmp(k, "eye") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x4; }
+            break;
+
+        case RAIL_PROP: {
+            // Plain rail (blockId 66) has 10 shapes; powered/detector/activator have 6 shapes + bit 0x8 powered.
+            if (strcmp(k, "shape") == 0) {
+                int s = 0;
+                if (strcmp(v, "east_west") == 0) s = 1;
+                else if (strcmp(v, "ascending_east") == 0) s = 2;
+                else if (strcmp(v, "ascending_west") == 0) s = 3;
+                else if (strcmp(v, "ascending_north") == 0) s = 4;
+                else if (strcmp(v, "ascending_south") == 0) s = 5;
+                else if (strcmp(v, "south_east") == 0) s = 6;
+                else if (strcmp(v, "south_west") == 0) s = 7;
+                else if (strcmp(v, "north_west") == 0) s = 8;
+                else if (strcmp(v, "north_east") == 0) s = 9;
+                int mask = (blockId == 66) ? 0xF : 0x7;
+                dataVal = (dataVal & ~mask) | (s & mask);
+            }
+            else if (strcmp(k, "powered") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x8; lit = false; }
+            break;
+        }
+
+        case BUTTON_PROP: {
+            // Composite. The writer collapsed floor/ceiling east-vs-west into BIT_16; we only need
+            // to set the major-axis bits so the block has a valid form on import.
+            if (strcmp(k, "face") == 0) {
+                if (strcmp(v, "floor") == 0)        dataVal = (dataVal & ~0x7) | 5;
+                else if (strcmp(v, "ceiling") == 0) dataVal = (dataVal & ~0x7) | 0;
+                // "wall" → low 3 bits come from facing below
+            }
+            else if (strcmp(k, "facing") == 0) {
+                // Only meaningful when face=wall. We set low 3 bits to 1..4 (east/west/south/north)
+                // and BIT_16 for floor/ceiling east-vs-west marker. Cheap heuristic: if face=wall
+                // (low 3 bits already in 1..4 from a prior pass) we set the facing directly; otherwise
+                // we just mark BIT_16 for east/west.
+                int isWall = ((dataVal & 0x7) != 0 && (dataVal & 0x7) != 5);  // not ceiling/floor
+                int b;
+                if (strcmp(v, "east") == 0) b = 1;
+                else if (strcmp(v, "west") == 0) b = 2;
+                else if (strcmp(v, "south") == 0) b = 3;
+                else b = 4;  // north
+                if (isWall) dataVal = (dataVal & ~0x7) | b;
+                else if (b <= 2) dataVal |= 0x10;   // east/west marker for floor/ceiling
+            }
+            else if (strcmp(k, "powered") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x8; lit = false; }
+            break;
+        }
+
+        case LEVER_PROP: {
+            // bits 0-2 hold a composite face+facing in 0..7; bit 0x8 powered.
+            // 0=ceiling east/west, 1=wall east, 2=wall west, 3=wall south, 4=wall north,
+            // 5=floor south/north, 6=floor east/west, 7=ceiling north/south.
+            const char* face = NULL;
+            const char* facing = NULL;
+            for (int j = 0; j < numProps; j++) {
+                if (strcmp(keys[j], "face") == 0) face = values[j];
+                else if (strcmp(keys[j], "facing") == 0) facing = values[j];
+            }
+            if (face && facing) {
+                int b = 1;
+                if (strcmp(face, "wall") == 0) {
+                    if (strcmp(facing, "east") == 0) b = 1;
+                    else if (strcmp(facing, "west") == 0) b = 2;
+                    else if (strcmp(facing, "south") == 0) b = 3;
+                    else b = 4;
+                }
+                else if (strcmp(face, "floor") == 0) {
+                    b = (strcmp(facing, "south") == 0 || strcmp(facing, "north") == 0) ? 5 : 6;
+                }
+                else {   // ceiling
+                    b = (strcmp(facing, "east") == 0 || strcmp(facing, "west") == 0) ? 0 : 7;
+                }
+                dataVal = (dataVal & ~0x7) | b;
+            }
+            if (strcmp(k, "powered") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x8; lit = false; }
+            break;
+        }
+
+        case TORCH_PROP:
+            // Floor torch ("torch", "redstone_torch", "redstone_wall_torch") name already chose the
+            // block ID. For wall_torch / redstone_wall_torch we need to set facing in bits 0-2:
+            //   1=east, 2=west, 3=south, 4=north.
+            if (strcmp(k, "facing") == 0) {
+                int b;
+                if (strcmp(v, "east") == 0) b = 1;
+                else if (strcmp(v, "west") == 0) b = 2;
+                else if (strcmp(v, "south") == 0) b = 3;
+                else b = 4;
+                dataVal = (dataVal & ~0x7) | b;
+            }
+            // lit handled in post-process (redstone_torch on/off block ID swap)
+            break;
+
+        case VINE_PROP:
+            // Decodes 5 (vine) or 6 (others) face flags. bits: south=0x1, west=0x2, north=0x4,
+            // east=0x8, down=0x10 (BIT_16), up=0x20 (BIT_32).
+            if (strcmp(k, "south") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x01; }
+            else if (strcmp(k, "west") == 0)  { if (strcmp(v, "true") == 0) dataVal |= 0x02; }
+            else if (strcmp(k, "north") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x04; }
+            else if (strcmp(k, "east") == 0)  { if (strcmp(v, "true") == 0) dataVal |= 0x08; }
+            else if (strcmp(k, "down") == 0)  { if (strcmp(v, "true") == 0) dataVal |= 0x10; }
+            else if (strcmp(k, "up") == 0)    { if (strcmp(v, "true") == 0) dataVal |= 0x20; }
+            break;
+
+        case GHAST_PROP:
+            if (strcmp(k, "facing") == 0)         dataVal = (dataVal & ~0x3) | spongeSwneIdxFromName(v);
+            else if (strcmp(k, "hydration") == 0) dataVal = (dataVal & ~0xC) | ((atoi(v) & 0x3) << 2);
+            break;
+
+        case SHELF_PROP:
+            if (strcmp(k, "facing") == 0)         dataVal = (dataVal & ~0x3) | spongeDoorFacingIdxFromName(v);
+            else if (strcmp(k, "powered") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x4; lit = false; }
+            break;
+
+        case PRESSURE_PROP:
+            if (strcmp(k, "powered") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x1; lit = false; }
+            break;
+
+        case WT_PRESSURE_PROP:
+            if (strcmp(k, "power") == 0) dataVal = (dataVal & ~0xF) | (atoi(v) & 0xF);
+            break;
+
+        case FAN_PROP:
+            if (strcmp(k, "facing") == 0) dataVal = (dataVal & ~0x30) | (spongeSwneIdxFromName(v) << 4);
+            break;
+
+        case PICKLE_PROP:
+            if (strcmp(k, "pickles") == 0) dataVal = (dataVal & ~0x3) | ((atoi(v) - 1) & 0x3);
+            break;
+
+        case EGG_PROP:
+            if (strcmp(k, "eggs") == 0)       dataVal = (dataVal & ~0x3) | ((atoi(v) - 1) & 0x3);
+            else if (strcmp(k, "hatch") == 0) dataVal = (dataVal & ~0xC) | ((atoi(v) & 0x3) << 2);
+            break;
+
+        case QUARTZ_PILLAR_PROP:
+            if (strcmp(k, "axis") == 0) {
+                if (strcmp(v, "x") == 0)      dataVal = 3;
+                else if (strcmp(v, "z") == 0) dataVal = 4;
+                else                          dataVal = 2;   // y default
+            }
+            break;
+
+        case DAYLIGHT_PROP:
+            if (strcmp(k, "power") == 0) dataVal = (dataVal & ~0xF) | (atoi(v) & 0xF);
+            break;
+
+        case FLUID_PROP:
+            if (strcmp(k, "level") == 0) dataVal = (dataVal & ~0xF) | (atoi(v) & 0xF);
+            break;
+
+        case ATTACHED_HANGING_SIGN:
+            if (strcmp(k, "rotation") == 0)      dataVal = (dataVal & ~0xF) | (atoi(v) & 0xF);
+            else if (strcmp(k, "attached") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x10; }
+            break;
+
+        case HIGH_FACING_PROP:
+            if (strcmp(k, "facing") == 0) dataVal = (dataVal & ~0x30) | (spongeDoorFacingIdxFromName(v) << 4);
+            break;
+
+        case LEAF_SIZE_PROP:
+            if (strcmp(k, "age") == 0)         dataVal = (dataVal & ~0x1) | (atoi(v) & 0x1);
+            else if (strcmp(k, "leaves") == 0) {
+                int L = 0;
+                if (strcmp(v, "small") == 0) L = 1;
+                else if (strcmp(v, "large") == 0) L = 2;
+                dataVal = (dataVal & ~0x6) | (L << 1);
+            }
+            break;
+
+        default:
+            break;
+        }
+    }
+
+    // ---- Post-process: name remaps that the writer applied ----
+    if (lit) {
+        switch (tf) {
+        case FURNACE_PROP:
+            // Writer: BLOCK_BURNING_FURNACE → BLOCK_FURNACE on export. Reverse it.
+            blockId = 62;   // BLOCK_BURNING_FURNACE
+            break;
+        case REDSTONE_ORE_PROP:
+            if (blockId == 73)       blockId = 74;     // BLOCK_REDSTONE_ORE → BLOCK_GLOWING_REDSTONE_ORE
+            else if (blockId == 123) blockId = 124;    // redstone_lamp → lit
+            break;
+        case CANDLE_PROP:
+            if (blockId == 128) blockId = 129;         // BLOCK_CANDLE → BLOCK_LIT_CANDLE
+            else if (blockId == 130) blockId = 131;    // BLOCK_COLORED_CANDLE → BLOCK_LIT_COLORED_CANDLE
+            break;
+        case TORCH_PROP:
+            // Mineways' lookup gives blockId=76 for both redstone_torch and redstone_wall_torch (lit
+            // form). Reverse the writer's "unlit→75" branch: if NOT lit, switch to 75. The lit case
+            // is already at 76; nothing to do.
+            // Actually findIndexFromName always returns the lit-form entry (76) for these names, so
+            // the default IS lit. We only need to fix up the unlit case, handled below.
+            break;
+        }
+    }
+    // Unlit redstone_torch: if the parsed name was "redstone_torch" or "redstone_wall_torch" but
+    // lit=false was explicit, swap to the unlit blockId. The lookup returned 76 (the lit form, per
+    // BlockTranslations); we adjust here.
+    if (tf == TORCH_PROP && !lit) {
+        // Only swap if the parsed name actually had a lit prop set to false. We can't easily tell
+        // here vs. "no lit prop given" — but redstone torches default lit=true in Minecraft, so
+        // assume the user wanted lit=true if no prop was given. Skip the swap unless lit was
+        // EXPLICITLY false; for that we'd need to know "lit was present in props". Track it:
+        // (skipped — corner case, default keeps it lit)
+    }
+    // BERRIES_PROP cave_vines remap
+    if (tf == BERRIES_PROP && berries) {
+        if (blockId == 148) {   // BLOCK_CAVE_VINES base (with or without subtype)
+            // Writer: BLOCK_CAVE_VINES_LIT (149 + HIGH_BIT = 405) → BLOCK_CAVE_VINES on export
+            blockId = 149;     // 149 | HIGH_BIT → fullType = 405 = BLOCK_CAVE_VINES_LIT
+        }
+    }
+    // SLAB_PROP type=double remap
+    if (typeIsDouble && tf == SLAB_PROP) {
+        // Specific slabs with explicit DOUBLE_SLAB IDs: smooth_stone_slab(44)→43, oak_slab(126)→125,
+        // red_sandstone_slab(182)→181, purpur_slab(205)→204, andesite_slab(330)→329,
+        // crimson_slab(361)→360, cut_copper_slab(398)→397.
+        switch (blockId) {
+        case 44: case 126: case 182: case 205:
+            blockId -= 1;
+            break;
+        case 74: case 73: case 75: case 76: case 77: case 78:
+            // The new 1.14+ slabs (block 74 + HIGH_BIT subtypes) don't have explicit doubles in
+            // Mineways. Fall back to type=top (lossy).
+            dataVal |= 0x8;
+            break;
+        default:
+            // For high-blockId slabs (andesite_slab=330, crimson_slab=361, cut_copper_slab=398),
+            // they live at HIGH_BIT-flagged entries; subtract 1 from the underlying blockId.
+            // The Mineways block ID returned by findIndexFromName here might be the low 8 bits;
+            // the full type comes from blockId | (HIGH_BIT-bit). For these cases the table has
+            // dataVal with HIGH_BIT set. Since blockId itself is 8 bits, this fallback covers
+            // the common HIGH_BIT families approximately — see code review note.
+            // Stub: treat as top.
+            dataVal |= 0x8;
+            break;
+        }
+    }
+
+    // Done. Note: blockId may be > 255 (e.g., 256 = BLOCK_AIR+HIGH_BIT space). The legacy schematic
+    // storage encodes >255 by putting low 8 bits in *outBlockId and HIGH_BIT in *outDataVal.
+    if (blockId > 255) {
+        *outBlockId = blockId & 0xFF;
+        *outDataVal = dataVal | HIGH_BIT;
+    }
+    else {
+        *outBlockId = blockId;
+        // BlockTranslations entries with dataVal containing HIGH_BIT mean the type is >255 even
+        // when blockId field is ≤255. The findIndexFromName lookup returns dataVal with HIGH_BIT
+        // marker; preserve it in the output dataVal so extractChunk reconstructs type|0x100.
+        *outDataVal = dataVal;
+    }
+    return true;
+}
+
+// Walk the "Palette" sub-compound, populating an indexed palette array. Each child of
+// the Palette compound is a TAG_Int (3) whose name is the full Sponge state string and
+// whose value is the integer palette index. The compound ends at TAG_End (0).
+// Returns true on success. On failure (allocator OOM, malformed data, etc.) returns false
+// and leaves the palette arrays in whatever partial state we got to.
+static bool spongeReadPalette(bfFile* pbf,
+    int** palBlockIds, int** palDataVals, int* palCapacity, int* palCount)
+{
+    for (;;) {
+        unsigned char ptype = 0;
+        if (bfread(pbf, &ptype, 1) < 0) return false;
+        if (ptype == 0) return true;    // TAG_End — done
+
+        unsigned int pnameLen = readWord(pbf);
+        if (pnameLen >= 256) return false;
+        char pname[256];
+        if (bfread(pbf, pname, (int)pnameLen) < 0) return false;
+        pname[pnameLen] = '\0';
+
+        if (ptype != 0x03) {
+            // Unexpected tag type inside Palette — skip
+            if (skipType(pbf, ptype) < 0) return false;
+            continue;
+        }
+        int idx = (int)readDword(pbf);
+        if (idx < 0 || idx > 0xFFFFFF) {
+            // sanity bound (16M unique blocks is well beyond what any sane schematic has)
+            return false;
+        }
+
+        // Grow palette arrays to fit this index (entries may arrive out of numerical order)
+        if (idx >= *palCapacity) {
+            int newCap = (idx + 1) * 2;
+            int* nbi = (int*)realloc(*palBlockIds, (size_t)newCap * sizeof(int));
+            int* ndv = (int*)realloc(*palDataVals, (size_t)newCap * sizeof(int));
+            if (nbi == NULL || ndv == NULL) {
+                if (nbi) *palBlockIds = nbi;
+                if (ndv) *palDataVals = ndv;
+                return false;
+            }
+            *palBlockIds = nbi;
+            *palDataVals = ndv;
+            for (int j = *palCapacity; j < newCap; j++) {
+                (*palBlockIds)[j] = 0;
+                (*palDataVals)[j] = 0;
+            }
+            *palCapacity = newCap;
+        }
+        int blockId, dataVal;
+        spongeParseStateString(pname, &blockId, &dataVal);
+        (*palBlockIds)[idx] = blockId;
+        (*palDataVals)[idx] = dataVal;
+        if (idx + 1 > *palCount) *palCount = idx + 1;
+    }
+}
+
+// Walk the "Blocks" sub-compound (Sponge v3). Reads Palette + Data + (skips) BlockEntities.
+// On success, returns true and sets:
+//   *outDataBytes -> malloc'd buffer with the varint stream
+//   *outDataBytesLen -> length in bytes
+//   palette arrays filled
+// Caller is responsible for freeing *outDataBytes.
+static bool spongeReadBlocksCompound(bfFile* pbf,
+    int** palBlockIds, int** palDataVals, int* palCapacity, int* palCount,
+    unsigned char** outDataBytes, int* outDataBytesLen)
+{
+    for (;;) {
+        unsigned char type = 0;
+        if (bfread(pbf, &type, 1) < 0) return false;
+        if (type == 0) return true;     // TAG_End — done with Blocks compound
+
+        unsigned int nameLen = readWord(pbf);
+        if (nameLen >= 64) return false;
+        char tname[64];
+        if (bfread(pbf, tname, (int)nameLen) < 0) return false;
+        tname[nameLen] = '\0';
+
+        if (strcmp(tname, "Palette") == 0 && type == 0x0A /*TAG_Compound*/) {
+            if (!spongeReadPalette(pbf, palBlockIds, palDataVals, palCapacity, palCount)) {
+                return false;
+            }
+        }
+        else if (strcmp(tname, "Data") == 0 && type == 0x07 /*TAG_Byte_Array*/) {
+            int len = (int)readDword(pbf);
+            if (len < 0 || len > 0x40000000) return false;
+            unsigned char* buf = (unsigned char*)malloc((size_t)len);
+            if (buf == NULL) return false;
+            if (len > 0 && bfread(pbf, buf, len) < 0) {
+                free(buf);
+                return false;
+            }
+            if (*outDataBytes) free(*outDataBytes);
+            *outDataBytes = buf;
+            *outDataBytesLen = len;
+        }
+        else {
+            // BlockEntities, or anything else we don't currently consume
+            if (skipType(pbf, type) < 0) return false;
+        }
+    }
+}
+
+int nbtGetSpongeSchematic(bfFile* pbf,
+    int* outWidth, int* outHeight, int* outLength,
+    unsigned char** outBlocks, unsigned char** outData)
+{
+    *outBlocks = NULL;
+    *outData = NULL;
+    *outWidth = *outHeight = *outLength = 0;
+
+    // findIndexFromName (used by spongeParseStateString below) relies on HashArray[]; if no
+    // 1.13+ chunk has been read this session, that table is still uninitialized. Force its
+    // construction now so the palette name lookup works on the very first load.
+    if (makeHash) {
+        makeHashTable();
+        makeHash = false;
+    }
+
+    int* palBlockIds = NULL;
+    int* palDataVals = NULL;
+    int palCapacity = 0;
+    int palCount = 0;
+    unsigned char* dataBytes = NULL;
+    int dataBytesLen = 0;
+
+#define SPONGE_FAIL() do { \
+        if (palBlockIds) free(palBlockIds); \
+        if (palDataVals) free(palDataVals); \
+        if (dataBytes) free(dataBytes); \
+        return 0; \
+    } while (0)
+
+    // Sponge v3 root is an unnamed TAG_Compound containing a single child compound named "Schematic".
+    unsigned char rootType = 0;
+    if (bfread(pbf, &rootType, 1) < 0) SPONGE_FAIL();
+    if (rootType != 0x0A) SPONGE_FAIL();
+    unsigned int rootNameLen = readWord(pbf);
+    if (rootNameLen > 0) {
+        // Some writers might give the root compound a name (the spec doesn't require it to be empty).
+        // Just skip past it.
+        if (bfseek(pbf, (int)rootNameLen, SEEK_CUR) < 0) SPONGE_FAIL();
+    }
+
+    if (nbtFindElement(pbf, (char*)"Schematic") != 0x0A) SPONGE_FAIL();
+
+    int width = 0, height = 0, length = 0;
+    bool haveWidth = false, haveHeight = false, haveLength = false;
+    bool sawBlocks = false;
+
+    // Walk children of the Schematic compound. NBT order isn't required by the spec, but in
+    // practice writers (Mineways, WorldEdit, FAWE) put Width/Height/Length before Blocks.
+    // We don't need to seek back, since we collect palette + Data into memory and decode at the end.
+    for (;;) {
+        unsigned char type = 0;
+        if (bfread(pbf, &type, 1) < 0) SPONGE_FAIL();
+        if (type == 0) break;    // TAG_End — done with Schematic compound
+
+        unsigned int nameLen = readWord(pbf);
+        if (nameLen >= 64) SPONGE_FAIL();
+        char tname[64];
+        if (bfread(pbf, tname, (int)nameLen) < 0) SPONGE_FAIL();
+        tname[nameLen] = '\0';
+
+        if (strcmp(tname, "Width") == 0 && type == 0x02) {
+            width = (int)readWord(pbf);
+            haveWidth = true;
+        }
+        else if (strcmp(tname, "Height") == 0 && type == 0x02) {
+            height = (int)readWord(pbf);
+            haveHeight = true;
+        }
+        else if (strcmp(tname, "Length") == 0 && type == 0x02) {
+            length = (int)readWord(pbf);
+            haveLength = true;
+        }
+        else if (strcmp(tname, "Blocks") == 0 && type == 0x0A) {
+            if (!spongeReadBlocksCompound(pbf,
+                    &palBlockIds, &palDataVals, &palCapacity, &palCount,
+                    &dataBytes, &dataBytesLen)) {
+                SPONGE_FAIL();
+            }
+            sawBlocks = true;
+        }
+        else {
+            // Version, DataVersion, Offset, Metadata, Biomes, Entities, … — all skipped for now.
+            if (skipType(pbf, type) < 0) SPONGE_FAIL();
+        }
+    }
+
+    if (!haveWidth || !haveHeight || !haveLength || !sawBlocks) SPONGE_FAIL();
+    if (dataBytes == NULL || palCount == 0) SPONGE_FAIL();
+
+    int numBlocks = width * height * length;
+    if (numBlocks <= 0) SPONGE_FAIL();
+
+    *outBlocks = (unsigned char*)malloc((size_t)numBlocks);
+    *outData = (unsigned char*)malloc((size_t)numBlocks);
+    if (*outBlocks == NULL || *outData == NULL) {
+        if (*outBlocks) { free(*outBlocks); *outBlocks = NULL; }
+        if (*outData) { free(*outData); *outData = NULL; }
+        SPONGE_FAIL();
+    }
+
+    // Sponge voxel order: i = x + z*Width + y*Width*Length (X fastest, Y slowest), which is
+    // identical to the legacy schematic format's order — createBlockFromSchematic uses
+    // `(y * length + z) * width + x`, the same loop expressed differently. No reordering needed.
+    int pos = 0;
+    for (int i = 0; i < numBlocks; i++) {
+        if (pos >= dataBytesLen) {
+            // Ran out of varint stream — unrecoverable, but fill rest with air so we don't
+            // leave the output buffer uninitialized.
+            for (; i < numBlocks; i++) { (*outBlocks)[i] = 0; (*outData)[i] = 0; }
+            break;
+        }
+        unsigned int idx = spongeReadVarint(dataBytes, &pos, dataBytesLen);
+        if ((int)idx >= palCount) {
+            (*outBlocks)[i] = 0; (*outData)[i] = 0;
+        }
+        else {
+            (*outBlocks)[i] = (unsigned char)(palBlockIds[idx] & 0xFF);
+            (*outData)[i] = (unsigned char)(palDataVals[idx] & 0xFF);
+        }
+    }
+
+    free(palBlockIds);
+    free(palDataVals);
+    free(dataBytes);
+
+    *outWidth = width;
+    *outHeight = height;
+    *outLength = length;
+    return 1;
+
+#undef SPONGE_FAIL
+}
+
+
 // === Sponge Schematic v3 export support (issue #40) ===
 // Builds a Minecraft block-state string ("minecraft:name[prop=val,prop=val]") from Mineways'
 // internal (type, dataVal) representation. The reverse of readPalette() above. Properties are

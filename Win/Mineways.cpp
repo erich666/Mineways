@@ -414,6 +414,7 @@ static bool processCreateArguments(WindowSet& ws, const char** pBlockLabel, LPAR
 static void runImportOrScript(wchar_t* importFile, WindowSet& ws, const char** pBlockLabel, LPARAM holdlParam, bool dialogOnSuccess);
 static void runStdinLoop();
 static int loadSchematic(wchar_t* pathAndFile);
+static int loadSpongeSchematic(wchar_t* pathAndFile);
 static void setHeightsFromVersionID();
 static void testWorldHeight(int& minHeight, int& maxHeight, int mcVersion, int spawnX, int spawnZ, int playerX, int playerZ);
 static int loadWorld(HWND hWnd);
@@ -2183,7 +2184,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 ofn.lpstrFile = pathAndFile;
                 ofn.lpstrFile[0] = (wchar_t)0;
                 ofn.nMaxFile = sizeof(pathAndFile);
-                ofn.lpstrFilter = L"World (level.dat) or Schematic\0level.dat;*.schematic\0Minecraft World (level.dat)\0level.dat\0Minecraft Schematic (*.schematic)\0*.schematic\0";
+                ofn.lpstrFilter = L"World (level.dat) or Schematic\0level.dat;*.schematic;*.schem\0Minecraft World (level.dat)\0level.dat\0Legacy Schematic (*.schematic)\0*.schematic\0Sponge Schematic (*.schem)\0*.schem\0";
                 //ofn.lpstrFilter = L"World file (level.dat)\0level.dat\0";
                 ofn.nFilterIndex = gOpenFilterIndex;
                 ofn.lpstrFileTitle = NULL;
@@ -2815,8 +2816,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     formTitle(&gWorldGuide, hWnd);
                 }
                 else if ( wcscmp(spos, L"schem") == 0 ) {
-                    FilterMessageBox(NULL, _T("Mineways does not understand the newer style '.schem' schematic file format at this point. See https://github.com/erich666/Mineways/issues/40 for more information."),
-                        _T("Read error"), MB_OK | MB_ICONWARNING);
+                    // .schem files are read as worlds, just like .schematic (issue #40).
+                    int retCode = loadWorldFromFilename(fileName, hWnd);
+                    if (retCode) {
+                        if (retCode == 2) {
+                            gotoSurface(hWnd, hwndSlider, hwndLabel);
+                        }
+                    }
                 }
                 else {
                     FilterMessageBox(NULL, _T("Mineways does not understand the type of the file you just dropped. You can drag and drop Mineways exported OBJ, USDA, and WRL files, the TXT files for Mineways STL exports, DAT world and old-school SCHEMATIC files, TerrainExt* PNG texture files, and MWSCRIPT scripting files."),
@@ -3089,10 +3095,13 @@ static int loadWorldFromFilename(wchar_t* pathAndFile, HWND hWnd)
     wchar_t filename[MAX_PATH_AND_FILE];
     splitToPathAndName(pathAndFile, NULL, filename);
     size_t len = wcslen(filename);
-    if (_wcsicmp(&filename[len - 10], L".schematic") == 0) {
+    bool isLegacySchematic = (len >= 10 && _wcsicmp(&filename[len - 10], L".schematic") == 0);
+    bool isSpongeSchematic = (len >= 6 && _wcsicmp(&filename[len - 6], L".schem") == 0 && !isLegacySchematic);
+    if (isLegacySchematic || isSpongeSchematic) {
         // Read schematic as a world.
         gWorldGuide.type = WORLD_SCHEMATIC_TYPE;
         gWorldGuide.sch.repeat = (StrStrI(filename, L"repeat") != NULL);
+        gWorldGuide.sch.isSponge = isSpongeSchematic;
         gSameWorld = (wcscmp(gWorldGuide.world, pathAndFile) == 0);
         wcscpy_s(gWorldGuide.world, MAX_PATH_AND_FILE, pathAndFile);
         int error = loadWorld(hWnd);
@@ -3685,11 +3694,47 @@ static void drawTheMap()
     return;
 }
 
+// Read a Sponge Schematic v3 (.schem) as a world. Mirrors loadSchematic's flow but uses the
+// new palette-based reader (issue #40). The Sponge reader allocates blocks/data via malloc and
+// returns ownership — we copy the pointers into gWorldGuide.sch so the existing
+// createBlockFromSchematic chunk emitter can read them unchanged.
+static int loadSpongeSchematic(wchar_t* pathAndFile)
+{
+    CloseAll();
+
+    int width = 0, height = 0, length = 0;
+    unsigned char* blocks = NULL;
+    unsigned char* data = NULL;
+    int retval = GetSpongeSchematic(pathAndFile, &width, &height, &length, &blocks, &data);
+    if (retval != 1) {
+        if (blocks) free(blocks);
+        if (data) free(data);
+        // 100+1 = file open / structure error; 100+5 = parse error mirrors the legacy error codes.
+        return 100 + ((retval == -1) ? 1 : 5);
+    }
+
+    gWorldGuide.sch.width = width;
+    gWorldGuide.sch.height = height;
+    gWorldGuide.sch.length = length;
+    gWorldGuide.sch.numBlocks = width * height * length;
+    gWorldGuide.sch.blocks = blocks;
+    gWorldGuide.sch.data = data;
+
+    gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
+    // Sponge v3 writers (incl. Mineways) target a modern data version; use MC 1.20 (3463) so
+    // 1.13+ block IDs decode correctly. The reader currently ignores the file's own DataVersion.
+    gVersionID = 3463;
+    gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
+    setHeightsFromVersionID();
+
+    return 0;
+}
+
 static int loadSchematic(wchar_t* pathAndFile)
 {
     // Always read again, even if read before, and recenter.
     // Set spawn and player location to center of model.
-    // Read whole schematic in, then 
+    // Read whole schematic in, then
     CloseAll();
 
 #define CHECK_READ_SCHEMATIC_QUIT( b, e )			\
@@ -3867,7 +3912,9 @@ static int loadWorld(HWND hWnd)
 
     case WORLD_SCHEMATIC_TYPE:
     {
-        int error = loadSchematic(gWorldGuide.world);
+        int error = gWorldGuide.sch.isSponge
+            ? loadSpongeSchematic(gWorldGuide.world)
+            : loadSchematic(gWorldGuide.world);
         if (error) {
             // not differentiated for now
             return error;
@@ -9919,10 +9966,13 @@ static bool commandLoadWorld(ImportedSet& is, wchar_t* error)
             wchar_t filename[MAX_PATH_AND_FILE];
             splitToPathAndName(gWorldGuide.world, NULL, filename);
             size_t len = wcslen(filename);
-            if (_wcsicmp(&filename[len - 10], L".schematic") == 0) {
-                // Read schematic as a world.
+            bool isLegacySchematic = (len >= 10 && _wcsicmp(&filename[len - 10], L".schematic") == 0);
+            bool isSpongeSchematic = (len >= 6 && _wcsicmp(&filename[len - 6], L".schem") == 0 && !isLegacySchematic);
+            if (isLegacySchematic || isSpongeSchematic) {
+                // Read schematic as a world (.schematic or .schem; see issue #40 for .schem support).
                 gWorldGuide.type = WORLD_SCHEMATIC_TYPE;
                 gWorldGuide.sch.repeat = (StrStrI(filename, L"repeat") != NULL);
+                gWorldGuide.sch.isSponge = isSpongeSchematic;
             }
             else {
                 gWorldGuide.type = WORLD_LEVEL_TYPE;
