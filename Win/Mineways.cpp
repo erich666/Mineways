@@ -3730,9 +3730,14 @@ static int loadSpongeSchematic(wchar_t* pathAndFile)
     gWorldGuide.sch.data = data;
 
     gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
-    // Sponge v3 writers (incl. Mineways) target a modern data version; use MC 1.20 (3463) so
-    // 1.13+ block IDs decode correctly. The reader currently ignores the file's own DataVersion.
-    gVersionID = 3463;
+    // Mirror loadSchematic exactly: pin to MC 1.12.2 (1343) so gMinHeight/gMaxHeight land at
+    // 0..255, matching where createBlockFromSchematic actually places the blocks (loadWorld
+    // leaves gWorldGuide.minHeight at 0 and block_alloc uses that). With the old MC 1.20
+    // versioning the slider opened at y=-64..319 while the blocks lived at y=0..sch.height-1,
+    // which broke Ctrl-A / Select-All visually for .schem files — the highlight was set above
+    // the visible window. Block decoding inside nbtGetSpongeSchematic doesn't depend on
+    // gVersionID (it uses BlockTranslations directly), so dropping the version is safe.
+    gVersionID = 1343;
     gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
     setHeightsFromVersionID();
 
