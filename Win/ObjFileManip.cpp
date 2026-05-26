@@ -8199,6 +8199,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             case RED_FLOWER_FIELD | 0xE:
             case RED_FLOWER_FIELD | 0xF:
                 // blue orchid through wither rose through warped roots
+                // TODO: this is something of a goof. Roots and fungus are here because
+                // we need them for potted plants, ONLY. They are otherwise with
+                // BLOCK_GRASS and BLOCK_RED_MUSHROOM
                 typeB = BLOCK_POPPY;
                 dataValB = dataVal & 0xf;
                 break;
@@ -22485,6 +22488,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 }
                 else {
                     // crimson/warped fungus, roots
+                    // TODO: this is something of a goof. These are here because
+                    // we need them for potted plants, ONLY. They are otherwise with
+                    // BLOCK_GRASS and BLOCK_RED_MUSHROOM
                     switch (dataVal) {
                     default:
                         assert(0);
