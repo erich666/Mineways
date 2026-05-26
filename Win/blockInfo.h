@@ -270,8 +270,10 @@ extern UnitType gUnitTypeTable[];
 #define FILE_TYPE_VRML2             6
 // this is an entirely separate file type, only exportable through the schematic export option
 #define FILE_TYPE_SCHEMATIC         7
+// Sponge Schematic v3 (.schem). Issue #40. Modern 1.13+ string-keyed palette format consumed by WorldEdit/FAWE/Litematica/Axiom.
+#define FILE_TYPE_SPONGE_SCHEMATIC  8
 
-#define FILE_TYPE_TOTAL         8
+#define FILE_TYPE_TOTAL         9
 
 #ifdef SKETCHFAB
 // Sketchfab API field limits
@@ -742,7 +744,7 @@ enum block_types {
     //
     BLOCK_STANDING_BANNER = 176,
     BLOCK_WALL_BANNER = 177,
-    BLOCK_INVERTED_DAYLIGHT_SENSOR = 178,
+    BLOCK_DAYLIGHT_DETECTOR = 178,
     BLOCK_RED_SANDSTONE = 179,
     BLOCK_RED_SANDSTONE_STAIRS = 180,
     BLOCK_RED_SANDSTONE_DOUBLE_SLAB = 181,

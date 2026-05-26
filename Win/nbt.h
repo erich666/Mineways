@@ -123,7 +123,23 @@ int nbtGetDimensionDirect(bfFile* pbf, int* dimension);
 //void nbtGetRandomSeed(bfFile *pbf,long long *seed);
 int nbtGetSchematicWord(bfFile* pbf, char* field, int* value);
 int nbtGetSchematicBlocksAndData(bfFile* pbf, int numBlocks, unsigned char* schematicBlocks, unsigned char* schematicBlockData);
+
+// Read a Sponge Schematic v3 (.schem) file. Returns 1 on success, 0 on parse failure.
+// On success, *outBlocks and *outData are malloc'd with `(*outWidth) * (*outHeight) * (*outLength)`
+// bytes each. The arrays use the same in-memory format that the legacy schematic loader produces:
+// block ID's low 8 bits in *outBlocks, dataVal in *outData (with HIGH_BIT set when the block ID > 255).
+// State-string properties (axis, facing, …) are currently ignored — only the base block name is
+// recovered. Issue #40.
+int nbtGetSpongeSchematic(bfFile* pbf,
+    int* outWidth, int* outHeight, int* outLength,
+    unsigned char** outBlocks, unsigned char** outData);
 void nbtClose(bfFile* pbf);
 
 int SlowFindIndexFromName(char* name);
 void SetModTranslations(TranslationTuple* mt);
+
+// Sponge Schematic v3 export (issue #40): build the canonical Minecraft block-state string
+// for a Mineways internal (type, dataVal). Writes "minecraft:name[prop=val,...]" into `out`.
+// Properties are emitted in alphabetical order as required by the v2 spec. Returns the
+// number of bytes written (excluding the NUL), or -1 if the buffer was too small.
+int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize);

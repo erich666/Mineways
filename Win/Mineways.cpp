@@ -414,6 +414,7 @@ static bool processCreateArguments(WindowSet& ws, const char** pBlockLabel, LPAR
 static void runImportOrScript(wchar_t* importFile, WindowSet& ws, const char** pBlockLabel, LPARAM holdlParam, bool dialogOnSuccess);
 static void runStdinLoop();
 static int loadSchematic(wchar_t* pathAndFile);
+static int loadSpongeSchematic(wchar_t* pathAndFile);
 static void setHeightsFromVersionID();
 static void testWorldHeight(int& minHeight, int& maxHeight, int mcVersion, int spawnX, int spawnZ, int playerX, int playerZ);
 static int loadWorld(HWND hWnd);
@@ -1947,9 +1948,26 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     // Take a copy first because addToRecentExports rewrites gRecentExports[].
                     wchar_t chosen[MAX_PATH_AND_FILE];
                     wcscpy_s(chosen, MAX_PATH_AND_FILE, gRecentExports[idx]);
-                    wcscpy_s(gImportFile, MAX_PATH_AND_FILE, chosen);
-                    splitToPathAndName(gImportFile, gImportPath, NULL);
-                    runImportOrScript(gImportFile, gWS, &gBlockLabel, gHoldlParam, true);
+                    // Schematic exports re-open as worlds, not as importable models. Mirrors
+                    // the drag-drop / File > Open Schematic dispatch in loadWorldFromFilename.
+                    size_t clen = wcslen(chosen);
+                    bool isSchematicLike =
+                        (clen >= 10 && _wcsicmp(&chosen[clen - 10], L".schematic") == 0) ||
+                        (clen >=  6 && _wcsicmp(&chosen[clen -  6], L".schem")     == 0);
+                    if (isSchematicLike) {
+                        int retCode = loadWorldFromFilename(chosen, hWnd);
+                        if (retCode) {
+                            if (retCode == 2) {
+                                gotoSurface(hWnd, hwndSlider, hwndLabel);
+                            }
+                            setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
+                        }
+                    }
+                    else {
+                        wcscpy_s(gImportFile, MAX_PATH_AND_FILE, chosen);
+                        splitToPathAndName(gImportFile, gImportPath, NULL);
+                        runImportOrScript(gImportFile, gWS, &gBlockLabel, gHoldlParam, true);
+                    }
                     // Bump the just-opened file to the top of the list.
                     addToRecentExports(chosen);
                 }
@@ -2183,7 +2201,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 ofn.lpstrFile = pathAndFile;
                 ofn.lpstrFile[0] = (wchar_t)0;
                 ofn.nMaxFile = sizeof(pathAndFile);
-                ofn.lpstrFilter = L"World (level.dat) or Schematic\0level.dat;*.schematic\0Minecraft World (level.dat)\0level.dat\0Minecraft Schematic (*.schematic)\0*.schematic\0";
+                ofn.lpstrFilter = L"World (level.dat) or Schematic\0level.dat;*.schematic;*.schem\0Minecraft World (level.dat)\0level.dat\0Legacy Schematic (*.schematic)\0*.schematic\0Sponge Schematic (*.schem)\0*.schem\0";
                 //ofn.lpstrFilter = L"World file (level.dat)\0level.dat\0";
                 ofn.nFilterIndex = gOpenFilterIndex;
                 ofn.lpstrFileTitle = NULL;
@@ -2296,8 +2314,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     ofn.hwndOwner = hWnd;
                     ofn.lpstrFile = gExportPath;
                     ofn.nMaxFile = MAX_PATH_AND_FILE;
-                    ofn.lpstrFilter = L"Schematic file (*.schematic)\0*.schematic\0";
-                    ofn.nFilterIndex = 1;
+                    // Issue #40: offer both Sponge .schem (modern, 1.13+ string IDs) and legacy MCEdit .schematic.
+                    ofn.lpstrFilter = L"Sponge Schematic file (*.schem)\0*.schem\0Legacy Schematic file (*.schematic)\0*.schematic\0";
+                    ofn.nFilterIndex = 1;	// default to Sponge .schem
                     ofn.lpstrFileTitle = NULL;
                     ofn.nMaxFileTitle = 0;
                     wcscpy_s(path, MAX_PATH_AND_FILE, gImportPath);
@@ -2307,7 +2326,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                     saveOK = GetSaveFileName(&ofn);
 
-                    gExportSchematicData.fileType = FILE_TYPE_SCHEMATIC;	// always
+                    gExportSchematicData.fileType = (ofn.nFilterIndex == 2) ? FILE_TYPE_SCHEMATIC : FILE_TYPE_SPONGE_SCHEMATIC;
                 }
                 else if (gPrintModel == MAP_EXPORT)
                 {
@@ -2378,7 +2397,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     // TODO: this whole export file name and path stuff could use some work.
                     wcscpy_s(gImportPath, MAX_PATH_AND_FILE, gExportPath);
 
-                    // Yes, have the code drop through at this point, we're all set up to export, so it's like a "repeat"
+                    // Yes, have the code fall through at this point, we're all set up to export, so it's like a "repeat"
 
                 case IDM_FILE_REPEATPREVIOUSEXPORT:
                     if (gPrintModel == MAP_EXPORT) {
@@ -2794,9 +2813,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     runImportOrScript(gImportFile, gWS, &gBlockLabel, gHoldlParam, true);
                 }
                 else if (wcscmp(spos, L"dat") == 0 ||
-                    wcscmp(spos, L"schematic") == 0
+                    wcscmp(spos, L"schematic") == 0 ||
+                    wcscmp(spos, L"schem") == 0
                     ) {
-                    // attempt to load world or schematic file
+                    // attempt to load world, legacy schematic, or Sponge .schem (issue #40)
                     int retCode = loadWorldFromFilename(fileName, hWnd);
                     // load worked?
                     if (retCode) {
@@ -2813,12 +2833,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     splitToPathAndName(gSelectTerrainPathAndName, gSelectTerrainDir, NULL);
                     formTitle(&gWorldGuide, hWnd);
                 }
-                else if ( wcscmp(spos, L"schem") == 0 ) {
-                    FilterMessageBox(NULL, _T("Mineways does not understand the newer style '.schem' schematic file format at this point. See https://github.com/erich666/Mineways/issues/40 for more information."),
-                        _T("Read error"), MB_OK | MB_ICONWARNING);
-                }
                 else {
-                    FilterMessageBox(NULL, _T("Mineways does not understand the type of the file you just dropped. You can drag and drop Mineways exported OBJ, USDA, and WRL files, the TXT files for Mineways STL exports, DAT world and old-school SCHEMATIC files, TerrainExt* PNG texture files, and MWSCRIPT scripting files."),
+                    FilterMessageBox(NULL, _T("Mineways does not understand the type of the file you just dropped. You can drag and drop Mineways exported OBJ, USDA, and WRL files, the TXT files for Mineways STL exports, DAT world, old-school SCHEMATIC, and Sponge SCHEM files, TerrainExt* PNG texture files, and MWSCRIPT scripting files."),
                         _T("Read error"), MB_OK | MB_ICONWARNING);
                 }
             }
@@ -2898,7 +2914,8 @@ static boolean badFileSuffix(int fileType, TCHAR *filePath)
         wcscpy_s(fileString, 10, L"stl");
         break;
     case FILE_TYPE_SCHEMATIC:
-        // just check that first character is "s"
+    case FILE_TYPE_SPONGE_SCHEMATIC:
+        // just check that first character is "s" — covers .schematic and .schem
         mismatch = !((*wstrPeriodPtr == (int)'s') || (*wstrPeriodPtr == (int)'S'));
         goto CheckMismatch;
         break;
@@ -3087,10 +3104,13 @@ static int loadWorldFromFilename(wchar_t* pathAndFile, HWND hWnd)
     wchar_t filename[MAX_PATH_AND_FILE];
     splitToPathAndName(pathAndFile, NULL, filename);
     size_t len = wcslen(filename);
-    if (_wcsicmp(&filename[len - 10], L".schematic") == 0) {
+    bool isLegacySchematic = (len >= 10 && _wcsicmp(&filename[len - 10], L".schematic") == 0);
+    bool isSpongeSchematic = (len >= 6 && _wcsicmp(&filename[len - 6], L".schem") == 0 && !isLegacySchematic);
+    if (isLegacySchematic || isSpongeSchematic) {
         // Read schematic as a world.
         gWorldGuide.type = WORLD_SCHEMATIC_TYPE;
         gWorldGuide.sch.repeat = (StrStrI(filename, L"repeat") != NULL);
+        gWorldGuide.sch.isSponge = isSpongeSchematic;
         gSameWorld = (wcscmp(gWorldGuide.world, pathAndFile) == 0);
         wcscpy_s(gWorldGuide.world, MAX_PATH_AND_FILE, pathAndFile);
         int error = loadWorld(hWnd);
@@ -3683,11 +3703,52 @@ static void drawTheMap()
     return;
 }
 
+// Read a Sponge Schematic v3 (.schem) as a world. Mirrors loadSchematic's flow but uses the
+// new palette-based reader (issue #40). The Sponge reader allocates blocks/data via malloc and
+// returns ownership — we copy the pointers into gWorldGuide.sch so the existing
+// createBlockFromSchematic chunk emitter can read them unchanged.
+static int loadSpongeSchematic(wchar_t* pathAndFile)
+{
+    CloseAll();
+
+    int width = 0, height = 0, length = 0;
+    unsigned char* blocks = NULL;
+    unsigned char* data = NULL;
+    int retval = GetSpongeSchematic(pathAndFile, &width, &height, &length, &blocks, &data);
+    if (retval != 1) {
+        if (blocks) free(blocks);
+        if (data) free(data);
+        // 100+1 = file open / structure error; 100+5 = parse error mirrors the legacy error codes.
+        return 100 + ((retval == -1) ? 1 : 5);
+    }
+
+    gWorldGuide.sch.width = width;
+    gWorldGuide.sch.height = height;
+    gWorldGuide.sch.length = length;
+    gWorldGuide.sch.numBlocks = width * height * length;
+    gWorldGuide.sch.blocks = blocks;
+    gWorldGuide.sch.data = data;
+
+    gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
+    // Mirror loadSchematic exactly: pin to MC 1.12.2 (1343) so gMinHeight/gMaxHeight land at
+    // 0..255, matching where createBlockFromSchematic actually places the blocks (loadWorld
+    // leaves gWorldGuide.minHeight at 0 and block_alloc uses that). With the old MC 1.20
+    // versioning the slider opened at y=-64..319 while the blocks lived at y=0..sch.height-1,
+    // which broke Ctrl-A / Select-All visually for .schem files — the highlight was set above
+    // the visible window. Block decoding inside nbtGetSpongeSchematic doesn't depend on
+    // gVersionID (it uses BlockTranslations directly), so dropping the version is safe.
+    gVersionID = 1343;
+    gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
+    setHeightsFromVersionID();
+
+    return 0;
+}
+
 static int loadSchematic(wchar_t* pathAndFile)
 {
     // Always read again, even if read before, and recenter.
     // Set spawn and player location to center of model.
-    // Read whole schematic in, then 
+    // Read whole schematic in, then
     CloseAll();
 
 #define CHECK_READ_SCHEMATIC_QUIT( b, e )			\
@@ -3865,7 +3926,9 @@ static int loadWorld(HWND hWnd)
 
     case WORLD_SCHEMATIC_TYPE:
     {
-        int error = loadSchematic(gWorldGuide.world);
+        int error = gWorldGuide.sch.isSponge
+            ? loadSpongeSchematic(gWorldGuide.world)
+            : loadSchematic(gWorldGuide.world);
         if (error) {
             // not differentiated for now
             return error;
@@ -4074,6 +4137,7 @@ static void appendDefaultExportSuffix(wchar_t* path, int fileType)
     case FILE_TYPE_BINARY_VISCAM_STL:
     case FILE_TYPE_ASCII_STL:         suffix = L".stl"; break;
     case FILE_TYPE_SCHEMATIC:         suffix = L".schematic"; break;
+    case FILE_TYPE_SPONGE_SCHEMATIC:  suffix = L".schem"; break;
     default:                          return;  // unknown — leave alone
     }
     wcscat_s(path, MAX_PATH_AND_FILE, suffix);
@@ -4731,6 +4795,7 @@ static void copyOverExportPrintData(ExportFileData* pEFD)
         count = 2;
         break;
     case FILE_TYPE_SCHEMATIC:
+    case FILE_TYPE_SPONGE_SCHEMATIC:
         // just ignore, we don't really share a thing with print, etc.
         break;
     default:
@@ -5438,7 +5503,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
             // (in which case this flag isn't turned on anyway).
         }
     }
-    else if (gpEFD->fileType == FILE_TYPE_SCHEMATIC)
+    else if (gpEFD->fileType == FILE_TYPE_SCHEMATIC || gpEFD->fileType == FILE_TYPE_SPONGE_SCHEMATIC)
     {
         // really, ignore all options for Schematic - set how you want, but they'll all be ignored except rotation around the Y axis.
         gOptions.exportFlags &= 0x0;
@@ -5803,7 +5868,7 @@ static const wchar_t* removePath(const wchar_t* src)
     return strPtr;
 }
 
-#define INIT_ALL_FILE_TYPES( a, v0,v1,v2,v3,v4,v5,v6,v7)    \
+#define INIT_ALL_FILE_TYPES( a, v0,v1,v2,v3,v4,v5,v6,v7,v8)    \
     (a)[FILE_TYPE_WAVEFRONT_REL_OBJ] = (v0);    \
     (a)[FILE_TYPE_WAVEFRONT_ABS_OBJ] = (v1);    \
     (a)[FILE_TYPE_USD] = (v2);    \
@@ -5811,7 +5876,8 @@ static const wchar_t* removePath(const wchar_t* src)
     (a)[FILE_TYPE_BINARY_VISCAM_STL] = (v4);    \
     (a)[FILE_TYPE_ASCII_STL] = (v5);    \
     (a)[FILE_TYPE_VRML2] = (v6);	\
-    (a)[FILE_TYPE_SCHEMATIC] = (v7);
+    (a)[FILE_TYPE_SCHEMATIC] = (v7);    \
+    (a)[FILE_TYPE_SPONGE_SCHEMATIC] = (v8);
 
 static void initializeExportDialogData()
 {
@@ -5829,22 +5895,22 @@ static void initializePrintExportData(ExportFileData& printData)
     // turn stuff on
     printData.fileType = FILE_TYPE_VRML2;
 
-    INIT_ALL_FILE_TYPES(printData.chkCreateZip,            1, 1, 0, 0, 0, 0, 1, 0);
+    INIT_ALL_FILE_TYPES(printData.chkCreateZip,            1, 1, 0, 0, 0, 0, 1, 0, 0);
     // I used to set the last value to 0, meaning only the zip would be created. The idea
     // was that the naive user would then only have the zip, and so couldn't screw up
     // when uploading the model file. But this setting is a pain if you want to preview
     // the model file, you have to always remember to check the box so you can get the
     // preview files. So, now it's off.
-    INIT_ALL_FILE_TYPES(printData.chkCreateModelFiles,     1, 1, 1, 1, 1, 1, 1, 1);
+    INIT_ALL_FILE_TYPES(printData.chkCreateModelFiles,     1, 1, 1, 1, 1, 1, 1, 1, 1);
 
     // OBJ and VRML have color, depending...
     // order: Sculpteo OBJ, relative OBJ, USDA, i.materialize STL, VISCAM STL, ASCII STL, Shapeways VRML, (Schematic)
-    INIT_ALL_FILE_TYPES(printData.radioExportNoMaterials,  0, 0, 0, 0, 0, 1, 0, 1);
+    INIT_ALL_FILE_TYPES(printData.radioExportNoMaterials,  0, 0, 0, 0, 0, 1, 0, 1, 1);
     // might as well export color with OBJ and binary STL - nice for previewing
-    INIT_ALL_FILE_TYPES(printData.radioExportMtlColors,    0, 0, 0, 1, 1, 0, 0, 0);
-    INIT_ALL_FILE_TYPES(printData.radioExportSolidTexture, 0, 0, 0, 0, 0, 0, 0, 0);
-    INIT_ALL_FILE_TYPES(printData.radioExportFullTexture,  1, 1, 0, 0, 0, 0, 1, 0); // for 3D printing, nice to be able to load just the large RGB texture
-    INIT_ALL_FILE_TYPES(printData.radioExportTileTextures, 0, 0, 1, 0, 0, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(printData.radioExportMtlColors,    0, 0, 0, 1, 1, 0, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(printData.radioExportSolidTexture, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(printData.radioExportFullTexture,  1, 1, 0, 0, 0, 0, 1, 0, 0); // for 3D printing, nice to be able to load just the large RGB texture
+    INIT_ALL_FILE_TYPES(printData.radioExportTileTextures, 0, 0, 1, 0, 0, 0, 0, 0, 0);
 
     strcpy_s(printData.tileDirString, MAX_PATH, "tex");
 
@@ -5856,7 +5922,7 @@ static void initializePrintExportData(ExportFileData& printData)
     // Shapeways imports VRML files and displays them with Y up, that is, it
     // rotates them itself. Sculpteo imports OBJ, and likes Z is up, so we export with this on.
     // STL uses Z is up, even though i.materialise's previewer shows Y is up.
-    INIT_ALL_FILE_TYPES(printData.chkMakeZUp, 1, 1, 1, 1, 1, 1, 0, 0);
+    INIT_ALL_FILE_TYPES(printData.chkMakeZUp, 1, 1, 1, 1, 1, 1, 0, 0, 0);
     printData.chkCenterModel = 1;
     printData.chkExportAll = 0;
     printData.chkFatten = 0;
@@ -5878,6 +5944,7 @@ static void initializePrintExportData(ExportFileData& printData)
         METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall,
         METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall,
         METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
         METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall);
     printData.costVal = 25.00f;
 
@@ -5897,20 +5964,20 @@ static void initializePrintExportData(ExportFileData& printData)
 
     // should normally just have one material and group
     printData.chkSeparateTypes = 0;
-    INIT_ALL_FILE_TYPES(printData.chkIndividualBlocks, 0, 0, 0, 0, 0, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(printData.chkIndividualBlocks, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     printData.chkMaterialPerFamily = 0;
     printData.chkSplitByBlockType = 0;
     printData.chkMakeGroupsObjects = 1;
     // shouldn't really matter, now that both versions don't use the diffuse color when texturing
-    INIT_ALL_FILE_TYPES(printData.chkCustomMaterial, 0, 0, 0, 0, 0, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(printData.chkCustomMaterial, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     printData.chkExportMDL = 0;
 
     printData.scaleLightsVal = 15.0f;
     printData.scaleEmittersVal = 20.0f;
 
     printData.floaterCountVal = 16;
-    INIT_ALL_FILE_TYPES(printData.chkHollow,      1, 1, 1, 0, 0, 0, 1, 0);
-    INIT_ALL_FILE_TYPES(printData.chkSuperHollow, 1, 1, 1, 0, 0, 0, 1, 0);
+    INIT_ALL_FILE_TYPES(printData.chkHollow,      1, 1, 1, 0, 0, 0, 1, 0, 0);
+    INIT_ALL_FILE_TYPES(printData.chkSuperHollow, 1, 1, 1, 0, 0, 0, 1, 0, 0);
     INIT_ALL_FILE_TYPES(printData.hollowThicknessVal,
         METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
         METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
@@ -5919,12 +5986,13 @@ static void initializePrintExportData(ExportFileData& printData)
         METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall,
         METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_CUSTOM_MATERIAL].minWall,
         METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
-        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall);	// last one is schematic "material"
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall,
+        METERS_TO_MM * gMtlCostTable[PRINT_MATERIAL_FULL_COLOR_SANDSTONE].minWall);	// last two are schematic "material"
 
     // materials selected
-    INIT_ALL_FILE_TYPES(printData.comboPhysicalMaterial, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
+    INIT_ALL_FILE_TYPES(printData.comboPhysicalMaterial, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
     // defaults: for Sculpteo OBJ, mm (was cm - affects first two values here); for USD, who knows; for i.materialise, mm; for other STL, cm; for Shapeways VRML, mm
-    INIT_ALL_FILE_TYPES(printData.comboModelUnits, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER);
+    INIT_ALL_FILE_TYPES(printData.comboModelUnits, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER);
 
     printData.flags = EXPT_3DPRINT;
 }
@@ -5946,14 +6014,14 @@ static void initializeViewExportData(ExportFileData& viewData)
 
     // order: Sculpteo OBJ, relative OBJ, USDA, i.materialize STL, VISCAM STL, ASCII STL, Shapeways VRML, (Schematic)
     // don't really need to create a zip for rendering output
-    INIT_ALL_FILE_TYPES(viewData.chkCreateZip,            0, 0, 0, 0, 0, 0, 0, 0);
-    INIT_ALL_FILE_TYPES(viewData.chkCreateModelFiles,     1, 1, 1, 1, 1, 1, 1, 1);
+    INIT_ALL_FILE_TYPES(viewData.chkCreateZip,            0, 0, 0, 0, 0, 0, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(viewData.chkCreateModelFiles,     1, 1, 1, 1, 1, 1, 1, 1, 1);
 
-    INIT_ALL_FILE_TYPES(viewData.radioExportNoMaterials,  0, 0, 0, 0, 0, 1, 0, 1);
-    INIT_ALL_FILE_TYPES(viewData.radioExportMtlColors,    0, 0, 0, 1, 1, 0, 0, 0);
-    INIT_ALL_FILE_TYPES(viewData.radioExportSolidTexture, 0, 0, 0, 0, 0, 0, 0, 0);
-    INIT_ALL_FILE_TYPES(viewData.radioExportFullTexture,  0, 0, 0, 0, 0, 0, 1, 0);  // was 1's for OBJ; now just for VRML, which doesn't have individual texture export code
-    INIT_ALL_FILE_TYPES(viewData.radioExportTileTextures, 1, 1, 1, 0, 0, 0, 0, 0);  // USD uses tile per block, only; really, a better default anyway
+    INIT_ALL_FILE_TYPES(viewData.radioExportNoMaterials,  0, 0, 0, 0, 0, 1, 0, 1, 1);
+    INIT_ALL_FILE_TYPES(viewData.radioExportMtlColors,    0, 0, 0, 1, 1, 0, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(viewData.radioExportSolidTexture, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(viewData.radioExportFullTexture,  0, 0, 0, 0, 0, 0, 1, 0, 0);  // was 1's for OBJ; now just for VRML, which doesn't have individual texture export code
+    INIT_ALL_FILE_TYPES(viewData.radioExportTileTextures, 1, 1, 1, 0, 0, 0, 0, 0, 0);  // USD uses tile per block, only; really, a better default anyway
 
     strcpy_s(viewData.tileDirString, MAX_PATH, "tex");
 
@@ -5963,7 +6031,7 @@ static void initializeViewExportData(ExportFileData& viewData)
 
     viewData.chkExportAll = 1;
     // for renderers, assume Y is up, which is the norm
-    INIT_ALL_FILE_TYPES(viewData.chkMakeZUp, 0, 0, 0, 0, 0, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(viewData.chkMakeZUp, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
     viewData.modelHeightVal = 100.0f;    // 100 cm - view doesn't need a minimum, really
     INIT_ALL_FILE_TYPES(viewData.blockSizeVal,
@@ -5973,8 +6041,7 @@ static void initializeViewExportData(ExportFileData& viewData)
         1000.0f,
         1000.0f,
         1000.0f,
-        1000.0f,
-        1000.0f);
+        1000.0f, 1000.0f, 1000.0f);
     viewData.costVal = 25.00f;
 
     viewData.chkSealEntrances = 0;
@@ -5984,16 +6051,16 @@ static void initializeViewExportData(ExportFileData& viewData)
     viewData.chkConnectCornerTips = 0;
     viewData.chkConnectAllEdges = 0;
     viewData.chkDeleteFloaters = 0;
-    INIT_ALL_FILE_TYPES(viewData.chkHollow,      0, 0, 0, 0, 0, 0, 0, 0);
-    INIT_ALL_FILE_TYPES(viewData.chkSuperHollow, 0, 0, 0, 0, 0, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(viewData.chkHollow,      0, 0, 0, 0, 0, 0, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(viewData.chkSuperHollow, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
     viewData.chkSeparateTypes = 1;
-    INIT_ALL_FILE_TYPES(viewData.chkIndividualBlocks, 0, 0, 0, 0, 0, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(viewData.chkIndividualBlocks, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     viewData.chkMaterialPerFamily = 1;
     viewData.chkSplitByBlockType = 1;
     // Blender import and individual block export work better with separate types, so the "Make groups objects" export option is now on by default.
     viewData.chkMakeGroupsObjects = 1;
-    INIT_ALL_FILE_TYPES(viewData.chkCustomMaterial, 1, 1, 0, 0, 0, 0, 0, 0);
+    INIT_ALL_FILE_TYPES(viewData.chkCustomMaterial, 1, 1, 0, 0, 0, 0, 0, 0, 0);
     viewData.chkCompositeOverlay = 0;
     viewData.chkBlockFacesAtBorders = 1;
     viewData.chkDecimate = 0;
@@ -6004,10 +6071,10 @@ static void initializeViewExportData(ExportFileData& viewData)
 
     viewData.floaterCountVal = 16;
     // mostly irrelevant for viewing, though centimeters can be useful
-    INIT_ALL_FILE_TYPES(viewData.hollowThicknessVal, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f);    // 1 meter
-    INIT_ALL_FILE_TYPES(viewData.comboPhysicalMaterial, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
+    INIT_ALL_FILE_TYPES(viewData.hollowThicknessVal, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f, 1000.0f);    // 1 meter
+    INIT_ALL_FILE_TYPES(viewData.comboPhysicalMaterial, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_CUSTOM_MATERIAL, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE, PRINT_MATERIAL_FULL_COLOR_SANDSTONE);
     // For USD it was centimeters, but now meters are supported well.
-    INIT_ALL_FILE_TYPES(viewData.comboModelUnits, UNITS_METER, UNITS_METER, UNITS_METER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_METER, UNITS_METER);
+    INIT_ALL_FILE_TYPES(viewData.comboModelUnits, UNITS_METER, UNITS_METER, UNITS_METER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_MILLIMETER, UNITS_METER, UNITS_METER, UNITS_METER);
 
     // TODO someday allow getting rid of floaters, that would be cool.
     //gExportSchematicData.chkDeleteFloaters = 1;
@@ -6021,7 +6088,8 @@ static void InitializeSchematicExportData(ExportFileData& schematicData)
     // copy schematic data from view, and change what's needed
     initializeViewExportData(schematicData);
     strcpy_s(schematicData.tileDirString, MAX_PATH, "");
-    schematicData.fileType = FILE_TYPE_SCHEMATIC;	// always
+    // Default to Sponge .schem (issue #40); the actual type is set from the Save-As filter index when the user exports.
+    schematicData.fileType = FILE_TYPE_SPONGE_SCHEMATIC;
     schematicData.chkMergeFlattop = 0;
 }
 
@@ -9912,10 +9980,13 @@ static bool commandLoadWorld(ImportedSet& is, wchar_t* error)
             wchar_t filename[MAX_PATH_AND_FILE];
             splitToPathAndName(gWorldGuide.world, NULL, filename);
             size_t len = wcslen(filename);
-            if (_wcsicmp(&filename[len - 10], L".schematic") == 0) {
-                // Read schematic as a world.
+            bool isLegacySchematic = (len >= 10 && _wcsicmp(&filename[len - 10], L".schematic") == 0);
+            bool isSpongeSchematic = (len >= 6 && _wcsicmp(&filename[len - 6], L".schem") == 0 && !isLegacySchematic);
+            if (isLegacySchematic || isSpongeSchematic) {
+                // Read schematic as a world (.schematic or .schem; see issue #40 for .schem support).
                 gWorldGuide.type = WORLD_SCHEMATIC_TYPE;
                 gWorldGuide.sch.repeat = (StrStrI(filename, L"repeat") != NULL);
+                gWorldGuide.sch.isSponge = isSpongeSchematic;
             }
             else {
                 gWorldGuide.type = WORLD_LEVEL_TYPE;
@@ -10113,6 +10184,15 @@ static bool commandExportFile(ImportedSet& is, wchar_t* error, int fileMode, cha
     splitToPathAndName(wcharFileName, NULL, exportName);
     swprintf_s(statusbuf, _countof(statusbuf), L"Script exporting %s", exportName);
     sendStatusMessage(is.ws.hwndStatus, statusbuf);
+
+    if (gPrintModel == SCHEMATIC_EXPORT) {
+        // Script-driven schematic export: pick the on-disk format from the file extension.
+        // .schem  → Sponge Schematic v3 (issue #40)
+        // .schematic (or anything else) → legacy MCEdit format
+        size_t nameLen = wcslen(wcharFileName);
+        bool isSpongeExt = (nameLen >= 6 && _wcsicmp(wcharFileName + nameLen - 6, L".schem") == 0);
+        gExportSchematicData.fileType = isSpongeExt ? FILE_TYPE_SPONGE_SCHEMATIC : FILE_TYPE_SCHEMATIC;
+    }
 
     if (gPrintModel == MAP_EXPORT) {
         // export 2D map image

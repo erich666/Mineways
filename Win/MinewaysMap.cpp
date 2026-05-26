@@ -875,9 +875,9 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         case RED_FLOWER_FIELD | 13:
             return "Potted Warped Fungus";
         case RED_FLOWER_FIELD | 14:
-            return "Potted Crimson Root";
+            return "Potted Crimson Roots";
         case RED_FLOWER_FIELD | 15:
-            return "Potted Warped Root";
+            return "Potted Warped Roots";
 
         case SAPLING_FIELD | 0:
         case 3:
@@ -972,14 +972,6 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Lily of the Valley";
         case 11:
             return "Wither Rose";
-        case 12:
-            return "Crimson Fungus";
-        case 13:
-            return "Warped Fungus";
-        case 14:
-            return "Crimson Root";
-        case 15:
-            return "Warped Root";
         }
         break;
 
@@ -989,7 +981,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         default:
             assert(0);
             break;
-        case 0: // damdelion
+        case 0: // dandelion
             break;
         case 1:	// torchflower
             return "Torchflower";
@@ -3574,14 +3566,6 @@ unsigned int GetBlockDataColor(int type, int dataVal)
             return 0x93B588;
         case 11: // wither rose
             return 0x2D3119;
-        case 12:    // crimson fungus
-            return 0x9D3F2B;
-        case 13:    // warped fungus
-            return 0x777965;
-        case 14:    // crimson root
-            return 0x3092B;
-        case 15:    // warped root
-            return 0x148E7E;
         }
 
     case BLOCK_DANDELION:
@@ -5536,6 +5520,21 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 // soul fire
                 finalDataVal = BIT_16;
             }
+            // add netherrack underneath
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = BLOCK_NETHERRACK;
+        }
+        break;
+    case BLOCK_SUGAR_CANE:
+        // uses 0-1, with 1 meaning stack it higher
+        if (dataVal < 2)
+        {
+            addBlock = 1;
+            if (dataVal == 1) {
+                // higher
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_SUGAR_CANE;
+            }
+            // add stationary water, below, so that sugar cane will survive .schem export
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 5 + (dataVal % 2) * 8)] = BLOCK_STATIONARY_WATER;
         }
         break;
     case BLOCK_SCULK_SENSOR:
@@ -5883,6 +5882,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
     case BLOCK_OAK_PLANKS:
+    case BLOCK_POPPY:
         // uses 0-11
         if (dataVal < 12)
         {
@@ -6140,7 +6140,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_RED_SANDSTONE_SLAB:
     case BLOCK_PURPUR_SLAB:
     case BLOCK_CAMPFIRE:
-    case BLOCK_POPPY:
     case BLOCK_CRIMSON_SLAB:
         // uses all bits, 0-15
         addBlock = 1;
@@ -7215,6 +7214,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             block->data[bi] |= 3 | typeHighBit;	// jungle
         }
         break;
+
     case BLOCK_TRIPWIRE_HOOK:
         addBlock = 1;
         switch (dataVal & 0x3)
@@ -8421,6 +8421,20 @@ int GetSchematicBlocksAndData(const wchar_t* schematic, int numBlocks, unsigned 
     bf = newNBT(schematic, &err);
     if (bf.gz == 0x0) return -1;
     int retval = nbtGetSchematicBlocksAndData(&bf, numBlocks, schematicBlocks, schematicBlockData);
+    nbtClose(&bf);
+    return retval;
+}
+
+// Reads a Sponge Schematic v3 (.schem) file. Returns 1 on success (and malloc's outputs which
+// the caller frees); 0 on parse failure; -1 if the file couldn't be opened. Issue #40.
+int GetSpongeSchematic(const wchar_t* schematic, int* width, int* height, int* length,
+    unsigned char** blocks, unsigned char** data)
+{
+    bfFile bf;
+    int err = 0;
+    bf = newNBT(schematic, &err);
+    if (bf.gz == 0x0) return -1;
+    int retval = nbtGetSpongeSchematic(&bf, width, height, length, blocks, data);
     nbtClose(&bf);
     return retval;
 }
