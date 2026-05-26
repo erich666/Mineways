@@ -6678,6 +6678,15 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         }
     }
 
+    // Fluid fixup: Mineways uses BLOCK_WATER (8) / BLOCK_LAVA (10) for the "flowing" forms and
+    // BLOCK_STATIONARY_WATER (9) / BLOCK_STATIONARY_LAVA (11) for the source forms — a relic of
+    // the pre-1.13 separate block IDs. Modern Minecraft uses a single `minecraft:water` /
+    // `minecraft:lava` with a `level` property to distinguish the two. BlockTranslations only
+    // has entries for blockIds 9 and 11, so the flowing forms fell through to "minecraft:air".
+    // Remap to the stationary ID; FLUID_PROP arm emits `level` from dataVal.
+    if ((type & 0x1FF) == BLOCK_WATER) type = BLOCK_STATIONARY_WATER;
+    else if ((type & 0x1FF) == BLOCK_LAVA) type = BLOCK_STATIONARY_LAVA;
+
     // Burning-furnace fixup: lit furnace / smoker / blast_furnace all land under
     // BLOCK_BURNING_FURNACE (62) on the read side — see FURNACE_PROP arm in readPalette
     // where `if (lit) paletteBlockEntry[entryIndex] = 62;`. BlockTranslations has no entries
