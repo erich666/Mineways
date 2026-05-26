@@ -972,10 +972,6 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Lily of the Valley";
         case 11:
             return "Wither Rose";
-        case 12:
-            return "Crimson Fungus";
-        case 13:
-            return "Warped Fungus";
         }
         break;
 
@@ -3570,10 +3566,6 @@ unsigned int GetBlockDataColor(int type, int dataVal)
             return 0x93B588;
         case 11: // wither rose
             return 0x2D3119;
-        case 12:    // crimson fungus
-            return 0x9D3F2B;
-        case 13:    // warped fungus
-            return 0x777965;
         }
 
     case BLOCK_DANDELION:
@@ -5890,6 +5882,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
     case BLOCK_OAK_PLANKS:
+    case BLOCK_POPPY:
         // uses 0-11
         if (dataVal < 12)
         {
@@ -6150,12 +6143,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_CRIMSON_SLAB:
         // uses all bits, 0-15
         addBlock = 1;
-        break;
-
-    case BLOCK_POPPY:
-        if (dataVal < 14) {
-            addBlock = 1;
-        }
         break;
 
     case BLOCK_PINK_PETALS:
