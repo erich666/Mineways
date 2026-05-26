@@ -3756,7 +3756,7 @@ static int computeFlatFlags(int boxIndex)
     case BLOCK_PUMPKIN_STEM:
     case BLOCK_MELON_STEM:
     case BLOCK_DAYLIGHT_SENSOR:
-    case BLOCK_INVERTED_DAYLIGHT_SENSOR:
+    case BLOCK_DAYLIGHT_DETECTOR:
     case BLOCK_DOUBLE_FLOWER:
     case BLOCK_TALL_SEAGRASS:
     case BLOCK_SEAGRASS:
@@ -9062,7 +9062,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break; // saveBillboardOrGeometry
 
     case BLOCK_DAYLIGHT_SENSOR:						// saveBillboardOrGeometry
-    case BLOCK_INVERTED_DAYLIGHT_SENSOR:
+    case BLOCK_DAYLIGHT_DETECTOR:
         swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
         swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc;	// 6,15 or 13,22
         swatchLocSet[DIRECTION_BLOCK_BOTTOM] =
@@ -13826,7 +13826,7 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
                 break;
 
             case BLOCK_DAYLIGHT_SENSOR:
-            case BLOCK_INVERTED_DAYLIGHT_SENSOR:
+            case BLOCK_DAYLIGHT_DETECTOR:
                 setTop = 6;
                 break;
 
@@ -18887,7 +18887,7 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_REDSTONE_COMPARATOR:
         case BLOCK_REDSTONE_COMPARATOR_DEPRECATED:
         case BLOCK_DAYLIGHT_SENSOR:
-        case BLOCK_INVERTED_DAYLIGHT_SENSOR:
+        case BLOCK_DAYLIGHT_DETECTOR:
         case BLOCK_ENCHANTING_TABLE:
         case BLOCK_STONECUTTER:
         case BLOCK_SCULK_SENSOR:
@@ -19818,7 +19818,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_WAXED_OXIDIZED_COPPER_TRAPDOOR:
         case BLOCK_PALE_OAK_TRAPDOOR:
         case BLOCK_DAYLIGHT_SENSOR:
-        case BLOCK_INVERTED_DAYLIGHT_SENSOR:
+        case BLOCK_DAYLIGHT_DETECTOR:
         case BLOCK_LADDER:
         case BLOCK_BROWN_MUSHROOM:
         case BLOCK_RED_MUSHROOM:

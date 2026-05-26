@@ -5781,11 +5781,12 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             break;
 
         case REPEATER_PROP:
-            if (strcmp(k, "facing") == 0)      dataVal = (dataVal & ~0x3) | spongeSwneIdxFromName(v);
-            else if (strcmp(k, "delay") == 0)  dataVal = (dataVal & ~0xC) | (((atoi(v) - 1) & 0x3) << 2);
-            else if (strcmp(k, "locked") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x10; }
-            // powered handled below (increments block ID; writer wrote no "powered" prop, but
-            // a different tool might. Skip it here, leave block ID alone.)
+            if (strcmp(k, "facing") == 0)       dataVal = (dataVal & ~0x3) | spongeSwneIdxFromName(v);
+            else if (strcmp(k, "delay") == 0)   dataVal = (dataVal & ~0xC) | (((atoi(v) - 1) & 0x3) << 2);
+            else if (strcmp(k, "locked") == 0)  { if (strcmp(v, "true") == 0) dataVal |= 0x10; }
+            // Mineways shifts to BLOCK_REDSTONE_REPEATER_ON (94) when powered. The
+            // post-process pass below uses `lit` to apply the +1; piggyback on that.
+            else if (strcmp(k, "powered") == 0) { if (strcmp(v, "true") == 0) lit = true; }
             break;
 
         case COMPARATOR_PROP:
@@ -6217,6 +6218,9 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             if (blockId == 128) blockId = 129;         // BLOCK_CANDLE → BLOCK_LIT_CANDLE
             else if (blockId == 130) blockId = 131;    // BLOCK_COLORED_CANDLE → BLOCK_LIT_COLORED_CANDLE
             break;
+        case REPEATER_PROP:
+            if (blockId == 93) blockId = 94;           // BLOCK_REDSTONE_REPEATER_OFF → ON
+            break;
         case TORCH_PROP:
             // Mineways' lookup gives blockId=76 for both redstone_torch and redstone_wall_torch (lit
             // form). Reverse the writer's "unlit→75" branch: if NOT lit, switch to 75. The lit case
@@ -6530,9 +6534,12 @@ int nbtGetSpongeSchematic(bfFile* pbf,
 // ordering keeps palette entries deduplicated.
 
 // Reverse-index from full-type (blockId | (highBit<<8)) to BlockTranslator entries.
-// Built once on first call; covers up to 32 subtypes per type which is comfortably above the
-// real maximum (banner family has 16).
-#define SPONGE_MAX_SUBTYPES 32
+// Built once on first call. Sized to comfortably exceed the largest family — BLOCK_AMETHYST
+// (388) has 64 subtypes (amethyst_block, calcite, tuff, dripstone, all copper variants,
+// every deepslate / raw_metal / waxed copper, etc.) plus a regular "tripwire" entry sharing
+// blockId 132. If a real family ever outgrows this, bump the value rather than letting the
+// build silently drop trailing entries (the symptom is "exports as the first entry's name").
+#define SPONGE_MAX_SUBTYPES 128
 static const BlockTranslator* gSpongeReverse[NUM_BLOCKS_DEFINED][SPONGE_MAX_SUBTYPES];
 static int gSpongeReverseCount[NUM_BLOCKS_DEFINED];
 static bool gSpongeReverseBuilt = false;
@@ -6724,6 +6731,49 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     } else if ((type & 0x1FF) == BLOCK_LIT_COLORED_CANDLE) {
         type = BLOCK_COLORED_CANDLE;
         isLitCandle = true;
+    }
+
+    // Redstone-torch unlit-fixup: Mineways uses BLOCK_REDSTONE_TORCH_OFF (75) for the unlit
+    // form and BLOCK_REDSTONE_TORCH_ON (76) for the lit form. BlockTranslations has the
+    // "redstone_torch" / "redstone_wall_torch" entries only under blockId 76, so without
+    // this remap unlit torches fell through to "minecraft:air". Remap 75 -> 76 so the lookup
+    // hits the TORCH_PROP entry, and let the TORCH_PROP arm emit `lit=false` via this flag.
+    bool isUnlitRedstoneTorch = false;
+    if ((type & 0x1FF) == BLOCK_REDSTONE_TORCH_OFF) {
+        type = (type & ~0x1FF) | BLOCK_REDSTONE_TORCH_ON;
+        isUnlitRedstoneTorch = true;
+    }
+
+    // Redstone-repeater powered-fixup: Mineways shifts the block ID by +1 when the repeater
+    // is powered (BLOCK_REDSTONE_REPEATER_OFF=93 → BLOCK_REDSTONE_REPEATER_ON=94). The
+    // "repeater" entry in BlockTranslations only exists under blockId 93, so without this
+    // remap the powered form fell through to "minecraft:air". Remap 94 -> 93 so the lookup
+    // hits the REPEATER_PROP entry, and let that arm emit `powered=true` via this flag.
+    bool isPoweredRepeater = false;
+    if ((type & 0x1FF) == BLOCK_REDSTONE_REPEATER_ON) {
+        type = (type & ~0x1FF) | BLOCK_REDSTONE_REPEATER_OFF;
+        isPoweredRepeater = true;
+    }
+
+    // Redstone-comparator deprecated-fixup: BLOCK_REDSTONE_COMPARATOR_DEPRECATED (150) is an
+    // older Mineways id for the active/powered comparator form; BlockTranslations only has a
+    // "comparator" row under blockId 149, so the deprecated form fell through to "minecraft:air".
+    // Modern Minecraft has a single `minecraft:comparator` with `powered=true|false`. Remap to
+    // 149 and force the `powered` bit on so the COMPARATOR_PROP arm emits `powered=true`.
+    if ((type & 0x1FF) == BLOCK_REDSTONE_COMPARATOR_DEPRECATED) {
+        type = (type & ~0x1FF) | BLOCK_REDSTONE_COMPARATOR;
+        dataVal |= 0x8;
+    }
+
+    // Daylight-detector inverted-fixup: Mineways uses BLOCK_DAYLIGHT_SENSOR (151) for the
+    // normal form and BLOCK_DAYLIGHT_DETECTOR (178) for the inverted form (see read-side
+    // DAYLIGHT_PROP arm ~nbt.cpp:4864 which switches blockId to 178 when inverted=true).
+    // BlockTranslations only has "daylight_detector" under 151, so 178 fell through to
+    // "minecraft:air". Remap to 151 and let the DAYLIGHT_PROP arm emit `inverted=true`.
+    bool isInvertedDaylightDetector = false;
+    if ((type & 0x1FF) == BLOCK_DAYLIGHT_DETECTOR) {
+        type = (type & ~0x1FF) | BLOCK_DAYLIGHT_SENSOR;
+        isInvertedDaylightDetector = true;
     }
 
     // BERRIES_PROP berries-fixup: BLOCK_CAVE_VINES_LIT (405) is created by the read side
@@ -7073,10 +7123,13 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case DAYLIGHT_PROP: {
-        // daylight_sensor / inverted_daylight_sensor (block ID is swapped on read at nbt.cpp:4864
-        // when inverted=true — so the right name is already chosen via findSpongeTranslator).
-        // The "power" property goes into dataVal via the generic `dataVal |= atoi(value)` (nbt.cpp:3899),
-        // so low 4 bits hold the power level (0..15).
+        // Modern Minecraft has a single `minecraft:daylight_detector` with `inverted=true|false`.
+        // Mineways stores the inverted form at blockId 178; the inverted-fixup above remaps it
+        // back to 151 and sets isInvertedDaylightDetector. Power level lives in low 4 bits of
+        // dataVal (set on read via `dataVal |= atoi(value)` at nbt.cpp:3899). Alphabetical:
+        // inverted < power.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "inverted",
+            isInvertedDaylightDetector ? "true" : "false");
         char powerStr[3];
         snprintf(powerStr, sizeof(powerStr), "%d", dataVal & 0xF);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "power", powerStr);
@@ -7424,12 +7477,15 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case REPEATER_PROP: {
-        // dataVal = swne_facing | (delay << 2) | (locked << 4); active form is +1 in block ID
+        // dataVal = swne_facing | (delay << 2) | (locked << 4). Mineways shifts the block ID
+        // by +1 when powered (93 -> 94); the unlit-fixup above remaps 94 back to 93 and sets
+        // isPoweredRepeater so we can emit the property here. Alphabetical order: delay,
+        // facing, locked, powered.
         char delayStr[2] = { (char)('1' + ((dataVal >> 2) & 0x3)), '\0' };
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "delay", delayStr);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeSwneFromDataVal(dataVal));
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "locked", (dataVal & 0x10) ? "true" : "false");
-        // Mineways shifts the block type by +1 when powered, so we don't add a "powered" prop here.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", isPoweredRepeater ? "true" : "false");
         break;
     }
 
@@ -7548,10 +7604,12 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
             spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facingStr);
         }
         if (isRedstone) {
-            // Alphabetical: facing < lit. lit=true is the default for redstone_torch but emit
-            // it explicitly so unlit (75) is unambiguous.
+            // Alphabetical: facing < lit. The unlit-fixup above remaps 75 -> 76, so `fullType`
+            // is always BLOCK_REDSTONE_TORCH_ON by the time we get here; consult the flag the
+            // remap set. lit=true is the Minecraft default; emit it explicitly so unlit is
+            // unambiguous on import.
             spongeAppendProp(props, (int)sizeof(props), &plen, &started, "lit",
-                (fullType == BLOCK_REDSTONE_TORCH_ON) ? "true" : "false");
+                isUnlitRedstoneTorch ? "false" : "true");
         }
         break;
     }
@@ -7628,6 +7686,24 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         // WIRE_PROP, TRIPWIRE_PROP, TRIPWIRE_HOOK_PROP, END_PORTAL_PROP, BIG_DRIPLEAF_PROP,
         // SMALL_DRIPLEAF_PROP, etc. — extend here as needed.
         break;
+    }
+
+    // BLOCK_TRIAL_SPAWNER has no PROP family (it doesn't fit the per-family switch pattern) but
+    // the read-side at nbt.cpp:4305+ does pack its `ominous` and `trial_spawner_state` properties
+    // into dataVal — bit 0x4 is ominous, low 2 bits are state index (0=inactive, 1=active,
+    // 2=waiting_for_players, 3=ejecting_reward). Emit them so the export round-trips.
+    // Alphabetical: ominous < trial_spawner_state.
+    if ((type & 0x1FF) == BLOCK_TRIAL_SPAWNER) {
+        const char* state;
+        switch (dataVal & 0x3) {
+        default:
+        case 0: state = "inactive"; break;
+        case 1: state = "active"; break;
+        case 2: state = "waiting_for_players"; break;
+        case 3: state = "ejecting_reward"; break;
+        }
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "ominous", (dataVal & 0x4) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "trial_spawner_state", state);
     }
 
     // Waterlogged is additive across many block families — but a few props steal bit 0x40 for
