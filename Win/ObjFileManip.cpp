@@ -14102,13 +14102,13 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
             wobbleIt = true;
             break;
         case 4:
-            // crimson root
+            // crimson roots
             swatchLoc = SWATCH_INDEX(6, 43);
             // added wobble in 20w19a
             wobbleIt = true;
             break;
         case 5:
-            // warped root
+            // warped roots
             swatchLoc = SWATCH_INDEX(6, 44);
             // added wobble in 20w19a
             wobbleIt = true;
@@ -22704,11 +22704,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 swatchLoc = SWATCH_INDEX(5, 43);
                 break;
             case 4:
-                // crimson root
+                // crimson roots
                 swatchLoc = SWATCH_INDEX(6, 43);
                 break;
             case 5:
-                // warped root
+                // warped roots
                 swatchLoc = SWATCH_INDEX(6, 44);
                 break;
             case 6:	// bush

@@ -875,9 +875,9 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         case RED_FLOWER_FIELD | 13:
             return "Potted Warped Fungus";
         case RED_FLOWER_FIELD | 14:
-            return "Potted Crimson Root";
+            return "Potted Crimson Roots";
         case RED_FLOWER_FIELD | 15:
-            return "Potted Warped Root";
+            return "Potted Warped Roots";
 
         case SAPLING_FIELD | 0:
         case 3:
@@ -976,10 +976,6 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Crimson Fungus";
         case 13:
             return "Warped Fungus";
-        case 14:
-            return "Crimson Root";
-        case 15:
-            return "Warped Root";
         }
         break;
 
@@ -989,7 +985,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         default:
             assert(0);
             break;
-        case 0: // damdelion
+        case 0: // dandelion
             break;
         case 1:	// torchflower
             return "Torchflower";
@@ -3578,10 +3574,6 @@ unsigned int GetBlockDataColor(int type, int dataVal)
             return 0x9D3F2B;
         case 13:    // warped fungus
             return 0x777965;
-        case 14:    // crimson root
-            return 0x3092B;
-        case 15:    // warped root
-            return 0x148E7E;
         }
 
     case BLOCK_DANDELION:
@@ -6155,10 +6147,15 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_RED_SANDSTONE_SLAB:
     case BLOCK_PURPUR_SLAB:
     case BLOCK_CAMPFIRE:
-    case BLOCK_POPPY:
     case BLOCK_CRIMSON_SLAB:
         // uses all bits, 0-15
         addBlock = 1;
+        break;
+
+    case BLOCK_POPPY:
+        if (dataVal < 14) {
+            addBlock = 1;
+        }
         break;
 
     case BLOCK_PINK_PETALS:
