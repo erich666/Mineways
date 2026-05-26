@@ -6651,6 +6651,11 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     if (out == NULL || outSize <= 0) return -1;
     buildSpongeReverseIndex();
 
+    // Capture the caller's original block id before any of the remaps below rewrite it. A few
+    // property arms (TORCH_PROP for the unlit redstone-torch case) want to consult the original
+    // identity even after the remap has folded 75 onto 76 to satisfy the palette lookup.
+    int origType = type & 0x1FF;
+
     // Log family quirk: Mineways uses dataVal bits 0xC == 0xC to mean "all faces are sides"
     // (see ObjFileManip.cpp's getSwatch arm for BLOCK_LOG and friends). In modern Minecraft this
     // is the `xxx_wood` block variant rather than a property of `xxx_log`. Remap so the right
@@ -6737,11 +6742,9 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     // form and BLOCK_REDSTONE_TORCH_ON (76) for the lit form. BlockTranslations has the
     // "redstone_torch" / "redstone_wall_torch" entries only under blockId 76, so without
     // this remap unlit torches fell through to "minecraft:air". Remap 75 -> 76 so the lookup
-    // hits the TORCH_PROP entry, and let the TORCH_PROP arm emit `lit=false` via this flag.
-    bool isUnlitRedstoneTorch = false;
+    // hits the TORCH_PROP entry; the lit/unlit decision is made from `origType` in the arm.
     if ((type & 0x1FF) == BLOCK_REDSTONE_TORCH_OFF) {
         type = (type & ~0x1FF) | BLOCK_REDSTONE_TORCH_ON;
-        isUnlitRedstoneTorch = true;
     }
 
     // Redstone-repeater powered-fixup: Mineways shifts the block ID by +1 when the repeater
@@ -7604,12 +7607,12 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
             spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facingStr);
         }
         if (isRedstone) {
-            // Alphabetical: facing < lit. The unlit-fixup above remaps 75 -> 76, so `fullType`
-            // is always BLOCK_REDSTONE_TORCH_ON by the time we get here; consult the flag the
-            // remap set. lit=true is the Minecraft default; emit it explicitly so unlit is
-            // unambiguous on import.
+            // Alphabetical: facing < lit. Determine lit purely from the caller's original block
+            // id (captured before the BLOCK_REDSTONE_TORCH_OFF -> _ON remap above): 75 is always
+            // unlit, 76 is always lit. lit=true is the Minecraft default; emit it explicitly so
+            // the unlit state is unambiguous on import.
             spongeAppendProp(props, (int)sizeof(props), &plen, &started, "lit",
-                isUnlitRedstoneTorch ? "false" : "true");
+                (origType == BLOCK_REDSTONE_TORCH_OFF) ? "false" : "true");
         }
         break;
     }

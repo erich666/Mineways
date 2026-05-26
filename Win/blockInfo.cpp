@@ -114,7 +114,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /*  40 */ "Red Mushroom",           		0xfc5c5d, 1.000f, 0xff7711, 0xff7711, 0.12345f,  12, 1, 0x03, BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID},	//28
     { /*  41 */ "Block of Gold",          		0xfef74e, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7, 1, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//29
     { /*  42 */ "Block of Iron",          		0xeeeeee, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6, 1, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//2a
-    { /*  43 */ "Double Stone Slab",      		0xa6a6a6, 1.000f, 0xff7711, 0xff7711, 0.12345f,  10,23, 0x07, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_LAME_WATERLOG | BLF_MAYWATERLOG }, // bizarrely, may waterlog, though pretty pointless; important for instancing
+    { /*  43 */ "Double Stone Slab",      		0xa5a5a5, 1.000f, 0xff7711, 0xff7711, 0.12345f,  10,23, 0x07, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_LAME_WATERLOG | BLF_MAYWATERLOG }, // bizarrely, may waterlog, though pretty pointless; important for instancing
     { /*  44 */ "Stone Slab",             		0xa5a5a5, 1.000f, 0xff7711, 0xff7711, 0.12345f,  10,23, 0x07, BLF_HALF | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG},	//2c/44 - was 6,0, and 5,0 side
     { /*  45 */ "Bricks",                 		0x985542, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7, 0, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//2d 
     { /*  46 */ "TNT",                    		0xdb441a, 1.000f, 0xff7711, 0xff7711, 0.12345f,   9, 0, 0x01, BLF_WHOLE},	//2e 7,0 side, 9,0 under
@@ -442,7 +442,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 357 */ "Pale Oak Trapdoor",     		0xE8DFDD, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 67, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_FLATTEN | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
     { /* 358 */ "Pale Hanging Moss",  	    	0x2D6D68, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 68, 0x00, BLF_FLATTEN | BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID },
     { /* 359 */ "Pale Moss Carpet",             0x37333D, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13, 67, 0x00, BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_CUTOUTS | BLF_OFFSET },
-    { /* 360 */ "Double Crimson Slab",   		0x7F7F83, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 43, 0x07, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_LAME_WATERLOG | BLF_MAYWATERLOG }, // bizarrely, may waterlog, though pretty pointless; important for instancing
+    { /* 360 */ "Double Crimson Slab",   		0x693249, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 43, 0x07, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_LAME_WATERLOG | BLF_MAYWATERLOG }, // bizarrely, may waterlog, though pretty pointless; important for instancing
     { /* 361 */ "Crimson Slab",				    0x693249, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 43, 0x07, BLF_HALF | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 362 */ "Soul Torch",					0x64B4B7, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 42, 0x00, BLF_MIDDLER | BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_EMITTER | BLF_DNE_FLUID },	// should be BLF_EMITTER, flatten torches only if sides get flattened, too
     { /* 363 */ "Weeping Vines",		  		0x656963, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 43, 0x23, BLF_FLATTEN | BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_MAYWATERLOG },    // hanging roots may waterlog
