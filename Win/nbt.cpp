@@ -6422,26 +6422,44 @@ int nbtGetSpongeSchematic(bfFile* pbf,
         return 0; \
     } while (0)
 
-    // Sponge v3 root is an unnamed TAG_Compound containing a single child compound named "Schematic".
+    // Two NBT layouts to support:
+    //   v3: unnamed root TAG_Compound containing one child "Schematic" compound; Palette/Data
+    //       live under a further "Blocks" sub-compound.
+    //   v2: root TAG_Compound is itself named "Schematic"; Palette is a direct child and the
+    //       voxel stream is named "BlockData" (not "Data"). No "Blocks" sub-compound.
+    // Distinguish by checking the root compound's name. The two formats are identical from
+    // there on — same varint-encoded palette indices, same X-fastest voxel order.
     unsigned char rootType = 0;
     if (bfread(pbf, &rootType, 1) < 0) SPONGE_FAIL();
     if (rootType != 0x0A) SPONGE_FAIL();
     unsigned int rootNameLen = readWord(pbf);
+    char rootName[16] = { 0 };
     if (rootNameLen > 0) {
-        // Some writers might give the root compound a name (the spec doesn't require it to be empty).
-        // Just skip past it.
-        if (bfseek(pbf, (int)rootNameLen, SEEK_CUR) < 0) SPONGE_FAIL();
+        if (rootNameLen < sizeof(rootName)) {
+            if (bfread(pbf, rootName, (int)rootNameLen) < 0) SPONGE_FAIL();
+            rootName[rootNameLen] = '\0';
+        }
+        else {
+            // Some unknown long name — skip past it; treat as v3 by default.
+            if (bfseek(pbf, (int)rootNameLen, SEEK_CUR) < 0) SPONGE_FAIL();
+        }
     }
 
-    if (nbtFindElement(pbf, (char*)"Schematic") != 0x0A) SPONGE_FAIL();
+    bool isV2 = (strcmp(rootName, "Schematic") == 0);
+    if (!isV2) {
+        // v3: root is unnamed (or has some other name); descend into the "Schematic" child.
+        if (nbtFindElement(pbf, (char*)"Schematic") != 0x0A) SPONGE_FAIL();
+    }
+    // For v2 we're already inside the Schematic compound; the for-loop below walks it directly.
 
     int width = 0, height = 0, length = 0;
     bool haveWidth = false, haveHeight = false, haveLength = false;
     bool sawBlocks = false;
 
     // Walk children of the Schematic compound. NBT order isn't required by the spec, but in
-    // practice writers (Mineways, WorldEdit, FAWE) put Width/Height/Length before Blocks.
-    // We don't need to seek back, since we collect palette + Data into memory and decode at the end.
+    // practice writers (Mineways, WorldEdit, FAWE) put Width/Height/Length before the block
+    // data. We don't need to seek back, since we collect palette + Data into memory and
+    // decode at the end.
     for (;;) {
         unsigned char type = 0;
         if (bfread(pbf, &type, 1) < 0) SPONGE_FAIL();
@@ -6466,6 +6484,7 @@ int nbtGetSpongeSchematic(bfFile* pbf,
             haveLength = true;
         }
         else if (strcmp(tname, "Blocks") == 0 && type == 0x0A) {
+            // v3: Palette + Data nested under a "Blocks" compound.
             if (!spongeReadBlocksCompound(pbf,
                     &palBlockIds, &palDataVals, &palCapacity, &palCount,
                     &dataBytes, &dataBytesLen)) {
@@ -6473,8 +6492,27 @@ int nbtGetSpongeSchematic(bfFile* pbf,
             }
             sawBlocks = true;
         }
+        else if (strcmp(tname, "Palette") == 0 && type == 0x0A) {
+            // v2: Palette is a direct child of Schematic.
+            if (!spongeReadPalette(pbf, &palBlockIds, &palDataVals, &palCapacity, &palCount)) {
+                SPONGE_FAIL();
+            }
+            sawBlocks = true;
+        }
+        else if (strcmp(tname, "BlockData") == 0 && type == 0x07) {
+            // v2: voxel stream is a direct child named "BlockData" (vs v3's nested "Data").
+            int len = (int)readDword(pbf);
+            if (len < 0 || len > 0x40000000) SPONGE_FAIL();
+            unsigned char* buf = (unsigned char*)malloc((size_t)len);
+            if (buf == NULL) SPONGE_FAIL();
+            if (len > 0 && bfread(pbf, buf, len) < 0) { free(buf); SPONGE_FAIL(); }
+            if (dataBytes) free(dataBytes);
+            dataBytes = buf;
+            dataBytesLen = len;
+        }
         else {
-            // Version, DataVersion, Offset, Metadata, Biomes, Entities, … — all skipped for now.
+            // Version, DataVersion, Offset, Metadata, PaletteMax, Biomes, Entities,
+            // BlockEntities (v2 top-level) … — all skipped for now.
             if (skipType(pbf, type) < 0) SPONGE_FAIL();
         }
     }
