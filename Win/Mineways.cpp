@@ -1948,9 +1948,26 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     // Take a copy first because addToRecentExports rewrites gRecentExports[].
                     wchar_t chosen[MAX_PATH_AND_FILE];
                     wcscpy_s(chosen, MAX_PATH_AND_FILE, gRecentExports[idx]);
-                    wcscpy_s(gImportFile, MAX_PATH_AND_FILE, chosen);
-                    splitToPathAndName(gImportFile, gImportPath, NULL);
-                    runImportOrScript(gImportFile, gWS, &gBlockLabel, gHoldlParam, true);
+                    // Schematic exports re-open as worlds, not as importable models. Mirrors
+                    // the drag-drop / File > Open Schematic dispatch in loadWorldFromFilename.
+                    size_t clen = wcslen(chosen);
+                    bool isSchematicLike =
+                        (clen >= 10 && _wcsicmp(&chosen[clen - 10], L".schematic") == 0) ||
+                        (clen >=  6 && _wcsicmp(&chosen[clen -  6], L".schem")     == 0);
+                    if (isSchematicLike) {
+                        int retCode = loadWorldFromFilename(chosen, hWnd);
+                        if (retCode) {
+                            if (retCode == 2) {
+                                gotoSurface(hWnd, hwndSlider, hwndLabel);
+                            }
+                            setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
+                        }
+                    }
+                    else {
+                        wcscpy_s(gImportFile, MAX_PATH_AND_FILE, chosen);
+                        splitToPathAndName(gImportFile, gImportPath, NULL);
+                        runImportOrScript(gImportFile, gWS, &gBlockLabel, gHoldlParam, true);
+                    }
                     // Bump the just-opened file to the top of the list.
                     addToRecentExports(chosen);
                 }
@@ -2796,9 +2813,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     runImportOrScript(gImportFile, gWS, &gBlockLabel, gHoldlParam, true);
                 }
                 else if (wcscmp(spos, L"dat") == 0 ||
-                    wcscmp(spos, L"schematic") == 0
+                    wcscmp(spos, L"schematic") == 0 ||
+                    wcscmp(spos, L"schem") == 0
                     ) {
-                    // attempt to load world or schematic file
+                    // attempt to load world, legacy schematic, or Sponge .schem (issue #40)
                     int retCode = loadWorldFromFilename(fileName, hWnd);
                     // load worked?
                     if (retCode) {
@@ -2815,17 +2833,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     splitToPathAndName(gSelectTerrainPathAndName, gSelectTerrainDir, NULL);
                     formTitle(&gWorldGuide, hWnd);
                 }
-                else if ( wcscmp(spos, L"schem") == 0 ) {
-                    // .schem files are read as worlds, just like .schematic (issue #40).
-                    int retCode = loadWorldFromFilename(fileName, hWnd);
-                    if (retCode) {
-                        if (retCode == 2) {
-                            gotoSurface(hWnd, hwndSlider, hwndLabel);
-                        }
-                    }
-                }
                 else {
-                    FilterMessageBox(NULL, _T("Mineways does not understand the type of the file you just dropped. You can drag and drop Mineways exported OBJ, USDA, and WRL files, the TXT files for Mineways STL exports, DAT world and old-school SCHEMATIC files, TerrainExt* PNG texture files, and MWSCRIPT scripting files."),
+                    FilterMessageBox(NULL, _T("Mineways does not understand the type of the file you just dropped. You can drag and drop Mineways exported OBJ, USDA, and WRL files, the TXT files for Mineways STL exports, DAT world, old-school SCHEMATIC, and Sponge SCHEM files, TerrainExt* PNG texture files, and MWSCRIPT scripting files."),
                         _T("Read error"), MB_OK | MB_ICONWARNING);
                 }
             }
