@@ -7041,6 +7041,43 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break; // saveBillboardOrGeometry
     }
 
+    case BLOCK_COPPER_GOLEM_STATUE:				// saveBillboardOrGeometry
+    case BLOCK_WAXED_COPPER_GOLEM_STATUE:
+    {
+        // Placeholder geometry: a 6x16x6 tall narrow box centered horizontally on the block,
+        // rotated by the 2-bit facing field (dataVal & 0x3). pose (bits 0x0C) and oxidation
+        // (bits 0x30) don't affect shape yet — per-pose detail is deferred to a follow-up.
+        // The block's own swatch (placeholder atlas tile) tiles all 6 faces.
+        swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+
+        // SWNE facing → Y-axis rotation (same enum order as anvil/bed: 0=south, 1=west, 2=north, 3=east)
+        switch (dataVal & 0x3)
+        {
+        default:
+        case 0: angle = 180.0f; break;  // south
+        case 1: angle = 270.0f; break;  // west
+        case 2: angle = 0.0f;   break;  // north
+        case 3: angle = 90.0f;  break;  // east
+        }
+
+        totalVertexCount = gModel.vertexCount;
+        gUsingTransform = 1;
+        // 6×16×6 box, centered at (8,_,8) in pixel coords
+        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1,
+            0x0,    // emit all 6 faces
+            0x0,    // no UV rotation
+            5.0f, 11.0f, 0.0f, 16.0f, 5.0f, 11.0f);
+
+        totalVertexCount = gModel.vertexCount - totalVertexCount;
+        identityMtx(mtx);
+        translateToOriginMtx(mtx, boxIndex);
+        rotateMtx(mtx, 0.0f, angle, 0.0f);
+        translateFromOriginMtx(mtx, boxIndex);
+        transformVertices(totalVertexCount, mtx);
+        gUsingTransform = 0;
+        break; // saveBillboardOrGeometry
+    }
+
     case BLOCK_WALL_BANNER:						// saveBillboardOrGeometry
     case BLOCK_ORANGE_WALL_BANNER:
     case BLOCK_MAGENTA_WALL_BANNER:

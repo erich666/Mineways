@@ -64,7 +64,7 @@
 
 
 // If this number changes, also change warning #7 in gPopupInfo (see TerrainExt.png in that message) in Mineways.cpp
-#define VERTICAL_TILES 79
+#define VERTICAL_TILES 80
 #define TOTAL_TILES (VERTICAL_TILES*16)
 static struct {
     int txrX;   // column and row, from upper left, of 16x16+ tiles in terrain.png, for top view of block
@@ -1079,6 +1079,17 @@ static struct {
     { 11, 61, 469, 0x8, L"copper_bulb_lit", L"", SWATCH_REPEAT_ALL },
     { 12, 61, 469, 0x8, L"copper_bulb_lit_powered", L"", SWATCH_REPEAT_ALL },
     { 13, 61, 469, 0, L"copper_bulb_powered", L"", SWATCH_REPEAT_ALL },
+    // Copper Golem Statue family (1.21.10+). Placeholder swatch position (txrX=0, txrY=40)
+    // until real 64x64 copper-golem texture atlas is wired up. Bits 0x30 of dataVal carry
+    // oxidation subtype (0/1/2/3); waxed variants share textures with their unwaxed twins.
+    {  0, 40, 502, 0x00, L"copper_golem_statue", L"", SWATCH_REPEAT_ALL },
+    {  0, 40, 502, 0x10, L"exposed_copper_golem_statue", L"", SWATCH_REPEAT_ALL },
+    {  0, 40, 502, 0x20, L"weathered_copper_golem_statue", L"", SWATCH_REPEAT_ALL },
+    {  0, 40, 502, 0x30, L"oxidized_copper_golem_statue", L"", SWATCH_REPEAT_ALL },
+    {  0, 40, 503, 0x00, L"waxed_copper_golem_statue", L"", SWATCH_REPEAT_ALL },
+    {  0, 40, 503, 0x10, L"waxed_exposed_copper_golem_statue", L"", SWATCH_REPEAT_ALL },
+    {  0, 40, 503, 0x20, L"waxed_weathered_copper_golem_statue", L"", SWATCH_REPEAT_ALL },
+    {  0, 40, 503, 0x30, L"waxed_oxidized_copper_golem_statue", L"", SWATCH_REPEAT_ALL },
     { 14, 61, 482, 0, L"copper_door_bottom", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     { 15, 61, 482, 0, L"copper_door_top", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     {  0, 62, 470, 0, L"copper_grate", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },

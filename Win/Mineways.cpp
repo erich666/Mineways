@@ -366,7 +366,7 @@ static struct {
     {_T("Warning: multiple separate parts found after processing.\n\nThis may not be what you want to print. Increase the value for 'Delete floating parts' to delete these. Try the 'Debug: show separate parts' export option to see if the model is what you expected."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<3
     {_T("Warning: at least one dimension of the model is too long.\n\nCheck the dimensions for this printer's material: look in the top of the model file itself, using a text editor."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<4
     {_T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock. Mineways does not understand blocks added by mods, and uses the older (simpler) schematic format so does not support blocks added in 1.13 or newer versions. If you are not using mods nor exporting 1.13 or newer blocks, your version of Mineways may be out of date. Check http://mineways.com for a newer version."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<5
-    {_T("Warning: too few rows of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt*.png with 79 rows."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<6 VERTICAL_TILES
+    {_T("Warning: too few rows of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt*.png with 80 rows."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<6 VERTICAL_TILES
     {_T("Warning: one or more Change Block commands specified location(s) that were outside the selected volume."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<6
     {_T("Warning: with the large Terrain File you're using, the output texture is extremely large. Other programs make have problems using it. We recommend that you use the 'Export tiles' option instead, or reduce the size of your Terrain File by using the '-t 256' (or smaller) option in TileMaker.\n\nThis warning will not be repeated this session."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<6
     {_T("Warning: only air blocks found; no file output. If you see something on the map, you likely need to set the Depth slider near the top to 0, or tap the space bar for a reasonable guess."), _T("Export warning"), MB_OK | MB_ICONWARNING},	// <<7
@@ -3730,14 +3730,18 @@ static int loadSpongeSchematic(wchar_t* pathAndFile)
     gWorldGuide.sch.data = data;
 
     gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
-    // Mirror loadSchematic exactly: pin to MC 1.12.2 (1343) so gMinHeight/gMaxHeight land at
-    // 0..255, matching where createBlockFromSchematic actually places the blocks (loadWorld
-    // leaves gWorldGuide.minHeight at 0 and block_alloc uses that). With the old MC 1.20
-    // versioning the slider opened at y=-64..319 while the blocks lived at y=0..sch.height-1,
-    // which broke Ctrl-A / Select-All visually for .schem files — the highlight was set above
-    // the visible window. Block decoding inside nbtGetSpongeSchematic doesn't depend on
-    // gVersionID (it uses BlockTranslations directly), so dropping the version is safe.
-    gVersionID = 1343;
+    // Pin to MC 1.16.5 (data version 2586). Two constraints to satisfy:
+    //   1. gMinHeight/gMaxHeight = 0..255 (matching createBlockFromSchematic's block placement,
+    //      which uses gWorldGuide.minHeight=0 from loadWorld). MC 1.16 still uses 0..255 — the
+    //      switch to -64..319 happens at data version >= 2685 (1.17 beta). So 2586 stays in the
+    //      old range and Ctrl-A / Select-All highlights line up with where the blocks live.
+    //   2. gMcVersion >= 13 so gIs13orNewer = true. .schem palettes carry 1.13+ block IDs that
+    //      Mineways internally flags with HIGH_BIT in dataVal; ObjFileManip.cpp:2796 only
+    //      promotes that flag to type|0x100 (recovering blocks > 255 like the copper golem
+    //      statues at IDs 502/503) when gIs13orNewer is true. With the legacy 1.12.2 value
+    //      (1343) the promotion was skipped and modern blocks round-tripped as their low-byte
+    //      cousins (e.g. blockId 246 → "blue_glazed_terracotta" instead of copper_golem_statue).
+    gVersionID = 2586;
     gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
     setHeightsFromVersionID();
 

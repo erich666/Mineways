@@ -2614,6 +2614,29 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         }
         break;
 
+    case BLOCK_COPPER_GOLEM_STATUE:
+    case BLOCK_WAXED_COPPER_GOLEM_STATUE: {
+        // Oxidation in bits 0x30 of dataVal; "Waxed " prefix from block ID.
+        const char* base;
+        switch ((dataVal >> 4) & 0x3) {
+        default:
+        case 0: base = "Copper Golem Statue"; break;
+        case 1: base = "Exposed Copper Golem Statue"; break;
+        case 2: base = "Weathered Copper Golem Statue"; break;
+        case 3: base = "Oxidized Copper Golem Statue"; break;
+        }
+        if (type == BLOCK_WAXED_COPPER_GOLEM_STATUE) {
+            switch ((dataVal >> 4) & 0x3) {
+            default:
+            case 0: return "Waxed Copper Golem Statue";
+            case 1: return "Waxed Exposed Copper Golem Statue";
+            case 2: return "Waxed Weathered Copper Golem Statue";
+            case 3: return "Waxed Oxidized Copper Golem Statue";
+            }
+        }
+        return base;
+    }
+
     case BLOCK_COPPER_GRATE:
         switch (dataVal & 0x7) {
         default:
@@ -4332,6 +4355,18 @@ unsigned int GetBlockDataColor(int type, int dataVal)
         case 0x8 | 3:
         case 0x8 | 7: // lit Oxidized / Waxed Oxidized Copper Bulb
             return 0x989E70;
+        }
+
+    case BLOCK_COPPER_GOLEM_STATUE:
+    case BLOCK_WAXED_COPPER_GOLEM_STATUE:
+        // Tint by oxidation only (bits 0x30); pose/facing/waterlogged don't affect map color.
+        // Reuses the copper bulb oxidation palette since the same chemistry applies.
+        switch ((dataVal >> 4) & 0x3) {
+        default:
+        case 0: return gBlockDefinitions[type].color;	// copper
+        case 1: return 0x8E6E5D;	// exposed
+        case 2: return 0x5F8467;	// weathered
+        case 3: return 0x498B73;	// oxidized
         }
 
     case BLOCK_COPPER_GRATE:
@@ -7558,6 +7593,31 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
             block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16 | HIGH_BIT;
+        }
+        break;
+
+    case BLOCK_COPPER_GOLEM_STATUE:
+    case BLOCK_WAXED_COPPER_GOLEM_STATUE:
+        // dataVal layout: facing(0x03) | pose(0x0C) | oxidation(0x30) | waterlogged(0x40).
+        // Test world iterates input dataVal 0..15; map low 2 bits to oxidation, high 2 bits to
+        // pose, with facing=south=0 and no waterlog. For input dataVal 0, also seed a couple
+        // of neighbor cells with facing/waterlogged variants so the property arms get exercised.
+        {
+            int oxidation = dataVal & 0x3;
+            int pose = (dataVal >> 2) & 0x3;
+            finalDataVal = (oxidation << 4) | (pose << 2);
+            addBlock = 1;
+
+            if (dataVal == 0) {
+                // east-facing variant, no waterlog
+                neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
+                block->grid[neighborIndex] = (unsigned char)type;
+                block->data[neighborIndex] = (unsigned char)(0x3 | HIGH_BIT);
+                // standing + waterlogged variant
+                neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
+                block->grid[neighborIndex] = (unsigned char)type;
+                block->data[neighborIndex] = (unsigned char)(WATERLOGGED_BIT | HIGH_BIT);
+            }
         }
         break;
 

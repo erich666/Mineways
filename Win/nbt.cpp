@@ -396,7 +396,16 @@ static TranslationTuple* modTranslations = NULL;
 // powered: true|false 0/4
 #define SHELF_PROP	72
 
-#define NUM_TRANS 1170
+// BLOCK_COPPER_GOLEM_STATUE / BLOCK_WAXED_COPPER_GOLEM_STATUE (1.21.10+)
+// dataVal layout:
+//   bits 0x03: facing (south/west/north/east 0-3)
+//   bits 0x0C: copper_golem_pose (standing/sitting/running/star 0-3)
+//   bits 0x30: oxidation subtype (copper/exposed/weathered/oxidized 0-3) -- picked by findSpongeTranslator
+//   bit  0x40: WATERLOGGED_BIT
+//   bit  0x80: HIGH_BIT marker (type > 255)
+#define COPPER_GOLEM_PROP 73
+
+#define NUM_TRANS 1178
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1449,6 +1458,17 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 213,   HIGH_BIT | 5, "waxed_exposed_copper_bulb", BULB_PROP },
     { 0, 213,   HIGH_BIT | 6, "waxed_weathered_copper_bulb", BULB_PROP },
     { 0, 213,   HIGH_BIT | 7, "waxed_oxidized_copper_bulb", BULB_PROP },
+    // Copper golem statue family (1.21.10+). blockId 246 = 502 & 0xFF -> BLOCK_COPPER_GOLEM_STATUE,
+    // blockId 247 = 503 & 0xFF -> BLOCK_WAXED_COPPER_GOLEM_STATUE. Subtype bits 0x30 carry the
+    // oxidation; facing (0x03) + pose (0x0C) + waterlogged (0x40) handled by COPPER_GOLEM_PROP.
+    { 0, 246,   HIGH_BIT | 0x00, "copper_golem_statue",                  COPPER_GOLEM_PROP },
+    { 0, 246,   HIGH_BIT | 0x10, "exposed_copper_golem_statue",          COPPER_GOLEM_PROP },
+    { 0, 246,   HIGH_BIT | 0x20, "weathered_copper_golem_statue",        COPPER_GOLEM_PROP },
+    { 0, 246,   HIGH_BIT | 0x30, "oxidized_copper_golem_statue",         COPPER_GOLEM_PROP },
+    { 0, 247,   HIGH_BIT | 0x00, "waxed_copper_golem_statue",            COPPER_GOLEM_PROP },
+    { 0, 247,   HIGH_BIT | 0x10, "waxed_exposed_copper_golem_statue",    COPPER_GOLEM_PROP },
+    { 0, 247,   HIGH_BIT | 0x20, "waxed_weathered_copper_golem_statue",  COPPER_GOLEM_PROP },
+    { 0, 247,   HIGH_BIT | 0x30, "waxed_oxidized_copper_golem_statue",   COPPER_GOLEM_PROP },
     { 0, 132,  HIGH_BIT | 49, "chiseled_copper", BULB_PROP },
     { 0, 132,  HIGH_BIT | 50, "exposed_chiseled_copper", BULB_PROP },
     { 0, 132,  HIGH_BIT | 51, "weathered_chiseled_copper", BULB_PROP },
@@ -6142,6 +6162,21 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             else if (strcmp(k, "powered") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x4; lit = false; }
             break;
 
+        case COPPER_GOLEM_PROP:
+            // facing bits 0x03, pose bits 0x0C, waterlogged bit 0x40 (handled universally),
+            // oxidation subtype bits 0x30 carried in dataVal by the BlockTranslations entry.
+            if (strcmp(k, "facing") == 0) {
+                dataVal = (dataVal & ~0x3) | spongeSwneIdxFromName(v);
+            }
+            else if (strcmp(k, "copper_golem_pose") == 0) {
+                int p = 0;  // standing (default)
+                if      (strcmp(v, "sitting") == 0) p = 1;
+                else if (strcmp(v, "running") == 0) p = 2;
+                else if (strcmp(v, "star")    == 0) p = 3;
+                dataVal = (dataVal & ~0xC) | (p << 2);
+            }
+            break;
+
         case PRESSURE_PROP:
             if (strcmp(k, "powered") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x1; lit = false; }
             break;
@@ -7297,6 +7332,26 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         // Alphabetical: facing < powered.
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x4) ? "true" : "false");
+        break;
+    }
+
+    case COPPER_GOLEM_PROP: {
+        // BLOCK_COPPER_GOLEM_STATUE (502) / BLOCK_WAXED_COPPER_GOLEM_STATUE (503). dataVal layout:
+        //   bits 0x03: facing (SWNE)
+        //   bits 0x0C: copper_golem_pose (0=standing default, 1=sitting, 2=running, 3=star)
+        //   bits 0x30: oxidation subtype, picked by findSpongeTranslator for the name
+        //   bit  0x40: waterlogged (emitted by universal post-switch path)
+        // Alphabetical: copper_golem_pose < facing < waterlogged.
+        const char* pose;
+        switch ((dataVal >> 2) & 0x3) {
+        default:
+        case 0: pose = "standing"; break;
+        case 1: pose = "sitting";  break;
+        case 2: pose = "running";  break;
+        case 3: pose = "star";     break;
+        }
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "copper_golem_pose", pose);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeSwneFromDataVal(dataVal));
         break;
     }
 
