@@ -590,8 +590,8 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     // bits 4-5 of dataVal; bits 0-1 = facing, bits 2-3 = copper_golem_pose, bit 0x40 =
     // waterlogged. Textures default to placeholder atlas tile (txrX=0, txrY=40) until the
     // real 64x64 copper golem atlas is wired up.
-    { /* 502 */ "Copper Golem Statue",          0xAF8B55, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 40, 0x30, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
-    { /* 503 */ "Waxed Copper Golem Statue",    0xAF8B55, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 40, 0x30, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
+    { /* 502 */ "Copper Golem Statue",          0xAF8B55, 1.000f, 0xff7711, 0xff7711, 0.12345f,  5, 50, 0x30, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
+    { /* 503 */ "Waxed Copper Golem Statue",    0xAF8B55, 1.000f, 0xff7711, 0xff7711, 0.12345f,  5, 50, 0x30, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
 
     // Important note: 396 is skipped, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
 };

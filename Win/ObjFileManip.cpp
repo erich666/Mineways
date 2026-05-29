@@ -7047,8 +7047,30 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // Placeholder geometry: a 6x16x6 tall narrow box centered horizontally on the block,
         // rotated by the 2-bit facing field (dataVal & 0x3). pose (bits 0x0C) and oxidation
         // (bits 0x30) don't affect shape yet — per-pose detail is deferred to a follow-up.
-        // The block's own swatch (placeholder atlas tile) tiles all 6 faces.
+        // The block's own swatch (placeholder copper_block atlas tile) tiles all 6 faces.
         swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+
+        switch (dataVal & (BIT_32 | BIT_16)) {
+        default:
+        case 0:
+            // copper_block
+            break;
+
+        case BIT_16:
+            // exposed_copper
+            swatchLoc++;
+            break;
+
+        case BIT_32:
+            // weathered_copper
+            swatchLoc += 2;
+            break;
+
+        case (BIT_32 | BIT_16):
+            // oxidized_copper
+            swatchLoc += 3;
+            break;
+        }
 
         // SWNE facing → Y-axis rotation (same enum order as anvil/bed: 0=south, 1=west, 2=north, 3=east)
         switch (dataVal & 0x3)
@@ -7062,11 +7084,11 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
         totalVertexCount = gModel.vertexCount;
         gUsingTransform = 1;
-        // 6×16×6 box, centered at (8,_,8) in pixel coords
+        // Placeholder TODOTODO: 14×16×6 box, centered at (8,_,8) in pixel coords
         saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1,
             0x0,    // emit all 6 faces
             0x0,    // no UV rotation
-            5.0f, 11.0f, 0.0f, 16.0f, 5.0f, 11.0f);
+            1.0f, 15.0f, 0.0f, 16.0f, 5.0f, 11.0f);
 
         totalVertexCount = gModel.vertexCount - totalVertexCount;
         identityMtx(mtx);

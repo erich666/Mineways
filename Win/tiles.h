@@ -64,7 +64,7 @@
 
 
 // If this number changes, also change warning #7 in gPopupInfo (see TerrainExt.png in that message) in Mineways.cpp
-#define VERTICAL_TILES 80
+#define VERTICAL_TILES 79
 #define TOTAL_TILES (VERTICAL_TILES*16)
 static struct {
     int txrX;   // column and row, from upper left, of 16x16+ tiles in terrain.png, for top view of block
@@ -1079,17 +1079,6 @@ static struct {
     { 11, 61, 469, 0x8, L"copper_bulb_lit", L"", SWATCH_REPEAT_ALL },
     { 12, 61, 469, 0x8, L"copper_bulb_lit_powered", L"", SWATCH_REPEAT_ALL },
     { 13, 61, 469, 0, L"copper_bulb_powered", L"", SWATCH_REPEAT_ALL },
-    // Copper Golem Statue family (1.21.10+). Placeholder swatch position (txrX=0, txrY=40)
-    // until real 64x64 copper-golem texture atlas is wired up. Bits 0x30 of dataVal carry
-    // oxidation subtype (0/1/2/3); waxed variants share textures with their unwaxed twins.
-    {  0, 40, 502, 0x00, L"copper_golem_statue", L"", SWATCH_REPEAT_ALL },
-    {  0, 40, 502, 0x10, L"exposed_copper_golem_statue", L"", SWATCH_REPEAT_ALL },
-    {  0, 40, 502, 0x20, L"weathered_copper_golem_statue", L"", SWATCH_REPEAT_ALL },
-    {  0, 40, 502, 0x30, L"oxidized_copper_golem_statue", L"", SWATCH_REPEAT_ALL },
-    {  0, 40, 503, 0x00, L"waxed_copper_golem_statue", L"", SWATCH_REPEAT_ALL },
-    {  0, 40, 503, 0x10, L"waxed_exposed_copper_golem_statue", L"", SWATCH_REPEAT_ALL },
-    {  0, 40, 503, 0x20, L"waxed_weathered_copper_golem_statue", L"", SWATCH_REPEAT_ALL },
-    {  0, 40, 503, 0x30, L"waxed_oxidized_copper_golem_statue", L"", SWATCH_REPEAT_ALL },
     { 14, 61, 482, 0, L"copper_door_bottom", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     { 15, 61, 482, 0, L"copper_door_top", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     {  0, 62, 470, 0, L"copper_grate", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
@@ -1365,34 +1354,18 @@ static struct {
     { 14, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 15, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
 
-    /* have to process shelves in some other way, probably doing like we do for chests, breaking them into 2x2 16x16 tiles
-    {  6, 72,   0, 0, L"acacia_shelf", L"", SWATCH_REPEAT_ALL },
-    {  7, 72,   0, 0, L"bamboo_shelf", L"", SWATCH_REPEAT_ALL },
-    {  8, 72,   0, 0, L"birch_shelf", L"", SWATCH_REPEAT_ALL },
-    {  9, 72,   0, 0, L"cherry_shelf", L"", SWATCH_REPEAT_ALL },
-    { 10, 72,   0, 0, L"crimson_shelf", L"", SWATCH_REPEAT_ALL },
-    { 11, 72,   0, 0, L"dark_oak_shelf", L"", SWATCH_REPEAT_ALL },
-    { 12, 72,   0, 0, L"jungle_shelf", L"", SWATCH_REPEAT_ALL },
-    { 13, 72,   0, 0, L"mangrove_shelf", L"", SWATCH_REPEAT_ALL },
-    { 14, 72,   0, 0, L"oak_shelf", L"", SWATCH_REPEAT_ALL },
-    { 15, 72,   0, 0, L"pale_oak_shelf", L"", SWATCH_REPEAT_ALL },
-    {  0, 73,   0, 0, L"spruce_shelf", L"", SWATCH_REPEAT_ALL },
-    {  1, 73,   0, 0, L"warped_shelf", L"", SWATCH_REPEAT_ALL },
-    {  2, 73,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    {  3, 73,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    {  4, 73,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    {  5, 73,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    {  6, 73,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    {  7, 73,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    {  8, 73,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    {  9, 73,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 10, 73,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 11, 73,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 12, 73,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 13, 73,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 14, 73,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 15, 73,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    */
+    // Copper Golem Statue family (1.21.10+). Placeholder swatch position (txrX=0, txrY=40)
+    // until real 64x64 copper-golem texture atlas is wired up. Bits 0x30 of dataVal carry
+    // oxidation subtype (0/1/2/3); waxed variants share textures with their unwaxed twins.
+    //{ 0, 40, 502, 0x00, L"copper_golem_statue", L"", SWATCH_REPEAT_ALL },
+    //{ 0, 40, 502, 0x10, L"exposed_copper_golem_statue", L"", SWATCH_REPEAT_ALL },
+    //{ 0, 40, 502, 0x20, L"weathered_copper_golem_statue", L"", SWATCH_REPEAT_ALL },
+    //{ 0, 40, 502, 0x30, L"oxidized_copper_golem_statue", L"", SWATCH_REPEAT_ALL },
+    //{ 0, 40, 503, 0x00, L"waxed_copper_golem_statue", L"", SWATCH_REPEAT_ALL },
+    //{ 0, 40, 503, 0x10, L"waxed_exposed_copper_golem_statue", L"", SWATCH_REPEAT_ALL },
+    //{ 0, 40, 503, 0x20, L"waxed_weathered_copper_golem_statue", L"", SWATCH_REPEAT_ALL },
+    //{ 0, 40, 503, 0x30, L"waxed_oxidized_copper_golem_statue", L"", SWATCH_REPEAT_ALL },
+
     /* Template for future additions - copy and paste in Notepad++ to avoid it getting rejiggered, and keep inside comment marks to
      * avoid rejiggering (spaces getting removed) by keeping it inside the comment marks when pasting back here, then moving these comment lines down:
     {  0, 74,   0, 0, L"chiseled_bookshelf_occupied", L"", SWATCH_REPEAT_ALL },

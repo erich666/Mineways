@@ -4359,8 +4359,7 @@ unsigned int GetBlockDataColor(int type, int dataVal)
 
     case BLOCK_COPPER_GOLEM_STATUE:
     case BLOCK_WAXED_COPPER_GOLEM_STATUE:
-        // Tint by oxidation only (bits 0x30); pose/facing/waterlogged don't affect map color.
-        // Reuses the copper bulb oxidation palette since the same chemistry applies.
+        // Tint by oxidation only (bits 0x30) - TODOTODO: get from actual textures
         switch ((dataVal >> 4) & 0x3) {
         default:
         case 0: return gBlockDefinitions[type].color;	// copper
@@ -7608,16 +7607,15 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             finalDataVal = (oxidation << 4) | (pose << 2);
             addBlock = 1;
 
-            if (dataVal == 0) {
-                // east-facing variant, no waterlog
-                neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-                block->grid[neighborIndex] = (unsigned char)type;
-                block->data[neighborIndex] = (unsigned char)(0x3 | HIGH_BIT);
-                // standing + waterlogged variant
-                neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-                block->grid[neighborIndex] = (unsigned char)type;
-                block->data[neighborIndex] = (unsigned char)(WATERLOGGED_BIT | HIGH_BIT);
-            }
+            // east-facing variant, no waterlog
+            // TODOTODO - add more variants, but this is just for testing quickly
+            neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)(0x01 | finalDataVal | HIGH_BIT);
+            // standing + waterlogged variant
+            neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)(finalDataVal | WATERLOGGED_BIT | HIGH_BIT);
         }
         break;
 
