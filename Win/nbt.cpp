@@ -383,7 +383,7 @@ static TranslationTuple* modTranslations = NULL;
 // axis, like logs
 // old: active true|false --> 0 or 2
 // creaking_heart_state: uprooted 0, dormant 1, awake 2
-// natural - ignored, not visual
+// natural - ignored, not visual - TODOTODO, add for .schem export
 #define CREAKING_HEART_PROP 68
 // north/south/east/west - none, low, tall; only tall gets a 0x1 in the four 0x1e bits
 // ignore bottom
@@ -395,9 +395,6 @@ static TranslationTuple* modTranslations = NULL;
 // facing: south|west|north|east 0-3
 // powered: true|false 0/4
 #define SHELF_PROP	72
-
-// BLOCK_COPPER_GOLEM_STATUE / BLOCK_WAXED_COPPER_GOLEM_STATUE (1.21.10+)
-// dataVal layout:
 //   bits 0x03: facing (south/west/north/east 0-3)
 //   bits 0x0C: copper_golem_pose (standing/sitting/running/star 0-3)
 //   bits 0x30: oxidation subtype (copper/exposed/weathered/oxidized 0-3) -- picked by findSpongeTranslator
@@ -1458,9 +1455,6 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 213,   HIGH_BIT | 5, "waxed_exposed_copper_bulb", BULB_PROP },
     { 0, 213,   HIGH_BIT | 6, "waxed_weathered_copper_bulb", BULB_PROP },
     { 0, 213,   HIGH_BIT | 7, "waxed_oxidized_copper_bulb", BULB_PROP },
-    // Copper golem statue family (1.21.10+). blockId 246 = 502 & 0xFF -> BLOCK_COPPER_GOLEM_STATUE,
-    // blockId 247 = 503 & 0xFF -> BLOCK_WAXED_COPPER_GOLEM_STATUE. Subtype bits 0x30 carry the
-    // oxidation; facing (0x03) + pose (0x0C) + waterlogged (0x40) handled by COPPER_GOLEM_PROP.
     { 0, 246,   HIGH_BIT | 0x00, "copper_golem_statue",                  COPPER_GOLEM_PROP },
     { 0, 246,   HIGH_BIT | 0x10, "exposed_copper_golem_statue",          COPPER_GOLEM_PROP },
     { 0, 246,   HIGH_BIT | 0x20, "weathered_copper_golem_statue",        COPPER_GOLEM_PROP },
@@ -3502,7 +3496,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
         up, hanging, crafting;
     int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age,
         delay, locked, sticky, hatch, leaves, single, attachment, honey_level, stairs, bites, tilt,
-        thickness, vertical_direction, berries, flower_amount, orientation, hydration;
+        thickness, vertical_direction, berries, flower_amount, orientation, hydration,
+        copper_golem_pose;
     // to avoid Release build warning, but should always be set by code in practice
     int typeIndex = 0;
     half = north = south = east = west = down = lit = powered = triggered = extended = attached = disarmed
@@ -3510,7 +3505,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
         = up = hanging = crafting = false; // waterlogged is always set false in loop
     axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
         delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt =
-        thickness = vertical_direction = berries = flower_amount = orientation = hydration = 0;
+        thickness = vertical_direction = berries = flower_amount = orientation = hydration =
+        copper_golem_pose = 0;
     int pmc = 0;
 
     // IMPORTANT: if any PROP field uses any of these:
@@ -4421,6 +4417,15 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             hydration = atoi(value);
                         }
 
+                        // for copper_golem_statue, packed into bits 0x0C of dataVal by COPPER_GOLEM_PROP arm below.
+                        // standing (default) = 0, sitting = 1, running = 2, star = 3
+                        else if (strcmp(token, "copper_golem_pose") == 0) {
+                            if      (strcmp(value, "sitting") == 0) copper_golem_pose = 1;
+                            else if (strcmp(value, "running") == 0) copper_golem_pose = 2;
+                            else if (strcmp(value, "star") == 0)    copper_golem_pose = 3;
+                            // "standing" or unknown → 0 (already init'd)
+                        }
+
 #ifdef _DEBUG
                         else {
                             // ignore, not used by Mineways for now, BlockTranslations[typeIndex]
@@ -4436,7 +4441,6 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             else if (strcmp(token, "cracked") == 0) {}	// for decorated pot - ignored
                             else if (strcmp(token, "natural") == 0) {}	// for creaking_heart - ignored, has to do with experience
                             else if (strcmp(token, "side_chain") == 0) {}	// for shelf - ignored, no one knows what this is for
-                            else if (strcmp(token, "copper_golem_pose") == 0) {}	// for copper golem - ignored for now - TODO someday
                             else {
                                 // unknown property - look at token and value
                                 static int ignore = 0;
@@ -4459,7 +4463,16 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 assert(0);
 
             case COPPER_GOLEM_PROP:
-                // TODOTODOTODO
+                // BLOCK_COPPER_GOLEM_STATUE (502) / BLOCK_WAXED_COPPER_GOLEM_STATUE (503).
+                // dataVal layout:
+                //   bits 0x03: facing SWNE (south=0, west=1, north=2, east=3)
+                //   bits 0x0C: copper_golem_pose (standing=0, sitting=1, running=2, star=3)
+                //   bits 0x30: oxidation subtype carried in dataVal by the BlockTranslations entry
+                //   bit  0x40: waterlogged (set elsewhere via WATERLOGGED_BIT)
+                // door_facing values from the facing parser are 1=south, 2=west, 3=north, 0=east;
+                // the standard SWNE remap is `(door_facing + 3) % 4` (same as REPEATER_PROP / BED_PROP).
+                dataVal |= ((door_facing + 3) % 4) | (copper_golem_pose << 2);
+                copper_golem_pose = 0;
                 break;
 
                 // These next two use shared properties, which means the other PROPs that use any of these need to reset them (except for dropper_facing and door_facing).
@@ -5765,6 +5778,11 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             dataVal = (dataVal & ~0x18) | (s << 3);
             continue;
         }
+        // BLOCK_BREWING_STAND (117) is NO_PROP, so its three bottle-occupancy flags need
+        // universal handling. World reader at nbt.cpp:4051-4058 packs the same bits.
+        if (strcmp(k, "has_bottle_0") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x1; continue; }
+        if (strcmp(k, "has_bottle_1") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x2; continue; }
+        if (strcmp(k, "has_bottle_2") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x4; continue; }
 
         // ---- Per-family props ----
         switch (tf) {
@@ -7873,6 +7891,15 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         }
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "ominous", (dataVal & 0x4) ? "true" : "false");
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "vault_state", state);
+    }
+
+    // BLOCK_BREWING_STAND (117) is NO_PROP, but the world reader packs the three bottle-slot
+    // occupancy flags into dataVal bits 0x1/0x2/0x4 (see nbt.cpp:4051-4058). Emit them so the
+    // bottle layout round-trips. Alphabetical: has_bottle_0 < has_bottle_1 < has_bottle_2.
+    if ((type & 0x1FF) == BLOCK_BREWING_STAND) {
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "has_bottle_0", (dataVal & 0x1) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "has_bottle_1", (dataVal & 0x2) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "has_bottle_2", (dataVal & 0x4) ? "true" : "false");
     }
 
     // Waterlogged is additive across many block families — but a few props steal bit 0x40 for
