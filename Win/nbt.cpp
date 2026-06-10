@@ -5731,6 +5731,40 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             berries = (strcmp(v, "true") == 0);
             continue;
         }
+        // trial_spawner and vault both encode `ominous` in bit 0x4 (see MinewaysMap.cpp BLOCK_VAULT
+        // and BLOCK_TRIAL_SPAWNER color switches, and the world-NBT reader at nbt.cpp:4319). Both
+        // blocks are NO_PROP, so without these handlers the per-family switch never fires for
+        // them and ominous/state get dropped. Apply as universal: only those two blocks emit
+        // these property names, so handling them unconditionally is safe.
+        if (strcmp(k, "ominous") == 0) {
+            if (strcmp(v, "true") == 0) dataVal |= 0x4;
+            continue;
+        }
+        if (strcmp(k, "trial_spawner_state") == 0) {
+            // BLOCK_TRIAL_SPAWNER (465): low 2 bits = state index.
+            //   inactive (0), active (1), waiting_for_players (2), ejecting_reward (3).
+            // Minecraft has two extra states that Mineways collapses to the closest neighbor.
+            int s = 0;
+            if      (strcmp(v, "active") == 0)                      s = 1;
+            else if (strcmp(v, "waiting_for_players") == 0)         s = 2;
+            else if (strcmp(v, "ejecting_reward") == 0)             s = 3;
+            else if (strcmp(v, "waiting_for_reward_ejection") == 0) s = 3;
+            else if (strcmp(v, "cooldown") == 0)                    s = 0;
+            // "inactive" or unknown → 0
+            dataVal = (dataVal & ~0x3) | s;
+            continue;
+        }
+        if (strcmp(k, "vault_state") == 0) {
+            // BLOCK_VAULT (466): bits 0x18 = state index << 3.
+            //   inactive (0), active (1), unlocking (2), ejecting (3).
+            int s = 0;
+            if      (strcmp(v, "active") == 0)    s = 1;
+            else if (strcmp(v, "unlocking") == 0) s = 2;
+            else if (strcmp(v, "ejecting") == 0)  s = 3;
+            // "inactive" or unknown → 0
+            dataVal = (dataVal & ~0x18) | (s << 3);
+            continue;
+        }
 
         // ---- Per-family props ----
         switch (tf) {
