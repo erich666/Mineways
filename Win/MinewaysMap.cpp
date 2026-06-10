@@ -4538,6 +4538,7 @@ unsigned int GetBlockDataColor(int type, int dataVal)
         switch ((dataVal & 0x28) >> 3)
         {
         default:
+            assert(0);
         case 0:
             return gBlockDefinitions[type].color;
         case 1:
