@@ -972,11 +972,20 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Lily of the Valley";
         case 11:
             return "Wither Rose";
+        // needed for potted plant material names during export:
+        case 12:
+            return "Crimson Fungus";
+        case 13:
+            return "Warped Fungus";
+        case 14:
+            return "Crimson Roots";
+        case 15:
+            return "Warped Roots";
         }
         break;
 
     case BLOCK_DANDELION:
-        switch (dataVal & 0xf)
+        switch (dataVal & 0x7)
         {
         default:
             assert(0);
@@ -2494,7 +2503,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
 
     case BLOCK_MANGROVE_LEAVES:
         // since these leaves are > 256 in type, we can safely use all the bits
-        switch (dataVal & 0x3f)
+        switch (dataVal & 0x3)
         {
         default:
             assert(0);
@@ -3382,7 +3391,7 @@ unsigned int GetBlockDataColor(int type, int dataVal)
         }
 
     case BLOCK_MANGROVE_LEAVES:
-        switch (dataVal & 0x3f)
+        switch (dataVal & 0x3)
         {
         default:
         case 0:
@@ -3402,6 +3411,7 @@ unsigned int GetBlockDataColor(int type, int dataVal)
         case 0: // dead bush
             return 0x946428;
         default:
+            assert(0);
         case 1:	// grass
         case 2:	// fern
         case 6:	// bush
@@ -3589,10 +3599,19 @@ unsigned int GetBlockDataColor(int type, int dataVal)
             return 0x93B588;
         case 11: // wither rose
             return 0x2D3119;
+        // not needed in theory, but could be used for export color for potted plants:
+        case 12: // crimson fungus
+            return 0x9D3F2B;
+        case 13: // warped fungus
+            return 0x777965;
+        case 14: // crimson roots
+            return 0x83092B;
+        case 15: // warped roots
+            return 0x148E7E;
         }
 
     case BLOCK_DANDELION:
-        switch (dataVal & 0xf)
+        switch (dataVal & 0x7)
         {
         default:
         case 0: // dandelion
@@ -4656,7 +4675,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
 
     case BLOCK_MANGROVE_LEAVES:
         dataVal = block->data[voxel];
-        switch (dataVal & 0x3f)
+        switch (dataVal & 0x3)
         {
         default:
             assert(0);

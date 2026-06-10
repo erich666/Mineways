@@ -14260,8 +14260,9 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         case 6:
             swatchLoc--;
             break;
-        case 7:
         default:
+            assert(0);
+        case 7:
             break;
         }
         break;
@@ -14435,8 +14436,10 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         break;
     case BLOCK_DANDELION:
         wobbleIt = true;
-        switch (dataVal) {
+        switch (dataVal & 0x7) {
         default:
+            assert(0);
+        case 0:
             // fine as is - dandelion
             break;
         case 1:
@@ -15375,7 +15378,6 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
             float yAngle;
             switch (dataVal & 0x7)
             {
-            default:
             case 1:
                 yAngle = 90.0f;
                 break;
@@ -15385,6 +15387,8 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
             case 3:
                 yAngle = 180.0f;
                 break;
+            default:
+                assert(0);
             case 4:
                 yAngle = 0.0f;
                 break;
@@ -18875,6 +18879,7 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
             switch (neighborDataVal & 0x3)
             {
             default:    // make compiler happy
+                assert(0);
             case 0: // ascending east
                 if (faceDirection == DIRECTION_BLOCK_SIDE_LO_X)
                     return 1;
@@ -18983,6 +18988,7 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
                     switch (neighborDataVal & 0x3)
                     {
                     default:    // make compiler happy
+                        assert(0);
                     case 0: // south
                         return (faceDirection == DIRECTION_BLOCK_SIDE_HI_Z);
                     case 1: // north
@@ -20016,7 +20022,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             switch (trimVal & 0xf)
             {
             default:
-                // Debug world gives: assert(0);
+                // Debug world gives: 
+                assert(0);
             case 0:
                 // smooth stone, two slabs
                 // use stone side pattern
@@ -20118,6 +20125,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             switch (faceDirection)
             {
             default:
+                assert(0);
             case DIRECTION_BLOCK_SIDE_LO_X:
                 //angle = 0;
                 break;
@@ -20144,6 +20152,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 switch (dataVal & 0x7)
                 {
                 default:
+                    assert(0);
                 case 2: // facing north
                     angle += 270;
                     break;
@@ -20218,6 +20227,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             switch (dataVal & 0xC)
             {
             default:
+                assert(0);
             case 0x0:
                 // as above: newFaceDirection = faceDirection;
                 break;
@@ -20225,6 +20235,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 switch (faceDirection)
                 {
                 default:
+                    assert(0);
                 case DIRECTION_BLOCK_SIDE_LO_X:
                 case DIRECTION_BLOCK_SIDE_HI_X:
                     newFaceDirection = DIRECTION_BLOCK_TOP;
@@ -20249,6 +20260,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 switch (faceDirection)
                 {
                 default:
+                    assert(0);
                 case DIRECTION_BLOCK_SIDE_LO_X:
                     angle = 270;
                     break;
@@ -20280,6 +20292,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     switch (dataVal & 0x3)
                     {
                     default: // normal wood
+                        assert(0);
                     case 0:
                         swatchLoc = SWATCH_XY_TO_INDEX(4, 1);
                         break;
@@ -20299,6 +20312,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     switch (dataVal & 0x3)
                     {
                     default: // normal log
+                        assert(0);
                     case 0:
                         SWATCH_SWITCH_SIDE(newFaceDirection, 4, 1);
                         break;
@@ -20320,6 +20334,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     switch (dataVal & 0x3)
                     {
                     default:
+                        assert(0);
                     case 0: // acacia
                         swatchLoc = SWATCH_XY_TO_INDEX(5, 11);
                         break;
@@ -20339,6 +20354,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     switch (dataVal & 0x3)
                     {
                     default:
+                        assert(0);
                     case 0: // acacia
                         SWATCH_SWITCH_SIDE(newFaceDirection, 5, 11);
                         break;
@@ -20394,6 +20410,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 switch (dataVal & 0x3)
                 {
                 default: // normal log
+                    assert(0);
                 case 0:
                     SWATCH_SWITCH_SIDE(newFaceDirection, 0, 34);
                     break;
@@ -20412,6 +20429,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 switch (dataVal & 0x3)
                 {
                 default: // normal log
+                    assert(0);
                 case 0: // acacia
                     SWATCH_SWITCH_SIDE(newFaceDirection, 4, 34);
                     break;
@@ -20446,6 +20464,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 switch (dataVal & 0x3)
                 {
                 default: // normal log
+                    assert(0);
                 case 0:
                     break;
                 case 1: // spruce (dark)
@@ -20463,6 +20482,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 switch (dataVal & 0x3)
                 {
                 default: // normal log
+                    assert(0);
                 case 0: // acacia
                     break;
                 case 1: // dark oak
@@ -20499,6 +20519,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 switch (dataVal & 0x3)
                 {
                 default: // Ochre
+                    assert(0);
                 case 0: // Ochre
                     SWATCH_SWITCH_SIDE(newFaceDirection, 12, 55);
                     break;
@@ -20728,6 +20749,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             switch (dataVal & 0x3)
             {
             default:
+                assert(0);
             case 0: // normal tree (oak)
                 swatchLoc = SWATCH_INDEX(4, 3);
                 break;
@@ -20745,8 +20767,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_AD_LEAVES:						// getSwatch
             switch (dataVal & 0x3)
             {
-            case 0: // normal tree (acacia)
             default:
+                assert(0);
+            case 0: // normal tree (acacia)
                 swatchLoc = SWATCH_INDEX(9, 19);
                 break;
             case 1: // dark oak
@@ -20761,7 +20784,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             break;
         case BLOCK_MANGROVE_LEAVES:						// getSwatch
-            switch (dataVal & 0x3f)
+            switch (dataVal & 0x3)
             {
             default:
                 assert(0);
@@ -20797,6 +20820,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             // establish top/side/bottom
             switch (dataVal & (BIT_32 | BIT_16)) {
             default:
+                assert(0);
             case 0:	// furnace, dropper, dispenser - all the same
                 SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 13, 2, 14, 3);
                 break;
@@ -20827,6 +20851,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 case BLOCK_FURNACE:
                     switch (dataVal & (BIT_32 | BIT_16)) {
                     default:
+                        assert(0);
                     case 0:	// furnace
                         frontLoc = SWATCH_INDEX(12, 2);
                         break;
@@ -20841,10 +20866,12 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                         break;
                     }
                     break;
-                case BLOCK_BURNING_FURNACE:
                 default:
+                    assert(0);
+                case BLOCK_BURNING_FURNACE:
                     switch (dataVal & (BIT_32 | BIT_16)) {
                     default:
+                        assert(0);
                     case 0:	// furnace
                         frontLoc = SWATCH_INDEX(13, 3);
                         break;
@@ -20880,8 +20907,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     if (faceDirection == DIRECTION_BLOCK_SIDE_LO_X)
                         swatchLoc = frontLoc;
                     break;
-                case 5: // East
                 default:
+                    assert(0);
+                case 5: // East
                     if (faceDirection == DIRECTION_BLOCK_SIDE_HI_X)
                         swatchLoc = frontLoc;
                     break;
@@ -20925,8 +20953,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                         rotateIndices(localIndices, 270);
                     }
                     break;
-                case 5: // East
                 default:
+                    assert(0);
+                case 5: // East
                     if (uvIndices) {
                         rotateIndices(localIndices, 90);
                     }
@@ -20961,7 +20990,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     break;
                 case DIRECTION_BLOCK_SIDE_HI_Z: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
                     break;
-                default: break;
+                default: 
+                    assert(0);
+                case DIRECTION_BLOCK_TOP:
+                    break;
                 }
                 break;
             case 1: // back side facing up
@@ -20992,7 +21024,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                         rotateIndices(localIndices, 180);
                     }
                     break;
-                default: break;
+                default:
+                    assert(0);
+                case DIRECTION_BLOCK_BOTTOM:
+                    break;
                 }
                 break;
             case 2: // back side facing North -Z
@@ -21008,7 +21043,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 case DIRECTION_BLOCK_SIDE_LO_X:
                 case DIRECTION_BLOCK_SIDE_HI_X: swatchLoc = SWATCH_INDEX(3, 33); break;
                 case DIRECTION_BLOCK_SIDE_LO_Z: swatchLoc = SWATCH_INDEX(2, 33); break;
-                default: break;
+                default:
+                    assert(0);
+                case DIRECTION_BLOCK_SIDE_HI_Z: // do nothing
+                    break;
                 }
                 break;
             case 3: // back side facing South +Z
@@ -21026,7 +21064,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 case DIRECTION_BLOCK_SIDE_LO_X:
                 case DIRECTION_BLOCK_SIDE_HI_X: swatchLoc = SWATCH_INDEX(3, 33); break;
                 case DIRECTION_BLOCK_SIDE_HI_Z: swatchLoc = SWATCH_INDEX(2, 33); break;
-                default: break;
+                default:
+                    assert(0);
+                case DIRECTION_BLOCK_SIDE_LO_Z:
+                    break;
                 }
                 break;
             case 4: // back side facing West
@@ -21045,11 +21086,15 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 case DIRECTION_BLOCK_SIDE_LO_X: swatchLoc = SWATCH_INDEX(2, 33); break;
                 case DIRECTION_BLOCK_SIDE_LO_Z:
                 case DIRECTION_BLOCK_SIDE_HI_Z: swatchLoc = SWATCH_INDEX(3, 33); break;
-                default: break;
+                default:
+                    assert(0);
+                case DIRECTION_BLOCK_SIDE_HI_X:
+                    break;
                 }
                 break;
-            case 5: // back side facing East
             default:
+                assert(0);
+            case 5: // back side facing East
                 switch (faceDirection) {
                 case DIRECTION_BLOCK_BOTTOM: swatchLoc = SWATCH_INDEX(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
                     if (uvIndices) {
@@ -21065,7 +21110,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 case DIRECTION_BLOCK_SIDE_HI_X: swatchLoc = SWATCH_INDEX(2, 33); break;
                 case DIRECTION_BLOCK_SIDE_LO_Z:
                 case DIRECTION_BLOCK_SIDE_HI_Z: swatchLoc = SWATCH_INDEX(3, 33); break;
-                default: break;
+                default:
+                    assert(0);
+                case DIRECTION_BLOCK_SIDE_LO_X:
+                    break;
                 }
                 break;
             }
@@ -21284,6 +21332,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 // dataVal gives which way it points 7,9 and 8,9 vs. 5,9, 6,9
                 switch (((dataVal & 0x3) - faceRot[faceDirection] + 4) % 4)
                 {
+                default:
+                    assert(0);
                 case 0: // south
                     swatchLoc = SWATCH_INDEX(xstart, 9);
                     break;
@@ -21299,10 +21349,6 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     break;
                 case 3:
                     swatchLoc = SWATCH_INDEX(xoff + xstart, 9);
-                    break;
-                default:
-                    if (faceDirection == DIRECTION_BLOCK_SIDE_HI_X)
-                        swatchLoc = SWATCH_INDEX(14, 2);
                     break;
                 }
             }
@@ -21771,6 +21817,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 // use the "from above" torch
                 switch (type) {
                 default:
+                    assert(0);
                 case BLOCK_TORCH:
                     swatchLoc = TORCH_TOP;
                     break;
@@ -21822,6 +21869,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 case 2: // facing north
                     angle = 180;
                     break;
+                default:
+                    assert(0);
                 case 3: // facing south
                     angle = 0;
                     break;
@@ -21830,9 +21879,6 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     break;
                 case 5: // facing east
                     angle = 270;
-                    break;
-                default:
-                    assert(0);
                     break;
                 }
                 // chest itself - facing south
@@ -22573,6 +22619,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_DANDELION:						// getSwatch
             switch (dataVal & 0xf) {
             default:
+                assert(0);
+            case 0:
                 // fine as is - dandelion
                 break;
             case 1:
@@ -22680,8 +22728,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             case 6:
                 swatchLoc--;
                 break;
-            case 7:
             default:
+                assert(0);
+            case 7:
                 break;
             }
             break;
@@ -22756,8 +22805,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 // dead bush appearance
                 swatchLoc = SWATCH_INDEX(7, 3);
                 break;
-            case 1:
             default:
+                assert(0);
+            case 1:
                 // set OK already
                 break;
             case 2:
@@ -22809,8 +22859,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_INFESTED_STONE:						// getSwatch
             switch (dataVal & 0x7)
             {
-            case 0:
             default:
+                assert(0);
+            case 0:
                 // default
                 randomlyRotate180AndReflect(faceDirection, backgroundIndex, localIndices);
                 break;
@@ -22986,6 +23037,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 }
                 break;
             default:
+                assert(0);
                 break;
             }
 
@@ -23405,6 +23457,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             switch (dataVal & 0xC)
             {
             default:
+                assert(0);
             case 0x0:
                 // as above: newFaceDirection = faceDirection;
                 break;
@@ -23412,6 +23465,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 switch (faceDirection)
                 {
                 default:
+                    assert(0);
                 case DIRECTION_BLOCK_SIDE_LO_X:
                     newFaceDirection = DIRECTION_BLOCK_TOP;
                     break;
@@ -23439,6 +23493,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 switch (faceDirection)
                 {
                 default:
+                    assert(0);
                 case DIRECTION_BLOCK_SIDE_LO_X:
                     angle = 270;
                     break;
@@ -23509,8 +23564,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_STRUCTURE_BLOCK:						// getSwatch
             // use data to figure out which type of structure block
             switch (dataVal & 0x7) {
-            case 1:
             default:
+                assert(0);
+            case 1:
                 // data - 1
                 swatchLoc++;
                 break;
@@ -23546,6 +23602,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             switch (faceDirection)
             {
             default:
+                assert(0);
             case DIRECTION_BLOCK_SIDE_LO_X:
             case DIRECTION_BLOCK_SIDE_HI_X:
             case DIRECTION_BLOCK_SIDE_LO_Z:
@@ -23872,6 +23929,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             // establish top/side/bottom
             switch (dataVal & BIT_32) {
             default:
+                assert(0);
             case 0:			// bee nest
                 SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 11, 41, 8, 41);
                 break;
@@ -23887,6 +23945,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 switch (dataVal & BIT_32)
                 {
                 default:
+                    assert(0);
                 case 0:			// bee_nest
                     frontLoc = SWATCH_INDEX(filled_with_honey ? 10 : 9, 41);
                     break;
@@ -23909,8 +23968,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     if (faceDirection == DIRECTION_BLOCK_SIDE_LO_X)
                         swatchLoc = frontLoc;
                     break;
-                case 0: // East
                 default:
+                    assert(0);
+                case 0: // East
                     if (faceDirection == DIRECTION_BLOCK_SIDE_HI_X)
                         swatchLoc = frontLoc;
                     break;
@@ -23934,8 +23994,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                         rotateIndices(localIndices, 270);
                     }
                     break;
-                case 0: // East
                 default:
+                    assert(0);
+                case 0: // East
                     if (uvIndices) {
                         rotateIndices(localIndices, 90);
                     }
@@ -24216,8 +24277,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                             rotateIndices(localIndices, 270);
                         }
                         break;
-                    case 0: // East
                     default:
+                        assert(0);
+                    case 0: // East
                         if (uvIndices) {
                             rotateIndices(localIndices, 90);
                         }
@@ -24326,6 +24388,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             switch (faceDirection)
             {
             default:
+                assert(0);
             case DIRECTION_BLOCK_SIDE_LO_X:
                 swatchLoc += 1;
                 break;
@@ -24659,6 +24722,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             switch (faceDirection)
             {
             default:
+                assert(0);
             case DIRECTION_BLOCK_SIDE_LO_X:
                 swatchLoc += (dataVal & BIT_16) ? 2 : 1;
                 break;
@@ -25403,6 +25467,7 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
             switch (dataVal & 0x1f) {
                 // actually use default, as all the copper variants emit the same
             default:
+                assert(0);
             case 0:
                 // default: emission = 15.0f;
                 break;
@@ -27884,6 +27949,7 @@ static int createBaseMaterialTexture()
                 static int bleedToEdge = 1;
                 switch (bleedToEdge) {
                 default:
+                    assert(0);
                 case 0:
                     bleedPNGSwatch(mainprog, SWATCH_INDEX(gTilesTable[i].txrX, gTilesTable[i].txrY), 0, 16, 0, 16, gModel.swatchSize, gModel.swatchesPerRow, 0);
                     break;
@@ -34793,6 +34859,7 @@ static void rotatePNGTile(progimage_info* dst, int dcol, int drow, int scol, int
     switch (angle)
     {
     default:
+        assert(0);
     case 0:
         m00 = m11 = 1;
         m01 = m10 = 0;
@@ -34875,6 +34942,7 @@ static int bleedPNGSwatch(progimage_info* dst, int dstSwatch, int xmin, int xmax
                     switch (i)
                     {
                     default:	// to make compiler happy
+                        assert(0);
                     case 0:
                         cneighi = cdsti - dst->width;
                         break;
@@ -34918,6 +34986,7 @@ static int bleedPNGSwatch(progimage_info* dst, int dstSwatch, int xmin, int xmax
                         switch (i)
                         {
                         default:	// to make compiler happy
+                            assert(0);
                         case 0:
                             cneighi = cdsti - dst->width - 1;
                             break;
@@ -35037,6 +35106,7 @@ static int bleedPNGSwatchRecursive(progimage_info* dst, int dstSwatch, int xmin,
                     switch (i)
                     {
                     default:	// to make compiler happy
+                        assert(0);
                     case 0:
                         cneighi = cdsti - dst->width;
                         break;
@@ -35096,6 +35166,7 @@ static int bleedPNGSwatchRecursive(progimage_info* dst, int dstSwatch, int xmin,
                         switch (i)
                         {
                         default:	// to make compiler happy
+                            assert(0);
                         case 0:
                             cneighi = cdsti - dst->width - 1;
                             break;
@@ -36892,6 +36963,7 @@ static int getVertexIDmatching(FaceRecord* pFace, float xnx, float yny)
     // needs to match extractZXYfromNormalAndBounds()
     switch (pFace->normalIndex % 3) {
     default:
+        assert(0);
     case X:
         indexX = Z;
         indexY = Y;

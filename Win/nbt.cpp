@@ -69,8 +69,9 @@ static TranslationTuple* modTranslations = NULL;
 // if defined, only those data values that have an effect on graphics display (vs. sound or
 // simulation) are actually filled in. This is a good thing for instancing, but allows the
 // code to be turned on in the future (though there are still a bunch of non-graphical values
-// that we nonetheless don't track).
-#define GRAPHICAL_ONLY
+// that we nonetheless don't track). We've now turned this OFF so that more data is tracked,
+// for .schem export and import
+//#define GRAPHICAL_ONLY
 
 // Shows all data names and values and what uses them: https://minecraft.wiki/w/Java_Edition_data_values
 
@@ -568,7 +569,9 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 #ifdef GRAPHICAL_ONLY
     { 0, BLOCK_FIRE,    0, "fire", TRULY_NO_PROP }, // ignore age
 #else
-    { 0, BLOCK_FIRE,    0, "fire", NO_PROP },
+    // AGE_PROP routes `age` (low 4 bits) through the existing read/write arms; subtype_mask
+    // is 0x10 so soul_fire (BIT_16 below) is still picked apart from regular fire.
+    { 0, BLOCK_FIRE,    0, "fire", AGE_PROP },
 #endif
     { 0,  52,           0, "spawner", NO_PROP },
     { 0,  53,           0, "oak_stairs", STAIRS_PROP },
@@ -1184,7 +1187,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  70, HIGH_BIT | BIT_32 | BIT_16, "warped_sign", STANDING_SIGN_PROP },
     { 0,  68, BIT_32 | BIT_16, "crimson_wall_sign", WALL_SIGN_PROP },
     { 0,  68, BIT_32 | BIT_16 | BIT_8, "warped_wall_sign", WALL_SIGN_PROP },
-    { 0, BLOCK_FIRE,  BIT_16, "soul_fire", NO_PROP },
+    { 0, BLOCK_FIRE,  BIT_16, "soul_fire", AGE_PROP },
     { 0, 106,       HIGH_BIT, "soul_torch", TORCH_PROP },	// was soul_fire_torch in an earlier 1.16 beta, like 16
     { 0, 106,       HIGH_BIT, "soul_wall_torch", TORCH_PROP },	// was soul_fire_torch in an earlier 1.16 beta, like 16
     { 0,  82, HIGH_BIT | 0x2, "soul_lantern", LANTERN_PROP },
@@ -5951,6 +5954,21 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             if (strcmp(k, "age") == 0) dataVal = (dataVal & ~0xF) | (atoi(v) & 0xF);
             break;
 
+        case SAPLING_PROP:
+            // stage: 0 or 1, bit 0x8. (Mirror of nbt.cpp:3715 in the world reader.)
+            if (strcmp(k, "stage") == 0) {
+                if (atoi(v) != 0) dataVal |= 0x8;
+            }
+            break;
+
+        case LEAF_PROP:
+            // persistent: true|false, bit 0x4. (Mirror of nbt.cpp:3727 in the world reader.)
+            // distance is parsed and discarded — Mineways doesn't track it.
+            if (strcmp(k, "persistent") == 0) {
+                if (strcmp(v, "true") == 0) dataVal |= 0x4;
+            }
+            break;
+
         case FARMLAND_PROP:
             if (strcmp(k, "moisture") == 0) dataVal = (dataVal & ~0x7) | (atoi(v) & 0x7);
             break;
@@ -7088,9 +7106,27 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "snowy", (dataVal & SNOWY_BIT) ? "true" : "false");
         break;
 
+    case SAPLING_PROP: {
+        // Saplings/bamboo_sapling/cherry_sapling. Subtype (sapling kind) is in bits 0x07 and
+        // picked by the BlockTranslations lookup. `stage` (0 or 1) lives in bit 0x08, read at
+        // nbt.cpp:3715 (gated on GRAPHICAL_ONLY).
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "stage", (dataVal & 0x8) ? "1" : "0");
+        break;
+    }
+
+    case LEAF_PROP: {
+        // Leaves families. Subtype (leaf kind) is in bits 0x03; `persistent` lives in bit 0x04,
+        // read at nbt.cpp:3727 (gated on GRAPHICAL_ONLY). Mineways doesn't track Minecraft's
+        // `distance` property — emit it as the default 7 so consumer tools don't object.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "distance", "7");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "persistent", (dataVal & 0x4) ? "true" : "false");
+        break;
+    }
+
     case AGE_PROP: {
         // wheat/beetroots/melon_stem/pumpkin_stem (0-7), cactus/sugar_cane (0-15),
-        // nether_wart/frosted_ice/sweet_berry_bush (0-3). The "age" property in NBT
+        // nether_wart/frosted_ice/sweet_berry_bush (0-3), and now fire / soul_fire (0-15
+        // with soul_fire's subtype bit 0x10 preserved separately). The "age" property in NBT
         // is OR'd straight into dataVal (see AGE_PROP parse in readPalette: `dataVal |= atoi(value)`);
         // the low 4 bits are enough to cover every AGE_PROP block.
         char ageStr[3];
