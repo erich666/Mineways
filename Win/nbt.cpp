@@ -1469,22 +1469,22 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 247,   HIGH_BIT | 0x10, "waxed_exposed_copper_golem_statue",    COPPER_GOLEM_PROP },
     { 0, 247,   HIGH_BIT | 0x20, "waxed_weathered_copper_golem_statue",  COPPER_GOLEM_PROP },
     { 0, 247,   HIGH_BIT | 0x30, "waxed_oxidized_copper_golem_statue",   COPPER_GOLEM_PROP },
-    { 0, 132,  HIGH_BIT | 49, "chiseled_copper", BULB_PROP },
-    { 0, 132,  HIGH_BIT | 50, "exposed_chiseled_copper", BULB_PROP },
-    { 0, 132,  HIGH_BIT | 51, "weathered_chiseled_copper", BULB_PROP },
-    { 0, 132,  HIGH_BIT | 52, "oxidized_chiseled_copper", BULB_PROP },
-    { 0, 132,  HIGH_BIT | 53, "waxed_chiseled_copper", BULB_PROP },
-    { 0, 132,  HIGH_BIT | 54, "waxed_exposed_chiseled_copper", BULB_PROP },
-    { 0, 132,  HIGH_BIT | 55, "waxed_weathered_chiseled_copper", BULB_PROP },
-    { 0, 132,  HIGH_BIT | 56, "waxed_oxidized_chiseled_copper", BULB_PROP },
-    { 0, 214,       HIGH_BIT, "copper_grate", BULB_PROP },
-    { 0, 214,   HIGH_BIT | 1, "exposed_copper_grate", BULB_PROP },
-    { 0, 214,   HIGH_BIT | 2, "weathered_copper_grate", BULB_PROP },
-    { 0, 214,   HIGH_BIT | 3, "oxidized_copper_grate", BULB_PROP },
-    { 0, 214,   HIGH_BIT | 4, "waxed_copper_grate", BULB_PROP },
-    { 0, 214,   HIGH_BIT | 5, "waxed_exposed_copper_grate", BULB_PROP },
-    { 0, 214,   HIGH_BIT | 6, "waxed_weathered_copper_grate", BULB_PROP },
-    { 0, 214,   HIGH_BIT | 7, "waxed_oxidized_copper_grate", BULB_PROP },
+    { 0, 132,  HIGH_BIT | 49, "chiseled_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 50, "exposed_chiseled_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 51, "weathered_chiseled_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 52, "oxidized_chiseled_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 53, "waxed_chiseled_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 54, "waxed_exposed_chiseled_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 55, "waxed_weathered_chiseled_copper", NO_PROP },
+    { 0, 132,  HIGH_BIT | 56, "waxed_oxidized_chiseled_copper", NO_PROP },
+    { 0, 214,       HIGH_BIT, "copper_grate", NO_PROP },
+    { 0, 214,   HIGH_BIT | 1, "exposed_copper_grate", NO_PROP },
+    { 0, 214,   HIGH_BIT | 2, "weathered_copper_grate", NO_PROP },
+    { 0, 214,   HIGH_BIT | 3, "oxidized_copper_grate", NO_PROP },
+    { 0, 214,   HIGH_BIT | 4, "waxed_copper_grate", NO_PROP },
+    { 0, 214,   HIGH_BIT | 5, "waxed_exposed_copper_grate", NO_PROP },
+    { 0, 214,   HIGH_BIT | 6, "waxed_weathered_copper_grate", NO_PROP },
+    { 0, 214,   HIGH_BIT | 7, "waxed_oxidized_copper_grate", NO_PROP },
     { 0, 142,   HIGH_BIT | BIT_16 | 4, "tuff_slab", SLAB_PROP },
     { 0, 142,   HIGH_BIT | BIT_16 | 5, "polished_tuff_slab", SLAB_PROP },
     { 0, 142,   HIGH_BIT | BIT_16 | 6, "tuff_brick_slab", SLAB_PROP },
@@ -4458,6 +4458,10 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 // prop defined but not used in list below - just use NO_PROP if the prop does nothing
                 assert(0);
 
+            case COPPER_GOLEM_PROP:
+                // TODOTODOTODO
+                break;
+
                 // These next two use shared properties, which means the other PROPs that use any of these need to reset them (except for dropper_facing and door_facing).
             case EXTENDED_FACING_PROP:
                 // properties DROPPER_PROP, PISTON_PROP, PISTON_HEAD_PROP, HOPPER_PROP, COMMAND_BLOCK_PROP, 
@@ -5695,8 +5699,12 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
     int numProps = propsBuf ? spongeParsePropList(propsBuf, keys, values, 24) : 0;
 
     // Track "lit" / "berries" separately because several prop families remap the block ID
-    // when these are true (see post-process loop below).
+    // when these are true (see post-process loop below). `litExplicit` is set whenever the
+    // input string actually contained a `lit=` property — used by the redstone-torch unlit
+    // swap, which needs to distinguish "lit=false present" from "lit prop absent" since
+    // Minecraft defaults redstone torches to lit=true.
     bool lit = false;
+    bool litExplicit = false;
     bool berries = false;
     bool typeIsDouble = false;
 
@@ -5711,9 +5719,12 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
         }
         if (strcmp(k, "lit") == 0) {
             lit = (strcmp(v, "true") == 0);
-            // For CANDLE_CAKE_PROP, BULB_PROP, BERRIES_PROP, CALIBRATED_SCULK_SENSOR_PROP this is
-            // a real bit in dataVal — handle below. For FURNACE/REDSTONE_ORE/CANDLE families the
-            // bit lives in the block ID itself; handled in post-process.
+            litExplicit = true;
+            // Every family that cares about `lit` consumes the flag in the post-process
+            // `if (lit)` switch later in this function — either swapping the blockId
+            // (FURNACE_PROP / REDSTONE_ORE_PROP / CANDLE_PROP / REPEATER_PROP / TORCH_PROP) or
+            // setting a real dataVal bit (BULB_PROP → 0x8). Don't fall into the per-family
+            // switch below; some arms reuse the same bits for unrelated properties.
             continue;
         }
         if (strcmp(k, "berries") == 0) {
@@ -6012,11 +6023,10 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             break;
 
         case BULB_PROP:
-            // copper_bulb family only — the writer also emits these for chiseled_copper but only
-            // for the bulb path. powered uses BIT_16, lit uses bit 0x8.
+            // copper_bulb only. `lit` is captured by the universal handler at the top of this
+            // loop and applied in the post-process `if (lit)` switch below; here we only handle
+            // the per-family `powered` bit (BIT_16).
             if (strcmp(k, "powered") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x10; }
-            // lit handled in `lit` flag — apply below
-            if (strcmp(k, "lit") == 0)     { if (strcmp(v, "true") == 0) dataVal |= 0x8; lit = false; }
             break;
 
         case PALE_MOSS_CARPET_PROP:
@@ -6256,6 +6266,12 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
         case REPEATER_PROP:
             if (blockId == 93) blockId = 94;           // BLOCK_REDSTONE_REPEATER_OFF → ON
             break;
+        case BULB_PROP:
+            // copper_bulb carries `lit` as a real dataVal bit (0x8), not a block-ID swap. The
+            // universal `lit` handler at the top of the prop loop captures the flag and skips
+            // the per-family arm via `continue`, so the bit has to be set here.
+            dataVal |= 0x8;
+            break;
         case TORCH_PROP:
             // Mineways' lookup gives blockId=76 for both redstone_torch and redstone_wall_torch (lit
             // form). Reverse the writer's "unlit→75" branch: if NOT lit, switch to 75. The lit case
@@ -6265,15 +6281,15 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             break;
         }
     }
-    // Unlit redstone_torch: if the parsed name was "redstone_torch" or "redstone_wall_torch" but
-    // lit=false was explicit, swap to the unlit blockId. The lookup returned 76 (the lit form, per
-    // BlockTranslations); we adjust here.
-    if (tf == TORCH_PROP && !lit) {
-        // Only swap if the parsed name actually had a lit prop set to false. We can't easily tell
-        // here vs. "no lit prop given" — but redstone torches default lit=true in Minecraft, so
-        // assume the user wanted lit=true if no prop was given. Skip the swap unless lit was
-        // EXPLICITLY false; for that we'd need to know "lit was present in props". Track it:
-        // (skipped — corner case, default keeps it lit)
+    // Unlit redstone_torch: if the parsed name was "redstone_torch" or "redstone_wall_torch" and
+    // lit=false was explicit, swap to the unlit blockId. The BlockTranslations lookup always
+    // returns blockId 76 (the lit form) for these names, so the swap to 75
+    // (BLOCK_REDSTONE_TORCH_OFF) has to happen here. blockId check excludes plain "torch" (50),
+    // "soul_torch" (106|HIGH_BIT), and "copper_torch" (238|HIGH_BIT) which also share TORCH_PROP
+    // but don't have a lit/unlit form. `litExplicit` guards against silently flipping the default
+    // when a state string omits `lit` (Minecraft's redstone-torch default is lit=true).
+    if (tf == TORCH_PROP && litExplicit && !lit && blockId == 76) {
+        blockId = 75;
     }
     // BERRIES_PROP cave_vines remap
     if (tf == BERRIES_PROP && berries) {
@@ -6884,9 +6900,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     // Copper bulbs include bit 0x8 ("lit") in their subtype_mask (set at nbt.cpp:1719 so the
-    // renderer treats lit and unlit as different materials). That bit pollutes the subtype index
-    // used for the palette lookup — a lit `exposed_copper_bulb` (oxidation=1, lit=1, subtype=9)
-    // matches no stored entry (those go 0..7) and falls back to the first row, `copper_bulb`.
+    // renderer treats lit and unlit as different materials).
     // Strip the lit bit just for the lookup; the BULB_PROP arm still reads it from `dataVal`.
     int lookupDataVal = dataVal;
     if ((type & 0x1FF) == BLOCK_COPPER_BULB) {
@@ -7426,17 +7440,11 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case BULB_PROP: {
-        // BULB_PROP covers TWO Mineways-internal families: copper_bulb variants (block 213 + HIGH_BIT)
-        // and chiseled_copper variants (block 132 + HIGH_BIT, dataVal 49..52). Read-side packs
-        // `dataVal |= (lit ? 0x8 : 0) | (powered ? BIT_16 : 0)` for bulbs (nbt.cpp:4973). The
-        // chiseled_copper entries don't actually have lit/powered in modern Minecraft, so we only
-        // emit the bulb properties when the underlying block is in the copper_bulb family.
-        if ((type & 0x1FF) == (256 + 213)) {
-            // Alphabetical: lit < powered.
-            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "lit", (dataVal & 0x8) ? "true" : "false");
-            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x10) ? "true" : "false");
-        }
-        // chiseled_copper has no per-block properties beyond the name (already chosen by subtype lookup).
+        // BULB_PROP is now copper_bulb (block 213 + HIGH_BIT, full type 469) only — chiseled_copper
+        // and copper_grate use NO_PROP. Read-side packs `dataVal |= (lit ? 0x8 : 0) | (powered ?
+        // BIT_16 : 0)` for bulbs (nbt.cpp:4974). Alphabetical: lit < powered.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "lit", (dataVal & 0x8) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x10) ? "true" : "false");
         break;
     }
 

@@ -54,7 +54,7 @@ typedef struct WorldBlock {
     unsigned char *grid;  // blockid array [y+(z+x*16)*256] -> [16 * 16 * 384]
     // someday we'll need the top four bits field when > 256 blocks
     // unsigned char add[16*16*128];   // the Add tag - see http://www.minecraftwiki.net/wiki/Anvil_file_format
-    unsigned char *data;  // half-byte additional data about each block, i.e., subtype such as log type, etc. -> [16 * 16 * 384]
+    unsigned char *data;  // byte additional data about each block, i.e., subtype such as log type, etc. -> [16 * 16 * 384]
     unsigned char *light; // half-byte lighting data -> [16 * 16 * 384/2]
 
     unsigned char rendercache[16 * 16 * 4]; // bitmap of last render

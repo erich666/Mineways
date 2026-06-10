@@ -4492,7 +4492,7 @@ unsigned int GetBlockDataColor(int type, int dataVal)
         }
 
     case BLOCK_ACACIA_SHELF:
-        switch ((dataVal & 0x28) >> 3)
+        switch ((dataVal & 0x38) >> 3)
         {
         default:
         case 0:
@@ -4749,7 +4749,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         dataVal = block->data[voxel];
         if (dataVal & 0x8) {
             // looking at the top of the plant, so get the bottom of the plant, if available, to get the bits (pre-1.13)
-            if (voxel >= 256)
+            if ((voxel >= 256) && (block->grid[voxel - 256] == BLOCK_DOUBLE_FLOWER))
                 dataVal = block->data[voxel - 256];
         }
         // masking just in case it's a top half (and probably bogus)
@@ -5169,7 +5169,12 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
                         }
                     }
                     // if it's the first voxel visible (i.e., there was no block at all to the west), note this depth.
-                    if (prevy == -1)
+                    // Two sentinels mean "no solid block to the west": -1 (initial value within a chunk, also set
+                    // from saveHeight after an all-air column) and EMPTY_HEIGHT (-999, read from the west chunk's
+                    // heightmap for an all-air column at the chunk boundary). Both must skip the "fully lit"
+                    // boost — otherwise a chunk-boundary column adjacent to a west-air column wrongly gets
+                    // light += 2 because EMPTY_HEIGHT < i triggers the brighten branch.
+                    if (prevy == -1 || prevy == EMPTY_HEIGHT)
                         prevy = i;
                     else if (prevy < i)   // fully lit on west side of block?
                         light += 2;
