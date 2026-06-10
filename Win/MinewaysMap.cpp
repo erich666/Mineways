@@ -3755,6 +3755,7 @@ unsigned int GetBlockDataColor(int type, int dataVal)
         switch (dataVal & 0x7)
         {
         default:
+            assert(0);
         case 0:	// full stone
         case 1:	// purpur, just in case
             return gBlockDefinitions[type].color;
@@ -3779,6 +3780,7 @@ unsigned int GetBlockDataColor(int type, int dataVal)
         switch (dataVal & 0x7)
         {
         default:
+            assert(0);
         case 0:	// tube coral - as is
             return gBlockDefinitions[type].color;
         case 1:	// brain
@@ -5648,7 +5650,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_NETHER_WART:
     case BLOCK_STONE_BRICKS:
     case BLOCK_FROSTED_ICE:
-    case BLOCK_STRUCTURE_BLOCK:
     case BLOCK_GLAZED_TERRACOTTA:
     case BLOCK_GLAZED_TERRACOTTA + 1:
     case BLOCK_GLAZED_TERRACOTTA + 2:
@@ -5678,6 +5679,13 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             addBlock = 1;
         }
         break;
+    case BLOCK_STRUCTURE_BLOCK:
+        // uses 1-4
+        if (dataVal > 0 && dataVal < 5)
+        {
+            addBlock = 1;
+        }
+        break;
     case BLOCK_BEETROOT_SEEDS:
         // uses 0-3, put farmland beneath it
         if (dataVal < 4)
@@ -5688,10 +5696,16 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
     case BLOCK_CRAFTING_TABLE:
-    case BLOCK_PUMPKIN:
-    case BLOCK_JACK_O_LANTERN:
     case BLOCK_CORAL_BLOCK:
     case BLOCK_DEAD_CORAL_BLOCK:
+        // uses 0-4
+        if (dataVal < 5)
+        {
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_PUMPKIN:
+    case BLOCK_JACK_O_LANTERN:
     case BLOCK_CRIMSON_DOUBLE_SLAB:
     case BLOCK_RESPAWN_ANCHOR:
     case BLOCK_DANDELION:
@@ -6486,13 +6500,13 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 // put block to east
                 block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
                 break;
+            default:
+                assert(0);
             case 4:
                 break;
             case 5:
                 // put block above
                 block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
-                break;
-            default:
                 break;
             }
             finalDataVal = (1 << (dataVal & 0x7)) | ((dataVal >= 8) ? WATERLOGGED_BIT : 0x0);
@@ -7194,6 +7208,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             block->data[bi] |= (unsigned char)(trimVal | typeHighBit);
             break;
         default:
+            // fine - do nothing
             break;
         }
         break;
@@ -7231,6 +7246,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             block->data[bi] |= (unsigned char)(trimAndMtlVal | typeHighBit);
             break;
         default:
+            // fine - do nothing
             break;
         }
         break;
