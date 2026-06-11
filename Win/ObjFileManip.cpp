@@ -21626,15 +21626,16 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 8, 0, 10, 0);
                 break;
             case 1:
+                // TODO: someday could be moved elsewhere if we want to have the TNT "unstable" property be exportable.
                 // target. Put here because, like TNT, target does not "chop" redstone wired - however, this behavior then changed so that it now does, in 20w18a
                 SWATCH_SWITCH_SIDE_VERTICAL(faceDirection, 11, 46, 10, 46);
                 break;
             case 2:
-                // cracked
+                // cracked stone bricks
                 swatchLoc = SWATCH_INDEX(5, 6);
                 break;
             case 3:
-                // chiseled circle - added in 1.2.4
+                // chiseled stone bricks - added in 1.2.4
                 swatchLoc = SWATCH_INDEX(5, 13);
                 break;
             }

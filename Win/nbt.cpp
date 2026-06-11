@@ -4473,7 +4473,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             if (strcmp(token, "short") == 0) {} // for piston, short is true for animation, only. Ignored by Mineways. TODO: Could be added, but unlikely to be set or useful, and it's transitory.
                             else if (strcmp(token, "instrument") == 0) {} // note_block's instrument is currently ignored by Mineways. Not enough bits to hold it.
                             else if (strcmp(token, "drag") == 0) {} // bubble column, which currently is turned into stationary water by Mineways, so ignored.
-                            else if (strcmp(token, "unstable") == 0) {}	// does TNT blow up when punched? I don't care
+                            else if (strcmp(token, "unstable") == 0) {}	// does TNT blow up when punched? Hmmm, this bit might cause problems... TODOTODO
                             else if (strcmp(token, "shrieking") == 0) {}	// non-visual sculk shrieker prop
                             else if (strcmp(token, "bloom") == 0) {}	// for sculk catalyst
                             else if (strcmp(token, "cracked") == 0) {}	// for decorated pot - ignored
@@ -6444,6 +6444,14 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
     // when a state string omits `lit` (Minecraft's redstone-torch default is lit=true).
     if (tf == TORCH_PROP && litExplicit && !lit && blockId == 76) {
         blockId = 75;
+    }
+    // Floor-torch normalization: mirror the world reader (nbt.cpp:4639). A floor torch (no
+    // `facing` prop) leaves dataVal at 0; Mineways' geometry pipeline (ObjFileManip.cpp:15391)
+    // asserts that dataVal & 0xF is either 5 (floor) or 1-4 (wall facings), and `if ((dataVal
+    // & 0xf) != 5)` routes 0 into the wall path → assertion failure. The world reader rewrites
+    // 0 to 5 so this never happens for world loads; do the same when importing from .schem.
+    if (tf == TORCH_PROP && (dataVal & 0x7) == 0) {
+        dataVal |= 5;
     }
     // BERRIES_PROP cave_vines remap
     if (tf == BERRIES_PROP && berries) {
