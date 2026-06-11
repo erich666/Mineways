@@ -7317,6 +7317,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         case 4:  facing = "north"; break;
         default: facing = "north"; break;	// shouldn't happen; the world reader / .schem read normalize
         }
+        // on read in, we only note if any slot is occupied (dataVal |= 0x8 if occupied), so we emit the same value for all six slots.
         const char* occupied = (dataVal & 0x8) ? "true" : "false";
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "last_interacted_slot", "0");
