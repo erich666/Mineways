@@ -4458,14 +4458,21 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             distance = atoi(value);
                         }
 
+                        // BLOCK_JUKEBOX (84). Only jukeboxes carry this property; bit 0x01 of dataVal
+                        // holds whether the jukebox has a record. Non-graphical but preserved for
+                        // .schem round-trip; the writer emits it via a type-keyed special case (jukebox
+                        // is NO_PROP so there is no per-family arm to hook into).
+                        else if (strcmp(token, "has_record") == 0) {
+                            if (strcmp(value, "true") == 0) dataVal |= 0x01;
+                        }
+
 #ifdef _DEBUG
                         else {
                             // ignore, not used by Mineways for now, BlockTranslations[typeIndex]
                             // TODOTODO we should implement all that we can, for .schem read/write.
-                            if (strcmp(token, "short") == 0) {} // for piston, TODO - what makes this property be true?
-                            else if (strcmp(token, "instrument") == 0) {} // note_block's instrument is currently ignored by Mineways
-                            else if (strcmp(token, "drag") == 0) {}
-                            else if (strcmp(token, "has_record") == 0) {}	// jukebox
+                            if (strcmp(token, "short") == 0) {} // for piston, short is true for animation, only. Ignored by Mineways. TODO: Could be added, but unlikely to be set or useful, and it's transitory.
+                            else if (strcmp(token, "instrument") == 0) {} // note_block's instrument is currently ignored by Mineways. Not enough bits to hold it.
+                            else if (strcmp(token, "drag") == 0) {} // bubble column, which currently is turned into stationary water by Mineways, so ignored.
                             else if (strcmp(token, "unstable") == 0) {}	// does TNT blow up when punched? I don't care
                             else if (strcmp(token, "shrieking") == 0) {}	// non-visual sculk shrieker prop
                             else if (strcmp(token, "bloom") == 0) {}	// for sculk catalyst
@@ -5837,6 +5844,8 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
         if (strcmp(k, "has_bottle_0") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x1; continue; }
         if (strcmp(k, "has_bottle_1") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x2; continue; }
         if (strcmp(k, "has_bottle_2") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x4; continue; }
+        // BLOCK_JUKEBOX (84) is NO_PROP; has_record lives in bit 0x01 (mirror of world reader).
+        if (strcmp(k, "has_record") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x1; continue; }
 
         // ---- Per-family props ----
         switch (tf) {
@@ -8035,6 +8044,12 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "has_bottle_0", (dataVal & 0x1) ? "true" : "false");
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "has_bottle_1", (dataVal & 0x2) ? "true" : "false");
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "has_bottle_2", (dataVal & 0x4) ? "true" : "false");
+    }
+
+    // BLOCK_JUKEBOX (84) is NO_PROP; world reader at nbt.cpp:~4452 packs `has_record` into
+    // bit 0x01. Non-graphical but preserved for .schem round-trip.
+    if ((type & 0x1FF) == BLOCK_JUKEBOX) {
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "has_record", (dataVal & 0x1) ? "true" : "false");
     }
 
     // Waterlogged is additive across many block families — but a few props steal bit 0x40 for
