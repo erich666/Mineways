@@ -419,6 +419,14 @@ static TranslationTuple* modTranslations = NULL;
 // 0x38 = bits 3..5 to fit the full 3-bit distance 0..7 without overlapping persistent (0x4)).
 #define LEAF_DISTANCE_BITS 0x38
 
+// BLOCK_BOOKSHELF (47) chiseled variant. Plain bookshelf is stateless and stays NO_PROP.
+//   bits 0x07: facing 1..4 (1=east, 2=west, 3=south, 4=north) — same encoding as TORCH_PROP
+//              so ObjFileManip's BOOKSHELF renderer (case BLOCK_BOOKSHELF + BIT_16 at ~line 21645)
+//              can use `dataVal & 0x7` directly.
+//   bit  0x08: any slot occupied (Mineways doesn't track per-slot occupancy)
+//   bit  0x10 (BIT_16): chiseled variant marker (from BlockTranslations subtype)
+#define BOOKSHELF_PROP 76
+
 #define NUM_TRANS 1178
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
@@ -1427,7 +1435,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 105,   HIGH_BIT | 5, "bamboo_mosaic_slab", SLAB_PROP },
     { 0, 196,	    HIGH_BIT, "bamboo_mosaic_stairs", STAIRS_PROP },
     { 0, 170,              2, "stripped_bamboo_block", AXIS_PROP },
-    { 0,  47,         BIT_16, "chiseled_bookshelf", NO_PROP },
+    { 0,  47,         BIT_16, "chiseled_bookshelf", BOOKSHELF_PROP },
     { 0, 197,	    HIGH_BIT, "pink_petals", PINK_PETALS_PROP },
     { 0, 198,       HIGH_BIT, "pitcher_crop", PITCHER_CROP_PROP },
     { 0, 175,              6, "pitcher_plant", TALL_FLOWER_PROP },
@@ -4600,6 +4608,13 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 distance = 0;
                 break;
 
+            case BOOKSHELF_PROP:
+                // chiseled_bookshelf. Universal facing parser already wrote bits 0..2 (1-4),
+                // and the slot_*_occupied parser at nbt.cpp:~4321 already OR'd bit 0x08 if any
+                // slot was occupied. Nothing left to pack here — but the case exists so the
+                // outer `default: assert(0)` doesn't trip.
+                break;
+
             case TRULY_NO_PROP:
                 // well, it can have waterlogged, further down
                 dataVal = 0x0;
@@ -6048,6 +6063,26 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             }
             break;
 
+        case BOOKSHELF_PROP:
+            // chiseled_bookshelf. bits 0..2 = facing 1..4, bit 0x08 = any slot occupied.
+            // BIT_16 (chiseled variant marker) comes from the BlockTranslations entry.
+            // `last_interacted_slot` is parsed and discarded — Mineways doesn't track it.
+            if (strcmp(k, "facing") == 0) {
+                int b;
+                if      (strcmp(v, "east") == 0)  b = 1;
+                else if (strcmp(v, "west") == 0)  b = 2;
+                else if (strcmp(v, "south") == 0) b = 3;
+                else                              b = 4;	// north
+                dataVal = (dataVal & ~0x7) | b;
+            }
+            else if (strncmp(k, "slot_", 5) == 0 && strstr(k, "_occupied") != NULL) {
+                // Any occupied slot → set the shared "books visible" bit. Mineways collapses
+                // all 6 slots into a single bit because the chiseled bookshelf texture only has
+                // an empty-front and a full-front variant.
+                if (strcmp(v, "true") == 0) dataVal |= 0x8;
+            }
+            break;
+
         case NOTE_BLOCK_PROP:
             // bit 0x01 = powered, bits 0x3E = note 0..24 (mirror of NOTE_BLOCK_PROP world arm).
             // `instrument` is positional in Minecraft (set by the block below) — not stored.
@@ -7230,6 +7265,31 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         snprintf(distStr, sizeof(distStr), "%d", (dataVal >> 1) & 0x7);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "bottom", (dataVal & 0x01) ? "true" : "false");
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "distance", distStr);
+        break;
+    }
+
+    case BOOKSHELF_PROP: {
+        // chiseled_bookshelf. bits 0..2 = facing 1..4, bit 0x08 = any slot occupied.
+        // Emit facing + all six slot_*_occupied flags (collapsed to the same boolean, since
+        // Mineways tracks only one "books visible" bit) + last_interacted_slot=0 as default.
+        // Alphabetical order: facing < last_interacted_slot < slot_0_occupied ... < slot_5_occupied.
+        const char* facing;
+        switch (dataVal & 0x7) {
+        case 1:  facing = "east"; break;
+        case 2:  facing = "west"; break;
+        case 3:  facing = "south"; break;
+        case 4:  facing = "north"; break;
+        default: facing = "north"; break;	// shouldn't happen; the world reader / .schem read normalize
+        }
+        const char* occupied = (dataVal & 0x8) ? "true" : "false";
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "last_interacted_slot", "0");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "slot_0_occupied", occupied);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "slot_1_occupied", occupied);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "slot_2_occupied", occupied);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "slot_3_occupied", occupied);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "slot_4_occupied", occupied);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "slot_5_occupied", occupied);
         break;
     }
 
