@@ -187,7 +187,7 @@ Here's a view of a small portion of [Block Test World] exported to OBJ and rende
 <P>
 If you can't find your world in the list, you can select "Find your world..." at the bottom, which is the same as doing...
 <P>
-<b>File | Open...:</b> This option is for opening worlds and schematic files. For worlds, navigate to wherever your world is stored and select the level.dat file. On Windows, the default folder for world save files is "%appdata%\.minecraft\saves"; for Mac it's "~/Library/Application Support/minecraft/saves/". You can also load old-style .schematic files and newer <a href="https://github.com/SpongePowered/Schematic-Specification/blob/master/versions/schematic-3.md">Sponge Schematic v3</a> .schem files. For schematic files, non-graphical data, such as the tone a jukebox makes, will likely be lost on export.
+<b>File | Open...:</b> This option is for opening worlds and schematic files. For worlds, navigate to wherever your world is stored and select the level.dat file. On Windows, the default folder for world save files is "%appdata%\.minecraft\saves"; for Mac it's "~/Library/Application Support/minecraft/saves/". You can also load old-style .schematic files and newer <a href="https://github.com/SpongePowered/Schematic-Specification/blob/master/versions/schematic-3.md">Sponge Schematic v3</a> .schem files. For schematic files, some non-graphical data, such as the instrument a note block uses, will be lost on import. These losses are described in the <a href="#blocks">Block Types Supported</a> table.
 
 <P>Worth saying again: you can also load a world or schematic by dragging and dropping its level.dat (for a world) or .schem file on to Mineways. 
 Another pro tip: if you save or rename your schematic file to have the world "repeat" in it, e.g., rename "eiffel.schematic" to "eiffelRepeat.schematic", the schematic will load and be repeated across the map, with a minimum one block gap between each model. This can be useful if you want to create a single 3D print file that has multiple copies of the model. Also, for schematics, only, <B>Control-A</B> will select the whole schematic model.
@@ -274,9 +274,9 @@ The big difference between rendering and printing is that 3D print models <i>mus
 To make your model immediately viewable on the web in 3D, choose the third option "Publish to Sketchfab." Mineways directly uploads your model to the Sketchfab site and makes it displayable to everyone. It's fun and easy, honestly. <a href="#sketchfab">Go here</a> for detailed instructions.
 <P>
 <a id="schematic">
-The next option is "Export Schematic",</a> which allows you to then import your model to another world by using <a href="https://www.amuletmc.com/">Amulet</a>, <a href="https://minecraft.curseforge.com/projects/worldedit">WorldEdit</a>, <a href="https://www.curseforge.com/minecraft/mc-mods/litematica">Litematica</a>, or <a href="https://intellectualsites.github.io/download/fawe.html">FAWE</a>. Note that Mineways can read a schematic file, treating it like a world, by using <a href="#openworld">"File | Open..."</a>.
+The next option is "Export Schematic",</a> which allows you to then import your model to another world by using <a href="https://www.amuletmc.com/">Amulet</a>, <a href="https://minecraft.curseforge.com/projects/worldedit">WorldEdit</a>, <a href="https://www.curseforge.com/minecraft/mc-mods/litematica">Litematica</a>, or <a href="https://intellectualsites.github.io/download/fawe.html">FAWE</a>. Mineways can read a schematic file, treating it like a world, by using <a href="#openworld">"File | Open..."</a>. For schematic files, some non-graphical data, such as the instrument a note block uses, will be lost on export. These losses are described in the <a href="#blocks">Block Types Supported</a> table.
 <P>
-Schematic files are commonly used to share constructions among builders. You can upload and share these files on sites such as <a href="https://planetminecraft.com">Planet Minecraft</a>. Signs will not have text, chests will lose their contents, objects such as <a href="https://minecraft.wiki/w/Paintings">paintings</a> are not exported, and <a href="https://minecraft.wiki/w/Head">heads</a> are turned into pumpkins. Currently no export options beyond the dimensions and the rotation angle affect schematic export in Mineways, and the rotation angle only partially works, mostly for full blocks that do not have any orientation. In other words, the orientation angle will rotate the model as a whole, but each individual block will not be rotated: stair steps and signs will still go the old direction, rails get "interesting," and so on. I'd avoid it... Also, if you use the old .schematic format (don't!), 1.13 and newer elements will export as grass blocks and a warning is issued, since the standard schematic format does not support these.
+Schematic files are commonly used to share constructions among builders. You can upload and share these files on sites such as <a href="https://planetminecraft.com">Planet Minecraft</a>. Signs will not have text, chests will lose their contents, objects such as <a href="https://minecraft.wiki/w/Paintings">paintings</a> are not exported, and <a href="https://minecraft.wiki/w/Head">heads</a> are turned into pumpkins. Currently no export options beyond the dimensions and the rotation angle affect schematic export in Mineways, and the rotation angle only partially works, mostly for full blocks that do not have any orientation. In other words, the orientation angle will rotate the model as a whole, but each individual block will not be rotated: stair steps and signs will still go the old direction, rails get "interesting," and so on. I'd avoid it... You can export newer <a href="https://github.com/SpongePowered/Schematic-Specification/blob/master/versions/schematic-3.md">Sponge Schematic v3</a> .schem files and old-style .schematic files. If you use the old .schematic format (don't!), blocks for world format 1.13 and newer will export as grass blocks and a warning will be issued, since the standard schematic format does not support these.
 <P>
 <a id="exportmap">
 "Export Map" is simple: whatever area you have selected is exported to a PNG-format image file, named as you wish. The zoom level affects the result, though will differ slightly from what you see on the screen for boring reasons. While you can manually export any portion of the map manually, the real power is from using <a href="scripting.html#sic">scripting</a>. You can make a simple text file to specify more than one map. Each map can be set to display a different part of your world, or even a different layer, by adjusting the maximum Y height. See (and run) the sample file "scripting/make_map_tiles.mwscript" for an example that creates four adjacent 1000x1000 maps centered around location 0,0. 
@@ -1760,6 +1760,21 @@ Slabs (#44, #126)
 </td>
 <td>
 <center>True slab</center>
+</td>
+<td>
+</td>
+</tr>
+
+<tr>
+<td>
+TNT (#46)
+</td>
+<td>
+<center>For .schem, the "unstable" property is ignored</center>
+</td>
+<td>
+</td>
+<td>
 </td>
 <td>
 </td>

@@ -4473,7 +4473,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             if (strcmp(token, "short") == 0) {} // for piston, short is true for animation, only. Ignored by Mineways. TODO: Could be added, but unlikely to be set or useful, and it's transitory.
                             else if (strcmp(token, "instrument") == 0) {} // note_block's instrument is currently ignored by Mineways. Not enough bits to hold it.
                             else if (strcmp(token, "drag") == 0) {} // bubble column, which currently is turned into stationary water by Mineways, so ignored.
-                            else if (strcmp(token, "unstable") == 0) {}	// does TNT blow up when punched? Hmmm, this bit might cause problems... TODOTODO
+                            else if (strcmp(token, "unstable") == 0) {}	// does TNT blow up when punched? Hmmm, there's probably a bug where, in pre-1.12 builds, TNT that is unstable might get turned into a target block instead. Let's leave sleeping dogs lie...
                             else if (strcmp(token, "shrieking") == 0) {}	// non-visual sculk shrieker prop
                             else if (strcmp(token, "bloom") == 0) {}	// for sculk catalyst
                             else if (strcmp(token, "cracked") == 0) {}	// for decorated pot - ignored
