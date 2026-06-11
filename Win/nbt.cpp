@@ -4426,21 +4426,28 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             dataVal |= ((strcmp(value, "true") == 0) ? 2 : 0);
                         }
 
-                        // creaking_heart_state, for side color: start / log / fail / accept
+                        // creaking_heart_state. `|=` (with state bits cleared first) so any property
+                        // parsed before this — e.g. natural at bit 0x10 — is preserved.
                         else if (strcmp(token, "creaking_heart_state") == 0) {
+                            dataVal &= ~0x3;
                             if (strcmp(value, "uprooted") == 0) {
-                                dataVal = 0;
+                                dataVal |= 0;
                             }
                             else if (strcmp(value, "dormant") == 0) {
-                                dataVal = 1;
+                                dataVal |= 1;
                             }
                             else if (strcmp(value, "awake") == 0) {
-                                dataVal = 2;
+                                dataVal |= 2;
                             }
                             else {
                                 // just in case
                                 assert(0);
                             }
+                        }
+                        // creaking_heart `natural` (true = naturally generated, false = player-placed).
+                        // Non-graphical but preserved for .schem round-trip. Bit 0x10.
+                        else if (strcmp(token, "natural") == 0) {
+                            if (strcmp(value, "true") == 0) dataVal |= 0x10;
                         }
 
                         else if (strcmp(token, "hydration") == 0) {
@@ -4486,10 +4493,10 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             else if (strcmp(token, "instrument") == 0) {} // note_block's instrument is currently ignored by Mineways. Not enough bits to hold it.
                             else if (strcmp(token, "drag") == 0) {} // bubble column, which currently is turned into stationary water by Mineways, so ignored.
                             else if (strcmp(token, "unstable") == 0) {}	// does TNT blow up when punched? We've reused TNT for a few other blocks, so let's not mess with this, and it's not graphical anyway.
-                            else if (strcmp(token, "bloom") == 0) {}	// for sculk catalyst
-                            else if (strcmp(token, "cracked") == 0) {}	// for decorated pot - ignored
-                            else if (strcmp(token, "natural") == 0) {}	// for creaking_heart - ignored, has to do with experience
-                            else if (strcmp(token, "side_chain") == 0) {}	// for shelf - ignored, no one knows what this is for
+                            else if (strcmp(token, "bloom") == 0) {}	// for sculk catalyst; ignoring, as skulk catalyst is doubled with crying obsidian (they both emit), so it's a bit confusing to add this. Doable, just messy. TODO
+                            else if (strcmp(token, "cracked") == 0) {}	// for decorated pot - ignored; (facing is also ignored for decorated pot)
+                            // creaking_heart's `natural` is parsed above
+                            else if (strcmp(token, "side_chain") == 0) {}	// for shelf - ignored, there's no room for this bit, and no one knows what this is for: https://minecraft.wiki/w/Shelf#Block_states
                             else {
                                 // unknown property - look at token and value
                                 static int ignore = 0;
@@ -5871,12 +5878,32 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
         // ---- Per-family props ----
         switch (tf) {
         case AXIS_PROP:
-        case CREAKING_HEART_PROP:
             if (strcmp(k, "axis") == 0) {
                 dataVal &= ~0xC;
                 if (strcmp(v, "x") == 0) dataVal |= 4;
                 else if (strcmp(v, "z") == 0) dataVal |= 8;
                 // y → 0, no bits set
+            }
+            break;
+
+        case CREAKING_HEART_PROP:
+            // bits 0..1 = creaking_heart_state (0=uprooted, 1=dormant, 2=awake)
+            // bits 0x0C = axis (4=x, 8=z, 0=y)
+            // bit  0x10 = natural
+            if (strcmp(k, "axis") == 0) {
+                dataVal &= ~0xC;
+                if (strcmp(v, "x") == 0) dataVal |= 4;
+                else if (strcmp(v, "z") == 0) dataVal |= 8;
+                // y → 0
+            }
+            else if (strcmp(k, "creaking_heart_state") == 0) {
+                dataVal &= ~0x3;
+                if      (strcmp(v, "dormant") == 0) dataVal |= 1;
+                else if (strcmp(v, "awake") == 0)   dataVal |= 2;
+                // "uprooted" or unknown → 0
+            }
+            else if (strcmp(k, "natural") == 0) {
+                if (strcmp(v, "true") == 0) dataVal |= 0x10;
             }
             break;
 
@@ -7151,9 +7178,23 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     // and emit no properties — readers will still load the base block correctly.
     switch (tf) {
     case AXIS_PROP:
-    case CREAKING_HEART_PROP:
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "axis", spongeAxisFromDataVal(dataVal));
         break;
+
+    case CREAKING_HEART_PROP: {
+        // bits 0..1 = creaking_heart_state, bits 0x0C = axis, bit 0x10 = natural.
+        // Alphabetical: axis < creaking_heart_state < natural.
+        const char* state;
+        switch (dataVal & 0x3) {
+        case 1:  state = "dormant"; break;
+        case 2:  state = "awake"; break;
+        default: state = "uprooted"; break;	// 0 (or any other) — matches world-reader default
+        }
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "axis", spongeAxisFromDataVal(dataVal));
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "creaking_heart_state", state);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "natural", (dataVal & 0x10) ? "true" : "false");
+        break;
+    }
 
     case NETHER_PORTAL_AXIS_PROP: {
         // dataVal = axis>>2 in this case: 0=y(unused), 1=x, 2=z
