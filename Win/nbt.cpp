@@ -6083,6 +6083,22 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             }
             break;
 
+        case STRUCTURE_PROP:
+            // BLOCK_STRUCTURE_BLOCK (255). `mode` packs into low 3 bits 1..4 — same encoding
+            // as the world reader at nbt.cpp:4083, also what ObjFileManip.cpp:23568 expects.
+            // Without this arm the .schem reader left dataVal at 0 and the OBJ-export getSwatch
+            // arm asserted. The literal value enum:
+            //   data=1, save=2, load=3, corner=4 (matches the swatch offsets in ObjFileManip)
+            if (strcmp(k, "mode") == 0) {
+                int m = 4;	// corner (default fallback)
+                if      (strcmp(v, "data") == 0)   m = 1;
+                else if (strcmp(v, "save") == 0)   m = 2;
+                else if (strcmp(v, "load") == 0)   m = 3;
+                else if (strcmp(v, "corner") == 0) m = 4;
+                dataVal = (dataVal & ~0x7) | m;
+            }
+            break;
+
         case NOTE_BLOCK_PROP:
             // bit 0x01 = powered, bits 0x3E = note 0..24 (mirror of NOTE_BLOCK_PROP world arm).
             // `instrument` is positional in Minecraft (set by the block below) — not stored.
@@ -6493,6 +6509,12 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
     // 0 to 5 so this never happens for world loads; do the same when importing from .schem.
     if (tf == TORCH_PROP && (dataVal & 0x7) == 0) {
         dataVal |= 5;
+    }
+    // Structure-block default mode: ObjFileManip.cpp:23568 asserts that dataVal & 0x7 is 1..4
+    // (data/save/load/corner). A .schem palette entry without a `mode` property leaves the low
+    // bits at 0 → assert on OBJ export. Default to "data" (1), the most common author choice.
+    if (tf == STRUCTURE_PROP && (dataVal & 0x7) == 0) {
+        dataVal |= 1;
     }
     // BERRIES_PROP cave_vines remap
     if (tf == BERRIES_PROP && berries) {
@@ -7265,6 +7287,20 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         snprintf(distStr, sizeof(distStr), "%d", (dataVal >> 1) & 0x7);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "bottom", (dataVal & 0x01) ? "true" : "false");
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "distance", distStr);
+        break;
+    }
+
+    case STRUCTURE_PROP: {
+        // BLOCK_STRUCTURE_BLOCK (255). Low 3 bits = mode (1=data, 2=save, 3=load, 4=corner).
+        // Mirrors world reader at nbt.cpp:4083 and ObjFileManip.cpp:23568.
+        const char* mode;
+        switch (dataVal & 0x7) {
+        case 1:  mode = "data"; break;
+        case 2:  mode = "save"; break;
+        case 3:  mode = "load"; break;
+        default: mode = "corner"; break;	// 4 (or anything else)
+        }
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "mode", mode);
         break;
     }
 
