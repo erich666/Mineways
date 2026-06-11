@@ -4302,9 +4302,13 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                                 assert(0);
                             }
                         }
-                        // for sculk shrieker
+                        // for sculk shrieker — bit 0x01 = can_summon, bit 0x02 = shrieking.
+                        // `|=` because both properties may appear in any order in the input NBT.
                         else if (strcmp(token, "can_summon") == 0) {
-                            dataVal = (strcmp(value, "true") == 0) ? 1 : 0;
+                            if (strcmp(value, "true") == 0) dataVal |= 0x01;
+                        }
+                        else if (strcmp(token, "shrieking") == 0) {
+                            if (strcmp(value, "true") == 0) dataVal |= 0x02;
                         }
                         // for suspicious gravel and sand
                         else if (strcmp(token, "dusted") == 0) {
@@ -4473,8 +4477,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             if (strcmp(token, "short") == 0) {} // for piston, short is true for animation, only. Ignored by Mineways. TODO: Could be added, but unlikely to be set or useful, and it's transitory.
                             else if (strcmp(token, "instrument") == 0) {} // note_block's instrument is currently ignored by Mineways. Not enough bits to hold it.
                             else if (strcmp(token, "drag") == 0) {} // bubble column, which currently is turned into stationary water by Mineways, so ignored.
-                            else if (strcmp(token, "unstable") == 0) {}	// does TNT blow up when punched? Hmmm, there's probably a bug where, in pre-1.12 builds, TNT that is unstable might get turned into a target block instead. Let's leave sleeping dogs lie...
-                            else if (strcmp(token, "shrieking") == 0) {}	// non-visual sculk shrieker prop
+                            else if (strcmp(token, "unstable") == 0) {}	// does TNT blow up when punched? We've reused TNT for a few other blocks, so let's not mess with this, and it's not graphical anyway.
                             else if (strcmp(token, "bloom") == 0) {}	// for sculk catalyst
                             else if (strcmp(token, "cracked") == 0) {}	// for decorated pot - ignored
                             else if (strcmp(token, "natural") == 0) {}	// for creaking_heart - ignored, has to do with experience
@@ -5846,6 +5849,9 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
         if (strcmp(k, "has_bottle_2") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x4; continue; }
         // BLOCK_JUKEBOX (84) is NO_PROP; has_record lives in bit 0x01 (mirror of world reader).
         if (strcmp(k, "has_record") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x1; continue; }
+        // BLOCK_SCULK_SHRIEKER (433) is NO_PROP; bit 0x01 = can_summon, bit 0x02 = shrieking.
+        if (strcmp(k, "can_summon") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x1; continue; }
+        if (strcmp(k, "shrieking") == 0)  { if (strcmp(v, "true") == 0) dataVal |= 0x2; continue; }
 
         // ---- Per-family props ----
         switch (tf) {
@@ -8058,6 +8064,13 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     // bit 0x01. Non-graphical but preserved for .schem round-trip.
     if ((type & 0x1FF) == BLOCK_JUKEBOX) {
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "has_record", (dataVal & 0x1) ? "true" : "false");
+    }
+
+    // BLOCK_SCULK_SHRIEKER (433) is NO_PROP. World reader packs bit 0x01 = can_summon,
+    // bit 0x02 = shrieking. Alphabetical: can_summon < shrieking.
+    if ((type & 0x1FF) == BLOCK_SCULK_SHRIEKER) {
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "can_summon", (dataVal & 0x1) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "shrieking", (dataVal & 0x2) ? "true" : "false");
     }
 
     // Waterlogged is additive across many block families — but a few props steal bit 0x40 for

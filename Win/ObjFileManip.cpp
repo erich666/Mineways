@@ -21631,11 +21631,12 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 SWATCH_SWITCH_SIDE_VERTICAL(faceDirection, 11, 46, 10, 46);
                 break;
             case 2:
-                // cracked stone bricks
+                // cracked stone bricks - I think in the old, old file format they put these here? The history section on the wiki shows nothing, but let's leave
+                // this code here just in case - doesn't hurt anything.
                 swatchLoc = SWATCH_INDEX(5, 6);
                 break;
             case 3:
-                // chiseled stone bricks - added in 1.2.4
+                // chiseled stone bricks - added in 1.2.4 (though the wiki says these were added in 1.8). I recall some confusion here.
                 swatchLoc = SWATCH_INDEX(5, 13);
                 break;
             }
