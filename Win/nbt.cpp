@@ -403,6 +403,13 @@ static TranslationTuple* modTranslations = NULL;
 //   bit  0x80: HIGH_BIT marker (type > 255)
 #define COPPER_GOLEM_PROP 73
 
+// BLOCK_NOTEBLOCK (25). Non-graphical but preserved for .schem round-trip per
+// https://minecraft.wiki/w/Note_Block#Block_states
+//   bit  0x01: powered
+//   bits 0x3E: note value 0..24 (5 bits, stored << 1 into bits 1..5)
+// `instrument` is determined by the block below at game time, not stored here.
+#define NOTE_BLOCK_PROP 74
+
 #define NUM_TRANS 1178
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
@@ -695,7 +702,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  22,           0, "lapis_block", NO_PROP },
     { 0,  23,           0, "dispenser", DROPPER_PROP },
     { 0, 158,           0, "dropper", DROPPER_PROP },
-    { 0,  25,           0, "note_block", NO_PROP },	// pitch, powered, instrument - ignored
+    { 0,  25,           0, "note_block", NOTE_BLOCK_PROP },	// note + powered preserved for .schem round-trip; instrument is positional, not stored
     { 0,  92,           0, "cake", CANDLE_CAKE_PROP },
     { 0,  26,           0, "bed", BED_PROP },   // 1.13 bed was renamed "red_bed"; we leave this in, just in case
     { 0,  96,           0, "oak_trapdoor", TRAPDOOR_PROP },
@@ -3500,7 +3507,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
     int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age,
         delay, locked, sticky, hatch, leaves, single, attachment, honey_level, stairs, bites, tilt,
         thickness, vertical_direction, berries, flower_amount, orientation, hydration,
-        copper_golem_pose;
+        copper_golem_pose, note;
     // to avoid Release build warning, but should always be set by code in practice
     int typeIndex = 0;
     half = north = south = east = west = down = lit = powered = triggered = extended = attached = disarmed
@@ -3509,7 +3516,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
     axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
         delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt =
         thickness = vertical_direction = berries = flower_amount = orientation = hydration =
-        copper_golem_pose = 0;
+        copper_golem_pose = note = 0;
     int pmc = 0;
 
     // IMPORTANT: if any PROP field uses any of these:
@@ -4429,13 +4436,19 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             // "standing" or unknown → 0 (already init'd)
                         }
 
+                        // note_block: pitch 0..24, packed into bits 0x3E of dataVal by NOTE_BLOCK_PROP arm.
+                        // (powered is parsed by the universal "powered" handler above and combined in the same arm.)
+                        else if (strcmp(token, "note") == 0) {
+                            note = atoi(value);
+                        }
+
 #ifdef _DEBUG
                         else {
                             // ignore, not used by Mineways for now, BlockTranslations[typeIndex]
+                            // TODOTODO we should implement all that we can, for .schem read/write.
                             if (strcmp(token, "distance") == 0) {} // for leaves and scaffold, see https://minecraft.wiki/w/Leaves - not needed for graphics
                             else if (strcmp(token, "short") == 0) {} // for piston, TODO - what makes this property be true?
-                            else if (strcmp(token, "note") == 0) {}
-                            else if (strcmp(token, "instrument") == 0) {}
+                            else if (strcmp(token, "instrument") == 0) {} // note_block's instrument is set by the block below it at game time, not stored as state
                             else if (strcmp(token, "drag") == 0) {}
                             else if (strcmp(token, "has_record") == 0) {}	// jukebox
                             else if (strcmp(token, "unstable") == 0) {}	// does TNT blow up when punched? I don't care
@@ -4476,6 +4489,15 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 // the standard SWNE remap is `(door_facing + 3) % 4` (same as REPEATER_PROP / BED_PROP).
                 dataVal |= ((door_facing + 3) % 4) | (copper_golem_pose << 2);
                 copper_golem_pose = 0;
+                break;
+
+            case NOTE_BLOCK_PROP:
+                // BLOCK_NOTEBLOCK (25). Non-graphical, but preserved for .schem round-trip.
+                //   bit  0x01: powered
+                //   bits 0x3E: note pitch 0..24, shifted into bits 1..5
+                dataVal |= (powered ? 0x01 : 0) | ((note & 0x1F) << 1);
+                powered = false;
+                note = 0;
                 break;
 
                 // These next two use shared properties, which means the other PROPs that use any of these need to reset them (except for dropper_facing and door_facing).
@@ -5969,6 +5991,17 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             }
             break;
 
+        case NOTE_BLOCK_PROP:
+            // bit 0x01 = powered, bits 0x3E = note 0..24 (mirror of NOTE_BLOCK_PROP world arm).
+            // `instrument` is positional in Minecraft (set by the block below) — not stored.
+            if (strcmp(k, "powered") == 0) {
+                if (strcmp(v, "true") == 0) dataVal |= 0x01;
+            }
+            else if (strcmp(k, "note") == 0) {
+                dataVal = (dataVal & ~0x3E) | ((atoi(v) & 0x1F) << 1);
+            }
+            break;
+
         case FARMLAND_PROP:
             if (strcmp(k, "moisture") == 0) dataVal = (dataVal & ~0x7) | (atoi(v) & 0x7);
             break;
@@ -7120,6 +7153,18 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         // `distance` property — emit it as the default 7 so consumer tools don't object.
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "distance", "7");
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "persistent", (dataVal & 0x4) ? "true" : "false");
+        break;
+    }
+
+    case NOTE_BLOCK_PROP: {
+        // BLOCK_NOTEBLOCK (25). bit 0x01 = powered, bits 0x3E = note pitch (0..24, shifted into
+        // bits 1..5). `instrument` isn't tracked — Minecraft derives it from the block below,
+        // so omitting it is fine (the game recomputes on placement). Alphabetical: instrument
+        // omitted, note < powered.
+        char noteStr[3];
+        snprintf(noteStr, sizeof(noteStr), "%d", (dataVal >> 1) & 0x1F);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "note", noteStr);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x01) ? "true" : "false");
         break;
     }
 
