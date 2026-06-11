@@ -410,6 +410,15 @@ static TranslationTuple* modTranslations = NULL;
 // `instrument` is determined by the block below at game time, not stored here.
 #define NOTE_BLOCK_PROP 74
 
+// BLOCK_SCAFFOLDING (340). Non-graphical but preserved for .schem round-trip.
+//   bit  0x01: bottom (true if hanging-style with no support below)
+//   bits 0x0E: distance 0..7 (3 bits, stored << 1 into bits 1..3)
+#define SCAFFOLDING_PROP 75
+
+// LEAF_PROP distance bits (user-specified 0x28 in spec, but only 2 bits there; using
+// 0x38 = bits 3..5 to fit the full 3-bit distance 0..7 without overlapping persistent (0x4)).
+#define LEAF_DISTANCE_BITS 0x38
+
 #define NUM_TRANS 1178
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
@@ -1113,7 +1122,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  81,       HIGH_BIT, "bell", BELL_PROP },
     { 0,  82,       HIGH_BIT, "lantern", LANTERN_PROP },	// uses just "hanging" for bit 0x1
     { 0,  83,       HIGH_BIT, "campfire", CAMPFIRE_PROP },
-    { 0,  84,       HIGH_BIT, "scaffolding", NO_PROP },	// uses just "bottom" for bit 0x1
+    { 0,  84,       HIGH_BIT, "scaffolding", SCAFFOLDING_PROP },	// bit 0x1=bottom, bits 0xE=distance 0..7
 
     // 1.15
     { 0,  85,       HIGH_BIT, "bee_nest", EXTENDED_SWNE_FACING_PROP },	// facing is 0x3, honey_level is 0x01C, nest/hive is 0x20
@@ -3507,7 +3516,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
     int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age,
         delay, locked, sticky, hatch, leaves, single, attachment, honey_level, stairs, bites, tilt,
         thickness, vertical_direction, berries, flower_amount, orientation, hydration,
-        copper_golem_pose, note;
+        copper_golem_pose, note, distance;
     // to avoid Release build warning, but should always be set by code in practice
     int typeIndex = 0;
     half = north = south = east = west = down = lit = powered = triggered = extended = attached = disarmed
@@ -3516,7 +3525,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
     axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
         delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt =
         thickness = vertical_direction = berries = flower_amount = orientation = hydration =
-        copper_golem_pose = note = 0;
+        copper_golem_pose = note = distance = 0;
     int pmc = 0;
 
     // IMPORTANT: if any PROP field uses any of these:
@@ -4442,13 +4451,19 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             note = atoi(value);
                         }
 
+                        // leaves (LEAF_PROP, bits 0x38) and scaffolding (SCAFFOLDING_PROP, bits 0x0E):
+                        // distance 0..7 from the nearest log/scaffolding base. Packed by the respective
+                        // PROP arms below.
+                        else if (strcmp(token, "distance") == 0) {
+                            distance = atoi(value);
+                        }
+
 #ifdef _DEBUG
                         else {
                             // ignore, not used by Mineways for now, BlockTranslations[typeIndex]
                             // TODOTODO we should implement all that we can, for .schem read/write.
-                            if (strcmp(token, "distance") == 0) {} // for leaves and scaffold, see https://minecraft.wiki/w/Leaves - not needed for graphics
-                            else if (strcmp(token, "short") == 0) {} // for piston, TODO - what makes this property be true?
-                            else if (strcmp(token, "instrument") == 0) {} // note_block's instrument is set by the block below it at game time, not stored as state
+                            if (strcmp(token, "short") == 0) {} // for piston, TODO - what makes this property be true?
+                            else if (strcmp(token, "instrument") == 0) {} // note_block's instrument is currently ignored by Mineways
                             else if (strcmp(token, "drag") == 0) {}
                             else if (strcmp(token, "has_record") == 0) {}	// jukebox
                             else if (strcmp(token, "unstable") == 0) {}	// does TNT blow up when punched? I don't care
@@ -4552,13 +4567,27 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             case AGE_PROP:
             case FLUID_PROP:
             case SAPLING_PROP:
-            case LEAF_PROP:
             case FARMLAND_PROP:
             case STANDING_SIGN_PROP:
             case WT_PRESSURE_PROP:
             case PICKLE_PROP:
             case WIRE_PROP:
             case STRUCTURE_PROP:
+                break;
+
+            case LEAF_PROP:
+                // dataVal already has subtype (bits 0x03) + persistent (bit 0x04) from earlier parsers.
+                // distance (0..7) goes into bits 0x38 — 3 bits — preserved for .schem round-trip though
+                // non-graphical.
+                dataVal |= (distance & 0x7) << 3;
+                distance = 0;
+                break;
+
+            case SCAFFOLDING_PROP:
+                // dataVal already has bottom (bit 0x01) from the "bottom" parser.
+                // distance (0..7) goes into bits 0x0E — 3 bits — preserved for .schem round-trip.
+                dataVal |= (distance & 0x7) << 1;
+                distance = 0;
                 break;
 
             case TRULY_NO_PROP:
@@ -5984,10 +6013,23 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             break;
 
         case LEAF_PROP:
-            // persistent: true|false, bit 0x4. (Mirror of nbt.cpp:3727 in the world reader.)
-            // distance is parsed and discarded — Mineways doesn't track it.
+            // persistent: true|false, bit 0x4. distance: 0..7, bits 0x38.
+            // Both preserved for .schem round-trip though non-graphical.
             if (strcmp(k, "persistent") == 0) {
                 if (strcmp(v, "true") == 0) dataVal |= 0x4;
+            }
+            else if (strcmp(k, "distance") == 0) {
+                dataVal = (dataVal & ~0x38) | ((atoi(v) & 0x7) << 3);
+            }
+            break;
+
+        case SCAFFOLDING_PROP:
+            // bottom: true|false, bit 0x01. distance: 0..7, bits 0x0E.
+            if (strcmp(k, "bottom") == 0) {
+                if (strcmp(v, "true") == 0) dataVal |= 0x01;
+            }
+            else if (strcmp(k, "distance") == 0) {
+                dataVal = (dataVal & ~0x0E) | ((atoi(v) & 0x7) << 1);
             }
             break;
 
@@ -7148,11 +7190,23 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case LEAF_PROP: {
-        // Leaves families. Subtype (leaf kind) is in bits 0x03; `persistent` lives in bit 0x04,
-        // read at nbt.cpp:3727 (gated on GRAPHICAL_ONLY). Mineways doesn't track Minecraft's
-        // `distance` property — emit it as the default 7 so consumer tools don't object.
-        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "distance", "7");
+        // Leaves families. Subtype (leaf kind) is in bits 0x03; `persistent` lives in bit 0x04
+        // (nbt.cpp:3727); `distance` (0..7) lives in bits 0x38 (LEAF_PROP packing arm).
+        // Alphabetical: distance < persistent.
+        char distStr[3];
+        snprintf(distStr, sizeof(distStr), "%d", (dataVal >> 3) & 0x7);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "distance", distStr);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "persistent", (dataVal & 0x4) ? "true" : "false");
+        break;
+    }
+
+    case SCAFFOLDING_PROP: {
+        // BLOCK_SCAFFOLDING (340). bit 0x01 = bottom, bits 0x0E = distance 0..7.
+        // Alphabetical: bottom < distance < waterlogged (waterlogged handled universally).
+        char distStr[3];
+        snprintf(distStr, sizeof(distStr), "%d", (dataVal >> 1) & 0x7);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "bottom", (dataVal & 0x01) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "distance", distStr);
         break;
     }
 
