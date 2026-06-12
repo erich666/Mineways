@@ -3524,7 +3524,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
     int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age,
         delay, locked, sticky, hatch, leaves, single, attachment, honey_level, stairs, bites, tilt,
         thickness, vertical_direction, berries, flower_amount, orientation, hydration,
-        copper_golem_pose, note, distance;
+        copper_golem_pose, note, distance,
+        wire_n, wire_e, wire_s, wire_w;	// redstone_wire connection states (0=none, 1=side, 2=up)
     // to avoid Release build warning, but should always be set by code in practice
     int typeIndex = 0;
     half = north = south = east = west = down = lit = powered = triggered = extended = attached = disarmed
@@ -3533,7 +3534,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
     axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
         delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt =
         thickness = vertical_direction = berries = flower_amount = orientation = hydration =
-        copper_golem_pose = note = distance = 0;
+        copper_golem_pose = note = distance =
+        wire_n = wire_e = wire_s = wire_w = 0;
     int pmc = 0;
 
     // IMPORTANT: if any PROP field uses any of these:
@@ -3970,6 +3972,9 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             {
                                 pmc |= 0x2 | BIT_32;
                             }
+                            // for redstone_wire: side/up. Packed by WIRE_PROP arm into dataVal bits 0x03.
+                            else if (strcmp(value, "side") == 0) wire_n = 1;
+                            else if (strcmp(value, "up") == 0)   wire_n = 2;
                         }
                         else if (strcmp(token, "east") == 0) {
                             east = (strcmp(value, "true") == 0);
@@ -3985,6 +3990,9 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             {
                                 pmc |= 0x4 | BIT_32;
                             }
+                            // for redstone_wire
+                            else if (strcmp(value, "side") == 0) wire_e = 1;
+                            else if (strcmp(value, "up") == 0)   wire_e = 2;
                         }
                         else if (strcmp(token, "south") == 0) {
                             south = (strcmp(value, "true") == 0);
@@ -3999,6 +4007,9 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             {
                                 pmc |= 0x8 | BIT_32;
                             }
+                            // for redstone_wire
+                            else if (strcmp(value, "side") == 0) wire_s = 1;
+                            else if (strcmp(value, "up") == 0)   wire_s = 2;
                         }
                         else if (strcmp(token, "west") == 0) {
                             west = (strcmp(value, "true") == 0);
@@ -4012,6 +4023,9 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             {
                                 pmc |= BIT_16 | BIT_32;
                             }
+                            // for redstone_wire
+                            else if (strcmp(value, "side") == 0) wire_w = 1;
+                            else if (strcmp(value, "up") == 0)   wire_w = 2;
                         }
                         else if (strcmp(token, "up") == 0) {
                             up = (strcmp(value, "true") == 0);
@@ -4596,8 +4610,21 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             case STANDING_SIGN_PROP:
             case WT_PRESSURE_PROP:
             case PICKLE_PROP:
-            case WIRE_PROP:
             case STRUCTURE_PROP:
+                break;
+
+            case WIRE_PROP:
+                // redstone_wire. Pack the four connection sides (each 0=none, 1=side, 2=up)
+                // into 2 bits per side. Assignment (not OR) so the generic `power` token
+                // parser's `dataVal |= atoi(value)` is discarded — per user direction, power
+                // is recomputable from neighbors and not preserved. Bit layout:
+                //   0x03=north, 0x0C=east, 0x30=south, 0xC0=west
+                // bit 0x40 conflicts with WATERLOGGED_BIT — wire isn't waterloggable in MC
+                // and the universal waterlogged write check at the .schem writer excludes
+                // WIRE_PROP. bit 0x80 conflicts with HIGH_BIT — ObjFileManip:2796 excludes
+                // BLOCK_REDSTONE_WIRE from the type-promotion path.
+                dataVal = wire_n | (wire_e << 2) | (wire_s << 4) | (wire_w << 6);
+                wire_n = wire_e = wire_s = wire_w = 0;
                 break;
 
             case LEAF_PROP:
@@ -6443,6 +6470,31 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             if (strcmp(k, "power") == 0) dataVal = (dataVal & ~0xF) | (atoi(v) & 0xF);
             break;
 
+        case WIRE_PROP: {
+            // redstone_wire. The four connection sides (none/side/up) are packed into dataVal:
+            //   bits 0x03 = north, 0x0C = east, 0x30 = south, 0xC0 = west.
+            // This uses all 8 bits — bit 0x40 conflicts with WATERLOGGED_BIT (handled by an
+            // exclusion in the universal waterlogged check; wire isn't waterloggable in MC),
+            // bit 0x80 conflicts with HIGH_BIT (handled by an exclusion in ObjFileManip:2796).
+            // `power` is intentionally dropped — recomputable from neighbors at render time and
+            // emitted by consumer tools; not stored.
+            int v_val = -1;
+            if      (strcmp(v, "none") == 0) v_val = 0;
+            else if (strcmp(v, "side") == 0) v_val = 1;
+            else if (strcmp(v, "up") == 0)   v_val = 2;
+            if (v_val >= 0) {
+                int shift = -1;
+                if      (strcmp(k, "north") == 0) shift = 0;
+                else if (strcmp(k, "east") == 0)  shift = 2;
+                else if (strcmp(k, "south") == 0) shift = 4;
+                else if (strcmp(k, "west") == 0)  shift = 6;
+                if (shift >= 0) {
+                    dataVal = (dataVal & ~(0x3 << shift)) | (v_val << shift);
+                }
+            }
+            break;
+        }
+
         case FAN_PROP:
             if (strcmp(k, "facing") == 0) dataVal = (dataVal & ~0x30) | (spongeSwneIdxFromName(v) << 4);
             break;
@@ -7538,6 +7590,24 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         break;
     }
 
+    case WIRE_PROP: {
+        // redstone_wire. dataVal bits: 0x03=north, 0x0C=east, 0x30=south, 0xC0=west — each
+        // value 0=none, 1=side, 2=up. `power` isn't tracked (recomputable from neighbors); the
+        // four connection states ARE preserved so non-Mineways consumer tools (which don't
+        // recompute connections from neighbors) get the wire layout right.
+        // Alphabetical: east, north, south, west.
+        static const char* states[3] = { "none", "side", "up" };
+        int wn = (dataVal >> 0) & 0x3; if (wn > 2) wn = 0;
+        int we = (dataVal >> 2) & 0x3; if (we > 2) we = 0;
+        int ws = (dataVal >> 4) & 0x3; if (ws > 2) ws = 0;
+        int ww = (dataVal >> 6) & 0x3; if (ww > 2) ww = 0;
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "east",  states[we]);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "north", states[wn]);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "south", states[ws]);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "west",  states[ww]);
+        break;
+    }
+
     case FAN_PROP: {
         // Wall variants of the dead/live coral fans. Read-side packs `dataVal = ((door_facing+3)%4) << 4`
         // (nbt.cpp:4914) — same SWNE order as anvil/bed, just shifted into bits 0x30.
@@ -8235,7 +8305,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     // Waterlogged is additive across many block families — but a few props steal bit 0x40 for
     // their own purposes (MUSHROOM_PROP/MUSHROOM_STEM_PROP use it as the stem flag), so skip
     // the check for those families.
-    if ((dataVal & WATERLOGGED_BIT) && tf != MUSHROOM_PROP && tf != MUSHROOM_STEM_PROP) {
+    if ((dataVal & WATERLOGGED_BIT) && tf != MUSHROOM_PROP && tf != MUSHROOM_STEM_PROP && tf != WIRE_PROP) {
         // Most families don't have waterlogged; the extra prop is harmless on those that do.
         // The block families that *do* support waterlogged include stairs, slabs, fences, walls,
         // chests, signs, ladders, glow lichen, etc. Mineways uses bit 0x40 internally for this.

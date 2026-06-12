@@ -2793,7 +2793,7 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
                 unsigned char dataVal = block->data[chunkIndex];
                 // 1.13 fun: if the highest bit of the data value is 1, this is a 1.13+ block of some sort,
                 // so "move" that bit from data to the type. Ignore head data, which comes in with the high bit set.
-                if (gIs13orNewer && (dataVal & HIGH_BIT) && (block->grid[chunkIndex] != BLOCK_HEAD) && (block->grid[chunkIndex] != BLOCK_FLOWER_POT)) {
+                if (gIs13orNewer && (dataVal & HIGH_BIT) && (block->grid[chunkIndex] != BLOCK_HEAD) && (block->grid[chunkIndex] != BLOCK_FLOWER_POT) && (block->grid[chunkIndex] != BLOCK_REDSTONE_WIRE)) {
                     // if you hit this, something has gone odd with the dataVal, which shouldn't happen. See nbt.cpp where it says "make sure upper bits are not set - they should not be!"
                     assert(block->grid[chunkIndex] < NUM_BLOCKS_DEFINED - 256);
                     gBoxData[boxIndex].data = dataVal & 0x7F;
