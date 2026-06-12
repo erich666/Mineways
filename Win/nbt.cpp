@@ -6400,6 +6400,16 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             else if (strcmp(k, "up") == 0)    { if (strcmp(v, "true") == 0) dataVal |= 0x20; }
             break;
 
+        case FENCE_PROP:
+            // wood/nether-brick fences, iron_bars, glass_pane. Same bit layout as VINE_PROP for
+            // the four cardinal directions (mirror of FENCE_PROP packing in the world reader at
+            // nbt.cpp:4855): south=0x1, west=0x2, north=0x4, east=0x8. waterlogged handled universally.
+            if (strcmp(k, "south") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x01; }
+            else if (strcmp(k, "west") == 0)  { if (strcmp(v, "true") == 0) dataVal |= 0x02; }
+            else if (strcmp(k, "north") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x04; }
+            else if (strcmp(k, "east") == 0)  { if (strcmp(v, "true") == 0) dataVal |= 0x08; }
+            break;
+
         case GHAST_PROP:
             if (strcmp(k, "facing") == 0)         dataVal = (dataVal & ~0x3) | spongeSwneIdxFromName(v);
             else if (strcmp(k, "hydration") == 0) dataVal = (dataVal & ~0xC) | ((atoi(v) & 0x3) << 2);
@@ -7662,6 +7672,17 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "north", (dataVal & 0x04) ? "true" : "false");
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "south", (dataVal & 0x01) ? "true" : "false");
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "up",    (dataVal & 0x20) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "west",  (dataVal & 0x02) ? "true" : "false");
+        break;
+    }
+
+    case FENCE_PROP: {
+        // Wood/nether-brick fences, iron_bars, glass_pane. World reader at nbt.cpp:4855 packs
+        // south=0x1, west=0x2, north=0x4, east=0x8. Alphabetical: east, north, south, waterlogged
+        // (waterlogged handled universally), west.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "east",  (dataVal & 0x08) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "north", (dataVal & 0x04) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "south", (dataVal & 0x01) ? "true" : "false");
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "west",  (dataVal & 0x02) ? "true" : "false");
         break;
     }
