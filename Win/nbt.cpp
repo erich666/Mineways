@@ -6471,32 +6471,13 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             if (strcmp(k, "power") == 0) dataVal = (dataVal & ~0xF) | (atoi(v) & 0xF);
             break;
 
-        case WIRE_PROP: {
-            // MAYBE SOMEDAY. Right now wire stores only the power, connections are implied.
-            // Not enough room to actually store up and side property states.
-            // redstone_wire. The four connection sides (none/side/up) are packed into dataVal:
-            //   bits 0x03 = north, 0x0C = east, 0x30 = south, 0xC0 = west.
-            // This uses all 8 bits — bit 0x40 conflicts with WATERLOGGED_BIT (handled by an
-            // exclusion in the universal waterlogged check; wire isn't waterloggable in MC),
-            // bit 0x80 conflicts with HIGH_BIT (handled by an exclusion in ObjFileManip:2796).
-            // `power` is intentionally dropped — recomputable from neighbors at render time and
-            // emitted by consumer tools; not stored.
-            //int v_val = -1;
-            //if      (strcmp(v, "none") == 0) v_val = 0;
-            //else if (strcmp(v, "side") == 0) v_val = 1;
-            //else if (strcmp(v, "up") == 0)   v_val = 2;
-            //if (v_val >= 0) {
-            //    int shift = -1;
-            //    if      (strcmp(k, "north") == 0) shift = 0;
-            //    else if (strcmp(k, "east") == 0)  shift = 2;
-            //    else if (strcmp(k, "south") == 0) shift = 4;
-            //    else if (strcmp(k, "west") == 0)  shift = 6;
-            //    if (shift >= 0) {
-            //        dataVal = (dataVal & ~(0x3 << shift)) | (v_val << shift);
-            //    }
-            //}
+        case WIRE_PROP:
+            // redstone_wire. Mineways stores `power` (0..15) in low 4 bits — mirror of the
+            // world reader's generic `power` token parser at nbt.cpp:3943. Connection sides
+            // (north/east/south/west = none/side/up) aren't tracked (not enough bits);
+            // Mineways recomputes them from neighbors at render time.
+            if (strcmp(k, "power") == 0) dataVal = (dataVal & ~0xF) | (atoi(v) & 0xF);
             break;
-        }
 
         case FAN_PROP:
             if (strcmp(k, "facing") == 0) dataVal = (dataVal & ~0x30) | (spongeSwneIdxFromName(v) << 4);
@@ -7594,21 +7575,15 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case WIRE_PROP: {
-        // Should work the same way code in ObjFileManip.cpp:3589 encodes redstone wire state on export
-        // redstone_wire. dataVal bits: 0x03=north, 0x0C=east, 0x30=south, 0xC0=west — each
-        // value 0=none, 1=side, 2=up. `power` isn't tracked (recomputable from neighbors); the
-        // four connection states ARE preserved so non-Mineways consumer tools (which don't
-        // recompute connections from neighbors) get the wire layout right.
-        // Alphabetical: east, north, south, west.
-        //static const char* states[3] = { "none", "side", "up" };
-        //int wn = (dataVal >> 0) & 0x3; if (wn > 2) wn = 0;
-        //int we = (dataVal >> 2) & 0x3; if (we > 2) we = 0;
-        //int ws = (dataVal >> 4) & 0x3; if (ws > 2) ws = 0;
-        //int ww = (dataVal >> 6) & 0x3; if (ww > 2) ww = 0;
-        //spongeAppendProp(props, (int)sizeof(props), &plen, &started, "east",  states[we]);
-        //spongeAppendProp(props, (int)sizeof(props), &plen, &started, "north", states[wn]);
-        //spongeAppendProp(props, (int)sizeof(props), &plen, &started, "south", states[ws]);
-        //spongeAppendProp(props, (int)sizeof(props), &plen, &started, "west",  states[ww]);
+        // redstone_wire. Mineways stores only `power` (0..15) in low 4 bits — see world reader's
+        // generic `power` token parser at nbt.cpp:3943. Connection sides (north/east/south/west)
+        // are computed at render time by neighbor inspection (ObjFileManip.cpp:3637+), so they're
+        // not stored here. Consumer tools loading the .schem typically recompute connections on
+        // placement; if they don't, the wire will visually appear as a free-standing dot but the
+        // power level survives.
+        char powerStr[3];
+        snprintf(powerStr, sizeof(powerStr), "%d", dataVal & 0xF);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "power", powerStr);
         break;
     }
 
@@ -8309,7 +8284,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     // Waterlogged is additive across many block families — but a few props steal bit 0x40 for
     // their own purposes (MUSHROOM_PROP/MUSHROOM_STEM_PROP use it as the stem flag), so skip
     // the check for those families.
-    if ((dataVal & WATERLOGGED_BIT) && tf != MUSHROOM_PROP && tf != MUSHROOM_STEM_PROP && tf != WIRE_PROP) {
+    if ((dataVal & WATERLOGGED_BIT) && tf != MUSHROOM_PROP && tf != MUSHROOM_STEM_PROP) {
         // Most families don't have waterlogged; the extra prop is harmless on those that do.
         // The block families that *do* support waterlogged include stairs, slabs, fences, walls,
         // chests, signs, ladders, glow lichen, etc. Mineways uses bit 0x40 internally for this.
