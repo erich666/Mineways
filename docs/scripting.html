@@ -110,7 +110,7 @@
 
 
 <h1 id="msl">Mineways Scripting Language</h1>
-		The "Import Settings" item in the File menu has two uses. One is that you can read in a model previously created with Mineways. Doing so will set up Mineways to be identical to how it was when the file was exported: the world, terrain file, color scheme, and all export settings will be set to what you used when you exported the model. This is handy for continuing to work on a model you exported in a previous session.
+		The "Import Settings" item in the File menu has two uses. One is that you can read in a model previously created with Mineways. Doing so will set up Mineways to be identical to how it was when the file was exported: the world, terrain file, color and culling scheme, and all export settings will be set to what you used when you exported the model. This is handy for continuing to work on a model you exported in a previous session.
 		<P>
 		However, "Import Settings" can do much more. As of version 4.18 of Mineways, you can make a text file of Mineways scripting commands and read it in to:
 		<UL>
@@ -216,10 +216,19 @@ Sets terrain file to be used. Full path is recommended; if just a file name is g
 
 <tr>
 <td>
-Color scheme: <i>no glass blocks</i>
+Color scheme: <i>No glass blocks</i>
 </td>
 <td>
-Selects the named color scheme, if available. "Standard" is the default.
+Selects the named <a href="mineways.html#schemes">color scheme</a>, if available. "Standard" is the default.
+</td>
+</tr>
+
+<tr>
+<td>
+Culling scheme: <i>Concrete off</i>
+</td>
+<td>
+Selects the named <a href="mineways.html#cullschemes">culling scheme</a>, if available. "Standard" is the default.
 </td>
 </tr>
 
@@ -1193,7 +1202,7 @@ Running the script to set up the scene, then exporting (manually) to Sketchfab, 
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 4/26/2026</p>	</div>
+		<br id="lastUpdate">Last updated 6/19/2026</p>	</div>
 </div>
 
 </body>

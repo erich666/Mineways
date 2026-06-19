@@ -33,6 +33,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "stdafx.h"
 #include "biomes.h"
+#include "CullingSchemes.h"	// isBlockCulled() — skip culled voxels in the map render
 #include <assert.h>
 #include <string.h>
 
@@ -5149,10 +5150,12 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
             for (i = clippedMaxHeight; i >= 0; i--, voxel -= 16 * 16)
             {
                 type = retrieveType(block, voxel);
-                // if block is air or something very small, or water when transparent water is flagged, note it's empty and continue to next voxel
+                // if block is air or something very small, or water when transparent water is
+                // flagged, or hidden by the active Culling Scheme, note it's empty and continue.
                 if ((type == BLOCK_AIR) ||
                     !(gBlockDefinitions[type].flags & viewFilterFlags) ||
-                    (transparentWater && (type == BLOCK_STATIONARY_WATER || type == BLOCK_WATER)))
+                    (transparentWater && (type == BLOCK_STATIONARY_WATER || type == BLOCK_WATER)) ||
+                    isBlockCulled(type, block->data[voxel]))
                 {
                     seenempty = 1;
                     continue;
@@ -8581,6 +8584,11 @@ void SetMapPalette(unsigned int* palette, int num)
     }
     SetMapPremultipliedColors(num);
     initColors();
+}
+
+void InvalidateMapRenderCache(void)
+{
+    gColormap++;
 }
 
 // for each block color, calculate light levels 0-15

@@ -7033,6 +7033,33 @@ static const char* spongeAxisFromDataVal(int dataVal)
     return "y";
 }
 
+// ---- Public surface over BlockTranslations[] for the Culling Schemes feature ----
+// Defined in nbt.h; kept here so they can see the BlockTranslator struct and findSpongeTranslator
+// directly without exposing either to the rest of the codebase.
+
+int blockTransCount(void)
+{
+    return NUM_TRANS;
+}
+
+bool blockTransNameAt(int idx, const char** outName)
+{
+    if (idx < 0 || idx >= NUM_TRANS) return false;
+    if (BlockTranslations[idx].name == NULL) return false;
+    *outName = BlockTranslations[idx].name;
+    return true;
+}
+
+int blockTransIndexFor(int type, int dataVal)
+{
+    // Lazy-init the reverse index the same way spongeBuildBlockStateString does — running
+    // this from the Culling render hook before any .schem export has otherwise initialized it.
+    buildSpongeReverseIndex();
+    const BlockTranslator* e = findSpongeTranslator(type, dataVal);
+    if (e == NULL) return -1;
+    return (int)(e - BlockTranslations);
+}
+
 int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
 {
     if (out == NULL || outSize <= 0) return -1;

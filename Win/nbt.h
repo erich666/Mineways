@@ -143,3 +143,20 @@ void SetModTranslations(TranslationTuple* mt);
 // Properties are emitted in alphabetical order as required by the v2 spec. Returns the
 // number of bytes written (excluding the NUL), or -1 if the buffer was too small.
 int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize);
+
+// ---- Small public surface over BlockTranslations[] for the Culling Schemes feature ----
+// The Culling editor needs to walk every Minecraft block-state name Mineways understands
+// (one row per entry in BlockTranslations[]) and check / uncheck them by index. The runtime
+// cull lookup needs to map (type, dataVal) → BlockTranslations index. We expose just those
+// two pieces, so callers don't depend on the BlockTranslator struct layout.
+
+// Returns the number of populated rows in BlockTranslations[] (i.e., the cap on valid indices).
+int blockTransCount(void);
+
+// Fills *outName with the row's name (ASCII, NOT-null pointer into a static C string).
+// Returns true on success; false if idx is out of range or the row has no name.
+bool blockTransNameAt(int idx, const char** outName);
+
+// Maps a runtime (type, dataVal) pair to a BlockTranslations index, or -1 if no row matches.
+// Thin wrapper over the existing findSpongeTranslator() reverse lookup.
+int blockTransIndexFor(int type, int dataVal);

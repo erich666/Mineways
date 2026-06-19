@@ -132,6 +132,11 @@ int GetSpongeSchematic(const wchar_t* schematic, int* width, int* height, int* l
 // palette should be in RGBA format, num colors in the palette
 void SetMapPremultipliedColors(int start);
 void SetMapPalette(unsigned int* palette, int num);
+// Bump the per-chunk render cache so drawTheMap() re-renders even though the palette
+// did not change. The Culling Scheme path changes block VISIBILITY (cells render as air
+// or skip) without touching colors; the cache key is gColormap, so without this the
+// next drawTheMap() returns the stale cached bitmap.
+void InvalidateMapRenderCache(void);
 char* MapUnknownBlockName();
 void ClearUnknownBlockNameString();
 void SetUnknownBlockID(int val);
