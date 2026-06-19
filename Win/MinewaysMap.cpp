@@ -6381,22 +6381,20 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
 
     case BLOCK_HOPPER:
-        // uses 0,1, 2-5
-        if (dataVal <= 5)
+        // uses 0, 2-5
+        if (dataVal <= 5 && dataVal != 1)
         {
             addBlock = 1;
             switch (dataVal)
             {
+            default:
+                assert(0);
             case 0:
                 // make the block itself be up by two, so we can examine its top and bottom
                 bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 2, 4 + (dataVal % 2) * 8);
                 block->grid[bi] = (unsigned char)type;
                 block->data[bi] = (unsigned char)(dataVal | typeHighBit);
                 addBlock = 0;
-                break;
-            case 1:
-                // put block above
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
                 break;
             case 2:
                 // put block to north
