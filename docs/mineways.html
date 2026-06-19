@@ -2930,7 +2930,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
   <BR>
     <UL>
 	<LI>Added <a href="https://github.com/SpongePowered/Schematic-Specification/blob/master/versions/schematic-3.md">Sponge Schematic v3</a> (<code>.schem</code>) export and import, via Open. The older v2 format is also read (but not v1 - it's rare; let me know if you encounter it). The legacy MCEdit .schematic writer caps block IDs at 255 and loses 1.13+ blocks; the new format uses Minecraft's modern string-based palette (e.g., minecraft:oak_log[axis=y]) and round-trips through WorldEdit, FAWE, Litematica, and Axiom. <a href="https://github.com/erich666/Mineways/issues/40">Issue #40</a>.
-	<LI>Added <a href="#cullschemes">Culling Schemes</a>. Similar to Color Schemes, you can choose any blocks you want to be culled out (invisible). Works with modern block IDs, unlike Color Schemes.
+	<LI>Added <a href="#cullschemes">Culling Schemes</a>. Similar to Color Schemes, you can choose any blocks you want to be culled out (invisible). Works with modern block IDs, unlike Color Schemes. <I>(Thanks to rainbow-krash for <a href="https://github.com/erich666/Mineways/issues/162">this suggestion</a>.)</I>
 	<LI>Placeholder for golems, just a simple copper block for now. Work in progress.
 	<LI>Torchflower export was choosing the wrong texture, closed eyeblossom. Fixed.
 	<LI>Other small fixes, such as correcting colors, lighting, and names for blocks, and Block Test World cleanups.
