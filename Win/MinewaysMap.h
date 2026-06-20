@@ -61,7 +61,7 @@ typedef void (*ProgressCallback)(float progress, wchar_t* buf);
 #define EMPTY_HEIGHT    -999
 
 typedef struct Schematic {
-    unsigned char* blocks;
+    unsigned short* blocks;	// 16-bit type/blockid per voxel; widened along with WorldBlock.grid
     unsigned char* data;
     int width;	// X
     int height; // Y
@@ -128,7 +128,7 @@ int GetSchematicBlocksAndData(const wchar_t* schematic, int numBlocks, unsigned 
 // Sponge Schematic v3 reader (issue #40). On success, returns 1 and malloc's the blocks/data arrays
 // (caller frees). On parse failure returns 0. On file open failure returns -1.
 int GetSpongeSchematic(const wchar_t* schematic, int* width, int* height, int* length,
-    unsigned char** blocks, unsigned char** data);
+    unsigned short** blocks, unsigned char** data);
 void SetMapPremultipliedColors(int start);
 // Bump the per-chunk render cache so drawTheMap() re-renders. The Culling Scheme path
 // changes block VISIBILITY (cells render as air or skip) without touching colors; the

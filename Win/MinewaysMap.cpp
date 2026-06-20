@@ -664,17 +664,9 @@ const char* IDBlock(int bx, int by, double cx, double cz, int w, int h, int yOff
 
     int chunkIndex = xoff + zoff * 16 + y * 256;
     assert((chunkIndex >> 8) <= block->maxFilledHeight);  // if block is reduced in size, make sure it's in bounds
+    // block->grid now holds the full 16-bit type natively; no HIGH_BIT promotion needed.
     *type = block->grid[chunkIndex];
     *dataVal = block->data[chunkIndex];
-
-    // 1.13+ fun: move topmost dataVal value to type - note that BLOCK_HEAD and BLOCK_FLOWER_POT are "reserved" and the high-bit version is not used
-    // Here is where the high data bit gets masked off and moved to the type bit.
-    if (block->mcVersion >= 13) {
-        if ((*dataVal & HIGH_BIT) && (*type != BLOCK_HEAD) && (*type != BLOCK_FLOWER_POT)) {
-            *dataVal &= 0x7F;
-            *type |= 0x100;
-        }
-    }
 
     return RetrieveBlockSubname(*type, *dataVal); //, block), xoff, y, zoff);
 }
@@ -2897,14 +2889,8 @@ void CloseAll()
 static unsigned short retrieveType(WorldBlock* block, unsigned int voxel)
 {
     assert(((int)voxel >> 8) <= block->maxFilledHeight);  // if block is reduced in size, make sure it's in bounds
-
-    unsigned short type = block->grid[voxel];
-    if (block->mcVersion >= 13) {
-        if ((block->data[voxel] & 0x80) && (type != BLOCK_HEAD) && (type != BLOCK_FLOWER_POT)) {
-            type |= 0x100;
-        }
-    }
-    return type;
+    // block->grid holds the full 16-bit type ID natively now.
+    return block->grid[voxel];
 }
 
 static unsigned int scaleColor(unsigned int color, float scale)
@@ -5490,17 +5476,17 @@ void addDiagonalBlocksToMap(int maxCount, int y, int type, int dataVal, int fina
     if (dataVal + 16 < maxCount)
     {
         neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
-        block->grid[neighborIndex] = (unsigned char)type;
+        block->grid[neighborIndex] = (unsigned short)(type);
         block->data[neighborIndex] = (unsigned char)((finalDataVal + 16) | typeHighBit);
 
         if (dataVal + 32 < maxCount) {
             neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
-            block->grid[neighborIndex] = (unsigned char)type;
+            block->grid[neighborIndex] = (unsigned short)(type);
             block->data[neighborIndex] = (unsigned char)((finalDataVal + 32) | typeHighBit);
 
             if (dataVal + 48 < maxCount) {
                 neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
-                block->grid[neighborIndex] = (unsigned char)type;
+                block->grid[neighborIndex] = (unsigned short)(type);
                 block->data[neighborIndex] = (unsigned char)((finalDataVal + 48) | typeHighBit);
             }
         }
@@ -5516,14 +5502,10 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     assert(dataVal < 16);
     int finalDataVal = dataVal;
 
+    // origType is the full 16-bit block ID; HIGH_BIT-in-data promotion has been retired,
+    // so we no longer split origType into a low byte + a promotion bit.
     int type = origType;
-    int typeHighBit = 0x0;
-    if (origType > 255) {
-        // how we signal a block type is > 255.
-        //finalDataVal |= HIGH_BIT; - now done at end
-        type &= 0xFF;
-        typeHighBit = HIGH_BIT;
-    }
+    int typeHighBit = 0;	// kept as 0 so existing call sites that OR it in compile unchanged
 
     int neighborIndex;
 
@@ -5533,7 +5515,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         // uses just 0 (first block) - no data field
         if (dataVal == 0)
         {
-            //block->grid[BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8)] = (unsigned char)type;
+            //block->grid[BLOCK_INDEX(4+(type%2)*8,y,4+(dataVal%2)*8)] = (unsigned short)(type);
             addBlock = 1;
         }
         break;
@@ -5562,7 +5544,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         if (dataVal < 2)
         {
             // put stone overhead
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
             addBlock = 1;
         }
         break;
@@ -5572,7 +5554,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
             addBlock = 1;
             // add farmland underneath
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = BLOCK_FARMLAND;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_FARMLAND);
         }
         break;
     case BLOCK_FIRE:
@@ -5585,7 +5567,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 finalDataVal = BIT_16;
             }
             // add netherrack underneath
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = BLOCK_NETHERRACK;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_NETHERRACK);
         }
         break;
     case BLOCK_SUGAR_CANE:
@@ -5595,10 +5577,10 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             addBlock = 1;
             if (dataVal == 1) {
                 // higher
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_SUGAR_CANE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_SUGAR_CANE);
             }
             // add stationary water, below, so that sugar cane will survive .schem export
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 5 + (dataVal % 2) * 8)] = BLOCK_STATIONARY_WATER;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 5 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STATIONARY_WATER);
         }
         break;
     case BLOCK_SCULK_SENSOR:
@@ -5627,7 +5609,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         if (dataVal < 1) {
             addBlock = 1;
             // put stone overhead
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
         }
         break;
 
@@ -5696,7 +5678,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
             addBlock = 1;
             // add farmland underneath
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = BLOCK_FARMLAND;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_FARMLAND);
         }
         break;
     case BLOCK_CRAFTING_TABLE:
@@ -5725,11 +5707,11 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
             addBlock = 1;
             // add farmland underneath
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = BLOCK_FARMLAND;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_FARMLAND);
             // if age is 3 or 4, add block above of same flower
             if (dataVal > 2) {
                 bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
-                block->grid[bi] = (unsigned char)type;
+                block->grid[bi] = (unsigned short)(type);
                 block->data[bi] = (unsigned char)(dataVal | 0x8 | typeHighBit); // 0x8 means half is upper
             }
         }
@@ -5780,7 +5762,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             // for just chorus flower, put endstone below
             if (origType == BLOCK_CHORUS_FLOWER)
             {
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = BLOCK_END_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_END_STONE);
             }
         }
         break;
@@ -5822,7 +5804,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             addBlock = 1;
             // add flower above
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
-            block->grid[bi] = BLOCK_DOUBLE_FLOWER;
+            block->grid[bi] = (unsigned short)(BLOCK_DOUBLE_FLOWER);
             // not entirely sure about this number, but 10 seems to be the norm,
             // but https://minecraft.wiki/w/Flower#Data_values says to use 8
             // Note that the top half is made to be the dataVal, too, which is the modern
@@ -5930,7 +5912,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
             addBlock = 1;
             // add farmland underneath
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = BLOCK_FARMLAND;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_FARMLAND);
         }
         break;
     case BLOCK_COMPOSTER:
@@ -5985,107 +5967,107 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             int neighborIndex3 = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
             switch (dataVal) {
             case 1:
-                block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex] = SAPLING_FIELD | 0;
-                block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex2] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex2] = RED_FLOWER_FIELD | 7;
-                block->grid[neighborIndex3] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex3] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex3] = AZALEA_FIELD | 1;
                 break;
             case 2:
-                block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex] = SAPLING_FIELD | 1;
-                block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex2] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex2] = RED_FLOWER_FIELD | 8;
-                block->grid[neighborIndex3] = BLOCK_FLOWER_POT;  // cherry
+                block->grid[neighborIndex3] = (unsigned short)(BLOCK_FLOWER_POT);  // cherry
                 block->data[neighborIndex3] = SAPLING_FIELD | 6;
                 break;
             case 3:
-                block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex] = SAPLING_FIELD | 2;
-                block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex2] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex2] = RED_MUSHROOM_FIELD | 0;
-                block->grid[neighborIndex3] = BLOCK_FLOWER_POT;  // torchflower
+                block->grid[neighborIndex3] = (unsigned short)(BLOCK_FLOWER_POT);  // torchflower
                 block->data[neighborIndex3] = YELLOW_FLOWER_FIELD | 1;  // torchflower
                 break;
             case 4:
-                block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex] = SAPLING_FIELD | 3;
-                block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex2] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex2] = BROWN_MUSHROOM_FIELD | 0;
-                block->grid[neighborIndex3] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex3] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex3] = YELLOW_FLOWER_FIELD | 2;
                 break;
             case 5:
-                block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex] = SAPLING_FIELD | 4;
-                block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex2] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex2] = DEADBUSH_FIELD | 0;
-                block->grid[neighborIndex3] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex3] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex3] = YELLOW_FLOWER_FIELD | 3;
                 break;
             case 6:
-                block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex] = SAPLING_FIELD | 5;
-                block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex2] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex2] = CACTUS_FIELD | 0;
-                block->grid[neighborIndex3] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex3] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex3] = SAPLING_FIELD | 7;
                 break;
             case 7:
-                block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex] = TALLGRASS_FIELD | 2;
-                block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex2] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex2] = RED_FLOWER_FIELD | 9;
-                block->grid[neighborIndex3] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex3] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex3] = YELLOW_FLOWER_FIELD | 4;
                 break;
             case 8:
-                block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex] = YELLOW_FLOWER_FIELD | 0;
-                block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex2] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex2] = RED_FLOWER_FIELD | 10;
                 break;
             case 9:
-                block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex] = RED_FLOWER_FIELD | 0;
-                block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex2] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex2] = RED_FLOWER_FIELD | 11;
                 break;
             case 10:
-                block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex] = RED_FLOWER_FIELD | 1;
-                block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex2] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex2] = BAMBOO_FIELD | 0;
                 break;
             case 11:
-                block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex] = RED_FLOWER_FIELD | 2;
-                block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex2] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex2] = RED_FLOWER_FIELD | 12;
                 break;
             case 12:
-                block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex] = RED_FLOWER_FIELD | 3;
-                block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex2] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex2] = RED_FLOWER_FIELD | 13;
                 break;
             case 13:
-                block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex] = RED_FLOWER_FIELD | 4;
-                block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex2] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex2] = RED_FLOWER_FIELD | 14;
                 break;
             case 14:
-                block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex] = RED_FLOWER_FIELD | 5;
-                block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex2] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex2] = RED_FLOWER_FIELD | 15;
                 break;
             case 15:
-                block->grid[neighborIndex] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex] = RED_FLOWER_FIELD | 6;
-                block->grid[neighborIndex2] = BLOCK_FLOWER_POT;
+                block->grid[neighborIndex2] = (unsigned short)(BLOCK_FLOWER_POT);
                 block->data[neighborIndex2] = AZALEA_FIELD | 0;
                 break;
             }
@@ -6104,16 +6086,16 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
 
         // add new subtypes diagonally SE of original
         neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
-        block->grid[neighborIndex] = (unsigned char)type;
-        block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16 | HIGH_BIT;
+        block->grid[neighborIndex] = (unsigned short)(type);
+        block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16;
 
         neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
-        block->grid[neighborIndex] = (unsigned char)type;
-        block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | HIGH_BIT;
+        block->grid[neighborIndex] = (unsigned short)(type);
+        block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32;
 
         neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
-        block->grid[neighborIndex] = (unsigned char)type;
-        block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | BIT_16 | HIGH_BIT;
+        block->grid[neighborIndex] = (unsigned short)(type);
+        block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | BIT_16;
 
         break;
     case BLOCK_BONE_BLOCK:
@@ -6128,26 +6110,26 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
             int coralVal = dataVal % 5;	// 0-4 types of coral - lowest three bits 123 (4 is unused)
             int rotVal = (dataVal - coralVal) / 5; // rotate 0-3
-            finalDataVal = (0x80 | coralVal | (((rotVal + 3) % 4) << 4));	// put into bits 56
+            finalDataVal = (coralVal | (((rotVal + 3) % 4) << 4));	// put into bits 56
             addBlock = 1;
             // add attached block
             switch (rotVal)
             {
             case 3:	// not actually used
                 // put block to south
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 1:
                 // put block to north
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 2:
                 // put block to east
-                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 0:
                 // put block to west
-                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             }
         }
@@ -6156,7 +6138,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_AD_LOG:
         // add "wood" variant to map diagonally SE of original
         neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
-        block->grid[neighborIndex] = (unsigned char)type;
+        block->grid[neighborIndex] = (unsigned short)(type);
         block->data[neighborIndex] = (unsigned char)(finalDataVal | BIT_16 | typeHighBit);
         // uses all bits, 0-15
         addBlock = 1;
@@ -6169,7 +6151,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             if (dataVal < ((origType == BLOCK_LOG) ? 4 : 2)) {
                 // add "wood" variant to map
                 neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
-                block->grid[neighborIndex] = (unsigned char)type;
+                block->grid[neighborIndex] = (unsigned short)(type);
                 block->data[neighborIndex] = (unsigned char)(finalDataVal | BIT_16 | typeHighBit);
             }
         }
@@ -6231,7 +6213,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         if (dataVal == 0) {
             // add new style diagonally SE of original
             neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
-            block->grid[neighborIndex] = (unsigned char)type;
+            block->grid[neighborIndex] = (unsigned short)(type);
             block->data[neighborIndex] = (unsigned char)(finalDataVal | BIT_16 | typeHighBit);
         }
         break;
@@ -6241,8 +6223,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         if (dataVal < 7) {
             // add new style diagonally SE of original
             neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
-            block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)(finalDataVal | HIGH_BIT | BIT_16 | typeHighBit);
+            block->grid[neighborIndex] = (unsigned short)(type);
+            block->data[neighborIndex] = (unsigned char)(finalDataVal | BIT_16 | typeHighBit);
         }
         break;
 
@@ -6263,28 +6245,28 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
 
             // add the five other variants around a block of stone
             neighborIndex = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
-            block->grid[neighborIndex] = BLOCK_STONE;
+            block->grid[neighborIndex] = (unsigned short)(BLOCK_STONE);
             block->data[neighborIndex] = 0x0;
 
             neighborIndex = BLOCK_INDEX(3 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
-            block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)(dataVal + (4 << 2)) | HIGH_BIT;
+            block->grid[neighborIndex] = (unsigned short)(type);
+            block->data[neighborIndex] = (unsigned char)(dataVal + (4 << 2));
 
             neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y+1, 4 + (dataVal % 2) * 8);
-            block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)(dataVal + (5 << 2)) | HIGH_BIT;
+            block->grid[neighborIndex] = (unsigned short)(type);
+            block->data[neighborIndex] = (unsigned char)(dataVal + (5 << 2));
 
             neighborIndex = BLOCK_INDEX(4 + (type % 2) * 8, y+1, 3 + (dataVal % 2) * 8);
-            block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)(dataVal + (2 << 2)) | HIGH_BIT;
+            block->grid[neighborIndex] = (unsigned short)(type);
+            block->data[neighborIndex] = (unsigned char)(dataVal + (2 << 2));
 
             neighborIndex = BLOCK_INDEX(4 + (type % 2) * 8, y+1, 5 + (dataVal % 2) * 8);
-            block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)(dataVal + (3 << 2)) | HIGH_BIT;
+            block->grid[neighborIndex] = (unsigned short)(type);
+            block->data[neighborIndex] = (unsigned char)(dataVal + (3 << 2));
 
             neighborIndex = BLOCK_INDEX(4 + (type % 2) * 8, y+2, 4 + (dataVal % 2) * 8);
-            block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)(dataVal + (1 << 2)) | HIGH_BIT;
+            block->grid[neighborIndex] = (unsigned short)(type);
+            block->data[neighborIndex] = (unsigned char)(dataVal + (1 << 2));
         }
         break;
     case BLOCK_CANDLE:
@@ -6308,13 +6290,13 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
 
             if (dataVal == 8)
             {
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = (unsigned char)type;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = (unsigned short)(type);
             }
             else if (dataVal > 0)
             {
                 int x = type % 2;
                 int z = 1-x;
-                block->grid[BLOCK_INDEX(x + 4 + (type % 2) * 8, y, z + 4 + (dataVal % 2) * 8)] = (unsigned char)type;
+                block->grid[BLOCK_INDEX(x + 4 + (type % 2) * 8, y, z + 4 + (dataVal % 2) * 8)] = (unsigned short)(type);
             }
         }
         else if (origType == BLOCK_STATIONARY_WATER) {
@@ -6323,7 +6305,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 addBlock = 1;
                 finalDataVal = BIT_16 | 8;
                 // put block above, if we want the block below to go fully to the top:
-                //block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = (unsigned char)type;
+                //block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = (unsigned short)(type);
             }
         }
         break;
@@ -6372,7 +6354,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             case 1:
                 // make the block itself be up by two, so we can examine its top and bottom
                 bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 2, 4 + (dataVal % 2) * 8);
-                block->grid[bi] = (unsigned char)type;
+                block->grid[bi] = (unsigned short)(type);
                 block->data[bi] = (unsigned char)(dataVal | typeHighBit);
                 addBlock = 0;
                 break;
@@ -6392,25 +6374,25 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             case 0:
                 // make the block itself be up by two, so we can examine its top and bottom
                 bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 2, 4 + (dataVal % 2) * 8);
-                block->grid[bi] = (unsigned char)type;
+                block->grid[bi] = (unsigned short)(type);
                 block->data[bi] = (unsigned char)(dataVal | typeHighBit);
                 addBlock = 0;
                 break;
             case 2:
                 // put block to north
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 3:
                 // put block to south
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 4:
                 // put block to west
-                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 5:
                 // put block to east
-                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             }
         }
@@ -6428,19 +6410,19 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             {
             case 1:
                 // put block to west
-                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 2:
                 // put block to east
-                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 3:
                 // put block to north
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 4:
                 // put block to south
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             default:
                 // do nothing - on ground
@@ -6457,19 +6439,19 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             {
             case 2:
                 // put block to south
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 3:
                 // put block to north
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 4:
                 // put block to east
-                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 5:
                 // put block to west
-                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             }
             finalDataVal = (dataVal & 0x7) | ((dataVal >= 8) ? WATERLOGGED_BIT : 0x0);
@@ -6488,19 +6470,19 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             {
             case 0:
                 // put block to south
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 1:
                 // put block to west
-                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 2:
                 // put block to north
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 3:
                 // put block to east
-                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             default:
                 assert(0);
@@ -6508,7 +6490,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 break;
             case 5:
                 // put block above
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             }
             finalDataVal = (1 << (dataVal & 0x7)) | ((dataVal >= 8) ? WATERLOGGED_BIT : 0x0);
@@ -6537,19 +6519,19 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             {
             case 2:
                 // put block to south
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 3:
                 // put block to north
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 4:
                 // put block to east
-                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 5:
                 // put block to west
-                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             }
         }
@@ -6579,19 +6561,19 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 assert(0);
             case 2:
                 // put block to south
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 3:
                 // put block to north
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 4:
                 // put block to east
-                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 5:
                 // put block to west
-                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             }
         }
@@ -6620,19 +6602,19 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             {
             case 2:
                 // put block to east
-                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 3:
                 // put block to west
-                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 4:
                 // put block to north
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 5:
                 // put block to south
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             default:
                 // do nothing - on ground
@@ -6647,24 +6629,24 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
         case 1:
             // put block to west
-            block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
             break;
         case 2:
             // put block to east
-            block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
             break;
         case 3:
             // put block to north
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
             break;
         case 4:
             // put block to south
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
             break;
         case 7:
         case 0:
             // put block above
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
             break;
         default:
             // do nothing - on ground
@@ -6693,19 +6675,19 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_WAXED_WEATHERED_COPPER_DOOR:
     case BLOCK_WAXED_OXIDIZED_COPPER_DOOR:
         bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-        block->grid[bi] = (unsigned char)type;
+        block->grid[bi] = (unsigned short)(type);
         block->data[bi] = (unsigned char)((dataVal & 0x7) | typeHighBit);
         if (dataVal < 8)
         {
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
+            block->grid[bi] = (unsigned short)(type);
             block->data[bi] = (unsigned char)(8 | typeHighBit);
         }
         else
         {
             // other direction door (for double doors)
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
+            block->grid[bi] = (unsigned short)(type);
             block->data[bi] = (unsigned char)(9 | typeHighBit);
         }
         break;
@@ -6718,25 +6700,25 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             case 0:
                 // put head to south
                 bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
-                block->grid[bi] = (unsigned char)type;
+                block->grid[bi] = (unsigned short)(type);
                 block->data[bi] |= (unsigned char)(dataVal | 0x8);
                 break;
             case 1:
                 // put head to west
                 bi = BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-                block->grid[bi] = (unsigned char)type;
+                block->grid[bi] = (unsigned short)(type);
                 block->data[bi] |= (unsigned char)(dataVal | 0x8);
                 break;
             case 2:
                 // put head to north
                 bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8);
-                block->grid[bi] = (unsigned char)type;
+                block->grid[bi] = (unsigned short)(type);
                 block->data[bi] |= (unsigned char)(dataVal | 0x8);
                 break;
             case 3:
                 // put head to east
                 bi = BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-                block->grid[bi] = (unsigned char)type;
+                block->grid[bi] = (unsigned short)(type);
                 block->data[bi] |= (unsigned char)(dataVal | 0x8);
                 break;
             }
@@ -6764,27 +6746,27 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             {
             case 0:
                 // put block above
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_OBSIDIAN;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_OBSIDIAN);
                 break;
             case 1:
                 // put block to west
-                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_OBSIDIAN;
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_OBSIDIAN);
                 break;
             case 2:
                 // put block to east
-                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_OBSIDIAN;
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_OBSIDIAN);
                 break;
             case 3:
                 // put block to north
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_OBSIDIAN;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_OBSIDIAN);
                 break;
             case 4:
                 // put block to south
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_OBSIDIAN;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_OBSIDIAN);
                 break;
             case 5:
                 // put block below
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = BLOCK_OBSIDIAN;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_OBSIDIAN);
             }
         }
         break;
@@ -6817,19 +6799,19 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
         case 3:
             // put block to west
-            block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
             break;
         case 2:
             // put block to east
-            block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
             break;
         case 1:
             // put block to north
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
             break;
         case 0:
             // put block to south
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
             break;
         }
         break;
@@ -6886,7 +6868,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                     break;
                 }
                 bi = BLOCK_INDEX(bx, by, bz);
-                block->grid[bi] = BLOCK_PISTON_HEAD;
+                block->grid[bi] = (unsigned short)(BLOCK_PISTON_HEAD);
                 // sticky or not, plus direction
                 block->data[bi] |= (unsigned char)(trimVal | ((origType == BLOCK_STICKY_PISTON) ? 0x8 : 0x0));
             }
@@ -6901,7 +6883,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 // add glass so that when 3D printing it's not deleted;
                 // it will be deleted when pointing up.
                 bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-                block->grid[bi] = BLOCK_GLASS_PANE;
+                block->grid[bi] = (unsigned short)(BLOCK_GLASS_PANE);
             }
             // make it float above ground, to avoid asserts and to test.
             y++;
@@ -6916,10 +6898,10 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             addBlock = 1;
         }
         bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
-        block->grid[bi] = (unsigned char)type;
+        block->grid[bi] = (unsigned short)(type);
         block->data[bi] = (unsigned char)(dataVal | typeHighBit);
 
-        block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 2, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+        block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 2, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
         break;
     case BLOCK_FENCE:
     case BLOCK_SPRUCE_FENCE:
@@ -6940,14 +6922,14 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         // this one is specialized: dataVal says where to put neighbors, NSEW
         addBlock = 1;
         //bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-        //block->grid[bi] = (unsigned char)type;
+        //block->grid[bi] = (unsigned short)(type);
         //block->data[bi] = (unsigned char)finalDataVal;
 
         // put block above, too, for every fifth one, just to see it's working
         if ((dataVal % 5) == 4) {
             finalDataVal |= (origType > 0xff) ? BIT_32 : 0;
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
+            block->grid[bi] = (unsigned short)(type);
             // just a post
             block->data[bi] = (unsigned char)(((origType == BLOCK_CHORUS_PLANT)? BIT_16 : 0) | typeHighBit);
         }
@@ -6956,11 +6938,11 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         if (origType == BLOCK_CHORUS_PLANT)
         {
             finalDataVal |= BIT_16;
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = BLOCK_END_STONE;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_END_STONE);
             // half the time also put chorus flower above
             if (dataVal & 0x1) {
                 finalDataVal |= BIT_32;
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_CHORUS_FLOWER;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_CHORUS_FLOWER);
             }
         }
 
@@ -6968,28 +6950,28 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
             // put block to north
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
+            block->grid[bi] = (unsigned short)(type);
             block->data[bi] = (unsigned char)(0x1 | typeHighBit);
         }
         if (dataVal & 0x8)
         {
             // put block to east
             bi = BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
+            block->grid[bi] = (unsigned short)(type);
             block->data[bi] = (unsigned char)(0x2 | typeHighBit);
         }
         if (dataVal & 0x1)
         {
             // put block to south
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
+            block->grid[bi] = (unsigned short)(type);
             block->data[bi] = (unsigned char)(0x4 | typeHighBit);
         }
         if (dataVal & 0x2)
         {
             // put block to west
             bi = BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
+            block->grid[bi] = (unsigned short)(type);
             block->data[bi] = (unsigned char)(0x8 | typeHighBit);
         }
         break;
@@ -6999,14 +6981,14 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         // But, since there are four tyues of copper bars, we need to set high bits, too.
         addBlock = 1;
         //bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-        //block->grid[bi] = (unsigned char)type;
+        //block->grid[bi] = (unsigned short)(type);
         //block->data[bi] = (unsigned char)finalDataVal;
 
         // put block above, too, for every fifth one, just to see it's working
         if ((dataVal % 5) == 4) {
             finalDataVal |= (origType > 0xff) ? BIT_32 : 0;
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
+            block->grid[bi] = (unsigned short)(type);
             // just a post
             block->data[bi] = (unsigned char)(((origType == BLOCK_CHORUS_PLANT) ? BIT_16 : 0) | typeHighBit);
         }
@@ -7025,14 +7007,14 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
             // put block to south
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
+            block->grid[bi] = (unsigned short)(type);
             block->data[bi] = (unsigned char)(0x4 | typeHighBit);
         }
         if (dataVal & 0x2)
         {
             // put block to west
             bi = BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
+            block->grid[bi] = (unsigned short)(type);
             block->data[bi] = (unsigned char)(0x8 | typeHighBit);
         }
         break;
@@ -7041,7 +7023,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         // *and* what color to use. Unlike the "clear" glass pane, above, the 4 bits
         // in the final dataVal are the color, not the neighbors. :( - need more bits
         bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-        block->grid[bi] = (unsigned char)type;
+        block->grid[bi] = (unsigned short)(type);
         block->data[bi] = (unsigned char)(dataVal | typeHighBit);
 
         if (dataVal & 0x1)
@@ -7051,7 +7033,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
 
             // put block to north
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
+            block->grid[bi] = (unsigned short)(type);
             // alternate between wall and mossy wall
             block->data[bi] = (unsigned char)(dataVal | typeHighBit);
         }
@@ -7059,7 +7041,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
             // put block to east
             bi = BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
+            block->grid[bi] = (unsigned short)(type);
             // alternate between wall and mossy wall
             block->data[bi] = (unsigned char)(dataVal | typeHighBit);
         }
@@ -7067,7 +7049,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
             // put block to south
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
+            block->grid[bi] = (unsigned short)(type);
             // alternate between wall and mossy wall
             block->data[bi] = (unsigned char)(dataVal | typeHighBit);
         }
@@ -7075,7 +7057,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
             // put block to west
             bi = BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
+            block->grid[bi] = (unsigned short)(type);
             // alternate between wall and mossy wall
             block->data[bi] = (unsigned char)(dataVal | typeHighBit);
         }
@@ -7083,11 +7065,11 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_COBBLESTONE_WALL:
         // this one is specialized: dataVal just says where to put neighbors, NSEW
         bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-        block->grid[bi] = (unsigned char)type;
+        block->grid[bi] = (unsigned short)(type);
 
         // put block above, too, for every seventh one, just to see it's working
         if ((dataVal % 7) == 5)
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = (unsigned char)type;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = (unsigned short)(type);
 
         if (dataVal & 0x1)
         {
@@ -7096,7 +7078,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
 
             // put block to north
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
+            block->grid[bi] = (unsigned short)(type);
             // alternate between wall and mossy wall
             block->data[bi] |= (unsigned char)((dataVal % 2) | typeHighBit);
         }
@@ -7104,7 +7086,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
             // put block to east
             bi = BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
+            block->grid[bi] = (unsigned short)(type);
             // alternate between wall and mossy wall
             block->data[bi] |= (unsigned char)((dataVal % 2) | typeHighBit);
         }
@@ -7112,7 +7094,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
             // put block to south
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
+            block->grid[bi] = (unsigned short)(type);
             // alternate between wall and mossy wall
             block->data[bi] |= (unsigned char)((dataVal % 2) | typeHighBit);
         }
@@ -7120,55 +7102,55 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
             // put block to west
             bi = BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
+            block->grid[bi] = (unsigned short)(type);
             // alternate between wall and mossy wall
             block->data[bi] |= (unsigned char)((dataVal % 2) | typeHighBit);
         }
         // add neighbor of different material, to see it
         neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-        block->grid[neighborIndex] = (unsigned char)type;
+        block->grid[neighborIndex] = (unsigned short)(type);
         block->data[neighborIndex] = (unsigned char)(dataVal | typeHighBit);
         neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
-        block->grid[neighborIndex] = (unsigned char)type;
+        block->grid[neighborIndex] = (unsigned short)(type);
         block->data[neighborIndex] = (unsigned char)(dataVal | typeHighBit);
         neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
-        block->grid[neighborIndex] = (unsigned char)type;
+        block->grid[neighborIndex] = (unsigned short)(type);
         block->data[neighborIndex] = (unsigned char)(dataVal | typeHighBit);
         if (dataVal < 9) {
             // 16 through 24, just a post
             neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
-            block->grid[neighborIndex] = (unsigned char)type;
+            block->grid[neighborIndex] = (unsigned short)(type);
             block->data[neighborIndex] = (unsigned char)(dataVal | BIT_16 | typeHighBit);
         }
         break;
     case BLOCK_REDSTONE_WIRE:
         // this one is specialized: dataVal just says where to put neighbors, NSEW
         bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-        block->grid[bi] = (unsigned char)type;
+        block->grid[bi] = (unsigned short)(type);
 
         if (dataVal & 0x1)
         {
             // put block to north
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 3 + (dataVal % 2) * 8)] = (unsigned char)type;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 3 + (dataVal % 2) * 8)] = (unsigned short)(type);
         }
         if (dataVal & 0x2)
         {
             // put block to east
-            block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
-            block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = (unsigned char)type;
+            block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
+            block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = (unsigned short)(type);
         }
         if (dataVal & 0x4)
         {
             // put block to south
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 5 + (dataVal % 2) * 8)] = (unsigned char)type;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 5 + (dataVal % 2) * 8)] = (unsigned short)(type);
         }
         if (dataVal & 0x8)
         {
             // put block to west, redstone atop it
-            block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
-            block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = (unsigned char)type;
+            block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
+            block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = (unsigned short)(type);
         }
         break;
     case BLOCK_CACTUS:
@@ -7177,7 +7159,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
             addBlock = 1;
             // put sand below
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = BLOCK_SAND;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_SAND);
         }
         break;
     case BLOCK_CHEST:
@@ -7188,7 +7170,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
             // Note that we use trimVal here, different than the norm
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (trimVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
+            block->grid[bi] = (unsigned short)(type);
             block->data[bi] |= (unsigned char)(trimVal | typeHighBit);
         }
         // double-chest on 0x8 (for mapping - in Minecraft chests have just 2,3,4,5)
@@ -7199,14 +7181,14 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         case 0x8 | 3:
             // north/south, so put one to west (-1 X)
             bi = BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (trimVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
+            block->grid[bi] = (unsigned short)(type);
             block->data[bi] |= (unsigned char)(trimVal | typeHighBit);
             break;
         case 0x8 | 4:
         case 0x8 | 5:
             // west/east, so put one to north (-1 Z)
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (trimVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
+            block->grid[bi] = (unsigned short)(type);
             block->data[bi] |= (unsigned char)(trimVal | typeHighBit);
             break;
         default:
@@ -7226,7 +7208,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
             // Note that we use trimVal here, different than the norm
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (trimVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
+            block->grid[bi] = (unsigned short)(type);
             block->data[bi] |= (unsigned char)(trimAndMtlVal | typeHighBit);
         }
         // double-chest on 0x8 (for mapping - in Minecraft chests have just 2,3,4,5)
@@ -7237,14 +7219,14 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         case 0x8 | 3:
             // north/south, so put one to west (-1 X)
             bi = BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (trimVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
+            block->grid[bi] = (unsigned short)(type);
             block->data[bi] |= (unsigned char)(trimAndMtlVal | typeHighBit);
             break;
         case 0x8 | 4:
         case 0x8 | 5:
             // west/east, so put one to north (-1 Z)
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (trimVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
+            block->grid[bi] = (unsigned short)(type);
             block->data[bi] |= (unsigned char)(trimAndMtlVal | typeHighBit);
             break;
         default:
@@ -7257,10 +7239,10 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         if (dataVal == 0)
         {
             int wrow, wcol;
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned char)type;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(type);
             for (wrow = 3; wrow <= 5; wrow++)
                 for (wcol = 3; wcol <= 5; wcol++)
-                    block->grid[BLOCK_INDEX(wrow + (type % 2) * 8, y - 1, wcol + (dataVal % 2) * 8)] = BLOCK_STATIONARY_WATER;
+                    block->grid[BLOCK_INDEX(wrow + (type % 2) * 8, y - 1, wcol + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STATIONARY_WATER);
         }
         break;
     case BLOCK_COCOA_PLANT:
@@ -7286,7 +7268,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 bi = BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
                 break;
             }
-            block->grid[bi] = BLOCK_LOG;
+            block->grid[bi] = (unsigned short)(BLOCK_LOG);
             block->data[bi] |= 3 | typeHighBit;	// jungle
         }
         break;
@@ -7297,19 +7279,19 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
         case 0:
             // put block to north
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_OAK_PLANKS;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_OAK_PLANKS);
             break;
         case 1:
             // put block to east
-            block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_OAK_PLANKS;
+            block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_OAK_PLANKS);
             break;
         case 2:
             // put block to south
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_OAK_PLANKS;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_OAK_PLANKS);
             break;
         case 3:
             // put block to west
-            block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_OAK_PLANKS;
+            block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_OAK_PLANKS);
             break;
         }
         break;
@@ -7334,8 +7316,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             addBlock = 1;
             // add leaves above
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)(BLOCK_TALL_SEAGRASS & 0xFF);
-            block->data[bi] = (unsigned char)(8 | HIGH_BIT);	// like flower, add 8
+            block->grid[bi] = (unsigned short)(BLOCK_TALL_SEAGRASS);
+            block->data[bi] = (unsigned char)(8);	// like flower, add 8
         }
         break;
     case BLOCK_WEEPING_VINES:
@@ -7345,23 +7327,23 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             if (dataVal < 2) {
                 // add leaves above
                 bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
-                block->grid[bi] = (unsigned char)(BLOCK_WEEPING_VINES & 0xFF);
+                block->grid[bi] = (unsigned short)(BLOCK_WEEPING_VINES);
                 if (dataVal == 0) {
                     finalDataVal = BIT_32;
-                    block->data[bi] = (unsigned char)HIGH_BIT;
+                    block->data[bi] = 0;
                     // hang off something
                     bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 2, 4 + (dataVal % 2) * 8);
-                    block->grid[bi] = (unsigned char)BLOCK_STONE;
+                    block->grid[bi] = (unsigned short)(BLOCK_STONE);
                 }
                 else {
                     // twisting vines are 0x1
-                    block->data[bi] = (unsigned char)(HIGH_BIT | BIT_32 | 0x1);
+                    block->data[bi] = (unsigned char)(BIT_32 | 0x1);
                 }
             }
             else {
                 // hang off something
                 bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
-                block->grid[bi] = (unsigned char)BLOCK_STONE;
+                block->grid[bi] = (unsigned short)(BLOCK_STONE);
             }
         }
         break;
@@ -7371,9 +7353,9 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             addBlock = 1;
             // add leaves above
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)(BLOCK_KELP & 0xFF);
+            block->grid[bi] = (unsigned short)(BLOCK_KELP);
             // not entirely sure about this number, but 10 seems to be the norm
-            block->data[bi] = (unsigned char)(1 | HIGH_BIT);	// just add 1 for top
+            block->data[bi] = (unsigned char)(1);	// just add 1 for top
         }
         break;
     case BLOCK_SEA_PICKLE:
@@ -7430,26 +7412,26 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
         case 0x4:	// ceiling
             // put block above
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
             break;
         case 0x8:	// single wall
             switch (dataVal & 0x3)
             {
             case 0:
                 // put block to east
-                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 1:
                 // put block to south
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 2:
                 // put block to west
-                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 3:
                 // put block to north
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             }
             break;
@@ -7459,16 +7441,16 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             case 0:
             case 2:
                 // put block to west
-                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 // put block to east
-                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 1:
             case 3:
                 // put block to south
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 // put block to north
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             }
             break;
@@ -7487,25 +7469,25 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 {
                 case 0:
                     // put block to west
-                    block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                    block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                     break;
                 case 1:
                     // put block to north
-                    block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                    block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                     break;
                 case 2:
                     // put block to east
-                    block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                    block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                     break;
                 case 3:
                     // put block to south
-                    block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                    block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                     break;
                 }
                 break;
             case 0x8:	// ceiling
                 // put block above
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             default:	// floor
                 // do nothing - on ground
@@ -7519,7 +7501,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         addBlock = 1;
         if (dataVal & 0x1) {
             // put block above lantern
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
         }
         finalDataVal = (dataVal & 0x3) | ((dataVal >= 4) ? WATERLOGGED_BIT : 0);
         break;
@@ -7530,19 +7512,19 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             addBlock = 1;
             // put block above
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
-            block->grid[bi] = BLOCK_SCAFFOLDING & 0xff;
-            block->data[bi] = (unsigned char)HIGH_BIT;
+            block->grid[bi] = (unsigned short)(BLOCK_SCAFFOLDING);
+            block->data[bi] = 0;
             // put block to south, above, floating
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 5 + (dataVal % 2) * 8);
-            block->grid[bi] = BLOCK_SCAFFOLDING & 0xff;
-            block->data[bi] = (unsigned char)(HIGH_BIT | 0x1);
+            block->grid[bi] = (unsigned short)(BLOCK_SCAFFOLDING);
+            block->data[bi] = (unsigned char)(0x1);
             finalDataVal = (dataVal % 2) | ((dataVal >= 2) ? WATERLOGGED_BIT : 0);
         }
         break;
     case BLOCK_BEE_NEST:
         addBlock = 1;
         // use BIT_32 on or off (beehive/bee_nest), honey_level 5 or 0, facing 0 1 2 3
-        finalDataVal = 0x80 | ((dataVal & 0x8) ? BIT_32 : 0) |	// beehive / bee_nest
+        finalDataVal = ((dataVal & 0x8) ? BIT_32 : 0) |	// beehive / bee_nest
             ((dataVal & 0x4) ? 5 << 2 : 0) |	// honey level
             (dataVal & 0x3);	// facing
         break;
@@ -7552,9 +7534,9 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         addBlock = 1;
         // put dripleaf above, stem below
         bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
-        block->grid[bi] = BLOCK_BIG_DRIPLEAF & 0xff;
+        block->grid[bi] = (unsigned short)(BLOCK_BIG_DRIPLEAF);
         // tilt, and facing
-        block->data[bi] = (unsigned char)(HIGH_BIT | (dataVal << 1));
+        block->data[bi] = (unsigned char)((dataVal << 1));
         // stem uses facing
         finalDataVal = ((dataVal & 0x3) << 1) | 0x1;
         break;
@@ -7565,9 +7547,9 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             addBlock = 1;
             // put dripleaf above, stem below
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
-            block->grid[bi] = BLOCK_SMALL_DRIPLEAF & 0xff;
+            block->grid[bi] = (unsigned short)(BLOCK_SMALL_DRIPLEAF);
             // facing
-            block->data[bi] = (unsigned char)(HIGH_BIT | (dataVal << 1));
+            block->data[bi] = (unsigned char)((dataVal << 1));
             // stem uses facing
             finalDataVal = ((dataVal & 0x3) << 1) | 0x1;
         }
@@ -7614,16 +7596,16 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
 
             // add new style diagonally SE of original
             neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
-            block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16 | HIGH_BIT;
+            block->grid[neighborIndex] = (unsigned short)(type);
+            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16;
 
             neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
-            block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | HIGH_BIT;
+            block->grid[neighborIndex] = (unsigned short)(type);
+            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32;
 
             neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
-            block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | BIT_16 | HIGH_BIT;
+            block->grid[neighborIndex] = (unsigned short)(type);
+            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | BIT_16;
         }
         break;
     case BLOCK_COPPER_BULB:
@@ -7632,8 +7614,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             addBlock = 1;
 
             neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
-            block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16 | HIGH_BIT;
+            block->grid[neighborIndex] = (unsigned short)(type);
+            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16;
         }
         break;
 
@@ -7652,12 +7634,12 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             // east-facing variant, no waterlog
             // TODOTODO - add more variants, but this is just for testing quickly
             neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
-            block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)(0x01 | finalDataVal | HIGH_BIT);
+            block->grid[neighborIndex] = (unsigned short)(type);
+            block->data[neighborIndex] = (unsigned char)(0x01 | finalDataVal);
             // standing + waterlogged variant
             neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
-            block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)(finalDataVal | WATERLOGGED_BIT | HIGH_BIT);
+            block->grid[neighborIndex] = (unsigned short)(type);
+            block->data[neighborIndex] = (unsigned char)(finalDataVal | WATERLOGGED_BIT);
         }
         break;
 
@@ -7699,24 +7681,24 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             // put moss block next to each side needed
             if (dataVal & 0x2) {
                 // put moss block to north
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = (unsigned char)(BLOCK_AMETHYST & 0xff);
-                block->data[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = HIGH_BIT | 60;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_AMETHYST);
+                block->data[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = 60;
             }
             if (dataVal & 0x4) {
                 // put moss block to east
-                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned char)(BLOCK_AMETHYST & 0xff);
-                block->data[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = HIGH_BIT | 60;
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_AMETHYST);
+                block->data[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = 60;
             }
             if (dataVal & 0x8) {
                 // put moss block to south
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = (unsigned char)(BLOCK_AMETHYST & 0xff);
-                block->data[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = HIGH_BIT | 60;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_AMETHYST);
+                block->data[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = 60;
             }
             // currently not done
             if (dataVal & 0x10) {
                 // put moss block to west
-                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned char)(BLOCK_AMETHYST & 0xff);
-                block->data[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = HIGH_BIT | 60;
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_AMETHYST);
+                block->data[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = 60;
             }
         }
         break;
@@ -7727,8 +7709,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         finalDataVal = (dataVal & 0xF);
         // waterlogged
         neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
-        block->grid[neighborIndex] = (unsigned char)(type & 0xff);
-        block->data[neighborIndex] = HIGH_BIT | (unsigned char)finalDataVal | WATERLOGGED_BIT;
+        block->grid[neighborIndex] = (unsigned short)((type & 0xff));
+        block->data[neighborIndex] = (unsigned char)finalDataVal | WATERLOGGED_BIT;
         break;
 
     case BLOCK_ACACIA_SHELF:
@@ -7754,19 +7736,19 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 assert(0);
             case 3:
                 // put block to south
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 1:
                 // put block to north
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 2:
                 // put block to east
-                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             case 0:
                 // put block to west
-                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned short)(BLOCK_STONE);
                 break;
             }
         }
@@ -7785,7 +7767,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     {
         finalDataVal |= typeHighBit;
         bi = BLOCK_INDEX(4 + (origType % 2) * 8, y, 4 + (dataVal % 2) * 8);
-        block->grid[bi] = (unsigned char)type;
+        block->grid[bi] = (unsigned short)(type);
         block->data[bi] = (unsigned char)finalDataVal;
 #ifdef _DEBUG
         static bool extraBlock = false;
@@ -7794,7 +7776,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             // optional: put neighbor to south, so we can test for what happens at borders when splitting occurs;
             // note: this will generate two assertions with pistons. Ignore them.
             bi = BLOCK_INDEX(4 + (origType % 2) * 8, y, 5 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
+            block->grid[bi] = (unsigned short)(type);
             block->data[bi] = (unsigned char)finalDataVal;
         }
 #endif
@@ -7958,7 +7940,7 @@ void testNumeral(WorldBlock* block, int type, int y, int digitPlace, int outType
         }
         for (i = 0; i < doti; i++)
         {
-            block->grid[BLOCK_INDEX(2 + dots[i][0] + (type % 2) * 8, y - 1, 6 - dots[i][1] + ((digitPlace + 1) % 2) * 8)] = (unsigned char)outType;
+            block->grid[BLOCK_INDEX(2 + dots[i][0] + (type % 2) * 8, y - 1, 6 - dots[i][1] + ((digitPlace + 1) % 2) * 8)] = (unsigned short)outType;
         }
     }
 }
@@ -8032,10 +8014,10 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
                 for (z = 0; z < 16; z++)
                 {
                     // make the grass two blocks thick, and then "impenetrable" below, for test border code
-                    block->grid[BLOCK_INDEX(x, bedrockHeight, z)] = BLOCK_BEDROCK;
+                    block->grid[BLOCK_INDEX(x, bedrockHeight, z)] = (unsigned short)(BLOCK_BEDROCK);
                     for (int y = bedrockHeight + 1; y < grassHeight; y++)
-                        block->grid[BLOCK_INDEX(x, y, z)] = BLOCK_DIRT;
-                    block->grid[BLOCK_INDEX(x, grassHeight, z)] = BLOCK_GRASS_BLOCK;
+                        block->grid[BLOCK_INDEX(x, y, z)] = (unsigned short)(BLOCK_DIRT);
+                    block->grid[BLOCK_INDEX(x, grassHeight, z)] = (unsigned short)(BLOCK_GRASS_BLOCK);
                 }
             }
 
@@ -8059,7 +8041,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
             {
                 for (z = 0; z < 16; z++)
                 {
-                    block->grid[BLOCK_INDEX(x, grassHeight, z)] = (cz > 0) ? (unsigned char)BLOCK_OAK_PLANKS : (unsigned char)BLOCK_STONE;
+                    block->grid[BLOCK_INDEX(x, grassHeight, z)] = (unsigned short)((cz > 0) ? (unsigned char)BLOCK_OAK_PLANKS : (unsigned char)BLOCK_STONE);
                 }
             }
 
@@ -8071,7 +8053,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
                     if (type + i < NUM_BLOCKS_DEFINED)
                     {
                         for (j = 0; j <= (int)(cx / 8); j++)
-                            block->grid[BLOCK_INDEX(4 + (i % 2) * 8, grassHeight, j)] = (((type + i) % 50) == 0) ? (unsigned char)BLOCK_WATER : (unsigned char)BLOCK_LAVA;
+                            block->grid[BLOCK_INDEX(4 + (i % 2) * 8, grassHeight, j)] = (unsigned short)((((type + i) % 50) == 0) ? (unsigned char)BLOCK_WATER : (unsigned char)BLOCK_LAVA);
                     }
                 }
             }
@@ -8092,7 +8074,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
             {
                 for (z = 0; z < 16; z++)
                 {
-                    block->grid[BLOCK_INDEX(x, grassHeight, z)] = BLOCK_WOOL;
+                    block->grid[BLOCK_INDEX(x, grassHeight, z)] = (unsigned short)(BLOCK_WOOL);
                 }
             }
             // blocks
@@ -8169,7 +8151,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
             determineMaxFilledHeight(block);
 
             // look for unknown blocks and recover
-            unsigned char* pBlockID = block->grid;
+            unsigned short* pBlockID = block->grid;
             for (i = 0; i < 16 * 16 * (block->maxFilledHeight+1); i++, pBlockID++)
             {
                 assert((i >> 8) <= block->maxFilledHeight);
@@ -8204,7 +8186,7 @@ static WorldBlock* determineMaxFilledHeight(WorldBlock* block)
         assert(0);
         block->maxFilledSectionHeight = block->heightAlloc - 1;
     }
-    unsigned char* pBlockID = block->grid + 16 * 16 * (block->maxFilledSectionHeight+1) - 1;
+    unsigned short* pBlockID = block->grid + 16 * 16 * (block->maxFilledSectionHeight+1) - 1;
     for (i = 16 * 16 * (block->maxFilledSectionHeight + 1) - 1; i >= 0 && searchMaxHeight; i--, pBlockID--)
     {
         // find first filled block
@@ -8267,7 +8249,7 @@ int createBlockFromSchematic(WorldGuide* pWorldGuide, int cx, int cz, WorldBlock
                         if (xMod < pWorldGuide->sch.width) {
                             int schIndex = (y * pWorldGuide->sch.length + zMod) * pWorldGuide->sch.width + xMod;
                             assert(schIndex >= 0 && schIndex < pWorldGuide->sch.numBlocks);
-                            block->grid[index] = pWorldGuide->sch.blocks[schIndex];
+                            block->grid[index] = (unsigned short)(pWorldGuide->sch.blocks[schIndex]);
                             block->data[index] = pWorldGuide->sch.data[schIndex];
                         }
                     }
@@ -8292,7 +8274,7 @@ int createBlockFromSchematic(WorldGuide* pWorldGuide, int cx, int cz, WorldBlock
                 for (int x = 0; x < xlength; x++, index++, schIndex++) {
 
                     // TODO: we could test if the block is entirely empty, marking blockType == 2 if so. Common in schematics, and would draw faster.
-                    block->grid[index] = pWorldGuide->sch.blocks[schIndex];
+                    block->grid[index] = (unsigned short)(pWorldGuide->sch.blocks[schIndex]);
                     block->data[index] = pWorldGuide->sch.data[schIndex];
                 }
             }
@@ -8528,7 +8510,7 @@ int GetSchematicBlocksAndData(const wchar_t* schematic, int numBlocks, unsigned 
 // Reads a Sponge Schematic v3 (.schem) file. Returns 1 on success (and malloc's outputs which
 // the caller frees); 0 on parse failure; -1 if the file couldn't be opened. Issue #40.
 int GetSpongeSchematic(const wchar_t* schematic, int* width, int* height, int* length,
-    unsigned char** blocks, unsigned char** data)
+    unsigned short** blocks, unsigned char** data)
 {
     bfFile bf;
     int err = 0;

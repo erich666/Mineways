@@ -2693,17 +2693,9 @@ static void findChunkBounds(WorldGuide* pWorldGuide, int bx, int bz, IBox* world
                 assert((chunkIndex >> 8) <= block->maxFilledHeight);  // if block is reduced in size, make sure it's in bounds
                 // Capture dataVal from the chunk loader buffer BEFORE we advance chunkIndex.
                 // We can't read it from gBoxData here — this is the bounds-finding pre-pass and
-                // gBoxData isn't allocated yet. block->data carries the same HIGH_BIT-tagged value
-                // that gBoxData.data will later hold, so it's the right source for cull lookup.
+                // gBoxData isn't allocated yet.
                 unsigned char curData = block->data[chunkIndex];
-                if (gIs13orNewer && (curData & 0x80) && (block->grid[chunkIndex] != BLOCK_HEAD) && (block->grid[chunkIndex] != BLOCK_FLOWER_POT)) {
-                    // high bit set, so blockID >= 256
-                    blockID = block->grid[chunkIndex] | 0x100;
-                }
-                else {
-                    // normal case - just transfer the data
-                    blockID = block->grid[chunkIndex];
-                }
+                blockID = block->grid[chunkIndex];
 
                 // For Anvil, Y goes up by 256 (in 1.1 and earlier, it was just ++)
                 chunkIndex += 256;
@@ -2800,22 +2792,11 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
                 // Get the extra values (orientation, type) for the blocks
                 assert((chunkIndex >> 8) <= block->maxFilledHeight);  // if block is reduced in size, make sure it's in bounds
                 unsigned char dataVal = block->data[chunkIndex];
-                // 1.13 fun: if the highest bit of the data value is 1, this is a 1.13+ block of some sort,
-                // so "move" that bit from data to the type. Ignore head data, which comes in with the high bit set.
-                if (gIs13orNewer && (dataVal & HIGH_BIT) && (block->grid[chunkIndex] != BLOCK_HEAD) && (block->grid[chunkIndex] != BLOCK_FLOWER_POT)) {
-                    // if you hit this, something has gone odd with the dataVal, which shouldn't happen. See nbt.cpp where it says "make sure upper bits are not set - they should not be!"
-                    assert(block->grid[chunkIndex] < NUM_BLOCKS_DEFINED - 256);
-                    gBoxData[boxIndex].data = dataVal & 0x7F;
-                    // high bit turns into +256
-                    blockID = gBoxData[boxIndex].origType =
-                        gBoxData[boxIndex].type = block->grid[chunkIndex] | 0x100;
-                }
-                else {
-                    // normal case - just transfer the data
-                    gBoxData[boxIndex].data = dataVal;
-                    blockID = gBoxData[boxIndex].origType =
-                        gBoxData[boxIndex].type = block->grid[chunkIndex];
-                }
+                // block->grid now holds the full 16-bit type ID directly; the legacy HIGH_BIT-
+                // in-data promotion has been retired, so just copy through.
+                gBoxData[boxIndex].data = dataVal;
+                blockID = gBoxData[boxIndex].origType =
+                    gBoxData[boxIndex].type = block->grid[chunkIndex];
 
                 // tile entities needed if using old data format
                 if (!gIs13orNewer) {

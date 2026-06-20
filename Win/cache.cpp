@@ -288,7 +288,7 @@ WorldBlock* block_alloc(int minHeight, int maxHeight)
 	    ret = (WorldBlock*)malloc(sizeof(WorldBlock));
 	    if (ret == NULL)
 	        return NULL;
-	    ret->grid = (unsigned char*)malloc(16 * 16 * height * sizeof(unsigned char));
+	    ret->grid = (unsigned short*)malloc(16 * 16 * height * sizeof(unsigned short));
 	    if (ret->grid == NULL)
 	        return NULL;
 	    ret->data = (unsigned char*)malloc(16 * 16 * height * sizeof(unsigned char));
@@ -367,7 +367,7 @@ void block_realloc(WorldBlock* block)
             // we can make it smaller
             int heightAlloc = block->maxFilledHeight + 1;
 
-            unsigned char* grid = (unsigned char*)realloc(block->grid, 256 * heightAlloc);
+            unsigned short* grid = (unsigned short*)realloc(block->grid, 256 * heightAlloc * sizeof(unsigned short));
             if (grid == NULL)
                 return;  // allocation failed, keep existing block unchanged
             block->grid = grid;

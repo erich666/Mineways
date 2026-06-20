@@ -109,7 +109,7 @@ typedef struct TranslationTuple {
 } TranslationTuple;
 
 bfFile newNBT(const wchar_t* filename, int* err);
-int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int minHeight, int maxHeight, int& mfsHeight, char* unknownBlock, int unknownBlockID);
+int nbtGetBlocks(bfFile* pbf, unsigned short* buff, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int minHeight, int maxHeight, int& mfsHeight, char* unknownBlock, int unknownBlockID);
 int nbtGetHeights(bfFile* pbf, int & minHeight, int & maxHeight, int mcVersion);
 int nbtGetSpawn(bfFile* pbf, int* x, int* y, int* z);
 int nbtGetFileVersion(bfFile* pbf, int* version);
@@ -125,14 +125,15 @@ int nbtGetSchematicWord(bfFile* pbf, char* field, int* value);
 int nbtGetSchematicBlocksAndData(bfFile* pbf, int numBlocks, unsigned char* schematicBlocks, unsigned char* schematicBlockData);
 
 // Read a Sponge Schematic v3 (.schem) file. Returns 1 on success, 0 on parse failure.
-// On success, *outBlocks and *outData are malloc'd with `(*outWidth) * (*outHeight) * (*outLength)`
-// bytes each. The arrays use the same in-memory format that the legacy schematic loader produces:
-// block ID's low 8 bits in *outBlocks, dataVal in *outData (with HIGH_BIT set when the block ID > 255).
-// State-string properties (axis, facing, …) are currently ignored — only the base block name is
-// recovered. Issue #40.
+// On success, *outBlocks is malloc'd with `(*outWidth) * (*outHeight) * (*outLength) * sizeof(unsigned short)`
+// bytes; *outData is malloc'd with that many bytes (sizeof(unsigned char) per voxel). The
+// arrays use the same in-memory format that the chunk loader produces: full 16-bit block ID
+// in *outBlocks, dataVal in *outData. (Historical note: this used to be a low-byte + HIGH_BIT
+// promotion scheme; that's been replaced by native 16-bit IDs.) State-string properties
+// (axis, facing, …) are currently ignored — only the base block name is recovered. Issue #40.
 int nbtGetSpongeSchematic(bfFile* pbf,
     int* outWidth, int* outHeight, int* outLength,
-    unsigned char** outBlocks, unsigned char** outData);
+    unsigned short** outBlocks, unsigned char** outData);
 void nbtClose(bfFile* pbf);
 
 int SlowFindIndexFromName(char* name);

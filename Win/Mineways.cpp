@@ -657,7 +657,8 @@ int APIENTRY _tWinMain(
     wcscpy_s(gImportPath, MAX_PATH_AND_FILE, L"");
 
     gWorldGuide.type = WORLD_UNLOADED_TYPE;
-    gWorldGuide.sch.blocks = gWorldGuide.sch.data = NULL;
+    gWorldGuide.sch.blocks = NULL;
+    gWorldGuide.sch.data = NULL;
     gWorldGuide.nbtVersion = 0;
 
     // start it with something, anything...
@@ -3716,7 +3717,7 @@ static int loadSpongeSchematic(wchar_t* pathAndFile)
     CloseAll();
 
     int width = 0, height = 0, length = 0;
-    unsigned char* blocks = NULL;
+    unsigned short* blocks = NULL;
     unsigned char* data = NULL;
     int retval = GetSpongeSchematic(pathAndFile, &width, &height, &length, &blocks, &data);
     if (retval != 1) {
@@ -3773,7 +3774,7 @@ static int loadSchematic(wchar_t* pathAndFile)
     if (gWorldGuide.sch.numBlocks <= 0)
         return 100 + 4;
 
-    gWorldGuide.sch.blocks = (unsigned char*)malloc(gWorldGuide.sch.numBlocks);
+    gWorldGuide.sch.blocks = (unsigned short*)malloc(gWorldGuide.sch.numBlocks * sizeof(unsigned short));
     gWorldGuide.sch.data = (unsigned char*)malloc(gWorldGuide.sch.numBlocks);
     if (gWorldGuide.sch.blocks == NULL || gWorldGuide.sch.data == NULL) {
         free(gWorldGuide.sch.blocks);
@@ -3783,16 +3784,26 @@ static int loadSchematic(wchar_t* pathAndFile)
         return 100 + 5;
     }
 
-    // explicit CHECK_READ_SCHEMATIC_QUIT( b, e ) since we want to take a corrective action
-    // This is where things will fail when the schematic is a FAWE file for 1.13 or newer. See issue https://github.com/erich666/Mineways/issues/40
-    if (GetSchematicBlocksAndData(pathAndFile, gWorldGuide.sch.numBlocks, gWorldGuide.sch.blocks, gWorldGuide.sch.data) != 1) {
-        // free allocated memory, as it could be a lot
-        free(gWorldGuide.sch.blocks);
-        gWorldGuide.sch.blocks = NULL;
-        free(gWorldGuide.sch.data);
-        gWorldGuide.sch.data = NULL;
+    // explicit CHECK_READ_SCHEMATIC_QUIT( b, e ) since we want to take a corrective action.
+    // GetSchematicBlocksAndData fills a BYTE buffer (legacy MCEdit .schematic format only
+    // has 8-bit block IDs), so read into a temporary byte buffer and zero-extend into the
+    // 16-bit blocks[] storage. This is where things fail when the schematic is a FAWE file
+    // for 1.13 or newer. See issue https://github.com/erich666/Mineways/issues/40
+    unsigned char* tempBytes = (unsigned char*)malloc(gWorldGuide.sch.numBlocks);
+    if (tempBytes == NULL) {
+        free(gWorldGuide.sch.blocks); gWorldGuide.sch.blocks = NULL;
+        free(gWorldGuide.sch.data); gWorldGuide.sch.data = NULL;
         return 100 + 5;
     }
+    if (GetSchematicBlocksAndData(pathAndFile, gWorldGuide.sch.numBlocks, tempBytes, gWorldGuide.sch.data) != 1) {
+        free(tempBytes);
+        free(gWorldGuide.sch.blocks); gWorldGuide.sch.blocks = NULL;
+        free(gWorldGuide.sch.data); gWorldGuide.sch.data = NULL;
+        return 100 + 5;
+    }
+    for (int bi = 0; bi < gWorldGuide.sch.numBlocks; bi++)
+        gWorldGuide.sch.blocks[bi] = tempBytes[bi];
+    free(tempBytes);
 
     // All data's read in! Now we let the mapping system take over and load on demand.
     gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
@@ -9406,11 +9417,8 @@ static void addRangeToDataBitsArray(ChangeBlockCommand* pCBC, int fromType, int 
 
 static void saveCBinto(ChangeBlockCommand* pCBC, int intoType, int intoData)
 {
-    // if someone cleverly tries to pick a block using the nbt.cpp values, convert here so that the type is properly a number > 255, as needed
-    if ((intoData & HIGH_BIT) && (intoType != BLOCK_HEAD) && (intoType != BLOCK_FLOWER_POT)) {
-        intoData &= 0x7F;
-        intoType |= 0x100;
-    }
+    // intoType is the full 16-bit block ID; HIGH_BIT-in-data promotion was retired with the
+    // BlockTranslations widening, so no decoding step here anymore.
     pCBC->intoType = (unsigned short)intoType;
     pCBC->intoData = (unsigned char)intoData;
     pCBC->hasInto = true;
