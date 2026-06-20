@@ -68,8 +68,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <io.h>
 #include <fcntl.h>
 
-#define MINEWAYS_MAJOR_VERSION 12
-#define MINEWAYS_MINOR_VERSION 13
+#define MINEWAYS_MAJOR_VERSION 13
+#define MINEWAYS_MINOR_VERSION 0
 
 #ifndef max
 #define max(a,b)            (((a) > (b)) ? (a) : (b))
