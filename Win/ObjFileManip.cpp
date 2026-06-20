@@ -19911,6 +19911,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_RESIN_CLUMP:
         case BLOCK_MANGROVE_PROPAGULE:						// getSwatch
         case BLOCK_HEAVY_CORE:
+        case BLOCK_BARRIER:
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             break;
         case BLOCK_LILY_PAD:
