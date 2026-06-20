@@ -439,9 +439,6 @@ typedef struct Options {
 // until the code settles down.
 #define NUM_BLOCKS NUM_BLOCKS_MAP
 
-// for ColorSchemes, needed to have ColorScheme code not break for now.
-#define NUM_BLOCKS_CS	NUM_BLOCKS_MAP
-
 // absolute max the 4x4 * 16x16 space that tiles could have (without borders)
 // TODO: memory-wise, might be better to alloc and realloc as needed, as this is now 4096 in size
 #define NUM_MAX_SWATCHES (4*4*16*16)
@@ -523,11 +520,7 @@ typedef struct Options {
 #define BLF_CLASS_SET   (BLF_NONE|BLF_WHOLE|BLF_ALMOST_WHOLE|BLF_STAIRS|BLF_HALF|BLF_MIDDLER|BLF_BILLBOARD|BLF_PANE|BLF_FLATTEN|BLF_FLATTEN_SMALL|BLF_SMALL_MIDDLER|BLF_SMALL_BILLBOARD)
 
 // IMPORTANT: note that *every* module that includes this data structure has
-// *their own copy*. So ColorSchemes has its own master copy (which it never
-// changes), MinewaysMaps gets its changed by ColorSchemes, and ObjFileManip
-// has its own that 
-// NOTE: do not change the 256 below to numBlocks! The ColorScheme system depends on
-// this fixed size.
+// *their own copy*.
 /*
 We use pre-multiplied alpha.
 That means that if the color is #ffffff, and alpha is 0.5, then the color,alpha,pcolor entry should be:

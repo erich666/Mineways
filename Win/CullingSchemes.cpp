@@ -31,6 +31,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CullingSchemes.h"
 #include "nbt.h"	// blockTransCount / blockTransNameAt / blockTransIndexFor
 #include "MinewaysMap.h"	// InvalidateMapRenderCache
+#include "blockInfo.h"	// BLOCK_BARRIER, BLOCK_STRUCTURE_VOID
 
 // =============================================================================================
 // Runtime cull lookup
@@ -86,6 +87,13 @@ CullingManager::~CullingManager()
 void CullingManager::Init(CullingScheme* cs)
 {
     memset(cs->culled, 0, sizeof(cs->culled));
+    // Pre-check a small set of "almost never wanted in an export" technical blocks. Users
+    // creating a fresh culling scheme almost always want these out of the way; they can be
+    // unchecked in the editor if needed.
+    int barrierIdx = blockTransIndexFor(BLOCK_BARRIER, 0);
+    if (barrierIdx >= 0 && barrierIdx < NUM_CULL_ENTRIES) cs->culled[barrierIdx] = 1;
+    int voidIdx = blockTransIndexFor(BLOCK_STRUCTURE_VOID, 0);
+    if (voidIdx >= 0 && voidIdx < NUM_CULL_ENTRIES) cs->culled[voidIdx] = 1;
 }
 
 void CullingManager::create(CullingScheme* cs)
@@ -156,7 +164,7 @@ void CullingManager::remove(int id)
 }
 
 // =============================================================================================
-// Dialog procs (parallel to ColorSchemes / ColorSchemeEdit)
+// Dialog procs
 // =============================================================================================
 INT_PTR CALLBACK CullingSchemes(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 INT_PTR CALLBACK CullingSchemeEdit(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);

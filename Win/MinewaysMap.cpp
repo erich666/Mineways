@@ -8561,29 +8561,6 @@ void SetMapPremultipliedColors(int start)
     }
 }
 
-//Sets the colors used.
-//palette should be in RGBA format
-// done from the color scheme, as possible
-void SetMapPalette(unsigned int* palette, int num)
-{
-    gColormap++;
-    for (int i = 0; i < num; i++)
-    {
-        unsigned char r = (unsigned char)(palette[i] >> 24);
-        unsigned char g = (unsigned char)(palette[i] >> 16);
-        unsigned char b = (unsigned char)(palette[i] >> 8);
-        float a = ((float)(palette[i] & 0xff)) / 255.0f;
-        unsigned char ra = (unsigned char)(r * a); //premultiply alpha
-        unsigned char ga = (unsigned char)(g * a);
-        unsigned char ba = (unsigned char)(b * a);
-        gBlockDefinitions[i].color = (r << 16) | (g << 8) | b;
-        gBlockDefinitions[i].pcolor = (ra << 16) | (ga << 8) | ba;
-        gBlockDefinitions[i].alpha = a;
-    }
-    SetMapPremultipliedColors(num);
-    initColors();
-}
-
 void InvalidateMapRenderCache(void)
 {
     gColormap++;

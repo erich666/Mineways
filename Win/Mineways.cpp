@@ -28,7 +28,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "stdafx.h"
 #include "Mineways.h"
-#include "ColorSchemes.h"
 #include "CullingSchemes.h"
 #include "ExportPrint.h"
 #include "Location.h"
@@ -215,7 +214,6 @@ static HCURSOR gWeCursor = NULL;
 static HCURSOR gNeswCursor = NULL;
 static HCURSOR gNwseCursor = NULL;
 
-static wchar_t gSchemeSelected[255];
 static wchar_t gCullSchemeSelected[255];	// last-selected Culling Scheme name, "" = none
 
 static int gImportFilterIndex = 1;
@@ -334,7 +332,6 @@ typedef struct ImportedSet {
     ExportFileData* pSaveEFD;	// deferred save, for model load
     char world[MAX_PATH_AND_FILE];
     char terrainFile[MAX_PATH_AND_FILE];
-    char colorScheme[MAX_PATH_AND_FILE];
     char cullingScheme[MAX_PATH_AND_FILE];
     wchar_t* importFile;
     int lineNumber;
@@ -440,22 +437,19 @@ static void updateCursor(LPARAM lParam, BOOL hdragging);
 static void gotoSurface(HWND hWnd, HWND hwndSlider, HWND hwndLabel);
 static void updateStatus(int mx, int mz, int my, const char* blockLabel, int type, int dataVal, int biome, HWND hwndStatus);
 static void sendStatusMessage(HWND hwndStatus, wchar_t* buf);
-static void populateColorSchemes(HMENU menu);
-static void useCustomColor(int wmId, HWND hWnd, bool invalidate = true);
 static void populateCullingSchemes(HMENU menu);
 static void useCustomCull(int wmId, HWND hWnd, bool invalidate = true);
 static int findCullingScheme(wchar_t* name);
-static int findColorScheme(wchar_t* name);
 static void setSlider(HWND hWnd, HWND hwndSlider, HWND hwndLabel, int depth, bool update);
 static void drawInvalidateUpdate(HWND hWnd);
 static void syncCurrentHighlightDepth();
 static void copyOverExportPrintData(ExportFileData* pEFD);
-static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t* terrainFileName, wchar_t* schemeSelected, wchar_t* cullSchemeSelected, bool showDialog, bool showStatistics);
+static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t* terrainFileName, wchar_t* cullSchemeSelected, bool showDialog, bool showStatistics);
 #ifdef SKETCHFAB
 static int setSketchfabExportSettings();
 static LPTSTR prepareSketchfabExportFile(HWND hWnd);
-static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileName, wchar_t* terrainFileName, wchar_t* schemeSelected, wchar_t* cullSchemeSelected);
-static int publishToSketchfab(HWND hWnd, wchar_t* objFileName, wchar_t* terrainFileName, wchar_t* schemeSelected, wchar_t* cullSchemeSelected);
+static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileName, wchar_t* terrainFileName, wchar_t* cullSchemeSelected);
+static int publishToSketchfab(HWND hWnd, wchar_t* objFileName, wchar_t* terrainFileName, wchar_t* cullSchemeSelected);
 static bool commandSketchfabPublish(ImportedSet& is, wchar_t* error);
 static bool isSketchfabFieldSizeValid(char* field, int size, bool exact = false);
 #endif
@@ -513,7 +507,6 @@ static void rationalizeFilePath(wchar_t* fileName);
 static bool splitToPathAndName(wchar_t* pathAndName, wchar_t* path, wchar_t* name);
 static bool commandLoadWorld(ImportedSet& is, wchar_t* error);
 static bool commandLoadTerrainFile(ImportedSet& is, wchar_t* error);
-static bool commandLoadColorScheme(ImportedSet& is, wchar_t* error, bool invalidate = true);
 static bool commandLoadCullingScheme(ImportedSet& is, wchar_t* error, bool invalidate = true);
 static bool commandExportFile(ImportedSet& is, wchar_t* error, int fileMode, char* fileName);
 static bool openLogFile(ImportedSet& is);
@@ -666,8 +659,6 @@ int APIENTRY _tWinMain(
     gWorldGuide.type = WORLD_UNLOADED_TYPE;
     gWorldGuide.sch.blocks = gWorldGuide.sch.data = NULL;
     gWorldGuide.nbtVersion = 0;
-
-    gSchemeSelected[0] = (wchar_t)0;
 
     // start it with something, anything...
     gpEFD = &gExportViewData;
@@ -1041,12 +1032,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         LOG_INFO(gExecutionLogfile, " loadTerrainList\n");
         loadTerrainList(GetMenu(hWnd));
 
-        LOG_INFO(gExecutionLogfile, " populateColorSchemes\n");
-        populateColorSchemes(GetMenu(hWnd));
-        CheckMenuItem(GetMenu(hWnd), IDM_CUSTOMCOLOR, MF_CHECKED);
-
-        // Mirror the Color Schemes startup: rebuild the dynamic Cull submenu from the registry
-        // and check Standard (= no culling active until the user picks a scheme).
+        // Rebuild the dynamic Cull submenu from the registry and check Standard
+        // (= no culling active until the user picks a scheme).
         populateCullingSchemes(GetMenu(hWnd));
         CheckMenuItem(GetMenu(hWnd), IDM_CUSTOMCULL, MF_CHECKED);
         wcscpy_s(gCullSchemeSelected, 255, L"Standard");
@@ -1165,10 +1152,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         bmi.bmiHeader.biCompression = BI_RGB;
         LOG_INFO(gExecutionLogfile, " CreateDIBSection\n");
         bitmap = CreateDIBSection(NULL, &bmi, DIB_RGB_COLORS, (void**)&map, NULL, 0);
-
-        // set standard custom color at startup.
-        LOG_INFO(gExecutionLogfile, " useCustomColor\n");
-        useCustomColor(IDM_CUSTOMCOLOR, hWnd);
 
         // initialize zoom menu check
         wmId = LOWORD(wParam);
@@ -1932,11 +1915,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         wmId = LOWORD(wParam);
         // set but not used: wmEvent = HIWORD(wParam);
         // Parse the menu selections:
-        if (wmId >= IDM_CUSTOMCOLOR && wmId < IDM_CUSTOMCOLOR + MAX_WORLDS)
-        {
-            useCustomColor(wmId, hWnd);
-        }
-        else if (wmId >= IDM_CUSTOMCULL && wmId < IDM_CUSTOMCULL + MAX_WORLDS)
+        if (wmId >= IDM_CUSTOMCULL && wmId < IDM_CUSTOMCULL + MAX_WORLDS)
         {
             useCustomCull(wmId, hWnd);
         }
@@ -2164,40 +2143,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     //REDRAW_ALL;
                 }
                 break;
-            case IDM_COLOR:
-            {
-                doColorSchemes(hInst, hWnd);
-                populateColorSchemes(GetMenu(hWnd));
-                // always go back to the standard color scheme after editing, as editing
-                // could have removed the custom scheme being modified.
-                wchar_t* schemeSelected = getSelectedColorScheme();
-                int item = findColorScheme(schemeSelected);
-                if (item > 0)
-                {
-                    // use item selected in color scheme's create/delete/edit dialog, if found
-                    useCustomColor(IDM_CUSTOMCOLOR + item, hWnd);
-                }
-                else {
-                    // nothing selected in color scheme edit system, so set previously-used scheme, if available
-                    item = findColorScheme(gSchemeSelected);
-                    if (item > 0)
-                    {
-                        //
-                        useCustomColor(IDM_CUSTOMCOLOR + item, hWnd);
-                    }
-                    else
-                    {
-                        // no user-defined scheme found, must be Standard
-                        useCustomColor(IDM_CUSTOMCOLOR, hWnd);
-                    }
-                }
-            }
-            break;
             case IDM_CULL:
             {
-                // Same flow as IDM_COLOR: open the editor, refresh the dynamic submenu, then
-                // restore (or activate) a culling scheme. The user's chosen scheme on dialog
-                // exit takes priority over the previously-active one.
+                // Open the editor, refresh the dynamic submenu, then restore (or activate) a
+                // culling scheme. The user's chosen scheme on dialog exit takes priority over
+                // the previously-active one.
                 doCullingSchemes(hInst, hWnd);
                 populateCullingSchemes(GetMenu(hWnd));
                 wchar_t* cullSelected = getSelectedCullingScheme();
@@ -2449,7 +2399,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         gExported = saveMapFile(gpEFD->minxVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gExportPath);
                     }
                     else {
-                        gExported = saveObjFile(hWnd, gExportPath, gPrintModel, gSelectTerrainPathAndName, gSchemeSelected, gCullSchemeSelected, (gExported == 0), gShowPrintStats);
+                        gExported = saveObjFile(hWnd, gExportPath, gPrintModel, gSelectTerrainPathAndName, gCullSchemeSelected, (gExported == 0), gShowPrintStats);
                     }
                     // Issue #138: record successful model exports in the Recent Exports menu.
                     // Map exports (.png) are excluded — they have no embedded settings to re-import.
@@ -2488,7 +2438,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 {
                     // Force it to be an rendering export: Relative obj
                     LPTSTR filepath = prepareSketchfabExportFile(hWnd);
-                    publishToSketchfab(hWnd, filepath, gSelectTerrainPathAndName, gSchemeSelected, gCullSchemeSelected);
+                    publishToSketchfab(hWnd, filepath, gSelectTerrainPathAndName, gCullSchemeSelected);
                 }
 #else
                 FilterMessageBox(NULL, _T("This version of Mineways does not have Sketchfab export enabled - sorry! Try version 5.10."),
@@ -3640,79 +3590,9 @@ static void sendStatusMessage(HWND hwndStatus, wchar_t* buf)
 }
 
 
-static int numCustom = 1;
-static void populateColorSchemes(HMENU menu)
-{
-    MENUITEMINFO info;
-    for (int i = 1; i < numCustom; i++)
-        DeleteMenu(menu, IDM_CUSTOMCOLOR + i, MF_BYCOMMAND);
-    info.cbSize = sizeof(MENUITEMINFO);
-    info.fMask = MIIM_FTYPE | MIIM_ID | MIIM_STRING | MIIM_DATA;
-    info.fType = MFT_STRING;
-    numCustom = 1;
-    ColorManager cm;
-    ColorScheme cs;
-    int id = cm.next(0, &cs);
-    while (id)
-    {
-        info.wID = IDM_CUSTOMCOLOR + numCustom;
-        info.cch = (UINT)wcslen(cs.name);
-        info.dwTypeData = cs.name;
-        info.dwItemData = cs.id;
-        InsertMenuItem(menu, IDM_CUSTOMCOLOR, FALSE, &info);
-        numCustom++;
-        id = cm.next(id, &cs);
-    }
-}
-static void useCustomColor(int wmId, HWND hWnd, bool invalidate /*= true*/)
-{
-    for (int i = 0; i < numCustom; i++)
-        CheckMenuItem(GetMenu(hWnd), IDM_CUSTOMCOLOR + i, MF_UNCHECKED);
-    CheckMenuItem(GetMenu(hWnd), wmId, MF_CHECKED);
-    ColorManager cm;
-    ColorScheme cs;
-    if (wmId > IDM_CUSTOMCOLOR)
-    {
-        MENUITEMINFO info;
-        info.cbSize = sizeof(MENUITEMINFO);
-        info.fMask = MIIM_DATA;
-        GetMenuItemInfo(GetMenu(hWnd), wmId, FALSE, &info);
-        cs.id = (int)info.dwItemData;
-        cm.load(&cs);
-    }
-    else
-    {
-        ColorManager::Init(&cs);
-        cs.id = 0;
-        wcscpy_s(cs.name, 255, L"Standard");
-    }
-    SetMapPalette(cs.colors, NUM_BLOCKS_CS);
-    if (invalidate)
-        drawInvalidateUpdate(hWnd);
-
-    // store away for our own use
-    wcscpy_s(gSchemeSelected, 255, cs.name);
-}
-static int findColorScheme(wchar_t* name)
-{
-    ColorManager cm;
-    ColorScheme cs;
-    int id = cm.next(0, &cs);
-    int count = 1;
-    // go through list in same order as created in populateColorSchemes
-    while (id)
-    {
-        if (wcscmp(name, cs.name) == 0)
-            return count;
-        id = cm.next(id, &cs);
-        count++;
-    }
-    return -1;
-}
-
-// ---- Culling Schemes menu/load plumbing (parallel to the Color Schemes block above) ----
-// numCustomCull tracks how many entries the dynamic submenu currently shows. Like Color, the
-// menu has a fixed "Standard" (= no culling) entry at IDM_CUSTOMCULL and dynamic items at
+// ---- Culling Schemes menu/load plumbing ----
+// numCustomCull tracks how many entries the dynamic submenu currently shows. The menu has a
+// fixed "Standard" (= no culling) entry at IDM_CUSTOMCULL and dynamic items at
 // IDM_CUSTOMCULL+1, +2, ...; populate rewrites the dynamic tail on every entry to the
 // Culling Schemes editor dialog.
 static int numCustomCull = 1;
@@ -5004,7 +4884,7 @@ static bool commandSketchfabPublish(ImportedSet& is, wchar_t* error)
 
     LPTSTR filepath = prepareSketchfabExportFile(is.ws.hWnd);
     setSketchfabExportSettings();
-    processSketchfabExport(&gSkfbPData, filepath, gSelectTerrainPathAndName, gSchemeSelected, gCullSchemeSelected);
+    processSketchfabExport(&gSkfbPData, filepath, gSelectTerrainPathAndName, gCullSchemeSelected);
     setPublishSkfbData(&gSkfbPData);
     uploadToSketchfab(hInst, is.ws.hWnd);
 
@@ -5114,7 +4994,7 @@ void freeOutputFileList(FileList& outputFileList)
 }
 
 // return a failure code (simply "1" at this point, since it pops up its own error) on failure, else return 0 on success.
-static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileName, wchar_t* terrainFileName, wchar_t* schemeSelected, wchar_t* cullSchemeSelected)
+static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileName, wchar_t* terrainFileName, wchar_t* cullSchemeSelected)
 {
     FileList outputFileList;
     initializeOutputFileList(outputFileList);
@@ -5127,7 +5007,7 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileNa
 
     int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gExeDirectory,
         gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gMinHeight, gMaxHeight,
-        updateProgress, terrainFileName, schemeSelected, cullSchemeSelected, &outputFileList, (int)gMinewaysMajorVersion, (int)gMinewaysMinorVersion, gVersionID, gChangeBlockCommands,
+        updateProgress, terrainFileName, cullSchemeSelected, &outputFileList, (int)gMinewaysMajorVersion, (int)gMinewaysMinorVersion, gVersionID, gChangeBlockCommands,
         gInstanceChunkSize, gUserSelectedBiome, gBiomeSelected, gGroupCount, gGroupCountSize, gGroupCountArray);
 
     deleteCommandBlockSet(gChangeBlockCommands);
@@ -5200,7 +5080,7 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileNa
     return 0;
 }
 
-static int publishToSketchfab(HWND hWnd, wchar_t* objFileName, wchar_t* terrainFileName, wchar_t* schemeSelected, wchar_t* cullSchemeSelected)
+static int publishToSketchfab(HWND hWnd, wchar_t* objFileName, wchar_t* terrainFileName, wchar_t* cullSchemeSelected)
 {
     int on;
     int retCode = 0;
@@ -5256,7 +5136,7 @@ static int publishToSketchfab(HWND hWnd, wchar_t* objFileName, wchar_t* terrainF
         drawInvalidateUpdate(hWnd);
 
         if (skfbPData->skfbFilePath.empty()) {
-            if (processSketchfabExport(skfbPData, objFileName, terrainFileName, schemeSelected, cullSchemeSelected) == 0) {
+            if (processSketchfabExport(skfbPData, objFileName, terrainFileName, cullSchemeSelected) == 0) {
                 // no error, do it.
                 setPublishSkfbData(skfbPData);
             }
@@ -5337,7 +5217,7 @@ static wchar_t* formatWithCommas(int value, wchar_t *str)
 // returns number of files written on successful export, 0 files otherwise.
 // showDialog says whether to show the export options dialog or not.
 // TODO: Warning	C6262	Function uses '56760' bytes of stack.Consider moving some data to heap.
-static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t* terrainFileName, wchar_t* schemeSelected, wchar_t* cullSchemeSelected, bool showDialog, bool showStatistics)
+static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t* terrainFileName, wchar_t* cullSchemeSelected, bool showDialog, bool showStatistics)
 {
     int on;
     int retCode = 0;
@@ -5669,7 +5549,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
 
         int errCode = SaveVolume(objFileName, gpEFD->fileType, &gOptions, &gWorldGuide, gExeDirectory,
             gpEFD->minxVal, gpEFD->minyVal, gpEFD->minzVal, gpEFD->maxxVal, gpEFD->maxyVal, gpEFD->maxzVal, gMinHeight, gMaxHeight,
-            updateProgress, terrainFileName, schemeSelected, cullSchemeSelected, &outputFileList, (int)gMinewaysMajorVersion, (int)gMinewaysMinorVersion, gVersionID, gChangeBlockCommands,
+            updateProgress, terrainFileName, cullSchemeSelected, &outputFileList, (int)gMinewaysMajorVersion, (int)gMinewaysMinorVersion, gVersionID, gChangeBlockCommands,
             gInstanceChunkSize, gUserSelectedBiome, gBiomeSelected, gGroupCount, gGroupCountSize, gGroupCountArray);
         deleteCommandBlockSet(gChangeBlockCommands);
         gChangeBlockCommands = NULL;
@@ -6293,16 +6173,7 @@ static void runImportOrScript(wchar_t* importFile, WindowSet& ws, const char** p
             }
         }
 
-        // see if we can load the color scheme
-        if (strlen(is.colorScheme) > 0)
-        {
-            // don't invalidate on load, as we know we'll do it later
-            if (!commandLoadColorScheme(is, msgString, false)) {
-                FilterMessageBox(NULL, msgString, _T("Import warning"), MB_OK | MB_ICONWARNING);
-            }
-        }
-
-        // see if we can load the culling scheme (parallel to color scheme above)
+        // see if we can load the culling scheme
         if (strlen(is.cullingScheme) > 0)
         {
             if (!commandLoadCullingScheme(is, msgString, false)) {
@@ -6992,7 +6863,6 @@ static void initializeImportedSet(ImportedSet& is, ExportFileData* pEFD, wchar_t
     }
     is.world[0] = (char)0;
     is.terrainFile[0] = (char)0;
-    is.colorScheme[0] = (char)0;
     is.cullingScheme[0] = (char)0;
     is.importFile = importFile;
     is.lineNumber = 1;
@@ -7477,25 +7347,6 @@ static int interpretImportLine(char* line, ImportedSet& is)
                     // warning: selection set but no world is loaded
                     saveErrorMessage(is, L"attempt to view The End but no world is loaded.");
                     return INTERPRETER_FOUND_ERROR;
-                }
-            }
-        }
-        return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
-    }
-
-    strPtr = findLineDataNoCase(line, "Color scheme:");
-    if (strPtr != NULL) {
-        if (*strPtr == (char)0) {
-            saveErrorMessage(is, L"no color scheme given.");
-            return INTERPRETER_FOUND_ERROR;
-        }
-        if (is.processData) {
-            strcpy_s(is.colorScheme, MAX_PATH_AND_FILE, strPtr);
-            if (!is.readingModel) {
-                if (!commandLoadColorScheme(is, error)) {
-                    // we happen to know this method only returns warnings.
-                    saveWarningMessage(is, error);
-                    return INTERPRETER_FOUND_VALID_LINE;
                 }
             }
         }
@@ -10277,40 +10128,7 @@ static bool commandLoadTerrainFile(ImportedSet& is, wchar_t* error)
     return true;
 }
 
-// true if it worked; false if there's an error, which is returned in *error.
-static bool commandLoadColorScheme(ImportedSet& is, wchar_t* error, bool invalidate)
-{
-    wchar_t backupColorScheme[255];
-    wcscpy_s(backupColorScheme, 255, gSchemeSelected);
-    size_t dummySize = 0;
-    mbstowcs_s(&dummySize, gSchemeSelected, 255, is.colorScheme, 255);
-    // if the incoming scheme, now in gSchemeSelected, is different than backupColorScheme,
-    // then change the color scheme. Changing the color scheme is costly, as a full redraw is then needed.
-    if (wcscmp(gSchemeSelected, backupColorScheme) != 0) {
-        int item = findColorScheme(gSchemeSelected);
-        if (item > 0)
-        {
-            useCustomColor(IDM_CUSTOMCOLOR + item, is.ws.hWnd, invalidate);
-        }
-        else if (wcscmp(gSchemeSelected, L"Standard") == 0)
-        {
-            useCustomColor(IDM_CUSTOMCOLOR, is.ws.hWnd, invalidate);
-        }
-        else
-        {
-            // warning - not found, so don't use it.
-            swprintf_s(error, ERROR_MESSAGE_BUFFER_SIZE, L"Warning: Mineways attempted to load color scheme \"%s\" but could not do so. Either the color scheme could not be found, or the scheme name is some wide character string that could not be stored in your import file. Please select the color scheme from the menu manually.", gSchemeSelected);
-
-            // restore old scheme
-            wcscpy_s(gSchemeSelected, 255, backupColorScheme);
-            findColorScheme(gSchemeSelected);
-            return false;
-        }
-    }
-    return true;
-}
-
-// Parallel to commandLoadColorScheme. true if it worked; false on warning (returned in *error).
+// true if it worked; false on warning (returned in *error).
 static bool commandLoadCullingScheme(ImportedSet& is, wchar_t* error, bool invalidate)
 {
     wchar_t backup[255];
@@ -10390,7 +10208,7 @@ static bool commandExportFile(ImportedSet& is, wchar_t* error, int fileMode, cha
     }
     else {
         // export model
-        gExported = saveObjFile(is.ws.hWnd, wcharFileName, gPrintModel, gSelectTerrainPathAndName, gSchemeSelected, gCullSchemeSelected, false, false);
+        gExported = saveObjFile(is.ws.hWnd, wcharFileName, gPrintModel, gSelectTerrainPathAndName, gCullSchemeSelected, false, false);
         if (gExported == 0)
         {
             sendStatusMessage(is.ws.hwndStatus, L"Script export operation failed");

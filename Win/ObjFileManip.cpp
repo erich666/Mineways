@@ -763,18 +763,18 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
 
 static int mosaicUVtoSeparateUV();
 
-static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* box, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* schemeSelected, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC);
-static int writeBinarySTLBox(WorldGuide* pWorldGuide, IBox* box, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* schemeSelected, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC);
-static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* schemeSelected, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC);
+static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* box, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC);
+static int writeBinarySTLBox(WorldGuide* pWorldGuide, IBox* box, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC);
+static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC);
 static int writeOBJTextureUV(float u, float v, int addComment, int swatchLoc);
 static int writeOBJMtlFile();
 static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char* textureRGB, char* textureRGBA, char* textureAlpha, char* textureRoot, int swatchLoc);
 
-static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* box, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* schemeSelected, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC);
+static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* box, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC);
 static int writeVRMLAttributeShapeSplit(int type, int dataVal, char* mtlName, char* textureOutputString);
 static int writeVRMLTextureUV(float u, float v, int addComment, int swatchLoc);
 
-static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* box, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* schemeSelected, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC);
+static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* box, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC);
 static bool findNextChunk(int startInstance, int& endInstance, char* chunkLocation);
 static void nameFromHash(int hash, char* instanceNameString);
 static int openUSDFile(wchar_t* destination, PORTAFILE& modelFile);
@@ -831,7 +831,7 @@ static void formCategoryFileName(char* catFile, int category, char* textureRGB);
 
 static int writeLines(HANDLE file, char** textLines, int lines);
 
-static int writeStatistics(HANDLE fh, int (*printFunc)(char*), WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedWorldBoxconst, const wchar_t* curDir, const wchar_t* terrainFileName, const wchar_t* schemeSelected, const wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC);
+static int writeStatistics(HANDLE fh, int (*printFunc)(char*), WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedWorldBoxconst, const wchar_t* curDir, const wchar_t* terrainFileName, const wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC);
 
 static float computeMaterialCost(int printMaterialType, float blockEdgeSize, int numBlocks, int numMinorBlocks);
 static int finalModelChecks();
@@ -931,7 +931,7 @@ void ClearCache()
 // Return 0 if all is well, errcode if something went wrong.
 // User should be warned if nothing found to export.
 int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide* pWorldGuide, const wchar_t* curDir, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax, int mapMinHeight, int mapMaxHeight,
-    ProgressCallback callback, wchar_t* terrainFileName, wchar_t* schemeSelected, wchar_t* cullSchemeSelected, FileList* outputFileList, int majorVersion, int minorVersion, int worldVersion, ChangeBlockCommand* pCBC, int instanceChunkSize,
+    ProgressCallback callback, wchar_t* terrainFileName, wchar_t* cullSchemeSelected, FileList* outputFileList, int majorVersion, int minorVersion, int worldVersion, ChangeBlockCommand* pCBC, int instanceChunkSize,
     int& userSelectedBiome, int& biomeIndex, int& groupCount, int groupCountSize, int *groupCountArray)
 {
     // * Read the texture for the materials.
@@ -1368,20 +1368,20 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     case FILE_TYPE_WAVEFRONT_ABS_OBJ:
         // for OBJ, we may use more than one texture
         needDifferentTextures = 1;
-        retCode |= writeOBJBox(pWorldGuide, &worldBox, &tightenedWorldBox, curDir, terrainFileName, schemeSelected, cullSchemeSelected, pCBC);
+        retCode |= writeOBJBox(pWorldGuide, &worldBox, &tightenedWorldBox, curDir, terrainFileName, cullSchemeSelected, pCBC);
         break;
     case FILE_TYPE_USD:
-        retCode |= writeUSD2Box(pWorldGuide, &worldBox, &tightenedWorldBox, curDir, terrainFileName, schemeSelected, cullSchemeSelected, pCBC);
+        retCode |= writeUSD2Box(pWorldGuide, &worldBox, &tightenedWorldBox, curDir, terrainFileName, cullSchemeSelected, pCBC);
         break;
     case FILE_TYPE_BINARY_MAGICS_STL:
     case FILE_TYPE_BINARY_VISCAM_STL:
-        retCode |= writeBinarySTLBox(pWorldGuide, &worldBox, &tightenedWorldBox, curDir, terrainFileName, schemeSelected, cullSchemeSelected, pCBC);
+        retCode |= writeBinarySTLBox(pWorldGuide, &worldBox, &tightenedWorldBox, curDir, terrainFileName, cullSchemeSelected, pCBC);
         break;
     case FILE_TYPE_ASCII_STL:
-        retCode |= writeAsciiSTLBox(pWorldGuide, &worldBox, &tightenedWorldBox, curDir, terrainFileName, schemeSelected, cullSchemeSelected, pCBC);
+        retCode |= writeAsciiSTLBox(pWorldGuide, &worldBox, &tightenedWorldBox, curDir, terrainFileName, cullSchemeSelected, pCBC);
         break;
     case FILE_TYPE_VRML2:
-        retCode |= writeVRML2Box(pWorldGuide, &worldBox, &tightenedWorldBox, curDir, terrainFileName, schemeSelected, cullSchemeSelected, pCBC);
+        retCode |= writeVRML2Box(pWorldGuide, &worldBox, &tightenedWorldBox, curDir, terrainFileName, cullSchemeSelected, pCBC);
         break;
         //case FILE_TYPE_SETTINGS:
             //retCode |= writeSettings( pWorldGuide, &worldBox, &tightenedWorldBox );
@@ -25767,7 +25767,7 @@ static int mosaicUVtoSeparateUV()
 }
 
 // return 0 if no write
-static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* schemeSelected, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC)
+static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC)
 {
     // set to 1 if you want absolute (positive) indices used in the faces
     int absoluteIndices = (gModel.options->exportFlags & EXPT_OUTPUT_OBJ_REL_COORDINATES) ? 0 : 1;
@@ -25814,7 +25814,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
     sprintf_s(outputString, 256, "# Wavefront OBJ file made by Mineways version %d.%02d, http://mineways.com\n", gMinewaysMajorVersion, gMinewaysMinorVersion);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
-    retCode |= writeStatistics(gModelFile, NULL, pWorldGuide, worldBox, tightenedWorldBox, curDir, terrainFileName, schemeSelected, cullSchemeSelected, pCBC);
+    retCode |= writeStatistics(gModelFile, NULL, pWorldGuide, worldBox, tightenedWorldBox, curDir, terrainFileName, cullSchemeSelected, pCBC);
     if (retCode >= MW_BEGIN_ERRORS)
         goto Exit;
 
@@ -28041,7 +28041,7 @@ static int createBaseMaterialTexture()
     return MW_NO_ERROR;
 }
 
-static int writeBinarySTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* schemeSelected, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC)
+static int writeBinarySTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC)
 {
     wchar_t stlFileNameWithSuffix[MAX_PATH_AND_FILE];
     char worldNameUnderlined[MAX_PATH_AND_FILE];
@@ -28201,7 +28201,7 @@ static int writeBinarySTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tigh
         return retCode | MW_CANNOT_CREATE_FILE;
 
     //
-    retCode |= writeStatistics(statsFile, NULL, pWorldGuide, worldBox, tightenedWorldBox, curDir, terrainFileName, schemeSelected, cullSchemeSelected, pCBC);
+    retCode |= writeStatistics(statsFile, NULL, pWorldGuide, worldBox, tightenedWorldBox, curDir, terrainFileName, cullSchemeSelected, pCBC);
     if (retCode >= MW_BEGIN_ERRORS) return retCode;
 
     PortaClose(statsFile);
@@ -28209,7 +28209,7 @@ static int writeBinarySTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tigh
     return retCode;
 }
 
-static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* schemeSelected, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC)
+static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC)
 {
     wchar_t stlFileNameWithSuffix[MAX_PATH_AND_FILE];
     char worldNameUnderlined[MAX_PATH_AND_FILE];
@@ -28332,7 +28332,7 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
         return retCode | MW_CANNOT_CREATE_FILE;
 
     //
-    retCode |= writeStatistics(statsFile, NULL, pWorldGuide, worldBox, tightenedWorldBox, curDir, terrainFileName, schemeSelected, cullSchemeSelected, pCBC);
+    retCode |= writeStatistics(statsFile, NULL, pWorldGuide, worldBox, tightenedWorldBox, curDir, terrainFileName, cullSchemeSelected, pCBC);
     if (retCode >= MW_BEGIN_ERRORS) return retCode;
 
     PortaClose(statsFile);
@@ -28342,7 +28342,7 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
 
 
 //===============================================================================================
-static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* schemeSelected, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC)
+static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC)
 {
     wchar_t wrlFileNameWithSuffix[MAX_PATH_AND_FILE];
     const char* justWorldFileName;
@@ -28393,7 +28393,7 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
     sprintf_s(outputString, 256, "#VRML V2.0 utf8\n\n# VRML 97 (VRML2) file made by Mineways version %d.%02d, http://mineways.com\n", gMinewaysMajorVersion, gMinewaysMinorVersion);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
-    retCode |= writeStatistics(gModelFile, NULL, pWorldGuide, worldBox, tightenedWorldBox, curDir, terrainFileName, schemeSelected, cullSchemeSelected, pCBC);
+    retCode |= writeStatistics(gModelFile, NULL, pWorldGuide, worldBox, tightenedWorldBox, curDir, terrainFileName, cullSchemeSelected, pCBC);
     if (retCode >= MW_BEGIN_ERRORS)
         goto Exit;
 
@@ -28800,7 +28800,7 @@ static int chunkUSDCompare(void* context, const void* str1, const void* str2)
     return 0;
 }
 
-static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* schemeSelected, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC)
+static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC)
 {
     // Write the file in a simple way.
     wchar_t fileNameWithSuffix[MAX_PATH_AND_FILE];
@@ -28869,7 +28869,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
         // failed to write
         goto Exit;
     }
-    retCode |= writeStatistics(gModelFile, writeCommentUSD, pWorldGuide, worldBox, tightenedWorldBox, curDir, terrainFileName, schemeSelected, cullSchemeSelected, pCBC);
+    retCode |= writeStatistics(gModelFile, writeCommentUSD, pWorldGuide, worldBox, tightenedWorldBox, curDir, terrainFileName, cullSchemeSelected, pCBC);
     if (retCode >= MW_BEGIN_ERRORS) {
         goto Exit;
     }
@@ -33724,7 +33724,7 @@ static float min3(Point pt)
         WERROR_FH(PortaWrite(fh, outputString, strlen(outputString))); \
     }
 
-static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, const wchar_t* schemeSelected, const wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC)
+static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, const wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC)
 {
     char outputString[256];
     char timeString[256];
@@ -33793,18 +33793,6 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
             assert(gModel.options->worldType & ENDER);
             strcpy_s(outputString, 256, "# View The End\n");
         }
-        WRITE_STAT;
-    }
-
-    if (schemeSelected == NULL || wcslen(schemeSelected) == 0)
-    {
-        strcpy_s(outputString, 256, "# Color scheme: Standard\n");
-        WRITE_STAT;
-    }
-    else
-    {
-        WcharToChar(schemeSelected, outChar, MAX_PATH_AND_FILE);
-        sprintf_s(outputString, 256, "# Color scheme: %s\n", outChar);
         WRITE_STAT;
     }
 

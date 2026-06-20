@@ -99,8 +99,7 @@ Read on if you want to understand how to make your models less expensive, use di
 <UL>
  <LI><a href="#memory">Out of memory?</a> - here are some options.
  <LI><a href="#g3d">Displaying with G3D</a> - free viewer ideal for most Mineways rendering exports.
- <LI><a href="#schemes">Color Schemes</a> - change object colors or make them invisible.
- <LI><a href="#cullschemes">Culling Schemes</a> - remove objects from view and export.
+ <LI><a href="#cullschemes">Culling Schemes</a> - remove blocks from view and from export.
  <LI><a href="#too_big">"My Model's Too Expensive!"</a> - how to keep it cheap.
  <LI><a href="#options">Export Options</a> - rendering-related export options shown on the giant dialog.
  <UL>
@@ -193,7 +192,7 @@ If you can't find your world in the list, you can select "Find your world..." at
 <P>Worth saying again: you can also load a world or schematic by dragging and dropping its level.dat (for a world) or .schem file on to Mineways. 
 Another pro tip: if you save or rename your schematic file to have the world "repeat" in it, e.g., rename "eiffel.schematic" to "eiffelRepeat.schematic", the schematic will load and be repeated across the map, with a minimum one block gap between each model. This can be useful if you want to create a single 3D print file that has multiple copies of the model. Also, for schematics, only, <B>Control-A</B> will select the whole schematic model.
 <P>
-<b>File | <a id="importsettings">Import Settings:</a></b> If you've previously exported a model from your world or schematic, you can select this data file (.OBJ, .WRL, or for STL export, the .TXT file generated) with Import Settings. Doing so will not only open your world, but will also set all the previous export settings you used to make this export file, including the color scheme, culling scheme, and the terrain file chosen. Alternately, you can simply drag and drop one of these files on to Mineways to load it.
+<b>File | <a id="importsettings">Import Settings:</a></b> If you've previously exported a model from your world or schematic, you can select this data file (.OBJ, .WRL, or for STL export, the .TXT file generated) with Import Settings. Doing so will not only open your world, but will also set all the previous export settings you used to make this export file, including the culling scheme and the terrain file chosen. Alternately, you can simply drag and drop one of these files on to Mineways to load it.
 <P>
 When you import a file's settings, the settings affect only the particular file type. For example, if you read in a WRL file for 3D printing, its settings will not affect OBJ rendering export (or even OBJ 3D printing export, for export settings specific to OBJ files, such as material output). This feature is backward compatible to Mineways 2.0, though features added since then will be given default values. The two exceptions are that the "Create a ZIP" and "create files themselves" export settings are not changed when settings are imported.
 <P>
@@ -306,17 +305,9 @@ Here's an example, side to side, of a lot of the blocks in Minecraft.
   <div>
     <img src="images/g3d_view.jpg" alt="OBJ render with G3D">
   </div><P>
-<h3 id="schemes">Color Schemes</h3> 
-Color schemes allows you to change the color for many blocks, and - useful for 3D printing and some rendering applications - remove any blocks you want from view. <b>One tip:</b> you can eliminate all glass from your model by setting its alpha to 0 in a color scheme. <a href="https://www.youtube.com/watch?v=9ZJZMZEfEC0&t=7m20s">This part of this video</a> shows how to use color schemes to do this.
-<P>
-<B>Note:</B> with the new file format introduced with Minecraft 1.13, the whole "blocks from 0-255" way of listing block types is not valid for newer blocks. Better is to use <a href="#cullschemes">culling schemes</a>. Mineways still uses a form of this internally, so the feature is still in place. Also, Mineways has evolved to provide colors for different colored blocks of the same type. For example, the various wool blocks will display using their colors. Changing the color of the wool block using a color scheme will change only the white wool version of the block. Color schemes still have their uses, such as for removing some blocks from view and from export. Color schemes use my internal block type numbering system for blocks from 1.13 on. If you get flaky problems with older color schemes, at worst you can always run REGEDIT and delete the ColorSchemes directory at "Computer\HKEY_CURRENT_USER\Software\&lt;your name here&gt;\Mineways".
-<P>
-How to use a color scheme: From the Colors menu, choose "Color Schemes..." at the bottom, add a new color scheme, select it on the left, then Edit it. Change the name "Color Scheme" at the top of the dialog that pops up to something useful, then select any block type to edit it. Color is given in <a href="https://en.wikipedia.org/wiki/Hexadecimal_color">hexadecimal color format</a>. You can use <a href="https://mwsnap.en.softonic.com/">MWSnap</a> (old but free), <a href="https://www.faststone.org/FSCapturerDownload.htm">FastStone Capture</a> (new but costs $20), or other programs to find the hexadecimal (e.g., #787878) color value of any pixel on your screen. 'Alpha' says how opaque a block will appear on the screen, with 255 meaning fully opaque and 0 meaning fully transparent (invisible). <I>Blocks with an alpha of 0 will be deleted when exporting.</I> You can turn off export of <i>all</i> blocks by using the "Hide All Blocks" button. This feature allows you to create separate parts, e.g., a glass roof could be created by then turning on just glass export. The "Hide Tree Blocks" hides all log and leaf blocks, making printing of 3D terrain simpler (trees are sometimes hard to print well).
-<P>
-Changing the color will affect the 3D print model's color for only the "solid material colors" and "richer color textures" export modes; "full color texture patterns" (the default on the export dialog) will not be affected (except water, a little bit). To change full color textures' colors, you need to edit the input terrainExt.png itself. See <a href="textures.html#own_terrain">Creating Your Own Terrain Files</a>.
 
 <h3 id="cullschemes">Culling Schemes</h3>
-Culling schemes are the newer way to change whether blocks are visible or exported. From the Culling menu, choose "Culling Schemes..." at the bottom. Add a new culling scheme, select it on the left, then Edit it. Change the name "Culling Scheme 1" at the top of the dialog that pops up to something useful. By default, all blocks are visible. Click on the checkbox (or anywhere on the line) for a block type to hide it, uncheck to reveal it
+Culling schemes change whether blocks are visible and exported. From the Culling menu, choose "Culling Schemes..." at the bottom. Add a new culling scheme, select it on the left, then Edit it. Change the name "Culling Scheme 1" at the top of the dialog that pops up to something useful. By default, all blocks are visible. Click on the checkbox (or anywhere on the line) for a block type to hide it, uncheck to reveal it
 <P>
 You can use the Filter field to limit what blocks are listed. For example, typing "concrete" will show all the concrete and concrete powder blocks. The "Hide All Listed" button to the right can then be used to hide all these. "Show All Listed" makes all listed blocks visible. Block names are the ID values used in Minecraft, <a href="https://minecraft.wiki/w/Java_Edition_data_values/Blocks">listed here</a>. Mineways lists these roughly in the order added to the game.
 
@@ -398,9 +389,9 @@ Remember that for any format you can turn off a block from being output (and bei
 On the left of the dialog are texture options:
 <UL>
 <LI>"Export no materials" option is just that. For example, for OBJ, no .mtl file is generated.
-<LI>"Export solid material colors" will give solid swatches of color for each material. The <a href="#schemes">color scheme's</a> colors controls these. This option assigns an average solid color for each block, usually derived from the top of the block's texture, without using any textures. For solid colors in a texture, Mineways comes with terrainExt_Solid.png and terrainExt_SolidCutouts.png choices, which you can select before exporting by selecting via <a href="#custom_terrain">File | Choose Terrain File</a>. Using these textures will give different solid colors for tops, sides, and bottoms of blocks, for example.
-<LI>"Export noise textures with color" gives textures that have some noise in them. For the OBJ file format the difference is that a PNG texture file is output; VRML97 always exports a texture for any material option. The <a href="#schemes">color scheme's</a> colors controls these. Rarely used or useful, but gives a different look.
-<LI>"Export all textures to three large, mosaic images" creates three large images - RGB/A/RGBA - of all possible textures needed, in a grid. See additional note following this list. This option requires the terrainExt.png file, reading this file to create full textures for each block, as possible. The <a href="#schemes">color scheme</a> affects only the water color: the higher the alpha set, the more of the base color you define is combined with the water texture. So, for a deeper blue, you can define the two water colors (note there's a "stationary water") as dark blue or even black and a high alpha, e.g., 200. If <a href="textures.html#pbr">a PBR texture pack</a> is used, additional mosaic textures will be exported, one for each attribute available.
+<LI>"Export solid material colors" will give solid swatches of color for each material. This option assigns an average solid color for each block, usually derived from the top of the block's texture, without using any textures. For solid colors in a texture, Mineways comes with terrainExt_Solid.png and terrainExt_SolidCutouts.png choices, which you can select before exporting by selecting via <a href="#custom_terrain">File | Choose Terrain File</a>. Using these textures will give different solid colors for tops, sides, and bottoms of blocks, for example.
+<LI>"Export noise textures with color" gives textures that have some noise in them. For the OBJ file format the difference is that a PNG texture file is output; VRML97 always exports a texture for any material option. Rarely used or useful, but gives a different look.
+<LI>"Export all textures to three large, mosaic images" creates three large images - RGB/A/RGBA - of all possible textures needed, in a grid. See additional note following this list. This option requires the terrainExt.png file, reading this file to create full textures for each block, as possible. If <a href="textures.html#pbr">a PBR texture pack</a> is used, additional mosaic textures will be exported, one for each attribute available.
 <LI><a id="fcst">"Export individual textures to"</a> can be used only when exporting OBJ and USDA files for rendering. It is like "Export all textures to three large, mosaic images," above, but instead single images are exported for the block faces, by default to a subdirectory "tex". For USD the textures are places in the "yourfilename_materials" directory instead of "yourfilename_materials/tex". If the "tex" directory is set to blank instead of "tex", all output files are placed in the same directory as the main output file - no subdirectories are used. This can be a good thing for multiple exports, as only a single copy of the textures needed are output. The "tex" option is meant to help avoid any confusion about which textures go to which exported models.
 </UL>
 The "Export individual textures" option creates many more (smaller) textures, but can be considerably faster since not all textures are exported. These textures are similar to Minecraft's block textures, though possibly modified to improve how alpha cutouts look. This mode allows you to later modify and swap individual textures in other applications such as Blender. It also is a better option for exporting high resolution texture resource packs (where the block faces are 256x256 or larger), as having a single, large texture (as generated by the other options above) can be too large for systems such as Blender. Since each texture is separate, <a href="https://en.wikipedia.org/wiki/Mipmap">mipmapping</a> works correctly for distant blocks. Various options are ignored in this mode, such as the various OBJ grouping and material options and the composite overlay faces checkbox. Note that if you want to manually upload an OBJ or USD file with separate image textures, Sketchfab has a 100 texture image upload limit (and you may need to uncomment "map_d" in the OBJ materials file). Finally, if you make a zip and do not check "create files themselves," the PNG texture files will not be deleted, since they may be shared by other exports.
@@ -2384,7 +2375,7 @@ Barrier (#166)
 <center>Normally hidden</center>
 </td>
 <td>
-To make the barrier appear, create a color scheme and change the barrier's alpha to 255.
+You can expose these using a <a href="#cullschemes">culling scheme</a>.
 </td>
 </tr>
 
@@ -2485,7 +2476,7 @@ Structure Void (#217)
 <center>Normally hidden</center>
 </td>
 <td>
-To make the tiny structure void block appear, create a color scheme and change the alpha to 255, and "Show all objects" (F7) to see it on the map. Structure void uses red wool for its tiny output block.
+You can expose these using a <a href="#cullschemes">culling scheme</a>.
 </td>
 </tr>
 
@@ -2926,11 +2917,11 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 
 <UL>
 
-<LI>Version 12.13, */*/2026 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1213.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI><B>Version 13.00</B>, */*/2026 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1213.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
     <UL>
 	<LI>Added <a href="https://github.com/SpongePowered/Schematic-Specification/blob/master/versions/schematic-3.md">Sponge Schematic v3</a> (<code>.schem</code>) export and import, via Open. The older v2 format is also read (but not v1 - it's rare; let me know if you encounter it). The legacy MCEdit .schematic writer caps block IDs at 255 and loses 1.13+ blocks; the new format uses Minecraft's modern string-based palette (e.g., minecraft:oak_log[axis=y]) and round-trips through WorldEdit, FAWE, Litematica, and Axiom. <a href="https://github.com/erich666/Mineways/issues/40">Issue #40</a>.
-	<LI>Added <a href="#cullschemes">Culling Schemes</a>. Similar to Color Schemes, you can choose any blocks you want to be culled out (invisible). Works with modern block IDs, unlike Color Schemes. <I>(Thanks to rainbow-krash for <a href="https://github.com/erich666/Mineways/issues/162">this suggestion</a>.)</I>
+	<LI>Added <a href="#cullschemes">Culling Schemes</a>, and removed Color Schemes. Similar to Color Schemes, with a culling scheme you can choose any blocks you want to be culled out (invisible). Works with modern block IDs, unlike Color Schemes. <I>(Thanks to rainbow-krash for <a href="https://github.com/erich666/Mineways/issues/162">this suggestion</a>.)</I>
 	<LI>Placeholder for golems, just a simple copper block for now. Work in progress.
 	<LI>Torchflower export was choosing the wrong texture, closed eyeblossom. Fixed.
 	<LI>Other small fixes, such as correcting colors, lighting, and names for blocks, and Block Test World cleanups.
