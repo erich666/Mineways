@@ -1033,11 +1033,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         LOG_INFO(gExecutionLogfile, " loadTerrainList\n");
         loadTerrainList(GetMenu(hWnd));
 
-        // Rebuild the dynamic Cull submenu from the registry and check Standard
-        // (= no culling active until the user picks a scheme).
+        // Rebuild the dynamic Cull submenu from the registry, then apply the Standard scheme.
+        // Going through useCustomCull (rather than just checking the menu item) is what actually
+        // calls applyCullingScheme(NULL), which seeds the default-culled set (barrier,
+        // structure_void). invalidate=false because the map isn't drawn yet here.
         populateCullingSchemes(GetMenu(hWnd));
-        CheckMenuItem(GetMenu(hWnd), IDM_CUSTOMCULL, MF_CHECKED);
-        wcscpy_s(gCullSchemeSelected, 255, L"Standard");
+        useCustomCull(IDM_CUSTOMCULL, hWnd, false);
 
         // Issue #138: load the persisted Recent Exports list and populate the submenu.
         LOG_INFO(gExecutionLogfile, " loadRecentExportsFromRegistry\n");

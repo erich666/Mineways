@@ -41,17 +41,30 @@ THE POSSIBILITY OF SUCH DAMAGE.
 static unsigned char gIsCulledByIndex[NUM_CULL_ENTRIES] = { 0 };
 static bool gAnyCulled = false;
 
+// Seed the "always cull by default" set into a culled[] array. These are technical/utility
+// blocks (barrier, structure_void) that users essentially never want to see in either the map
+// view or in exports — the Standard culling scheme also enforces this so they don't appear
+// even with no user scheme active.
+static void seedDefaultCulled(unsigned char* culled)
+{
+    int barrierIdx = blockTransIndexFor(BLOCK_BARRIER, 0);
+    if (barrierIdx >= 0 && barrierIdx < NUM_CULL_ENTRIES) culled[barrierIdx] = 1;
+    int voidIdx = blockTransIndexFor(BLOCK_STRUCTURE_VOID, 0);
+    if (voidIdx >= 0 && voidIdx < NUM_CULL_ENTRIES) culled[voidIdx] = 1;
+}
+
 void applyCullingScheme(const unsigned char* culled)
 {
     if (culled == NULL) {
+        // "Standard" — no user scheme active, but still hide the always-cull defaults.
         memset(gIsCulledByIndex, 0, sizeof(gIsCulledByIndex));
-        gAnyCulled = false;
+        seedDefaultCulled(gIsCulledByIndex);
     } else {
         memcpy(gIsCulledByIndex, culled, NUM_CULL_ENTRIES);
-        gAnyCulled = false;
-        for (int i = 0; i < NUM_CULL_ENTRIES; i++) {
-            if (gIsCulledByIndex[i]) { gAnyCulled = true; break; }
-        }
+    }
+    gAnyCulled = false;
+    for (int i = 0; i < NUM_CULL_ENTRIES; i++) {
+        if (gIsCulledByIndex[i]) { gAnyCulled = true; break; }
     }
     // Force the per-chunk render cache to miss on the next drawTheMap(). drawInvalidateUpdate
     // alone only repaints the window from the cached bitmap, which here is now stale.
@@ -87,13 +100,11 @@ CullingManager::~CullingManager()
 void CullingManager::Init(CullingScheme* cs)
 {
     memset(cs->culled, 0, sizeof(cs->culled));
-    // Pre-check a small set of "almost never wanted in an export" technical blocks. Users
-    // creating a fresh culling scheme almost always want these out of the way; they can be
-    // unchecked in the editor if needed.
-    int barrierIdx = blockTransIndexFor(BLOCK_BARRIER, 0);
-    if (barrierIdx >= 0 && barrierIdx < NUM_CULL_ENTRIES) cs->culled[barrierIdx] = 1;
-    int voidIdx = blockTransIndexFor(BLOCK_STRUCTURE_VOID, 0);
-    if (voidIdx >= 0 && voidIdx < NUM_CULL_ENTRIES) cs->culled[voidIdx] = 1;
+    // Pre-check the "almost never wanted in an export" technical blocks (barrier,
+    // structure_void). Users creating a fresh culling scheme almost always want these out of
+    // the way; they can be unchecked in the editor. Same set is enforced by the Standard
+    // scheme via applyCullingScheme(NULL).
+    seedDefaultCulled(cs->culled);
 }
 
 void CullingManager::create(CullingScheme* cs)
