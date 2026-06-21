@@ -7114,19 +7114,22 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             } \
         } while (0)
 
-        // Rotate all vertices emitted since `startV` around a per-bone pivot in block-pixel
-        // coords. Mirrors the wall-banner rotation idiom (lines ~7140), generalized to a
-        // custom pivot inside the block: move pivot → origin, rotate, move pivot → back.
-        // Used for the sub-bone rotations that differentiate the four poses.
+        // Rotate all vertices emitted since `_startV` around a per-bone pivot in block-pixel
+        // coords. Mirrors the wall-banner rotation idiom, generalized to a custom pivot.
+        //
+        // Note the (px-8)/16 offset on the pivot translation: translateToOriginMtx moves the
+        // block CENTER (pixel 8) to world origin, not the block corner. So to land a pivot
+        // given in 0..16 pixel space at the origin, we have to subtract (px-8)/16, not px/16.
+        // Forgetting the -8 shifts every rotation pivot by 0.5 block in each axis.
         #define CG_ROTATE_BONE(_startV,_px,_py,_pz,_rx,_ry,_rz) do { \
             int _n = gModel.vertexCount - (_startV); \
             if (_n > 0) { \
                 float _bmtx[4][4]; \
                 identityMtx(_bmtx); \
                 translateToOriginMtx(_bmtx, boxIndex); \
-                translateMtx(_bmtx, -(float)(_px) / 16.0f, -(float)(_py) / 16.0f, -(float)(_pz) / 16.0f); \
+                translateMtx(_bmtx, (8.0f - (float)(_px)) / 16.0f, (8.0f - (float)(_py)) / 16.0f, (8.0f - (float)(_pz)) / 16.0f); \
                 rotateMtx(_bmtx, (float)(_rx), (float)(_ry), (float)(_rz)); \
-                translateMtx(_bmtx, (float)(_px) / 16.0f, (float)(_py) / 16.0f, (float)(_pz) / 16.0f); \
+                translateMtx(_bmtx, ((float)(_px) - 8.0f) / 16.0f, ((float)(_py) - 8.0f) / 16.0f, ((float)(_pz) - 8.0f) / 16.0f); \
                 translateFromOriginMtx(_bmtx, boxIndex); \
                 transformVertices(_n, _bmtx); \
             } \
@@ -7135,113 +7138,143 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         totalVertexCount = gModel.vertexCount;
         gUsingTransform = 1;
 
-        // ---- Body (shared trunk; same shape in all poses, just sometimes tilted) ----
-        // body main cube: Java addBox(-4,-6,-3) size(8,6,6), bone offset (0,-5,0). World y
-        // after zRot=π is 5..11; centered at x=8,z=8 in Mineways block.
-        // For sitting, body is shifted down/forward; we'll fold that in below if pose==1.
         if (pose == 1) {
-            // Sitting: body settled lower, shifted slightly forward (toward -Z = north).
-            CG_EMIT(4, 12, 3, 9, 7, 13);  // body
-            // The vertical "bookshelf" plate (body_r1) behind the figure — flat 8x6x3 board
-            // rotated 180° around Z. Modeled here as a thin slab sitting upright behind the body.
-            CG_EMIT(4, 12, 3, 9, 13, 16);
-        } else {
+            // SITTING is structurally different from the other poses: the body is squat
+            // and on the ground, legs lie flat in front, arms hang beside the body. Trying
+            // to fold standing-pose limbs into sitting via rotations is fragile and was
+            // producing the wrong shape — emit each piece directly at its final position
+            // instead. No CG_ROTATE_BONE calls in this pose; just direct cube emissions.
+
+            // width, height, depth from front:
+            // Body: 8x6x6 trunk, lowered to sit on the ground (y=0..6 instead of standing's 5..11).
+            CG_EMIT(4, 12, 0, 6, 7, 13);
+            // middle trunk: connects body and fills in between legs in front
+            CG_EMIT(5, 11, 6, 7, 6, 12);
+            CG_EMIT(4, 12, 4, 7, 4, 6);
+            CG_EMIT(4, 12, 1, 6, 6, 7); // just a guess - hard to see this area
+
+            // Head: 8x5x10 main cube on top of body. headBaseY=6 sits on top of body
+            // (rather than 11 in standing). headFront=3 keeps the nose strip in the block.
+            int hY = 7;
+            CG_EMIT(4, 12, hY,     hY + 5, 3, 13);
+            CG_EMIT(7,  9, hY - 1, hY + 2, 2, 4);   // nose
+
+            // Antenna stem + ball — same in-block-then-translate-up pattern as standing.
+            int aStemV = gModel.vertexCount;
+            CG_EMIT(7, 9, 0, 4, 7, 9);
+            CG_TRANSLATE_RECENT(aStemV, 0, hY + 5, 0);
+
+            int aBallV = gModel.vertexCount;
+            CG_EMIT(6, 10, 0, 4, 6, 10);
+            CG_TRANSLATE_RECENT(aBallV, 0, hY + 9, 0);
+
+            // Arms: shoulders mounted at the TOP of the sitting body (y=6) and rotated
+            // forward ~75° around X, so the arms fold into the lap area in front of the
+            // body. We emit each arm as a short 6-tall cube with its shoulder end (the
+            // top, y=6) coinciding with the rotation pivot — that way rotating doesn't
+            // displace the shoulder.
+            int rArmV = gModel.vertexCount;
+            CG_EMIT(12, 15, 0, 10, 6, 10);   // right arm, in-block hanging cube
+            CG_ROTATE_BONE(rArmV, 12, 6, 8, -35.0, 0.0, 0.0);
+            CG_TRANSLATE_RECENT(rArmV, 0, 0, -0.9);
+
+            int lArmV = gModel.vertexCount;
+            CG_EMIT(1, 4, 0, 10, 6, 10);     // left arm
+            CG_ROTATE_BONE(lArmV, 4, 6, 8, -35.0, 0.0, 0.0);
+            CG_TRANSLATE_RECENT(lArmV, 0, 0, -0.9);
+
+            // Legs: lie flat on the ground extending forward (toward -Z = north). Each leg
+            // is 4 wide × 4 thick × 5 long.
+            CG_EMIT(8, 12, 0, 4, 1, 6);     // right leg
+            CG_EMIT(4,  8, 0, 4, 1, 6);     // left leg
+        }
+        else {
+            // STANDING (pose 0), RUNNING (pose 2), STAR (pose 3): body upright, limbs swung
+            // from standing by per-pose rotations around the appropriate joints.
+
+            // ---- Body ----
+            int body = gModel.vertexCount;
             CG_EMIT(4, 12, 5, 11, 5, 11);
-        }
+            switch (pose) {
+            case 2:  // RUNNING: body is back a bit
+                // body is actually at a bit of a tilt; avoids z-fighting. Not quite right, but close.
+                CG_ROTATE_BONE(body, 0, 10, 0, 5.0, 0.0, 2.0);
+                CG_TRANSLATE_RECENT(body, 0, 0, 1);
+                break;
+            case 3:
+                break;
+            default: break;  // STANDING: no rotation
+            }
 
-        // ---- Head, antenna stem, antenna ball, nose ----
-        // Head's main cube sits y=11..16; in sitting pose, it tilts forward (built lower
-        // and slightly forward). We approximate the sitting tilt with a translated position
-        // rather than a rotation, since the head shape itself doesn't change.
-        // headFront is clamped to 2 (not 0) for sitting so the nose (which sits at
-        // headFront-2..headFront) stays inside the block — saveBoxMultitileGeometry asserts
-        // UVs ∈ [0,1] which translates to coords ∈ [0,16].
-        int headBaseY = (pose == 1) ? 9 : 11;  // sitting: lower
-        int headFront = (pose == 1) ? 2 : 3;
-        // main head box (8 wide, 5 tall, 10 deep)
-        CG_EMIT(4, 12, headBaseY,     headBaseY + 5, headFront,     headFront + 10);
-        // nose (2x3x2, sitting on the front face)
-        CG_EMIT(7,  9, headBaseY - 1, headBaseY + 2, headFront - 2, headFront);
+            // ---- Head, antenna stem, antenna ball, nose ----
+            int headBaseY = 11;
+            int headFront = 3;
+            CG_EMIT(4, 12, headBaseY,     headBaseY + 5, headFront,     headFront + 10);
+            CG_EMIT(7,  9, headBaseY - 1, headBaseY + 2, headFront - 1, headFront + 1);
+            int aStemV = gModel.vertexCount;
+            CG_EMIT(7, 9, 0, 4, 7, 9);
+            CG_TRANSLATE_RECENT(aStemV, 0, headBaseY + 5, 0);
+            int aBallV = gModel.vertexCount;
+            CG_EMIT(6, 10, 0, 4, 6, 10);
+            CG_TRANSLATE_RECENT(aBallV, 0, headBaseY + 9, 0);
 
-        // Antenna stem: target y = headBaseY+5..headBaseY+9. For standing (headBaseY=11)
-        // that's y=16..20, fully above the block; for sitting (headBaseY=9) it's y=14..18,
-        // partially above. Either way we emit at in-block coords (y=0..4) and translate up.
-        int aStemV = gModel.vertexCount;
-        CG_EMIT(7, 9, 0, 4, 7, 9);
-        CG_TRANSLATE_RECENT(aStemV, 0, headBaseY + 5, 0);
+            // ---- Right arm (golem's right = Mineways x=12..15) ----
+            int rArmV = gModel.vertexCount;
+            CG_EMIT(12, 15, 2, 12, 6, 10);
+            switch (pose) {
+            case 2:  // RUNNING: right arm swings forward (Java right_arm_r1 xRot ≈ +57°)
+                CG_ROTATE_BONE(rArmV, 12, 11, 8,  57.0,  0.0,   0.0);
+                CG_TRANSLATE_RECENT(rArmV, 0, 0.5, 0);
+                break;
+            case 3:  // STAR: arms thrown overhead (Java right_arm_r1 zRot ≈ +110°)
+                CG_ROTATE_BONE(rArmV, 12, 11, 8,   0.0,  0.0, -110.0);
+                CG_TRANSLATE_RECENT(rArmV, -4.2, -3.8, 0);
+                break;
+            default: break;  // STANDING: no rotation
+            }
 
-        // Antenna ball: target y = headBaseY+9..headBaseY+13. Same in-block-then-translate pattern.
-        int aBallV = gModel.vertexCount;
-        CG_EMIT(6, 10, 0, 4, 6, 10);
-        CG_TRANSLATE_RECENT(aBallV, 0, headBaseY + 9, 0);
+            // ---- Left arm (golem's left = Mineways x=1..4) ----
+            int lArmV = gModel.vertexCount;
+            CG_EMIT(1, 4, 2, 12, 6, 10);
+            switch (pose) {
+            case 2:  // RUNNING: left arm swings back (xRot ≈ -50°)
+                CG_ROTATE_BONE(lArmV, 4, 11, 8, -50.0,  0.0,   0.0);
+                CG_TRANSLATE_RECENT(lArmV, 0, 0.5, 0);
+                break;
+            case 3:  // STAR: mirrored 110° Z rotation
+                CG_ROTATE_BONE(lArmV, 4, 11, 8,   0.0,  0.0, 110.0);
+                CG_TRANSLATE_RECENT(lArmV, 4.2, -3.8, 0);
+                break;
+            default: break;
+            }
 
-        // ---- Right arm (golem's right = world +X after zRot=π flip = Mineways x=12..15) ----
-        int rArmV = gModel.vertexCount;
-        // Static arm cube position (standing pose): (12..15, 2..12, 6..10).
-        // For sitting we emit the arm AT THE SHOULDER and rotate it down. For running and
-        // star we emit at the standing position and rotate around the shoulder pivot.
-        CG_EMIT(12, 15, 2, 12, 6, 10);
-        // Shoulder pivot in block-pixel coords: x=12 (golem's right shoulder), y=11 (top of arm), z=8 (center)
-        switch (pose) {
-        case 1:  // SITTING: arms drop & fold across lap (~ -25° X then -60° X total ≈ -85°)
-            CG_ROTATE_BONE(rArmV, 12, 11, 8, -75.0,  0.0, 0.0);
-            break;
-        case 2:  // RUNNING: right arm swings forward (Java right_arm_r1 xRot = +1.0036 rad ≈ +57°)
-            CG_ROTATE_BONE(rArmV, 12, 11, 8,  57.0,  0.0, 0.0);
-            break;
-        case 3:  // STAR: arms thrown overhead (Java right_arm_r1 zRot = +1.9199 rad ≈ +110°)
-            CG_ROTATE_BONE(rArmV, 12, 11, 8,   0.0,  0.0, 110.0);
-            break;
-        default: break;  // STANDING: no rotation
-        }
+            // ---- Right leg (golem's right = Mineways x=8..12) ----
+            int rLegV = gModel.vertexCount;
+            CG_EMIT(8, 12, 0, 5, 6, 10);
+            switch (pose) {
+            case 2:  // RUNNING: right leg swings back (mirrored to right arm forward)
+                CG_ROTATE_BONE(rLegV, 10, 5, 8, -50.0,  0.0,   0.0);
+                break;
+            case 3:  // STAR: legs splayed outward (zRot ≈ +15°)
+                CG_ROTATE_BONE(rLegV, 10, 5, 8,   0.0,  0.0,  -15.0);
+                CG_TRANSLATE_RECENT(rLegV, 0, 0.4, 0);
+                break;
+            default: break;
+            }
 
-        // ---- Left arm (golem's left = Mineways x=1..4) ----
-        int lArmV = gModel.vertexCount;
-        CG_EMIT(1, 4, 2, 12, 6, 10);
-        switch (pose) {
-        case 1:  // SITTING: same fold as right arm
-            CG_ROTATE_BONE(lArmV, 4, 11, 8, -75.0,  0.0, 0.0);
-            break;
-        case 2:  // RUNNING: left arm swings BACK while right swings forward (xRot ≈ -50°)
-            CG_ROTATE_BONE(lArmV, 4, 11, 8, -50.0,  0.0, 0.0);
-            break;
-        case 3:  // STAR: mirrored 110° Z rotation
-            CG_ROTATE_BONE(lArmV, 4, 11, 8,   0.0,  0.0, -110.0);
-            break;
-        default: break;
-        }
-
-        // ---- Right leg (golem's right = Mineways x=8..12) ----
-        int rLegV = gModel.vertexCount;
-        CG_EMIT(8, 12, 0, 5, 6, 10);
-        // Hip pivot: shoulder of leg, at y=5
-        switch (pose) {
-        case 1:  // SITTING: legs fold forward 90°, knees pointing -Z
-            CG_ROTATE_BONE(rLegV, 10, 5, 8, -90.0,  0.0, 0.0);
-            break;
-        case 2:  // RUNNING: right leg swings back (xRot ≈ -50°, mirrored to arms)
-            CG_ROTATE_BONE(rLegV, 10, 5, 8, -50.0,  0.0, 0.0);
-            break;
-        case 3:  // STAR: legs splayed outward (zRot ≈ ±15°)
-            CG_ROTATE_BONE(rLegV, 10, 5, 8,   0.0,  0.0,  15.0);
-            break;
-        default: break;
-        }
-
-        // ---- Left leg (Mineways x=4..8) ----
-        int lLegV = gModel.vertexCount;
-        CG_EMIT(4, 8, 0, 5, 6, 10);
-        switch (pose) {
-        case 1:  // SITTING
-            CG_ROTATE_BONE(lLegV, 6, 5, 8, -90.0,  0.0, 0.0);
-            break;
-        case 2:  // RUNNING: left leg swings forward (mirror of right leg)
-            CG_ROTATE_BONE(lLegV, 6, 5, 8,  45.0,  0.0, 0.0);
-            break;
-        case 3:  // STAR: opposite splay
-            CG_ROTATE_BONE(lLegV, 6, 5, 8,   0.0,  0.0, -15.0);
-            break;
-        default: break;
+            // ---- Left leg (Mineways x=4..8) ----
+            int lLegV = gModel.vertexCount;
+            CG_EMIT(4, 8, 0, 5, 6, 10);
+            switch (pose) {
+            case 2:  // RUNNING: left leg swings forward
+                CG_ROTATE_BONE(lLegV, 6, 5, 8,  45.0,  0.0,   0.0);
+                break;
+            case 3:  // STAR: opposite splay
+                CG_ROTATE_BONE(lLegV, 6, 5, 8,   0.0,  0.0, 15.0);
+                CG_TRANSLATE_RECENT(lLegV, 0, 0.4, 0);
+                break;
+            default: break;
+            }
         }
 
         // Apply the SWNE facing rotation to the whole statue around the block's vertical axis.

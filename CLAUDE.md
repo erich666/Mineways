@@ -273,6 +273,49 @@ For per-bone rotation around an arbitrary pivot, insert two `translateMtx` calls
 between `translateToOriginMtx` and `rotateMtx` to move the pivot to the origin
 and back (see `CG_ROTATE_BONE` in the copper golem case).
 
+**Pivot offset gotcha — read this before writing any per-bone rotation.**
+`translateToOriginMtx` moves the block's **center** to world origin, not its
+corner. Pixel `(8, 8, 8)` is at the origin afterward, not pixel `(0, 0, 0)`. So
+the translation needed to move a pivot given in 0..16 pixel coords to the
+origin is `(8-px)/16, (8-py)/16, (8-pz)/16`, **not** `-px/16, -py/16, -pz/16`.
+Forgetting the `-8` puts the rotation pivot half a block south-west-down of
+where you intended — every rotated bone swings around the wrong point, and
+the result looks plausibly broken (visually distinct from "nothing happened",
+but very wrong). The corrected pattern is in the `CG_ROTATE_BONE` macro.
+
+### Rotation axis intuition for entity geometry
+
+After zRot=π flip in Java models, the Mineways default-facing direction is
+**north** (-Z). For a figure standing upright at the block center:
+- **X rotation**: pitch — tilts forward/backward (legs/arms swinging on a sagittal axis).
+  Positive X rotation tilts the *top* of a vertical bone toward +Z (south, "backward").
+- **Y rotation**: yaw — spins around the vertical axis (used for the SWNE facing
+  applied to the whole figure at the end).
+- **Z rotation**: roll — tilts side-to-side. Positive Z rotation tilts the top
+  of a vertical bone toward -X (visually leftward). For a hanging-down arm,
+  +Z rotates the hand outward to one side, useful for the STAR pose's
+  arms-overhead.
+
+Signs are easy to get wrong — flipping the sign of a single rotation is
+usually how the user wants you to iterate when a pose is "close but wrong direction".
+
+### When to rotate from standing vs emit each pose directly
+
+The copper-golem statue case takes both approaches:
+
+- **STANDING / RUNNING / STAR** share a common skeleton (upright body, head on
+  top, limbs at standard positions) — these poses are reached by emitting the
+  standing geometry and applying small per-bone rotations.
+- **SITTING** is structurally different (body squat on ground, legs lying
+  flat, arms folded into the lap) — emitting each piece directly at its
+  final position is cleaner than rotation-from-standing. Trying to fold
+  standing into sitting via rotations produced fragile geometry that
+  couldn't be made to look right without lots of compensating translations.
+
+Rule of thumb: if a pose changes the body's height / Y-extent or fundamentally
+re-positions limbs (not just swings them), emit directly. If it's a swing /
+splay / tilt from standing, rotate.
+
 ### `BlockTranslator.blockId` casts on grid writes
 
 When writing the synthetic test-world geometry (`MinewaysMap.cpp testBlock`),
