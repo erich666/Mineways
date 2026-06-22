@@ -2901,6 +2901,8 @@ Find the latest Mac port on the <a href="downloads.html#mac">downloads/quick sta
 <P>
 The textures and rules used in Minecraft for how blocks appear and connect have changed over time, such as how stairs and chests are formed. If you want the closest fidelity, for a given version of Minecraft use the following version of Mineways. That said, older versions may have bugs fixed in newer versions. So, for texture consistency, you could also go the route of using the Minecraft textures of your world's version and make a special terrainExt file for Mineways, as explained on <a href="textures.html">the textures page</a>.
 <UL>
+<LI>Minecraft 26.1: Mineways version 13.00 or newer (version 12.11 up supports it, but does not include golem support)
+<LI>Minecraft 1.21: Mineways version 12.00 or newer
 <LI>Minecraft 1.20: Mineways version 11.00 or newer
 <LI>Minecraft 1.19: Mineways version 10.00 or newer
 <LI>Minecraft 1.18: Mineways version 9.08 or newer
@@ -2917,9 +2919,10 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 
 <UL>
 
-<LI><B>Version 13.00</B>, */*/2026 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1213.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI><B>Version 13.00</B>, 6/23/2026 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1213.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
     <UL>
+	<LI>Implemented the geometry for copper golem statues, but not the textures. The textures are pretty elaborate, and I may simply not do them.
 	<LI>Added <a href="https://github.com/SpongePowered/Schematic-Specification/blob/master/versions/schematic-3.md">Sponge Schematic v3</a> (<code>.schem</code>) export and import, via Open. The older v2 format is also read (but not v1 - it's rare; let me know if you encounter it). The legacy MCEdit .schematic writer caps block IDs at 255 and loses 1.13+ blocks; the new format uses Minecraft's modern string-based palette (e.g., minecraft:oak_log[axis=y]) and round-trips through WorldEdit, FAWE, Litematica, and Axiom. <a href="https://github.com/erich666/Mineways/issues/40">Issue #40</a>.
 	<LI>Added <a href="#cullschemes">Culling Schemes</a>, and removed Color Schemes. Similar to Color Schemes, with a culling scheme you can choose any blocks you want to be culled out (invisible). Works with modern block IDs, unlike Color Schemes. <I>(Thanks to rainbow-krash for <a href="https://github.com/erich666/Mineways/issues/162">this suggestion</a>.)</I>
 	<LI>Placeholder for golems, just a simple copper block for now. Work in progress.
@@ -4392,7 +4395,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 6/19/2026</p>
+		<br id="lastUpdate">Last updated 6/21/2026</p>
 	</div>
 </div>
 
