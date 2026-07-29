@@ -4020,7 +4020,7 @@ static int loadWorld(HWND hWnd)
 static void strcpyLimited(char* dst, int len, const char* src)
 {
     int i;
-    for (i = 0; i < len - 1 || src[i] == (char)0; i++) {
+    for (i = 0; i < len - 1 && src[i] != (char)0; i++) {
         dst[i] = src[i];
     }
     dst[i] = (char)0;
