@@ -5801,6 +5801,8 @@ int nbtGetSchematicWord(bfFile* pbf, char* field, int* value)
     return 1;
 }
 
+#define SCHEMATIC_BLOCK_DATA_MEMORY_BUDGET ((size_t)256 * 1024 * 1024)
+
 bool nbtGetValidatedSchematicVolume(int width, int height, int length, int* numBlocks)
 {
     if (numBlocks == NULL || width <= 0 || height <= 0 || length <= 0)
@@ -5810,7 +5812,10 @@ bool nbtGetValidatedSchematicVolume(int width, int height, int length, int* numB
     int widthHeight = width * height;
     if (widthHeight > INT_MAX / length)
         return false;
-    *numBlocks = widthHeight * length;
+    int volume = widthHeight * length;
+    if ((size_t)volume > SCHEMATIC_BLOCK_DATA_MEMORY_BUDGET / 2)
+        return false;
+    *numBlocks = volume;
     return true;
 }
 
