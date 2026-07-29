@@ -35,8 +35,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #ifdef WIN32
 
-#define SKETCHFAB
-
 // For internet update, sadly does not link under x64:
 // 1>uafxcw.lib(appcore.obj) : error LNK2001: unresolved external symbol __wargv
 // 1>uafxcw.lib(appcore.obj) : error LNK2001: unresolved external symbol __argc
