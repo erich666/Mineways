@@ -2052,7 +2052,14 @@ int bfread(bfFile* pbf, void* target, int len)
         *pbf->offset += len;
     }
     else if (pbf->type == BF_GZIP) {
-        return gzread(pbf->gz, target, len);
+        unsigned char* output = (unsigned char*)target;
+        int totalRead = 0;
+        while (totalRead < len) {
+            int bytesRead = gzread(pbf->gz, output + totalRead, len - totalRead);
+            if (bytesRead <= 0)
+                return -1;
+            totalRead += bytesRead;
+        }
     }
     return len;
 }
