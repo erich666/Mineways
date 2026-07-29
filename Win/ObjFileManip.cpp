@@ -615,6 +615,17 @@ static void convertCharPathUnderlined(char* worldNameUnderlined, char* worldChar
 static int initializeWorldData(IBox* worldBox, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax);
 static int initializeModelData();
 
+static bool expandedListSize(int currentSize, size_t elementSize, int* expandedSize)
+{
+    if (currentSize < 0 || elementSize == 0 || expandedSize == NULL)
+        return false;
+    size_t newSize = (size_t)currentSize + (size_t)currentSize / 2 + 1;
+    if (newSize > INT_MAX || newSize > (size_t)-1 / elementSize)
+        return false;
+    *expandedSize = (int)newSize;
+    return true;
+}
+
 static int readTerrainPNG(const wchar_t* curDir, progimage_info* pII, wchar_t* terrainFileName, int category, int exportFileType);
 static void invertImage(progimage_info* dst);
 
@@ -2263,7 +2274,11 @@ static int initializeModelData()
                     if (gBoxData[boxIndex].type > BLOCK_AIR)
                     {
                         if (gBoxData[boxIndex + gFaceOffset[faceDirection]].type == BLOCK_AIR)
+                        {
+                            if (gModel.faceSize == INT_MAX)
+                                return MW_WORLD_EXPORT_TOO_LARGE;
                             gModel.faceSize++;
+                        }
                     }
                 }
             }
@@ -2271,7 +2286,10 @@ static int initializeModelData()
     }
     // increase the face list size
     // - it can sometimes get even higher, with foliage + billboards
-    gModel.faceSize = (int)(gModel.faceSize * 1.4 + 1);
+    int initialFaceSize;
+    if (!expandedListSize(gModel.faceSize, sizeof(FaceRecord*), &initialFaceSize))
+        return MW_WORLD_EXPORT_TOO_LARGE;
+    gModel.faceSize = initialFaceSize;
     gModel.faceList = (FaceRecord**)malloc(gModel.faceSize * sizeof(FaceRecord*));
 
     memset(gModel.uvSwatches, 0, NUM_MAX_SWATCHES * sizeof(UVList));
@@ -15911,11 +15929,14 @@ static int checkGroupListSize()
     // there's some play with the group count, e.g. group 0 is not used, so
     // resize should happen a bit earlier. 3 for safety.
     assert(gGroupCount <= gGroupListSize);
+    if (gGroupCount < 0 || gGroupCount > gGroupListSize)
+        return MW_WORLD_EXPORT_TOO_LARGE;
     if (gGroupCount == gGroupListSize)
     {
-        BoxGroup* groups;
-        gGroupListSize = (int)(gGroupListSize * 1.4 + 1);
-        groups = (BoxGroup*)malloc(gGroupListSize * sizeof(BoxGroup));
+        int newSize;
+        if (!expandedListSize(gGroupListSize, sizeof(BoxGroup), &newSize))
+            return MW_WORLD_EXPORT_TOO_LARGE;
+        BoxGroup* groups = (BoxGroup*)malloc((size_t)newSize * sizeof(BoxGroup));
         if (groups == NULL)
         {
             return MW_WORLD_EXPORT_TOO_LARGE;
@@ -15923,17 +15944,21 @@ static int checkGroupListSize()
         memcpy(groups, gGroupList, gGroupCount * sizeof(BoxGroup));
         free(gGroupList);
         gGroupList = groups;
+        gGroupListSize = newSize;
     }
     return MW_NO_ERROR;
 }
 static int checkVertexListSize()
 {
     assert(gModel.vertexCount <= gModel.vertexListSize);
+    if (gModel.vertexCount < 0 || gModel.vertexCount > gModel.vertexListSize)
+        return MW_WORLD_EXPORT_TOO_LARGE;
     if (gModel.vertexCount == gModel.vertexListSize)
     {
-        Point* vertices;
-        gModel.vertexListSize = (int)(gModel.vertexListSize * 1.4 + 1);
-        vertices = (Point*)malloc(gModel.vertexListSize * sizeof(Point));
+        int newSize;
+        if (!expandedListSize(gModel.vertexListSize, sizeof(Point), &newSize))
+            return MW_WORLD_EXPORT_TOO_LARGE;
+        Point* vertices = (Point*)malloc((size_t)newSize * sizeof(Point));
         if (vertices == NULL)
         {
             return MW_WORLD_EXPORT_TOO_LARGE;
@@ -15941,17 +15966,21 @@ static int checkVertexListSize()
         memcpy(vertices, gModel.vertices, gModel.vertexCount * sizeof(Point));
         free(gModel.vertices);
         gModel.vertices = vertices;
+        gModel.vertexListSize = newSize;
     }
     return MW_NO_ERROR;
 }
 static int checkFaceListSize()
 {
     assert(gModel.faceCount <= gModel.faceSize);
+    if (gModel.faceCount < 0 || gModel.faceCount > gModel.faceSize)
+        return MW_WORLD_EXPORT_TOO_LARGE;
     if (gModel.faceCount == gModel.faceSize)
     {
-        FaceRecord** faceList;
-        gModel.faceSize = (int)(gModel.faceSize * 1.4 + 1);
-        faceList = (FaceRecord**)malloc(gModel.faceSize * sizeof(FaceRecord*));
+        int newSize;
+        if (!expandedListSize(gModel.faceSize, sizeof(FaceRecord*), &newSize))
+            return MW_WORLD_EXPORT_TOO_LARGE;
+        FaceRecord** faceList = (FaceRecord**)malloc((size_t)newSize * sizeof(FaceRecord*));
         if (faceList == NULL)
         {
             return MW_WORLD_EXPORT_TOO_LARGE;
@@ -15959,6 +15988,7 @@ static int checkFaceListSize()
         memcpy(faceList, gModel.faceList, gModel.faceCount * sizeof(FaceRecord*));
         free(gModel.faceList);
         gModel.faceList = faceList;
+        gModel.faceSize = newSize;
     }
     return MW_NO_ERROR;
 }
