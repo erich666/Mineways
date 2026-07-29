@@ -6490,6 +6490,14 @@ static int importSettings(wchar_t* importFile, ImportedSet& is, bool dialogOnSuc
     }
     else
     {
+        const wchar_t* extension = wcsrchr(importFile, L'.');
+        if (extension == NULL || _wcsicmp(extension, L".mwscript") != 0) {
+            FilterMessageBox(NULL,
+                L"This file is not a recognized Mineways export settings file. Only files with the .mwscript extension can be executed as scripts.",
+                _T("Import Settings error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
+            retCode = IMPORT_FAILED;
+            goto Exit;
+        }
         sendStatusMessage(is.ws.hwndStatus, L"Running script");
 
         retCode = readAndExecuteScript(importFile, is) ? IMPORT_SCRIPT : 0;

@@ -1148,6 +1148,11 @@ bool ImportSettingsFile(wxWindow* parent, const wxString& path, wxString& errorO
                     firstLine.Contains("# World:") ||
                     firstLine.Contains("# Extracted from Minecraft world");
 
+    if (!exported && !path.Lower().EndsWith(".mwscript")) {
+        errorOut = "This file is not a recognized Mineways export settings file. Only files with the .mwscript extension can be executed as scripts.";
+        return false;
+    }
+
     ImportedSet is;
     bool ok = exported ? ImportModelFile(path, is) : ReadAndExecuteScript(path, is);
     errorOut = is.errorMessages;
