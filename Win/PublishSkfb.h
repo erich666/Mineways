@@ -186,7 +186,7 @@ INT_PTR CALLBACK managePublishWindow(HWND hDlg,UINT message,WPARAM wParam,LPARAM
         {
             case IDC_SKFB_CLAIM_TOKEN:
             {
-                ShellExecute(NULL, L"open", L"http://sketchfab.com/settings/password",
+                ShellExecute(NULL, L"open", L"https://sketchfab.com/settings/password",
                     NULL, NULL, SW_SHOWNORMAL);
                 break;
             }
