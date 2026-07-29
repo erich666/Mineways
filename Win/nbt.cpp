@@ -35,6 +35,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 // We know we won't run into names longer than 100 characters. The old code was
 // safe, but was also allocating strings all the time - seems slow.
 #define MAX_NAME_LENGTH 100
+#define NBT_GZIP_SKIP_BUDGET ((uint64_t)256 * 1024 * 1024)
 
 // return a negative number, giving the line of the code where it returned
 #define LINE_ERROR (-(__LINE__))
@@ -2094,6 +2095,7 @@ bfFile newNBT(const wchar_t* filename, int* err)
     ret.type = BF_GZIP;
     ret._offset = 0;
     ret.offset = &ret._offset;
+    ret.skipBytesRemaining = NBT_GZIP_SKIP_BUDGET;
 
     *err = _wfopen_s(&ret.fptr, filename, L"rb");
     if (ret.fptr == NULL || *err != 0)
@@ -2216,6 +2218,9 @@ static int skipBytes(bfFile* pbf, uint64_t count, uint64_t elementSize)
         return -1;
     uint64_t bytes = count * elementSize;
     if (pbf->type == BF_GZIP) {
+        if (bytes > pbf->skipBytesRemaining)
+            return -1;
+        pbf->skipBytesRemaining -= bytes;
         unsigned char discard[4096];
         while (bytes > 0) {
             int chunk = bytes > sizeof(discard) ? (int)sizeof(discard) : (int)bytes;

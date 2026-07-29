@@ -33,6 +33,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 #include "zlib.h"
 #include <stdio.h>
+#include <stdint.h>
 
 #define NUM_TRANS 1206
 
@@ -96,6 +97,7 @@ typedef struct {
     int _offset;
     gzFile gz;
     FILE* fptr;
+    uint64_t skipBytesRemaining;
 } bfFile;
 
 typedef struct BlockEntity {
