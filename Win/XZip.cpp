@@ -2774,17 +2774,21 @@ ZRESULT TZip::istore()
 
 ZRESULT TZip::Add(const char *odstzn, void *src,unsigned int len, DWORD flags)
 { 
-	if (oerr) 
+	if (oerr)
 		return ZR_FAILED;
-	if (hasputcen) 
+	if (hasputcen)
 		return ZR_ENDED;
+	if (odstzn == NULL)
+		return ZR_ARGS;
+	size_t dstznLen = strlen(odstzn);
+	if (dstznLen == 0 || dstznLen >= MAX_PATH ||
+		(flags == ZIP_FOLDER && odstzn[dstznLen - 1] != '/' && odstzn[dstznLen - 1] != '\\' && dstznLen >= MAX_PATH - 1))
+		return ZR_ARGS;
 
 	// zip has its own notion of what its names should look like: i.e. dir/file.stuff
-	char dstzn[MAX_PATH]; 
+	char dstzn[MAX_PATH];
 	strcpy(dstzn, odstzn);
-	if (*dstzn == 0) 
-		return ZR_ARGS;
-	char *d=dstzn; 
+	char *d=dstzn;
 	while (*d != 0) 
 	{
 		if (*d == '\\') 
@@ -3079,6 +3083,8 @@ ZRESULT ZipAdd(HZIP hz, const TCHAR *dstzn, void *src, unsigned int len, DWORD f
 		if (nActualChars == 0)
 			return ZR_ARGS; 
 #else
+		if (strlen(dstzn) >= sizeof(szDest))
+			return ZR_ARGS;
 		strcpy(szDest, dstzn);
 #endif
 
@@ -3210,4 +3216,3 @@ BOOL AddFolderContent(HZIP hZip, TCHAR* AbsolutePath, TCHAR* DirToAdd)
 	return true;
 	
 }
-
