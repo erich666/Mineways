@@ -94,6 +94,16 @@ bool isBlockCulled(int type, int dataVal)
 static wchar_t gLastItemSelected[255];
 static int gLocalCountForNames = 1;
 
+static bool validateCullingScheme(CullingScheme* cs)
+{
+    if (cs->id <= 0)
+        return false;
+    cs->name[_countof(cs->name) - 1] = L'\0';
+    for (int i = 0; i < NUM_CULL_ENTRIES; i++)
+        cs->culled[i] = cs->culled[i] ? 1 : 0;
+    return true;
+}
+
 CullingManager::CullingManager()
 {
     RegCreateKeyEx(HKEY_CURRENT_USER, CULLKEY, 0, NULL,
@@ -116,10 +126,11 @@ void CullingManager::Init(CullingScheme* cs)
 
 void CullingManager::create(CullingScheme* cs)
 {
-    DWORD schemeId, len;
+    DWORD schemeId = 0, len;
+    DWORD type = 0;
     len = sizeof(schemeId);
-    long result = RegQueryValueEx(key, L"schemeId", NULL, NULL, (LPBYTE)&schemeId, &len);
-    if (result == ERROR_FILE_NOT_FOUND)
+    long result = RegQueryValueEx(key, L"schemeId", NULL, &type, (LPBYTE)&schemeId, &len);
+    if (result != ERROR_SUCCESS || type != REG_DWORD || len != sizeof(schemeId) || schemeId >= INT_MAX)
         schemeId = 0;
     schemeId++;
     RegSetValueEx(key, L"schemeId", NULL, REG_DWORD, (LPBYTE)&schemeId, sizeof(schemeId));
@@ -137,10 +148,15 @@ int CullingManager::next(int id, CullingScheme* cs)
     {
         nameLen = 50;
         csLen = sizeof(CullingScheme);
-        LONG result = RegEnumValue(key, id, name, &nameLen, NULL, &type, (LPBYTE)cs, &csLen);
+        CullingScheme candidate = {};
+        LONG result = RegEnumValue(key, id, name, &nameLen, NULL, &type, (LPBYTE)&candidate, &csLen);
         id++;
         if (result == ERROR_NO_MORE_ITEMS) return 0;
-        if (type == REG_BINARY) return id;
+        if (result == ERROR_SUCCESS && type == REG_BINARY && csLen == sizeof(CullingScheme) &&
+            validateCullingScheme(&candidate)) {
+            *cs = candidate;
+            return id;
+        }
     }
 }
 
@@ -153,23 +169,27 @@ void CullingManager::save(CullingScheme* cs)
 
 void CullingManager::load(CullingScheme* cs)
 {
+    int id = cs->id;
     wchar_t keyname[50];
-    swprintf(keyname, 50, L"scheme %d", cs->id);
+    swprintf(keyname, 50, L"scheme %d", id);
+    CullingScheme candidate = {};
     DWORD csLen = sizeof(CullingScheme);
-    RegQueryValueEx(key, keyname, NULL, NULL, (LPBYTE)cs, &csLen);
+    DWORD type = 0;
+    LONG result = RegQueryValueEx(key, keyname, NULL, &type, (LPBYTE)&candidate, &csLen);
+    if (result == ERROR_SUCCESS && type == REG_BINARY && csLen == sizeof(CullingScheme) &&
+        candidate.id == id && validateCullingScheme(&candidate)) {
+        *cs = candidate;
+        return;
+    }
+    memset(cs, 0, sizeof(CullingScheme));
+    cs->id = id;
+    CullingManager::Init(cs);
 }
 
 void CullingManager::copy(CullingScheme* cs, CullingScheme* csSource)
 {
-    wchar_t keyname[50];
-    DWORD csLen = sizeof(CullingScheme);
-
-    swprintf(keyname, 50, L"scheme %d", cs->id);
-    RegQueryValueEx(key, keyname, NULL, NULL, (LPBYTE)cs, &csLen);
-
-    swprintf(keyname, 50, L"scheme %d", csSource->id);
-    RegQueryValueEx(key, keyname, NULL, NULL, (LPBYTE)csSource, &csLen);
-
+    load(cs);
+    load(csSource);
     memcpy(cs->culled, csSource->culled, sizeof(cs->culled));
     save(cs);
 }
