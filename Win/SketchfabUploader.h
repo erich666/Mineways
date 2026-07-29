@@ -158,17 +158,22 @@ public:
         if (res != CURLE_OK) {
             // Upload has been cancelled
             if(prog.cancel)
-                return std::pair<int, std::string>(1, "{\"detail\":\" Canceled by the user\" } ");
+                response = "{\"detail\":\" Canceled by the user\" } ";
             else
-                return std::pair<int, std::string>(1, "{\"detail\":\"curl_easy_perform() failed: " + std::string(curl_easy_strerror(res)) + "\" } ");
+                response = "{\"detail\":\"curl_easy_perform() failed: " + std::string(curl_easy_strerror(res)) + "\" } ";
+            http_code = 1;
         }
         else {
             curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
         }
         SendMessage(progressBar, PBM_SETPOS,100, 0);
         curl_easy_cleanup(curl);
-        curl_formfree(formpost);
     }
+    else {
+        http_code = -3;
+        response = "{\"detail\":\"curl_easy_init() failed\" } ";
+    }
+    curl_formfree(formpost);
 
     return std::pair<int, std::string>(http_code, response);
 }
