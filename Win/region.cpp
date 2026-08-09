@@ -95,7 +95,9 @@ static int regionPrepareBuffer(bfFile & bf, wchar_t* directory, int cx, int cz)
     int status;
 
     // open the region file - note we get the new mca 1.2 file type here!
-    swprintf_s(filename, 256, L"%sregion/r.%d.%d.mca", directory, cx >> 5, cz >> 5);
+    // %ls, not %s: in a wide format string MSVC reads %s as wchar_t*, but the C standard
+    // (and so macOS) reads it as char*, which truncates the path at the first UTF-32 pad byte.
+    swprintf_s(filename, 256, L"%lsregion/r.%d.%d.mca", directory, cx >> 5, cz >> 5);
 
     regionFile = PortaOpen(filename);
     // this error means that we're trying to open an .mca that doesn't actually exist;
