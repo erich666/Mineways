@@ -64,7 +64,7 @@
 
 
 // If this number changes, also change warning #7 in gPopupInfo (see TerrainExt.png in that message) in Mineways.cpp
-#define VERTICAL_TILES 79
+#define VERTICAL_TILES 80
 #define TOTAL_TILES (VERTICAL_TILES*16)
 static struct {
     int txrX;   // column and row, from upper left, of 16x16+ tiles in terrain.png, for top view of block
@@ -1341,18 +1341,34 @@ static struct {
     {  1, 78, 501, 0, L"MWO_spruce_shelf_back", L"", SWATCH_REPEAT_ALL },
     {  2, 78, 501, 0, L"MWO_spruce_shelf_powered", L"", SWATCH_REPEAT_ALL },
     {  3, 78,  37, 0, L"golden_dandelion", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  4, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    {  5, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    {  6, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    {  7, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    {  8, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    {  9, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 10, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 11, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 12, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 13, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 14, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 15, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    {  4, 78,   0, 0, L"cinnabar", L"", SWATCH_REPEAT_ALL },
+    {  5, 78,   0, 0, L"polished_cinnabar", L"", SWATCH_REPEAT_ALL },
+    {  6, 78,   0, 0, L"cinnabar_bricks", L"", SWATCH_REPEAT_ALL },
+    {  7, 78,   0, 0, L"chiseled_cinnabar", L"", SWATCH_REPEAT_ALL },
+    {  8, 78,   0, 0, L"sulfur", L"", SWATCH_REPEAT_ALL },
+    {  9, 78,   0, 0, L"polished_sulfur", L"", SWATCH_REPEAT_ALL },
+    { 10, 78,   0, 0, L"sulfur_bricks", L"", SWATCH_REPEAT_ALL },
+    { 11, 78,   0, 0, L"chiseled_sulfur", L"", SWATCH_REPEAT_ALL },
+    { 12, 78,   0, 0, L"potent_sulfur", L"", SWATCH_REPEAT_ALL },
+    { 13, 78, 390, 0, L"sulfur_spike_up_tip", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    { 14, 78, 390, 0, L"sulfur_spike_up_tip_merge", L"sulfur_spike_up_merge", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL }, // Bedrock alt?
+    { 15, 78, 390, 0, L"sulfur_spike_up_frustum", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    {  0, 79, 390, 0, L"sulfur_spike_up_middle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  1, 79, 390, 0, L"sulfur_spike_up_base", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    {  2, 79, 390, 0, L"sulfur_spike_down_tip", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    {  3, 79, 390, 0, L"sulfur_spike_down_tip_merge", L"sulfur_spike_down_merge", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL }, // Bedrock alt?
+    {  4, 79, 390, 0, L"sulfur_spike_down_frustum", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    {  5, 79, 390, 0, L"sulfur_spike_down_middle", L"", SBIT_CLAMP_TOP | SBIT_DECAL },
+    {  6, 79, 390, 0, L"sulfur_spike_down_base", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    {  7, 79,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    {  8, 79,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    {  9, 79,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 10, 79,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 11, 79,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 12, 79,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 13, 79,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 14, 79,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 15, 79,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
 
     // Copper Golem Statue family (1.21.10+). Placeholder swatch position (txrX=0, txrY=40)
     // until real 64x64 copper-golem texture atlas is wired up. Bits 0x30 of dataVal carry

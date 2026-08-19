@@ -70,7 +70,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     // Ignore the premultiplied colors and alphas - these really are just placeholders, it's color * alpha that sets them when the program starts up.
     // name                               		read_color ralpha color     prem-clr  alpha,     txX,Y   mtl, flags
     { /*   0 */ "Air",                    		0x000000, 0.000f, 0xff7711, 0xff7711, 0.12345f,  13,14, 0x00, BLF_NONE},	//00
-    { /*   1 */ "Stone",                  		0x7C7C7C, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 0, 0x1f, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//01
+    { /*   1 */ "Stone",                  		0x7C7C7C, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 0, 0x0f, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//01
     // Grass block color is from Plains biome color (default terrain in a flat world). Grass and Sunflower should also be changed if this is changed.
     { /*   2 */ "Grass Block", /*output!*/		0x8cbd57, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 0, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//02 3,0 side gets turned into 6,2
     { /*   3 */ "Dirt",                   		0x8c6344, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2, 0, 0x07, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//03
@@ -473,7 +473,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 387 */ "Lit White Candle",            	0xF9E6B6, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 48, 0x30, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_EMITTER },    // note lit candles should never waterlog, as they'd go out
     { /* 388 */ "Block of Amethyst",            0x8C67C2, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 49, 0x3f, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
     { /* 389 */ "Small Amethyst Bud",   		0xA982CD, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 49, 0x03, BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_EMITTER | BLF_MAYWATERLOG },    // could be a BLF_BILLBOARD?
-    { /* 390 */ "Pointed Dripstone",            0x846A5B, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 49, 0x00, BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_MAYWATERLOG },	// NODO: could maybe make some true geometry instead for 3D printing, but it's iffy and a lot of work
+    { /* 390 */ "Pointed Dripstone",            0x846A5B, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 49, 0x10, BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_MAYWATERLOG },	// NODO: could maybe make some true geometry instead for 3D printing, but it's iffy and a lot of work
     { /* 391 */ "Cut Copper Stairs",            0xC16D53, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 392 */ "Exposed Cut Copper Stairs",    0x9E7B67, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 393 */ "Weathered Cut Copper Stairs",  0x6F936E, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
@@ -592,6 +592,13 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     // real 64x64 copper golem atlas is wired up.
     { /* 502 */ "Copper Golem Statue",          0xAF8B55, 1.000f, 0xff7711, 0xff7711, 0.12345f,  5, 50, 0x30, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
     { /* 503 */ "Waxed Copper Golem Statue",    0xAF8B55, 1.000f, 0xff7711, 0xff7711, 0.12345f,  5, 50, 0x30, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
+    { /* 504 */ "Cinnabar Stairs",              0x6F6F69, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 49, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 505 */ "Polished Cinnabar Stairs",     0x6F6F69, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 49, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 506 */ "Cinnabar Brick Stairs",        0x6F6F69, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 49, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 507 */ "Sulfur Stairs",                0x6F6F69, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 49, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 508 */ "Polished Sulfur Stairs",       0x6F6F69, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 49, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 509 */ "Sulfur Brick Stairs",          0x6F6F69, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 49, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 510 */ "Potent Sulfur",                0x837F7E, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 59, 0x04, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
 
     // Important note: 396 is skipped, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
 };
