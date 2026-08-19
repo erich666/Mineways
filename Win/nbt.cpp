@@ -426,8 +426,11 @@ static TranslationTuple* modTranslations = NULL;
 //   bit  0x08: any slot occupied (Mineways doesn't track per-slot occupancy)
 //   bit  0x10 (BIT_16): chiseled variant marker (from BlockTranslations subtype)
 #define BOOKSHELF_PROP 76
+// thickness: 5 states
+// vertical_direction: up/down
+#define SULFUR_SPIKE_PROP 77
 
-#define NUM_TRANS 1178
+#define NUM_TRANS 1206
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1635,6 +1638,35 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 245, HIGH_BIT | (3 << 3), "spruce_shelf", SHELF_PROP },
     { 0,  37,                   5, "golden_dandelion", NO_PROP },
     { 0, BLOCK_FLOWER_POT,  YELLOW_FLOWER_FIELD | 5, "potted_golden_dandelion", NO_PROP },
+    // The second and third column here are my best guesses and are most likely not the correct values
+    { 0, 246,            HIGH_BIT, "cinnabar", NO_PROP },
+    { 0, 246,            HIGH_BIT, "cinnabar_slab", SLAB_PROP },
+    { 0, 246,            HIGH_BIT, "cinnabar_stairs", STAIRS_PROP },
+    { 0, 246,            HIGH_BIT, "cinnabar_wall", WALL_PROP },
+    { 0, 247,            HIGH_BIT, "cinnabar_bricks", NO_PROP },
+    { 0, 247,            HIGH_BIT, "cinnabar_brick_slab", SLAB_PROP },
+    { 0, 247,            HIGH_BIT, "cinnabar_brick_stairs", STAIRS_PROP },
+    { 0, 247,            HIGH_BIT, "cinnabar_brick_wall", WALL_PROP },
+    { 0, 248,            HIGH_BIT, "polished_cinnabar", NO_PROP },
+    { 0, 248,            HIGH_BIT, "polished_cinnabar_slab", SLAB_PROP },
+    { 0, 248,            HIGH_BIT, "polished_cinnabar_stairs", STAIRS_PROP },
+    { 0, 248,            HIGH_BIT, "polished_cinnabar_wall", WALL_PROP },
+    { 0, 249,            HIGH_BIT, "chiseled_cinnabar", NO_PROP },
+    { 0, 250,            HIGH_BIT, "sulfur", NO_PROP },
+    { 0, 250,            HIGH_BIT, "sulfur_slab", SLAB_PROP },
+    { 0, 250,            HIGH_BIT, "sulfur_stairs", STAIRS_PROP },
+    { 0, 250,            HIGH_BIT, "sulfur_wall", WALL_PROP },
+    { 0, 251,            HIGH_BIT, "sulfur_bricks", NO_PROP },
+    { 0, 251,            HIGH_BIT, "sulfur_brick_slab", SLAB_PROP },
+    { 0, 251,            HIGH_BIT, "sulfur_brick_stairs", STAIRS_PROP },
+    { 0, 251,            HIGH_BIT, "sulfur_brick_wall", WALL_PROP },
+    { 0, 252,            HIGH_BIT, "polished_sulfur", NO_PROP },
+    { 0, 252,            HIGH_BIT, "polished_sulfur_slab", SLAB_PROP },
+    { 0, 252,            HIGH_BIT, "polished_sulfur_stairs", STAIRS_PROP },
+    { 0, 252,            HIGH_BIT, "polished_sulfur_wall", WALL_PROP },
+    { 0, 253,            HIGH_BIT, "chiseled_sulfur", NO_PROP },
+    { 0, 254,            HIGH_BIT, "potent_sulfur", NO_PROP },
+    { 0, 255,            HIGH_BIT, "sulfur_spike", SULFUR_SPIKE_PROP },
 
     // 1.20.3 additions (short_grass added next to "grass", above), https://minecraft.wiki/w/Java_Edition_1.20.3#General_2
 
@@ -4282,7 +4314,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             // "age" is also folded into dataVal for cave_vines_plant, which is why we can't use the dataVal directly
                             berries = (strcmp(value, "true") == 0) ? 0x2 : 0;
                         }
-                        // for pointed dripstone https://minecraft.wiki/w/Pointed_Dripstone#ID
+                        // for pointed dripstone https://minecraft.wiki/w/Pointed_Dripstone#ID and sulfur spike https://minecraft.wiki/w/Sulfur_Spike#ID
                         else if (strcmp(token, "thickness") == 0) {
                             if (strcmp(value, "tip") == 0) {
                                 thickness = 0;
@@ -4304,7 +4336,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                                 assert(0);
                             }
                         }
-                        // also for pointed dripstone https://minecraft.wiki/w/Pointed_Dripstone#ID
+                        // also for pointed dripstone https://minecraft.wiki/w/Pointed_Dripstone#ID and sulfur spike https://minecraft.wiki/w/Sulfur_Spike#ID
                         else if (strcmp(token, "vertical_direction") == 0) {
                             vertical_direction = (strcmp(value, "down") == 0) ? 0x8 : 0;
                         }
@@ -5076,6 +5108,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 dropper_facing = 0;
                 break;
             case DRIPSTONE_PROP:
+            case SULFUR_SPIKE_PROP:
                 // up is vertical_direction, and if "down" the value is set to 0x08
                 dataVal = thickness | vertical_direction;
                 break;
@@ -6234,6 +6267,7 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             break;
 
         case DRIPSTONE_PROP:
+        case SULFUR_SPIKE_PROP:
             if (strcmp(k, "thickness") == 0) {
                 int t = 0;
                 if (strcmp(v, "tip_merge") == 0) t = 1;
@@ -7556,7 +7590,8 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         break;
     }
 
-    case DRIPSTONE_PROP: {
+    case DRIPSTONE_PROP:
+    case SULFUR_SPIKE_PROP: {
         // pointed_dripstone (block 134 + HIGH_BIT). Read-side packs `dataVal = thickness | vertical_direction`
         // (nbt.cpp:4928):
         //   bits 0x7: thickness — 0=tip, 1=tip_merge, 2=frustum, 3=middle, 4=base

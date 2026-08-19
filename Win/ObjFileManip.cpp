@@ -4739,6 +4739,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_CAVE_VINES_LIT:
     case BLOCK_TORCHFLOWER_CROP:
     case BLOCK_PALE_HANGING_MOSS:
+    case BLOCK_SULFUR_SPIKE:
         return saveBillboardFaces(boxIndex, type, BB_FULL_CROSS);
         break;	// saveBillboardOrGeometry
 
@@ -19068,6 +19069,12 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_TUFF_BRICK_STAIRS:
         case BLOCK_PALE_OAK_STAIRS:
         case BLOCK_RESIN_BRICK_STAIRS:
+        case BLOCK_CINNABAR_STAIRS:
+        case BLOCK_CINNABAR_BRICK_STAIRS:
+        case BLOCK_POLISHED_CINNABAR_STAIRS:
+        case BLOCK_SULFUR_STAIRS:
+        case BLOCK_SULFUR_BRICK_STAIRS:
+        case BLOCK_POLISHED_SULFUR_STAIRS:
             switch (neighborDataVal & 0x3)
             {
             default:    // make compiler happy
