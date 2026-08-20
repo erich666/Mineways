@@ -26291,7 +26291,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                 strcpy_s(typeName, 256, commentName);
             }
             // with number: sprintf_s(outputString, 256, "# type: %s %d\n", typeName, groupCount + 1);
-            sprintf_s(outputString, 256, "# type: %s\n", typeName);
+            sprintf_s(outputString, 256, "# type: %s, %d:%d\n", typeName, gModel.faceList[i]->materialType, gModel.faceList[i]->materialDataVal);
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
             if (mkGroupsObjs) {
