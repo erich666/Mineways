@@ -10385,7 +10385,7 @@ static void checkMapDrawErrorCode(int retCode)
         if (gOneTimeWorldWarning & retCode) {
             // NBT_WARNING_DIRECTORY_NOT_FOUND
             // currently the only warning - we will someday look at bits, I guess, in retCode
-            swprintf_s(fullbuf, _countof(fullbuf), _T("Warning: there is no 'region' directory found for this world. It may simply not exist.\n\nMineways checks for both the old format (e.g. 'region', 'DIM-1/region') and the new format used by snapshot 25w02a and later (e.g. 'dimensions/minecraft/overworld/region').\n\nIf you are using WorldTools, you may need to move the 'region' directory to the correct location relative to your 'level.dat' file.\n") );
+            swprintf_s(fullbuf, _countof(fullbuf), _T("Warning: there is no 'region' directory found for this world. It may simply not exist.\n\nMineways checks for both the old format (e.g. 'region', 'DIM-1/region') and the new format used by snapshot 25w02a and later (e.g. 'dimensions/minecraft/overworld/region').\n\nIf you are using WorldTools, Journeymap, or other tools, you may need to move the 'region' directory to the correct location relative to your 'level.dat' file.\n") );
             FilterMessageBox(NULL, fullbuf,
                 _T("Warning"), MB_OK | MB_ICONWARNING | MB_TOPMOST);
             gOneTimeWorldWarning &= ~NBT_WARNING_DIRECTORY_NOT_FOUND;
