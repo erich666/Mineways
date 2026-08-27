@@ -5,6 +5,7 @@
 #    python stdin_mode.py
 #
 # See the docs/scripting.html#code section of the documentation and search for "headless" for more information.
+# I think you want to avoid running in Powershell, as this can create 2-byte Unicode output! Use Command Prompt.
 
 import subprocess
 proc = subprocess.Popen(

@@ -6,6 +6,7 @@
 # You need to install Python 3 and ImageMagick. You need to run this script from
 # the command window. Here's how to get a command window:
 # https://www.computerhope.com/issues/chusedos.htm
+# Do NOT run it in Powershell, as this will create 2-byte Unicode output! Use Command Prompt.
 #
 # For Python 3, you can just open a command window and type: Python
 # Windows 10 will go find the install for you. Do it. You'll then probably
