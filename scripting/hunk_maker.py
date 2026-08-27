@@ -11,7 +11,16 @@
 #
 # Process:
 # Install Python, then edit this file to change the arguments at the top of this file
-# to whatever area in your world you want to export and run it in a command window:
+# to whatever area in your world you want to export and run it in a Command Prompt window.
+# Do NOT run it in Powershell, which causes problems by generating 2-byte characters;
+# use Command Prompt instead. (See
+# https://www.reddit.com/r/mineways/comments/1vxwr9n/error_exporting_hunks_for_rendering/
+# for more on that.)
+#
+# Specifically, search in Windows Search for "Command Prompt". Select that. In the window
+# that opens you'll want change directory ("cd") to where the script is, then run Python
+# (visit https://www.python.org/downloads/ to install the latest Python):
+#    cd [paste in the directory here on your machine that contains hunk_maker.py]
 #    python hunk_maker.py > hunks.mwscript
 #
 # This creates a file called "hunks.mwscript". In Mineways you then load your world,
