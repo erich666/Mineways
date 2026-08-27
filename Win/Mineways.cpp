@@ -44,6 +44,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 #include <math.h>
 #include <time.h>
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <cstdint>
 
 // Should really make a full-featured error system, a la https://www.softwariness.com/articles/assertions-in-cpp/, but this'll do for now.
 // trick so that there is not a warning that there's a constant value being tested by an "if"
@@ -6635,15 +6639,78 @@ static bool importModelFile(wchar_t* importFile, ImportedSet& is)
     return retCode;
 }
 
+enum class Encoding {
+    ASCII_OR_UTF8,
+    UTF8_BOM,
+    UTF16_LE,
+    UTF16_BE,
+    UNKNOWN
+};
+
+Encoding detectEncoding(const wchar_t* importFile) {
+    if (!importFile) return Encoding::UNKNOWN;
+
+    // Standard C++ stream on MSVC supports wchar_t path directly
+    std::ifstream file(importFile, std::ios::binary);
+    if (!file) return Encoding::UNKNOWN;
+
+    // Read initial chunk (up to 1024 bytes)
+    std::vector<uint8_t> buffer(1024);
+    file.read(reinterpret_cast<char*>(buffer.data()), buffer.size());
+    std::streamsize bytesRead = file.gcount();
+
+    if (bytesRead < 2) return Encoding::ASCII_OR_UTF8;
+
+    // 1. Check for explicit Byte Order Marks (BOM)
+    if (bytesRead >= 3 && buffer[0] == 0xEF && buffer[1] == 0xBB && buffer[2] == 0xBF) {
+        return Encoding::UTF8_BOM;
+    }
+    if (buffer[0] == 0xFF && buffer[1] == 0xFE) {
+        return Encoding::UTF16_LE;
+    }
+    if (buffer[0] == 0xFE && buffer[1] == 0xFF) {
+        return Encoding::UTF16_BE;
+    }
+
+    // 2. Heuristic check without BOM (counting null byte positions for ASCII-range characters)
+    size_t evenNulls = 0;
+    size_t oddNulls = 0;
+
+    for (std::streamsize i = 0; i < bytesRead; ++i) {
+        if (buffer[i] == 0x00) {
+            if (i % 2 == 0) evenNulls++;
+            else oddNulls++;
+        }
+    }
+
+    // High null-byte density in alternating positions indicates UTF-16
+    if (oddNulls > (size_t)(bytesRead / 4) && evenNulls == 0) {
+        return Encoding::UTF16_LE; // E.g., 'S' '\0' 'h' '\0'
+    }
+    if (evenNulls > (size_t)(bytesRead / 4) && oddNulls == 0) {
+        return Encoding::UTF16_BE; // E.g., '\0' 'S' '\0' 'h'
+    }
+
+    return Encoding::ASCII_OR_UTF8;
+}
+
 // true if all went well
 static bool readAndExecuteScript(wchar_t* importFile, ImportedSet& is)
 {
     FILE* fh;
+    wchar_t buf[2*MAX_PATH_AND_FILE];
     errno_t err = _wfopen_s(&fh, importFile, L"rt");
 
     if (err != 0) {
-        wchar_t buf[MAX_PATH_AND_FILE];
         swprintf_s(buf, _countof(buf), L"Error: could not read file %s", importFile);
+        saveErrorMessage(is, buf);
+        return false;
+    }
+
+    // check if the script is not a UTF-8 file
+    Encoding enc = detectEncoding(importFile);
+    if (enc != Encoding::ASCII_OR_UTF8) {
+        swprintf_s(buf, _countof(buf), L"Error: file %s appears to not contain single-byte ASCII characters. If you are generating it with a Python script, for example, use Windows' Command Prompt instead of Powershell. Powershell generates two-byte characters.", importFile);
         saveErrorMessage(is, buf);
         return false;
     }
@@ -6755,7 +6822,6 @@ static bool readAndExecuteScript(wchar_t* importFile, ImportedSet& is)
 
     err = _wfopen_s(&fh, importFile, L"rt");
     if (err != 0) {
-        wchar_t buf[MAX_PATH_AND_FILE];
         swprintf_s(buf, _countof(buf), L"Error: could not read file %s", importFile);
         saveErrorMessage(is, buf);
         return false;

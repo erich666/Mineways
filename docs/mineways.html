@@ -2921,7 +2921,8 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 <LI>Version 13.01, 8/28/2026 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1301.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
     <UL>
-	<LI>Change hunk_maker.py script so that it always exports UTF-8 .mwscript files. Warn in documentation about using Command Prompt and not Powershell for the other Python scripts.
+	<LI>Change hunk_maker.py script so that it always exports ASCII UTF-8 .mwscript files. Warn in documentation about using Command Prompt and not Powershell for the other Python scripts.
+	<LI>Add test in Mineways for mwscript files that are not ASCII, give a warning and explanation.
 	<LI>Other minor cleanups, such as improved error messages.
 	</UL>
 
