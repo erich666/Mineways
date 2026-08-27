@@ -11,24 +11,22 @@
 #
 # Process:
 # Install Python, then edit this file to change the arguments at the top of this file
-# to whatever area in your world you want to export and run it in a command window
-# (Do NOT run it in Powershell, which causes problems, use CMD instead. See
-# https://www.reddit.com/r/mineways/comments/1vxwr9n/error_exporting_hunks_for_rendering/ ):
+# to whatever area in your world you want to export and run it in a command window:
 #    cd [paste in the directory here on your machine that contains hunk_maker.py]
-#    python hunk_maker.py > hunks.mwscript
+#    python hunk_maker.py
 #
 # This creates a file called "hunks.mwscript". In Mineways you then load your world,
 # optionally set your terrain file, and then choose File | Import Settings and select
 # this hunks.mwscript file. The script will then run and export a bunch of OBJ and MTL
 # files where you specified, along with block textures in the "texture" directory.
 
-# The file name of the output script, put in the same directory as hunk_maker.py
+# The file name for the Mineways script this program creates, put in the same directory as hunk_maker.py:
 output_script = 'hunks.mwscript'
 
 # The output file prefix when the script is run in Mineways. For example, without changes,
 # the first model file created by Mineways would be c:/temp/hunk_x-200_z-200.obj
-# Forward slashes are preferred; note that if you use
-# backslashes, they have to be "doubled": 'c:\\temp\\hunk'
+# Forward slashes are preferred; note that if you use backslashes,
+# they have to be "doubled": 'c:\\temp\\hunk'
 file = 'c:/temp/hunk'
 
 # Starting world location. Note that in Mineways you can see map coordinates for your mouse
