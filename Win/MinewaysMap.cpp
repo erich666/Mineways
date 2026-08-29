@@ -7981,7 +7981,12 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
     }
 
     // WorldBlock* block = block_alloc(MAX_ARRAY_HEIGHT(versionID, mcVersion));
-    WorldBlock* block = block_alloc(pWorldGuide->minHeight, pWorldGuide->maxHeight);
+    WorldBlock* block;
+    if (pWorldGuide->type == WORLD_SCHEMATIC_TYPE) {
+        block = block_alloc(0, pWorldGuide->sch.height-1);
+    } else {
+        block = block_alloc(pWorldGuide->minHeight, pWorldGuide->maxHeight);
+    }
 
     // out of memory? If so, clear cache and cross fingers
     if (block == NULL)

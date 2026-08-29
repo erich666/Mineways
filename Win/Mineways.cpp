@@ -3946,6 +3946,9 @@ static int loadWorld(HWND hWnd)
             // not differentiated for now
             return error;
         }
+        gMinHeight = 0;
+        // newer schematics can have a height greater than 256.
+        gMaxHeight = (255 > gWorldGuide.sch.height - 1) ? 255 : gWorldGuide.sch.height - 1;
     }
     break;
 
