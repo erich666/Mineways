@@ -1156,6 +1156,22 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Nether Gold Ore";
         case 16: // test_instance_block
             return "Test Instance Block";
+        case 17: // cinnabar
+            return "Cinnabar";
+        case 18: // polished_cinnabar
+            return "Polished Cinnabar";
+        case 19: // cinnabar_bricks
+            return "Cinnabar Bricks";
+        case 20: // chiseled_cinnabar
+            return "Chiseled Cinnabar";
+        case 21: // sulfur
+            return "Sulfur";
+        case 22: // polished_sulfur
+            return "Polished Sulfur";
+        case 23: // sulfur_bricks
+            return "Sulfur Bricks";
+        case 24: // chiseled_sulfur
+            return "Chiseled Sulfur";
         }
         break;
 
@@ -3198,6 +3214,22 @@ unsigned int GetBlockDataColor(int type, int dataVal)
             return 0x7E4E31;
         case 16: // test_instance_block
             return 0x908C8B;
+        case 17: // cinnabar
+            return 0x995450;
+        case 18: // polished_cinnabar
+            return 0x9B3C39;
+        case 19: // cinnabar_bricks
+            return 0x973A38;
+        case 20: // chiseled_cinnabar
+            return 0x963B3A;
+        case 21: // sulfur
+            return 0xBEB066;
+        case 22: // polished_sulfur
+            return 0xBDAD5C;
+        case 23: // sulfur_bricks
+            return 0xBCAB5C;
+        case 24: // chiseled_sulfur
+            return 0xBCAD5C;
         }
 
     case BLOCK_GLASS:
@@ -5702,6 +5734,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_CRAFTING_TABLE:
     case BLOCK_CORAL_BLOCK:
     case BLOCK_DEAD_CORAL_BLOCK:
+    case BLOCK_POTENT_SULFUR:
         // uses 0-4
         if (dataVal < 5)
         {
@@ -5916,6 +5949,12 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_TUFF_BRICK_STAIRS:
     case BLOCK_PALE_OAK_STAIRS:
     case BLOCK_RESIN_BRICK_STAIRS:
+    case BLOCK_CINNABAR_STAIRS:
+    case BLOCK_POLISHED_CINNABAR_STAIRS:
+    case BLOCK_CINNABAR_BRICK_STAIRS:
+    case BLOCK_SULFUR_STAIRS:
+    case BLOCK_POLISHED_SULFUR_STAIRS:
+    case BLOCK_SULFUR_BRICK_STAIRS:
         // uses 0-7 - TODO we could someday add more blocks to neighbor the others, in order to show the stairs' "step block trim" feature of week 39
         if (dataVal < 8)
         {
@@ -7675,7 +7714,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
             // always add the block, since we know we're above 16
             addBlock = 1;
-            addDiagonalBlocksToMap(17, y, type, dataVal, finalDataVal, typeHighBit, block);
+            addDiagonalBlocksToMap(25, y, type, dataVal, finalDataVal, typeHighBit, block);
         }
         break;
 

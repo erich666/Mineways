@@ -6286,6 +6286,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_TUFF_BRICK_STAIRS:
     case BLOCK_PALE_OAK_STAIRS:
     case BLOCK_RESIN_BRICK_STAIRS:
+    case BLOCK_CINNABAR_STAIRS:
+    case BLOCK_POLISHED_CINNABAR_STAIRS:
+    case BLOCK_CINNABAR_BRICK_STAIRS:
+    case BLOCK_SULFUR_STAIRS:
+    case BLOCK_POLISHED_SULFUR_STAIRS:
+    case BLOCK_SULFUR_BRICK_STAIRS:
         // set texture
         switch (type)
         {
@@ -13999,6 +14005,12 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
             case BLOCK_TUFF_BRICK_STAIRS:
             case BLOCK_PALE_OAK_STAIRS:
             case BLOCK_RESIN_BRICK_STAIRS:
+            case BLOCK_CINNABAR_STAIRS:
+            case BLOCK_POLISHED_CINNABAR_STAIRS:
+            case BLOCK_CINNABAR_BRICK_STAIRS:
+            case BLOCK_SULFUR_STAIRS:
+            case BLOCK_POLISHED_SULFUR_STAIRS:
+            case BLOCK_SULFUR_BRICK_STAIRS:
                 // TODO: Right now stairs are dumb: only the large rectangle of the base is returned.
                 // Returning the little block, which can further be trimmed to a cube, is a PAIN.
                 // This does mean the little stair block sides won't be deleted. Ah well.
@@ -19068,6 +19080,12 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_TUFF_BRICK_STAIRS:
         case BLOCK_PALE_OAK_STAIRS:
         case BLOCK_RESIN_BRICK_STAIRS:
+        case BLOCK_CINNABAR_STAIRS:
+        case BLOCK_POLISHED_CINNABAR_STAIRS:
+        case BLOCK_CINNABAR_BRICK_STAIRS:
+        case BLOCK_SULFUR_STAIRS:
+        case BLOCK_POLISHED_SULFUR_STAIRS:
+        case BLOCK_SULFUR_BRICK_STAIRS:
             switch (neighborDataVal & 0x3)
             {
             default:    // make compiler happy
@@ -20888,6 +20906,30 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case 16: // test_instance_block
                 swatchLoc = SWATCH_INDEX(5, 69);
+                break;
+            case 17: // cinnabar
+                swatchLoc = SWATCH_INDEX(4, 78);
+                break;
+            case 18: // polished_cinnabar
+                swatchLoc = SWATCH_INDEX(5, 78);
+                break;
+            case 19: // cinnabar_bricks
+                swatchLoc = SWATCH_INDEX(6, 78);
+                break;
+            case 20: // chiseled_cinnabar
+                swatchLoc = SWATCH_INDEX(7, 78);
+                break;
+            case 21: // sulfur
+                swatchLoc = SWATCH_INDEX(8, 78);
+                break;
+            case 22: // polished_sulfur
+                swatchLoc = SWATCH_INDEX(9, 78);
+                break;
+            case 23: // sulfur_bricks
+                swatchLoc = SWATCH_INDEX(10, 78);
+                break;
+            case 24: // chiseled_sulfur
+                swatchLoc = SWATCH_INDEX(11, 78);
                 break;
             }
             break;

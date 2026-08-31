@@ -427,7 +427,8 @@ static TranslationTuple* modTranslations = NULL;
 //   bit  0x10 (BIT_16): chiseled variant marker (from BlockTranslations subtype)
 #define BOOKSHELF_PROP 76
 
-#define NUM_TRANS 1178
+
+#define NUM_TRANS 1193
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1635,6 +1636,21 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 245, HIGH_BIT | (3 << 3), "spruce_shelf", SHELF_PROP },
     { 0,  37,                   5, "golden_dandelion", NO_PROP },
     { 0, BLOCK_FLOWER_POT,  YELLOW_FLOWER_FIELD | 5, "potted_golden_dandelion", NO_PROP },
+    { 0,   1,             17, "cinnabar", NO_PROP },
+    { 0,   1,             18, "polished_cinnabar", NO_PROP },
+    { 0,   1,             19, "cinnabar_bricks", NO_PROP },
+    { 0,   1,             20, "chiseled_cinnabar", NO_PROP },
+    { 0,   1,             21, "sulfur", NO_PROP },
+    { 0,   1,             22, "polished_sulfur", NO_PROP },
+    { 0,   1,             23, "sulfur_bricks", NO_PROP },
+    { 0,   1,             24, "chiseled_sulfur", NO_PROP },
+    { 0, 248,       HIGH_BIT, "cinnabar_stairs", STAIRS_PROP },
+    { 0, 249,       HIGH_BIT, "polished_cinnabar_stairs", STAIRS_PROP },
+    { 0, 250,       HIGH_BIT, "cinnabar_brick_stairs", STAIRS_PROP },
+    { 0, 251,       HIGH_BIT, "sulfur_stairs", STAIRS_PROP },
+    { 0, 252,       HIGH_BIT, "polished_sulfur_stairs", STAIRS_PROP },
+    { 0, 253,       HIGH_BIT, "sulfur_brick_stairs", STAIRS_PROP },
+    { 0, 254,       HIGH_BIT, "potent_sulfur", NO_PROP },
 
     // 1.20.3 additions (short_grass added next to "grass", above), https://minecraft.wiki/w/Java_Edition_1.20.3#General_2
 
@@ -4499,6 +4515,22 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             if (strcmp(value, "true") == 0) dataVal |= 0x01;
                         }
 
+                        else if (strcmp(token, "potent_sulfur_state") == 0) {
+                            // BLOCK_POTENT_SULFUR's only property
+                            // bottom 3 bits gives state:
+                            // 0 is dry
+                            // 1 is wet
+                            // 2 is dormant
+                            // 3 is erupting
+                            // 4 is continuous
+                            if (strcmp(value, "wet") == 0)  dataVal |= 1;
+                            else if (strcmp(value, "dormant") == 0)  dataVal |= 2;
+                            else if (strcmp(value, "erupting") == 0) dataVal |= 3;
+                            else if (strcmp(value, "continuous") == 0) dataVal |= 4;
+                            // else should be "dry" - we just assume it's valid
+                            // TODO, should flag an error for an unknown type; true of other inputs
+                        }
+
 #ifdef _DEBUG
                         else {
                             // ignore, not used by Mineways for now, BlockTranslations[typeIndex]
@@ -5902,6 +5934,15 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
         // BLOCK_SCULK_SHRIEKER (433) is NO_PROP; bit 0x01 = can_summon, bit 0x02 = shrieking.
         if (strcmp(k, "can_summon") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x1; continue; }
         if (strcmp(k, "shrieking") == 0)  { if (strcmp(v, "true") == 0) dataVal |= 0x2; continue; }
+        if (strcmp(k, "potent_sulfur_state") == 0) {
+            if (strcmp(v, "wet") == 0)  dataVal |= 1;
+            else if (strcmp(v, "dormant") == 0)  dataVal |= 2;
+            else if (strcmp(v, "erupting") == 0) dataVal |= 3;
+            else if (strcmp(v, "continuous") == 0) dataVal |= 4;
+            // else should be "dry" - we just assume it's valid
+            // TODO, should flag an error for an unknown type; true of other inputs
+            continue;
+        }
 
         // ---- Per-family props ----
         switch (tf) {

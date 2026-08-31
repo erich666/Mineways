@@ -592,13 +592,13 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     // real 64x64 copper golem atlas is wired up.
     { /* 502 */ "Copper Golem Statue",          0xAF8B55, 1.000f, 0xff7711, 0xff7711, 0.12345f,  5, 50, 0x30, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
     { /* 503 */ "Waxed Copper Golem Statue",    0xAF8B55, 1.000f, 0xff7711, 0xff7711, 0.12345f,  5, 50, 0x30, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
-    { /* 504 */ "Cinnabar Stairs",              0x6F6F69, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 49, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
-    { /* 505 */ "Polished Cinnabar Stairs",     0x6F6F69, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 49, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
-    { /* 506 */ "Cinnabar Brick Stairs",        0x6F6F69, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 49, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
-    { /* 507 */ "Sulfur Stairs",                0x6F6F69, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 49, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
-    { /* 508 */ "Polished Sulfur Stairs",       0x6F6F69, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 49, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
-    { /* 509 */ "Sulfur Brick Stairs",          0x6F6F69, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 49, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
-    { /* 510 */ "Potent Sulfur",                0x837F7E, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 59, 0x04, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
+    { /* 504 */ "Cinnabar Stairs",              0x995450, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 78, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 505 */ "Polished Cinnabar Stairs",     0x9B3C39, 1.000f, 0xff7711, 0xff7711, 0.12345f,  5, 78, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 506 */ "Cinnabar Brick Stairs",        0x973A38, 1.000f, 0xff7711, 0xff7711, 0.12345f,  6, 78, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 507 */ "Sulfur Stairs",                0xBEB066, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 78, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 508 */ "Polished Sulfur Stairs",       0xBDAD5C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 78, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 509 */ "Sulfur Brick Stairs",          0xBCAB5C, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 78, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 510 */ "Potent Sulfur",                0xD3D162, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 78, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
 
     // Important note: 396 is skipped, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
 };
