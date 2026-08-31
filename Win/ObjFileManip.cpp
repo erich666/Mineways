@@ -5375,6 +5375,24 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             // Resin Brick wall
             swatchLoc = SWATCH_INDEX(1, 67);
             break;
+        case 26: // cinnabar
+            swatchLoc = SWATCH_INDEX(4, 78);
+            break;
+        case 27: // polished_cinnabar
+            swatchLoc = SWATCH_INDEX(5, 78);
+            break;
+        case 28: // cinnabar_bricks
+            swatchLoc = SWATCH_INDEX(6, 78);
+            break;
+        case 29: // sulfur
+            swatchLoc = SWATCH_INDEX(8, 78);
+            break;
+        case 30: // polished_sulfur
+            swatchLoc = SWATCH_INDEX(9, 78);
+            break;
+        case 31: // sulfur_bricks
+            swatchLoc = SWATCH_INDEX(10, 78);
+            break;
         }
 
         // since we erase "billboard" objects as we go, we need to test against origType.
@@ -23367,6 +23385,24 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             case 25:
                 // Resin Brick wall
                 swatchLoc = SWATCH_INDEX(1, 67);
+                break;
+            case 26: // cinnabar
+                swatchLoc = SWATCH_INDEX(4, 78);
+                break;
+            case 27: // polished_cinnabar
+                swatchLoc = SWATCH_INDEX(5, 78);
+                break;
+            case 28: // cinnabar_bricks
+                swatchLoc = SWATCH_INDEX(6, 78);
+                break;
+            case 29: // sulfur
+                swatchLoc = SWATCH_INDEX(8, 78);
+                break;
+            case 30: // polished_sulfur
+                swatchLoc = SWATCH_INDEX(9, 78);
+                break;
+            case 31: // sulfur_bricks
+                swatchLoc = SWATCH_INDEX(10, 78);
                 break;
             }
             break;

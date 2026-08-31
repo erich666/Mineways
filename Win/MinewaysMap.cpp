@@ -1889,9 +1889,21 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         case 23:
             return "Polished Tuff Wall";
         case 24:
-            return"Tuff Brick Wall";
+            return "Tuff Brick Wall";
         case 25:
-            return"Resin Brick Wall";
+            return "Resin Brick Wall";
+        case 26:    // cinnabar_wall
+            return "Cinnabar  Wall";
+        case 27:    // polished_cinnabar_wall
+            return "Polished Cinnabar Wall";
+        case 28:    // cinnabar_brick_wall
+            return "Cinnabar Brick Wall";
+        case 29:    // sulfur_wall
+            return "Sulfur Wall";
+        case 30:    // polished_sulfur_wall
+            return "Polished Sulfur Wall";
+        case 31:    // sulfur_brick_wall
+            return "Sulfur Brick Wall";
         }
         break;
 
@@ -3973,6 +3985,18 @@ unsigned int GetBlockDataColor(int type, int dataVal)
             return 0x656962;
         case 25: // Resin Brick wall
             return 0xD05F1D;
+        case 26: // cinnabar
+            return 0x995450;
+        case 27: // polished_cinnabar
+            return 0x9B3C39;
+        case 28: // cinnabar_bricks
+            return 0x973A38;
+        case 29: // sulfur
+            return 0xBEB066;
+        case 30: // polished_sulfur
+            return 0xBDAD5C;
+        case 31: // sulfur_bricks
+            return 0xBCAB5C;
         }
 
     case BLOCK_PRISMARINE:
@@ -7173,12 +7197,11 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
         block->grid[neighborIndex] = (unsigned char)type;
         block->data[neighborIndex] = (unsigned char)(dataVal | typeHighBit);
-        if (dataVal < 9) {
-            // 16 through 24, just a post
-            neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
-            block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)(dataVal | BIT_16 | typeHighBit);
-        }
+
+        // 16 through 31, just a post
+        neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
+        block->grid[neighborIndex] = (unsigned char)type;
+        block->data[neighborIndex] = (unsigned char)(dataVal | BIT_16 | typeHighBit);
         break;
     case BLOCK_REDSTONE_WIRE:
         // this one is specialized: dataVal just says where to put neighbors, NSEW

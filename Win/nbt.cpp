@@ -428,7 +428,7 @@ static TranslationTuple* modTranslations = NULL;
 #define BOOKSHELF_PROP 76
 
 
-#define NUM_TRANS 1193
+#define NUM_TRANS 1199
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -1651,6 +1651,12 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 252,       HIGH_BIT, "polished_sulfur_stairs", STAIRS_PROP },
     { 0, 253,       HIGH_BIT, "sulfur_brick_stairs", STAIRS_PROP },
     { 0, 254,       HIGH_BIT, "potent_sulfur", NO_PROP },
+    { 0, 139,	          26, "cinnabar_wall", WALL_PROP },
+    { 0, 139,	          27, "polished_cinnabar_wall", WALL_PROP },
+    { 0, 139,	          28, "cinnabar_brick_wall", WALL_PROP },
+    { 0, 139,	          29, "sulfur_wall", WALL_PROP },
+    { 0, 139,	          30, "polished_sulfur_wall", WALL_PROP },
+    { 0, 139,	          31, "sulfur_brick_wall", WALL_PROP },
 
     // 1.20.3 additions (short_grass added next to "grass", above), https://minecraft.wiki/w/Java_Edition_1.20.3#General_2
 
