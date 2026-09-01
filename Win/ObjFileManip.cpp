@@ -6731,7 +6731,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             break;
 
         case BLOCK_CRIMSON_SLAB:
-            switch (dataVal & 0x7)
+            switch (dataVal & 0x17)
             {
             default: // normal log
                 assert(0);
@@ -6760,6 +6760,24 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 break;
             case 7:	// resin brick
                 topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(1, 67);
+                break;
+            case BIT_16 | 0: // cinnabar
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc =  SWATCH_INDEX(4, 78);
+                break;
+            case BIT_16 | 1: // polished_cinnabar
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc =  SWATCH_INDEX(5, 78);
+                break;
+            case BIT_16 | 2: // cinnabar_bricks
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc =  SWATCH_INDEX(6, 78);
+                break;
+            case BIT_16 | 3: // sulfur
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc =  SWATCH_INDEX(8, 78);
+                break;
+            case BIT_16 | 4: // polished_sulfur
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc =  SWATCH_INDEX(9, 78);
+                break;
+            case BIT_16 | 5: // sulfur_bricks
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc =  SWATCH_INDEX(10, 78);
                 break;
             }
             break;
@@ -23966,7 +23984,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
 
         case BLOCK_CRIMSON_DOUBLE_SLAB:					// getSwatch
         case BLOCK_CRIMSON_SLAB:						// getSwatch
-            switch (dataVal & 0x7)
+            switch (dataVal & 0x17)
             {
             default: // normal log
                 assert(0);
@@ -23996,6 +24014,24 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case 7:	// resin brick
                 swatchLoc = SWATCH_INDEX(1, 67);
+                break;
+            case BIT_16 | 0: // cinnabar
+                swatchLoc = SWATCH_INDEX(4, 78);
+                break;
+            case BIT_16 | 1: // polished_cinnabar
+                swatchLoc = SWATCH_INDEX(5, 78);
+                break;
+            case BIT_16 | 2: // cinnabar_bricks
+                swatchLoc = SWATCH_INDEX(6, 78);
+                break;
+            case BIT_16 | 3: // sulfur
+                swatchLoc = SWATCH_INDEX(8, 78);
+                break;
+            case BIT_16 | 4: // polished_sulfur
+                swatchLoc = SWATCH_INDEX(9, 78);
+                break;
+            case BIT_16 | 5: // sulfur_bricks
+                swatchLoc = SWATCH_INDEX(10, 78);
                 break;
             }
             break;
@@ -24034,6 +24070,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             else {
                 // as luck would have it, the first 8 are next to each other
+                // AND, the second set of four are the same as the first set of
+                // four, just called Waxed instead. So, just 4 textures needed.
                 swatchLoc += (dataVal & 0x3);
             }
             break;

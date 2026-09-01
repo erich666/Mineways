@@ -1719,7 +1719,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
     case BLOCK_CRIMSON_SLAB:
         // a little wasteful if the default is returned after all
         strcpy_s(gConcatString, 100, (type == BLOCK_CRIMSON_DOUBLE_SLAB) ? "Double " : "");
-        switch (dataVal & 0x7)
+        switch (dataVal & 0x17)
         {
         default:
             assert(0);
@@ -1747,6 +1747,24 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         case 7:
             strcat_s(gConcatString, 100, "Resin Brick Slab");
             break;
+        case BIT_16 | 0: // cinnabar
+            strcat_s(gConcatString, 100, "Cinnabar Slab");
+            break;
+        case BIT_16 | 1: // polished_cinnabar
+            strcat_s(gConcatString, 100, "Polished Cinnabar Slab");
+            break;
+        case BIT_16 | 2: // cinnabar_bricks
+            strcat_s(gConcatString, 100, "Cinnabar Brick Slab");
+            break;
+        case BIT_16 | 3: // sulfur
+            strcat_s(gConcatString, 100, "Sulfur Slab");
+            break;
+        case BIT_16 | 4: // polished_sulfur
+            strcat_s(gConcatString, 100, "Polished Sulfur Slab");
+            break;
+        case BIT_16 | 5: // sulfur_bricks
+            strcat_s(gConcatString, 100, "Sulfur Brick Slab");
+            break;
         }
         return gConcatString;
 
@@ -1759,7 +1777,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         default:
             assert(0);
             return gBlockDefinitions[type].name;
-        case 0: // crimson
+        case 0: // cut copper
             return gBlockDefinitions[type].name;
         case 1:
             strcat_s(gConcatString, 100, "Exposed Cut Copper Slab");
@@ -3135,7 +3153,7 @@ unsigned int GetBlockDataColor(int type, int dataVal)
 
     case BLOCK_CRIMSON_DOUBLE_SLAB:
     case BLOCK_CRIMSON_SLAB:
-        switch (dataVal & 0x7)
+        switch (dataVal & 0x17)
         {
         default:
         case 0:
@@ -3154,6 +3172,18 @@ unsigned int GetBlockDataColor(int type, int dataVal)
             return 0xE5DBDA;
         case 7:	// resin brick
             return 0xD05F1D;
+        case BIT_16 | 0: // cinnabar
+            return 0x995450;
+        case BIT_16 | 1: // polished_cinnabar
+            return 0x9B3C39;
+        case BIT_16 | 2: // cinnabar_bricks
+            return 0x973A38;
+        case BIT_16 | 3: // sulfur
+            return 0xBEB066;
+        case BIT_16 | 4: // polished_sulfur
+            return 0xBDAD5C;
+        case BIT_16 | 5: // sulfur_bricks
+            return 0xBCAB5C;
         }
 
     case BLOCK_WEEPING_VINES:
@@ -5670,11 +5700,11 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         case 3:
         case 4:
             // calibrated, four rotations
-            finalDataVal = 0x4 | ((dataVal&0x7) - 1);
+            finalDataVal = 0x4 | ((dataVal & 0x7) - 1);
             addBlock = 1;
             break;
         }
-        if ( dataVal > 7 ) {
+        if (dataVal > 7) {
             // add sculk_sensor_phase on
             finalDataVal |= BIT_16;
         }
@@ -5767,7 +5797,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
     case BLOCK_PUMPKIN:
     case BLOCK_JACK_O_LANTERN:
-    case BLOCK_CRIMSON_DOUBLE_SLAB:
     case BLOCK_RESPAWN_ANCHOR:
     case BLOCK_DANDELION:
         // uses 0-5
@@ -5868,7 +5897,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         else if (dataVal == 14) {
             addBlock = 1;
-            finalDataVal = BIT_32|BIT_16;
+            finalDataVal = BIT_32 | BIT_16;
         }
         break;
 
@@ -5964,7 +5993,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_BAMBOO_STAIRS:
     case BLOCK_BAMBOO_MOSAIC_STAIRS:
     case BLOCK_WOODEN_DOUBLE_SLAB:
-    case BLOCK_CUT_COPPER_DOUBLE_SLAB:
     case BLOCK_SUSPICIOUS_GRAVEL:
     case BLOCK_TRIAL_SPAWNER:
     case BLOCK_COPPER_GRATE:
@@ -6188,33 +6216,33 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_CORAL_WALL_FAN:
     case BLOCK_DEAD_CORAL_WALL_FAN:
         // uses 0-15 - no waterlogging (no room!)
+    {
+        int coralVal = dataVal % 5;	// 0-4 types of coral - lowest three bits 123 (4 is unused)
+        int rotVal = (dataVal - coralVal) / 5; // rotate 0-3
+        finalDataVal = (0x80 | coralVal | (((rotVal + 3) % 4) << 4));	// put into bits 56
+        addBlock = 1;
+        // add attached block
+        switch (rotVal)
         {
-            int coralVal = dataVal % 5;	// 0-4 types of coral - lowest three bits 123 (4 is unused)
-            int rotVal = (dataVal - coralVal) / 5; // rotate 0-3
-            finalDataVal = (0x80 | coralVal | (((rotVal + 3) % 4) << 4));	// put into bits 56
-            addBlock = 1;
-            // add attached block
-            switch (rotVal)
-            {
-            case 3:	// not actually used
-                // put block to south
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
-                break;
-            case 1:
-                // put block to north
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
-                break;
-            case 2:
-                // put block to east
-                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
-                break;
-            case 0:
-                // put block to west
-                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
-                break;
-            }
+        case 3:	// not actually used
+            // put block to south
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            break;
+        case 1:
+            // put block to north
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            break;
+        case 2:
+            // put block to east
+            block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            break;
+        case 0:
+            // put block to west
+            block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            break;
         }
-        break;
+    }
+    break;
     case BLOCK_LOG:	// really just 12, but we pay attention to directionless
     case BLOCK_AD_LOG:
         // add "wood" variant to map diagonally SE of original
@@ -6279,7 +6307,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_RED_SANDSTONE_SLAB:
     case BLOCK_PURPUR_SLAB:
     case BLOCK_CAMPFIRE:
-    case BLOCK_CRIMSON_SLAB:
         // uses all bits, 0-15
         addBlock = 1;
         break;
@@ -6299,9 +6326,33 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
 
+    case BLOCK_CUT_COPPER_DOUBLE_SLAB:
+        // double slabs don't have an 0x8 bit that means anything
+        if (dataVal < 8) {
+            addBlock = 1;
+            addDiagonalBlocksToMap(16+7, y, type, dataVal, finalDataVal, typeHighBit, block);
+        }
+        break;
     case BLOCK_CUT_COPPER_SLAB:
         addBlock = 1;
-        if (dataVal < 7) {
+        if ((dataVal & 0x7) < 7) {
+            // add new style diagonally SE of original
+            neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned char)(finalDataVal | HIGH_BIT | BIT_16 | typeHighBit);
+        }
+        break;
+
+    case BLOCK_CRIMSON_DOUBLE_SLAB:
+        // double slabs don't have an 0x8 bit that means anything; 6 doubles are above 0xf
+        if (dataVal < 8) {
+            addBlock = 1;
+            addDiagonalBlocksToMap(16+6, y, type, dataVal, finalDataVal, typeHighBit, block);
+        }
+        break;
+    case BLOCK_CRIMSON_SLAB:
+        addBlock = 1;
+        if ((dataVal & 0x7) < 6) {
             // add new style diagonally SE of original
             neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;

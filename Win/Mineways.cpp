@@ -3866,7 +3866,9 @@ static int loadWorld(HWND hWnd)
     case WORLD_TEST_BLOCK_TYPE:
         // load test world
         MY_ASSERT(gWorldGuide.world[0] == 0);
-        gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
+        gSpawnX = gSpawnY = gSpawnZ = gPlayerY = gPlayerZ = 0;
+        // make the player location the newest block on the map, for ease in testing and seeing new blocks
+        gPlayerX = 8 * NUM_BLOCKS_DEFINED;
         gVersionID = 3953;	// Change this to the current release number https://minecraft.wiki/w/Data_version
         gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
         setHeightsFromVersionID();
@@ -3946,6 +3948,14 @@ static int loadWorld(HWND hWnd)
             // not differentiated for now
             return error;
         }
+        // center of model
+        gSpawnX = gWorldGuide.sch.width / 2;
+        gSpawnY = gWorldGuide.sch.height / 2;   // don't know if this actually matters in any way
+        gSpawnZ = gWorldGuide.sch.length / 2;
+        // make the player location the farthest block on the map
+        gPlayerX = gWorldGuide.sch.width;
+        gPlayerY = 0;
+        gPlayerZ = gWorldGuide.sch.length;
         gMinHeight = 0;
         // newer schematics can have a height greater than 256.
         gMaxHeight = (INIT_MAP_MAX_HEIGHT > gWorldGuide.sch.height - 1) ? INIT_MAP_MAX_HEIGHT : gWorldGuide.sch.height - 1;
