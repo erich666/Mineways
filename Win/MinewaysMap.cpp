@@ -2895,6 +2895,19 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         }
         break;
 
+    case BLOCK_POINTED_DRIPSTONE:
+        switch (dataVal & BIT_16)
+        {
+        default:
+            assert(0);
+            break;
+        case 0:
+            break;
+        case BIT_16:
+            return "Sulfur Spike";
+        }
+        break;
+
     }
 
     return gBlockDefinitions[type].name;
@@ -4636,6 +4649,18 @@ unsigned int GetBlockDataColor(int type, int dataVal)
             return 0x6F5734;
         }
 
+    case BLOCK_POINTED_DRIPSTONE:
+        switch (dataVal & BIT_16)
+        {
+        default:
+            assert(0);
+        case 0:
+            return gBlockDefinitions[type].color;
+        case BIT_16:
+            return 0xB8AC5F;
+        }
+        break;
+
     default:
         // Everything else
         color = gBlockDefinitions[type].color;
@@ -5875,8 +5900,9 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         if (dataVal < 5 || (dataVal >= 8 && dataVal <= 12))
         {
             addBlock = 1;
+            // and sulfur_spike version:
+            addDiagonalBlocksToMap(32, y, type, dataVal, finalDataVal, typeHighBit, block);
         }
-        // TODO: could add vertical versions, joined and unjoined, in my copious free time
         break;
 
     case BLOCK_LIGHTNING_ROD:

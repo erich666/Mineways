@@ -473,7 +473,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 387 */ "Lit White Candle",            	0xF9E6B6, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 48, 0x30, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_EMITTER },    // note lit candles should never waterlog, as they'd go out
     { /* 388 */ "Block of Amethyst",            0x8C67C2, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 49, 0x3f, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
     { /* 389 */ "Small Amethyst Bud",   		0xA982CD, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 49, 0x03, BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_EMITTER | BLF_MAYWATERLOG },    // could be a BLF_BILLBOARD?
-    { /* 390 */ "Pointed Dripstone",            0x846A5B, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 49, 0x10, BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_MAYWATERLOG },	// NODO: could maybe make some true geometry instead for 3D printing, but it's iffy and a lot of work
+    { /* 390 */ "Pointed Dripstone",            0x846A5B, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 49, 0x10, BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_MAYWATERLOG },    // and sulfur_spike
     { /* 391 */ "Cut Copper Stairs",            0xC16D53, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 392 */ "Exposed Cut Copper Stairs",    0x9E7B67, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 393 */ "Weathered Cut Copper Stairs",  0x6F936E, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },

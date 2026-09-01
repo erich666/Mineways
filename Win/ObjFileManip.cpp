@@ -14737,16 +14737,21 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
             }
         }
         break;
-    case BLOCK_POINTED_DRIPSTONE:
+    case BLOCK_POINTED_DRIPSTONE:				// saveBillboardFacesExtraData
         wobbleIt = true;
+        if (dataVal & BIT_16)
+        {
+            swatchLoc = SWATCH_INDEX(13, 78);
+        }
         // swatch is indexed directly by dataVal
+        // Bottom 3 bits are actually 5 states, 0-4, and bit 0x8 is "down" if set, so selecting from the next 5 textures.
         swatchLoc += (dataVal & 0x7) + ((dataVal & 0x8) ? 5 : 0);
         break;
-    case BLOCK_PALE_HANGING_MOSS:
+    case BLOCK_PALE_HANGING_MOSS:				// saveBillboardFacesExtraData
         // add one if tip 0x1 on, i.e., just add the data val
         swatchLoc += (dataVal & 0x1);
         break;
-    case BLOCK_CAVE_VINES:
+    case BLOCK_CAVE_VINES:				// saveBillboardFacesExtraData
     case BLOCK_CAVE_VINES_LIT:
         // doesn't see to wobble: wobbleIt = true;
         // swatch is indexed directly by dataVal
@@ -20138,7 +20143,6 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_MELON_STEM:
         case BLOCK_SEAGRASS:
         case BLOCK_CONDUIT:
-        case BLOCK_POINTED_DRIPSTONE:
         case BLOCK_PALE_HANGING_MOSS:
         case BLOCK_SPORE_BLOSSOM:
         case BLOCK_GLOW_LICHEN:
@@ -20154,7 +20158,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             // as above, but rotated
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 270);
             break;
-        case BLOCK_MONSTER_SPAWNER:
+        case BLOCK_MONSTER_SPAWNER:						// getSwatch
         case BLOCK_COBWEB:
         case BLOCK_FIRE:
         case BLOCK_SUGAR_CANE:
@@ -20191,6 +20195,14 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 // grass randomly rotates, snowy grass does not (not that you'd ever really notice, since it's covered with snow, but still).
                 randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
             }
+            break;
+        case BLOCK_POINTED_DRIPSTONE:						// getSwatch
+            // or spiked sulfur
+            if (dataVal & BIT_16)
+            {
+                swatchLoc = SWATCH_INDEX(13, 78);
+            }
+            swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             break;
         case BLOCK_DIRT:						// getSwatch
             switch (dataVal & 0x7)
@@ -22117,6 +22129,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 angle += 180;
             else if (((dataVal & 0x7) == 6) || ((dataVal & 0x7) == 0))
                 angle += 90;
+            // angle could now be 360 or more, so modulo it
+            angle = angle % 360;
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, angle);
             break;
         case BLOCK_TRIPWIRE_HOOK:				// getSwatch

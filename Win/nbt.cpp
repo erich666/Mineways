@@ -427,9 +427,6 @@ static TranslationTuple* modTranslations = NULL;
 //   bit  0x10 (BIT_16): chiseled variant marker (from BlockTranslations subtype)
 #define BOOKSHELF_PROP 76
 
-
-#define NUM_TRANS 1205
-
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
     // hash is computed once when 1.13 data is first read in.
@@ -1663,6 +1660,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 105,   HIGH_BIT | BIT_16 | 3, "sulfur_slab", SLAB_PROP },
     { 0, 105,   HIGH_BIT | BIT_16 | 4, "polished_sulfur_slab", SLAB_PROP },
     { 0, 105,   HIGH_BIT | BIT_16 | 5, "sulfur_brick_slab", SLAB_PROP },
+    { 0, 134,   HIGH_BIT | BIT_16, "sulfur_spike", DRIPSTONE_PROP },    // 5 thicknesses, vertical_direction: up/down
 
     // 1.20.3 additions (short_grass added next to "grass", above), https://minecraft.wiki/w/Java_Edition_1.20.3#General_2
 
@@ -4332,7 +4330,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                                 assert(0);
                             }
                         }
-                        // also for pointed dripstone https://minecraft.wiki/w/Pointed_Dripstone#ID
+                        // also for pointed dripstone https://minecraft.wiki/w/Pointed_Dripstone#ID and sulfur spike
                         else if (strcmp(token, "vertical_direction") == 0) {
                             vertical_direction = (strcmp(value, "down") == 0) ? 0x8 : 0;
                         }
@@ -5120,7 +5118,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 dropper_facing = 0;
                 break;
             case DRIPSTONE_PROP:
-                // up is vertical_direction, and if "down" the value is set to 0x08
+                // vertical_direction is 0x8 bit, and if "down" the value is set to 0x08 (up is 0x0)
                 dataVal = thickness | vertical_direction;
                 break;
             case BIG_DRIPLEAF_PROP:

@@ -7471,13 +7471,19 @@ static int interpretImportLine(char* line, ImportedSet& is)
                     noSelection = true;
                 }
                 else if (_stricmp(string1, "all") == 0) {
-                    // well, not quite all, but good enough for almost all schematics
-                    // TODO: could make it apply to just schematics, but this is actually kind of handy
-                    // for Creative superflat worlds where you just want to export a model.
-                    v[0] = v[2] = -5000;
-                    v[1] = gMinHeight;
-                    v[3] = v[5] = 5000;
-                    v[4] = gMaxHeight;
+                    // Test if a schematic is loaded. If so, use its bounds instead.
+                    if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE) {
+                        v[0] = v[1] = v[2] = 0;
+                        v[3] = gWorldGuide.sch.width - 1;
+                        v[4] = gWorldGuide.sch.height - 1;
+                        v[5] = gWorldGuide.sch.length - 1;
+                    } else {
+                        // well, not quite all, but a big chunk - TODO: should it work more like ctrl-A (ID_SELECT_ALL)?
+                        v[0] = v[2] = -5000;
+                        v[1] = gMinHeight;
+                        v[3] = v[5] = 5000;
+                        v[4] = gMaxHeight;
+                    }
                 }
                 else {
                     // bad parse - warn and quit

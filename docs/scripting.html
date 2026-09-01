@@ -219,7 +219,7 @@ Sets terrain file to be used. Full path is recommended; if just a file name is g
 Color scheme: <i>No glass blocks</i>
 </td>
 <td>
-Selects the named <a href="mineways.html#schemes">color scheme</a>, if available. "Standard" is the default.
+<B>DEPRECATED!</B> Selects the named <a href="mineways.html#schemes">color scheme</a>, if available. "Standard" is the default. No longer supported in version 13.00 on. Use culling schemes instead.
 </td>
 </tr>
 
@@ -240,7 +240,7 @@ Selection location: none
 Selection location: all
 </td>
 <td>
-Select the volume to be exported, inclusive. Either form is fine. The volume is defined by a minimum and maximum block location. The commas, spaces, and "to" string do matter here. If "none" is found, deselection occurs (Escape key in Mineways). If "all" is found, the values <i>-5000, 0, -5000</i> to <i>5000, 255, 5000</i> are used, which is usually enough to select any schematic imported - this is just a simple shorthand instead of writing it all out. This option is also handy for superflat Creative worlds, where you just want to export the whole place.
+Select the volume to be exported, inclusive. Either form is fine. The volume is defined by a minimum and maximum block location. The commas, spaces, and "to" string do matter here. If "none" is found, deselection occurs (Escape key in Mineways). If "all" is found, the values <i>-5000, 0, -5000</i> to <i>5000, 255, 5000</i> are used for a world, which is fine for a small world - this is just a simple shorthand instead of writing it all out. For schematics, this selects the whole schematic and nothing else (similar to Control-A).
 </td>
 </tr>
 
@@ -357,14 +357,14 @@ Here is an example of a script using the commands above.
 <P>
 <div id="code">
 Minecraft world: My Cool World<br>
-Color scheme: no glass<br>
+Culling scheme: no glass<br>
 Terrain file name: C:\Users\erich\Desktop\Mineways\terrainExt_DokuLight.png<br>
 Set render type: Wavefront OBJ absolute indices<br>
 Use biomes: no<br>
 Selection location min to max: -368, 83, 16 to -351, 255, 30<br>
 </div>
 <P>
-This loads a world, changes its color scheme to "no glass", selects a terrain file, selects rendering to an OBJ file, turn biomes on, and finally selects a volume to export.	
+This loads a world, changes its culling scheme to "no glass", selects a terrain file, selects rendering to an OBJ file, turn biomes on, and finally selects a volume to export.	
 
 
 <h2 id="sic">Scripting Interface Commands</h2>
@@ -1106,7 +1106,7 @@ What follows are the default rendering options when Export for Rendering is perf
 // Wavefront OBJ file made by Mineways version 10.13, http://mineways.com<br>
 World: 1_19 test world<br>
 Terrain file name: terrainExt.png<br>
-Color scheme: Standard<br>
+Culling scheme: Standard<br>
 // Thu Mar 30 15:49:01 2023<br>
 <br>
 Selection location min to max: -1, -61, 4 to 7, 319, 7<br>
@@ -1202,7 +1202,7 @@ Running the script to set up the scene, then exporting (manually) to Sketchfab, 
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 8/31/2026</p>	</div>
+		<br id="lastUpdate">Last updated 9/1/2026</p>	</div>
 </div>
 
 </body>
