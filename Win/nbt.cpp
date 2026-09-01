@@ -3833,6 +3833,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             age = atoi(value);
                         }
                         // RAIL_PROP and STAIRS_PROP - we ignore the stairs effect, instead deriving it from the geometry. Seems to work fine.
+                        // But, we still hold on to the shape property (5 states, bits 0x28), so that we can export to schematics.
                         else if (strcmp(token, "shape") == 0) {
                             // stairs
                             if (strcmp(value, "straight") == 0) {
@@ -6026,13 +6027,19 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
                 if (strcmp(v, "east") == 0) b = 0;
                 else if (strcmp(v, "west") == 0) b = 1;
                 else if (strcmp(v, "south") == 0) b = 2;
-                else b = 3;
+                else b = 3; // "north"
                 dataVal = (dataVal & ~0x3) | b;
             }
             else if (strcmp(k, "half") == 0) {
-                if (strcmp(v, "top") == 0) dataVal |= 0x4;
+                if (strcmp(v, "top") == 0) dataVal |= 0x4;  // else "bottom" which is 0
             }
-            // shape ignored (writer always emits "straight")
+            else if (strcmp(k, "shape") == 0) {
+                if (strcmp(v, "inner_left") == 0) dataVal |= BIT_8 | BIT_32;
+                else if (strcmp(v, "inner_right") == 0) dataVal |= BIT_8;
+                else if (strcmp(v, "outer_left") == 0) dataVal |= BIT_16 | BIT_32;
+                else if (strcmp(v, "outer_right") == 0) dataVal |= BIT_16;
+                //else b = 0; // "straight"
+            }
             break;
 
         case SLAB_PROP:
@@ -7379,8 +7386,17 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         }
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "half", (dataVal & 0x4) ? "top" : "bottom");
-        // shape is always emitted as straight; Mineways doesn't track inner/outer corner shape.
-        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "shape", "straight");
+        int stairshape = dataVal & 0x038;
+        const char* stairshapeStr;
+        switch (stairshape) {
+        default: assert(0); stairshapeStr = "straight"; break;
+        case 0:  stairshapeStr = "straight"; break;
+        case BIT_8 | BIT_32:  stairshapeStr = "inner_left"; break;
+        case BIT_8:  stairshapeStr = "inner_right"; break;
+        case BIT_16 | BIT_32:  stairshapeStr = "outer_left"; break;
+        case BIT_16:  stairshapeStr = "outer_right"; break;
+        }
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "shape", stairshapeStr);
         break;
     }
 
