@@ -7095,38 +7095,38 @@ static const char* spongeAxisFromDataVal(int dataVal)
 // Defined in nbt.h; kept here so they can see the BlockTranslator struct and findSpongeTranslator
 // directly without exposing either to the rest of the codebase.
 
-int blockTransCount(void)
+// Every field the various property-emission arms of spongeBuildBlockStateString() need out of
+// the remap step below, plus the (type, dataVal) that should actually be used to look up the
+// BlockTranslations[] row. lookupDataVal differs from dataVal only for the copper-bulb case,
+// where the "lit" bit must stay in dataVal for property emission but be masked off for the
+// subtype match.
+struct SpongeLookupRemap
 {
-    return NUM_TRANS;
-}
+    int type;
+    int dataVal;
+    int lookupDataVal;
+    bool isLitFurnace;
+    bool isLitRedstoneOre;
+    bool isLitCandle;
+    bool isPoweredRepeater;
+    bool isInvertedDaylightDetector;
+    bool isBerriesLit;
+    bool isDoubleSlab;
+};
 
-bool blockTransNameAt(int idx, const char** outName)
+// Rewrites a runtime (type, dataVal) pair onto whichever id/dataVal combination actually has a
+// row in BlockTranslations[], recording along the way which "collapsed" variant it started as
+// (lit furnace, glowing redstone ore, lit redstone lamp, lit candle, unlit redstone torch,
+// powered repeater, deprecated comparator, inverted daylight detector, berry-bearing cave
+// vines, double slab, lit copper bulb) so callers that build property strings can still emit
+// the right value. This is the single source of truth for the remap: BOTH
+// spongeBuildBlockStateString() (export naming) and blockTransIndexFor() (Culling Schemes /
+// isBlockCulled lookup) must go through this, or whichever one doesn't will silently fail to
+// resolve any of the ids handled here — that's what happened with the daylight detector's
+// inverted form falling through and never being cullable.
+static SpongeLookupRemap remapForSpongeLookup(int type, int dataVal)
 {
-    if (idx < 0 || idx >= NUM_TRANS) return false;
-    if (BlockTranslations[idx].name == NULL) return false;
-    *outName = BlockTranslations[idx].name;
-    return true;
-}
-
-int blockTransIndexFor(int type, int dataVal)
-{
-    // Lazy-init the reverse index the same way spongeBuildBlockStateString does — running
-    // this from the Culling render hook before any .schem export has otherwise initialized it.
-    buildSpongeReverseIndex();
-    const BlockTranslator* e = findSpongeTranslator(type, dataVal);
-    if (e == NULL) return -1;
-    return (int)(e - BlockTranslations);
-}
-
-int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
-{
-    if (out == NULL || outSize <= 0) return -1;
-    buildSpongeReverseIndex();
-
-    // Capture the caller's original block id before any of the remaps below rewrite it. A few
-    // property arms (TORCH_PROP for the unlit redstone-torch case) want to consult the original
-    // identity even after the remap has folded 75 onto 76 to satisfy the palette lookup.
-    int origType = type & 0x1FF;
+    SpongeLookupRemap r;
 
     // Log family quirk: Mineways uses dataVal bits 0xC == 0xC to mean "all faces are sides"
     // (see ObjFileManip.cpp's getSwatch arm for BLOCK_LOG and friends). In modern Minecraft this
@@ -7178,36 +7178,36 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     // without this remap the burning variants fall through to "minecraft:air". Remap to
     // BLOCK_FURNACE (61) — which has "furnace" / "loom" / "smoker" / "blast_furnace" entries
     // distinguished by BIT_16 / BIT_32 in dataVal — and emit `lit=true` in the FURNACE_PROP arm.
-    bool isLitFurnace = false;
+    r.isLitFurnace = false;
     if ((type & 0x1FF) == BLOCK_BURNING_FURNACE) {
         type = BLOCK_FURNACE;
-        isLitFurnace = true;
+        r.isLitFurnace = true;
     }
 
     // REDSTONE_ORE_PROP lit-fixup: Mineways stores the lit form at blockId + 1 (see arm in
     // readPalette: `if (lit) paletteBlockEntry[entryIndex]++;`). The "unlit" entries
     // ("redstone_ore" at 73, "redstone_lamp" at 123) are in BlockTranslations; the lit ones
     // (74, 124) are not, so they fell to "minecraft:air". Remap and emit `lit=true` below.
-    bool isLitRedstoneOre = false;
+    r.isLitRedstoneOre = false;
     if ((type & 0x1FF) == BLOCK_GLOWING_REDSTONE_ORE) {
         type = BLOCK_REDSTONE_ORE;
-        isLitRedstoneOre = true;
+        r.isLitRedstoneOre = true;
     } else if ((type & 0x1FF) == 124) {  // lit redstone_lamp; no named constant in blockInfo.h
         type = 123;                       // unlit redstone_lamp
-        isLitRedstoneOre = true;
+        r.isLitRedstoneOre = true;
     }
 
     // CANDLE_PROP lit-fixup: same `++blockId on lit` pattern (readPalette CANDLE_PROP arm
     // ~nbt.cpp:4515). The lit forms (BLOCK_LIT_CANDLE=385, BLOCK_LIT_COLORED_CANDLE=387) have
     // no BlockTranslations entries. Remap to their unlit twins so the right palette entry is
     // chosen, then emit `lit=true` in the CANDLE_PROP arm.
-    bool isLitCandle = false;
+    r.isLitCandle = false;
     if ((type & 0x1FF) == BLOCK_LIT_CANDLE) {
         type = BLOCK_CANDLE;
-        isLitCandle = true;
+        r.isLitCandle = true;
     } else if ((type & 0x1FF) == BLOCK_LIT_COLORED_CANDLE) {
         type = BLOCK_COLORED_CANDLE;
-        isLitCandle = true;
+        r.isLitCandle = true;
     }
 
     // Redstone-torch unlit-fixup: Mineways uses BLOCK_REDSTONE_TORCH_OFF (75) for the unlit
@@ -7224,10 +7224,10 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     // "repeater" entry in BlockTranslations only exists under blockId 93, so without this
     // remap the powered form fell through to "minecraft:air". Remap 94 -> 93 so the lookup
     // hits the REPEATER_PROP entry, and let that arm emit `powered=true` via this flag.
-    bool isPoweredRepeater = false;
+    r.isPoweredRepeater = false;
     if ((type & 0x1FF) == BLOCK_REDSTONE_REPEATER_ON) {
         type = (type & ~0x1FF) | BLOCK_REDSTONE_REPEATER_OFF;
-        isPoweredRepeater = true;
+        r.isPoweredRepeater = true;
     }
 
     // Redstone-comparator deprecated-fixup: BLOCK_REDSTONE_COMPARATOR_DEPRECATED (150) is an
@@ -7245,20 +7245,20 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     // DAYLIGHT_PROP arm ~nbt.cpp:4864 which switches blockId to 178 when inverted=true).
     // BlockTranslations only has "daylight_detector" under 151, so 178 fell through to
     // "minecraft:air". Remap to 151 and let the DAYLIGHT_PROP arm emit `inverted=true`.
-    bool isInvertedDaylightDetector = false;
+    r.isInvertedDaylightDetector = false;
     if ((type & 0x1FF) == BLOCK_DAYLIGHT_DETECTOR) {
         type = (type & ~0x1FF) | BLOCK_DAYLIGHT_SENSOR;
-        isInvertedDaylightDetector = true;
+        r.isInvertedDaylightDetector = true;
     }
 
     // BERRIES_PROP berries-fixup: BLOCK_CAVE_VINES_LIT (405) is created by the read side
     // when berries=true (BERRIES_PROP arm at nbt.cpp:4942 increments the block ID). BlockTranslations
     // has no 405 entry, so without a remap the berry-bearing cave vines would drop to air.
     // Remap to BLOCK_CAVE_VINES (404) and emit berries=true below.
-    bool isBerriesLit = false;
+    r.isBerriesLit = false;
     if ((type & 0x1FF) == BLOCK_CAVE_VINES_LIT) {
         type = BLOCK_CAVE_VINES;
-        isBerriesLit = true;
+        r.isBerriesLit = true;
     }
 
     // Double slab fixup: Mineways stores doubled slabs as a separate block ID one below the
@@ -7266,7 +7266,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     // does `paletteBlockEntry[entryIndex]--`). BlockTranslations has no entries for the
     // BLOCK_*_DOUBLE_SLAB IDs, so without this remap they fall through to "minecraft:air"
     // (silently dropped by WorldEdit). Remap to the single slab and emit `type=double` below.
-    bool isDoubleSlab = false;
+    r.isDoubleSlab = false;
     switch (type & 0x1FF) {
     case BLOCK_STONE_DOUBLE_SLAB:           // 43 → 44 (smooth_stone_slab/sandstone_slab/...)
     case BLOCK_WOODEN_DOUBLE_SLAB:          // 125 → 126 (oak_slab/spruce_slab/...)
@@ -7276,7 +7276,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     case BLOCK_CRIMSON_DOUBLE_SLAB:         // 360 → 361
     case BLOCK_CUT_COPPER_DOUBLE_SLAB:      // 397 → 398
         type = type + 1;
-        isDoubleSlab = true;
+        r.isDoubleSlab = true;
         break;
     default:
         break;
@@ -7289,7 +7289,68 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     if ((type & 0x1FF) == BLOCK_COPPER_BULB) {
         lookupDataVal &= ~0x8;
     }
-    const BlockTranslator* e = findSpongeTranslator(type, lookupDataVal);
+
+    r.type = type;
+    r.dataVal = dataVal;
+    r.lookupDataVal = lookupDataVal;
+    return r;
+}
+
+int blockTransCount(void)
+{
+    return NUM_TRANS;
+}
+
+bool blockTransNameAt(int idx, const char** outName)
+{
+    if (idx < 0 || idx >= NUM_TRANS) return false;
+    if (BlockTranslations[idx].name == NULL) return false;
+    *outName = BlockTranslations[idx].name;
+    return true;
+}
+
+int blockTransIndexFor(int type, int dataVal)
+{
+    // Lazy-init the reverse index the same way spongeBuildBlockStateString does — running
+    // this from the Culling render hook before any .schem export has otherwise initialized it.
+    buildSpongeReverseIndex();
+    // Apply the same remap spongeBuildBlockStateString() applies (see remapForSpongeLookup)
+    // before searching BlockTranslations[]. Without this, every id that only exists in
+    // BlockTranslations[] under a *different* runtime id — lit furnace, glowing redstone ore,
+    // lit redstone lamp, lit candles, unlit redstone torch, powered repeater, deprecated
+    // comparator, inverted daylight detector, berry-bearing cave vines, double slabs, lit
+    // copper bulbs — fails findSpongeTranslator(), blockTransIndexFor() returns -1, and
+    // isBlockCulled() silently treats the block as "never culled" no matter what the active
+    // Culling Scheme says. (This was the daylight-detector bug: the inverted form is stored
+    // as blockId 178, but BlockTranslations only has a row for it under 151.)
+    SpongeLookupRemap r = remapForSpongeLookup(type, dataVal);
+    const BlockTranslator* e = findSpongeTranslator(r.type, r.lookupDataVal);
+    if (e == NULL) return -1;
+    return (int)(e - BlockTranslations);
+}
+
+int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
+{
+    if (out == NULL || outSize <= 0) return -1;
+    buildSpongeReverseIndex();
+
+    // Capture the caller's original block id before any of the remaps below rewrite it. A few
+    // property arms (TORCH_PROP for the unlit redstone-torch case) want to consult the original
+    // identity even after the remap has folded 75 onto 76 to satisfy the palette lookup.
+    int origType = type & 0x1FF;
+
+    SpongeLookupRemap r = remapForSpongeLookup(type, dataVal);
+    type = r.type;
+    dataVal = r.dataVal;
+    bool isLitFurnace = r.isLitFurnace;
+    bool isLitRedstoneOre = r.isLitRedstoneOre;
+    bool isLitCandle = r.isLitCandle;
+    bool isPoweredRepeater = r.isPoweredRepeater;
+    bool isInvertedDaylightDetector = r.isInvertedDaylightDetector;
+    bool isBerriesLit = r.isBerriesLit;
+    bool isDoubleSlab = r.isDoubleSlab;
+
+    const BlockTranslator* e = findSpongeTranslator(type, r.lookupDataVal);
     if (e == NULL) {
         int n = snprintf(out, (size_t)outSize, "minecraft:air");
         return (n > 0 && n < outSize) ? n : -1;
