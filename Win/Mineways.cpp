@@ -6690,7 +6690,7 @@ Encoding detectEncoding(const wchar_t* importFile) {
     size_t oddNulls = 0;
 
     for (std::streamsize i = 0; i < bytesRead; ++i) {
-        if (buffer[i] == 0x00) {
+        if (buffer[static_cast<unsigned int>(i)] == 0) {
             if (i % 2 == 0) evenNulls++;
             else oddNulls++;
         }
