@@ -2774,21 +2774,17 @@ ZRESULT TZip::istore()
 
 ZRESULT TZip::Add(const char *odstzn, void *src,unsigned int len, DWORD flags)
 { 
-	if (oerr)
+	if (oerr) 
 		return ZR_FAILED;
-	if (hasputcen)
+	if (hasputcen) 
 		return ZR_ENDED;
-	if (odstzn == NULL)
-		return ZR_ARGS;
-	size_t dstznLen = strlen(odstzn);
-	if (dstznLen == 0 || dstznLen >= MAX_PATH ||
-		(flags == ZIP_FOLDER && odstzn[dstznLen - 1] != '/' && odstzn[dstznLen - 1] != '\\' && dstznLen >= MAX_PATH - 1))
-		return ZR_ARGS;
 
 	// zip has its own notion of what its names should look like: i.e. dir/file.stuff
-	char dstzn[MAX_PATH];
+	char dstzn[MAX_PATH]; 
 	strcpy(dstzn, odstzn);
-	char *d=dstzn;
+	if (*dstzn == 0) 
+		return ZR_ARGS;
+	char *d=dstzn; 
 	while (*d != 0) 
 	{
 		if (*d == '\\') 
@@ -3083,8 +3079,6 @@ ZRESULT ZipAdd(HZIP hz, const TCHAR *dstzn, void *src, unsigned int len, DWORD f
 		if (nActualChars == 0)
 			return ZR_ARGS; 
 #else
-		if (strlen(dstzn) >= sizeof(szDest))
-			return ZR_ARGS;
 		strcpy(szDest, dstzn);
 #endif
 
@@ -3135,57 +3129,85 @@ bool IsZipHandleZ(HZIP hz)
 */
 BOOL AddFolderContent(HZIP hZip, TCHAR* AbsolutePath, TCHAR* DirToAdd)
 {
-	if (hZip == NULL || AbsolutePath == NULL || DirToAdd == NULL ||
-		*AbsolutePath == _T('\0') || *DirToAdd == _T('\0'))
+	HANDLE hFind; // file handle
+	WIN32_FIND_DATA FindFileData;
+	TCHAR PathToSearchInto [MAX_PATH] = {0};
+	
+	// bizarrely, if I comment this out, things work fine.
+	// Putting it in makes an extra directory of a single letter get created. Mysterious.
+	//if (NULL != DirToAdd)
+	//{
+	//	ZipAdd(hZip, DirToAdd, 0, 0, ZIP_FOLDER);
+	//}
+	
+	// Construct the path to search into "C:\\Windows\\System32\\*"
+	_tcscpy(PathToSearchInto, AbsolutePath);
+	_tcscat(PathToSearchInto, _T("\\"));
+	_tcscat(PathToSearchInto, DirToAdd);
+	_tcscat(PathToSearchInto, _T("\\*"));
+	
+	hFind = FindFirstFile(PathToSearchInto,&FindFileData); // find the first file
+	if(hFind == INVALID_HANDLE_VALUE)
+	{
 		return FALSE;
-
-	TCHAR pathToSearch[MAX_PATH];
-	if (_sntprintf_s(pathToSearch, _countof(pathToSearch), _TRUNCATE,
-		_T("%s\\%s\\*"), AbsolutePath, DirToAdd) < 0)
-		return FALSE;
-
-	WIN32_FIND_DATA findFileData;
-	HANDLE hFind = FindFirstFile(pathToSearch, &findFileData);
-	if (hFind == INVALID_HANDLE_VALUE)
-		return FALSE;
-
-	BOOL success = TRUE;
-	for (;;) {
-		bool isDots = (_tcscmp(findFileData.cFileName, _T(".")) == 0) ||
-			(_tcscmp(findFileData.cFileName, _T("..")) == 0);
-		bool isReparsePoint = (findFileData.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
-		if (!isDots && !isReparsePoint) {
-			TCHAR relativePath[MAX_PATH];
-			if (_sntprintf_s(relativePath, _countof(relativePath), _TRUNCATE,
-				_T("%s\\%s"), DirToAdd, findFileData.cFileName) < 0) {
-				success = FALSE;
-				break;
-			}
-
-			if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-				if (!AddFolderContent(hZip, AbsolutePath, relativePath)) {
-					success = FALSE;
-					break;
-				}
-			}
-			else {
-				TCHAR sourcePath[MAX_PATH];
-				if (_sntprintf_s(sourcePath, _countof(sourcePath), _TRUNCATE,
-					_T("%s\\%s"), AbsolutePath, relativePath) < 0 ||
-					ZipAdd(hZip, relativePath, sourcePath, 0, ZIP_FILENAME) != ZR_OK) {
-					success = FALSE;
-					break;
-				}
-			}
-		}
-
-		if (!FindNextFile(hFind, &findFileData)) {
-			if (GetLastError() != ERROR_NO_MORE_FILES)
-				success = FALSE;
-			break;
-		}
 	}
-
-	FindClose(hFind);
-	return success;
+	
+	bool bSearch = true;
+	while(bSearch) // until we finds an entry
+	{
+		if(FindNextFile(hFind,&FindFileData))
+		{
+			// Don't care about . and ..
+			//if(IsDots(FindFileData.cFileName))
+			if ((_tcscmp(FindFileData.cFileName, _T(".")) == 0) ||
+				(_tcscmp(FindFileData.cFileName, _T("..")) == 0))
+				continue;
+			
+			// We have found a directory
+			if((FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+			{
+				TCHAR RelativePathNewDirFound[MAX_PATH] = {0};
+				_tcscat(RelativePathNewDirFound, DirToAdd);
+				_tcscat(RelativePathNewDirFound, _T("\\"));
+				_tcscat(RelativePathNewDirFound, FindFileData.cFileName);
+				
+				// Recursive call with the new directory found
+				if (AddFolderContent(hZip, AbsolutePath, RelativePathNewDirFound)== FALSE)
+				{
+					return FALSE ;
+				}
+				
+			}
+			// We have found a file
+			else
+			{
+				// Add the found file to the zip file
+				TCHAR RelativePathNewFileFound[MAX_PATH] = {0};
+				_tcscpy(RelativePathNewFileFound, DirToAdd);
+				_tcscat(RelativePathNewFileFound, _T("\\"));
+				_tcscat(RelativePathNewFileFound, FindFileData.cFileName);
+				
+				if (ZipAdd(hZip, RelativePathNewFileFound, RelativePathNewFileFound, 0, ZIP_FILENAME) != ZR_OK)
+				{
+					return FALSE;
+				}
+			}
+			
+		}//FindNextFile
+		else
+		{
+			if(GetLastError() == ERROR_NO_MORE_FILES) // no more files there
+				bSearch = false;
+			else {
+				// some error occured, close the handle and return FALSE
+				FindClose(hFind);
+				return FALSE;
+			}
+		}
+	}//while
+	
+	FindClose(hFind); // closing file handle
+	return true;
+	
 }
+
