@@ -44,6 +44,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 #include <math.h>
 #include <time.h>
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <cstdint>
 
 // Should really make a full-featured error system, a la https://www.softwariness.com/articles/assertions-in-cpp/, but this'll do for now.
 // trick so that there is not a warning that there's a constant value being tested by an "if"
@@ -366,7 +370,7 @@ static struct {
     {_T("Warning: multiple separate parts found after processing.\n\nThis may not be what you want to print. Increase the value for 'Delete floating parts' to delete these. Try the 'Debug: show separate parts' export option to see if the model is what you expected."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<3
     {_T("Warning: at least one dimension of the model is too long.\n\nCheck the dimensions for this printer's material: look in the top of the model file itself, using a text editor."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<4
     {_T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock. Mineways does not understand blocks added by mods, and uses the older (simpler) schematic format so does not support blocks added in 1.13 or newer versions. If you are not using mods nor exporting 1.13 or newer blocks, your version of Mineways may be out of date. Check http://mineways.com for a newer version."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<5
-    {_T("Warning: too few rows of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt*.png with 79 rows."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<6 VERTICAL_TILES
+    {_T("Warning: too few rows of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt*.png with 80 rows."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<6 VERTICAL_TILES
     {_T("Warning: one or more Change Block commands specified location(s) that were outside the selected volume."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<6
     {_T("Warning: with the large Terrain File you're using, the output texture is extremely large. Other programs make have problems using it. We recommend that you use the 'Export tiles' option instead, or reduce the size of your Terrain File by using the '-t 256' (or smaller) option in TileMaker.\n\nThis warning will not be repeated this session."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<6
     {_T("Warning: only air blocks found; no file output. If you see something on the map, you likely need to set the Depth slider near the top to 0, or tap the space bar for a reasonable guess."), _T("Export warning"), MB_OK | MB_ICONWARNING},	// <<7
@@ -3866,7 +3870,9 @@ static int loadWorld(HWND hWnd)
     case WORLD_TEST_BLOCK_TYPE:
         // load test world
         MY_ASSERT(gWorldGuide.world[0] == 0);
-        gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
+        gSpawnX = gSpawnY = gSpawnZ = gPlayerY = gPlayerZ = 0;
+        // make the player location the newest block on the map, for ease in testing and seeing new blocks
+        gPlayerX = 8 * NUM_BLOCKS_DEFINED;
         gVersionID = 3953;	// Change this to the current release number https://minecraft.wiki/w/Data_version
         gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
         setHeightsFromVersionID();
@@ -3946,6 +3952,17 @@ static int loadWorld(HWND hWnd)
             // not differentiated for now
             return error;
         }
+        // center of model
+        gSpawnX = gWorldGuide.sch.width / 2;
+        gSpawnY = gWorldGuide.sch.height / 2;   // don't know if this actually matters in any way
+        gSpawnZ = gWorldGuide.sch.length / 2;
+        // make the player location the farthest block on the map
+        gPlayerX = gWorldGuide.sch.width;
+        gPlayerY = 0;
+        gPlayerZ = gWorldGuide.sch.length;
+        gMinHeight = 0;
+        // newer schematics can have a height greater than 256.
+        gMaxHeight = (INIT_MAP_MAX_HEIGHT > gWorldGuide.sch.height - 1) ? INIT_MAP_MAX_HEIGHT : gWorldGuide.sch.height - 1;
     }
     break;
 
@@ -6650,15 +6667,78 @@ static bool importModelFile(wchar_t* importFile, ImportedSet& is)
     return retCode;
 }
 
+enum class Encoding {
+    ASCII_OR_UTF8,
+    UTF8_BOM,
+    UTF16_LE,
+    UTF16_BE,
+    UNKNOWN
+};
+
+Encoding detectEncoding(const wchar_t* importFile) {
+    if (!importFile) return Encoding::UNKNOWN;
+
+    // Standard C++ stream on MSVC supports wchar_t path directly
+    std::ifstream file(importFile, std::ios::binary);
+    if (!file) return Encoding::UNKNOWN;
+
+    // Read initial chunk (up to 1024 bytes)
+    std::vector<uint8_t> buffer(1024);
+    file.read(reinterpret_cast<char*>(buffer.data()), buffer.size());
+    std::streamsize bytesRead = file.gcount();
+
+    if (bytesRead < 2) return Encoding::ASCII_OR_UTF8;
+
+    // 1. Check for explicit Byte Order Marks (BOM)
+    if (bytesRead >= 3 && buffer[0] == 0xEF && buffer[1] == 0xBB && buffer[2] == 0xBF) {
+        return Encoding::UTF8_BOM;
+    }
+    if (buffer[0] == 0xFF && buffer[1] == 0xFE) {
+        return Encoding::UTF16_LE;
+    }
+    if (buffer[0] == 0xFE && buffer[1] == 0xFF) {
+        return Encoding::UTF16_BE;
+    }
+
+    // 2. Heuristic check without BOM (counting null byte positions for ASCII-range characters)
+    size_t evenNulls = 0;
+    size_t oddNulls = 0;
+
+    for (std::streamsize i = 0; i < bytesRead; ++i) {
+        if (buffer[static_cast<unsigned int>(i)] == 0) {
+            if (i % 2 == 0) evenNulls++;
+            else oddNulls++;
+        }
+    }
+
+    // High null-byte density in alternating positions indicates UTF-16
+    if (oddNulls > (size_t)(bytesRead / 4) && evenNulls == 0) {
+        return Encoding::UTF16_LE; // E.g., 'S' '\0' 'h' '\0'
+    }
+    if (evenNulls > (size_t)(bytesRead / 4) && oddNulls == 0) {
+        return Encoding::UTF16_BE; // E.g., '\0' 'S' '\0' 'h'
+    }
+
+    return Encoding::ASCII_OR_UTF8;
+}
+
 // true if all went well
 static bool readAndExecuteScript(wchar_t* importFile, ImportedSet& is)
 {
     FILE* fh;
+    wchar_t buf[2*MAX_PATH_AND_FILE];
     errno_t err = _wfopen_s(&fh, importFile, L"rt");
 
     if (err != 0) {
-        wchar_t buf[MAX_PATH_AND_FILE];
         swprintf_s(buf, _countof(buf), L"Error: could not read file %s", importFile);
+        saveErrorMessage(is, buf);
+        return false;
+    }
+
+    // check if the script is not a UTF-8 file
+    Encoding enc = detectEncoding(importFile);
+    if (enc != Encoding::ASCII_OR_UTF8) {
+        swprintf_s(buf, _countof(buf), L"Error: file %s appears to not contain single-byte ASCII characters. If you are generating it with a Python script, for example, use Windows' Command Prompt instead of Powershell. Powershell generates two-byte characters.", importFile);
         saveErrorMessage(is, buf);
         return false;
     }
@@ -6770,7 +6850,6 @@ static bool readAndExecuteScript(wchar_t* importFile, ImportedSet& is)
 
     err = _wfopen_s(&fh, importFile, L"rt");
     if (err != 0) {
-        wchar_t buf[MAX_PATH_AND_FILE];
         swprintf_s(buf, _countof(buf), L"Error: could not read file %s", importFile);
         saveErrorMessage(is, buf);
         return false;
@@ -7419,13 +7498,19 @@ static int interpretImportLine(char* line, ImportedSet& is)
                     noSelection = true;
                 }
                 else if (_stricmp(string1, "all") == 0) {
-                    // well, not quite all, but good enough for almost all schematics
-                    // TODO: could make it apply to just schematics, but this is actually kind of handy
-                    // for Creative superflat worlds where you just want to export a model.
-                    v[0] = v[2] = -5000;
-                    v[1] = gMinHeight;
-                    v[3] = v[5] = 5000;
-                    v[4] = gMaxHeight;
+                    // Test if a schematic is loaded. If so, use its bounds instead.
+                    if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE) {
+                        v[0] = v[1] = v[2] = 0;
+                        v[3] = gWorldGuide.sch.width - 1;
+                        v[4] = gWorldGuide.sch.height - 1;
+                        v[5] = gWorldGuide.sch.length - 1;
+                    } else {
+                        // well, not quite all, but a big chunk - TODO: should it work more like ctrl-A (ID_SELECT_ALL)?
+                        v[0] = v[2] = -5000;
+                        v[1] = gMinHeight;
+                        v[3] = v[5] = 5000;
+                        v[4] = gMaxHeight;
+                    }
                 }
                 else {
                     // bad parse - warn and quit
@@ -10463,7 +10548,7 @@ static void checkMapDrawErrorCode(int retCode)
         if (gOneTimeWorldWarning & retCode) {
             // NBT_WARNING_DIRECTORY_NOT_FOUND
             // currently the only warning - we will someday look at bits, I guess, in retCode
-            swprintf_s(fullbuf, _countof(fullbuf), _T("Warning: there is no 'region' directory found for this world. It may simply not exist.\n\nMineways checks for both the old format (e.g. 'region', 'DIM-1/region') and the new format used by snapshot 25w02a and later (e.g. 'dimensions/minecraft/overworld/region').\n\nIf you are using WorldTools, you may need to move the 'region' directory to the correct location relative to your 'level.dat' file.\n") );
+            swprintf_s(fullbuf, _countof(fullbuf), _T("Warning: there is no 'region' directory found for this world. It may simply not exist.\n\nMineways checks for both the old format (e.g. 'region', 'DIM-1/region') and the new format used by snapshot 25w02a and later (e.g. 'dimensions/minecraft/overworld/region').\n\nIf you are using WorldTools, Journeymap, or other tools, you may need to move the 'region' directory to the correct location relative to your 'level.dat' file.\n") );
             FilterMessageBox(NULL, fullbuf,
                 _T("Warning"), MB_OK | MB_ICONWARNING | MB_TOPMOST);
             gOneTimeWorldWarning &= ~NBT_WARNING_DIRECTORY_NOT_FOUND;

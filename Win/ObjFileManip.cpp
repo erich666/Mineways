@@ -5410,6 +5410,24 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             // Resin Brick wall
             swatchLoc = SWATCH_INDEX(1, 67);
             break;
+        case 26: // cinnabar
+            swatchLoc = SWATCH_INDEX(4, 78);
+            break;
+        case 27: // polished_cinnabar
+            swatchLoc = SWATCH_INDEX(5, 78);
+            break;
+        case 28: // cinnabar_bricks
+            swatchLoc = SWATCH_INDEX(6, 78);
+            break;
+        case 29: // sulfur
+            swatchLoc = SWATCH_INDEX(8, 78);
+            break;
+        case 30: // polished_sulfur
+            swatchLoc = SWATCH_INDEX(9, 78);
+            break;
+        case 31: // sulfur_bricks
+            swatchLoc = SWATCH_INDEX(10, 78);
+            break;
         }
 
         // since we erase "billboard" objects as we go, we need to test against origType.
@@ -6321,6 +6339,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_TUFF_BRICK_STAIRS:
     case BLOCK_PALE_OAK_STAIRS:
     case BLOCK_RESIN_BRICK_STAIRS:
+    case BLOCK_CINNABAR_STAIRS:
+    case BLOCK_POLISHED_CINNABAR_STAIRS:
+    case BLOCK_CINNABAR_BRICK_STAIRS:
+    case BLOCK_SULFUR_STAIRS:
+    case BLOCK_POLISHED_SULFUR_STAIRS:
+    case BLOCK_SULFUR_BRICK_STAIRS:
         // set texture
         switch (type)
         {
@@ -6742,7 +6766,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             break;
 
         case BLOCK_CRIMSON_SLAB:
-            switch (dataVal & 0x7)
+            switch (dataVal & 0x17)
             {
             default: // normal log
                 assert(0);
@@ -6771,6 +6795,24 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 break;
             case 7:	// resin brick
                 topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(1, 67);
+                break;
+            case BIT_16 | 0: // cinnabar
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc =  SWATCH_INDEX(4, 78);
+                break;
+            case BIT_16 | 1: // polished_cinnabar
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc =  SWATCH_INDEX(5, 78);
+                break;
+            case BIT_16 | 2: // cinnabar_bricks
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc =  SWATCH_INDEX(6, 78);
+                break;
+            case BIT_16 | 3: // sulfur
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc =  SWATCH_INDEX(8, 78);
+                break;
+            case BIT_16 | 4: // polished_sulfur
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc =  SWATCH_INDEX(9, 78);
+                break;
+            case BIT_16 | 5: // sulfur_bricks
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc =  SWATCH_INDEX(10, 78);
                 break;
             }
             break;
@@ -14038,6 +14080,12 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
             case BLOCK_TUFF_BRICK_STAIRS:
             case BLOCK_PALE_OAK_STAIRS:
             case BLOCK_RESIN_BRICK_STAIRS:
+            case BLOCK_CINNABAR_STAIRS:
+            case BLOCK_POLISHED_CINNABAR_STAIRS:
+            case BLOCK_CINNABAR_BRICK_STAIRS:
+            case BLOCK_SULFUR_STAIRS:
+            case BLOCK_POLISHED_SULFUR_STAIRS:
+            case BLOCK_SULFUR_BRICK_STAIRS:
                 // TODO: Right now stairs are dumb: only the large rectangle of the base is returned.
                 // Returning the little block, which can further be trimmed to a cube, is a PAIN.
                 // This does mean the little stair block sides won't be deleted. Ah well.
@@ -14729,16 +14777,21 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
             }
         }
         break;
-    case BLOCK_POINTED_DRIPSTONE:
+    case BLOCK_POINTED_DRIPSTONE:				// saveBillboardFacesExtraData
         wobbleIt = true;
+        if (dataVal & BIT_16)
+        {
+            swatchLoc = SWATCH_INDEX(13, 78);
+        }
         // swatch is indexed directly by dataVal
+        // Bottom 3 bits are actually 5 states, 0-4, and bit 0x8 is "down" if set, so selecting from the next 5 textures.
         swatchLoc += (dataVal & 0x7) + ((dataVal & 0x8) ? 5 : 0);
         break;
-    case BLOCK_PALE_HANGING_MOSS:
+    case BLOCK_PALE_HANGING_MOSS:				// saveBillboardFacesExtraData
         // add one if tip 0x1 on, i.e., just add the data val
         swatchLoc += (dataVal & 0x1);
         break;
-    case BLOCK_CAVE_VINES:
+    case BLOCK_CAVE_VINES:				// saveBillboardFacesExtraData
     case BLOCK_CAVE_VINES_LIT:
         // doesn't see to wobble: wobbleIt = true;
         // swatch is indexed directly by dataVal
@@ -19194,6 +19247,12 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_TUFF_BRICK_STAIRS:
         case BLOCK_PALE_OAK_STAIRS:
         case BLOCK_RESIN_BRICK_STAIRS:
+        case BLOCK_CINNABAR_STAIRS:
+        case BLOCK_POLISHED_CINNABAR_STAIRS:
+        case BLOCK_CINNABAR_BRICK_STAIRS:
+        case BLOCK_SULFUR_STAIRS:
+        case BLOCK_POLISHED_SULFUR_STAIRS:
+        case BLOCK_SULFUR_BRICK_STAIRS:
             switch (neighborDataVal & 0x3)
             {
             default:    // make compiler happy
@@ -20216,7 +20275,6 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_MELON_STEM:
         case BLOCK_SEAGRASS:
         case BLOCK_CONDUIT:
-        case BLOCK_POINTED_DRIPSTONE:
         case BLOCK_PALE_HANGING_MOSS:
         case BLOCK_SPORE_BLOSSOM:
         case BLOCK_GLOW_LICHEN:
@@ -20232,7 +20290,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             // as above, but rotated
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 270);
             break;
-        case BLOCK_MONSTER_SPAWNER:
+        case BLOCK_MONSTER_SPAWNER:						// getSwatch
         case BLOCK_COBWEB:
         case BLOCK_FIRE:
         case BLOCK_SUGAR_CANE:
@@ -20269,6 +20327,14 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 // grass randomly rotates, snowy grass does not (not that you'd ever really notice, since it's covered with snow, but still).
                 randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
             }
+            break;
+        case BLOCK_POINTED_DRIPSTONE:						// getSwatch
+            // or spiked sulfur
+            if (dataVal & BIT_16)
+            {
+                swatchLoc = SWATCH_INDEX(13, 78);
+            }
+            swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             break;
         case BLOCK_DIRT:						// getSwatch
             switch (dataVal & 0x7)
@@ -21020,6 +21086,30 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case 16: // test_instance_block
                 swatchLoc = SWATCH_INDEX(5, 69);
+                break;
+            case 17: // cinnabar
+                swatchLoc = SWATCH_INDEX(4, 78);
+                break;
+            case 18: // polished_cinnabar
+                swatchLoc = SWATCH_INDEX(5, 78);
+                break;
+            case 19: // cinnabar_bricks
+                swatchLoc = SWATCH_INDEX(6, 78);
+                break;
+            case 20: // chiseled_cinnabar
+                swatchLoc = SWATCH_INDEX(7, 78);
+                break;
+            case 21: // sulfur
+                swatchLoc = SWATCH_INDEX(8, 78);
+                break;
+            case 22: // polished_sulfur
+                swatchLoc = SWATCH_INDEX(9, 78);
+                break;
+            case 23: // sulfur_bricks
+                swatchLoc = SWATCH_INDEX(10, 78);
+                break;
+            case 24: // chiseled_sulfur
+                swatchLoc = SWATCH_INDEX(11, 78);
                 break;
             }
             break;
@@ -22171,6 +22261,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 angle += 180;
             else if (((dataVal & 0x7) == 6) || ((dataVal & 0x7) == 0))
                 angle += 90;
+            // angle could now be 360 or more, so modulo it
+            angle = angle % 360;
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, angle);
             break;
         case BLOCK_TRIPWIRE_HOOK:				// getSwatch
@@ -23458,6 +23550,24 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 // Resin Brick wall
                 swatchLoc = SWATCH_INDEX(1, 67);
                 break;
+            case 26: // cinnabar
+                swatchLoc = SWATCH_INDEX(4, 78);
+                break;
+            case 27: // polished_cinnabar
+                swatchLoc = SWATCH_INDEX(5, 78);
+                break;
+            case 28: // cinnabar_bricks
+                swatchLoc = SWATCH_INDEX(6, 78);
+                break;
+            case 29: // sulfur
+                swatchLoc = SWATCH_INDEX(8, 78);
+                break;
+            case 30: // polished_sulfur
+                swatchLoc = SWATCH_INDEX(9, 78);
+                break;
+            case 31: // sulfur_bricks
+                swatchLoc = SWATCH_INDEX(10, 78);
+                break;
             }
             break;
         case BLOCK_CARPET:						// getSwatch
@@ -24020,7 +24130,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
 
         case BLOCK_CRIMSON_DOUBLE_SLAB:					// getSwatch
         case BLOCK_CRIMSON_SLAB:						// getSwatch
-            switch (dataVal & 0x7)
+            switch (dataVal & 0x17)
             {
             default: // normal log
                 assert(0);
@@ -24050,6 +24160,24 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case 7:	// resin brick
                 swatchLoc = SWATCH_INDEX(1, 67);
+                break;
+            case BIT_16 | 0: // cinnabar
+                swatchLoc = SWATCH_INDEX(4, 78);
+                break;
+            case BIT_16 | 1: // polished_cinnabar
+                swatchLoc = SWATCH_INDEX(5, 78);
+                break;
+            case BIT_16 | 2: // cinnabar_bricks
+                swatchLoc = SWATCH_INDEX(6, 78);
+                break;
+            case BIT_16 | 3: // sulfur
+                swatchLoc = SWATCH_INDEX(8, 78);
+                break;
+            case BIT_16 | 4: // polished_sulfur
+                swatchLoc = SWATCH_INDEX(9, 78);
+                break;
+            case BIT_16 | 5: // sulfur_bricks
+                swatchLoc = SWATCH_INDEX(10, 78);
                 break;
             }
             break;
@@ -24088,6 +24216,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             else {
                 // as luck would have it, the first 8 are next to each other
+                // AND, the second set of four are the same as the first set of
+                // four, just called Waxed instead. So, just 4 textures needed.
                 swatchLoc += (dataVal & 0x3);
             }
             break;
@@ -26429,7 +26559,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                 strcpy_s(typeName, 256, commentName);
             }
             // with number: sprintf_s(outputString, 256, "# type: %s %d\n", typeName, groupCount + 1);
-            sprintf_s(outputString, 256, "# type: %s\n", typeName);
+            sprintf_s(outputString, 256, "# type: %s, %d:%d\n", typeName, gModel.faceList[i]->materialType, gModel.faceList[i]->materialDataVal);
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
             if (mkGroupsObjs) {

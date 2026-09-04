@@ -64,7 +64,7 @@
 
 
 // If this number changes, also change warning #7 in gPopupInfo (see TerrainExt.png in that message) in Mineways.cpp
-#define VERTICAL_TILES 79
+#define VERTICAL_TILES 80
 #define TOTAL_TILES (VERTICAL_TILES*16)
 static struct {
     int txrX;   // column and row, from upper left, of 16x16+ tiles in terrain.png, for top view of block
@@ -366,7 +366,7 @@ static struct {
     {  2, 17, 155, 0, L"chiseled_quartz_block_top", L"quartz_block_chiseled_top", SWATCH_REPEAT_ALL },
     {  3, 17, 155, 0, L"chiseled_quartz_block", L"quartz_block_chiseled", SWATCH_REPEAT_ALL },
     {  4, 17, 155, 0, L"quartz_pillar_top", L"quartz_block_lines_top", SWATCH_REPEAT_ALL },
-    {  5, 17, 155, 0, L"quartz_pillar", L"quartz_block_lines", SWATCH_REPEAT_ALL },
+    {  5, 17, 155, 0, L"quartz_pillar_side", L"quartz_pillar", SWATCH_REPEAT_ALL },    // renamed in 26.2 or earlier / quartz_block_lines
     {  6, 17, 155, 0, L"quartz_block_side", L"", SWATCH_REPEAT_ALL }, // appears to be identical with the next tile; we'll use it as-is
     {  7, 17, 155, 0, L"quartz_block_top", L"", SWATCH_REPEAT_ALL },   // also used for bottom
     {  8, 17, 153, 0, L"nether_quartz_ore", L"quartz_ore", SWATCH_REPEAT_ALL },
@@ -474,7 +474,7 @@ static struct {
     { 14, 23, 200, 0, L"chorus_flower", L"", SWATCH_REPEAT_ALL },
     { 15, 23, 200, 0, L"chorus_flower_dead", L"", SWATCH_REPEAT_ALL },
     {  0, 24, 201, 0, L"purpur_block", L"", SWATCH_REPEAT_ALL },
-    {  1, 24, 201, 0, L"purpur_pillar", L"", SWATCH_REPEAT_ALL },
+    {  1, 24, 201, 0, L"purpur_pillar_side", L"purpur_pillar", SWATCH_REPEAT_ALL }, // renamed in 26.2 (or maybe earlier?) - use both names
     {  2, 24, 202, 0, L"purpur_pillar_top", L"", SWATCH_REPEAT_ALL },
     {  3, 24, 206, 0, L"end_stone_bricks", L"end_bricks", SWATCH_REPEAT_ALL },
     {  4, 24, 207, 0, L"beetroots_stage0", L"beetroots_stage_0", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
@@ -1341,18 +1341,34 @@ static struct {
     {  1, 78, 501, 0, L"MWO_spruce_shelf_back", L"", SWATCH_REPEAT_ALL },
     {  2, 78, 501, 0, L"MWO_spruce_shelf_powered", L"", SWATCH_REPEAT_ALL },
     {  3, 78,  37, 0, L"golden_dandelion", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  4, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    {  5, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    {  6, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    {  7, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    {  8, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    {  9, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 10, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 11, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 12, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 13, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 14, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 15, 78,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    {  4, 78, 504, 0, L"cinnabar", L"", SWATCH_REPEAT_ALL },
+    {  5, 78, 505, 0, L"polished_cinnabar", L"", SWATCH_REPEAT_ALL },
+    {  6, 78, 506, 0, L"cinnabar_bricks", L"", SWATCH_REPEAT_ALL },
+    {  7, 78,   1, 0, L"chiseled_cinnabar", L"", SWATCH_REPEAT_ALL },
+    {  8, 78, 507, 0, L"sulfur", L"", SWATCH_REPEAT_ALL },
+    {  9, 78, 508, 0, L"polished_sulfur", L"", SWATCH_REPEAT_ALL },
+    { 10, 78, 509, 0, L"sulfur_bricks", L"", SWATCH_REPEAT_ALL },
+    { 11, 78,   1, 0, L"chiseled_sulfur", L"", SWATCH_REPEAT_ALL },
+    { 12, 78, 510, 0, L"potent_sulfur", L"", SWATCH_REPEAT_ALL },
+    { 13, 78, 390, 0, L"sulfur_spike_up_tip", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    { 14, 78, 390, 0, L"sulfur_spike_up_tip_merge", L"sulfur_spike_up_merge", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL }, // Bedrock alt?
+    { 15, 78, 390, 0, L"sulfur_spike_up_frustum", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    {  0, 79, 390, 0, L"sulfur_spike_up_middle", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  1, 79, 390, 0, L"sulfur_spike_up_base", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    {  2, 79, 390, 0, L"sulfur_spike_down_tip", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    {  3, 79, 390, 0, L"sulfur_spike_down_tip_merge", L"sulfur_spike_down_merge", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL }, // Bedrock alt?
+    {  4, 79, 390, 0, L"sulfur_spike_down_frustum", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    {  5, 79, 390, 0, L"sulfur_spike_down_middle", L"", SBIT_CLAMP_TOP | SBIT_DECAL },
+    {  6, 79, 390, 0, L"sulfur_spike_down_base", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
+    {  7, 79,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    {  8, 79,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    {  9, 79,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 10, 79,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 11, 79,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 12, 79,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 13, 79,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 14, 79,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 15, 79,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
 
     // Copper Golem Statue family (1.21.10+). Placeholder swatch position (txrX=0, txrY=40)
     // until real 64x64 copper-golem texture atlas is wired up. Bits 0x30 of dataVal carry
@@ -1523,6 +1539,9 @@ static const struct {
     { L"netherack", L"netherrack" },    // JG-RTX typo
     { L"packed_ce", L"packed_ice" },    // JG-RTX typo, reported https://github.com/jasonjgardner/jg-rtx/issues/4
     { L"prismrine_brick", L"prismarine_bricks" }, // PhotoCraft
+
+    // old name, here since quartz_pillar got renamed
+    { L"quartz_block_lines", L"quartz_pillar_side" },
 
     // tag that denotes end of list for while loop
     { L"", L"" }

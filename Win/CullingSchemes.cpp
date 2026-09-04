@@ -27,6 +27,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "stdafx.h"
 #include <CommDlg.h>
+#include <assert.h>
 #include "Resource.h"
 #include "CullingSchemes.h"
 #include "nbt.h"	// blockTransCount / blockTransNameAt / blockTransIndexFor
@@ -75,7 +76,13 @@ bool isBlockCulled(int type, int dataVal)
 {
     if (!gAnyCulled) return false;
     int idx = blockTransIndexFor(type, dataVal);
-    if (idx < 0 || idx >= NUM_CULL_ENTRIES) return false;
+    // don't cull if index is outside of array bounds
+    if (idx < 0 || idx >= NUM_CULL_ENTRIES)
+    {
+        // something is out of bounds, for some reason
+        //assert(0); // TODOTODO - figure this out someday
+        return false;
+    }
     return gIsCulledByIndex[idx] != 0;
 }
 

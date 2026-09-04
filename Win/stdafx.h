@@ -92,7 +92,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #define MINEWAYS_MAJOR_VERSION 13
-#define MINEWAYS_MINOR_VERSION 1
+#define MINEWAYS_MINOR_VERSION 2
 
 #ifndef max
 #define max(a,b)            (((a) > (b)) ? (a) : (b))

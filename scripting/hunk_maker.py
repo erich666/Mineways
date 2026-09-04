@@ -12,23 +12,29 @@
 # Process:
 # Install Python, then edit this file to change the arguments at the top of this file
 # to whatever area in your world you want to export and run it in a command window:
-#    python hunk_maker.py > hunks.mwscript
+#    cd [paste in the directory here on your machine that contains hunk_maker.py]
+#    python hunk_maker.py
 #
 # This creates a file called "hunks.mwscript". In Mineways you then load your world,
 # optionally set your terrain file, and then choose File | Import Settings and select
 # this hunks.mwscript file. The script will then run and export a bunch of OBJ and MTL
 # files where you specified, along with block textures in the "texture" directory.
 
-# What to put for the output file. Forward slashes are preferred; note that if you use
-# backslashes, they have to be "doubled": 'c:\\temp\\hunk'
+# The file name for the Mineways script this program creates, put in the same directory as hunk_maker.py:
+output_script = 'hunks.mwscript'
+
+# The output file prefix when the script is run in Mineways. For example, without changes,
+# the first model file created by Mineways would be c:/temp/hunk_x-200_z-200.obj
+# Forward slashes are preferred; note that if you use backslashes,
+# they have to be "doubled": 'c:\\temp\\hunk'
 file = 'c:/temp/hunk'
 
-# Starting location. Note that in Mineways you can see map coordinates for your mouse
+# Starting world location. Note that in Mineways you can see map coordinates for your mouse
 # in the lower left corner of the screen, e.g. "-29,311"
 xstart = -200
 zstart = -200
 
-# Ending location
+# Ending world location
 xend = 200
 zend = 200
 
@@ -42,28 +48,28 @@ sz = 100
 ystart = 0
 yend = 255
 
-# These optional commands temporarily suppress errors etc. and instead send them to a log file:
-print("Show informational: script");
-print("Show warning: script");
-print("Show error: script");
-print("Save log file: c:/temp/script_run.log");
+with open(output_script, 'w', encoding='utf-8', newline='\n') as f:
+    # These optional commands temporarily suppress errors etc. and instead send them to a log file:
+    f.write("Show informational: script\n")
+    f.write("Show warning: script\n")
+    f.write("Show error: script\n")
+    f.write("Save log file: c:/temp/script_run.log\n")
+    # Here's where to put the settings you want for your output files:
+    f.write("Set render type: Wavefront OBJ absolute indices\n")
+    f.write("File type: Export tiles for textures to directory texture\n")
+    f.write("Center model: NO\n")
+    f.write("Create block faces at the borders: NO\n")
 
+    # Now loop, selecting and exporting. Done!
+    x = xstart
+    while x < xend:
+        z = zstart
+        while z < zend:
+            s = f'Selection location: {x}, {ystart}, {z} to {x+sz-1}, {yend}, {z+sz-1}\n'
+            f.write(s)
+            s = f'Export for rendering: {file}_x{x}_z{z}.obj\n'
+            f.write(s)
+            z += sz
+        x += sz
 
-# Here's where to put the settings you want for your output files:
-print("Set render type: Wavefront OBJ absolute indices");
-print("File type: Export tiles for textures to directory texture");
-print("Center model: NO");
-print("Create block faces at the borders: NO");
-
-# Now loop, selecting and exporting. Done!
-x = xstart
-while x < xend:
-    z = zstart
-    while z < zend:
-        s = 'Selection location: ' + str(x) + ', ' + str(ystart) + ', ' + str(z) + \
-            ' to ' + str(x+sz-1) + ', ' + str(yend) + ', ' + str(z+sz-1)
-        print (s)
-        s = 'Export for rendering: ' + file + '_x' + str(x) + '_z' + str(z) + '.obj'
-        print (s)
-        z += sz
-    x += sz
+print(f"Successfully generated {output_script} - in Mineways execute it by using File | Import Settings")

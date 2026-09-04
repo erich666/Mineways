@@ -442,8 +442,8 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 357 */ "Pale Oak Trapdoor",     		0xE8DFDD, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 67, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_FLATTEN | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
     { /* 358 */ "Pale Hanging Moss",  	    	0x2D6D68, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 68, 0x00, BLF_FLATTEN | BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID },
     { /* 359 */ "Pale Moss Carpet",             0x37333D, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13, 67, 0x00, BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_CUTOUTS | BLF_OFFSET },
-    { /* 360 */ "Double Crimson Slab",   		0x693249, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 43, 0x07, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_LAME_WATERLOG | BLF_MAYWATERLOG }, // bizarrely, may waterlog, though pretty pointless; important for instancing
-    { /* 361 */ "Crimson Slab",				    0x693249, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 43, 0x07, BLF_HALF | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 360 */ "Double Crimson Slab",   		0x693249, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 43, 0x17, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_LAME_WATERLOG | BLF_MAYWATERLOG }, // bizarrely, may waterlog, though pretty pointless; important for instancing
+    { /* 361 */ "Crimson Slab",				    0x693249, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 43, 0x17, BLF_HALF | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG }, // TODO: all slabs could be compressed even more, putting 32 slabs for a slab type, I believe. Only uses bits 0x8 and waterlog.
     { /* 362 */ "Soul Torch",					0x64B4B7, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 42, 0x00, BLF_MIDDLER | BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_EMITTER | BLF_DNE_FLUID },	// should be BLF_EMITTER, flatten torches only if sides get flattened, too
     { /* 363 */ "Weeping Vines",		  		0x656963, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 43, 0x23, BLF_FLATTEN | BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_MAYWATERLOG },    // hanging roots may waterlog
     { /* 364 */ "Iron Chain",	           		0x3E4453, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 46, 0x33, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_CUTOUTS | BLF_MAYWATERLOG },    // removed | BLF_FLATTEN_SMALL - seemed debatable
@@ -473,7 +473,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 387 */ "Lit White Candle",            	0xF9E6B6, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 48, 0x30, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_EMITTER },    // note lit candles should never waterlog, as they'd go out
     { /* 388 */ "Block of Amethyst",            0x8C67C2, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 49, 0x3f, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
     { /* 389 */ "Small Amethyst Bud",   		0xA982CD, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 49, 0x03, BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_EMITTER | BLF_MAYWATERLOG },    // could be a BLF_BILLBOARD?
-    { /* 390 */ "Pointed Dripstone",            0x846A5B, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 49, 0x00, BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_MAYWATERLOG },	// NODO: could maybe make some true geometry instead for 3D printing, but it's iffy and a lot of work
+    { /* 390 */ "Pointed Dripstone",            0x846A5B, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 49, 0x10, BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_MAYWATERLOG },    // and sulfur_spike
     { /* 391 */ "Cut Copper Stairs",            0xC16D53, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 392 */ "Exposed Cut Copper Stairs",    0x9E7B67, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 393 */ "Weathered Cut Copper Stairs",  0x6F936E, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
@@ -592,6 +592,13 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     // real 64x64 copper golem atlas is wired up.
     { /* 502 */ "Copper Golem Statue",          0xAF8B55, 1.000f, 0xff7711, 0xff7711, 0.12345f,  5, 50, 0x30, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
     { /* 503 */ "Waxed Copper Golem Statue",    0xAF8B55, 1.000f, 0xff7711, 0xff7711, 0.12345f,  5, 50, 0x30, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
+    { /* 504 */ "Cinnabar Stairs",              0x995450, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 78, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 505 */ "Polished Cinnabar Stairs",     0x9B3C39, 1.000f, 0xff7711, 0xff7711, 0.12345f,  5, 78, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 506 */ "Cinnabar Brick Stairs",        0x973A38, 1.000f, 0xff7711, 0xff7711, 0.12345f,  6, 78, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 507 */ "Sulfur Stairs",                0xBEB066, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 78, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 508 */ "Polished Sulfur Stairs",       0xBDAD5C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 78, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 509 */ "Sulfur Brick Stairs",          0xBCAB5C, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 78, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 510 */ "Potent Sulfur",                0xD3D162, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 78, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
 
     // Important note: 396 is skipped, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
 };

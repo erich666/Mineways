@@ -32,12 +32,13 @@ THE POSSIBILITY OF SUCH DAMAGE.
 // every Minecraft block-state name Mineways recognizes appears in the editor with a checkbox.
 
 #pragma once
+#include "nbt.h"
 
 // Storage: one byte per BlockTranslations[] entry, indicating whether the corresponding name
 // is culled. NUM_TRANS is declared in nbt.cpp and used to size BlockTranslations; we mirror it
 // here as a static cap so the registry binary blob has a fixed sizeof. Bump this if NUM_TRANS
 // grows past it.
-#define NUM_CULL_ENTRIES 1200
+#define NUM_CULL_ENTRIES    NUM_TRANS
 
 typedef struct
 {

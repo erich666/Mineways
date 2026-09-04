@@ -6,6 +6,7 @@
 # To run, in a command window in this directory do:
 #
 #    python make_slice_maps.py > my_map_slices.mwscript
+# Do NOT run it in Powershell, as this will create 2-byte Unicode output! Use Command Prompt.
 #
 # This then generates the file my_slices.mwscript, which you can read in using File | Import Settings in Mineways.
 

@@ -14,6 +14,7 @@
 # Edit this file to change the arguments such as the file used in "imread"
 # to whatever image file you want to convert. Then run this script in a command window:
 #    python heightfield.py > heightfield.mwscript
+# Do NOT run it in Powershell, as this will create 2-byte Unicode output! Use Command Prompt.
 #
 # This creates a file called "heightfield.mwscript" with a bunch of Mineways script commands.
 # You can call this .mwscript file whatever you like.

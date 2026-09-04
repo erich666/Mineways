@@ -430,8 +430,6 @@ static TranslationTuple* modTranslations = NULL;
 //   bit  0x10 (BIT_16): chiseled variant marker (from BlockTranslations subtype)
 #define BOOKSHELF_PROP 76
 
-#define NUM_TRANS 1178
-
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
     // hash is computed once when 1.13 data is first read in.
@@ -1638,6 +1636,34 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 245, HIGH_BIT | (3 << 3), "spruce_shelf", SHELF_PROP },
     { 0,  37,                   5, "golden_dandelion", NO_PROP },
     { 0, BLOCK_FLOWER_POT,  YELLOW_FLOWER_FIELD | 5, "potted_golden_dandelion", NO_PROP },
+    { 0,   1,             17, "cinnabar", NO_PROP },
+    { 0,   1,             18, "polished_cinnabar", NO_PROP },
+    { 0,   1,             19, "cinnabar_bricks", NO_PROP },
+    { 0,   1,             20, "chiseled_cinnabar", NO_PROP },
+    { 0,   1,             21, "sulfur", NO_PROP },
+    { 0,   1,             22, "polished_sulfur", NO_PROP },
+    { 0,   1,             23, "sulfur_bricks", NO_PROP },
+    { 0,   1,             24, "chiseled_sulfur", NO_PROP },
+    { 0, 248,       HIGH_BIT, "cinnabar_stairs", STAIRS_PROP },
+    { 0, 249,       HIGH_BIT, "polished_cinnabar_stairs", STAIRS_PROP },
+    { 0, 250,       HIGH_BIT, "cinnabar_brick_stairs", STAIRS_PROP },
+    { 0, 251,       HIGH_BIT, "sulfur_stairs", STAIRS_PROP },
+    { 0, 252,       HIGH_BIT, "polished_sulfur_stairs", STAIRS_PROP },
+    { 0, 253,       HIGH_BIT, "sulfur_brick_stairs", STAIRS_PROP },
+    { 0, 254,       HIGH_BIT, "potent_sulfur", NO_PROP },
+    { 0, 139,	          26, "cinnabar_wall", WALL_PROP },
+    { 0, 139,	          27, "polished_cinnabar_wall", WALL_PROP },
+    { 0, 139,	          28, "cinnabar_brick_wall", WALL_PROP },
+    { 0, 139,	          29, "sulfur_wall", WALL_PROP },
+    { 0, 139,	          30, "polished_sulfur_wall", WALL_PROP },
+    { 0, 139,	          31, "sulfur_brick_wall", WALL_PROP },
+    { 0, 105,   HIGH_BIT | BIT_16 | 0, "cinnabar_slab", SLAB_PROP },
+    { 0, 105,   HIGH_BIT | BIT_16 | 1, "polished_cinnabar_slab", SLAB_PROP },
+    { 0, 105,   HIGH_BIT | BIT_16 | 2, "cinnabar_brick_slab", SLAB_PROP },
+    { 0, 105,   HIGH_BIT | BIT_16 | 3, "sulfur_slab", SLAB_PROP },
+    { 0, 105,   HIGH_BIT | BIT_16 | 4, "polished_sulfur_slab", SLAB_PROP },
+    { 0, 105,   HIGH_BIT | BIT_16 | 5, "sulfur_brick_slab", SLAB_PROP },
+    { 0, 134,   HIGH_BIT | BIT_16, "sulfur_spike", DRIPSTONE_PROP },    // 5 thicknesses, vertical_direction: up/down
 
     // 1.20.3 additions (short_grass added next to "grass", above), https://minecraft.wiki/w/Java_Edition_1.20.3#General_2
 
@@ -3907,6 +3933,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             age = atoi(value);
                         }
                         // RAIL_PROP and STAIRS_PROP - we ignore the stairs effect, instead deriving it from the geometry. Seems to work fine.
+                        // But, we still hold on to the shape property (5 states, bits 0x28), so that we can export to schematics.
                         else if (strcmp(token, "shape") == 0) {
                             // stairs
                             if (strcmp(value, "straight") == 0) {
@@ -4404,7 +4431,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                                 assert(0);
                             }
                         }
-                        // also for pointed dripstone https://minecraft.wiki/w/Pointed_Dripstone#ID
+                        // also for pointed dripstone https://minecraft.wiki/w/Pointed_Dripstone#ID and sulfur spike
                         else if (strcmp(token, "vertical_direction") == 0) {
                             vertical_direction = (strcmp(value, "down") == 0) ? 0x8 : 0;
                         }
@@ -4597,6 +4624,22 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         // is NO_PROP so there is no per-family arm to hook into).
                         else if (strcmp(token, "has_record") == 0) {
                             if (strcmp(value, "true") == 0) dataVal |= 0x01;
+                        }
+
+                        else if (strcmp(token, "potent_sulfur_state") == 0) {
+                            // BLOCK_POTENT_SULFUR's only property
+                            // bottom 3 bits gives state:
+                            // 0 is dry
+                            // 1 is wet
+                            // 2 is dormant
+                            // 3 is erupting
+                            // 4 is continuous
+                            if (strcmp(value, "wet") == 0)  dataVal |= 1;
+                            else if (strcmp(value, "dormant") == 0)  dataVal |= 2;
+                            else if (strcmp(value, "erupting") == 0) dataVal |= 3;
+                            else if (strcmp(value, "continuous") == 0) dataVal |= 4;
+                            // else should be "dry" - we just assume it's valid
+                            // TODO, should flag an error for an unknown type; true of other inputs
                         }
 
 #ifdef _DEBUG
@@ -5176,7 +5219,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 dropper_facing = 0;
                 break;
             case DRIPSTONE_PROP:
-                // up is vertical_direction, and if "down" the value is set to 0x08
+                // vertical_direction is 0x8 bit, and if "down" the value is set to 0x08 (up is 0x0)
                 dataVal = thickness | vertical_direction;
                 break;
             case BIG_DRIPLEAF_PROP:
@@ -6015,6 +6058,15 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
         // BLOCK_SCULK_SHRIEKER (433) is NO_PROP; bit 0x01 = can_summon, bit 0x02 = shrieking.
         if (strcmp(k, "can_summon") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x1; continue; }
         if (strcmp(k, "shrieking") == 0)  { if (strcmp(v, "true") == 0) dataVal |= 0x2; continue; }
+        if (strcmp(k, "potent_sulfur_state") == 0) {
+            if (strcmp(v, "wet") == 0)  dataVal |= 1;
+            else if (strcmp(v, "dormant") == 0)  dataVal |= 2;
+            else if (strcmp(v, "erupting") == 0) dataVal |= 3;
+            else if (strcmp(v, "continuous") == 0) dataVal |= 4;
+            // else should be "dry" - we just assume it's valid
+            // TODO, should flag an error for an unknown type; true of other inputs
+            continue;
+        }
 
         // ---- Per-family props ----
         switch (tf) {
@@ -6088,13 +6140,19 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
                 if (strcmp(v, "east") == 0) b = 0;
                 else if (strcmp(v, "west") == 0) b = 1;
                 else if (strcmp(v, "south") == 0) b = 2;
-                else b = 3;
+                else b = 3; // "north"
                 dataVal = (dataVal & ~0x3) | b;
             }
             else if (strcmp(k, "half") == 0) {
-                if (strcmp(v, "top") == 0) dataVal |= 0x4;
+                if (strcmp(v, "top") == 0) dataVal |= 0x4;  // else "bottom" which is 0
             }
-            // shape ignored (writer always emits "straight")
+            else if (strcmp(k, "shape") == 0) {
+                if (strcmp(v, "inner_left") == 0) dataVal |= BIT_8 | BIT_32;
+                else if (strcmp(v, "inner_right") == 0) dataVal |= BIT_8;
+                else if (strcmp(v, "outer_left") == 0) dataVal |= BIT_16 | BIT_32;
+                else if (strcmp(v, "outer_right") == 0) dataVal |= BIT_16;
+                //else b = 0; // "straight"
+            }
             break;
 
         case SLAB_PROP:
@@ -7245,38 +7303,38 @@ static const char* spongeAxisFromDataVal(int dataVal)
 // Defined in nbt.h; kept here so they can see the BlockTranslator struct and findSpongeTranslator
 // directly without exposing either to the rest of the codebase.
 
-int blockTransCount(void)
+// Every field the various property-emission arms of spongeBuildBlockStateString() need out of
+// the remap step below, plus the (type, dataVal) that should actually be used to look up the
+// BlockTranslations[] row. lookupDataVal differs from dataVal only for the copper-bulb case,
+// where the "lit" bit must stay in dataVal for property emission but be masked off for the
+// subtype match.
+struct SpongeLookupRemap
 {
-    return NUM_TRANS;
-}
+    int type;
+    int dataVal;
+    int lookupDataVal;
+    bool isLitFurnace;
+    bool isLitRedstoneOre;
+    bool isLitCandle;
+    bool isPoweredRepeater;
+    bool isInvertedDaylightDetector;
+    bool isBerriesLit;
+    bool isDoubleSlab;
+};
 
-bool blockTransNameAt(int idx, const char** outName)
+// Rewrites a runtime (type, dataVal) pair onto whichever id/dataVal combination actually has a
+// row in BlockTranslations[], recording along the way which "collapsed" variant it started as
+// (lit furnace, glowing redstone ore, lit redstone lamp, lit candle, unlit redstone torch,
+// powered repeater, deprecated comparator, inverted daylight detector, berry-bearing cave
+// vines, double slab, lit copper bulb) so callers that build property strings can still emit
+// the right value. This is the single source of truth for the remap: BOTH
+// spongeBuildBlockStateString() (export naming) and blockTransIndexFor() (Culling Schemes /
+// isBlockCulled lookup) must go through this, or whichever one doesn't will silently fail to
+// resolve any of the ids handled here — that's what happened with the daylight detector's
+// inverted form falling through and never being cullable.
+static SpongeLookupRemap remapForSpongeLookup(int type, int dataVal)
 {
-    if (idx < 0 || idx >= NUM_TRANS) return false;
-    if (BlockTranslations[idx].name == NULL) return false;
-    *outName = BlockTranslations[idx].name;
-    return true;
-}
-
-int blockTransIndexFor(int type, int dataVal)
-{
-    // Lazy-init the reverse index the same way spongeBuildBlockStateString does — running
-    // this from the Culling render hook before any .schem export has otherwise initialized it.
-    buildSpongeReverseIndex();
-    const BlockTranslator* e = findSpongeTranslator(type, dataVal);
-    if (e == NULL) return -1;
-    return (int)(e - BlockTranslations);
-}
-
-int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
-{
-    if (out == NULL || outSize <= 0) return -1;
-    buildSpongeReverseIndex();
-
-    // Capture the caller's original block id before any of the remaps below rewrite it. A few
-    // property arms (TORCH_PROP for the unlit redstone-torch case) want to consult the original
-    // identity even after the remap has folded 75 onto 76 to satisfy the palette lookup.
-    int origType = type & 0x1FF;
+    SpongeLookupRemap r;
 
     // Log family quirk: Mineways uses dataVal bits 0xC == 0xC to mean "all faces are sides"
     // (see ObjFileManip.cpp's getSwatch arm for BLOCK_LOG and friends). In modern Minecraft this
@@ -7328,36 +7386,36 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     // without this remap the burning variants fall through to "minecraft:air". Remap to
     // BLOCK_FURNACE (61) — which has "furnace" / "loom" / "smoker" / "blast_furnace" entries
     // distinguished by BIT_16 / BIT_32 in dataVal — and emit `lit=true` in the FURNACE_PROP arm.
-    bool isLitFurnace = false;
+    r.isLitFurnace = false;
     if ((type & 0x1FF) == BLOCK_BURNING_FURNACE) {
         type = BLOCK_FURNACE;
-        isLitFurnace = true;
+        r.isLitFurnace = true;
     }
 
     // REDSTONE_ORE_PROP lit-fixup: Mineways stores the lit form at blockId + 1 (see arm in
     // readPalette: `if (lit) paletteBlockEntry[entryIndex]++;`). The "unlit" entries
     // ("redstone_ore" at 73, "redstone_lamp" at 123) are in BlockTranslations; the lit ones
     // (74, 124) are not, so they fell to "minecraft:air". Remap and emit `lit=true` below.
-    bool isLitRedstoneOre = false;
+    r.isLitRedstoneOre = false;
     if ((type & 0x1FF) == BLOCK_GLOWING_REDSTONE_ORE) {
         type = BLOCK_REDSTONE_ORE;
-        isLitRedstoneOre = true;
+        r.isLitRedstoneOre = true;
     } else if ((type & 0x1FF) == 124) {  // lit redstone_lamp; no named constant in blockInfo.h
         type = 123;                       // unlit redstone_lamp
-        isLitRedstoneOre = true;
+        r.isLitRedstoneOre = true;
     }
 
     // CANDLE_PROP lit-fixup: same `++blockId on lit` pattern (readPalette CANDLE_PROP arm
     // ~nbt.cpp:4515). The lit forms (BLOCK_LIT_CANDLE=385, BLOCK_LIT_COLORED_CANDLE=387) have
     // no BlockTranslations entries. Remap to their unlit twins so the right palette entry is
     // chosen, then emit `lit=true` in the CANDLE_PROP arm.
-    bool isLitCandle = false;
+    r.isLitCandle = false;
     if ((type & 0x1FF) == BLOCK_LIT_CANDLE) {
         type = BLOCK_CANDLE;
-        isLitCandle = true;
+        r.isLitCandle = true;
     } else if ((type & 0x1FF) == BLOCK_LIT_COLORED_CANDLE) {
         type = BLOCK_COLORED_CANDLE;
-        isLitCandle = true;
+        r.isLitCandle = true;
     }
 
     // Redstone-torch unlit-fixup: Mineways uses BLOCK_REDSTONE_TORCH_OFF (75) for the unlit
@@ -7374,10 +7432,10 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     // "repeater" entry in BlockTranslations only exists under blockId 93, so without this
     // remap the powered form fell through to "minecraft:air". Remap 94 -> 93 so the lookup
     // hits the REPEATER_PROP entry, and let that arm emit `powered=true` via this flag.
-    bool isPoweredRepeater = false;
+    r.isPoweredRepeater = false;
     if ((type & 0x1FF) == BLOCK_REDSTONE_REPEATER_ON) {
         type = (type & ~0x1FF) | BLOCK_REDSTONE_REPEATER_OFF;
-        isPoweredRepeater = true;
+        r.isPoweredRepeater = true;
     }
 
     // Redstone-comparator deprecated-fixup: BLOCK_REDSTONE_COMPARATOR_DEPRECATED (150) is an
@@ -7395,20 +7453,20 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     // DAYLIGHT_PROP arm ~nbt.cpp:4864 which switches blockId to 178 when inverted=true).
     // BlockTranslations only has "daylight_detector" under 151, so 178 fell through to
     // "minecraft:air". Remap to 151 and let the DAYLIGHT_PROP arm emit `inverted=true`.
-    bool isInvertedDaylightDetector = false;
+    r.isInvertedDaylightDetector = false;
     if ((type & 0x1FF) == BLOCK_DAYLIGHT_DETECTOR) {
         type = (type & ~0x1FF) | BLOCK_DAYLIGHT_SENSOR;
-        isInvertedDaylightDetector = true;
+        r.isInvertedDaylightDetector = true;
     }
 
     // BERRIES_PROP berries-fixup: BLOCK_CAVE_VINES_LIT (405) is created by the read side
     // when berries=true (BERRIES_PROP arm at nbt.cpp:4942 increments the block ID). BlockTranslations
     // has no 405 entry, so without a remap the berry-bearing cave vines would drop to air.
     // Remap to BLOCK_CAVE_VINES (404) and emit berries=true below.
-    bool isBerriesLit = false;
+    r.isBerriesLit = false;
     if ((type & 0x1FF) == BLOCK_CAVE_VINES_LIT) {
         type = BLOCK_CAVE_VINES;
-        isBerriesLit = true;
+        r.isBerriesLit = true;
     }
 
     // Double slab fixup: Mineways stores doubled slabs as a separate block ID one below the
@@ -7416,7 +7474,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     // does `paletteBlockEntry[entryIndex]--`). BlockTranslations has no entries for the
     // BLOCK_*_DOUBLE_SLAB IDs, so without this remap they fall through to "minecraft:air"
     // (silently dropped by WorldEdit). Remap to the single slab and emit `type=double` below.
-    bool isDoubleSlab = false;
+    r.isDoubleSlab = false;
     switch (type & 0x1FF) {
     case BLOCK_STONE_DOUBLE_SLAB:           // 43 → 44 (smooth_stone_slab/sandstone_slab/...)
     case BLOCK_WOODEN_DOUBLE_SLAB:          // 125 → 126 (oak_slab/spruce_slab/...)
@@ -7426,7 +7484,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     case BLOCK_CRIMSON_DOUBLE_SLAB:         // 360 → 361
     case BLOCK_CUT_COPPER_DOUBLE_SLAB:      // 397 → 398
         type = type + 1;
-        isDoubleSlab = true;
+        r.isDoubleSlab = true;
         break;
     default:
         break;
@@ -7439,7 +7497,68 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     if ((type & 0x1FF) == BLOCK_COPPER_BULB) {
         lookupDataVal &= ~0x8;
     }
-    const BlockTranslator* e = findSpongeTranslator(type, lookupDataVal);
+
+    r.type = type;
+    r.dataVal = dataVal;
+    r.lookupDataVal = lookupDataVal;
+    return r;
+}
+
+int blockTransCount(void)
+{
+    return NUM_TRANS;
+}
+
+bool blockTransNameAt(int idx, const char** outName)
+{
+    if (idx < 0 || idx >= NUM_TRANS) return false;
+    if (BlockTranslations[idx].name == NULL) return false;
+    *outName = BlockTranslations[idx].name;
+    return true;
+}
+
+int blockTransIndexFor(int type, int dataVal)
+{
+    // Lazy-init the reverse index the same way spongeBuildBlockStateString does — running
+    // this from the Culling render hook before any .schem export has otherwise initialized it.
+    buildSpongeReverseIndex();
+    // Apply the same remap spongeBuildBlockStateString() applies (see remapForSpongeLookup)
+    // before searching BlockTranslations[]. Without this, every id that only exists in
+    // BlockTranslations[] under a *different* runtime id — lit furnace, glowing redstone ore,
+    // lit redstone lamp, lit candles, unlit redstone torch, powered repeater, deprecated
+    // comparator, inverted daylight detector, berry-bearing cave vines, double slabs, lit
+    // copper bulbs — fails findSpongeTranslator(), blockTransIndexFor() returns -1, and
+    // isBlockCulled() silently treats the block as "never culled" no matter what the active
+    // Culling Scheme says. (This was the daylight-detector bug: the inverted form is stored
+    // as blockId 178, but BlockTranslations only has a row for it under 151.)
+    SpongeLookupRemap r = remapForSpongeLookup(type, dataVal);
+    const BlockTranslator* e = findSpongeTranslator(r.type, r.lookupDataVal);
+    if (e == NULL) return -1;
+    return (int)(e - BlockTranslations);
+}
+
+int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
+{
+    if (out == NULL || outSize <= 0) return -1;
+    buildSpongeReverseIndex();
+
+    // Capture the caller's original block id before any of the remaps below rewrite it. A few
+    // property arms (TORCH_PROP for the unlit redstone-torch case) want to consult the original
+    // identity even after the remap has folded 75 onto 76 to satisfy the palette lookup.
+    int origType = type & 0x1FF;
+
+    SpongeLookupRemap r = remapForSpongeLookup(type, dataVal);
+    type = r.type;
+    dataVal = r.dataVal;
+    bool isLitFurnace = r.isLitFurnace;
+    bool isLitRedstoneOre = r.isLitRedstoneOre;
+    bool isLitCandle = r.isLitCandle;
+    bool isPoweredRepeater = r.isPoweredRepeater;
+    bool isInvertedDaylightDetector = r.isInvertedDaylightDetector;
+    bool isBerriesLit = r.isBerriesLit;
+    bool isDoubleSlab = r.isDoubleSlab;
+
+    const BlockTranslator* e = findSpongeTranslator(type, r.lookupDataVal);
     if (e == NULL) {
         int n = snprintf(out, (size_t)outSize, "minecraft:air");
         return (n > 0 && n < outSize) ? n : -1;
@@ -7536,8 +7655,17 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         }
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "half", (dataVal & 0x4) ? "top" : "bottom");
-        // shape is always emitted as straight; Mineways doesn't track inner/outer corner shape.
-        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "shape", "straight");
+        int stairshape = dataVal & 0x038;
+        const char* stairshapeStr;
+        switch (stairshape) {
+        default: assert(0); stairshapeStr = "straight"; break;
+        case 0:  stairshapeStr = "straight"; break;
+        case BIT_8 | BIT_32:  stairshapeStr = "inner_left"; break;
+        case BIT_8:  stairshapeStr = "inner_right"; break;
+        case BIT_16 | BIT_32:  stairshapeStr = "outer_left"; break;
+        case BIT_16:  stairshapeStr = "outer_right"; break;
+        }
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "shape", stairshapeStr);
         break;
     }
 
