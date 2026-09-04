@@ -703,7 +703,7 @@ void MinewaysFrame::OnTestBlockWorld(wxCommandEvent&) { LoadTestBlockWorld(); }
 
 void MinewaysFrame::LoadTestBlockWorld()
 {
-    ClearLoadedWorldData();
+    ClearLoadedWorld();
 
     gWorldGuide.type  = WORLD_TEST_BLOCK_TYPE;
     gWorldGuide.world[0] = 0;
@@ -833,7 +833,7 @@ void MinewaysFrame::OnOpenFile(wxCommandEvent&)
 // Returns an empty string on success, or a human-readable error message on failure.
 wxString MinewaysFrame::LoadSchematic(const wxString& path)
 {
-    ClearLoadedWorldData();
+    ClearLoadedWorld();
 
     bool isSponge = path.Lower().EndsWith(".schem");
     wchar_t schematicPath[MAX_PATH_AND_FILE];
@@ -847,7 +847,7 @@ wxString MinewaysFrame::LoadSchematic(const wxString& path)
 
     int err = LoadSchematicFile(gWorldGuide.world, isSponge);
     if (err != 0) {
-        ClearLoadedWorldData();
+        ClearLoadedWorld();
         return wxString::Format("Could not load schematic (error %d).", err);
     }
 
@@ -1616,6 +1616,14 @@ void MinewaysFrame::RedrawMap()
     if (m_mapPanel) m_mapPanel->RedrawMap();
 }
 
+void MinewaysFrame::ClearLoadedWorld()
+{
+    ClearLoadedWorldData();
+    SetTitle("Mineways");
+    SetStatusText("No world loaded", 0);
+    RedrawMap();
+}
+
 void MinewaysFrame::OnToggleWorldTypeBit(wxCommandEvent& e)
 {
     int bit = 0;
@@ -1653,7 +1661,7 @@ void MinewaysFrame::OnZoomOutFurther(wxCommandEvent&)
 // Returns "" on success, or a human-readable error message on failure (caller shows it).
 wxString MinewaysFrame::LoadWorldFromDir(const wxString& dir)
 {
-    ClearLoadedWorldData();
+    ClearLoadedWorld();
 
     wchar_t wdir[MAX_PATH_AND_FILE];
     if (!_mwUtf8ToWideBuffer(dir.utf8_str(), wdir, MAX_PATH_AND_FILE))
@@ -1673,7 +1681,7 @@ wxString MinewaysFrame::LoadWorldFromDir(const wxString& dir)
     wchar_t fileOpened[MAX_PATH_AND_FILE] = {};
     int nbtVer = 0;
     if (GetFileVersion(wdir, &nbtVer, fileOpened, MAX_PATH_AND_FILE) != 0) {
-        ClearLoadedWorldData();
+        ClearLoadedWorld();
         return "Could not read level.dat in this folder.";
     }
     gWorldGuide.nbtVersion = nbtVer;
@@ -1707,7 +1715,7 @@ wxString MinewaysFrame::LoadWorldFromDir(const wxString& dir)
 
     gLoaded = TRUE;
 
-    SetTitle(wxString::Format("Mineways - %s", dir.AfterLast('/')));
+    SetTitle(wxString::Format("Mineways — %s", dir.AfterLast('/')));
     if (m_sliderTop) {
         m_sliderTop->SetRange(gMinHeight, gMaxHeight);
         m_sliderTop->SetValue(gCurDepth);

@@ -393,6 +393,40 @@ to a GitHub Release.
 target `upstream`, not `origin` — a PR within the fork itself is
 meaningless since there's nothing to diff against.
 
+### July 2026 macOS hardening pass
+
+The macOS-specific backlog in `TODO.md` was completed in commit `727a730`
+(`Fix macOS world loading and build consistency`). This pass deliberately
+did not modify files under `Win/`; the project scope is the native macOS port.
+
+The completed work:
+- Clears cached world/schematic state when changing inputs.
+- Synchronizes `gTargetDepth` during ordinary world loads.
+- Streams Import Settings files instead of loading them twice in memory.
+- Leaves the application coherently unloaded after failed world or schematic
+  loads.
+- Recognizes the modern `dimensions/` world layout.
+- Uses one Makefile version value for the binary, About dialog, SaveVolume,
+  app bundle, and tagged CI build.
+- Generates compiler dependency files with `-MMD -MP`.
+- Strictly validates persisted Culling Scheme hex and UTF-8 name lengths.
+- Enforces Import Settings line limits in UTF-8 bytes.
+
+Validation completed:
+- `make -C Mac clean all`
+- `make -C Mac app`
+- `make -C Mac MINEWAYS_VERSION=13.01 app`, followed by restoring the default
+  `13.0` build
+- Header dependency rebuild check
+- `git diff --check`
+- GUI smoke tests for Test Block World rendering/selection, a real modern
+  world containing `dimensions/`, valid Import Settings, oversized multibyte
+  UTF-8 rejection, failed-load export guards, recovery by loading another
+  world, Culling Schemes dialog, and About version `13.0`
+
+The follow-up port pass also resets the window title, status text, and map after
+a failed world or schematic load, and validates persisted Culling Scheme IDs.
+
 ---
 
 ## Working preferences (inferred from past sessions)

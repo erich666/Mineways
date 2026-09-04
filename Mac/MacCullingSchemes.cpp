@@ -7,6 +7,7 @@
 #include <wx/config.h>
 #include <wx/checklst.h>
 #include <wx/sizer.h>
+#include <climits>
 #include "MacCullingSchemes.h"
 #include "stdafx.h"   // project types via compat.h -> blockInfo.h etc.
 #include "CullingSchemes.h"   // NUM_CULL_ENTRIES, applyCullingScheme/isBlockCulled decls
@@ -79,6 +80,8 @@ static void saveScheme(const MacCullingScheme& cs)
 
 static bool loadScheme(int id, MacCullingScheme& cs)
 {
+    if (id <= 0) return false;
+
     wxConfig cfg("Mineways");
     cfg.SetPath(cfgPath(id));
     wxString name, hex;
@@ -92,17 +95,24 @@ static bool loadScheme(int id, MacCullingScheme& cs)
 
     MacCullingScheme decoded = {};
     wxScopedCharBuffer utf8Name = name.utf8_str();
-    if (!utf8Name) {
+    if (!utf8Name || strlen(utf8Name.data()) > sizeof(decoded.name) - 1) {
         cfg.SetPath("/"); return false;
     }
-    strncpy(decoded.name, utf8Name.data(), 254); decoded.name[254] = '\0';
+    strcpy(decoded.name, utf8Name.data());
     decoded.id = id;
     for (int i = 0; i < NUM_CULL_ENTRIES; i++) {
+        wxUniChar high = hex[2*i];
+        wxUniChar low = hex[2*i + 1];
+        auto isHexDigit = [](wxUniChar c) {
+            return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
+                   (c >= 'A' && c <= 'F');
+        };
         unsigned long v = 0;
-        if (!hex.Mid(2*i, 2).ToULong(&v, 16) || v > 0xff) {
+        if (!isHexDigit(high) || !isHexDigit(low) ||
+            !hex.Mid(2*i, 2).ToULong(&v, 16) || v > 0xff) {
             cfg.SetPath("/"); return false;
         }
-        decoded.culled[i] = (unsigned char)v;
+        decoded.culled[i] = v ? 1 : 0;
     }
     cfg.SetPath("/");
     cs = decoded;
@@ -118,11 +128,12 @@ static void deleteScheme(int id)
 static int nextSchemeId()
 {
     wxConfig cfg("Mineways");
-    int id = 0;
-    cfg.Read("/CullingSchemes/schemeId", &id, 0);
+    long id = 0;
+    if (!cfg.Read("/CullingSchemes/schemeId", &id) || id < 0 || id >= INT_MAX)
+        id = 0;
     id++;
     cfg.Write("/CullingSchemes/schemeId", id);
-    return id;
+    return (int)id;
 }
 
 // Enumerate all saved scheme IDs (returns sorted list)
@@ -135,12 +146,14 @@ static wxArrayInt listSchemeIds()
     bool more = cfg.GetFirstGroup(grp, cookie);
     while (more) {
         if (grp.StartsWith("scheme_")) {
-            long v; grp.Mid(7).ToLong(&v); ids.push_back((int)v);
+            long v = 0;
+            if (grp.Mid(7).ToLong(&v) && v > 0 && v <= INT_MAX)
+                ids.push_back((int)v);
         }
         more = cfg.GetNextGroup(grp, cookie);
     }
     cfg.SetPath("/");
-    ids.Sort([](int* a, int* b){ return *a - *b; });
+    ids.Sort([](int* a, int* b){ return (*a > *b) - (*a < *b); });
     return ids;
 }
 

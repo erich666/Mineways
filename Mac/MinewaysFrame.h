@@ -41,6 +41,7 @@ private:
     wxStaticText* m_labelBot  = nullptr;
 
     void BuildMenu();
+    void ClearLoadedWorld();
 
     // File menu
     void OnOpenWorld(wxCommandEvent&);
