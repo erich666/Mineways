@@ -143,7 +143,8 @@ public:
         prog.progressBar = progressBar;
         prog.cancel = false;
 
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0);
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
         curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
@@ -157,17 +158,22 @@ public:
         if (res != CURLE_OK) {
             // Upload has been cancelled
             if(prog.cancel)
-                return std::pair<int, std::string>(1, "{\"detail\":\" Canceled by the user\" } ");
+                response = "{\"detail\":\" Canceled by the user\" } ";
             else
-                return std::pair<int, std::string>(1, "{\"detail\":\"curl_easy_perform() failed: " + std::string(curl_easy_strerror(res)) + "\" } ");
+                response = "{\"detail\":\"curl_easy_perform() failed: " + std::string(curl_easy_strerror(res)) + "\" } ";
+            http_code = 1;
         }
         else {
             curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
         }
         SendMessage(progressBar, PBM_SETPOS,100, 0);
         curl_easy_cleanup(curl);
-        curl_formfree(formpost);
     }
+    else {
+        http_code = -3;
+        response = "{\"detail\":\"curl_easy_init() failed\" } ";
+    }
+    curl_formfree(formpost);
 
     return std::pair<int, std::string>(http_code, response);
 }
@@ -203,7 +209,8 @@ std::pair<int, std::string> get(const std::string& url,
     if (curl) {
         curl_easy_setopt(curl, CURLOPT_URL, (url + options).c_str());
         curl_easy_setopt(curl, CURLOPT_FRESH_CONNECT, 1);
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0);
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
 

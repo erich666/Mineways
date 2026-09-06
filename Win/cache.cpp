@@ -30,6 +30,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
+#include <stdint.h>
 
 /* a simple cache based on a hashtable with separate chaining */
 
@@ -82,9 +84,19 @@ static block_entry* hash_new(int x, int z, void* data, block_entry* next) {
 
 void Change_Cache_Size(int size)
 {
+    if (size <= 0 || (size_t)size > SIZE_MAX / sizeof(IPoint2))
+        return;
+
     if (size == gHashMaxEntries)
     {
         // no change - why did you call?
+        return;
+    }
+    if (gBlockCache == NULL) {
+        // Defer both allocations until the first insertion so the globals are
+        // always published as a complete cache pair.
+        gHashMaxEntries = size;
+        gCacheN = 0;
         return;
     }
     // mindless, slow, but safe: empty cache and just start again.
@@ -119,21 +131,39 @@ void Cache_Add(int bx, int bz, void* data)
     // Make a hash table gBlockCache that is 128*128 (16384) of entry pointers.
     // Each entry pointer will point to entries holding chunks, in a linked list.
     if (gBlockCache == NULL) {
-        gBlockCache = (block_entry**)calloc(HASH_SIZE, sizeof(block_entry*));
-        //memset(gBlockCache, 0, sizeof(block_entry*) * HASH_SIZE);
+        block_entry** newBlockCache = (block_entry**)calloc(HASH_SIZE, sizeof(block_entry*));
+        if (newBlockCache == NULL)
+            return;
+
+        IPoint2* newCacheHistory = NULL;
+        int newHashMaxEntries = gHashMaxEntries;
+        if (newHashMaxEntries <= 0 ||
+            (size_t)newHashMaxEntries > SIZE_MAX / sizeof(IPoint2)) {
+            free(newBlockCache);
+            return;
+        }
         do {
             // Make a history list of X,Z points of the size of the cache itself,
             // with each new chunk put in the next available spot, modulo.
             // This list is purely for knowing which entry to free next if the
             // cache gets filled.
-            gCacheHistory = (IPoint2*)malloc(sizeof(IPoint2) * gHashMaxEntries);
-            if (gCacheHistory == NULL) {
+            newCacheHistory = (IPoint2*)malloc(sizeof(IPoint2) * newHashMaxEntries);
+            if (newCacheHistory == NULL) {
                 // ruh roh, out of memory! We'll likely run out for reals later,
                 // but might as well try to recover now.
-                gHashMaxEntries /= 2;
+                newHashMaxEntries /= 2;
             }
-            // if we get to gHashMaxEntries then we're doomed
-        } while (gCacheHistory == NULL && gHashMaxEntries > 0);
+            // if we get to newHashMaxEntries then we're doomed
+        } while (newCacheHistory == NULL && newHashMaxEntries > 0);
+        if (newCacheHistory == NULL) {
+            free(newBlockCache);
+            return;
+        }
+
+        // Publish the cache only after both allocations have succeeded.
+        gBlockCache = newBlockCache;
+        gCacheHistory = newCacheHistory;
+        gHashMaxEntries = newHashMaxEntries;
         // new list, so it's empty:
         gCacheN = 0;
     }
@@ -222,8 +252,12 @@ void Cache_Empty()
     int hash;
     block_entry* entry, * next;
 
-    if (gBlockCache == NULL)
+    if (gBlockCache == NULL) {
+        free(gCacheHistory);
+        gCacheHistory = NULL;
+        gCacheN = 0;
         return;
+    }
 
     for (hash = 0; hash < HASH_SIZE; hash++) {
         entry = gBlockCache[hash];
@@ -243,6 +277,7 @@ void Cache_Empty()
     free(gCacheHistory);
     gBlockCache = NULL;
     gCacheHistory = NULL;
+    gCacheN = 0;
 }
 
 
@@ -262,7 +297,14 @@ static WorldBlock* last_block = NULL;
 
 WorldBlock* block_alloc(int minHeight, int maxHeight)
 {
-    int height = maxHeight - minHeight + 1;
+    long long requestedHeight = (long long)maxHeight - minHeight + 1;
+    if (requestedHeight <= 0 || requestedHeight > INT_MAX)
+        return NULL;
+    int height = (int)requestedHeight;
+    if ((size_t)height > SIZE_MAX / (16 * 16 * sizeof(unsigned char)))
+        return NULL;
+    size_t gridSize = 16 * 16 * (size_t)height * sizeof(unsigned char);
+    size_t lightSize = gridSize / 2;
     WorldBlock* ret = NULL;
     // is a cached block available and is it the right size?
     if (last_block != NULL && last_block->heightAlloc == height)
@@ -279,32 +321,36 @@ WorldBlock* block_alloc(int minHeight, int maxHeight)
     }
     else {
         // new block needed
-		if (last_block != NULL) {
-			// saved block was wrong size - clear it out, since it's unlikely to be used
-			block_force_free(last_block);
-			last_block = NULL;
-		}
-		// allocate normally
-	    ret = (WorldBlock*)malloc(sizeof(WorldBlock));
-	    if (ret == NULL)
-	        return NULL;
-	    ret->grid = (unsigned char*)malloc(16 * 16 * height * sizeof(unsigned char));
-	    if (ret->grid == NULL)
-	        return NULL;
-	    ret->data = (unsigned char*)malloc(16 * 16 * height * sizeof(unsigned char));
-	    if (ret->data == NULL)
-	        return NULL;
-	    ret->light = (unsigned char*)malloc(16 * 16 * height * sizeof(unsigned char) / 2);
-	    if (ret->light == NULL)
-	        return NULL;
-	    ret->entities = NULL;
-	    ret->numEntities = 0;
-	    ret->heightAlloc = height;    // for some betas of 1.17 it is 384 - change by checking versionID
+        if (last_block != NULL) {
+            // saved block was wrong size - clear it out, since it's unlikely to be used
+            block_force_free(last_block);
+            last_block = NULL;
+        }
+        // allocate normally
+        ret = (WorldBlock*)calloc(1, sizeof(WorldBlock));
+        if (ret == NULL)
+            return NULL;
+        ret->grid = (unsigned char*)malloc(gridSize);
+        if (ret->grid == NULL) {
+            block_force_free(ret);
+            return NULL;
+        }
+        ret->data = (unsigned char*)malloc(gridSize);
+        if (ret->data == NULL) {
+            block_force_free(ret);
+            return NULL;
+        }
+        ret->light = (unsigned char*)malloc(lightSize);
+        if (ret->light == NULL) {
+            block_force_free(ret);
+            return NULL;
+        }
+        ret->heightAlloc = height;    // for some betas of 1.17 it is 384 - change by checking versionID
         ret->minHeight = minHeight;
         ret->maxHeight = maxHeight;
-	    ret->maxFilledSectionHeight = ret->maxFilledHeight = EMPTY_MAX_HEIGHT;  // not yet determined
-	    return ret;
-	}
+        ret->maxFilledSectionHeight = ret->maxFilledHeight = EMPTY_MAX_HEIGHT;  // not yet determined
+        return ret;
+    }
 }
 
 // Given a WorldBlock that is no longer cached, save it away as "last_block" for immediate reuse if possible.
@@ -366,25 +412,32 @@ void block_realloc(WorldBlock* block)
         if (block->heightAlloc > block->maxFilledHeight + 1) {
             // we can make it smaller
             int heightAlloc = block->maxFilledHeight + 1;
+            if (heightAlloc <= 0 || block->grid == NULL || block->data == NULL || block->light == NULL)
+                return;
 
-            unsigned char* grid = (unsigned char*)realloc(block->grid, 256 * heightAlloc);
-            if (grid == NULL)
+            size_t gridSize = 256 * (size_t)heightAlloc;
+            size_t lightSize = 128 * (size_t)heightAlloc;
+            unsigned char* grid = (unsigned char*)malloc(gridSize);
+            unsigned char* data = (unsigned char*)malloc(gridSize);
+            unsigned char* light = (unsigned char*)malloc(lightSize);
+            if (grid == NULL || data == NULL || light == NULL) {
+                free(grid);
+                free(data);
+                free(light);
                 return;  // allocation failed, keep existing block unchanged
+            }
+
+            memcpy(grid, block->grid, gridSize);
+            memcpy(data, block->data, gridSize);
+            memcpy(light, block->light, lightSize);
+            free(block->grid);
+            free(block->data);
+            free(block->light);
             block->grid = grid;
-
-            unsigned char* data = (unsigned char*)realloc(block->data, 256 * heightAlloc);
-            if (data == NULL)
-                return;
             block->data = data;
-
-            unsigned char* light = (unsigned char*)realloc(block->light, 128 * heightAlloc);
-            if (light == NULL)
-                return;
             block->light = light;
 
             block->heightAlloc = heightAlloc;
         }
     }
 }
-
-

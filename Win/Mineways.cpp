@@ -484,12 +484,12 @@ static void cleanStringForLocations(char* cleanString, char* strPtr);
 static char* findBlockTypeAndData(char* line, int* pType, int* pData, unsigned short* pDataBits, wchar_t* error);
 static char* compareLCAndSkip(char* a, char const* b);
 static char* skipPastUnsignedInteger(char* strPtr);
-static void createCB(ImportedSet& is);
-static void addFromRangeToCB(ChangeBlockCommand* pCBC, unsigned char fromType, unsigned char fromEndType, unsigned short fromDataBits);
+static bool createCB(ImportedSet& is);
+static bool addFromRangeToCB(ChangeBlockCommand* pCBC, unsigned char fromType, unsigned char fromEndType, unsigned short fromDataBits);
 static void setDefaultFromRangeToCB(ChangeBlockCommand* pCBC, unsigned char fromType, unsigned char fromEndType, unsigned short fromDataBits);
 static void addRangeToDataBitsArray(ChangeBlockCommand* pCBC, int fromType, int fromEndType, unsigned short fromDataBits);
 static void saveCBinto(ChangeBlockCommand* pCBC, int intoType, int intoData);
-static void addDataBitsArray(ChangeBlockCommand* pCBC);
+static bool addDataBitsArray(ChangeBlockCommand* pCBC);
 static void saveCBlocation(ChangeBlockCommand* pCBC, int v[6]);
 static void deleteCommandBlockSet(ChangeBlockCommand* pCBC);
 static char* findLineDataNoCase(char* line, char* findStr);
@@ -3734,7 +3734,11 @@ static int loadSpongeSchematic(wchar_t* pathAndFile)
     gWorldGuide.sch.width = width;
     gWorldGuide.sch.height = height;
     gWorldGuide.sch.length = length;
-    gWorldGuide.sch.numBlocks = width * height * length;
+    if (!nbtGetValidatedSchematicVolume(width, height, length, &gWorldGuide.sch.numBlocks)) {
+        free(blocks);
+        free(data);
+        return 100 + 5;
+    }
     gWorldGuide.sch.blocks = blocks;
     gWorldGuide.sch.data = data;
 
@@ -3774,8 +3778,8 @@ static int loadSchematic(wchar_t* pathAndFile)
     CHECK_READ_SCHEMATIC_QUIT(GetSchematicWord(pathAndFile, "Height", &gWorldGuide.sch.height), 100 + 2);
     CHECK_READ_SCHEMATIC_QUIT(GetSchematicWord(pathAndFile, "Length", &gWorldGuide.sch.length), 100 + 3);
 
-    gWorldGuide.sch.numBlocks = gWorldGuide.sch.width * gWorldGuide.sch.height * gWorldGuide.sch.length;
-    if (gWorldGuide.sch.numBlocks <= 0)
+    if (!nbtGetValidatedSchematicVolume(gWorldGuide.sch.width, gWorldGuide.sch.height,
+        gWorldGuide.sch.length, &gWorldGuide.sch.numBlocks))
         return 100 + 4;
 
     gWorldGuide.sch.blocks = (unsigned char*)malloc(gWorldGuide.sch.numBlocks);
@@ -4016,7 +4020,7 @@ static int loadWorld(HWND hWnd)
 static void strcpyLimited(char* dst, int len, const char* src)
 {
     int i;
-    for (i = 0; i < len - 1 || src[i] == (char)0; i++) {
+    for (i = 0; i < len - 1 && src[i] != (char)0; i++) {
         dst[i] = src[i];
     }
     dst[i] = (char)0;
@@ -6270,10 +6274,11 @@ static void runImportOrScript(wchar_t* importFile, WindowSet& ws, const char** p
 
 // Read one line from the stdin Win32 handle, up to bufSize-1 characters (plus null terminator).
 // Strips trailing \r and \n. Returns true if a line was read, false on EOF or error.
-static bool readStdinLine(HANDLE hStdIn, char* buf, int bufSize)
+static bool readStdinLine(HANDLE hStdIn, char* buf, int bufSize, bool* tooLong)
 {
     int pos = 0;
-    while (pos < bufSize - 1) {
+    *tooLong = false;
+    while (true) {
         char c;
         DWORD bytesRead = 0;
         if (!ReadFile(hStdIn, &c, 1, &bytesRead, NULL) || bytesRead == 0) {
@@ -6283,7 +6288,10 @@ static bool readStdinLine(HANDLE hStdIn, char* buf, int bufSize)
         }
         if (c == '\n') break;     // end of line
         if (c == '\r') continue;  // strip CR from CRLF pairs
-        buf[pos++] = c;
+        if (pos < bufSize - 1)
+            buf[pos++] = c;
+        else
+            *tooLong = true;      // consume the rest of this line without executing fragments
     }
     buf[pos] = '\0';
     return true;
@@ -6338,7 +6346,8 @@ static void runStdinLoop()
     HANDLE hConsoleIn = INVALID_HANDLE_VALUE;  // opened lazily on pipe EOF
 
     while (true) {
-        if (!readStdinLine(hStdIn, lineString, IMPORT_LINE_LENGTH)) {
+        bool lineTooLong = false;
+        if (!readStdinLine(hStdIn, lineString, IMPORT_LINE_LENGTH, &lineTooLong)) {
             // EOF on the current stdin. If the current stdin was a pipe/file and we have a
             // console available, fall back to reading from the console so the user can continue
             // interactively after the piped commands finish (e.g. `echo cmd | mineways -headless`).
@@ -6353,6 +6362,12 @@ static void runStdinLoop()
             }
             // No console available (e.g. pure pipe-only mode from a parent process) — exit.
             break;
+        }
+
+        if (lineTooLong) {
+            fprintf(stdout, "ERROR: command exceeds %d characters\n", IMPORT_LINE_LENGTH - 1);
+            fflush(stdout);
+            continue;
         }
 
         // Skip empty lines
@@ -6475,6 +6490,14 @@ static int importSettings(wchar_t* importFile, ImportedSet& is, bool dialogOnSuc
     }
     else
     {
+        const wchar_t* extension = wcsrchr(importFile, L'.');
+        if (extension == NULL || _wcsicmp(extension, L".mwscript") != 0) {
+            FilterMessageBox(NULL,
+                L"This file is not a recognized Mineways export settings file. Only files with the .mwscript extension can be executed as scripts.",
+                _T("Import Settings error"), MB_OK | MB_ICONERROR | MB_TOPMOST);
+            retCode = IMPORT_FAILED;
+            goto Exit;
+        }
         sendStatusMessage(is.ws.hwndStatus, L"Running script");
 
         retCode = readAndExecuteScript(importFile, is) ? IMPORT_SCRIPT : 0;
@@ -7205,6 +7228,10 @@ static int interpretImportLine(char* line, ImportedSet& is)
             saveErrorMessage(is, L"no world given.");
             return INTERPRETER_FOUND_ERROR;
         }
+        if (strlen(strPtr) >= MAX_PATH_AND_FILE) {
+            saveErrorMessage(is, L"world path is too long.");
+            return INTERPRETER_FOUND_ERROR;
+        }
         if (is.processData) {
             // model or scripting - save path
             strcpy_s(is.world, MAX_PATH_AND_FILE, strPtr);
@@ -7348,6 +7375,10 @@ static int interpretImportLine(char* line, ImportedSet& is)
             saveErrorMessage(is, L"no terrain file given.");
             return INTERPRETER_FOUND_ERROR;
         }
+        if (strlen(strPtr) >= MAX_PATH_AND_FILE) {
+            saveErrorMessage(is, L"terrain file path is too long.");
+            return INTERPRETER_FOUND_ERROR;
+        }
         if (is.processData) {
             // TODO - somehow, this message never gets replaced when reloading world. sendStatusMessage(is.ws.hwndStatus, L"Importing model: reading terrain file");
             strcpy_s(is.terrainFile, MAX_PATH_AND_FILE, strPtr);
@@ -7437,6 +7468,10 @@ static int interpretImportLine(char* line, ImportedSet& is)
     if (strPtr != NULL) {
         if (*strPtr == (char)0) {
             saveErrorMessage(is, L"no culling scheme given.");
+            return INTERPRETER_FOUND_ERROR;
+        }
+        if (strlen(strPtr) >= MAX_PATH_AND_FILE) {
+            saveErrorMessage(is, L"culling scheme name is too long.");
             return INTERPRETER_FOUND_ERROR;
         }
         if (is.processData) {
@@ -7637,6 +7672,18 @@ static int interpretImportLine(char* line, ImportedSet& is)
             saveErrorMessage(is, L"could not interpret file type (solid color, textured, etc.).", strPtr);
             return INTERPRETER_FOUND_ERROR;
         }
+        char* tileDirectory = NULL;
+        if (outputTypeCorrespondence[i] == 4) {
+            tileDirectory = findLineDataNoCase(line, "File type: Export individual textures to directory ");
+            if (tileDirectory == NULL)
+                tileDirectory = findLineDataNoCase(line, "File type: Export separate textures to directory ");
+            if (tileDirectory == NULL)
+                tileDirectory = findLineDataNoCase(line, "File type: Export tiles for textures to directory ");
+            if (tileDirectory != NULL && strlen(tileDirectory) >= MAX_PATH) {
+                saveErrorMessage(is, L"individual texture directory path is too long.");
+                return INTERPRETER_FOUND_ERROR;
+            }
+        }
         if (is.processData) {
             is.pEFD->radioExportNoMaterials[is.pEFD->fileType] = 0;
             is.pEFD->radioExportMtlColors[is.pEFD->fileType] = 0;
@@ -7659,27 +7706,8 @@ static int interpretImportLine(char* line, ImportedSet& is)
                 break;
             case 4:
                 is.pEFD->radioExportTileTextures[is.pEFD->fileType] = 1;
-                // and retrieve path
-                {
-                    strPtr = findLineDataNoCase(line, "File type: Export individual textures to directory ");
-                    if (strPtr != NULL) {
-                        strcpy_s(is.pEFD->tileDirString, MAX_PATH, strPtr);
-                    }
-                    else {
-                        // old format
-                        strPtr = findLineDataNoCase(line, "File type: Export separate textures to directory ");
-                        if (strPtr != NULL) {
-                            strcpy_s(is.pEFD->tileDirString, MAX_PATH, strPtr);
-                        }
-                        else {
-                            // old format
-                            strPtr = findLineDataNoCase(line, "File type: Export tiles for textures to directory ");
-                            if (strPtr != NULL) {
-                                strcpy_s(is.pEFD->tileDirString, MAX_PATH, strPtr);
-                            }
-                        }
-                    }
-                }
+                if (tileDirectory != NULL)
+                    strcpy_s(is.pEFD->tileDirString, MAX_PATH, tileDirectory);
                 break;
             default:
                 assert(0);
@@ -8419,6 +8447,10 @@ static int interpretScriptLine(char* line, ImportedSet& is)
 
     strPtr = findLineDataNoCase(line, "Sketchfab token: ");
     if (strPtr != NULL) {
+        if (!isSketchfabFieldSizeValid(strPtr, SKFB_TOKEN_LIMIT)) {
+            saveErrorMessage(is, L"Sketchfab api token is too long (max 32 char.)");
+            return INTERPRETER_FOUND_ERROR;
+        }
         strcpy_s(gSkfbPData.skfbApiToken, SKFB_TOKEN_LIMIT + 1, strPtr);
         return INTERPRETER_FOUND_VALID_LINE;
     }
@@ -8808,6 +8840,10 @@ JumpToSpawn:
             saveErrorMessage(is, L"no log file given.");
             return INTERPRETER_FOUND_ERROR;
         }
+        if (strlen(strPtr) >= MAX_PATH_AND_FILE) {
+            saveErrorMessage(is, L"log file path is too long.");
+            return INTERPRETER_FOUND_ERROR;
+        }
         if (is.logging && !is.processData) {
             saveWarningMessage(is, L"ignored: log file was opened earlier.");
             return INTERPRETER_FOUND_VALID_LINE;
@@ -8876,7 +8912,10 @@ JumpToSpawn:
             saveErrorMessage(is, L"could not find ID value for 'Set unknown block ID' command.");
             return INTERPRETER_FOUND_ERROR;
         }
-        if (val < 0 || val >= NUM_BLOCKS_DEFINED) return INTERPRETER_FOUND_ERROR;
+        if (val < 0 || val >= NUM_BLOCKS_DEFINED) {
+            saveErrorMessage(is, L"unknown block ID is outside the supported range.", strPtr);
+            return INTERPRETER_FOUND_ERROR;
+        }
         if (is.processData)
         {
             SetUnknownBlockID(val);
@@ -8896,7 +8935,10 @@ JumpToSpawn:
             return INTERPRETER_FOUND_ERROR;
         }
         // could be more exacting, but GIGO:
-        if (val < -1 || val >= 256) return INTERPRETER_FOUND_ERROR;
+        if (val < -1 || val >= 256) {
+            saveErrorMessage(is, L"biome ID must be between -1 and 255.", strPtr);
+            return INTERPRETER_FOUND_ERROR;
+        }
         if (is.processData)
         {
             gUserSelectedBiome = val;
@@ -8951,12 +8993,15 @@ JumpToSpawn:
 
             // not in the list, so add to list of translations, just a simple linked list of tuples
             ptt = (TranslationTuple*)malloc(sizeof(TranslationTuple));
-            if (ptt == NULL)
+            if (ptt == NULL) {
+                saveErrorMessage(is, L"out of memory while adding a translation.");
                 return INTERPRETER_FOUND_ERROR;
+            }
             size_t stringLength = strlen(string1) + 1;
             ptt->name = (char*)malloc(stringLength);
             if (ptt->name == NULL) {
                 free(ptt);
+                saveErrorMessage(is, L"out of memory while storing a translation name.");
                 return INTERPRETER_FOUND_ERROR;
             }
             strcpy_s(ptt->name, stringLength, string1);
@@ -9087,16 +9132,21 @@ JumpToSpawn:
         else if (1 == sscanf_s(strPtr, "currency: %s", &buf, (unsigned)_countof(buf)))
         {
             if (is.processData) {
-                if (gCustomCurrency) {
-                    free(gCustomCurrency);
-                    gCustomCurrency = NULL;
-                }
                 size_t size = (strlen(buf) + 1) * sizeof(wchar_t);
-                gCustomCurrency = (wchar_t*)malloc(size);
-                if (gCustomCurrency == NULL)
+                wchar_t* customCurrency = (wchar_t*)malloc(size);
+                if (customCurrency == NULL) {
+                    saveErrorMessage(is, L"out of memory while storing the custom currency.");
                     return INTERPRETER_FOUND_ERROR;
+                }
                 size_t dummySize = 0;
-                mbstowcs_s(&dummySize, gCustomCurrency, size / 2, buf, (size / 2) - 1);
+                if (mbstowcs_s(&dummySize, customCurrency, size / sizeof(wchar_t), buf,
+                    (size / sizeof(wchar_t)) - 1) != 0) {
+                    free(customCurrency);
+                    saveErrorMessage(is, L"custom currency contains invalid text.");
+                    return INTERPRETER_FOUND_ERROR;
+                }
+                free(gCustomCurrency);
+                gCustomCurrency = customCurrency;
             }
         }
         else {
@@ -9160,7 +9210,10 @@ static bool findBitToggle(char* line, ImportedSet& is, char* type, unsigned int 
             *pRetCode = INTERPRETER_FOUND_ERROR;
             return true;
         }
-        if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
+        if (!validBoolean(is, string1)) {
+            *pRetCode = INTERPRETER_FOUND_ERROR;
+            return true;
+        }
         if (is.processData)
         {
             if (interpretBoolean(string1))
@@ -9260,17 +9313,28 @@ static bool testChangeBlockCommand(char* line, ImportedSet& is, int* pRetCode)
                 // at this point we know we have found some single or pair of found items, so add them in
                 if (!cbCreated) {
                     cbCreated = true;
-                    if (is.processData)
-                        createCB(is);
+                    if (is.processData && !createCB(is)) {
+                        saveErrorMessage(is, L"out of memory while creating a Change blocks command.");
+                        *pRetCode = INTERPRETER_FOUND_ERROR;
+                        return true;
+                    }
                 }
                 if (is.processData) {
                     if (fromType <= fromEndType) {
-                        addFromRangeToCB(is.pCBClast, (unsigned char)fromType, (unsigned char)fromEndType, fromDataBits);
+                        if (!addFromRangeToCB(is.pCBClast, (unsigned char)fromType, (unsigned char)fromEndType, fromDataBits)) {
+                            saveErrorMessage(is, L"out of memory while storing Change blocks ranges.");
+                            *pRetCode = INTERPRETER_FOUND_ERROR;
+                            return true;
+                        }
                     }
                     else {
                         // allowed, since it could be block name to block name
                         saveWarningMessage(is, L"the from range is saved from high to low; accepted as a range, but it's better to go low to high.");
-                        addFromRangeToCB(is.pCBClast, (unsigned char)fromEndType, (unsigned char)fromType, fromDataBits);
+                        if (!addFromRangeToCB(is.pCBClast, (unsigned char)fromEndType, (unsigned char)fromType, fromDataBits)) {
+                            saveErrorMessage(is, L"out of memory while storing Change blocks ranges.");
+                            *pRetCode = INTERPRETER_FOUND_ERROR;
+                            return true;
+                        }
                     }
                 }
 
@@ -9288,7 +9352,11 @@ static bool testChangeBlockCommand(char* line, ImportedSet& is, int* pRetCode)
         else {
             // no "from" directive found, so the range is everything except air.
             if (is.processData) {
-                createCB(is);
+                if (!createCB(is)) {
+                    saveErrorMessage(is, L"out of memory while creating a Change blocks command.");
+                    *pRetCode = INTERPRETER_FOUND_ERROR;
+                    return true;
+                }
                 // set all 16 bits to be flagged for all solid stuff;
                 // if you want everything, you need to say "from 0-255"
                 setDefaultFromRangeToCB(is.pCBClast, 1, 255, 0xffff);
@@ -9407,9 +9475,11 @@ static void cleanStringForLocations(char* cleanString, char* strPtr)
 
 
 // by default, assume nothing is set
-static void createCB(ImportedSet& is)
+static bool createCB(ImportedSet& is)
 {
     ChangeBlockCommand* pCBC = (ChangeBlockCommand*)calloc(1, sizeof(ChangeBlockCommand));
+    if (pCBC == NULL)
+        return false;
     //memset(pCBC, 0, sizeof(ChangeBlockCommand));
 
     if (is.pCBChead == NULL) {
@@ -9422,9 +9492,10 @@ static void createCB(ImportedSet& is)
     }
     // store the last element in the list, ready to add on to it.
     is.pCBClast = pCBC;
+    return true;
 }
 
-static void addFromRangeToCB(ChangeBlockCommand* pCBC, unsigned char fromType, unsigned char fromEndType, unsigned short fromDataBits)
+static bool addFromRangeToCB(ChangeBlockCommand* pCBC, unsigned char fromType, unsigned char fromEndType, unsigned short fromDataBits)
 {
     // two ways to store data:
     // one is a simple range: 5-50, say, and the data bits must all be the same, e.g. 0xffff (all data)
@@ -9447,7 +9518,8 @@ static void addFromRangeToCB(ChangeBlockCommand* pCBC, unsigned char fromType, u
                 (fromType > pCBC->simpleFromTypeEnd + 1) ||
                 (fromEndType < pCBC->simpleFromTypeBegin - 1)) {
                 // no, so must add array and the different ranges
-                addDataBitsArray(pCBC);
+                if (!addDataBitsArray(pCBC))
+                    return false;
                 pCBC->useFromArray = true;
                 addRangeToDataBitsArray(pCBC, pCBC->simpleFromTypeBegin, pCBC->simpleFromTypeEnd, pCBC->simpleFromDataBits);
                 addRangeToDataBitsArray(pCBC, fromType, fromEndType, fromDataBits);
@@ -9471,6 +9543,7 @@ static void addFromRangeToCB(ChangeBlockCommand* pCBC, unsigned char fromType, u
         pCBC->simpleFromTypeEnd = fromEndType;
         pCBC->simpleFromDataBits = fromDataBits;
     }
+    return true;
 }
 
 static void setDefaultFromRangeToCB(ChangeBlockCommand* pCBC, unsigned char fromType, unsigned char fromEndType, unsigned short fromDataBits)
@@ -9502,9 +9575,10 @@ static void saveCBinto(ChangeBlockCommand* pCBC, int intoType, int intoData)
     pCBC->hasInto = true;
 }
 
-static void addDataBitsArray(ChangeBlockCommand* pCBC)
+static bool addDataBitsArray(ChangeBlockCommand* pCBC)
 {
     pCBC->fromDataBitsArray = (unsigned short*)calloc(256, sizeof(unsigned short));
+    return pCBC->fromDataBitsArray != NULL;
     //memset(pCBC->fromDataBitsArray, 0, 256 * sizeof(unsigned short));
 }
 
@@ -9537,10 +9611,12 @@ static void saveCBlocation(ChangeBlockCommand* pCBC, int v[6])
 static void deleteCommandBlockSet(ChangeBlockCommand* pCBC)
 {
     while (pCBC) {
+        ChangeBlockCommand* next = pCBC->next;
         if (pCBC->fromDataBitsArray) {
             free(pCBC->fromDataBitsArray);
         }
-        pCBC = pCBC->next;
+        free(pCBC);
+        pCBC = next;
     }
 }
 
@@ -9731,7 +9807,7 @@ static void cleanseBackslashes(char* line)
     while (loc != NULL) {
         // go to and remove second slash
         loc++;
-        strcpy_s(loc, strlen(loc), loc + 1);
+        memmove(loc, loc + 1, strlen(loc));
         loc--;
         loc = strstr(loc, "\\\\");
     }
@@ -10337,7 +10413,11 @@ static bool openLogFile(ImportedSet& is)
     size_t dummySize = 0;
     wchar_t wFileName[MAX_PATH_AND_FILE];
     char outputString[256];
-    mbstowcs_s(&dummySize, wFileName, (size_t)MAX_PATH_AND_FILE, is.logFileName, MAX_PATH_AND_FILE);
+    if (mbstowcs_s(&dummySize, wFileName, (size_t)MAX_PATH_AND_FILE,
+        is.logFileName, MAX_PATH_AND_FILE) != 0) {
+        saveErrorMessage(is, L"script log file path contains invalid text.", is.logFileName);
+        goto OnFail;
+    }
     rationalizeFilePath(wFileName);
     if (wcslen(wFileName) > 0) {
         // overwrite previous log file
@@ -10348,7 +10428,10 @@ static bool openLogFile(ImportedSet& is)
         }
 
         strcpy_s(outputString, 256, "Start processing script\n");
-        if (PortaWrite(is.logfile, outputString, strlen(outputString))) goto OnFail;
+        if (PortaWrite(is.logfile, outputString, strlen(outputString))) {
+            saveErrorMessage(is, L"cannot write the script log file.", is.logFileName);
+            goto OnFail;
+        }
 
         // ugh, yet another global...
         gpIS = &is;
@@ -10366,7 +10449,10 @@ static bool openLogFile(ImportedSet& is)
         if (!errNum)
         {
             sprintf_s(outputString, 256, "  %s\n", timeString);
-            if (PortaWrite(is.logfile, outputString, strlen(outputString))) goto OnFail;
+            if (PortaWrite(is.logfile, outputString, strlen(outputString))) {
+                saveErrorMessage(is, L"cannot write the script log file.", is.logFileName);
+                goto OnFail;
+            }
         }
 
         return true;
@@ -10375,7 +10461,7 @@ static bool openLogFile(ImportedSet& is)
 OnFail:
     is.logging = false;
     is.logFileName[0] = (char)0;
-    if (is.logfile != 0)
+    if (is.logfile != NULL && is.logfile != INVALID_HANDLE_VALUE)
     {
         PortaClose(is.logfile);
         is.logfile = NULL;

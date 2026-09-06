@@ -110,8 +110,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define PortaAppend(fn) fopen(fn,"a")
 #define PortaCreate(fn) fopen(fn,"w")
 #define PortaSeek(h,ofs) fseek(h,ofs,SEEK_SET)
-#define PortaRead(h,buf,len) fread(buf,len,1,h)!=1
-#define PortaWrite(h,buf,len) fwrite(buf,len,1,h)!=1
+#define PortaRead(h,buf,len)  (fread(buf,len,1,h)!=1)
+#define PortaWrite(h,buf,len) (fwrite(buf,len,1,h)!=1)
 #define PortaClose(h) fclose(h)
 #endif
 

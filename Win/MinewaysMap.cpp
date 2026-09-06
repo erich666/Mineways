@@ -619,7 +619,7 @@ const char* IDBlock(int bx, int by, double cx, double cz, int w, int h, int yOff
 
     void* data;
     // note: found could be false, but we don't care - we assume everything visible is loaded
-    (WorldBlock*)Cache_Find(startxblock + x, startzblock + z, &data);
+    (void)Cache_Find(startxblock + x, startzblock + z, &data);
     block = (WorldBlock*)data;
 
     // this is assumed OK, that we don't need to actually go retrieve the block if empty, as it should be visible and loaded already
@@ -5131,7 +5131,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
                 return gBlankTile;
 
             // fully inside? Use precomputed highlit area
-            static int flux = 0;
+            // static int flux = 0;
             if ((bx * 16 > gBox.minX) && (bx * 16 + 15 < gBox.maxX) &&
                 (bz * 16 > gBox.minZ) && (bz * 16 + 15 < gBox.maxZ))
                 return gBlankHighlitTile;
@@ -5182,7 +5182,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
     {
         void* dummy;
         if (block->rendermissing // wait, the last render was incomplete
-            && Cache_Find(bx, bz + block->rendermissing, &dummy) != NULL) {
+            && Cache_Find(bx, bz + block->rendermissing, &dummy)) {
             ; // we can do a better render now that the missing block is loaded
         }
         else {
@@ -5213,7 +5213,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
 
     // find the block to the west, so we can use its heightmap for shading - it should be loaded.
     // If not, whatever, it's offscreen, perhaps, so the shadow's not exactly correct on the left edge.
-    (WorldBlock*)Cache_Find(bx - 1, bz, &data);
+    (void)Cache_Find(bx - 1, bz, &data);
     prevblock = (WorldBlock*)data;
 
     if (prevblock == NULL || prevblock->blockType == NBT_NO_SECTIONS)
@@ -8162,10 +8162,10 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
         // - higher is just more inefficient
         block->maxFilledSectionHeight = 79 + yoff;
 
-        memset(block->grid, 0, 16 * 16 * block->maxHeight);
-        memset(block->data, 0, 16 * 16 * block->maxHeight);
+        memset(block->grid, 0, 16 * 16 * block->heightAlloc);
+        memset(block->data, 0, 16 * 16 * block->heightAlloc);
         memset(block->biome, 1, 16 * 16);
-        memset(block->light, 0xff, 16 * 16 * block->maxHeight/2);
+        memset(block->light, 0xff, 16 * 16 * block->heightAlloc/2);
         block->renderhilitID = 0;
 
         if (type >= 0 && type < NUM_BLOCKS_DEFINED && cz >= 0 && cz < 8)
@@ -8470,14 +8470,39 @@ int NeedToCheckUnknownBlock()
     return gPerformUnknownBlockCheck;
 }
 
+static bool buildWorldMetadataPath(wchar_t* destination, size_t destinationSize, const wchar_t* world,
+    const wchar_t* firstPart, const wchar_t* secondPart = NULL, const wchar_t* thirdPart = NULL)
+{
+    if (destination == NULL || destinationSize == 0 || world == NULL || firstPart == NULL)
+        return false;
+
+    const wchar_t* parts[3] = { firstPart, secondPart, thirdPart };
+    size_t required = wcslen(world) + 1;
+    for (int i = 0; i < 3 && parts[i] != NULL; i++) {
+        size_t separatorLength = wcslen(gSeparator);
+        size_t partLength = wcslen(parts[i]);
+        if (separatorLength > (size_t)-1 - required || partLength > (size_t)-1 - required - separatorLength)
+            return false;
+        required += separatorLength + partLength;
+    }
+    if (required > destinationSize)
+        return false;
+
+    wcscpy_s(destination, destinationSize, world);
+    for (int i = 0; i < 3 && parts[i] != NULL; i++) {
+        wcscat_s(destination, destinationSize, gSeparator);
+        wcscat_s(destination, destinationSize, parts[i]);
+    }
+    return true;
+}
+
 // 0 succeed, 1+ windows file open fail, -1 or less is some other read error from nbt
 int GetSpawn(const wchar_t* world, int* x, int* y, int* z)
 {
     bfFile bf;
-    wchar_t filename[300];
-    wcsncpy_s(filename, 300, world, wcslen(world) + 1);
-    wcscat_s(filename, 300, gSeparator);
-    wcscat_s(filename, 300, L"level.dat");
+    wchar_t filename[MAX_PATH_AND_FILE];
+    if (!buildWorldMetadataPath(filename, _countof(filename), world, L"level.dat"))
+        return 1;
     int err = 0;
     bf = newNBT(filename, &err);
     if (bf.gz == 0x0) return err;
@@ -8489,9 +8514,8 @@ int GetSpawn(const wchar_t* world, int* x, int* y, int* z)
 int GetFileVersion(const wchar_t* world, int* version, wchar_t* fileOpened, rsize_t size)
 {
     bfFile bf;
-    wcsncpy_s(fileOpened, size, world, wcslen(world) + 1);
-    wcscat_s(fileOpened, size, gSeparator);
-    wcscat_s(fileOpened, size, L"level.dat");
+    if (!buildWorldMetadataPath(fileOpened, size, world, L"level.dat"))
+        return 1;
     int err = 0;
     bf = newNBT(fileOpened, &err);
     if (bf.gz == 0x0) return err;
@@ -8505,10 +8529,9 @@ int GetFileVersion(const wchar_t* world, int* version, wchar_t* fileOpened, rsiz
 int GetFileVersionId(const wchar_t* world, int* versionId)
 {
     bfFile bf;
-    wchar_t filename[300];
-    wcsncpy_s(filename, 300, world, wcslen(world) + 1);
-    wcscat_s(filename, 300, gSeparator);
-    wcscat_s(filename, 300, L"level.dat");
+    wchar_t filename[MAX_PATH_AND_FILE];
+    if (!buildWorldMetadataPath(filename, _countof(filename), world, L"level.dat"))
+        return 1;
     int err = 0;
     bf = newNBT(filename, &err);
     if (bf.gz == 0x0) return err;
@@ -8539,10 +8562,9 @@ int GetFileVersionName(const wchar_t* world, char* versionName, int stringLength
 int GetLevelName(const wchar_t* world, char* levelName, int stringLength)
 {
     bfFile bf;
-    wchar_t filename[300];
-    wcsncpy_s(filename, 300, world, wcslen(world) + 1);
-    wcscat_s(filename, 300, gSeparator);
-    wcscat_s(filename, 300, L"level.dat");
+    wchar_t filename[MAX_PATH_AND_FILE];
+    if (!buildWorldMetadataPath(filename, _countof(filename), world, L"level.dat"))
+        return 1;
     int err = 0;
     bf = newNBT(filename, &err);
     if (bf.gz == 0x0) return err;
@@ -8567,10 +8589,9 @@ int GetPlayer(const wchar_t* world, int* px, int* py, int* pz, int* dimension)
 {
     *px = *py = *pz = *dimension = 0;   // just to be safe, in case some call below fails and initialization isn't done there
     bfFile bf;
-    wchar_t filename[300];
-    wcsncpy_s(filename, 300, world, wcslen(world) + 1);
-    wcscat_s(filename, 300, gSeparator);
-    wcscat_s(filename, 300, L"level.dat");
+    wchar_t filename[MAX_PATH_AND_FILE];
+    if (!buildWorldMetadataPath(filename, _countof(filename), world, L"level.dat"))
+        return 1;
     int err = 0;
     bf = newNBT(filename, &err);
     if (bf.gz == 0x0) return err;
@@ -8583,14 +8604,10 @@ int GetPlayer(const wchar_t* world, int* px, int* py, int* pz, int* dimension)
         // currently-active player's file has a matching <uuid>.dat_old backup that Minecraft
         // creates when it saves the .dat. Find that .dat_old marker, then read the matching .dat.
         // Note: if there are multiple players in the world, some random player gets picked, I guess.
-        wchar_t playerDataPath[300];
-        wcsncpy_s(playerDataPath, 300, world, wcslen(world) + 1);
-        wcscat_s(playerDataPath, 300, gSeparator);
-        wcscat_s(playerDataPath, 300, L"players");
-        wcscat_s(playerDataPath, 300, gSeparator);
-        wcscat_s(playerDataPath, 300, L"data");
-        wcscat_s(playerDataPath, 300, gSeparator);
-        wcscat_s(playerDataPath, 300, L"*.dat_old");
+        wchar_t playerDataPath[MAX_PATH_AND_FILE];
+        if (!buildWorldMetadataPath(playerDataPath, _countof(playerDataPath), world,
+            L"players", L"data", L"*.dat_old"))
+            return 1;
 
         WIN32_FIND_DATA ffd;
         HANDLE hFind = FindFirstFile(playerDataPath, &ffd);
@@ -8607,14 +8624,10 @@ int GetPlayer(const wchar_t* world, int* px, int* py, int* pz, int* dimension)
                 }
                 baseName[baseLen - oldSuffixLen] = L'\0';
 
-                wchar_t playerFile[300];
-                wcsncpy_s(playerFile, 300, world, wcslen(world) + 1);
-                wcscat_s(playerFile, 300, gSeparator);
-                wcscat_s(playerFile, 300, L"players");
-                wcscat_s(playerFile, 300, gSeparator);
-                wcscat_s(playerFile, 300, L"data");
-                wcscat_s(playerFile, 300, gSeparator);
-                wcscat_s(playerFile, 300, baseName);
+                wchar_t playerFile[MAX_PATH_AND_FILE];
+                if (!buildWorldMetadataPath(playerFile, _countof(playerFile), world,
+                    L"players", L"data", baseName))
+                    continue;
 
                 bf = newNBT(playerFile, &err);
                 if (bf.gz == 0x0) continue;
@@ -8773,7 +8786,7 @@ char* MapUnknownBlockName()
 // reset error field for bad block names
 void ClearUnknownBlockNameString()
 {
-    gUnknownBlockName[0] = NULL;
+    gUnknownBlockName[0] = '\0';
 }
 
 void SetUnknownBlockID(int val)

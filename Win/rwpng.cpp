@@ -29,6 +29,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "rwpng.h"
 
 #include <assert.h>
+#include <limits>
+#include <memory>
+#include <stdexcept>
 
 #include <iostream>
 
@@ -54,6 +57,15 @@ int readpng(progimage_info *im, wchar_t *filename, LodePNGColorType colortype)
         return (int)error;
     }
 
+    if (width > (unsigned int)(std::numeric_limits<int>::max)() ||
+        height > (unsigned int)(std::numeric_limits<int>::max)())
+    {
+        im->image_data.clear();
+        im->width = 0;
+        im->height = 0;
+        return 93;
+    }
+
     im->width = (int)width;
     im->height = (int)height;
 
@@ -76,7 +88,13 @@ int readpngheader(progimage_info* im, wchar_t* filename, LodePNGColorType& color
 {
     unsigned int width, height;
     std::vector<unsigned char> buffer;
-    lodepng::load_file(buffer, filename);
+    unsigned int error = lodepng::load_file(buffer, filename);
+    if (error)
+    {
+        im->width = 0;
+        im->height = 0;
+        return (int)error;
+    }
 
     colortype = LCT_RGBA;
     unsigned bitdepth = 8;
@@ -87,7 +105,7 @@ int readpngheader(progimage_info* im, wchar_t* filename, LodePNGColorType& color
     state.info_raw.bitdepth = bitdepth;
     // reads header and resets other parameters in state->info_png
     state.error = lodepng_inspect(&width, &height, &state, buffer.empty() ? 0 : &buffer[0], (unsigned)buffer.size());
-    unsigned int error = state.error;
+    error = state.error;
     colortype = state.info_png.color.colortype;
 
     lodepng_state_cleanup(&state);
@@ -99,6 +117,14 @@ int readpngheader(progimage_info* im, wchar_t* filename, LodePNGColorType& color
         im->height = 0;
         //std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
         return (int)error;
+    }
+
+    if (width > (unsigned int)(std::numeric_limits<int>::max)() ||
+        height > (unsigned int)(std::numeric_limits<int>::max)())
+    {
+        im->width = 0;
+        im->height = 0;
+        return 93;
     }
 
     im->width = (int)width;
@@ -118,6 +144,20 @@ int writepng(progimage_info *im, int channels, wchar_t *filename)
     //dumb_wcharToChar(wfilename,filename);
 
     //Encode the image, depending on type
+    if (channels != 1 && channels != 3 && channels != 4)
+        return 106; // IMAGE_ERROR_UNSUPPORTED_FORMAT
+
+    if (im == NULL || im->width <= 0 || im->height <= 0)
+        return 93;
+
+    size_t width = (size_t)im->width;
+    size_t height = (size_t)im->height;
+    if (width > (std::numeric_limits<size_t>::max)() / height)
+        return 93;
+    size_t pixelCount = width * height;
+    if (pixelCount > (std::numeric_limits<size_t>::max)() / (size_t)channels ||
+        im->image_data.size() < pixelCount * (size_t)channels)
+        return 93;
     unsigned int error = 1;	// 1 means didn't reach lodepng
     if ( channels == 4 )
     {
@@ -149,7 +189,8 @@ int writepng(progimage_info *im, int channels, wchar_t *filename)
     return 0;
 }
 
-
+// Call when reusing an allocated image.
+// Empties the old contents before the image holder gets resized/repopulated with the new image's bytes
 void writepng_cleanup(progimage_info *im)
 {
     im->image_data.clear();
@@ -158,25 +199,46 @@ void writepng_cleanup(progimage_info *im)
 progimage_info* allocateGrayscaleImage(progimage_info* source_ptr)
 {
     // allocate output image and fill it up
-    progimage_info* destination_ptr = new progimage_info();
+    std::unique_ptr<progimage_info> destination_ptr(new progimage_info());
 
     destination_ptr->width = source_ptr->width;
     destination_ptr->height = source_ptr->height;
-    destination_ptr->image_data.resize(destination_ptr->width * destination_ptr->height * 1 * sizeof(unsigned char), 0x0);
+    if (destination_ptr->width <= 0 || destination_ptr->height <= 0) {
+        throw std::length_error("invalid image dimensions");
+    }
+    size_t width = (size_t)destination_ptr->width;
+    size_t height = (size_t)destination_ptr->height;
+    if (width > (std::numeric_limits<size_t>::max)() / height) {
+        throw std::length_error("image dimensions are too large");
+    }
+    size_t pixelCount = width * height;
+    destination_ptr->image_data.resize(pixelCount, 0x0);
 
-    return destination_ptr;
+    return destination_ptr.release();
 }
 
 progimage_info* allocateRGBImage(progimage_info* source_ptr)
 {
     // allocate output image and fill it up
-    progimage_info* destination_ptr = new progimage_info();
+    std::unique_ptr<progimage_info> destination_ptr(new progimage_info());
 
     destination_ptr->width = source_ptr->width;
     destination_ptr->height = source_ptr->height;
-    destination_ptr->image_data.resize(destination_ptr->width * destination_ptr->height * 3 * sizeof(unsigned char), 0x0);
+    if (destination_ptr->width <= 0 || destination_ptr->height <= 0) {
+        throw std::length_error("invalid image dimensions");
+    }
+    size_t width = (size_t)destination_ptr->width;
+    size_t height = (size_t)destination_ptr->height;
+    if (width > (std::numeric_limits<size_t>::max)() / height) {
+        throw std::length_error("image dimensions are too large");
+    }
+    size_t pixelCount = width * height;
+    if (pixelCount > (std::numeric_limits<size_t>::max)() / 3) {
+        throw std::length_error("image dimensions are too large");
+    }
+    destination_ptr->image_data.resize(pixelCount * 3, 0x0);
 
-    return destination_ptr;
+    return destination_ptr.release();
 }
 
 void copyOneChannel(progimage_info* dst, int channel, progimage_info* src, LodePNGColorType colortype)
@@ -248,6 +310,3 @@ void changeValueToValue(progimage_info* src, int channel, int numChannels, unsig
         }
     }
 }
-
-
-

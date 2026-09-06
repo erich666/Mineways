@@ -35,6 +35,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "vector.h"
 #include "mdlFiles.h"
 #include <assert.h>
+#include <limits.h>
 #include <string.h>
 #include <math.h>
 #include <time.h>
@@ -60,7 +61,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 static PORTAFILE gModelFile;
 static PORTAFILE gMtlFile;
-static PORTAFILE gPngFile;  // for terrainExt.png input (not texture output)
 
 #ifdef WIN32
 DWORD br;
@@ -611,8 +611,19 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType);
 static void convertWcharPathUnderlined(char* worldNameUnderlined, wchar_t* worldName, bool convertPunctuation);
 static void convertCharPathUnderlined(char* worldNameUnderlined, char* worldCharName, bool convertPunctuation);
 
-static void initializeWorldData(IBox* worldBox, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax);
+static int initializeWorldData(IBox* worldBox, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax);
 static int initializeModelData();
+
+static bool expandedListSize(int currentSize, size_t elementSize, int* expandedSize)
+{
+    if (currentSize < 0 || elementSize == 0 || expandedSize == NULL)
+        return false;
+    size_t newSize = (size_t)currentSize + (size_t)currentSize / 2 + 1;
+    if (newSize > INT_MAX || newSize > (size_t)-1 / elementSize)
+        return false;
+    *expandedSize = (int)newSize;
+    return true;
+}
 
 static int readTerrainPNG(const wchar_t* curDir, progimage_info* pII, wchar_t* terrainFileName, int category, int exportFileType);
 static void invertImage(progimage_info* dst);
@@ -672,14 +683,14 @@ static int checkFaceListSize();
 
 static int findGroups();
 static void addVolumeToGroup(int groupID, int minx, int miny, int minz, int maxx, int maxy, int maxz);
-static void propagateSeed(IPoint point, BoxGroup* groupInfo, IPoint** seedStack, int* seedSize, int* seedCount);
+static bool propagateSeed(IPoint point, BoxGroup* groupInfo, IPoint** seedStack, int* seedSize, int* seedCount);
 static bool notAirEdge(IPoint pt);
 static int getNeighbor(int faceDirection, IPoint newPoint);
 static void getNeighborUnsafe(int faceDirection, IPoint newPoint);
 
 static void coatSurfaces();
 static void removeCoatingAndGroups();
-static void checkAndRemoveBubbles();
+static int checkAndRemoveBubbles();
 static void findNeighboringGroups(IBox* bounds, int groupID, int* neighborGroups);
 
 //static void establishGroupBounds();
@@ -703,15 +714,15 @@ static void boxIndexToLoc(IPoint loc, int boxIndex);
 static void processFloatingGroups(bool trulyDelete);
 static int determineScaleAndHollowAndMelt();
 static void scaleByCost();
-static void hollowBottomOfModel();
+static int hollowBottomOfModel();
 static void meltSnow();
-static void hollowSeed(int x, int y, int z, IPoint** seedList, int* seedSize, int* seedCount);
+static bool hollowSeed(int x, int y, int z, IPoint** seedList, int* seedSize, int* seedCount);
 
 static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox);
-static void removeUnusedFacesAndVertices();
-static void createInstance(int type, int dataVal, int faceIndex);
+static int removeUnusedFacesAndVertices();
+static bool createInstance(int type, int dataVal, int faceIndex);
 static bool findInstance(int type, int dataVal, int& instanceID);
-static void saveInstanceLocation(float* anchorPt, int instanceID);
+static bool saveInstanceLocation(float* anchorPt, int instanceID);
 static int makeInstanceHash(int type, int dataVal);
 static int tileIdCompare(void* context, const void* str1, const void* str2);
 static int tileUSDIdCompare(void* context, const void* str1, const void* str2);
@@ -749,8 +760,8 @@ static int createCompositeSwatch(int swatchLoc, int backgroundSwatchLoc, int ang
 static void flipIndicesLeftRight(int localIndices[4]);
 static void rotateIndices(int localIndices[4], int angle);
 static void reflectIndices(int localIndices[4]);
-static void saveTextureCorners(int swatchLoc, int type, int uvIndices[4]);
-static void saveRectangleTextureUVs(int swatchLoc, int type, float minu, float maxu, float minv, float maxv, int uvIndices[4]);
+static bool saveTextureCorners(int swatchLoc, int type, int uvIndices[4]);
+static bool saveRectangleTextureUVs(int swatchLoc, int type, float minu, float maxu, float minv, float maxv, int uvIndices[4]);
 static int saveTextureUV(int swatchLoc, int type, float u, float v);
 
 static void freeModel(Model* pModel);
@@ -952,6 +963,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     int retCode = MW_NO_ERROR;
     int needDifferentTextures = 0;
     int catIndex;
+    bool startProgress = true;
     gTotalInputTextures = 1;
     gUserSelectedBiome = userSelectedBiome;
 
@@ -978,6 +990,12 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     gModel.options = options;
     gModel.options->totalBlocks = 0;
     gModel.options->cost = 0.0f;
+    gBoxData = NULL;
+    gBiomeArray = NULL;
+
+    retCode |= initializeWorldData(&worldBox, xmin, ymin, zmin, xmax, ymax, zmax);
+    if (retCode >= MW_BEGIN_ERRORS)
+        goto Exit;
 
     gModel.exportTexture = (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE) ? 1 : 0;
     gModel.exportTiles = (gModel.options->exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES) ? 1 : 0;    // aka "individual"
@@ -1041,9 +1059,6 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     gModel.groupCountSize = groupCountSize;
     gModel.groupCountArray = groupCountArray;
 
-    gBoxData = NULL;
-    gBiomeArray = NULL;
-
     gMinorBlockCount = 0;
 
     // get path name and root of output file name as separate globals. Also have a
@@ -1067,7 +1082,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
             // always add a / to the directory, vs. if it doesn't exist ("else" case below) then it will not be output
             strcat_s(gMaterialFileSubdirChar, MAX_PATH_AND_FILE, "/");
 
-            concatFileName3(gMaterialDirectoryPath, gOutputFilePath, materialFileSubdir, L"\\");
+            concatFileName3(gMaterialDirectoryPath, gOutputFilePath, materialFileSubdir, gSeparator);
             // try to create it
             if (!(CreateDirectoryW(gMaterialDirectoryPath, NULL) ||
                 ERROR_ALREADY_EXISTS == GetLastError()))
@@ -1109,8 +1124,6 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     myseedrand(12345);
 
     gOutputFileList = outputFileList;
-
-    bool startProgress = true;
 
     // first things very first: if full texturing is wanted, check if the TerrainExt.png input texture is readable
     if (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES)
@@ -1234,7 +1247,6 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     UPDATE_STATUS(gProgress.start.readBlocks, L"Read selected blocks");
     //UPDATE_PROGRESS(gProgress.start.readBlocks);
 
-    initializeWorldData(&worldBox, xmin, ymin, zmin, xmax, ymax, zmax);
     tightenedWorldBox = worldBox;
 
     // Note that tightenedWorldBox will come back with the "solid" bounds, of where data was actually found.
@@ -1769,7 +1781,7 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
                 if (strlen(gModel.options->pEFD->tileDirString) > 0) {
                     wchar_t subpath[MAX_PATH_AND_FILE];
                     charToWchar(gModel.options->pEFD->tileDirString, subpath);
-                    wcscat_s(subpath, MAX_PATH_AND_FILE, L"\\");
+                    wcscat_s(subpath, MAX_PATH_AND_FILE, gSeparator);
 
                     // create subdirectory if it doesn't exist
                     concatFileName2(gTextureDirectoryPath, gMaterialDirectoryPath, subpath);
@@ -1989,7 +2001,7 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
                 if (strlen(gModel.options->pEFD->tileDirString) > 0) {
                     wchar_t subpath[MAX_PATH_AND_FILE];
                     charToWchar(gModel.options->pEFD->tileDirString, subpath);
-                    wcscat_s(subpath, MAX_PATH_AND_FILE, L"\\");
+                    wcscat_s(subpath, MAX_PATH_AND_FILE, gSeparator);
                     concatFileName2(gTextureDirectoryPath, gMaterialDirectoryPath, subpath);
                     if (!(CreateDirectoryW(gTextureDirectoryPath, NULL) ||
                         ERROR_ALREADY_EXISTS == GetLastError()))
@@ -2105,7 +2117,7 @@ wchar_t* RemoveGivenPath(wchar_t* src, wchar_t* path)
     wchar_t* srcPtr = src;
     wchar_t* pathPtr = path;
 
-    while (*srcPtr++ == *pathPtr++ && *pathPtr != NULL) 
+    while (*srcPtr++ == *pathPtr++ && *pathPtr != L'\0') 
     {}
 
     // srcPtr now points at rest of path - remove leading "//" if there.
@@ -2138,7 +2150,7 @@ static void convertCharPathUnderlined(char* worldNameUnderlined, char* worldChar
     }
 }
 
-static void initializeWorldData(IBox* worldBox, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax)
+static int initializeWorldData(IBox* worldBox, int xmin, int ymin, int zmin, int xmax, int ymax, int zmax)
 {
     // clean up a bit: make sure max>=min, and limit Y
     ymin = clamp(ymin, gMinHeight, gMaxHeight);
@@ -2150,13 +2162,31 @@ static void initializeWorldData(IBox* worldBox, int xmin, int ymin, int zmin, in
     if (zmin > zmax) swapint(zmin, zmax);
 
     // add an air border of 1 block around the whole box
-    gBoxSize[X] = xmax - xmin + 3;
-    gBoxSize[Y] = ymax - ymin + 3;
-    gBoxSize[Z] = zmax - zmin + 3;
+    long long sizeX = (long long)xmax - (long long)xmin + 3;
+    long long sizeY = (long long)ymax - (long long)ymin + 3;
+    long long sizeZ = (long long)zmax - (long long)zmin + 3;
+    long long offsetX = 1LL - (long long)xmin;
+    long long offsetY = 1LL - (long long)ymin;
+    long long offsetZ = 1LL - (long long)zmin;
+    if (sizeX <= 0 || sizeX > INT_MAX || sizeY <= 0 || sizeY > INT_MAX ||
+        sizeZ <= 0 || sizeZ > INT_MAX || offsetX < INT_MIN || offsetX > INT_MAX ||
+        offsetY < INT_MIN || offsetY > INT_MAX || offsetZ < INT_MIN || offsetZ > INT_MAX) {
+        return MW_WORLD_EXPORT_TOO_LARGE;
+    }
+    long long sizeYZ = sizeY * sizeZ;
+    long long sizeXZ = sizeX * sizeZ;
+    long long maxCells = INT_MAX / (int)sizeof(BoxCell);
+    if (sizeYZ > INT_MAX || sizeXZ > INT_MAX / 6 || sizeX > maxCells / sizeYZ) {
+        return MW_WORLD_EXPORT_TOO_LARGE;
+    }
+    long long sizeXYZ = sizeX * sizeYZ;
+    gBoxSize[X] = (int)sizeX;
+    gBoxSize[Y] = (int)sizeY;
+    gBoxSize[Z] = (int)sizeZ;
     // scale for X index value
-    gBoxSizeYZ = gBoxSize[Y] * gBoxSize[Z];
+    gBoxSizeYZ = (int)sizeYZ;
     // this will be the size of gBoxData
-    gBoxSizeXYZ = gBoxSize[X] * gBoxSizeYZ;
+    gBoxSizeXYZ = (int)sizeXYZ;
 
     gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X] = -gBoxSizeYZ;	// -X
     gFaceOffset[DIRECTION_BLOCK_BOTTOM] = -1;			// -Y
@@ -2176,12 +2206,13 @@ static void initializeWorldData(IBox* worldBox, int xmin, int ymin, int zmin, in
 
     // what to add to a world coordinate to get a box coordinate;
     // the -1 is the "air" border of one block
-    gWorld2BoxOffset[X] = 1 - xmin;
-    gWorld2BoxOffset[Y] = 1 - ymin;
-    gWorld2BoxOffset[Z] = 1 - zmin;
+    gWorld2BoxOffset[X] = (int)offsetX;
+    gWorld2BoxOffset[Y] = (int)offsetY;
+    gWorld2BoxOffset[Z] = (int)offsetZ;
 
     Vec3Scalar(worldBox->min, =, xmin, ymin, zmin);
     Vec3Scalar(worldBox->max, =, xmax, ymax, zmax);
+    return MW_NO_ERROR;
 }
 
 static int initializeModelData()
@@ -2213,6 +2244,10 @@ static int initializeModelData()
     }
 
     gModel.faceRecordPool = (FaceRecordPool*)malloc(sizeof(FaceRecordPool));
+    if (gModel.faceRecordPool == NULL)
+    {
+        return MW_WORLD_EXPORT_TOO_LARGE;
+    }
     gModel.faceRecordPool->count = 0;
     gModel.faceRecordPool->pPrev = NULL;
     // note simplify pool is not allocated, since it's not always used. Allocated on demand
@@ -2238,7 +2273,11 @@ static int initializeModelData()
                     if (gBoxData[boxIndex].type > BLOCK_AIR)
                     {
                         if (gBoxData[boxIndex + gFaceOffset[faceDirection]].type == BLOCK_AIR)
+                        {
+                            if (gModel.faceSize == INT_MAX)
+                                return MW_WORLD_EXPORT_TOO_LARGE;
                             gModel.faceSize++;
+                        }
                     }
                 }
             }
@@ -2246,7 +2285,10 @@ static int initializeModelData()
     }
     // increase the face list size
     // - it can sometimes get even higher, with foliage + billboards
-    gModel.faceSize = (int)(gModel.faceSize * 1.4 + 1);
+    int initialFaceSize;
+    if (!expandedListSize(gModel.faceSize, sizeof(FaceRecord*), &initialFaceSize))
+        return MW_WORLD_EXPORT_TOO_LARGE;
+    gModel.faceSize = initialFaceSize;
     gModel.faceList = (FaceRecord**)malloc(gModel.faceSize * sizeof(FaceRecord*));
 
     memset(gModel.uvSwatches, 0, NUM_MAX_SWATCHES * sizeof(UVList));
@@ -2515,7 +2557,9 @@ static int populateBox(WorldGuide* pWorldGuide, ChangeBlockCommand* pCBC, IBox* 
     }
 
     // have to reinitialize to get right globals for gSolidWorldBox.
-    initializeWorldData(worldBox, gSolidWorldBox.min[X], gSolidWorldBox.min[Y], gSolidWorldBox.min[Z], gSolidWorldBox.max[X], gSolidWorldBox.max[Y], gSolidWorldBox.max[Z]);
+    int initializeRetCode = initializeWorldData(worldBox, gSolidWorldBox.min[X], gSolidWorldBox.min[Y], gSolidWorldBox.min[Z], gSolidWorldBox.max[X], gSolidWorldBox.max[Y], gSolidWorldBox.max[Z]);
+    if (initializeRetCode != MW_NO_ERROR)
+        return initializeRetCode;
 
     gBoxData = (BoxCell*)calloc(gBoxSizeXYZ, sizeof(BoxCell));
     if (gBoxData == NULL)
@@ -3348,7 +3392,8 @@ static int filterBox(ChangeBlockCommand* pCBC)
 
                     if (gAirGroups > 1)
                     {
-                        checkAndRemoveBubbles();
+                        retCode |= checkAndRemoveBubbles();
+                        if (retCode >= MW_BEGIN_ERRORS) return retCode;
                     }
 
                     // now remove the coating blocks
@@ -3384,7 +3429,8 @@ static int filterBox(ChangeBlockCommand* pCBC)
             {
                 if (gAirGroups > 1)
                 {
-                    checkAndRemoveBubbles();
+                    retCode |= checkAndRemoveBubbles();
+                    if (retCode >= MW_BEGIN_ERRORS) return retCode;
                 }
             }
             // 2%
@@ -3403,6 +3449,8 @@ static int filterBox(ChangeBlockCommand* pCBC)
                 if (gModel.options->exportFlags & EXPT_CONNECT_PARTS)
                 {
                     foundTouching = fixTouchingEdges();
+                    if (foundTouching >= MW_BEGIN_ERRORS)
+                        return retCode | foundTouching;
                 }
 
                 // 4) Unattached corners. While it's perfectly legal to have blocks touch at corner tips, the object might fall apart
@@ -4523,6 +4571,7 @@ static void wobbleObjectLocation(int boxIndex, float& shiftX, float& shiftZ)
 
     int bx, by, bz;
     BOX_INDEX_TO_WORLD_XYZ(boxIndex, bx, by, bz);  // cppcheck-suppress 563
+    (void)by;
     // make the numbers positive
     bx += 100001;
     bz += 101031;
@@ -4585,6 +4634,7 @@ static float getRand3to1(int boxIndex)
     int bx, by, bz;
     BOX_INDEX_TO_WORLD_XYZ(boxIndex, bx, by, bz);
     // make the location numbers positive (y already is)
+    (void)by;
     bx += 100001;
     bz += 101031;
 
@@ -4695,7 +4745,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             // create a new instance of this block type, storing away the first face ID.
             // adjust the scale and location (center at origin) of the instance.
             // this method will test the increment gModel.instanceCount
-            createInstance(type, dataVal, gModel.faceCount);
+            if (!createInstance(type, dataVal, gModel.faceCount))
+                return retCode | MW_WORLD_EXPORT_TOO_LARGE;
         }
         // store the instance location, which is gModel.faceCount, which points at the next set of faces
         //loc derives from boxIndex here:
@@ -4709,7 +4760,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         anchorPt[Y] = (float)iloc[Y];
         anchorPt[Z] = (float)iloc[Z];
         // save instance location and ID and faceCount start to a long list.
-        saveInstanceLocation(anchorPt, instanceID);
+        if (!saveInstanceLocation(anchorPt, instanceID))
+            return retCode | MW_WORLD_EXPORT_TOO_LARGE;
         // if the instance has just been created, now we populate with the code that follows.
         // But, if not just created, then we don't need to do anything that follows.
         if (!populateInstance) {
@@ -13003,6 +13055,8 @@ static void setDefaultUVs(Point2 uvs[3], int skip)
 
 static FaceRecord* allocFaceRecordFromPool()
 {
+    if (gModel.faceRecordPool == NULL)
+        return NULL;
     if (gModel.faceRecordPool->count >= FACE_RECORD_POOL_SIZE)
     {
         // allocate new pool
@@ -13015,6 +13069,7 @@ static FaceRecord* allocFaceRecordFromPool()
         else {
             // out of memory! Not sure what to do...
             assert(pFRP);
+            return NULL;
         }
     }
     return &(gModel.faceRecordPool->fr[gModel.faceRecordPool->count++]);
@@ -13024,12 +13079,14 @@ static void freeFaceRecordToPool(FaceRecord* face)
 {
     // simply decrement count - we assume faces are freed in reverse order of allocation
     gModel.faceRecordPool->count--;
-    face;   // done to make Release compiler happy
+    (void)face;   // done to make Release compiler happy
     assert(&(gModel.faceRecordPool->fr[gModel.faceRecordPool->count]) == face);
 }
 
 static SimplifyFaceRecord* allocSimplifyFaceRecordFromPool()
 {
+    if (gModel.simplifyFaceRecordPool == NULL)
+        return NULL;
     if (gModel.simplifyFaceRecordPool->count >= SIMPLIFY_FACE_RECORD_POOL_SIZE)
     {
         SimplifyFaceRecordPool* pSFRP = gModel.simplifyFaceRecordPool->pNext;
@@ -13046,6 +13103,7 @@ static SimplifyFaceRecord* allocSimplifyFaceRecordFromPool()
             else {
                 // out of memory! Not sure what to do...
                 assert(pSFRP);
+                return NULL;
             }
         }
         else {
@@ -13111,7 +13169,7 @@ static int saveTriangleFace(int boxIndex, int swatchLoc, int type, int dataVal, 
     //    !findFaceDimensions(rect, faceDirection, 0, 16, 0, 16, 0, 16) ||
     //    !lesserNeighborCoversRectangle(faceDirection, boxIndex, rect))
     //{
-    boxIndex;   // here purely to avoid compilation error - needed in commented code above
+    (void)boxIndex;   // here purely to avoid compilation error - needed in commented code above
 
         // output the triangle
         int uvIndices[3];
@@ -13121,6 +13179,8 @@ static int saveTriangleFace(int boxIndex, int swatchLoc, int type, int dataVal, 
             uvIndices[0] = saveTextureUV(swatchLoc, type, uvs[0][X], uvs[0][Y]);
             uvIndices[1] = saveTextureUV(swatchLoc, type, uvs[1][X], uvs[1][Y]);
             uvIndices[2] = saveTextureUV(swatchLoc, type, uvs[2][X], uvs[2][Y]);
+            if (uvIndices[0] < 0 || uvIndices[1] < 0 || uvIndices[2] < 0)
+                return retCode | MW_WORLD_EXPORT_TOO_LARGE;
         }
 
         face = allocFaceRecordFromPool();
@@ -14213,7 +14273,8 @@ static int saveBoxFace(int swatchLoc, int type, int dataVal, int faceDirection, 
     {
         // output each face
         // get the four UV texture vertices, stored by swatch type
-        saveRectangleTextureUVs(swatchLoc, type, minu, maxu, minv, maxv, uvIndices);
+        if (!saveRectangleTextureUVs(swatchLoc, type, minu, maxu, minv, maxv, uvIndices))
+            return retCode | MW_WORLD_EXPORT_TOO_LARGE;
 
         // get four face indices for the four corners of the face, and always create each
         for (int j = 0; j < 4; j++)
@@ -15506,7 +15567,8 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     // now output, if anything found (redstone wire may not actually have any sides)
     if (faceCount > 0) {
         // get the four UV texture vertices, based on type of block
-        saveTextureCorners(swatchLoc, type, uvIndices);
+        if (!saveTextureCorners(swatchLoc, type, uvIndices))
+            return retCode | MW_WORLD_EXPORT_TOO_LARGE;
 
         bool normalUnknown = ((billboardType == BB_TORCH) || (billboardType == BB_FIRE) || foundSunflowerTop);
 
@@ -15870,11 +15932,14 @@ static int checkGroupListSize()
     // there's some play with the group count, e.g. group 0 is not used, so
     // resize should happen a bit earlier. 3 for safety.
     assert(gGroupCount <= gGroupListSize);
+    if (gGroupCount < 0 || gGroupCount > gGroupListSize)
+        return MW_WORLD_EXPORT_TOO_LARGE;
     if (gGroupCount == gGroupListSize)
     {
-        BoxGroup* groups;
-        gGroupListSize = (int)(gGroupListSize * 1.4 + 1);
-        groups = (BoxGroup*)malloc(gGroupListSize * sizeof(BoxGroup));
+        int newSize;
+        if (!expandedListSize(gGroupListSize, sizeof(BoxGroup), &newSize))
+            return MW_WORLD_EXPORT_TOO_LARGE;
+        BoxGroup* groups = (BoxGroup*)malloc((size_t)newSize * sizeof(BoxGroup));
         if (groups == NULL)
         {
             return MW_WORLD_EXPORT_TOO_LARGE;
@@ -15882,17 +15947,21 @@ static int checkGroupListSize()
         memcpy(groups, gGroupList, gGroupCount * sizeof(BoxGroup));
         free(gGroupList);
         gGroupList = groups;
+        gGroupListSize = newSize;
     }
     return MW_NO_ERROR;
 }
 static int checkVertexListSize()
 {
     assert(gModel.vertexCount <= gModel.vertexListSize);
+    if (gModel.vertexCount < 0 || gModel.vertexCount > gModel.vertexListSize)
+        return MW_WORLD_EXPORT_TOO_LARGE;
     if (gModel.vertexCount == gModel.vertexListSize)
     {
-        Point* vertices;
-        gModel.vertexListSize = (int)(gModel.vertexListSize * 1.4 + 1);
-        vertices = (Point*)malloc(gModel.vertexListSize * sizeof(Point));
+        int newSize;
+        if (!expandedListSize(gModel.vertexListSize, sizeof(Point), &newSize))
+            return MW_WORLD_EXPORT_TOO_LARGE;
+        Point* vertices = (Point*)malloc((size_t)newSize * sizeof(Point));
         if (vertices == NULL)
         {
             return MW_WORLD_EXPORT_TOO_LARGE;
@@ -15900,17 +15969,21 @@ static int checkVertexListSize()
         memcpy(vertices, gModel.vertices, gModel.vertexCount * sizeof(Point));
         free(gModel.vertices);
         gModel.vertices = vertices;
+        gModel.vertexListSize = newSize;
     }
     return MW_NO_ERROR;
 }
 static int checkFaceListSize()
 {
     assert(gModel.faceCount <= gModel.faceSize);
+    if (gModel.faceCount < 0 || gModel.faceCount > gModel.faceSize)
+        return MW_WORLD_EXPORT_TOO_LARGE;
     if (gModel.faceCount == gModel.faceSize)
     {
-        FaceRecord** faceList;
-        gModel.faceSize = (int)(gModel.faceSize * 1.4 + 1);
-        faceList = (FaceRecord**)malloc(gModel.faceSize * sizeof(FaceRecord*));
+        int newSize;
+        if (!expandedListSize(gModel.faceSize, sizeof(FaceRecord*), &newSize))
+            return MW_WORLD_EXPORT_TOO_LARGE;
+        FaceRecord** faceList = (FaceRecord**)malloc((size_t)newSize * sizeof(FaceRecord*));
         if (faceList == NULL)
         {
             return MW_WORLD_EXPORT_TOO_LARGE;
@@ -15918,6 +15991,7 @@ static int checkFaceListSize()
         memcpy(faceList, gModel.faceList, gModel.faceCount * sizeof(FaceRecord*));
         free(gModel.faceList);
         gModel.faceList = faceList;
+        gModel.faceSize = newSize;
     }
     return MW_NO_ERROR;
 }
@@ -15929,6 +16003,8 @@ static int findGroups()
     IPoint seedLoc;
     int seedSize = 1000;
     IPoint* seedStack = (IPoint*)malloc(seedSize * sizeof(IPoint));
+    if (seedStack == NULL)
+        return MW_WORLD_EXPORT_TOO_LARGE;
     int seedCount = 0;
     BoxGroup* pGroup;
     int retCode = MW_NO_ERROR;
@@ -15973,7 +16049,10 @@ static int findGroups()
                 {
                     gGroupCount++;
                     retCode |= checkGroupListSize();
-                    if (retCode >= MW_BEGIN_ERRORS) return retCode;
+                    if (retCode >= MW_BEGIN_ERRORS) {
+                        free(seedStack);
+                        return retCode;
+                    }
 
                     // no group, so make a new seed.
                     // Note that group index 0 is not used at all.
@@ -15991,7 +16070,10 @@ static int findGroups()
                     else
                         gAirGroups++;
                     // propagate seed: make neighbors with same type (solid or air) and no group to be this group.
-                    propagateSeed(loc, pGroup, &seedStack, &seedSize, &seedCount);
+                    if (!propagateSeed(loc, pGroup, &seedStack, &seedSize, &seedCount)) {
+                        free(seedStack);
+                        return MW_WORLD_EXPORT_TOO_LARGE;
+                    }
 
                     // When this is done, seedStack has a list of seeds that had no ID before and now have one.
                     // Each of these seeds' neighbors needs to be tested .
@@ -16002,7 +16084,10 @@ static int findGroups()
                         // copy test point over, so we don't trample it when seedStack gets increased
                         seedCount--;
                         Vec2Op(seedLoc, =, seedStack[seedCount]);
-                        propagateSeed(seedLoc, pGroup, &seedStack, &seedSize, &seedCount);
+                        if (!propagateSeed(seedLoc, pGroup, &seedStack, &seedSize, &seedCount)) {
+                            free(seedStack);
+                            return MW_WORLD_EXPORT_TOO_LARGE;
+                        }
                     }
                 }
             }
@@ -16054,7 +16139,7 @@ static void addVolumeToGroup(int groupID, int minx, int miny, int minz, int maxx
 }
 
 
-static void propagateSeed(IPoint point, BoxGroup* pGroup, IPoint** pSeedStack, int* seedSize, int* seedCount)
+static bool propagateSeed(IPoint point, BoxGroup* pGroup, IPoint** pSeedStack, int* seedSize, int* seedCount)
 {
     int faceDirection;
     int boxIndex, newBoxIndex;  // cppcheck-suppress 398
@@ -16065,13 +16150,16 @@ static void propagateSeed(IPoint point, BoxGroup* pGroup, IPoint** pSeedStack, i
     // check that there's not enough room for seedStack to grow by 6 points
     if (*seedSize <= *seedCount + 6)
     {
-        IPoint* seeds;
-        *seedSize += 6;
-        *seedSize = (int)(*seedSize * 1.4 + 1);
-        seeds = (IPoint*)malloc(*seedSize * sizeof(IPoint));
-        memcpy((void*)seeds, (*pSeedStack), *seedCount * sizeof(IPoint));
-        free((*pSeedStack));
-        (*pSeedStack) = seeds;
+        if (*seedSize < 0 || *seedSize > INT_MAX - (*seedSize / 2) - 8)
+            return false;
+        int newSeedSize = *seedSize + *seedSize / 2 + 8;
+        if ((size_t)newSeedSize > (size_t)-1 / sizeof(IPoint))
+            return false;
+        IPoint* seeds = (IPoint*)realloc(*pSeedStack, (size_t)newSeedSize * sizeof(IPoint));
+        if (seeds == NULL)
+            return false;
+        *pSeedStack = seeds;
+        *seedSize = newSeedSize;
     }
 
     seedStack = *pSeedStack;
@@ -16091,7 +16179,7 @@ static void propagateSeed(IPoint point, BoxGroup* pGroup, IPoint** pSeedStack, i
         {
             // This air block was actually something (like a ladder) that got culled out early on. Use it to seal the entrance.
             // Old code: This air block is actually an entrance, so don't propagate it further.
-            return;
+            return true;
         }
     }
 
@@ -16136,6 +16224,7 @@ static void propagateSeed(IPoint point, BoxGroup* pGroup, IPoint** pSeedStack, i
             }
         }
     }
+    return true;
 }
 
 // Return true if this cell is not on the outer "air" edge that surrounds the block of real stuff.
@@ -16314,12 +16403,16 @@ static void removeCoatingAndGroups()
     }
 }
 
-static void checkAndRemoveBubbles()
+static int checkAndRemoveBubbles()
 {
     int i, groupID, maxPop, masterGroupID;
     IBox bounds;
 
-    int* neighborGroups = (int*)malloc((gGroupCount + 1) * sizeof(int));
+    if (gGroupCount < 0 || (size_t)gGroupCount + 1 > (size_t)-1 / sizeof(int))
+        return MW_WORLD_EXPORT_TOO_LARGE;
+    int* neighborGroups = (int*)malloc(((size_t)gGroupCount + 1) * sizeof(int));
+    if (neighborGroups == NULL)
+        return MW_WORLD_EXPORT_TOO_LARGE;
 
     // if we are simply merging groups, then air bubbles are left as air and merely act to merge groups (I hope...)
     int fillType = (gModel.options->exportFlags & EXPT_FILL_BUBBLES) ? BLOCK_GLASS : BLOCK_AIR;
@@ -16435,6 +16528,7 @@ static void checkAndRemoveBubbles()
         }
     }
     free(neighborGroups);
+    return MW_NO_ERROR;
 }
 
 // go through box. Whichever blocks have same group, mark all neighbors into neighborGroups array.
@@ -16784,10 +16878,14 @@ static int fixTouchingEdges()
     Point avgLoc, floc;
     int solidBlocks = 0;
     TouchRecord* touchList = NULL;
+    int allocationRetCode = MW_NO_ERROR;
+    float norm;  // hoisted: declared here so goto FreeMemory doesn't bypass init
     //int maxVal;
 
     // big allocation, not much to be done about it.
     gTouchGrid = (TouchCell*)calloc(gBoxSizeXYZ, sizeof(TouchCell));
+    if (gTouchGrid == NULL)
+        return MW_WORLD_EXPORT_TOO_LARGE;
     //memset((void*)gTouchGrid, 0, gBoxSizeXYZ * sizeof(TouchCell));
 
     gTouchSize = 0;
@@ -16853,14 +16951,22 @@ static int fixTouchingEdges()
     //avgLoc[Y] -= maxVal;
 
     // allocate space for touched air cells
-    touchList = (TouchRecord*)malloc(gTouchSize * sizeof(TouchRecord));
+    if (gTouchSize < 0 || (size_t)gTouchSize > (size_t)-1 / sizeof(TouchRecord)) {
+        allocationRetCode = MW_WORLD_EXPORT_TOO_LARGE;
+        goto FreeMemory;
+    }
+    touchList = (TouchRecord*)malloc((size_t)gTouchSize * sizeof(TouchRecord));
+    if (touchList == NULL) {
+        allocationRetCode = MW_WORLD_EXPORT_TOO_LARGE;
+        goto FreeMemory;
+    }
 
     // what is the distance from corner to corner of the solid box? We choose this distance because
     // avgLoc could be skewed, way over to some other location, due to an imbalance in where stuff is
     // located. We want to ensure that the Y location always dominates over the XZ distance value, so
     // that lower blocks are favored over upper ones. At least, that's today's theory of what's good to add
     // in for a block that connects two edges.
-    float norm = (float)sqrt((float)gBoxSize[X] * (float)gBoxSize[X] + (float)gBoxSize[Z] * (float)gBoxSize[Z]);
+    norm = (float)sqrt((float)gBoxSize[X] * (float)gBoxSize[X] + (float)gBoxSize[Z] * (float)gBoxSize[Z]);
 
     // go through the grid, collecting up the locations needing processing
     for (x = gSolidBox.min[X]; x <= gSolidBox.max[X]; x++)
@@ -17010,7 +17116,15 @@ static int fixTouchingEdges()
             if (faceGroupIDCount > 1)
             {
                 IBox bounds;
-                int* neighborGroups = (int*)calloc((gGroupCount + 1), sizeof(int));
+                if (gGroupCount < 0 || (size_t)gGroupCount + 1 > (size_t)-1 / sizeof(int)) {
+                    allocationRetCode = MW_WORLD_EXPORT_TOO_LARGE;
+                    goto FreeMemory;
+                }
+                int* neighborGroups = (int*)calloc((size_t)gGroupCount + 1, sizeof(int));
+                if (neighborGroups == NULL) {
+                    allocationRetCode = MW_WORLD_EXPORT_TOO_LARGE;
+                    goto FreeMemory;
+                }
                 //memset(neighborGroups, 0, (gGroupCount + 1) * sizeof(int));
 
                 gStats.solidGroupsMerged += (faceGroupIDCount - 1);
@@ -17060,7 +17174,7 @@ FreeMemory:
     }
     gStats.numberManifoldPasses++;
 
-    return touchCount ? 1 : 0;
+    return allocationRetCode ? allocationRetCode : (touchCount ? 1 : 0);
 }
 
 static int touchRecordCompare(void* context, const void* str1, const void* str2)
@@ -17069,7 +17183,7 @@ static int touchRecordCompare(void* context, const void* str1, const void* str2)
     TouchRecord* t2;
     t1 = (TouchRecord*)str1;
     t2 = (TouchRecord*)str2;
-    context;    // make a useless reference to the unused variable, to avoid C4100 warning
+    (void)context;    // make a useless reference to the unused variable, to avoid C4100 warning
     // Blocks that had something in them originally (e.g. rails, redstone, or other things that got flattened)
     // are more significant than blocks of air, so the air should get covered up first so the rails aren't covered.
     // if the blocks are both air, or were both solid, then we need a different thing to test on.
@@ -17630,7 +17744,9 @@ static int determineScaleAndHollowAndMelt()
         // this location. Save the location in a list and move on (since this location will
         // affect other picks).
         // [We could try to share neighbors samples from location to location, but that's messy.]
-        hollowBottomOfModel();
+        int hollowRetCode = hollowBottomOfModel();
+        if (hollowRetCode >= MW_BEGIN_ERRORS)
+            return hollowRetCode;
     }
 
     if (gModel.options->pEFD->chkMeltSnow)
@@ -17753,7 +17869,7 @@ static void scaleByCost()
     //}
 }
 
-static void hollowBottomOfModel()
+static int hollowBottomOfModel()
 {
     int x, y, z, boxIndex;
     int listCount, addPost;  // cppcheck-suppress 398
@@ -17761,10 +17877,24 @@ static void hollowBottomOfModel()
     int survived, dir, neighborCount, neighborIndex;
     IPoint loc;
     // we could actually allocate less, but don't want to risk allocing 0 (or less than 0!)
-    int* listToChange = (int*)malloc((gSolidBox.max[X] - gSolidBox.min[X] + 1) * (gSolidBox.max[Z] - gSolidBox.min[Z] + 1) * sizeof(int));
+    size_t hollowWidth = (size_t)(gSolidBox.max[X] - gSolidBox.min[X] + 1);
+    size_t hollowLength = (size_t)(gSolidBox.max[Z] - gSolidBox.min[Z] + 1);
+    if (hollowWidth == 0 || hollowLength == 0 || hollowWidth > (size_t)-1 / hollowLength ||
+        hollowWidth * hollowLength > (size_t)-1 / sizeof(int))
+        return MW_WORLD_EXPORT_TOO_LARGE;
+    int* listToChange = (int*)malloc(hollowWidth * hollowLength * sizeof(int));
 
-    int hollowListSize = gBoxSize[X] * gBoxSize[Z] * sizeof(unsigned char);
+    if (gBoxSize[X] <= 0 || gBoxSize[Z] <= 0 || (size_t)gBoxSize[X] > (size_t)-1 / (size_t)gBoxSize[Z]) {
+        free(listToChange);
+        return MW_WORLD_EXPORT_TOO_LARGE;
+    }
+    size_t hollowListSize = (size_t)gBoxSize[X] * (size_t)gBoxSize[Z];
     unsigned char* hollowDone = (unsigned char*)calloc(hollowListSize, sizeof(unsigned char));
+    if (listToChange == NULL || hollowDone == NULL) {
+        free(listToChange);
+        free(hollowDone);
+        return MW_WORLD_EXPORT_TOO_LARGE;
+    }
     //memset(hollowDone, 0, hollowListSize);
 
     assert(gModel.options->pEFD->hollowThicknessVal[gModel.options->pEFD->fileType] > 0.0f);
@@ -17863,12 +17993,13 @@ static void hollowBottomOfModel()
                         // corner post hit - mark it as a post so it doesn't get super-hollowed later
                         // do this to only solid objects. This is done until we hit air.
                         // TODO: when we hit air we could continue, not sure that helps...
-                        if (!hollowDone[x * gBoxSize[Z] + z])
+                        if (!hollowDone[x * gBoxSize[Z] + z]) {
                             if (gBoxData[boxIndex].type > BLOCK_AIR)
                                 gBoxData[boxIndex].group = HOLLOW_AIR_GROUP;
                             else
                                 // stop making a post if we hit air. This OK? TODO
                                 hollowDone[x * gBoxSize[Z] + z] = (unsigned char)y;
+                        }
                     }
                 }
             }
@@ -17904,6 +18035,10 @@ static void hollowBottomOfModel()
         // as possible seeds.
         int seedSize = 1000;
         IPoint* seedStack = (IPoint*)malloc(seedSize * sizeof(IPoint));
+        if (seedStack == NULL) {
+            free(hollowDone);
+            return MW_WORLD_EXPORT_TOO_LARGE;
+        }
         int seedCount = 0;
 
         gStats.blocksSuperHollowed = 0;
@@ -17939,7 +18074,11 @@ static void hollowBottomOfModel()
                 for (y = hollowHeight + gHollowBlockThickness; y < maxNeighborHeight; y++)
                 {
                     // propagate seed: make neighbors with same type (solid or air) and no group to be this group.
-                    hollowSeed(x, y, z, &seedStack, &seedSize, &seedCount);
+                    if (!hollowSeed(x, y, z, &seedStack, &seedSize, &seedCount)) {
+                        free(seedStack);
+                        free(hollowDone);
+                        return MW_WORLD_EXPORT_TOO_LARGE;
+                    }
 
                     // When this is done, seedStack has a list of seeds that had no ID before and now have one.
                     // Each of these seeds' neighbors needs to be tested.
@@ -17949,7 +18088,11 @@ static void hollowBottomOfModel()
                     {
                         // copy test point over, so we don't trample it when seedStack gets increased
                         seedCount--;
-                        hollowSeed(seedStack[seedCount][X], seedStack[seedCount][Y], seedStack[seedCount][Z], &seedStack, &seedSize, &seedCount);
+                        if (!hollowSeed(seedStack[seedCount][X], seedStack[seedCount][Y], seedStack[seedCount][Z], &seedStack, &seedSize, &seedCount)) {
+                            free(seedStack);
+                            free(hollowDone);
+                            return MW_WORLD_EXPORT_TOO_LARGE;
+                        }
                     }
                 }
             }
@@ -17958,9 +18101,10 @@ static void hollowBottomOfModel()
     }
 
     free(hollowDone);
+    return MW_NO_ERROR;
 }
 
-static void hollowSeed(int x, int y, int z, IPoint** pSeedList, int* seedSize, int* seedCount)
+static bool hollowSeed(int x, int y, int z, IPoint** pSeedList, int* seedSize, int* seedCount)
 {
     // recursively check this seed location and all neighbors for whether this location can be hollowed out
     int boxIndex = BOX_INDEX(x, y, z);
@@ -18030,13 +18174,16 @@ static void hollowSeed(int x, int y, int z, IPoint** pSeedList, int* seedSize, i
             // check that there's not enough room for seedStack to grow by 6 points
             if (*seedSize <= *seedCount + 6)
             {
-                IPoint* seeds;
-                *seedSize += 6;
-                *seedSize = (int)(*seedSize * 1.4 + 1);
-                seeds = (IPoint*)malloc(*seedSize * sizeof(IPoint));
-                memcpy((void*)seeds, (*pSeedList), *seedCount * sizeof(IPoint));
-                free((*pSeedList));
-                (*pSeedList) = seeds;
+                if (*seedSize < 0 || *seedSize > INT_MAX - (*seedSize / 2) - 8)
+                    return false;
+                int newSeedSize = *seedSize + *seedSize / 2 + 8;
+                if ((size_t)newSeedSize > (size_t)-1 / sizeof(IPoint))
+                    return false;
+                IPoint* seeds = (IPoint*)realloc(*pSeedList, (size_t)newSeedSize * sizeof(IPoint));
+                if (seeds == NULL)
+                    return false;
+                *pSeedList = seeds;
+                *seedSize = newSeedSize;
             }
 
             seedList = *pSeedList;
@@ -18057,6 +18204,7 @@ static void hollowSeed(int x, int y, int z, IPoint** pSeedList, int* seedSize, i
             }
         }
     }
+    return true;
 }
 
 static void meltSnow()
@@ -18228,7 +18376,8 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
                             // create a new instance of this block type, storing away the first face ID.
                             // adjust the scale and location (center at origin) of the instance.
                             // this method will test the increment gModel.instanceCount.
-                            createInstance(gBoxData[boxIndex].type, gBoxData[boxIndex].data, faceID);
+                            if (!createInstance(gBoxData[boxIndex].type, gBoxData[boxIndex].data, faceID))
+                                return retCode | MW_WORLD_EXPORT_TOO_LARGE;
                         }
                         // Whatever the case, store the instance location, which is the stored gModel.faceCount,
                         // which points at the next set of faces
@@ -18240,7 +18389,8 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
                         anchorPt[Y] = (float)loc[Y];
                         anchorPt[Z] = (float)loc[Z];
                         // save instance location and ID to a long list. ID points to the created instance, which has the faceID
-                        saveInstanceLocation(anchorPt, instanceID);
+                        if (!saveInstanceLocation(anchorPt, instanceID))
+                            return retCode | MW_WORLD_EXPORT_TOO_LARGE;
                     }
                     else {
                         // the normal thing: create the faces as needed
@@ -18290,7 +18440,9 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
         if (gModel.simplifyFaceSavings > 0) {
             // only really needed for OBJ, which has unified sets of vertices, but we clean up for USD anyway, just to make it easier to keep track of stats.
             //((gModel.options->pEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ) || (gModel.options->pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ))) {
-            removeUnusedFacesAndVertices();
+            retCode |= removeUnusedFacesAndVertices();
+            if (retCode >= MW_BEGIN_ERRORS)
+                return retCode;
         }
     }
 
@@ -18319,11 +18471,14 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
     return retCode;
 }
 
-static void removeUnusedFacesAndVertices()
+static int removeUnusedFacesAndVertices()
 {
     // Look through all faces, remove those marked as deleted and move the others up.
-    int* vertexListUsed = (int*)malloc(gModel.vertexCount * sizeof(int));
-    memset(vertexListUsed, 0, gModel.vertexCount * sizeof(int));
+    if (gModel.vertexCount < 0 || (size_t)gModel.vertexCount > (size_t)-1 / sizeof(int))
+        return MW_WORLD_EXPORT_TOO_LARGE;
+    int* vertexListUsed = (int*)calloc((size_t)gModel.vertexCount, sizeof(int));
+    if (vertexListUsed == NULL)
+        return MW_WORLD_EXPORT_TOO_LARGE;
     int i, newi, j;
     newi = 0;
     for (i = 0; i < gModel.faceCount; i++)
@@ -18383,29 +18538,31 @@ static void removeUnusedFacesAndVertices()
     // we don't bother to record how many vertices were saved, etc. - just output the new number of vertices.
 
     free(vertexListUsed);
+    return MW_NO_ERROR;
 }
 
-static void createInstance(int type, int dataVal, int faceIndex)
+static bool createInstance(int type, int dataVal, int faceIndex)
 {
     // make room
     if (gModel.instanceCount == gModel.instanceListSize)
     {
-        if (gModel.instanceListSize == 0) {
-            // allocate for first time
-            gModel.instanceListSize = 100;  // TODO - maybe adjust?
-            gModel.instance = (BlockInstance*)malloc(gModel.instanceListSize * sizeof(BlockInstance));
-        }
-        else {
-            // resize
-            gModel.instanceListSize *= 2;
-            gModel.instance = (BlockInstance*)realloc(gModel.instance, gModel.instanceListSize * sizeof(BlockInstance));
-        }
+        if (gModel.instanceListSize > INT_MAX / 2)
+            return false;
+        int newSize = (gModel.instanceListSize == 0) ? 100 : gModel.instanceListSize * 2;
+        if ((size_t)newSize > (size_t)-1 / sizeof(BlockInstance))
+            return false;
+        BlockInstance* largerInstanceList = (BlockInstance*)realloc(gModel.instance, (size_t)newSize * sizeof(BlockInstance));
+        if (largerInstanceList == NULL)
+            return false;
+        gModel.instance = largerInstanceList;
+        gModel.instanceListSize = newSize;
     }
 
     BlockInstance *bi = &gModel.instance[gModel.instanceCount];
     bi->faceNumber = faceIndex;
     bi->hash = makeInstanceHash(type, dataVal);
     bi->startingLocation = gModel.instanceCount++;
+    return true;
 }
 
 static bool findInstance(int type, int dataVal, int& instanceID)
@@ -18444,21 +18601,22 @@ static bool findInstance(int type, int dataVal, int& instanceID)
     return false;
 }
 
-static void saveInstanceLocation(float* anchorPt, int instanceID)
+static bool saveInstanceLocation(float* anchorPt, int instanceID)
 {
     // make room
     if (gModel.instanceLocCount == gModel.instanceLocListSize)
     {
-        if (gModel.instanceLocListSize == 0) {
-            // allocate for first time
-            gModel.instanceLocListSize = 1000;  // TODO - what's a good number of blocks?
-            gModel.instanceLoc = (InstanceLocation*)malloc(gModel.instanceLocListSize * sizeof(InstanceLocation));
-        }
-        else {
-            // resize
-            gModel.instanceLocListSize *= 2;
-            gModel.instanceLoc = (InstanceLocation*)realloc(gModel.instanceLoc, gModel.instanceLocListSize * sizeof(InstanceLocation));
-        }
+        if (gModel.instanceLocListSize > INT_MAX / 2)
+            return false;
+        int newSize = (gModel.instanceLocListSize == 0) ? 1000 : gModel.instanceLocListSize * 2;
+        if ((size_t)newSize > (size_t)-1 / sizeof(InstanceLocation))
+            return false;
+        InstanceLocation* largerInstanceLocList =
+            (InstanceLocation*)realloc(gModel.instanceLoc, (size_t)newSize * sizeof(InstanceLocation));
+        if (largerInstanceLocList == NULL)
+            return false;
+        gModel.instanceLoc = largerInstanceLocList;
+        gModel.instanceLocListSize = newSize;
     }
 
     InstanceLocation* bil = &gModel.instanceLoc[gModel.instanceLocCount++];
@@ -18466,6 +18624,7 @@ static void saveInstanceLocation(float* anchorPt, int instanceID)
     for (int i = 0; i < 3; i++) {
         bil->location[i] = anchorPt[i] - (gModel.options->pEFD->chkCenterModel ? 0.0f : (float)gWorld2BoxOffset[i]);
     }
+    return true;
 }
 
 static int makeInstanceHash(int type, int dataVal)
@@ -18486,7 +18645,7 @@ static int tileIdCompare(void* context, const void* str1, const void* str2)
     FaceRecord* f2;
     f1 = *(FaceRecord**)str1;
     f2 = *(FaceRecord**)str2;
-    context;    // make a useless reference to the unused variable, to avoid C4100 warning
+    (void)context;    // make a useless reference to the unused variable, to avoid C4100 warning
     if (f1->materialType == f2->materialType)
     {
         // tie break of the data value
@@ -18519,7 +18678,7 @@ static int tileUSDIdCompare(void* context, const void* str1, const void* str2)
     FaceRecord* f2;
     f1 = *(FaceRecord**)str1;
     f2 = *(FaceRecord**)str2;
-    context;    // make a useless reference to the unused variable, to avoid C4100 warning
+    (void)context;    // make a useless reference to the unused variable, to avoid C4100 warning
     // compare swatchLocs
     int swatchLoc1 = gModel.uvIndexList[f1->uvIndex[0]].swatchLoc;
     int swatchLoc2 = gModel.uvIndexList[f2->uvIndex[0]].swatchLoc;
@@ -18555,7 +18714,7 @@ static int tileIdDeleteAndCompare(void* context, const void* str1, const void* s
     FaceRecord* f2;
     f1 = *(FaceRecord**)str1;
     f2 = *(FaceRecord**)str2;
-    context;    // make a useless reference to the unused variable, to avoid C4100 warning
+    (void)context;    // make a useless reference to the unused variable, to avoid C4100 warning
     if (f1->normalIndex == HAS_BEEN_MERGED || f2->normalIndex == HAS_BEEN_MERGED)
     {
         // one or both faces deleted, walking dead, so put at end of list and be done
@@ -18600,7 +18759,7 @@ static int tileUSDIdDeleteAndCompare(void* context, const void* str1, const void
     FaceRecord* f2;
     f1 = *(FaceRecord**)str1;
     f2 = *(FaceRecord**)str2;
-    context;    // make a useless reference to the unused variable, to avoid C4100 warning
+    (void)context;    // make a useless reference to the unused variable, to avoid C4100 warning
     if (f1->normalIndex == HAS_BEEN_MERGED || f2->normalIndex == HAS_BEEN_MERGED)
     {
         // one or both faces deleted, walking dead, so put at end of list and be done
@@ -18643,7 +18802,7 @@ static int faceIdCompare(void* context, const void* str1, const void* str2)
     FaceRecord* f2;
     f1 = *(FaceRecord**)str1;
     f2 = *(FaceRecord**)str2;
-    context;    // make a useless reference to the unused variable, to avoid C4100 warning
+    (void)context;    // make a useless reference to the unused variable, to avoid C4100 warning
     if (f1->materialType == f2->materialType)
     {
         // tie break of the data value
@@ -18665,7 +18824,7 @@ static int instanceUSDCompare(void* context, const void* str1, const void* str2)
 {
     BlockInstance* f1;
     BlockInstance* f2;
-    context;    // make a useless reference to the unused variable, to avoid C4100 warning
+    (void)context;    // make a useless reference to the unused variable, to avoid C4100 warning
 
     f1 = (BlockInstance*)str1;
     f2 = (BlockInstance*)str2;
@@ -19636,6 +19795,8 @@ static int saveFaceLoop(int boxIndex, int faceDirection, float heights[4], int h
     int retCode = MW_NO_ERROR;
 
     face = allocFaceRecordFromPool();
+    if (face == NULL)
+        return retCode | MW_WORLD_EXPORT_TOO_LARGE;
 
     // if we sort, we want to keep faces in the order generated, which is
     // generally cache-coherent (and also just easier to view in the file)
@@ -19733,6 +19894,10 @@ static int saveFaceLoop(int boxIndex, int faceDirection, float heights[4], int h
                             }
                         }
                         specialUVindices[j] = saveTextureUV(swatchLoc, type, u, v);
+                        if (specialUVindices[j] < 0) {
+                            freeFaceRecordToPool(face);
+                            return retCode | MW_WORLD_EXPORT_TOO_LARGE;
+                        }
                     }
                 }
             }
@@ -25157,7 +25322,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
     {
         int standardCorners[4];
         // get four UV texture vertices, based on type of block
-        saveTextureCorners(swatchLoc, type, standardCorners);
+        if (!saveTextureCorners(swatchLoc, type, standardCorners))
+            return -1;
 
         // let the adjustments begin!
         // In previous versions, the bottom block was mirrored with the top.
@@ -25359,20 +25525,21 @@ static void reflectIndices(int localIndices[4])
     localIndices[3] = tmp;
 }
 
-static void saveTextureCorners(int swatchLoc, int type, int uvIndices[4])
+static bool saveTextureCorners(int swatchLoc, int type, int uvIndices[4])
 {
     // add the four corner positions
-    saveRectangleTextureUVs(swatchLoc, type, 0.0f, 1.0f, 0.0f, 1.0f, uvIndices);
+    return saveRectangleTextureUVs(swatchLoc, type, 0.0f, 1.0f, 0.0f, 1.0f, uvIndices);
 }
 
 // returns first UV coordinate location of four
 // minx,
-static void saveRectangleTextureUVs(int swatchLoc, int type, float minu, float maxu, float minv, float maxv, int uvIndices[4])
+static bool saveRectangleTextureUVs(int swatchLoc, int type, float minu, float maxu, float minv, float maxv, int uvIndices[4])
 {
     uvIndices[0] = saveTextureUV(swatchLoc, type, minu, minv);
     uvIndices[1] = saveTextureUV(swatchLoc, type, maxu, minv);
     uvIndices[2] = saveTextureUV(swatchLoc, type, maxu, maxv);
     uvIndices[3] = saveTextureUV(swatchLoc, type, minu, maxv);
+    return uvIndices[0] >= 0 && uvIndices[1] >= 0 && uvIndices[2] >= 0 && uvIndices[3] >= 0;
 }
 
 
@@ -25402,23 +25569,33 @@ static int saveTextureUV(int swatchLoc, int type, float u, float v)
     if (count == gModel.uvSwatches[swatchLoc].size)
     {
         // need to alloc or realloc the list
-        if (count == 0)
-        {
-            // alloc
-            gModel.uvSwatches[swatchLoc].size = 4;
-            gModel.uvSwatches[swatchLoc].records = (UVRecord*)malloc(gModel.uvSwatches[swatchLoc].size * sizeof(UVRecord));
-        }
-        else
-        {
-            // realloc
-            UVRecord* records;
-            int newSize = gModel.uvSwatches[swatchLoc].size * 3;	// I forget why I triple it - I think it's "floodgates are open, we need a lot more"
-            records = (UVRecord*)malloc(newSize * sizeof(UVRecord));    // TODO - could use realloc here and elsewhere
-            memcpy((void*)records, gModel.uvSwatches[swatchLoc].records, count * sizeof(UVRecord));
-            free(gModel.uvSwatches[swatchLoc].records);
-            gModel.uvSwatches[swatchLoc].records = records;
-            gModel.uvSwatches[swatchLoc].size = newSize;
-        }
+        if (count < 0 || (count > 0 && count > INT_MAX / 3))
+            return -1;
+        int newSize = (count == 0) ? 4 : count * 3;
+        if ((size_t)newSize > (size_t)-1 / sizeof(UVRecord))
+            return -1;
+        UVRecord* records = (UVRecord*)realloc(gModel.uvSwatches[swatchLoc].records,
+            (size_t)newSize * sizeof(UVRecord));
+        if (records == NULL)
+            return -1;
+        gModel.uvSwatches[swatchLoc].records = records;
+        gModel.uvSwatches[swatchLoc].size = newSize;
+    }
+
+    // now save it in the master list, which is what actually gets output
+    if (gModel.uvIndexCount == gModel.uvIndexListSize)
+    {
+        // resize time
+        if (gModel.uvIndexListSize < 0 || gModel.uvIndexListSize > INT_MAX - gModel.uvIndexListSize / 2 - 1)
+            return -1;
+        int newSize = gModel.uvIndexListSize + gModel.uvIndexListSize / 2 + 1;
+        if ((size_t)newSize > (size_t)-1 / sizeof(UVOutput))
+            return -1;
+        UVOutput* output = (UVOutput*)realloc(gModel.uvIndexList, (size_t)newSize * sizeof(UVOutput));
+        if (output == NULL)
+            return -1;
+        gModel.uvIndexList = output;
+        gModel.uvIndexListSize = newSize;
     }
 
     // OK, save the new pair and return the index
@@ -25427,19 +25604,6 @@ static int saveTextureUV(int swatchLoc, int type, float u, float v)
     uvr->u = u;
     uvr->v = v;
     uvr->index = gModel.uvIndexCount;
-
-    // now save it in the master list, which is what actually gets output
-    if (gModel.uvIndexCount == gModel.uvIndexListSize)
-    {
-        // resize time
-        UVOutput* output;
-        int newSize = (int)(gModel.uvIndexListSize * 1.4 + 1);
-        output = (UVOutput*)malloc(newSize * sizeof(UVOutput));
-        memcpy((void*)output, gModel.uvIndexList, gModel.uvIndexCount * sizeof(UVOutput));
-        free(gModel.uvIndexList);
-        gModel.uvIndexList = output;
-        gModel.uvIndexListSize = newSize;
-    }
     // convert to stored uv's
     SWATCH_TO_COL_ROW(swatchLoc, col, row);
 
@@ -26109,6 +26273,13 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
 #endif
 
     int exportMaterials = gModel.options->exportFlags & EXPT_OUTPUT_MATERIALS;
+    // hoisted declarations so goto Exit doesn't bypass initializations
+    bool subtypeMaterial;
+    bool subtypeGroup;
+    int noteProgress;
+    int mkGroupsObjs;
+    int prevDataVal;
+    int prevSwatchLoc;
 
     concatFileName3(objFileNameWithSuffix, gOutputFilePath, gOutputFileRoot, L".obj");
 
@@ -26142,7 +26313,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
 
     convertWcharPathUnderlined(worldNameUnderlined, pWorldGuide->world, false);
 
-    int mkGroupsObjs = (gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MAKE_GROUPS_OBJECTS);
+    mkGroupsObjs = (gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MAKE_GROUPS_OBJECTS);
     if (!mkGroupsObjs) {
         // Output just one object. Else we output an object every time we output a group
         // Object name
@@ -26184,7 +26355,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
     }
 
     // every 5% update the progress
-    int noteProgress = 1 + (int)((float)gModel.vertexCount / (0.5f * gProgress.absolute.output / 0.05f));
+    noteProgress = 1 + (int)((float)gModel.vertexCount / (0.5f * gProgress.absolute.output / 0.05f));
     wchar_t numString1[100];
     wchar_t numString2[100];
     prettifyNumber(gModel.vertexCount, numString2);
@@ -26201,8 +26372,8 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
     }
 
     prevType = -1;
-    int prevDataVal = -1;
-    int prevSwatchLoc = -1;
+    prevDataVal = -1;
+    prevSwatchLoc = -1;
     groupCount = 0;
     // outputMaterial notes when a material is used for the first time;
     // should only be needed for when objects are not sorted by material (grouped by block).
@@ -26219,9 +26390,9 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
         }
     }
 
-    bool subtypeGroup = ((gModel.options->exportFlags & EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE) != 0x0);
+    subtypeGroup = ((gModel.options->exportFlags & EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE) != 0x0);
     // for whether to search for a material change (but not necessarily make a group)
-    bool subtypeMaterial = subtypeGroup || gModel.exportTiles;
+    subtypeMaterial = subtypeGroup || gModel.exportTiles;
 
     // how often to update progress? # of faces per 5%
     noteProgress = 1 + (int)((float)gModel.faceCount / (0.5f * gProgress.absolute.output / 0.05f));
@@ -27351,11 +27522,6 @@ static float retrieveMtlAlpha(int type)
     }
     return alpha;
 }
-
-
-// the blocks that should be solid if valid water tile is not found
-int solidCount = 5;
-static int solidTable[] = { BLOCK_WATER, BLOCK_STATIONARY_WATER, BLOCK_LAVA, BLOCK_STATIONARY_LAVA, BLOCK_FIRE };
 
 static int createBaseMaterialTexture()
 {
@@ -28657,7 +28823,6 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
 static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC)
 {
     wchar_t wrlFileNameWithSuffix[MAX_PATH_AND_FILE];
-    const char* justWorldFileName;
     char justTextureFileName[MAX_PATH_AND_FILE];	// without path
 
     char outputString[256];
@@ -28668,6 +28833,7 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
     bool exportSingleMaterial, exportSolidColors;
 
     int retCode = MW_NO_ERROR;
+    int noteFaceProgress;  // hoisted: declared here so goto Exit doesn't bypass init
 
     FaceRecord* pFace;
 
@@ -28700,7 +28866,6 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
     exportSingleMaterial = (!(gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MTL_PER_TYPE)) ? true : false;
 
     WcharToChar(pWorldGuide->world, worldChar, MAX_PATH_AND_FILE);
-    justWorldFileName = removePathChar(worldChar);
 
     sprintf_s(outputString, 256, "#VRML V2.0 utf8\n\n# VRML 97 (VRML2) file made by Mineways version %d.%02d, http://mineways.com\n", gMinewaysMajorVersion, gMinewaysMinorVersion);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -28736,7 +28901,7 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
 
     firstShape = 1;
     currentFace = 0;
-    int noteFaceProgress = 1 + (int)((float)gModel.faceCount / (0.5f * gProgress.absolute.output / 0.04f));
+    noteFaceProgress = 1 + (int)((float)gModel.faceCount / (0.5f * gProgress.absolute.output / 0.04f));
     while (currentFace < gModel.faceCount)
     {
         char mtlName[256];
@@ -29074,7 +29239,7 @@ static int chunkUSDCompare(void* context, const void* str1, const void* str2)
 {
     InstanceLocation* f1;
     InstanceLocation* f2;
-    context;    // make a useless reference to the unused variable, to avoid C4100 warning
+    (void)context;    // make a useless reference to the unused variable, to avoid C4100 warning
 
     f1 = (InstanceLocation*)str1;
     f2 = (InstanceLocation*)str2;
@@ -29150,7 +29315,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
         strcpy_s(texturePath, MAX_PATH_AND_FILE, fullTexturePath);
     }
 
-    if (retCode |= openUSDFile(fileNameWithSuffix, gModelFile)) {
+    if ((retCode |= openUSDFile(fileNameWithSuffix, gModelFile))) {
         // cannot open file
         goto Exit;
     }
@@ -29177,7 +29342,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
 
     // write comments for Import Settings and write globals
     sprintf_s(outputString, 256, "    \"\"\"\n# USDA 1.0 file made by Mineways version %d.%02d, http://mineways.com\n", gMinewaysMajorVersion, gMinewaysMinorVersion);
-    if (retCode |= writeCommentUSD(outputString)) {
+    if ((retCode |= writeCommentUSD(outputString))) {
         // failed to write
         goto Exit;
     }
@@ -29185,7 +29350,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
     if (retCode >= MW_BEGIN_ERRORS) {
         goto Exit;
     }
-    if (retCode |= finishCommentsUSD(defaultPrim)) {
+    if ((retCode |= finishCommentsUSD(defaultPrim))) {
         // failed to write
         goto Exit;
     }
@@ -29196,7 +29361,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
 
     // add camera - add it only if lights are export
     if (gModel.options->pEFD->scaleLightsVal > 0.0f) {
-        if (retCode |= addCameraUSD()) {
+        if ((retCode |= addCameraUSD())) {
             // failed to write
             goto Exit;
         }
@@ -29205,7 +29370,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
     // create lighting, put outside of model - do before everything else, so that these are easier to find (no scrolling to the bottom)
     if (gModel.options->pEFD->scaleLightsVal > 0.0f) {
         // scale value is set > 0, so output lights
-        if (retCode |= createLightingUSD(fullTexturePath)) {
+        if ((retCode |= createLightingUSD(fullTexturePath))) {
             goto Exit;
         }
     }
@@ -29264,7 +29429,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
 
         // create block instance library
         char noExtraPath[] = "";
-        if (retCode |= createMeshesUSD(blockLibraryNameWithSuffix, materialLibraryName, singleTerrainFile, noExtraPath)) {
+        if ((retCode |= createMeshesUSD(blockLibraryNameWithSuffix, materialLibraryName, singleTerrainFile, noExtraPath))) {
             // failed to write
             goto Exit;
         }
@@ -29275,7 +29440,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
         qsort_s(gModel.faceList, gModel.faceCount, sizeof(FaceRecord*), tileUSDIdCompare, NULL);
 
         // create material library
-        if (retCode |= createMaterialsUSD(texturePath, "", materialLibraryNameWithSuffix, singleTerrainFile, noExtraPath)) {
+        if ((retCode |= createMaterialsUSD(texturePath, "", materialLibraryNameWithSuffix, singleTerrainFile, noExtraPath))) {
             // failed to write
             goto Exit;
         }
@@ -29476,7 +29641,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
     }
     else {
 
-        if (retCode |= createMeshesUSD(NULL, NULL, singleTerrainFile, slashDefaultPrim)) {
+        if ((retCode |= createMeshesUSD(NULL, NULL, singleTerrainFile, slashDefaultPrim))) {
             goto Exit;
         }
     } // instancing endif
@@ -29489,7 +29654,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
     if (!gModel.instancing) {
         char mdlPath[MAX_PATH_AND_FILE];
         strcpy_s(mdlPath, MAX_PATH_AND_FILE, gMaterialFileSubdirChar);
-        if (retCode |= createMaterialsUSD(texturePath, mdlPath, NULL, singleTerrainFile, slashDefaultPrim)) {
+        if ((retCode |= createMaterialsUSD(texturePath, mdlPath, NULL, singleTerrainFile, slashDefaultPrim))) {
             // failed to write
             goto Exit;
         }
@@ -29497,7 +29662,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
 
     // create custom MDLs, if needed
     if (gModel.exportMDL && gModel.customMaterial) {
-        if (retCode |= writeMDLforUSD(gMaterialDirectoryPath)) {
+        if ((retCode |= writeMDLforUSD(gMaterialDirectoryPath))) {
             goto Exit;
         }
     }
@@ -29507,7 +29672,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
 Exit:
-    if (retCode |= closeUSDFile(gModelFile)) {
+    if ((retCode |= closeUSDFile(gModelFile))) {
         // failed to quit - really, we're done, so nothing to do, but left in case someday we add more code below.
     }
 
@@ -30043,7 +30208,7 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary, boo
         // output a series of meshes, grouped by block
         // Open a new file for output
         PORTAFILE blockFile;
-        if (retCode |= openUSDFile(blockLibraryPath, blockFile)) {
+        if ((retCode |= openUSDFile(blockLibraryPath, blockFile))) {
             // cannot open file
             goto Exit;
         }
@@ -30123,7 +30288,11 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary, boo
             startRun = firstFaceNumber;
             // output meshes for the given block
             while (findEndOfGroup(startRun, firstFaceNumber+numFaces, mtlName, nextStart, numVerts) && nextStart <= nextFaceNumber) {
-                outputUSDMesh(blockFile, startRun, nextStart - startRun, numVerts, "/Blocks", "", mtlName, progressTick, progressIncrement, singleTerrainFile, type, dataVal);
+                retCode |= outputUSDMesh(blockFile, startRun, nextStart - startRun, numVerts, "/Blocks", "", mtlName, progressTick, progressIncrement, singleTerrainFile, type, dataVal);
+                if (retCode >= MW_BEGIN_ERRORS) {
+                    PortaClose(blockFile);
+                    goto Exit;
+                }
                 // go to next group
                 startRun = nextStart;
             }
@@ -30135,14 +30304,16 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary, boo
         strcpy_s(outputString, 256, "\n} # end Blocks\n");
         WERROR_MODEL(PortaWrite(blockFile, outputString, strlen(outputString)));
 
-        if (retCode |= closeUSDFile(blockFile)) {
+        if ((retCode |= closeUSDFile(blockFile))) {
             // failed to quit - really, we're done, so nothing to do, but left in case someday we add more code below.
         }
     }
     else {
         // We compress meshes only when not instancing. Allocate that storage now.
-        // TODO here and allocOutHashData should be checked for out of memory
-        allocOutHashData();
+        if (!allocOutHashData()) {
+            retCode |= MW_WORLD_EXPORT_TOO_LARGE;
+            goto Exit;
+        }
 
         //SM code makes every mesh have the first material - for efficiency testing experiments
         //SM boolean firstName = true;
@@ -30150,7 +30321,9 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary, boo
         // output meshes by material; note that prevType and prevDataVal are here as dummy values, not used.
         while (findEndOfGroup(startRun, gModel.faceCount, mtlName, nextStart, numVerts)) {
             // we do not pass in the type and dataVal here, as they are not needed.
-            outputUSDMesh(gModelFile, startRun, nextStart - startRun, numVerts, NULL, slashDefaultPrim, mtlName, progressTick, progressIncrement, singleTerrainFile, -1, -1);
+            retCode |= outputUSDMesh(gModelFile, startRun, nextStart - startRun, numVerts, NULL, slashDefaultPrim, mtlName, progressTick, progressIncrement, singleTerrainFile, -1, -1);
+            if (retCode >= MW_BEGIN_ERRORS)
+                goto Exit;
             // go to next group
             startRun = nextStart;
         }
@@ -30181,8 +30354,8 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
         strcpy_s(mtlName, MAX_PATH_AND_FILE, gOutputFileRootCleanChar);
     }
 
-    // TODO here and allocOutHashData should be checked for out of memory
-    allocOutData(numVerts, numFaces);
+    if (!allocOutData(numVerts, numFaces))
+        return MW_WORLD_EXPORT_TOO_LARGE;
 
     // change spaces to _ to be valid USD
     changeCharToUnderline(' ', mtlName);
@@ -30803,49 +30976,70 @@ static boolean allocOutHashData()
     weldedCount = max(weldedCount, gModel.normalListCount);
     weldedCount = max(weldedCount, gModel.uvGridListCount + gModel.uvIndexCount);
 
-    gOutData.weldedHashSize = weldedCount;
+    if (weldedCount <= 0 || (size_t)weldedCount > (size_t)-1 / sizeof(VertexHash))
+        return false;
     // TODO: could make location list smaller, since we expect vertices to be shared, but then we need a
     // different size number than vertsize.
-    gOutData.vhashLocation = (VertexHash**)malloc(weldedCount * sizeof(VertexHash*));
-    gOutData.vhashPool = (VertexHash*)malloc(weldedCount * sizeof(VertexHash));
-    gOutData.welded = (Point**)malloc(weldedCount * sizeof(Point*));
-
-    return ((gOutData.vhashLocation != NULL) &&
-        (gOutData.vhashPool != NULL) &&
-        (gOutData.welded != NULL));
+    VertexHash** vhashLocation = (VertexHash**)malloc((size_t)weldedCount * sizeof(VertexHash*));
+    VertexHash* vhashPool = (VertexHash*)malloc((size_t)weldedCount * sizeof(VertexHash));
+    Point** welded = (Point**)malloc((size_t)weldedCount * sizeof(Point*));
+    if (vhashLocation == NULL || vhashPool == NULL || welded == NULL) {
+        free(vhashLocation);
+        free(vhashPool);
+        free(welded);
+        return false;
+    }
+    gOutData.vhashLocation = vhashLocation;
+    gOutData.vhashPool = vhashPool;
+    gOutData.welded = welded;
+    gOutData.weldedHashSize = weldedCount;
+    return true;
 }
 
 // TODO: we return false when out of memory, but don't do anything about it (really, a problem throughout the code...)
 static boolean allocOutData(int numVerts, int numFaces)
 {
+    if (numVerts < 0 || numFaces < 0 || numVerts > (INT_MAX - 100) / 2 || numFaces > (INT_MAX - 100) / 2)
+        return false;
     if (gOutData.vertsize < numVerts) {
-        if (gOutData.vertsize > 0) {
-            free(gOutData.points);
-            free(gOutData.normals);
-            free(gOutData.uvs);
-            free(gOutData.indices);
-            free(gOutData.indicesWelded);
-            gOutData.points = NULL;
-            gOutData.normals = NULL;
-            gOutData.uvs = NULL;
-            gOutData.indices = NULL;
-            gOutData.indicesWelded = NULL;
+        int newVertSize = 2 * numVerts + 100;
+        if ((size_t)newVertSize > (size_t)-1 / sizeof(Point))
+            return false;
+        Point* points = (Point*)malloc((size_t)newVertSize * sizeof(Point));
+        Point* normals = (Point*)malloc((size_t)newVertSize * sizeof(Point));
+        Point2* uvs = (Point2*)malloc((size_t)newVertSize * sizeof(Point2));
+        int* indices = (int*)malloc((size_t)newVertSize * sizeof(int));
+        int* indicesWelded = (int*)malloc((size_t)newVertSize * sizeof(int));
+        if (points == NULL || normals == NULL || uvs == NULL || indices == NULL || indicesWelded == NULL) {
+            free(points);
+            free(normals);
+            free(uvs);
+            free(indices);
+            free(indicesWelded);
+            return false;
         }
-        gOutData.vertsize = 2 * numVerts + 100;
-        gOutData.points = (Point*)malloc(gOutData.vertsize * sizeof(Point));
-        gOutData.normals = (Point*)malloc(gOutData.vertsize * sizeof(Point));
-        gOutData.uvs = (Point2*)malloc(gOutData.vertsize * sizeof(Point2));
-        gOutData.indices = (int*)malloc(gOutData.vertsize * sizeof(int));
-        gOutData.indicesWelded = (int*)malloc(gOutData.vertsize * sizeof(int));
-//#endif
+        free(gOutData.points);
+        free(gOutData.normals);
+        free(gOutData.uvs);
+        free(gOutData.indices);
+        free(gOutData.indicesWelded);
+        gOutData.points = points;
+        gOutData.normals = normals;
+        gOutData.uvs = uvs;
+        gOutData.indices = indices;
+        gOutData.indicesWelded = indicesWelded;
+        gOutData.vertsize = newVertSize;
     }
     if (gOutData.facesize < numFaces) {
-        if (gOutData.facesize > 0) {
-            free(gOutData.faceVertexCounts);
-            gOutData.faceVertexCounts = NULL;
-        }
-        gOutData.facesize = 2 * numFaces + 100;
-        gOutData.faceVertexCounts = (int*)malloc(gOutData.facesize * sizeof(int));
+        int newFaceSize = 2 * numFaces + 100;
+        if ((size_t)newFaceSize > (size_t)-1 / sizeof(int))
+            return false;
+        int* faceVertexCounts = (int*)malloc((size_t)newFaceSize * sizeof(int));
+        if (faceVertexCounts == NULL)
+            return false;
+        free(gOutData.faceVertexCounts);
+        gOutData.faceVertexCounts = faceVertexCounts;
+        gOutData.facesize = newFaceSize;
     }
     // store the number of verts and faces now - we'll fill them in right after
     gOutData.vertCount = numVerts;
@@ -30868,19 +31062,20 @@ static void freeOutAndHashData()
         free(gOutData.uvs);
         free(gOutData.indices);
         free(gOutData.indicesWelded);
-        free(gOutData.vhashLocation);
-        free(gOutData.vhashPool);
-        free(gOutData.welded);
         gOutData.points = NULL;
         gOutData.normals = NULL;
         gOutData.uvs = NULL;
         gOutData.indices = NULL;
         gOutData.indicesWelded = NULL;
-        gOutData.vhashLocation = NULL;
-        gOutData.vhashPool = NULL;
-        gOutData.welded = NULL;
     }
     gOutData.vertsize = 0;
+    free(gOutData.vhashLocation);
+    free(gOutData.vhashPool);
+    free(gOutData.welded);
+    gOutData.vhashLocation = NULL;
+    gOutData.vhashPool = NULL;
+    gOutData.welded = NULL;
+    gOutData.weldedHashSize = 0;
     if (gOutData.facesize > 0) {
         free(gOutData.faceVertexCounts);
         gOutData.faceVertexCounts = NULL;
@@ -30899,6 +31094,10 @@ static void freeOutAndHashData()
 static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibraryFilename, bool singleTerrainFile, char *slashDefaultPrim)
 {
     int retCode = 0;
+    bool usePreviewSurface;  // hoisted: declared here so goto Exit doesn't bypass init
+    float emission;          // hoisted likewise
+    int nextStart;           // hoisted likewise
+    int startRun;            // hoisted likewise
 
     char outputString[256];
     char textureString[256];
@@ -30912,7 +31111,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
         strcpy_s(prefixPath, MAX_PATH_AND_FILE, "/Blocks");
         // output materials to a separate material library
         // Open a new file for output
-        if (retCode |= openUSDFile(mtlLibraryFilename, materialFile)) {
+        if ((retCode |= openUSDFile(mtlLibraryFilename, materialFile))) {
             // cannot open file
             goto Exit;
         }
@@ -30980,15 +31179,15 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
 #else
     char mtlName[MAX_PATH_AND_FILE];
 
-    int startRun = 0;
-    int nextStart = 0;
+    startRun = 0;
+    nextStart = 0;
     int numVerts;
 
     static bool outputCustomData = false;
-    float emission = 0.0f;
+    emission = 0.0f;
 
     // Assume we always want this on, but pre-emptively added to allow export toggle
-    bool usePreviewSurface = true;
+    usePreviewSurface = true;
 
     while (findEndOfGroup(startRun, gModel.faceCount, mtlName, nextStart, numVerts)) {
         changeCharToUnderline(' ', mtlName);
@@ -32555,7 +32754,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
     if (mtlLibraryFilename != NULL) {
         strcpy_s(outputString, 256, "} # close Scope \"Blocks\"\n");
         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-        if (retCode |= closeUSDFile(materialFile)) {
+        if ((retCode |= closeUSDFile(materialFile))) {
             // failed to quit - really, we're done, so nothing to do, but left in case someday we add more code below.
         }
     }
@@ -33036,8 +33235,8 @@ static int writeSchematicBox()
     int retCode = MW_NO_ERROR;
 
     int width, height, length, totalSize, maxShortSize;
-    unsigned char* blocks, * block_ptr;
-    unsigned char* blockData, * blockData_ptr;
+    unsigned char* blocks = NULL, * block_ptr = NULL;
+    unsigned char* blockData = NULL, * blockData_ptr = NULL;
     IPoint loc;
     float progressStart, progressOffset;
 
@@ -33051,7 +33250,7 @@ static int writeSchematicBox()
     length = gSolidBox.max[Z] - gSolidBox.min[Z] + 1;
 
     // maximum short size
-    maxShortSize = (1 << 16) - 1;
+    maxShortSize = SHRT_MAX;
 
     if (width > maxShortSize) {
         // Width of region too large for a .schematic");
@@ -33066,24 +33265,38 @@ static int writeSchematicBox()
         return retCode | MW_DIMENSION_TOO_LARGE;
     }
 
+    if (!nbtGetValidatedSchematicVolume(width, height, length, &totalSize)) {
+        return retCode | MW_WORLD_EXPORT_TOO_LARGE;
+    }
+    blocks = block_ptr = (unsigned char*)malloc((size_t)totalSize);
+    blockData = blockData_ptr = (unsigned char*)malloc((size_t)totalSize);
+    if (blocks == NULL || blockData == NULL) {
+        free(blocks);
+        free(blockData);
+        return retCode | MW_WORLD_EXPORT_TOO_LARGE;
+    }
+
     concatFileName3(schematicFileNameWithSuffix, gOutputFilePath, gOutputFileRoot, L".schematic");
 
     // create the schematic file
     err = _wfopen_s(&fptr, schematicFileNameWithSuffix, L"wb");
     if (fptr == NULL || err != 0)
     {
+        free(blocks);
+        free(blockData);
         return retCode | MW_CANNOT_CREATE_FILE;
     }
     // now make it a gzip file
     gz = gzdopen(_fileno(fptr), "wb");
     if (gz == NULL)
     {
+        fclose(fptr);
+        free(blocks);
+        free(blockData);
         return retCode | MW_CANNOT_CREATE_FILE;
     }
 
     addOutputFilenameToList(schematicFileNameWithSuffix);
-
-    blocks = blockData = NULL;
 
     if (gModel.options->pEFD->radioRotate0)
     {
@@ -33172,10 +33385,6 @@ static int writeSchematicBox()
     CHECK_SCHEMATIC_QUIT(schematicWriteString(gz, "Materials", "Alpha"));
 
     // Copy
-    totalSize = width * height * length;
-    blocks = block_ptr = (unsigned char*)malloc(totalSize);
-    blockData = blockData_ptr = (unsigned char*)malloc(totalSize);
-
     progressStart = gProgress.start.output;
     progressOffset = gProgress.absolute.output;
 
@@ -33546,6 +33755,7 @@ static int writeSpongeSchematicBox()
     }
     gz = gzdopen(_fileno(fptr), "wb");
     if (gz == NULL) {
+        fclose(fptr);
         return retCode | MW_CANNOT_CREATE_FILE;
     }
     addOutputFilenameToList(schematicFileNameWithSuffix);
@@ -34386,7 +34596,7 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
         WRITE_STAT;
     }
 
-    if ((gModel.options->pEFD->fileType == FILE_TYPE_USD)) {
+    if (gModel.options->pEFD->fileType == FILE_TYPE_USD) {
         sprintf_s(outputString, 256, "# Export MDL: %s\n", gModel.options->pEFD->chkExportMDL ? "YES" : "no");
         WRITE_STAT;
 
@@ -35765,7 +35975,7 @@ static void compositePNGSwatchOverColor(progimage_info* dst, int dstSwatch, int 
     unsigned int* dsti = (unsigned int*)(&dst->image_data[0]) + drow * swatchSize * dst->width + dcol * swatchSize;
 
     int row, col;
-    unsigned char or , og, ob, oa;
+    unsigned char or, og, ob, oa;
     unsigned char dr, dg, db, da;
     unsigned int* coveri, * cdsti;  // cppcheck-suppress 398
 
@@ -35778,7 +35988,7 @@ static void compositePNGSwatchOverColor(progimage_info* dst, int dstSwatch, int 
         {
             unsigned char oma;
 
-            GET_PNG_TEXEL(or , og, ob, oa, *coveri);
+            GET_PNG_TEXEL(or, og, ob, oa, *coveri);
 
             oma = 255 - oa;
 
@@ -35797,7 +36007,7 @@ static void compositePNGSwatchOverColor(progimage_info* dst, int dstSwatch, int 
             else
             {
                 // full blend must be done: use over, http://en.wikipedia.org/wiki/Alpha_compositing
-                dr = (unsigned char)((or *oa * 255 + ur * ua * oma) / (255 * 255));
+                dr = (unsigned char)((or * oa * 255 + ur * ua * oma) / (255 * 255));
                 dg = (unsigned char)((og * oa * 255 + ug * ua * oma) / (255 * 255));
                 db = (unsigned char)((ob * oa * 255 + ub * ua * oma) / (255 * 255));
                 da = (unsigned char)((oa * 255 + ua * oma) / 255);
@@ -36476,6 +36686,9 @@ static int decimateMesh()
 
     // first use of this pool, normally not needed, so allocate it now
     gModel.simplifyFaceRecordPool = (SimplifyFaceRecordPool*)malloc(sizeof(SimplifyFaceRecordPool));
+    if (gModel.simplifyFaceRecordPool == NULL) {
+        return MW_WORLD_EXPORT_TOO_LARGE;
+    }
     gModel.simplifyFaceRecordPool->count = 0;
     gModel.simplifyFaceRecordPool->pNext = NULL;
     gModel.headSimplifyFaceRecordPool = gModel.simplifyFaceRecordPool;
@@ -36483,6 +36696,8 @@ static int decimateMesh()
     if ((gModel.options->pEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ) || (gModel.options->pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ)) {
         gModel.simplifyUVGridList = (int*)malloc((SIMPLIFY_MAX_DIMENSION + 1) * (SIMPLIFY_MAX_DIMENSION + 1) * sizeof(int));
         if (gModel.simplifyUVGridList == NULL) {
+            free(gModel.simplifyFaceRecordPool);
+            gModel.simplifyFaceRecordPool = gModel.headSimplifyFaceRecordPool = NULL;
             return MW_WORLD_EXPORT_TOO_LARGE;
         }
         memset(gModel.simplifyUVGridList, 0, (SIMPLIFY_MAX_DIMENSION + 1) * (SIMPLIFY_MAX_DIMENSION + 1) * sizeof(int));
@@ -36492,6 +36707,8 @@ static int decimateMesh()
     int simplifyFaceListSize = min(gModel.faceCount, SIMPLIFY_FACE_RECORD_POOL_SIZE);   // TODO: tune this initial size?
     SimplifyFaceRecord** simplifyFaceList = (SimplifyFaceRecord**)malloc(simplifyFaceListSize * sizeof(SimplifyFaceRecord*));
     if (simplifyFaceList == NULL) {
+        free(gModel.simplifyFaceRecordPool);
+        gModel.simplifyFaceRecordPool = gModel.headSimplifyFaceRecordPool = NULL;
         return MW_WORLD_EXPORT_TOO_LARGE;
     }
     int noteProgress = 1 + (int)((float)gModel.faceCount / (gProgress.absolute.decimate / 0.05f));
@@ -36523,6 +36740,17 @@ static int decimateMesh()
             // Store the normal direction, normal distance minimum X and Y of the face, for faster sorting. X and Y is in relation to the normal, e.g.,
             // if normal is +X, store normal "distance" X (sort key), then stored X = Z, stored Y = Y, something like that.
             SimplifyFaceRecord* pSFR = allocSimplifyFaceRecordFromPool();
+            if (pSFR == NULL) {
+                free(simplifyFaceList);
+                SimplifyFaceRecordPool* pSFRPool = gModel.headSimplifyFaceRecordPool;
+                while (pSFRPool) {
+                    SimplifyFaceRecordPool* pNext = pSFRPool->pNext;
+                    free(pSFRPool);
+                    pSFRPool = pNext;
+                }
+                gModel.simplifyFaceRecordPool = gModel.headSimplifyFaceRecordPool = NULL;
+                return MW_WORLD_EXPORT_TOO_LARGE;
+            }
             pSFR->pFace = pFace;
             pSFR->normalDirection = pFace->normalIndex;
             pSFR->pXneighborSFR = NULL;
@@ -36533,7 +36761,20 @@ static int decimateMesh()
             sameFaceCount++;
             if (simplifyFaceListSize < sameFaceCount) {
                 simplifyFaceListSize = 2 * sameFaceCount;
-                simplifyFaceList = (SimplifyFaceRecord**)realloc(simplifyFaceList, simplifyFaceListSize * sizeof(SimplifyFaceRecord*));
+                SimplifyFaceRecord** largerSimplifyFaceList =
+                    (SimplifyFaceRecord**)realloc(simplifyFaceList, simplifyFaceListSize * sizeof(SimplifyFaceRecord*));
+                if (largerSimplifyFaceList == NULL) {
+                    free(simplifyFaceList);
+                    SimplifyFaceRecordPool* pSFRPool = gModel.headSimplifyFaceRecordPool;
+                    while (pSFRPool) {
+                        SimplifyFaceRecordPool* pNext = pSFRPool->pNext;
+                        free(pSFRPool);
+                        pSFRPool = pNext;
+                    }
+                    gModel.simplifyFaceRecordPool = gModel.headSimplifyFaceRecordPool = NULL;
+                    return MW_WORLD_EXPORT_TOO_LARGE;
+                }
+                simplifyFaceList = largerSimplifyFaceList;
             }
             simplifyFaceList[sameFaceCount-1] = pSFR;
         }
@@ -36867,8 +37108,6 @@ static bool faceCanTile(int faceId)
     //    return true;
     //}
 
-    static int countTrue = 0;
-    static int countFalse = 0;
     // are the UVs from edge to edge, so we know it's a full face?
     // Loop cleverness. We could go 0 through 3, to be safe, but we know that almost all (except triangles for sloped rails for 3d printing) quads in Mineways
     // are rectangular. So, we can test just the opposite corners, i += 2, to make sure they have UVs that are 0.0 or 1.0 (which is 0 or 16 in the normalized set here).
@@ -36994,7 +37233,7 @@ static int simplifyFaceCompareYminor(void* context, const void* str1, const void
 {
     SimplifyFaceRecord* f1 = *(SimplifyFaceRecord**)str1;
     SimplifyFaceRecord* f2 = *(SimplifyFaceRecord**)str2;
-    context;    // make a useless reference to the unused variable, to avoid C4100 warning
+    (void)context;    // make a useless reference to the unused variable, to avoid C4100 warning
     // compare normal directions and distances
     if (f1->normalDirection == f2->normalDirection) {
         if (f1->normalDistance == f2->normalDistance) {
@@ -37015,7 +37254,7 @@ static int simplifyFaceCompareXminor(void* context, const void* str1, const void
 {
     SimplifyFaceRecord* f1 = *(SimplifyFaceRecord**)str1;
     SimplifyFaceRecord* f2 = *(SimplifyFaceRecord**)str2;
-    context;    // make a useless reference to the unused variable, to avoid C4100 warning
+    (void)context;    // make a useless reference to the unused variable, to avoid C4100 warning
     // Not needed, should already match: compare normal directions and distances
     //if (f1->normalDirection == f2->normalDirection) {
         //if (f1->normalDistance == f2->normalDistance) {

@@ -29,17 +29,21 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "stdafx.h"
 #include <string.h>
 #include <assert.h>
+#include <limits.h>
+#include <stdint.h>
 
 // We know we won't run into names longer than 100 characters. The old code was
 // safe, but was also allocating strings all the time - seems slow.
 #define MAX_NAME_LENGTH 100
+#define NBT_GZIP_SKIP_BUDGET ((uint64_t)256 * 1024 * 1024)
 
 // return a negative number, giving the line of the code where it returned
 #define LINE_ERROR (-(__LINE__))
 
 static int skipType(bfFile* pbf, int type);
-static int skipList(bfFile* pbf);
-static int skipCompound(bfFile* pbf);
+static int skipTypeDepth(bfFile* pbf, int type, int depth, int* tagBudget);
+static int skipListDepth(bfFile* pbf, int depth, int* tagBudget);
+static int skipCompoundDepth(bfFile* pbf, int depth, int* tagBudget);
 
 static int readBiomePalette(bfFile* pbf, unsigned char* paletteBiomeEntry, int& entryIndex);
 static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned char* paletteBlockEntry, unsigned char* paletteDataEntry, int& entryIndex, char* unknownBlock, int unknownBlockID);
@@ -1881,14 +1885,14 @@ void makeHashTable()
 
 int findIndexFromName(char* name)
 {
+    if (name == NULL || strlen(name) < 11 || strncmp(name, "minecraft:", 10) != 0) {
+        // name is too short or uses a namespace Mineways does not recognize
+        return -1;
+    }
     // quick out: if it's air, just be done
     // +10 is to avoid (useless) "minecraft:" string.
     if (strcmp("air", name + 10) == 0) {
         return 0;
-    }
-    if (strlen(name) < 11) {
-        // name is too short, probably some mod name like "train:turn" etc.
-        return -1;
     }
     name += 10;
     // to break on a specific named block
@@ -2048,7 +2052,14 @@ int bfread(bfFile* pbf, void* target, int len)
         *pbf->offset += len;
     }
     else if (pbf->type == BF_GZIP) {
-        return gzread(pbf->gz, target, len);
+        unsigned char* output = (unsigned char*)target;
+        int totalRead = 0;
+        while (totalRead < len) {
+            int bytesRead = gzread(pbf->gz, output + totalRead, len - totalRead);
+            if (bytesRead <= 0)
+                return -1;
+            totalRead += bytesRead;
+        }
     }
     return len;
 }
@@ -2057,16 +2068,16 @@ int bfread(bfFile* pbf, void* target, int len)
 int bfseek(bfFile* pbf, int offset, int whence)
 {
     if (pbf->type == BF_BUFFER) {
-        int newOffset;
+        int64_t newOffset;
         if (whence == SEEK_CUR)
-            newOffset = *pbf->offset + offset;
+            newOffset = (int64_t)*pbf->offset + offset;
         else if (whence == SEEK_SET)
             newOffset = offset;
         else
             return -1;
         if (newOffset < 0 || newOffset > pbf->buflen)
             return -1;
-        *pbf->offset = newOffset;
+        *pbf->offset = (int)newOffset;
     }
     else if (pbf->type == BF_GZIP) {
         return gzseek(pbf->gz, offset, whence);
@@ -2074,12 +2085,24 @@ int bfseek(bfFile* pbf, int offset, int whence)
     return offset;
 }
 
+static int bftell(bfFile* pbf)
+{
+    if (pbf->type == BF_BUFFER)
+        return *pbf->offset;
+    if (pbf->type == BF_GZIP) {
+        z_off_t offset = gztell(pbf->gz);
+        return offset >= 0 && offset <= INT_MAX ? (int)offset : -1;
+    }
+    return -1;
+}
+
 bfFile newNBT(const wchar_t* filename, int* err)
 {
-    bfFile ret;
+    bfFile ret = {};
     ret.type = BF_GZIP;
-    ret.buf = NULL;
-    ret.buflen = 0;
+    ret._offset = 0;
+    ret.offset = &ret._offset;
+    ret.skipBytesRemaining = NBT_GZIP_SKIP_BUDGET;
 
     *err = _wfopen_s(&ret.fptr, filename, L"rb");
     if (ret.fptr == NULL || *err != 0)
@@ -2088,9 +2111,31 @@ bfFile newNBT(const wchar_t* filename, int* err)
         return ret;
     }
 
-    ret.gz = gzdopen(_fileno(ret.fptr), "rb");
-    ret._offset = 0;
-    ret.offset = &ret._offset;
+    // Give zlib its own descriptor. This lets gzclose release the stream and its
+    // descriptor while fclose remains the sole owner of the original FILE.
+#ifdef _WIN32
+    int gzipDescriptor = _dup(_fileno(ret.fptr));
+#else
+    int gzipDescriptor = dup(_fileno(ret.fptr));
+#endif
+    if (gzipDescriptor < 0) {
+        fclose(ret.fptr);
+        ret.fptr = NULL;
+        *err = -1;
+        return ret;
+    }
+
+    ret.gz = gzdopen(gzipDescriptor, "rb");
+    if (ret.gz == NULL) {
+#ifdef _WIN32
+        _close(gzipDescriptor);
+#else
+        close(gzipDescriptor);
+#endif
+        fclose(ret.fptr);
+        ret.fptr = NULL;
+        *err = -1;
+    }
     return ret;
 }
 
@@ -2152,126 +2197,172 @@ static double readDouble(bfFile* pbf)
     }
     return fl.f;
 }
+#define NBT_SKIP_MAX_DEPTH 64
+#define NBT_SKIP_TAG_BUDGET 100000
+
+static bool skipReadWord(bfFile* pbf, unsigned short* value)
+{
+    unsigned char buf[2];
+    if (bfread(pbf, buf, 2) != 2)
+        return false;
+    *value = (unsigned short)((buf[0] << 8) | buf[1]);
+    return true;
+}
+
+static bool skipReadDword(bfFile* pbf, unsigned int* value)
+{
+    unsigned char buf[4];
+    if (bfread(pbf, buf, 4) != 4)
+        return false;
+    *value = ((unsigned int)buf[0] << 24) | ((unsigned int)buf[1] << 16) |
+        ((unsigned int)buf[2] << 8) | buf[3];
+    return true;
+}
+
+static int skipBytes(bfFile* pbf, uint64_t count, uint64_t elementSize)
+{
+    if (elementSize == 0 || count > (uint64_t)INT_MAX / elementSize)
+        return -1;
+    uint64_t bytes = count * elementSize;
+    if (pbf->type == BF_GZIP) {
+        if (bytes > pbf->skipBytesRemaining)
+            return -1;
+        pbf->skipBytesRemaining -= bytes;
+        unsigned char discard[4096];
+        while (bytes > 0) {
+            int chunk = bytes > sizeof(discard) ? (int)sizeof(discard) : (int)bytes;
+            if (bfread(pbf, discard, chunk) != chunk)
+                return -1;
+            bytes -= chunk;
+        }
+        return 0;
+    }
+    return bfseek(pbf, (int)bytes, SEEK_CUR);
+}
+
 static int skipType(bfFile* pbf, int type)
 {
-    int len;
+    int tagBudget = NBT_SKIP_TAG_BUDGET;
+    return skipTypeDepth(pbf, type, 0, &tagBudget);
+}
+
+static int skipTypeDepth(bfFile* pbf, int type, int depth, int* tagBudget)
+{
+    unsigned int len;
+    unsigned short stringLen;
     switch (type)
     {
     default:
-        // unknown type! That's bad.
-        assert(0);
-        break;
-    case 0:
-        // perfectly reasonable case: type 0 is end
-        return 0;
-    case 1: //byte
-        return bfseek(pbf, 1, SEEK_CUR);
-    case 2: //short
-        return bfseek(pbf, 2, SEEK_CUR);
-    case 3: //int
-        return bfseek(pbf, 4, SEEK_CUR);
-    case 4: //long
-        return bfseek(pbf, 8, SEEK_CUR);
-    case 5: //float
-        return bfseek(pbf, 4, SEEK_CUR);
-    case 6: //double
-        return bfseek(pbf, 8, SEEK_CUR);
-    case 7: //byte array
-        len = readDword(pbf);
-        return bfseek(pbf, len, SEEK_CUR);
-    case 8: //string
-        len = readWord(pbf);
-        return bfseek(pbf, len, SEEK_CUR);
-    case 9: //list
-        return skipList(pbf);
-    case 10: //compound
-        return skipCompound(pbf);
-    case 11: //int array
-        len = readDword(pbf);
-        return bfseek(pbf, len * 4, SEEK_CUR);
-    case 12: //long int array
-        len = readDword(pbf);
-        return bfseek(pbf, len * 8, SEEK_CUR);
-    }
-    // reach here only for unknown type, in which case we can't continue
-    return -1;
-}
-static int skipList(bfFile* pbf)
-{
-    int len, i;
-    unsigned char type;
-    if (bfread(pbf, &type, 1) < 0) return -1;
-    len = readDword(pbf);
-    int retcode = 1;
-    switch (type)
-    {
-    default:
-        return 0;
-    case 1: //byte
-        return bfseek(pbf, len, SEEK_CUR);
-    case 2: //short
-        return bfseek(pbf, len * 2, SEEK_CUR);
-    case 3: //int
-        return bfseek(pbf, len * 4, SEEK_CUR);
-    case 4: //long
-        return bfseek(pbf, len * 8, SEEK_CUR);
-    case 5: //float
-        return bfseek(pbf, len * 4, SEEK_CUR);
-    case 6: //double
-        return bfseek(pbf, len * 8, SEEK_CUR);
-    case 7: //byte array
-        for (i = 0; (i < len) && (retcode >= 0); i++)
-        {
-            int slen = readDword(pbf);
-            retcode = bfseek(pbf, slen, SEEK_CUR);
-        }
-        return retcode;
-    case 8: //string
-        for (i = 0; (i < len) && (retcode >= 0); i++)
-        {
-            int slen = readWord(pbf);
-            retcode = bfseek(pbf, slen, SEEK_CUR);
-        }
-        return retcode;
-    case 9: //list
-        for (i = 0; (i < len) && (retcode >= 0); i++)
-            retcode = skipList(pbf);
-        return retcode;
-    case 10: //compound
-        for (i = 0; (i < len) && (retcode >= 0); i++)
-            retcode = skipCompound(pbf);
-        return retcode;
-    case 11: //int array
-        for (i = 0; (i < len) && (retcode >= 0); i++)
-        {
-            int slen = readDword(pbf);
-            retcode = bfseek(pbf, slen * 4, SEEK_CUR);
-        }
-        return retcode;
-    }
-}
-static int skipCompound(bfFile* pbf)
-{
-    int len;
-    int retcode = 0;
-    unsigned char type = 0;
-    int loopCount = 0;
-    do {
-        if (bfread(pbf, &type, 1) < 0) return -1;
-        if (type)
-        {
-            len = readWord(pbf);
-            if (bfseek(pbf, len, SEEK_CUR) < 0) return -1;	//skip name
-            retcode = skipType(pbf, type);
-        }
-        loopCount++;
-    } while (type && (retcode >= 0) && loopCount < 100000);
-    // Some corruption happening (Saffron City test), get out of here.
-    // But, https://github.com/Avanatiker/WorldTools bizarrely puts 162 entries in WorldGenSettings -> dimensions,
-    // so we up the count to 100000 (used to be 100).
-    if (loopCount >= 100000)
         return -1;
-    return retcode;
+    case 0:
+        return 0;
+    case 1: //byte
+        return skipBytes(pbf, 1, 1);
+    case 2: //short
+        return skipBytes(pbf, 1, 2);
+    case 3: //int
+        return skipBytes(pbf, 1, 4);
+    case 4: //long
+        return skipBytes(pbf, 1, 8);
+    case 5: //float
+        return skipBytes(pbf, 1, 4);
+    case 6: //double
+        return skipBytes(pbf, 1, 8);
+    case 7: //byte array
+        return skipReadDword(pbf, &len) ? skipBytes(pbf, len, 1) : -1;
+    case 8: //string
+        return skipReadWord(pbf, &stringLen) ? skipBytes(pbf, stringLen, 1) : -1;
+    case 9: //list
+        return depth < NBT_SKIP_MAX_DEPTH ? skipListDepth(pbf, depth + 1, tagBudget) : -1;
+    case 10: //compound
+        return depth < NBT_SKIP_MAX_DEPTH ? skipCompoundDepth(pbf, depth + 1, tagBudget) : -1;
+    case 11: //int array
+        return skipReadDword(pbf, &len) ? skipBytes(pbf, len, 4) : -1;
+    case 12: //long int array
+        return skipReadDword(pbf, &len) ? skipBytes(pbf, len, 8) : -1;
+    }
+}
+
+static int skipListDepth(bfFile* pbf, int depth, int* tagBudget)
+{
+    unsigned char type;
+    unsigned int len;
+    if (bfread(pbf, &type, 1) != 1 || !skipReadDword(pbf, &len))
+        return -1;
+    if (len > (unsigned int)*tagBudget)
+        return -1;
+    *tagBudget -= (int)len;
+
+    switch (type)
+    {
+    default:
+        return -1;
+    case 0:
+        return len == 0 ? 0 : -1;
+    case 1: //byte
+        return skipBytes(pbf, len, 1);
+    case 2: //short
+        return skipBytes(pbf, len, 2);
+    case 3: //int
+        return skipBytes(pbf, len, 4);
+    case 4: //long
+        return skipBytes(pbf, len, 8);
+    case 5: //float
+        return skipBytes(pbf, len, 4);
+    case 6: //double
+        return skipBytes(pbf, len, 8);
+    case 7: //byte array
+    case 11: //int array
+    case 12: //long array
+        for (unsigned int i = 0; i < len; i++) {
+            unsigned int arrayLen;
+            if (!skipReadDword(pbf, &arrayLen) ||
+                skipBytes(pbf, arrayLen, type == 7 ? 1 : (type == 11 ? 4 : 8)) < 0)
+                return -1;
+        }
+        return 0;
+    case 8: //string
+        for (unsigned int i = 0; i < len; i++) {
+            unsigned short itemLen;
+            if (!skipReadWord(pbf, &itemLen) || skipBytes(pbf, itemLen, 1) < 0)
+                return -1;
+        }
+        return 0;
+    case 9: //list
+        if (depth >= NBT_SKIP_MAX_DEPTH)
+            return -1;
+        for (unsigned int i = 0; i < len; i++)
+            if (skipListDepth(pbf, depth + 1, tagBudget) < 0)
+                return -1;
+        return 0;
+    case 10: //compound
+        if (depth >= NBT_SKIP_MAX_DEPTH)
+            return -1;
+        for (unsigned int i = 0; i < len; i++)
+            if (skipCompoundDepth(pbf, depth + 1, tagBudget) < 0)
+                return -1;
+        return 0;
+    }
+}
+
+static int skipCompoundDepth(bfFile* pbf, int depth, int* tagBudget)
+{
+    for (;;) {
+        unsigned char type;
+        if (bfread(pbf, &type, 1) != 1)
+            return -1;
+        if (type == 0)
+            return 0;
+        if (*tagBudget <= 0)
+            return -1;
+        (*tagBudget)--;
+
+        unsigned short nameLen;
+        if (!skipReadWord(pbf, &nameLen) || skipBytes(pbf, nameLen, 1) < 0)
+            return -1;
+        if (skipTypeDepth(pbf, type, depth, tagBudget) < 0)
+            return -1;
+    }
 }
 
 // 1 they match, 0 they don't, -1 there was a read error
@@ -2329,6 +2420,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
 {
     int len, nsections, i;
     int biome_save;
+    int inttype;    // hoisted: declared here so goto SectionsCode doesn't bypass init
     int returnCode = NBT_VALID_BLOCK;	// means "fine"
     int sectionHeight;
     int formatClass = FORMAT_UP_THROUGH_1_12;
@@ -2424,7 +2516,7 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
     // Format info at http://wiki.vg/Map_Format, though don't trust order.
     biome_save = *pbf->offset;
     memset(biome, 0, 16 * 16);
-    int inttype = nbtFindElement(pbf, "Biomes");
+    inttype = nbtFindElement(pbf, "Biomes");
     if (inttype != 7) {
         // Could be new format 1.13
         // Bizarrely, in the new format the Biome data may be missing for some chunks.
@@ -2447,6 +2539,8 @@ int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned
     len = readDword(pbf); //array length
     if (formatClass == FORMAT_UP_THROUGH_1_12) {
         // old, 1.12 or earlier direct format - done
+        if (len != 16 * 16)
+            return LINE_ERROR;
         if (bfread(pbf, biome, len) < 0)
             return LINE_ERROR;
     }
@@ -2680,9 +2774,9 @@ SectionsCode:
                     //found++;
                     ret = 1;
                     len = readDword(pbf); //array length
-                    if (y < 0 || 16 * (y + 1) > heightAlloc || len > 16 * 16 * 8)
+                    if (y < 0 || 16 * (y + 1) > heightAlloc || len != 16 * 16 * 8)
                         return LINE_ERROR;
-                    if (bfread(pbf, blockLight + 16 * 16 * 8 * y, len) < 0)
+                    if (bfread(pbf, blockLight + 16 * 16 * 8 * y, len) != len)
                         return LINE_ERROR;
                 }
                 else if (strcmp(thisName, "Blocks") == 0)
@@ -2690,9 +2784,9 @@ SectionsCode:
                     //found++;
                     ret = 1;
                     len = readDword(pbf); //array length
-                    if (y < 0 || 16 * (y + 1) > heightAlloc || len > 16 * 16 * 16)
+                    if (y < 0 || 16 * (y + 1) > heightAlloc || len != 16 * 16 * 16)
                         return LINE_ERROR;
-                    if (bfread(pbf, buff + 16 * 16 * 16 * y, len) < 0)
+                    if (bfread(pbf, buff + 16 * 16 * 16 * y, len) != len)
                         return LINE_ERROR;
                     // and update the maxFilledSectionHeight
                     sectionHeight = 16 * y + 15;
@@ -2706,11 +2800,11 @@ SectionsCode:
                     //found++;
                     ret = 1;
                     len = readDword(pbf); //array length
-                    if (y < 0 || 16 * (y + 1) > heightAlloc || len > 16 * 16 * 8)
+                    if (y < 0 || 16 * (y + 1) > heightAlloc || len != 16 * 16 * 8)
                         return LINE_ERROR;
                     // transfer the data from 4-bits to 8-bits; needed for 1.13
                     unsigned char data4buff[16 * 16 * 8];
-                    if (bfread(pbf, data4buff, len) < 0)
+                    if (bfread(pbf, data4buff, len) != len)
                         return LINE_ERROR;
                     unsigned char* din = data4buff;
                     unsigned char* dret = &data[16 * 16 * 16 * y];
@@ -3124,14 +3218,24 @@ SectionsCode:
             // 1234512345123451234512345123451234512345123451234512345123451234 | 512345 - at the 64 - bit mark the bits just continue
             // New format (which we call "uncompressed"):
             // 123451234512345123451234512345123451234512345123451234512345.... | 1234512345 - at the 60 - bit mark the 5 bits won't fit, so they start again.
+            if ((bigbufflen == 0 && paletteLength > 1) || (bigbufflen > 0 && paletteLength <= 0))
+                return LINE_ERROR;
             if (bigbufflen > 0 && paletteLength > 0) {
+                int bitlength = 4;
+                while ((1 << bitlength) < paletteLength)
+                    bitlength++;
+                const int packedLongCount = 64 * bitlength;
+                const int valuesPerLong = 64 / bitlength;
+                const int paddedLongCount = (16 * 16 * 16 + valuesPerLong - 1) / valuesPerLong;
+                if (bigbufflen != packedLongCount && bigbufflen != paddedLongCount)
+                    return LINE_ERROR;
+
                 // future proof: don't store data if the memory doesn't exist
                 if (y < maxHeight16 && y >= minHeight16) {
-                    // compute number of bits for each palette entry. For example, 21 entries is 5 bits, which can access 17-32 entries.
-                    int bitlength = bigbufflen / 64;
                     // is this the new 1.16 20w17a format?
-                    bool uncompressed = (bigbufflen > 64 * bitlength);
-                    unsigned long int bitmask = (1 << bitlength) - 1;
+                    bool uncompressed = (bigbufflen == paddedLongCount && paddedLongCount != packedLongCount);
+                    unsigned long int bitmask = (1UL << bitlength) - 1;
+                    const int bigbuffByteLength = bigbufflen * 8;
 
                     unsigned char* bout = buff + 16 * 16 * 16 * (int)(y - minHeight16);
                     unsigned char* dout = data + 16 * 16 * 16 * (int)(y - minHeight16);
@@ -3152,6 +3256,8 @@ SectionsCode:
                         // Have to count from top to bottom 8 bytes of each long long. I suspect if I read the long longs as bytes the order might be right.
                         // But, this works.
                         bbindex = (bbindex & 0xfff8) + 7 - (bbindex & 0x7);
+                        if (bbindex < 0 || bbindex >= bigbuffByteLength)
+                            return LINE_ERROR;
                         int bbshift = bitpull & 0x7;
                         // get the top bits out of the topmost byte, on down the row
                         int bits = (bigbuff[bbindex] >> bbshift) & bitmask;
@@ -3161,6 +3267,8 @@ SectionsCode:
                         while (remainingBitLength > 0) {
                             if (bbindex & 0x7) {
                                 // one of the middle bytes, not the bottommost one
+                                if (bbindex < 1)
+                                    return LINE_ERROR;
                                 bits |= (bigbuff[bbindex - 1] << (8 - bbshift)) & bitmask;
                             }
                             else {
@@ -3176,6 +3284,8 @@ SectionsCode:
                                     //next iteration it will be: bbshift = 0;
                                 }
                                 else {
+                                    if (bbindex + 15 >= bigbuffByteLength)
+                                        return LINE_ERROR;
                                     bits |= (bigbuff[bbindex + 15] << (8 - bbshift)) & bitmask;
                                 }
                             }
@@ -3190,12 +3300,7 @@ SectionsCode:
                         if (bits >= paletteLength) {
                             // Should never reach here; means that a stored index value is greater than any value in the palette.
                             assert(0);
-#ifdef _DEBUG
-                            // maximum value is entryIndex - 1; which is useful for debugging - see things go bad
-                            bits = paletteLength - 1;
-#else
-                            bits = 0; // which is likely air
-#endif
+                            return LINE_ERROR;
                         }
                         *bout++ = paletteBlockEntry[bits];
                         *dout++ = paletteDataEntry[bits];
@@ -3463,10 +3568,11 @@ SectionsCode:
 
 static int readBlockData(bfFile* pbf, int& bigbufflen, unsigned char *bigbuff)
 {
-    bigbufflen = readDword(pbf); //array length
+    unsigned int longCount = readDword(pbf); //array length
     // read 8 byte records (longs), so total bytes is bigbufflen * 8
-    if (bigbufflen * 8 > MAX_BLOCK_STATES_ARRAY)
+    if (longCount > MAX_BLOCK_STATES_ARRAY / 8)
         return LINE_ERROR;	// TODO make better unique return codes, with names
+    bigbufflen = (int)longCount;
     // note len is adjusted here from longs (which are 8 bytes long) to the number of bytes to read.
     if (bfread(pbf, bigbuff, bigbufflen * 8) < 0)
         return LINE_ERROR;
@@ -3503,11 +3609,13 @@ static int readBiomePalette(bfFile* pbf, unsigned char* paletteBiomeEntry, int& 
     // go through entries in Palette
     while (nentries--) {
         len = readWord(pbf);
-        if (len <= 1 || len >= MAX_NAME_LENGTH)
+        if (len <= 10 || len >= MAX_NAME_LENGTH)
             return LINE_ERROR;  // really, should not reach here if the data's OK
         if (bfread(pbf, thisBiomeName, len) < 0)
             return LINE_ERROR;
         thisBiomeName[len] = 0;
+        if (strncmp(thisBiomeName, "minecraft:", 10) != 0)
+            return LINE_ERROR;
         // convert biome name to the proper index
         // The +10 goes past the "minecraft:" part of the name in the palette
         int index = findIndexFromBiomeName(thisBiomeName+10);
@@ -3710,6 +3818,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         char token[100];
                         char value[100];
                         len = readWord(pbf);
+                        if (len >= (int)sizeof(token))
+                            return LINE_ERROR;
                         if (bfread(pbf, token, len) < 0)
                             return LINE_ERROR;
                         token[len] = 0;
@@ -3723,6 +3833,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         }
 
                         len = readWord(pbf);
+                        if (len >= (int)sizeof(value))
+                            return LINE_ERROR;
                         if (bfread(pbf, value, len) < 0)
                             return LINE_ERROR;
                         value[len] = 0;
@@ -5685,8 +5797,26 @@ int nbtGetSchematicWord(bfFile* pbf, char* field, int* value)
         return LINE_ERROR; //skip name ()
     if (nbtFindElement(pbf, field) != 2)
         return LINE_ERROR;
-    *value = readWord(pbf);
+    *value = (short)readWord(pbf);
     return 1;
+}
+
+#define SCHEMATIC_BLOCK_DATA_MEMORY_BUDGET ((size_t)256 * 1024 * 1024)
+
+bool nbtGetValidatedSchematicVolume(int width, int height, int length, int* numBlocks)
+{
+    if (numBlocks == NULL || width <= 0 || height <= 0 || length <= 0)
+        return false;
+    if (width > INT_MAX / height)
+        return false;
+    int widthHeight = width * height;
+    if (widthHeight > INT_MAX / length)
+        return false;
+    int volume = widthHeight * length;
+    if ((size_t)volume > SCHEMATIC_BLOCK_DATA_MEMORY_BUDGET / 2)
+        return false;
+    *numBlocks = volume;
+    return true;
 }
 
 // return 1 on success
@@ -6697,14 +6827,67 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
     return true;
 }
 
+#define SPONGE_MAX_PALETTE_ENTRIES (256 * 256)
+#define SPONGE_MAX_VARINT_BYTES 5
+#define SPONGE_IMPORT_MEMORY_BUDGET ((size_t)256 * 1024 * 1024)
+
+static bool spongeImportFitsMemoryBudget(int numBlocks, int paletteCapacity, int dataBytesLen)
+{
+    if (numBlocks <= 0 || paletteCapacity < 0 || dataBytesLen < 0)
+        return false;
+    size_t total = 2 * (size_t)numBlocks;
+    if (total > SPONGE_IMPORT_MEMORY_BUDGET)
+        return false;
+    size_t paletteBytes = 2 * (size_t)paletteCapacity * sizeof(int);
+    if (paletteBytes > SPONGE_IMPORT_MEMORY_BUDGET - total)
+        return false;
+    total += paletteBytes;
+    return (size_t)dataBytesLen <= SPONGE_IMPORT_MEMORY_BUDGET - total;
+}
+
+static bool spongeDataLengthIsValid(int len, int numBlocks, int paletteCapacity)
+{
+    if (len < numBlocks ||
+        !spongeImportFitsMemoryBudget(numBlocks, paletteCapacity, 0) ||
+        (size_t)len > (size_t)numBlocks * SPONGE_MAX_VARINT_BYTES)
+        return false;
+    return spongeImportFitsMemoryBudget(numBlocks, paletteCapacity, len);
+}
+
+static bool spongeReadDataArray(bfFile* pbf, unsigned char** outDataBytes,
+    int* outDataBytesLen, int numBlocks, int paletteCapacity)
+{
+    int len = (int)readDword(pbf);
+    if (!spongeDataLengthIsValid(len, numBlocks, paletteCapacity))
+        return false;
+    if (*outDataBytes) {
+        free(*outDataBytes);
+        *outDataBytes = NULL;
+        *outDataBytesLen = 0;
+    }
+    unsigned char* buf = (unsigned char*)malloc((size_t)len);
+    if (buf == NULL)
+        return false;
+    if (bfread(pbf, buf, len) != len) {
+        free(buf);
+        return false;
+    }
+    *outDataBytes = buf;
+    *outDataBytesLen = len;
+    return true;
+}
+
 // Walk the "Palette" sub-compound, populating an indexed palette array. Each child of
 // the Palette compound is a TAG_Int (3) whose name is the full Sponge state string and
 // whose value is the integer palette index. The compound ends at TAG_End (0).
 // Returns true on success. On failure (allocator OOM, malformed data, etc.) returns false
 // and leaves the palette arrays in whatever partial state we got to.
 static bool spongeReadPalette(bfFile* pbf,
-    int** palBlockIds, int** palDataVals, int* palCapacity, int* palCount)
+    int** palBlockIds, int** palDataVals, int* palCapacity, int* palCount,
+    int numBlocks, int dataBytesLen)
 {
+    int maxPaletteEntries = numBlocks < SPONGE_MAX_PALETTE_ENTRIES ?
+        numBlocks : SPONGE_MAX_PALETTE_ENTRIES;
     for (;;) {
         unsigned char ptype = 0;
         if (bfread(pbf, &ptype, 1) < 0) return false;
@@ -6722,14 +6905,18 @@ static bool spongeReadPalette(bfFile* pbf,
             continue;
         }
         int idx = (int)readDword(pbf);
-        if (idx < 0 || idx > 0xFFFFFF) {
-            // sanity bound (16M unique blocks is well beyond what any sane schematic has)
+        if (idx < 0 || idx >= maxPaletteEntries) {
             return false;
         }
 
         // Grow palette arrays to fit this index (entries may arrive out of numerical order)
         if (idx >= *palCapacity) {
-            int newCap = (idx + 1) * 2;
+            int newCap = *palCapacity > 0 ? *palCapacity : 16;
+            while (newCap <= idx && newCap < maxPaletteEntries) {
+                newCap = newCap > maxPaletteEntries / 2 ? maxPaletteEntries : newCap * 2;
+            }
+            if (newCap <= idx || !spongeImportFitsMemoryBudget(numBlocks, newCap, dataBytesLen))
+                return false;
             int* nbi = (int*)realloc(*palBlockIds, (size_t)newCap * sizeof(int));
             int* ndv = (int*)realloc(*palDataVals, (size_t)newCap * sizeof(int));
             if (nbi == NULL || ndv == NULL) {
@@ -6761,7 +6948,7 @@ static bool spongeReadPalette(bfFile* pbf,
 // Caller is responsible for freeing *outDataBytes.
 static bool spongeReadBlocksCompound(bfFile* pbf,
     int** palBlockIds, int** palDataVals, int* palCapacity, int* palCount,
-    unsigned char** outDataBytes, int* outDataBytesLen)
+    unsigned char** outDataBytes, int* outDataBytesLen, int numBlocks)
 {
     for (;;) {
         unsigned char type = 0;
@@ -6775,22 +6962,16 @@ static bool spongeReadBlocksCompound(bfFile* pbf,
         tname[nameLen] = '\0';
 
         if (strcmp(tname, "Palette") == 0 && type == 0x0A /*TAG_Compound*/) {
-            if (!spongeReadPalette(pbf, palBlockIds, palDataVals, palCapacity, palCount)) {
+            if (!spongeReadPalette(pbf, palBlockIds, palDataVals, palCapacity, palCount,
+                    numBlocks, *outDataBytesLen)) {
                 return false;
             }
         }
         else if (strcmp(tname, "Data") == 0 && type == 0x07 /*TAG_Byte_Array*/) {
-            int len = (int)readDword(pbf);
-            if (len < 0 || len > 0x40000000) return false;
-            unsigned char* buf = (unsigned char*)malloc((size_t)len);
-            if (buf == NULL) return false;
-            if (len > 0 && bfread(pbf, buf, len) < 0) {
-                free(buf);
+            if (!spongeReadDataArray(pbf, outDataBytes, outDataBytesLen,
+                    numBlocks, *palCapacity)) {
                 return false;
             }
-            if (*outDataBytes) free(*outDataBytes);
-            *outDataBytes = buf;
-            *outDataBytesLen = len;
         }
         else {
             // BlockEntities, or anything else we don't currently consume
@@ -6860,13 +7041,15 @@ int nbtGetSpongeSchematic(bfFile* pbf,
     // For v2 we're already inside the Schematic compound; the for-loop below walks it directly.
 
     int width = 0, height = 0, length = 0;
+    int numBlocks = 0;
     bool haveWidth = false, haveHeight = false, haveLength = false;
     bool sawBlocks = false;
+    int deferredBlocksOffset = -1;
+    int deferredPaletteOffset = -1;
+    int deferredBlockDataOffset = -1;
 
-    // Walk children of the Schematic compound. NBT order isn't required by the spec, but in
-    // practice writers (Mineways, WorldEdit, FAWE) put Width/Height/Length before the block
-    // data. We don't need to seek back, since we collect palette + Data into memory and
-    // decode at the end.
+    // Walk children of the Schematic compound. Allocation-heavy fields that precede the
+    // dimensions are skipped now and revisited once their volume-based limits are known.
     for (;;) {
         unsigned char type = 0;
         if (bfread(pbf, &type, 1) < 0) SPONGE_FAIL();
@@ -6879,43 +7062,62 @@ int nbtGetSpongeSchematic(bfFile* pbf,
         tname[nameLen] = '\0';
 
         if (strcmp(tname, "Width") == 0 && type == 0x02) {
-            width = (int)readWord(pbf);
+            width = (short)readWord(pbf);
             haveWidth = true;
         }
         else if (strcmp(tname, "Height") == 0 && type == 0x02) {
-            height = (int)readWord(pbf);
+            height = (short)readWord(pbf);
             haveHeight = true;
         }
         else if (strcmp(tname, "Length") == 0 && type == 0x02) {
-            length = (int)readWord(pbf);
+            length = (short)readWord(pbf);
             haveLength = true;
         }
         else if (strcmp(tname, "Blocks") == 0 && type == 0x0A) {
             // v3: Palette + Data nested under a "Blocks" compound.
-            if (!spongeReadBlocksCompound(pbf,
-                    &palBlockIds, &palDataVals, &palCapacity, &palCount,
-                    &dataBytes, &dataBytesLen)) {
-                SPONGE_FAIL();
+            if (!haveWidth || !haveHeight || !haveLength) {
+                deferredBlocksOffset = bftell(pbf);
+                if (deferredBlocksOffset < 0 || skipType(pbf, type) < 0) SPONGE_FAIL();
             }
-            sawBlocks = true;
+            else {
+                if (!nbtGetValidatedSchematicVolume(width, height, length, &numBlocks) ||
+                    !spongeImportFitsMemoryBudget(numBlocks, palCapacity, dataBytesLen) ||
+                    !spongeReadBlocksCompound(pbf,
+                        &palBlockIds, &palDataVals, &palCapacity, &palCount,
+                        &dataBytes, &dataBytesLen, numBlocks)) {
+                    SPONGE_FAIL();
+                }
+                sawBlocks = true;
+            }
         }
         else if (strcmp(tname, "Palette") == 0 && type == 0x0A) {
             // v2: Palette is a direct child of Schematic.
-            if (!spongeReadPalette(pbf, &palBlockIds, &palDataVals, &palCapacity, &palCount)) {
-                SPONGE_FAIL();
+            if (!haveWidth || !haveHeight || !haveLength) {
+                deferredPaletteOffset = bftell(pbf);
+                if (deferredPaletteOffset < 0 || skipType(pbf, type) < 0) SPONGE_FAIL();
             }
-            sawBlocks = true;
+            else {
+                if (!nbtGetValidatedSchematicVolume(width, height, length, &numBlocks) ||
+                    !spongeReadPalette(pbf, &palBlockIds, &palDataVals, &palCapacity, &palCount,
+                        numBlocks, dataBytesLen)) {
+                    SPONGE_FAIL();
+                }
+                sawBlocks = true;
+            }
         }
         else if (strcmp(tname, "BlockData") == 0 && type == 0x07) {
             // v2: voxel stream is a direct child named "BlockData" (vs v3's nested "Data").
-            int len = (int)readDword(pbf);
-            if (len < 0 || len > 0x40000000) SPONGE_FAIL();
-            unsigned char* buf = (unsigned char*)malloc((size_t)len);
-            if (buf == NULL) SPONGE_FAIL();
-            if (len > 0 && bfread(pbf, buf, len) < 0) { free(buf); SPONGE_FAIL(); }
-            if (dataBytes) free(dataBytes);
-            dataBytes = buf;
-            dataBytesLen = len;
+            if (!haveWidth || !haveHeight || !haveLength) {
+                deferredBlockDataOffset = bftell(pbf);
+                if (deferredBlockDataOffset < 0 || skipType(pbf, type) < 0) SPONGE_FAIL();
+            }
+            else {
+                if (!nbtGetValidatedSchematicVolume(width, height, length, &numBlocks) ||
+                    !spongeReadDataArray(pbf, &dataBytes, &dataBytesLen,
+                        numBlocks, palCapacity)) {
+                    SPONGE_FAIL();
+                }
+            }
         }
         else {
             // Version, DataVersion, Offset, Metadata, PaletteMax, Biomes, Entities,
@@ -6924,11 +7126,34 @@ int nbtGetSpongeSchematic(bfFile* pbf,
         }
     }
 
+    if (!nbtGetValidatedSchematicVolume(width, height, length, &numBlocks)) SPONGE_FAIL();
+    if (deferredBlocksOffset >= 0) {
+        if (bfseek(pbf, deferredBlocksOffset, SEEK_SET) < 0 ||
+            !spongeReadBlocksCompound(pbf,
+                &palBlockIds, &palDataVals, &palCapacity, &palCount,
+                &dataBytes, &dataBytesLen, numBlocks)) {
+            SPONGE_FAIL();
+        }
+        sawBlocks = true;
+    }
+    if (deferredPaletteOffset >= 0) {
+        if (bfseek(pbf, deferredPaletteOffset, SEEK_SET) < 0 ||
+            !spongeReadPalette(pbf, &palBlockIds, &palDataVals, &palCapacity, &palCount,
+                numBlocks, dataBytesLen)) {
+            SPONGE_FAIL();
+        }
+        sawBlocks = true;
+    }
+    if (deferredBlockDataOffset >= 0 &&
+        (bfseek(pbf, deferredBlockDataOffset, SEEK_SET) < 0 ||
+            !spongeReadDataArray(pbf, &dataBytes, &dataBytesLen,
+                numBlocks, palCapacity))) {
+        SPONGE_FAIL();
+    }
+
     if (!haveWidth || !haveHeight || !haveLength || !sawBlocks) SPONGE_FAIL();
     if (dataBytes == NULL || palCount == 0) SPONGE_FAIL();
-
-    int numBlocks = width * height * length;
-    if (numBlocks <= 0) SPONGE_FAIL();
+    if (!spongeImportFitsMemoryBudget(numBlocks, palCapacity, dataBytesLen)) SPONGE_FAIL();
 
     *outBlocks = (unsigned char*)malloc((size_t)numBlocks);
     *outData = (unsigned char*)malloc((size_t)numBlocks);
@@ -8471,25 +8696,16 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
 
 void nbtClose(bfFile* pbf)
 {
-    // For some reason, this gzclose() call causes Mineways to then shut down with an exception.
-    // Inside gzclose it's the line "ret = close(state->fd);" that actually causes the problem.
-    // No idea why. The error is:
-    //   minkernel\crts\ucrt\src\appcrt\lowio\close.cpp
-    //   Line: 49
-    //   Expression (_osfile(fh) & FOPEN)
-    // It happens in C:\Windows\System32\ucrtbased.dll
     if (pbf->type == BF_GZIP) {
-        // if I comment out this gzclose() line, things shut down fine, but that's a bit
-        // unnerving - keeping file after file open seems bad. Anyway, it's a fix, if need be.
-        // I suspect it has to do with this similar thing: https://github.com/csound/csound/issues/634
-        // at the bottom they discuss an incompatibility between ways of accessing files, and point
-        // to https://stackoverflow.com/questions/9136127/what-problems-can-appear-when-using-g-compiled-dll-plugin-in-vc-compiled-a
-        // It may be the case that if I rebuilt zlib (or perhaps integrated its files into Mineways itself?)
-        // this would then go away.
-        // No, that's not it, there's some conflict between zlib and MSVC. The fix is to use fclose instead of gzclose. See:
-        // https://github.com/OpenImageIO/oiio/issues/1817#issuecomment-439048464
-        gzflush(pbf->gz, Z_FINISH);
-        //gzclose(pbf->gz);
-        fclose(pbf->fptr);
+        // newNBT gives zlib a duplicate descriptor, so each owner can now be
+        // closed normally without either library closing the other's handle.
+        if (pbf->gz != NULL) {
+            gzclose(pbf->gz);
+            pbf->gz = NULL;
+        }
+        if (pbf->fptr != NULL) {
+            fclose(pbf->fptr);
+            pbf->fptr = NULL;
+        }
     }
 }

@@ -1451,29 +1451,29 @@ INT_PTR CALLBACK ExportPrint(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPar
                 return (INT_PTR)FALSE;
             }
 
-            int nc;
-            nc = sscanf_s(lepd.minxString, "%d", &lepd.minxVal);
-            nc &= sscanf_s(lepd.minyString, "%d", &lepd.minyVal);
-            nc &= sscanf_s(lepd.minzString, "%d", &lepd.minzVal);
-            nc &= sscanf_s(lepd.maxxString, "%d", &lepd.maxxVal);
-            nc &= sscanf_s(lepd.maxyString, "%d", &lepd.maxyVal);
-            nc &= sscanf_s(lepd.maxzString, "%d", &lepd.maxzVal);
+            bool numericValuesValid;
+            numericValuesValid = (sscanf_s(lepd.minxString, "%d", &lepd.minxVal) == 1);
+            numericValuesValid &= (sscanf_s(lepd.minyString, "%d", &lepd.minyVal) == 1);
+            numericValuesValid &= (sscanf_s(lepd.minzString, "%d", &lepd.minzVal) == 1);
+            numericValuesValid &= (sscanf_s(lepd.maxxString, "%d", &lepd.maxxVal) == 1);
+            numericValuesValid &= (sscanf_s(lepd.maxyString, "%d", &lepd.maxyVal) == 1);
+            numericValuesValid &= (sscanf_s(lepd.maxzString, "%d", &lepd.maxzVal) == 1);
 
-            nc &= sscanf_s(lepd.modelHeightString, "%f", &lepd.modelHeightVal);
-            nc &= sscanf_s(lepd.blockSizeString, "%f", &lepd.blockSizeVal[lepd.fileType]);
-            nc &= sscanf_s(lepd.costString, "%f", &lepd.costVal);
+            numericValuesValid &= (sscanf_s(lepd.modelHeightString, "%f", &lepd.modelHeightVal) == 1);
+            numericValuesValid &= (sscanf_s(lepd.blockSizeString, "%f", &lepd.blockSizeVal[lepd.fileType]) == 1);
+            numericValuesValid &= (sscanf_s(lepd.costString, "%f", &lepd.costVal) == 1);
 
-            nc &= sscanf_s(lepd.floaterCountString, "%d", &lepd.floaterCountVal);
-            nc &= sscanf_s(lepd.hollowThicknessString, "%g", &lepd.hollowThicknessVal[epd.fileType]);
+            numericValuesValid &= (sscanf_s(lepd.floaterCountString, "%d", &lepd.floaterCountVal) == 1);
+            numericValuesValid &= (sscanf_s(lepd.hollowThicknessString, "%g", &lepd.hollowThicknessVal[epd.fileType]) == 1);
 
             if (lepd.fileType == FILE_TYPE_USD) {
-                nc &= sscanf_s(lepd.scaleLightsString, "%g", &lepd.scaleLightsVal);
-                nc &= sscanf_s(lepd.scaleEmittersString, "%g", &lepd.scaleEmittersVal);
+                numericValuesValid &= (sscanf_s(lepd.scaleLightsString, "%g", &lepd.scaleLightsVal) == 1);
+                numericValuesValid &= (sscanf_s(lepd.scaleEmittersString, "%g", &lepd.scaleEmittersVal) == 1);
             }
 
             // this is a bit lazy checking all errors here, there's probably a better way
             // to test as we go, but this sort of thing should be rare
-            if (nc == 0)
+            if (!numericValuesValid)
             {
                 MessageBox(NULL,
                     _T("Bad (non-numeric) value detected in options dialog;\nYou need to clean up, then hit OK again."), _T("Non-numeric value error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);

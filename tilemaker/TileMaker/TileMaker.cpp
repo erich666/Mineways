@@ -240,7 +240,7 @@ static int setBlackToNearlyBlack(progimage_info* src);
 static int copyPNGTile(progimage_info* dst, int channels, unsigned long dst_x, unsigned long dst_y, unsigned long chosenTile, progimage_info* src,
 	unsigned long dst_x_lo, unsigned long dst_y_lo, unsigned long dst_x_hi, unsigned long dst_y_hi, unsigned long src_x_lo, unsigned long src_y_lo, unsigned long flags, float zoom);
 static void multPNGTileByColor(progimage_info* dst, int dst_x, int dst_y, int* color);
-static void getPNGPixel(progimage_info* src, int channels, int col, int row, unsigned char* color);
+static bool getPNGPixel(progimage_info* src, int channels, int col, int row, unsigned char* color);
 static void getBrightestPNGPixel(progimage_info* src, int channels, unsigned long col, unsigned long row, unsigned long res, unsigned char* color, int* locc, int* locr);
 static int computeVerticalTileOffset(progimage_info* src, int chosenTile);
 static int isPNGTileEmpty(progimage_info* dst, int dst_x, int dst_y);
@@ -486,11 +486,11 @@ int wmain(int argc, wchar_t* argv[])
 			reportReadError(rc, terrainBase);
 			// simply can't find file?
 			if (rc == 78) {
-				wsprintf(gErrorString, L"    The file terrainBase.png must be present in your current directory (i.e., where you're running things from\n"
+				swprintf_s(gErrorString, _countof(gErrorString), L"    The file terrainBase.png must be present in your current directory (i.e., where you're running things from\n"
 					"    which might not necessarily be where TileMaker.exe is), or you must specify its path and name by using the\n"
 					"    command line option '-i c:\\your_path\\terrainBase.png' (with 'your_path' being where it is located).\n"
 				);
-				wprintf(gErrorString);
+				wprintf(L"%s", gErrorString);
 				printHelp();
 			}
 			return 1;
@@ -561,7 +561,7 @@ int wmain(int argc, wchar_t* argv[])
 		int fileCount = searchDirectoryForTiles(&gFG, &gChestGrid, &gPotGrid, &gShelfGrid, *inputDirectoryPtr, wcslen(*inputDirectoryPtr), verbose, alternate, true, warnUnused, warnDups);
 		warnDups = false;
 		if (fileCount < 0) {
-			wsprintf(gErrorString, L"***** ERROR: cannot access the directory '%s' (Windows error code # %d). Ignoring directory.\n", *inputDirectoryPtr, GetLastError());
+			swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR: cannot access the directory '%s' (Windows error code # %d). Ignoring directory.\n", *inputDirectoryPtr, GetLastError());
 			saveErrorForEnd();
 			gErrorCount++;
 		}
@@ -1579,6 +1579,7 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 					// quit
 					return 1;
 				}
+				// we reuse destination_ptr, so clear out its contents (does not free memory)
 				writepng_cleanup(destination_ptr);
 				if (verbose)
 					wprintf(L"New texture '%s' created.\n", terrainExtOutput);
@@ -1899,7 +1900,7 @@ int testFileForPowerOfTwo(int width, int height, const wchar_t* cFileName, bool 
 {
 	int fail_code = 0;
 	if (fmod(log2((float)(width)), 1.0f) != 0.0f) {
-		wsprintf(gErrorString, L"***** ERROR: file '%s'\n  has a width of %d that is not a power of two.\n  This will cause copying errors, so TileMaker ignores it.\n  We recommend you remove or resize this file.\n", cFileName, width);
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR: file '%s'\n  has a width of %d that is not a power of two.\n  This will cause copying errors, so TileMaker ignores it.\n  We recommend you remove or resize this file.\n", cFileName, width);
 		saveErrorForEnd();
 		gErrorCount++;
 		fail_code = 1;
@@ -1907,14 +1908,14 @@ int testFileForPowerOfTwo(int width, int height, const wchar_t* cFileName, bool 
 	// check if height is not a power of two AND is not a multiple of the width.
 	// if not square (i.e., a chest), the height may be half that of the width.
 	else if (fmod((float)(height) / (float)width, square ? 1.0f : 0.5f) != 0.0f) {
-		wsprintf(gErrorString, L"***** ERROR: file '%s'\n  has a height of %d that is not %s its width of %d.\n  This will cause copying errors, so TileMaker ignores it.\n  We recommend you remove or resize this file.\n", cFileName, height, square ? L"equal to" : L"a multiple of", width);
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR: file '%s'\n  has a height of %d that is not %s its width of %d.\n  This will cause copying errors, so TileMaker ignores it.\n  We recommend you remove or resize this file.\n", cFileName, height, square ? L"equal to" : L"a multiple of", width);
 		saveErrorForEnd();
 		gErrorCount++;
 		fail_code = 1;
 	}
 	// not sure I actually need this test - the one above should cover it, I think - but left in, just in case
 	if (square && width > height && fail_code == 0) {
-		wsprintf(gErrorString, L"***** ERROR: file '%s'\n  has a height of %d that is less than its width of %d.\n  This will cause copying errors, so TileMaker ignores it.\n  We recommend you remove or resize this file.\n", cFileName, height, width);
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR: file '%s'\n  has a height of %d that is less than its width of %d.\n  This will cause copying errors, so TileMaker ignores it.\n  We recommend you remove or resize this file.\n", cFileName, height, width);
 		saveErrorForEnd();
 		gErrorCount++;
 		fail_code = 1;
@@ -1929,84 +1930,87 @@ static void reportReadError(int rc, const wchar_t* filename)
 {
 	switch (rc) {
 	case 1:
-		wsprintf(gErrorString, L"***** ERROR [%s] is not a PNG file: incorrect signature.\n", filename);
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR [%s] is not a PNG file: incorrect signature.\n", filename);
 		break;
 	case 2:
-		wsprintf(gErrorString, L"***** ERROR [%s] has bad IHDR (libpng longjmp).\n", filename);
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR [%s] has bad IHDR (libpng longjmp).\n", filename);
 		break;
 	case 4:
-		wsprintf(gErrorString, L"***** ERROR [%s] read failed - insufficient memory.\n", filename);
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR [%s] read failed - insufficient memory.\n", filename);
 		break;
 	case 27:
-		wsprintf(gErrorString, L"***** ERROR [%s] read failed - the data length is smaller than the length of a PNG header.\n", filename);
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR [%s] read failed - the data length is smaller than the length of a PNG header.\n", filename);
 		break;
 	case 28:
-		wsprintf(gErrorString, L"***** ERROR [%s] read failed - the first 8 bytes are not the correct PNG signature.\n", filename);
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR [%s] read failed - the first 8 bytes are not the correct PNG signature.\n", filename);
 		break;
 	case 29:
-		wsprintf(gErrorString, L"***** ERROR [%s] read failed - file doesn't start with a IHDR chunk.\n", filename);
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR [%s] read failed - file doesn't start with a IHDR chunk.\n", filename);
 		break;
 	case 32:
-		wsprintf(gErrorString, L"***** ERROR [%s] read failed - only compression method 0 is allowed in the specification.\n", filename);
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR [%s] read failed - only compression method 0 is allowed in the specification.\n", filename);
 		break;
 	case 33:
-		wsprintf(gErrorString, L"***** ERROR [%s] read failed - only filter method 0 is allowed in the specification.\n", filename);
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR [%s] read failed - only filter method 0 is allowed in the specification.\n", filename);
 		break;
 	case 34:
-		wsprintf(gErrorString, L"***** ERROR [%s] read failed - only interlace methods 0 and 1 exist in the specification.\n", filename);
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR [%s] read failed - only interlace methods 0 and 1 exist in the specification.\n", filename);
 		break;
 	case 48:
-		wsprintf(gErrorString, L"***** ERROR [%s] read failed - the given data is empty.\n", filename);
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR [%s] read failed - the given data is empty.\n", filename);
 		break;
 	case 57:
-		wsprintf(gErrorString, L"***** ERROR [%s] read failed - invalid CRC.\n", filename);
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR [%s] read failed - invalid CRC.\n", filename);
 		break;
 	case 63:
-		wsprintf(gErrorString, L"***** ERROR [%s] read failed - chunk too long.\n", filename);
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR [%s] read failed - chunk too long.\n", filename);
 		break;
 	case 78:
-		wsprintf(gErrorString, L"***** ERROR [%s] read failed - file not found or could not be read.\n", filename);
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR [%s] read failed - file not found or could not be read.\n", filename);
 		break;
 	case 79:
-		wsprintf(gErrorString, L"***** ERROR [%s] write failed - directory not found. Please create the directory.\n", filename);
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR [%s] write failed - directory not found. Please create the directory.\n", filename);
 		break;
 	case 83:
-		wsprintf(gErrorString, L"***** ERROR [%s] allocation failed. Image file is too large for your system to handle?\n", filename);
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR [%s] allocation failed. Image file is too large for your system to handle?\n", filename);
 		break;
 	case 93:
-		wsprintf(gErrorString, L"***** ERROR [%s] read failed - invalid image size.\n", filename);
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR [%s] read failed - invalid image size.\n", filename);
 		break;
 	case 94:
-		wsprintf(gErrorString, L"***** ERROR [%s] read failed - header size must be 13 bytes.\n", filename);
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR [%s] read failed - header size must be 13 bytes.\n", filename);
 		break;
 	case 102:
-		wsprintf(gErrorString, L"***** ERROR [%s] - could not read Targa TGA file header.\n", filename);
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR [%s] - could not read Targa TGA file header.\n", filename);
 		break;
 	case 103:
-		wsprintf(gErrorString, L"***** ERROR [%s] - could not read Targa TGA file data.\n", filename);
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR [%s] - could not read Targa TGA file data.\n", filename);
 		break;
 	case 104:
-		wsprintf(gErrorString, L"***** ERROR [%s] - unsupported Targa TGA file type.\n", filename);
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR [%s] - unsupported Targa TGA file type.\n", filename);
+		break;
+	case 106: // IMAGE_ERROR_UNSUPPORTED_FORMAT:
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR [%s] - unsupported image channel format.\n", filename);
 		break;
 	case 999:
-		wsprintf(gErrorString, L"***** ERROR [%s] - unknown image file type.\n", filename);
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR [%s] - unknown image file type.\n", filename);
 		break;
 	default:
-		wsprintf(gErrorString, L"***** ERROR [%s] read failed - unknown readpng_init() or targa error.\n", filename);
+		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR [%s] read failed - unknown readpng_init() or targa error.\n", filename);
 		break;
 	}
 	saveErrorForEnd();
 	gErrorCount++;
 
 	if (rc != 27 && rc != 78 && rc != 79 && rc < 100) {
-		wsprintf(gErrorString, L"Often this means the PNG file has some small bit of information that TileMaker cannot\n  handle. You might be able to fix this error by opening this PNG file in\n  Irfanview or other viewer and then saving it again. Doing so might clear\n  out any irregularity that TileMaker's PNG reader dies on.\n");
+		swprintf_s(gErrorString, _countof(gErrorString), L"Often this means the PNG file has some small bit of information that TileMaker cannot\n  handle. You might be able to fix this error by opening this PNG file in\n  Irfanview or other viewer and then saving it again. Doing so might clear\n  out any irregularity that TileMaker's PNG reader dies on.\n");
 		saveErrorForEnd();
 	}
 }
 
 static void saveErrorForEnd()
 {
-	wprintf(gErrorString);
+	wprintf(L"%s", gErrorString);
 	wcscat_s(gConcatErrorString, CONCAT_ERROR_LENGTH, L"  ");
 	wcscat_s(gConcatErrorString, CONCAT_ERROR_LENGTH, gErrorString);
 }
@@ -2116,9 +2120,10 @@ static int copyPNGTile(progimage_info* dst, int channels, unsigned long dst_x, u
 				// Treat alpha == 0 as clear - nicer to set to black. This happens with fire,
 				// and the flowers and double flowers have junk in the RGB channels where alpha == 0.
 				// negate column and row, as Minecraft stores these reversed (left and right chest, basically)
-				getPNGPixel(src, channels,
+				if (!getPNGPixel(src, channels,
 					src_x_lo + ((flags & 0x1) ? (dst_x_hi - col - 1) : (col - dst_x_lo)),
-					src_start + src_y_lo + ((flags & 0x2) ? (dst_y_hi - row - 1) : (row - dst_y_lo)), color);
+					src_start + src_y_lo + ((flags & 0x2) ? (dst_y_hi - row - 1) : (row - dst_y_lo)), color))
+					return 1;
 				if (channels == 4 && color[3] == 0)
 				{
 					memset(dst_data, 0, channels);
@@ -2137,7 +2142,7 @@ static int copyPNGTile(progimage_info* dst, int channels, unsigned long dst_x, u
 		tileSize = (int)((float)dst->width / zoom) / 16;
 
 		if (tileSize <= 0) {
-			wsprintf(gErrorString, L"***** ERROR: somehow, the largest tile size is computed to be %d - this needs to be a positive number.\n", tileSize);
+			swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR: somehow, the largest tile size is computed to be %d - this needs to be a positive number.\n", tileSize);
 			saveErrorForEnd();
 			gErrorCount++;
 			return 1;
@@ -2167,9 +2172,10 @@ static int copyPNGTile(progimage_info* dst, int channels, unsigned long dst_x, u
 			{
 				// Treat alpha == 0 as clear - nicer to set to black. This happens with fire,
 				// and the flowers and double flowers have junk in the RGB channels where alpha == 0.
-				getPNGPixel(src, channels,
+				if (!getPNGPixel(src, channels,
 					src_x_lo + ((flags & 0x1) ? (dst_x_hi - col - 1) : (col - dst_x_lo)),
-					src_start + src_y_lo + ((flags & 0x2) ? (dst_y_hi - row - 1) : (row - dst_y_lo)), color);
+					src_start + src_y_lo + ((flags & 0x2) ? (dst_y_hi - row - 1) : (row - dst_y_lo)), color))
+					return 1;
 				if (channels == 4 && color[3] == 0)
 				{
 					color[0] = color[1] = color[2] = 0;
@@ -2220,7 +2226,8 @@ static int copyPNGTile(progimage_info* dst, int channels, unsigned long dst_x, u
 					{
 						// Treat alpha == 0 as clear - nicer to set to black. This happens with fire,
 						// and the flowers and double flowers have junk in the RGB channels where alpha == 0.
-						getPNGPixel(src, channels, (col + src_x_lo - dst_x_lo) * izoom + zoomcol, (row + src_y_lo - dst_y_lo) * izoom + zoomrow, color);
+						if (!getPNGPixel(src, channels, (col + src_x_lo - dst_x_lo) * izoom + zoomcol, (row + src_y_lo - dst_y_lo) * izoom + zoomrow, color))
+							return 1;
 						if (channels == 4 && color[3] == 0)
 						{
 							color[0] = color[1] = color[2] = 0;
@@ -2288,16 +2295,27 @@ static int computeVerticalTileOffset(progimage_info* src, int chosenTile)
 	return offset;
 }
 
-static void getPNGPixel(progimage_info* src, int channels, int col, int row, unsigned char* color)
+static bool getPNGPixel(progimage_info* src, int channels, int col, int row, unsigned char* color)
 {
-	unsigned char* src_data;
+	if (color == NULL)
+		return false;
+	memset(color, 0, 4);
+	if (src == NULL || channels <= 0 || channels > 4 || col < 0 || row < 0 ||
+		col >= src->width || row >= src->height || src->width <= 0 || src->height <= 0)
+		return false;
+
+	const size_t availablePixels = src->image_data.size() / (size_t)channels;
+	if ((size_t)col >= availablePixels ||
+		(size_t)row > (availablePixels - 1 - (size_t)col) / (size_t)src->width)
+		return false;
+	const size_t pixelIndex = (size_t)row * (size_t)src->width + (size_t)col;
+	const unsigned char* src_data = src->image_data.data() + pixelIndex * (size_t)channels;
 
 	//if ( ( src->color_type == PNG_COLOR_TYPE_RGB_ALPHA ) || ( src->color_type == PNG_COLOR_TYPE_PALETTE ) || ( src->color_type == PNG_COLOR_TYPE_GRAY_ALPHA ) )
 	//if ( src->channels == 4 )
 	//{
 
 	// LodePNG does all the work for us, going to RGBA by default:
-	src_data = &src->image_data[0] + (row * src->width + col) * channels;
 	memcpy(color, src_data, channels);
 
 	//}
@@ -2334,6 +2352,7 @@ static void getPNGPixel(progimage_info* src, int channels, int col, int row, uns
 	//	// unknown type
 	//	assert(0);
 	//}
+	return true;
 }
 
 static void getBrightestPNGPixel(progimage_info* src, int channels, unsigned long col, unsigned long row, unsigned long res, unsigned char* color, int* locc, int* locr)
@@ -2343,10 +2362,12 @@ static void getBrightestPNGPixel(progimage_info* src, int channels, unsigned lon
 	unsigned char testColor[4];
 	int maxSum, testSum;
 	maxSum = -1;
+	color[0] = color[1] = color[2] = 0;
 	color[3] = 255;
 	for (r = 0; r < res; r++) {
 		for (c = 0; c < res; c++) {
-			getPNGPixel(src, channels, col + c, row + r, testColor);
+			if (!getPNGPixel(src, channels, col + c, row + r, testColor))
+				continue;
 			testSum = (int)testColor[0] + (int)testColor[1] + (int)testColor[2];
 			if (testSum > maxSum) {
 				maxSum = testSum;
@@ -2808,6 +2829,7 @@ static int convertHeightfieldToXYZ(progimage_info* src, float heightfieldScale)
 			*src_data++ = (unsigned char)(((1.0f / length + 1.0f) / 2.0f) * 255.0f + 0.5f);
 		}
 	}
+	delete phf;
 	return 1;
 }
 

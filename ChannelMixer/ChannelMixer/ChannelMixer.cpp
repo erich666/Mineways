@@ -724,7 +724,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 						if (rc != 0)
 						{
 							reportReadError(rc, outputFile);
-							writepng_cleanup(destination_ptr);
+							delete destination_ptr;
 							// quit - if we can't write one file, we're unlikely to write the rest.
 							return filesRead;
 						}
@@ -732,7 +732,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 							wprintf(L"New texture '%s' fullIndex %d created due to grayscale.\n", outputFile, fullIndex);
 						}
 					}
-					writepng_cleanup(destination_ptr);
+					delete destination_ptr;
 					if (!allBlack && outputMerged) {
 						progimage_info* mer_ptr = allocateRGBImage(&tile);
 						StoMER(mer_ptr, &tile);
@@ -745,14 +745,14 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 						if (rc != 0)
 						{
 							reportReadError(rc, outputFile);
-							writepng_cleanup(mer_ptr);
+							delete mer_ptr;
 							// quit
 							return filesRead;
 						}
 						if (verbose) {
 							wprintf(L"New specular-only MER texture '%s' created.\n", outputFile);
 						}
-						writepng_cleanup(mer_ptr);
+						delete mer_ptr;
 					}
 				}
 				else {
@@ -767,7 +767,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 								copyOneChannel(destination_ptr, 3, &tile, readColorType);
 								// if all 255, then emission is not being used
 								if (channelEqualsValue(destination_ptr, 0, 1, 255, 0)) {
-									writepng_cleanup(destination_ptr);
+									delete destination_ptr;
 									continue;
 								}
 								// change all 255's to 0 for emission
@@ -791,7 +791,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
                                 if (rc != 0)
                                 {
                                     reportReadError(rc, outputFile);
-                                    writepng_cleanup(destination_ptr);
+                                    delete destination_ptr;
                                     // quit - if we can't write one file, we're unlikely to write the rest.
                                     return filesRead;
                                 }
@@ -799,7 +799,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
                                     wprintf(L"New texture '%s' fullIndex %d created due to SME.\n", outputFile, fullIndex);
                                 }
                             }
-                            writepng_cleanup(destination_ptr);
+                            delete destination_ptr;
                         }
                     }
 					if (outputMerged) {
@@ -814,7 +814,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 							if (rc != 0)
 							{
 								reportReadError(rc, outputFile);
-								writepng_cleanup(smer_ptr);
+								delete smer_ptr;
 								// quit
 								return filesRead;
 							}
@@ -825,7 +825,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 						else {
 							wprintf(L"WARNING: No merged MER texture '%s' was generated, as SME conversion resulted in an all-black image.\n", outputFile);
 						}
-						writepng_cleanup(smer_ptr);
+						delete smer_ptr;
 					}
 				}
 				readImage_cleanup(1, &tile);
@@ -886,7 +886,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 						if (rc != 0)
 						{
 							reportReadError(rc, outputFile);
-							writepng_cleanup(destination_ptr);
+							delete destination_ptr;
 							// quit - if we can't write one file, we're unlikely to write the rest.
 							return filesRead;
 						}
@@ -894,7 +894,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 							wprintf(L"New chest texture '%s' created.\n", outputFile);
 						}
 					}
-					writepng_cleanup(destination_ptr);
+					delete destination_ptr;
 					if (!allBlack && outputMerged) {
 						progimage_info* mer_ptr = allocateRGBImage(&tile);
 						StoMER(mer_ptr, &tile);
@@ -907,14 +907,14 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 						if (rc != 0)
 						{
 							reportReadError(rc, outputFile);
-							writepng_cleanup(mer_ptr);
+							delete mer_ptr;
 							// quit
 							return filesRead;
 						}
 						if (verbose) {
 							wprintf(L"New specular-only MER chest texture '%s' created.\n", outputFile);
 						}
-						writepng_cleanup(mer_ptr);
+						delete mer_ptr;
 					}
 				}
 				else {
@@ -940,7 +940,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 								if (rc != 0)
 								{
 									reportReadError(rc, outputFile);
-									writepng_cleanup(destination_ptr);
+									delete destination_ptr;
 									// quit - if we can't write one file, we're unlikely to write the rest.
 									return filesRead;
 								}
@@ -948,7 +948,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 									wprintf(L"New chest texture '%s' created.\n", outputFile);
 								}
 							}
-							writepng_cleanup(destination_ptr);
+							delete destination_ptr;
 						}
 					}
 					if (outputMerged) {
@@ -963,7 +963,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 							if (rc != 0)
 							{
 								reportReadError(rc, outputFile);
-								writepng_cleanup(smer_ptr);
+								delete smer_ptr;
 								// quit
 								return filesRead;
 							}
@@ -974,7 +974,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 						else {
 							wprintf(L"WARNING: No merged MER chest texture '%s' was generated, as SME conversion resulted in an all-black image.\n", outputFile);
 						}
-						writepng_cleanup(smer_ptr);
+						delete smer_ptr;
 					}
 				}
 				readImage_cleanup(1, &tile);
@@ -1034,7 +1034,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 						if (rc != 0)
 						{
 							reportReadError(rc, outputFile);
-							writepng_cleanup(destination_ptr);
+							delete destination_ptr;
 							// quit - if we can't write one file, we're unlikely to write the rest.
 							return filesRead;
 						}
@@ -1042,7 +1042,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 							wprintf(L"New decorated pot texture '%s' created.\n", outputFile);
 						}
 					}
-					writepng_cleanup(destination_ptr);
+					delete destination_ptr;
 					if (!allBlack && outputMerged) {
 						progimage_info* mer_ptr = allocateRGBImage(&tile);
 						StoMER(mer_ptr, &tile);
@@ -1055,14 +1055,14 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 						if (rc != 0)
 						{
 							reportReadError(rc, outputFile);
-							writepng_cleanup(mer_ptr);
+							delete mer_ptr;
 							// quit
 							return filesRead;
 						}
 						if (verbose) {
 							wprintf(L"New specular-only MER decorated pot texture '%s' created.\n", outputFile);
 						}
-						writepng_cleanup(mer_ptr);
+						delete mer_ptr;
 					}
 				}
 				else {
@@ -1088,7 +1088,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 								if (rc != 0)
 								{
 									reportReadError(rc, outputFile);
-									writepng_cleanup(destination_ptr);
+									delete destination_ptr;
 									// quit - if we can't write one file, we're unlikely to write the rest.
 									return filesRead;
 								}
@@ -1096,7 +1096,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 									wprintf(L"New decorated pot texture '%s' created.\n", outputFile);
 								}
 							}
-							writepng_cleanup(destination_ptr);
+							delete destination_ptr;
 						}
 					}
 					if (outputMerged) {
@@ -1111,7 +1111,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 							if (rc != 0)
 							{
 								reportReadError(rc, outputFile);
-								writepng_cleanup(smer_ptr);
+								delete smer_ptr;
 								// quit
 								return filesRead;
 							}
@@ -1122,7 +1122,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 						else {
 							wprintf(L"WARNING: No merged MER decorated pot texture '%s' was generated, as SME conversion resulted in an all-black image.\n", outputFile);
 						}
-						writepng_cleanup(smer_ptr);
+						delete smer_ptr;
 					}
 				}
 				readImage_cleanup(1, &tile);
@@ -1182,7 +1182,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 						if (rc != 0)
 						{
 							reportReadError(rc, outputFile);
-							writepng_cleanup(destination_ptr);
+							delete destination_ptr;
 							// quit - if we can't write one file, we're unlikely to write the rest.
 							return filesRead;
 						}
@@ -1190,7 +1190,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 							wprintf(L"New shelf texture '%s' created.\n", outputFile);
 						}
 					}
-					writepng_cleanup(destination_ptr);
+					delete destination_ptr;
 					if (!allBlack && outputMerged) {
 						progimage_info* mer_ptr = allocateRGBImage(&tile);
 						StoMER(mer_ptr, &tile);
@@ -1203,14 +1203,14 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 						if (rc != 0)
 						{
 							reportReadError(rc, outputFile);
-							writepng_cleanup(mer_ptr);
+							delete mer_ptr;
 							// quit
 							return filesRead;
 						}
 						if (verbose) {
 							wprintf(L"New specular-only MER shelf texture '%s' created.\n", outputFile);
 						}
-						writepng_cleanup(mer_ptr);
+						delete mer_ptr;
 					}
 				}
 				else {
@@ -1236,7 +1236,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 								if (rc != 0)
 								{
 									reportReadError(rc, outputFile);
-									writepng_cleanup(destination_ptr);
+									delete destination_ptr;
 									// quit - if we can't write one file, we're unlikely to write the rest.
 									return filesRead;
 								}
@@ -1244,7 +1244,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 									wprintf(L"New shelf texture '%s' created.\n", outputFile);
 								}
 							}
-							writepng_cleanup(destination_ptr);
+							delete destination_ptr;
 						}
 					}
 					if (outputMerged) {
@@ -1259,7 +1259,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 							if (rc != 0)
 							{
 								reportReadError(rc, outputFile);
-								writepng_cleanup(smer_ptr);
+								delete smer_ptr;
 								// quit
 								return filesRead;
 							}
@@ -1270,7 +1270,7 @@ static int processSpecularFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid*
 						else {
 							wprintf(L"WARNING: No merged MER shelf texture '%s' was generated, as SME conversion resulted in an all-black image.\n", outputFile);
 						}
-						writepng_cleanup(smer_ptr);
+						delete smer_ptr;
 					}
 				}
 				readImage_cleanup(1, &tile);
@@ -1343,7 +1343,7 @@ static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg,
 						if (rc != 0)
 						{
 							reportReadError(rc, outputFile);
-							writepng_cleanup(destination_ptr);
+							delete destination_ptr;
 							// quit - if we can't write one file, we're unlikely to write the rest.
 							return filesRead;
 						}
@@ -1351,7 +1351,7 @@ static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg,
 							wprintf(L"New texture '%s' fullIndex %d created due to MER.\n", outputFile, fullIndex);
 						//}
 					}
-					writepng_cleanup(destination_ptr);
+					delete destination_ptr;
 				}
 
 				readImage_cleanup(1, &tile);
@@ -1414,7 +1414,7 @@ static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg,
 						if (rc != 0)
 						{
 							reportReadError(rc, outputFile);
-							writepng_cleanup(destination_ptr);
+							delete destination_ptr;
 							// quit - if we can't write one file, we're unlikely to write the rest.
 							return filesRead;
 						}
@@ -1422,7 +1422,7 @@ static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg,
 							wprintf(L"New chest texture '%s' created.\n", outputFile);
 						//}
 					}
-					writepng_cleanup(destination_ptr);
+					delete destination_ptr;
 				}
 
 				readImage_cleanup(1, &tile);
@@ -1484,7 +1484,7 @@ static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg,
 						if (rc != 0)
 						{
 							reportReadError(rc, outputFile);
-							writepng_cleanup(destination_ptr);
+							delete destination_ptr;
 							// quit - if we can't write one file, we're unlikely to write the rest.
 							return filesRead;
 						}
@@ -1492,7 +1492,7 @@ static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg,
 							wprintf(L"New decorated pot texture '%s' created.\n", outputFile);
 						//}
 					}
-					writepng_cleanup(destination_ptr);
+					delete destination_ptr;
 				}
 
 				readImage_cleanup(1, &tile);
@@ -1554,7 +1554,7 @@ static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg,
 						if (rc != 0)
 						{
 							reportReadError(rc, outputFile);
-							writepng_cleanup(destination_ptr);
+							delete destination_ptr;
 							// quit - if we can't write one file, we're unlikely to write the rest.
 							return filesRead;
 						}
@@ -1562,7 +1562,7 @@ static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg,
 							wprintf(L"New shelf texture '%s' created.\n", outputFile);
 						//}
 					}
-					writepng_cleanup(destination_ptr);
+					delete destination_ptr;
 				}
 
 				readImage_cleanup(1, &tile);
@@ -1681,7 +1681,6 @@ static void createCompositedLeaves(const wchar_t* inputDirectory, const wchar_t*
 			wcscat_s(tileSearch, MAX_PATH_AND_FILE, outputSuffix);
 			wcscat_s(tileSearch, MAX_PATH_AND_FILE, L".png");
 			writepng(grass_side, 3, tileSearch);
-			writepng_cleanup(grass_side);
 			readpng_cleanup(1, grass_overlay);
 			if (verbose)
 				wprintf(L"New texture '%s' created.\n", tileSearch);
@@ -1745,7 +1744,6 @@ static void createCompositedLeaves(const wchar_t* inputDirectory, const wchar_t*
 			wcscat_s(tileSearch, MAX_PATH_AND_FILE, outputSuffix);
 			wcscat_s(tileSearch, MAX_PATH_AND_FILE, L".png");
 			writepng(tile, channels, tileSearch);
-			writepng_cleanup(tile);
 			if (verbose)
 				wprintf(L"New texture '%s' created.\n", tileSearch);
 		}
@@ -1780,6 +1778,9 @@ static void reportReadError(int rc, const wchar_t* filename)
 	case 104:
 		swprintf_s(gErrorString, 1000, L"***** ERROR [%s] - unsupported Targa TGA file type.\n", filename);
 		break;
+	case 106: // IMAGE_ERROR_UNSUPPORTED_FORMAT:
+		swprintf_s(gErrorString, 1000, L"***** ERROR [%s] - unsupported image channel format.\n", filename);
+		break;
 	case 999:
 		swprintf_s(gErrorString, 1000, L"***** ERROR [%s] - unknown image file type.\n", filename);
 		break;
@@ -1798,7 +1799,7 @@ static void reportReadError(int rc, const wchar_t* filename)
 
 static void saveErrorForEnd()
 {
-	wprintf(gErrorString);
+	wprintf(L"%s", gErrorString);
 	wcscat_s(gConcatErrorString, L"  ");
 	wcscat_s(gConcatErrorString, gErrorString);
 }
@@ -1909,4 +1910,3 @@ static bool SMEtoMER(progimage_info* dst, progimage_info* src)
 	}
 	return !allBlack;
 }
-

@@ -74,6 +74,7 @@ INT_PTR CALLBACK Location(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     switch (message)
     {
     case WM_INITDIALOG:
+        gLocOK = 0;
         // set them up
         sprintf_s(xString, EP_FIELD_LENGTH, "%d", gX);
         sprintf_s(zString, EP_FIELD_LENGTH, "%d", gZ);
@@ -87,20 +88,17 @@ INT_PTR CALLBACK Location(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
         {
             case IDOK:
             {
-                gLocOK = 1;
-
                 int x, z;
 
                 // suck all the data out
                 GetDlgItemTextA(hDlg, IDC_FOCUS_X, xString, EP_FIELD_LENGTH);
                 GetDlgItemTextA(hDlg, IDC_FOCUS_Z, zString, EP_FIELD_LENGTH);
 
-                int nc;
-                nc = sscanf_s(xString, "%d", &x);
-                nc &= sscanf_s(zString, "%d", &z);
+                bool coordinatesValid = (sscanf_s(xString, "%d", &x) == 1);
+                coordinatesValid &= (sscanf_s(zString, "%d", &z) == 1);
                 // this is a bit lazy checking all errors here, there's probably a better way
                 // to test as we go, but this sort of thing should be rare
-                if (nc == 0)
+                if (!coordinatesValid)
                 {
                     MessageBox(NULL,
                         _T("Bad (non-numeric) value detected in dialog;\nYou need to clean up, then hit OK again."), _T("Non-numeric value error"), MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
@@ -110,8 +108,11 @@ INT_PTR CALLBACK Location(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
                 // survived
                 gX = x;
                 gZ = z;
+                gLocOK = 1;
             } // yes, we do want to fall through here
             case IDCANCEL:
+                if (LOWORD(wParam) == IDCANCEL)
+                    gLocOK = 0;
                 EndDialog(hDlg, LOWORD(wParam));
                 return (INT_PTR)TRUE;
         }
@@ -119,4 +120,3 @@ INT_PTR CALLBACK Location(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     }
     return (INT_PTR)FALSE;
 }
-
