@@ -61,6 +61,7 @@ deflated data is the chunk length - 1.
 */
 
 #include "stdafx.h"
+#include <limits.h>
 
 #define CHUNK_DEFLATE_MAX (1024 * 1024)  // 1MB limit for compressed chunks
 // had to kick this up due to F Seaworld 1.18 world test
@@ -71,17 +72,25 @@ deflated data is the chunk length - 1.
 static z_stream strm;
 static int strm_initialized = 0;
 
+static bool regionReadExact(PORTAFILE file, void* buffer, unsigned int length)
+{
+#ifdef WIN32
+    DWORD bytesRead = 0;
+    return ReadFile(file, buffer, length, &bytesRead, NULL) && bytesRead == length;
+#else
+    return fread(buffer, 1, length, file) == length;
+#endif
+}
+
 static int regionPrepareBuffer(bfFile & bf, wchar_t* directory, int cx, int cz)
 {
     wchar_t filename[256];
     PORTAFILE regionFile;
-#ifdef WIN32
-    DWORD br;
-#endif
     static unsigned char buf[CHUNK_DEFLATE_MAX];
     static unsigned char out[CHUNK_INFLATE_MAX];
 
-    int sectorNumber, offset, chunkLength;
+    int sectorNumber, offset;
+    unsigned int chunkLength;
 
     int status;
 
@@ -98,25 +107,28 @@ static int regionPrepareBuffer(bfFile & bf, wchar_t* directory, int cx, int cz)
     RERROR(PortaSeek(regionFile, 4 * ((cx & 31) + (cz & 31) * 32)));
 
     // get the chunk offset
-    RERROR(PortaRead(regionFile, buf, 4));
+    RERROR(!regionReadExact(regionFile, buf, 4));
 
     sectorNumber = buf[3]; // how many 4096B sectors the chunk takes up
     offset = (buf[0] << 16) | (buf[1] << 8) | buf[2]; // 4KB sector the chunk is in
 
-    RERROR(offset == 0); // an empty chunk
+    RERROR(offset == 0 || sectorNumber == 0); // an empty or malformed chunk
 
+    RERROR(offset > INT_MAX / 4096);
     RERROR(PortaSeek(regionFile, 4096 * offset));
 
-    RERROR(sectorNumber * 4096 > CHUNK_DEFLATE_MAX);
+    unsigned int sectorBytes = (unsigned int)sectorNumber * 4096;
+    RERROR(sectorBytes > CHUNK_DEFLATE_MAX);
 
     // read chunk in one shot
     // this is faster than reading the header and data separately
-    RERROR(PortaRead(regionFile, buf, 4096 * sectorNumber));
+    RERROR(!regionReadExact(regionFile, buf, sectorBytes));
 
-    chunkLength = (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
+    chunkLength = ((unsigned int)buf[0] << 24) | ((unsigned int)buf[1] << 16) |
+        ((unsigned int)buf[2] << 8) | (unsigned int)buf[3];
 
     // sanity check chunk size
-    RERROR(chunkLength > sectorNumber * 4096 || chunkLength > CHUNK_DEFLATE_MAX);
+    RERROR(chunkLength < 1 || chunkLength > sectorBytes - 4 || chunkLength - 1 > CHUNK_DEFLATE_MAX - 5);
 
     // only handle zlib-compressed chunks (v2)
     RERROR(buf[4] != 2);
@@ -138,7 +150,7 @@ static int regionPrepareBuffer(bfFile & bf, wchar_t* directory, int cx, int cz)
 
     strm.next_out = out;
     strm.avail_out = CHUNK_INFLATE_MAX;
-    strm.avail_in = chunkLength - 1;
+    strm.avail_in = (uInt)(chunkLength - 1);
     strm.next_in = buf + 5;
 
     inflateReset(&strm);
@@ -198,4 +210,3 @@ void regionCleanup()
         strm_initialized = 0;
     }
 }
-

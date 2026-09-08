@@ -1,6 +1,6 @@
-# Mineways — notes for Claude
+# Mineways — notes for AI Agents
 
-This file is the durable hand-off between Claude sessions on this project.
+This file is the durable hand-off between AI agent sessions on this project.
 Read it before doing anything substantive in this repo.
 
 ---
@@ -324,6 +324,111 @@ master: `(unsigned char)`. On `type_field_short`: `(unsigned short)`.
 
 ---
 
+## macOS wxWidgets port (Mac/)
+
+A native ARM64 macOS GUI, parallel to the Windows/MFC one, living in `Mac/`.
+Shares the core library (`nbt.cpp`, `region.cpp`, `ObjFileManip.cpp`,
+`MinewaysMap.cpp`, etc.) from `Win/` unchanged — only the GUI shell
+(`Mac/MinewaysApp.cpp`, `MinewaysFrame.cpp`, `MapPanel.cpp`, dialogs) is
+wxWidgets/Cocoa-specific. `Mac/compat.h` shims the Win32 calls the shared
+core still makes (BOOL, HANDLE, FindFirstFileW, etc.).
+
+**Why it exists:** macOS 28 (fall 2027) drops Rosetta 2; the old Mac "port"
+was a Wineskin-wrapped Windows EXE. See GitHub issue #165.
+
+**Status (July 2026):** feature-complete parity with the Windows GUI —
+world/schematic loading, map navigation, export dialog, Culling Schemes,
+Import Settings (header re-import + scripting), Recent Exports submenu.
+The only explicitly-deferred item is Sketchfab publish integration, left to
+the upstream maintainer. PR open at
+[erich666/Mineways#166](https://github.com/erich666/Mineways/pull/166).
+
+### Build
+
+```
+cd Mac && make          # builds Mac/mineways (bare binary)
+make -C Mac app         # also assembles Mac/Mineways.app bundle
+```
+
+Prerequisites: `brew install wxwidgets zlib` (`wx-config --version` → 3.3.2,
+Cocoa backend). Hand-written `Mac/Makefile`, no Xcode project — clang++
+directly, arm64 only (see `-arch arm64` in `CXXFLAGS`/`LDFLAGS`; no x86_64
+slice, not a universal binary).
+
+### CI/CD and releases
+
+`.github/workflows/macos-build.yml`: every push/PR touching `Mac/` or
+`Win/*.cpp`/`.h` builds `Mineways.app` and uploads it as a workflow
+artifact. Pushing a tag like `v13.00` additionally zips it and attaches it
+to a GitHub Release.
+
+- Dependencies (wxWidgets dylibs) are bundled into `Contents/Frameworks`
+  via `dylibbundler` so the `.app` doesn't require Homebrew on the end
+  user's machine — verified by relocating a built app off this machine
+  and confirming `otool -L` shows no `/opt/homebrew` references.
+- Ships **unsigned** (ad-hoc `codesign --sign -` only, no paid Apple
+  Developer account). A downloaded-and-quarantined unsigned app is
+  rejected by Gatekeeper as "damaged" (not the older, clearer
+  "unidentified developer" prompt) — confirmed via `spctl -a`. The fix,
+  baked into every release's notes, is `xattr -cr path/to/Mineways.app`
+  after download. Don't re-add Developer ID signing/notarization unless
+  the user explicitly wants to pay for and set up a Developer ID cert +
+  App Store Connect API key again — it was tried and deliberately dropped
+  as not worth the setup cost for a hobby OSS build.
+- Version string (`Mac/Makefile`'s `MINEWAYS_VERSION_STRING`, `Info.plist`)
+  is pinned to match what's actually tagged/released, not necessarily
+  `Win/stdafx.h`'s `MINEWAYS_MAJOR/MINOR_VERSION` — the two can drift
+  since Mac releases are cut independently. Check with the user before
+  bumping one to match the other.
+- A release tag represents the final cumulative commit for that release; its
+  ancestors are included automatically. After committing all changes intended
+  for a named release, create the tag at that final commit or move an existing
+  local tag forward to it. Do not push or force-update a remote tag unless the
+  user explicitly requests that remote operation.
+
+### Remotes and PR workflow
+
+`origin` = `wbreiler/Mineways` (this fork, pushed to directly). `upstream`
+= `erich666/Mineways` (Eric Haines's original repo). PRs for this work
+target `upstream`, not `origin` — a PR within the fork itself is
+meaningless since there's nothing to diff against.
+
+### July 2026 macOS hardening pass
+
+The macOS-specific backlog in `TODO.md` was completed in commit `727a730`
+(`Fix macOS world loading and build consistency`). This pass deliberately
+did not modify files under `Win/`; the project scope is the native macOS port.
+
+The completed work:
+- Clears cached world/schematic state when changing inputs.
+- Synchronizes `gTargetDepth` during ordinary world loads.
+- Streams Import Settings files instead of loading them twice in memory.
+- Leaves the application coherently unloaded after failed world or schematic
+  loads.
+- Recognizes the modern `dimensions/` world layout.
+- Uses one Makefile version value for the binary, About dialog, SaveVolume,
+  app bundle, and tagged CI build.
+- Generates compiler dependency files with `-MMD -MP`.
+- Strictly validates persisted Culling Scheme hex and UTF-8 name lengths.
+- Enforces Import Settings line limits in UTF-8 bytes.
+
+Validation completed:
+- `make -C Mac clean all`
+- `make -C Mac app`
+- `make -C Mac MINEWAYS_VERSION=13.01 app`, followed by restoring the default
+  `13.0` build
+- Header dependency rebuild check
+- `git diff --check`
+- GUI smoke tests for Test Block World rendering/selection, a real modern
+  world containing `dimensions/`, valid Import Settings, oversized multibyte
+  UTF-8 rejection, failed-load export guards, recovery by loading another
+  world, Culling Schemes dialog, and About version `13.0`
+
+The follow-up port pass also resets the window title, status text, and map after
+a failed world or schematic load, and validates persisted Culling Scheme IDs.
+
+---
+
 ## Working preferences (inferred from past sessions)
 
 - **"Just implement"** is the default. When a task is straightforward, skip the
@@ -332,14 +437,14 @@ master: `(unsigned char)`. On `type_field_short`: `(unsigned short)`.
   routine pacing.
 - **Terse responses.** End-of-turn summary = 1–2 sentences max. The user reads
   diffs, not narration. State what changed and what's next.
-- **Use TaskCreate for multi-step work.** It surfaces progress and helps the
+- **Use subagents or tools for multi-step work.** It surfaces progress and helps the
   user track where we are in a long refactor.
-- **Mass refactors via PowerShell regex** are acceptable and the user trusts
+- **Mass refactors via regex** are acceptable and the user trusts
   them — but verify with grep afterward, and always build to catch silent
   truncation (especially narrowing warnings as errors).
 - **Diagnostic logging is welcome** when stuck. Pattern: write to
   `C:\Users\ehaines\cull_debug.log` from inside the dialog/code, ask the user
-  to repro, read the log back via `Read`, then strip the logging after.
+  to repro, read the log back, then strip the logging after.
 - **Don't add `#endif` comments, don't reformat unrelated lines, don't add
   emoji** unless explicitly asked.
 - **Match existing column alignment in data tables.** The BlockTranslations
@@ -359,10 +464,8 @@ master: `(unsigned char)`. On `type_field_short`: `(unsigned short)`.
 - `saveBoxMultitileGeometry` pixel coords must be in `[0, 16]` (UV assert).
 - Editor dialogs must not call `SetDlgItemText` for fields that fire `EN_CHANGE`
   before the LV is fully set up — order matters in `WM_INITDIALOG`.
-- Memory `~/.claude/projects/.../memory/` directory: I'm supposed to populate
-  this with structured memory files. It is currently empty. If something seems
-  worth remembering across sessions and doesn't fit in this CLAUDE.md, write
-  it there.
+- Memory directories hold structured memory files — check them for Mac-port
+  status/build notes that are point-in-time and may be staler than this file.
 
 ---
 

@@ -8152,8 +8152,8 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
         // if directory starts with /, this is [Block Test World], a synthetic test world
         // made by the testBlock() method.
         int x, z;
-        //int yoff = -ZERO_WORLD_HEIGHT(versionID, mcVersion);
-        int yoff = block->minHeight;
+        // yoff converts surface world-Y (63) to a 0-based array index: array_idx = world_y - minHeight
+        int yoff = -block->minHeight;
         int bedrockHeight = 60 + yoff;      // cppcheck-suppress 398
         int grassHeight = 62 + yoff;
         int blockHeight = 63 + yoff;
@@ -8317,7 +8317,14 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
             for (i = 0; i < 16 * 16 * (block->maxFilledHeight+1); i++, pBlockID++)
             {
                 assert((i >> 8) <= block->maxFilledHeight);
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wtautological-constant-out-of-range-compare"
+#endif
                 if ((*pBlockID >= NUM_BLOCKS_STANDARD) && (*pBlockID != BLOCK_STRUCTURE_BLOCK))
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
                 {
                     // some new version of Minecraft, block ID is unrecognized;
                     // turn this block into stone. dataVal will be ignored.

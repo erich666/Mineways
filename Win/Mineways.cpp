@@ -8817,7 +8817,7 @@ JumpToSpawn:
         if (is.processData) {
             gCurDepth = maxHeight;
             GetHighlightState(&on, &minx, &miny, &minz, &maxx, &maxy, &maxz, gMinHeight);
-            SetHighlightState(on, minx, gTargetDepth, minz, maxx, gCurDepth, maxz, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_PUSH);
+            SetHighlightState(on, minx, miny, minz, maxx, gCurDepth, maxz, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_PUSH);
             setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
         }
         return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;

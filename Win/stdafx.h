@@ -33,7 +33,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define _CRTDBG_MAP_ALLOC
 #endif
 
-#define SKETCHFAB
+#ifdef WIN32
 
 // For internet update, sadly does not link under x64:
 // 1>uafxcw.lib(appcore.obj) : error LNK2001: unresolved external symbol __wargv
@@ -68,6 +68,27 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <io.h>
 #include <fcntl.h>
 
+#else // !WIN32 — macOS / POSIX build
+
+#include "compat.h"   // Windows type shims + wide-path file helpers
+#include "cache.h"
+#include "MinewaysMap.h"
+#include "ObjFileManip.h"
+#include "nbt.h"
+#include "region.h"
+#include "terrainExtData.h"
+
+#include <stdlib.h>
+#include <memory.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <math.h>
+#include <time.h>
+#include <assert.h>
+#include <string.h>
+
+#endif
+
 #define MINEWAYS_MAJOR_VERSION 13
 #define MINEWAYS_MINOR_VERSION 2
 
@@ -80,7 +101,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #ifndef clamp
-#define clamp(a,min,max)	((a)<(min)?(min):((a)>(max)?(max):(a)))
+#define clamp(a,mn,mx)  ((a)<(mn)?(mn):((a)>(mx)?(mx):(a)))
 #endif
 
 #ifndef swapint
@@ -105,14 +126,24 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #define strncpy_s(f,n,w,m) strncpy(f,w,m)
 #define strncat_s(f,n,w,m) strncat(f,w,m)
 #define sprintf_s snprintf
+#define _snprintf_s(buf,sz,cnt,...) snprintf(buf,sz,__VA_ARGS__)
+#define sscanf_s sscanf
+// PortaFile macros for wide (wchar_t*) paths — defined in compat.h via _mwPorta* helpers
 #define PORTAFILE FILE*
-#define PortaOpen(fn) fopen(fn,"rb")
-#define PortaAppend(fn) fopen(fn,"a")
-#define PortaCreate(fn) fopen(fn,"w")
-#define PortaSeek(h,ofs) fseek(h,ofs,SEEK_SET)
+#define PortaOpen(fn)       _mwPortaOpenW(fn)
+#define PortaAppend(fn)     _mwPortaAppendW(fn)
+#define PortaCreate(fn)     _mwPortaCreateW(fn)
+#define PortaSeek(h,ofs)    fseek(h,ofs,SEEK_SET)
 #define PortaRead(h,buf,len)  (fread(buf,len,1,h)!=1)
 #define PortaWrite(h,buf,len) (fwrite(buf,len,1,h)!=1)
-#define PortaClose(h) fclose(h)
+#define PortaClose(h)       fclose(h)
+#define _wcsnicmp(a,b,n)    wcsncasecmp(a,b,n)
+#define _wcsicmp(a,b)       wcscasecmp(a,b)
+#define BR_UNUSED 0
+#endif
+
+#ifndef _countof
+#define _countof(arr) (sizeof(arr)/sizeof((arr)[0]))
 #endif
 
 #if __STDC_VERSION__ >= 199901L
