@@ -1681,7 +1681,6 @@ static void createCompositedLeaves(const wchar_t* inputDirectory, const wchar_t*
 			wcscat_s(tileSearch, MAX_PATH_AND_FILE, outputSuffix);
 			wcscat_s(tileSearch, MAX_PATH_AND_FILE, L".png");
 			writepng(grass_side, 3, tileSearch);
-			writepng_cleanup(grass_side);
 			readpng_cleanup(1, grass_overlay);
 			if (verbose)
 				wprintf(L"New texture '%s' created.\n", tileSearch);
@@ -1745,7 +1744,6 @@ static void createCompositedLeaves(const wchar_t* inputDirectory, const wchar_t*
 			wcscat_s(tileSearch, MAX_PATH_AND_FILE, outputSuffix);
 			wcscat_s(tileSearch, MAX_PATH_AND_FILE, L".png");
 			writepng(tile, channels, tileSearch);
-			writepng_cleanup(tile);
 			if (verbose)
 				wprintf(L"New texture '%s' created.\n", tileSearch);
 		}

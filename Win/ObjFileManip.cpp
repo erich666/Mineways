@@ -61,7 +61,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 static PORTAFILE gModelFile;
 static PORTAFILE gMtlFile;
-// static PORTAFILE gPngFile;  // for terrainExt.png input (not texture output)
 
 #ifdef WIN32
 DWORD br;
@@ -27520,11 +27519,6 @@ static float retrieveMtlAlpha(int type)
     return alpha;
 }
 
-
-// the blocks that should be solid if valid water tile is not found
-// int solidCount = 5;
-// static int solidTable[] = { BLOCK_WATER, BLOCK_STATIONARY_WATER, BLOCK_LAVA, BLOCK_STATIONARY_LAVA, BLOCK_FIRE };
-
 static int createBaseMaterialTexture()
 {
     int row, col, srow, scol;  // cppcheck-suppress 398
@@ -28825,7 +28819,6 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
 static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC)
 {
     wchar_t wrlFileNameWithSuffix[MAX_PATH_AND_FILE];
-    // const char* justWorldFileName;
     char justTextureFileName[MAX_PATH_AND_FILE];	// without path
 
     char outputString[256];
@@ -28869,7 +28862,6 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
     exportSingleMaterial = (!(gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MTL_PER_TYPE)) ? true : false;
 
     WcharToChar(pWorldGuide->world, worldChar, MAX_PATH_AND_FILE);
-    // justWorldFileName = removePathChar(worldChar);
 
     sprintf_s(outputString, 256, "#VRML V2.0 utf8\n\n# VRML 97 (VRML2) file made by Mineways version %d.%02d, http://mineways.com\n", gMinewaysMajorVersion, gMinewaysMinorVersion);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -37112,8 +37104,6 @@ static bool faceCanTile(int faceId)
     //    return true;
     //}
 
-    // static int countTrue = 0;
-    // static int countFalse = 0;
     // are the UVs from edge to edge, so we know it's a full face?
     // Loop cleverness. We could go 0 through 3, to be safe, but we know that almost all (except triangles for sloped rails for 3d printing) quads in Mineways
     // are rectangular. So, we can test just the opposite corners, i += 2, to make sure they have UVs that are 0.0 or 1.0 (which is 0 or 16 in the normalized set here).

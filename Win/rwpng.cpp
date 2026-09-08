@@ -159,7 +159,7 @@ int writepng(progimage_info *im, int channels, wchar_t *filename)
         im->image_data.size() < pixelCount * (size_t)channels)
         return 93;
 
-    unsigned int error = 0;
+    unsigned int error = 1;	// 1 means didn't reach lodepng
     if ( channels == 4 )
     {
         // 32 bit RGBA, the default
@@ -186,7 +186,8 @@ int writepng(progimage_info *im, int channels, wchar_t *filename)
     return 0;
 }
 
-
+// Call when reusing an allocated image.
+// Empties the old contents before the image holder gets resized/repopulated with the new image's bytes
 void writepng_cleanup(progimage_info *im)
 {
     im->image_data.clear();

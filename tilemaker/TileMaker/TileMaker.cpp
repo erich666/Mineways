@@ -1579,6 +1579,7 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 					// quit
 					return 1;
 				}
+				// we reuse destination_ptr, so clear out its contents (does not free memory)
 				writepng_cleanup(destination_ptr);
 				if (verbose)
 					wprintf(L"New texture '%s' created.\n", terrainExtOutput);
@@ -2119,10 +2120,10 @@ static int copyPNGTile(progimage_info* dst, int channels, unsigned long dst_x, u
 				// Treat alpha == 0 as clear - nicer to set to black. This happens with fire,
 				// and the flowers and double flowers have junk in the RGB channels where alpha == 0.
 				// negate column and row, as Minecraft stores these reversed (left and right chest, basically)
-					if (!getPNGPixel(src, channels,
-						src_x_lo + ((flags & 0x1) ? (dst_x_hi - col - 1) : (col - dst_x_lo)),
-						src_start + src_y_lo + ((flags & 0x2) ? (dst_y_hi - row - 1) : (row - dst_y_lo)), color))
-						return 1;
+				if (!getPNGPixel(src, channels,
+					src_x_lo + ((flags & 0x1) ? (dst_x_hi - col - 1) : (col - dst_x_lo)),
+					src_start + src_y_lo + ((flags & 0x2) ? (dst_y_hi - row - 1) : (row - dst_y_lo)), color))
+					return 1;
 				if (channels == 4 && color[3] == 0)
 				{
 					memset(dst_data, 0, channels);
@@ -2171,10 +2172,10 @@ static int copyPNGTile(progimage_info* dst, int channels, unsigned long dst_x, u
 			{
 				// Treat alpha == 0 as clear - nicer to set to black. This happens with fire,
 				// and the flowers and double flowers have junk in the RGB channels where alpha == 0.
-					if (!getPNGPixel(src, channels,
-						src_x_lo + ((flags & 0x1) ? (dst_x_hi - col - 1) : (col - dst_x_lo)),
-						src_start + src_y_lo + ((flags & 0x2) ? (dst_y_hi - row - 1) : (row - dst_y_lo)), color))
-						return 1;
+				if (!getPNGPixel(src, channels,
+					src_x_lo + ((flags & 0x1) ? (dst_x_hi - col - 1) : (col - dst_x_lo)),
+					src_start + src_y_lo + ((flags & 0x2) ? (dst_y_hi - row - 1) : (row - dst_y_lo)), color))
+					return 1;
 				if (channels == 4 && color[3] == 0)
 				{
 					color[0] = color[1] = color[2] = 0;
@@ -2225,8 +2226,8 @@ static int copyPNGTile(progimage_info* dst, int channels, unsigned long dst_x, u
 					{
 						// Treat alpha == 0 as clear - nicer to set to black. This happens with fire,
 						// and the flowers and double flowers have junk in the RGB channels where alpha == 0.
-							if (!getPNGPixel(src, channels, (col + src_x_lo - dst_x_lo) * izoom + zoomcol, (row + src_y_lo - dst_y_lo) * izoom + zoomrow, color))
-								return 1;
+						if (!getPNGPixel(src, channels, (col + src_x_lo - dst_x_lo) * izoom + zoomcol, (row + src_y_lo - dst_y_lo) * izoom + zoomrow, color))
+							return 1;
 						if (channels == 4 && color[3] == 0)
 						{
 							color[0] = color[1] = color[2] = 0;
