@@ -1155,15 +1155,21 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
             wchar_t terrainFileCat[MAX_PATH_AND_FILE];
             wcscpy_s(terrainFileCat, MAX_PATH, terrainFileName);
             int len = (int)wcslen(terrainFileCat);
-            if (_wcsicmp(&terrainFileCat[len - 4], L".png") == 0)
+            if (len >= 4 && _wcsicmp(&terrainFileCat[len - 4], L".png") == 0)
             {
                 // remove .png suffix
                 terrainFileCat[len - 4] = 0x0;
             }
             else {
                 // else read will fail, but so be it for the first, RGBA file
-                if (catIndex > 0)
+                if (catIndex > 0) {
+                    // Nothing gets read into this image, so it must not be left
+                    // non-NULL: every consumer of pInputTerrainImage treats a non-NULL
+                    // entry as loaded and indexes straight into image_data.
+                    delete gModel.pInputTerrainImage[catIndex];
+                    gModel.pInputTerrainImage[catIndex] = NULL;
                     continue;
+                }
             }
             wcscat_s(terrainFileCat, MAX_PATH, gCatSuffixes[catIndex]);
             wcscat_s(terrainFileCat, MAX_PATH, L".png");
