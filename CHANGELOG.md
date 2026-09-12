@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v13.01] - 2026-09-12
+
+### Added
+* Support for Minecraft 26.2 cinnabar and sulfur blocks.
+
+### Fixed
+* Correct culling of special-case blocks with multiple IDs.
+* Correct stair state round-tripping and heights above 256 in Sponge schematics.
+* Improve schematic selection, spawn, and Jump to Player behavior.
+* Harden macOS world loading, Import Settings, Culling Scheme persistence, exports, ZIP/NBT parsing, and failure recovery.
+* Improve script encoding checks, documentation, terrain sets, and error messages.
+
 ## [v13.00] - 2026-07-13
 
 ### Added
