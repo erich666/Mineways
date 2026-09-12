@@ -2044,6 +2044,7 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
             }
         }
 
+        // we actually want to clean up here, so that the texture can be re-created later.
         writepng_cleanup(gModel.pPNGtexture);
     }
     return retCode;
@@ -25702,14 +25703,12 @@ static void freeModel(Model* pModel)
 
     if (pModel->pPNGtexture)
     {
-        writepng_cleanup(pModel->pPNGtexture);
         delete pModel->pPNGtexture;
         pModel->pPNGtexture = NULL;
     }
 
     for (int cat = 1; cat < TOTAL_CATEGORIES; cat++) {
         if (pModel->pPBRtexture[cat]) {
-            writepng_cleanup(pModel->pPBRtexture[cat]);
             delete pModel->pPBRtexture[cat];
             pModel->pPBRtexture[cat] = NULL;
         }
@@ -33217,7 +33216,7 @@ static int writeUSDTextures()
         retCode |= rc ? (MW_CANNOT_CREATE_PNG_FILE | (rc << MW_NUM_CODES)) : MW_NO_ERROR;
         addOutputFilenameToList(filename);
 
-        writepng_cleanup(&dst);
+        // don't do: delete &dst; - dst will delete when it goes out of scope
     }
 
     return retCode;
@@ -34018,7 +34017,7 @@ static int writeEmissiveScaledTile(wchar_t* filename, int index)
     rc |= writepng(&dst, numChannels, filename);
     addOutputFilenameToList(filename);
 
-    writepng_cleanup(&dst);
+    // don't do: delete& dst; - dst will delete when it goes out of scope
 
     return rc;
 }
@@ -34095,7 +34094,7 @@ static int writeTileFromCategoryInput(wchar_t *filename, int index, int category
     rc |= writepng(&dst, numChannels, filename);
     addOutputFilenameToList(filename);
 
-    writepng_cleanup(&dst);
+    // don't do: delete& dst; - dst will delete when it goes out of scope
 
     return rc;
 }
@@ -36047,7 +36046,7 @@ static int convertRGBAtoRGBandWrite(progimage_info* src, wchar_t* filename)
     rc |= writepng(&dst, 3, filename);
     addOutputFilenameToList(filename);
 
-    writepng_cleanup(&dst);
+    // don't do: delete& dst; - dst will delete when it goes out of scope
 
     return rc;
 }
@@ -36198,7 +36197,7 @@ WriteEmitter:
     rc |= writepng(&dst, numChannels, filename);
     addOutputFilenameToList(filename);
 
-    writepng_cleanup(&dst);
+    // don't do: delete& dst; - dst will delete when it goes out of scope
 
     return rc;
 }

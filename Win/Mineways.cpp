@@ -10608,8 +10608,6 @@ static bool saveMapFile(int xmin, int zmin, int xmax, int ymax, int zmax, wchar_
 
     // 0 means success. Currently we don't say what goes wrong otherwise.
     retCode = writepng(mapimage, 3, mapFileNameSafe);
-
-    writepng_cleanup(mapimage);
     delete mapimage;
 
     // turn highlight back on, now that we're done
