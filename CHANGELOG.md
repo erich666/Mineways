@@ -11,6 +11,8 @@ All notable changes to this project will be documented in this file.
 * Correct culling of special-case blocks with multiple IDs.
 * Correct stair state round-tripping and heights above 256 in Sponge schematics.
 * Improve schematic selection, spawn, and Jump to Player behavior.
+* Fix macOS region paths so world chunks load correctly.
+* Prevent OBJ tile export crashes when no external terrain file is configured.
 * Harden macOS world loading, Import Settings, Culling Scheme persistence, exports, ZIP/NBT parsing, and failure recovery.
 * Improve script encoding checks, documentation, terrain sets, and error messages.
 
