@@ -62,7 +62,7 @@ typedef void (*ProgressCallback)(float progress, wchar_t* buf);
 
 typedef struct Schematic {
     unsigned char* blocks;
-    unsigned char* data;
+    unsigned short* data;
     int width;	// X
     int height; // Y
     int length;	// Z
@@ -124,11 +124,11 @@ int GetLevelName(const wchar_t* world, char* levelName, int stringLength);
 int GetPlayer(const wchar_t* world, int* px, int* py, int* pz, int* dimension);
 unsigned int GetBlockDataColor(int type, int dataVal);
 int GetSchematicWord(const wchar_t* schematic, char* field, int* word);
-int GetSchematicBlocksAndData(const wchar_t* schematic, int numBlocks, unsigned char* schematicBlocks, unsigned char* schematicBlockData);
+int GetSchematicBlocksAndData(const wchar_t* schematic, int numBlocks, unsigned char* schematicBlocks, unsigned short* schematicBlockData);
 // Sponge Schematic v3 reader (issue #40). On success, returns 1 and malloc's the blocks/data arrays
 // (caller frees). On parse failure returns 0. On file open failure returns -1.
 int GetSpongeSchematic(const wchar_t* schematic, int* width, int* height, int* length,
-    unsigned char** blocks, unsigned char** data);
+    unsigned char** blocks, unsigned short** data);
 void SetMapPremultipliedColors(int start);
 // Bump the per-chunk render cache so drawTheMap() re-renders. The Culling Scheme path
 // changes block VISIBILITY (cells render as air or skip) without touching colors; the

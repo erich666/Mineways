@@ -87,7 +87,7 @@ typedef struct BoxCell {
     unsigned short type;
     unsigned short origType;
     unsigned char flatFlags;	// pointer to which origType to use for face output, for "merged" snow, redstone, etc. in cell above
-    unsigned char data;     // extra data for block (wool color, etc.); note that four top bits are not used
+    unsigned short data;     // extra data for block (wool color, etc.); dataVal, 12 bits used - see nbt.h
 } BoxCell;
 
 typedef struct BoxGroup
@@ -2175,11 +2175,15 @@ static int initializeWorldData(IBox* worldBox, int xmin, int ymin, int zmin, int
         return MW_WORLD_EXPORT_TOO_LARGE;
     }
     long long sizeYZ = sizeY * sizeZ;
-    long long sizeXZ = sizeX * sizeZ;
-    long long maxCells = INT_MAX / (int)sizeof(BoxCell);
-    if (sizeYZ > INT_MAX || sizeXZ > INT_MAX / 6 || sizeX > maxCells / sizeYZ) {
-        return MW_WORLD_EXPORT_TOO_LARGE;
-    }
+    // Not sure this test is needed - memory allocation will likely fail when the gBoxSize values are used to allocate data.
+    // If we do need this for some instances, we should pass in checkAllocationSize as a boolean.
+    //long long sizeXZ = sizeX * sizeZ;
+    //long long maxCells = INT_MAX / (int)sizeof(BoxCell);
+    //if (checkAllocationSize) {
+    //    if (sizeYZ > INT_MAX || sizeXZ > INT_MAX / 6 || sizeX > maxCells / sizeYZ) {
+    //        return MW_WORLD_EXPORT_TOO_LARGE;
+    //    }
+    //}
     long long sizeXYZ = sizeX * sizeYZ;
     gBoxSize[X] = (int)sizeX;
     gBoxSize[Y] = (int)sizeY;
@@ -2732,23 +2736,17 @@ static void findChunkBounds(WorldGuide* pWorldGuide, int bx, int bz, IBox* world
             boxIndex = WORLD_TO_BOX_INDEX(x, miny, z);
             chunkIndex = CHUNK_INDEX(bx, bz, x, miny, z);
             for (y = miny; y <= maxy; y++, boxIndex++) {
-                // fold in the high bit to get the type
-                // 1.13 fun: if the highest bit of the data value is 1, this is a 1.13+ block of some sort,
-                // so "move" that bit from data to the type. Ignore head data, which comes in with the high bit set.
+                // grid[] holds the type's low 8 bits; data[]'s top 4 bits hold the type's bits
+                // 8-11 and its low 12 bits are dataVal (see nbt.h) - no BLOCK_HEAD/BLOCK_FLOWER_POT
+                // carve-out needed, unlike the old single-TYPE_HIGH_BIT1-in-dataVal promotion scheme.
                 assert((chunkIndex >> 8) <= block->maxFilledHeight);  // if block is reduced in size, make sure it's in bounds
                 // Capture dataVal from the chunk loader buffer BEFORE we advance chunkIndex.
                 // We can't read it from gBoxData here — this is the bounds-finding pre-pass and
-                // gBoxData isn't allocated yet. block->data carries the same HIGH_BIT-tagged value
-                // that gBoxData.data will later hold, so it's the right source for cull lookup.
-                unsigned char curData = block->data[chunkIndex];
-                if (gIs13orNewer && (curData & 0x80) && (block->grid[chunkIndex] != BLOCK_HEAD) && (block->grid[chunkIndex] != BLOCK_FLOWER_POT)) {
-                    // high bit set, so blockID >= 256
-                    blockID = block->grid[chunkIndex] | 0x100;
-                }
-                else {
-                    // normal case - just transfer the data
-                    blockID = block->grid[chunkIndex];
-                }
+                // gBoxData isn't allocated yet. block->data carries the same packed value that
+                // gBoxData.data will later hold, so it's the right source for cull lookup.
+                unsigned short curData = block->data[chunkIndex];
+                blockID = BLOCK_TYPE_FROM_GRID_DATA(block->grid[chunkIndex], curData);
+                int curDataVal = BLOCK_DATAVAL_FROM_DATA(curData);
 
                 // For Anvil, Y goes up by 256 (in 1.1 and earlier, it was just ++)
                 chunkIndex += 256;
@@ -2765,7 +2763,7 @@ static void findChunkBounds(WorldGuide* pWorldGuide, int bx, int bz, IBox* world
                     // and not hidden by the active Culling Scheme (per-(type,dataVal) check).
                     if ((flags & gModel.options->saveFilterFlags) &&
                         (gBlockDefinitions[blockID].alpha > 0.0) &&
-                        !isBlockCulled(blockID, curData)) {
+                        !isBlockCulled(blockID, curDataVal)) {
                         IPoint loc;
                         Vec3Scalar(loc, =, x, y, z);
                         addBounds(loc, &gSolidWorldBox);
@@ -2844,23 +2842,15 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
             for (y = miny; y <= maxy; y++, boxIndex++) {
                 // Get the extra values (orientation, type) for the blocks
                 assert((chunkIndex >> 8) <= block->maxFilledHeight);  // if block is reduced in size, make sure it's in bounds
-                unsigned char dataVal = block->data[chunkIndex];
-                // 1.13 fun: if the highest bit of the data value is 1, this is a 1.13+ block of some sort,
-                // so "move" that bit from data to the type. Ignore head data, which comes in with the high bit set.
-                if (gIs13orNewer && (dataVal & HIGH_BIT) && (block->grid[chunkIndex] != BLOCK_HEAD) && (block->grid[chunkIndex] != BLOCK_FLOWER_POT)) {
-                    // if you hit this, something has gone odd with the dataVal, which shouldn't happen. See nbt.cpp where it says "make sure upper bits are not set - they should not be!"
-                    assert(block->grid[chunkIndex] < NUM_BLOCKS_DEFINED - 256);
-                    gBoxData[boxIndex].data = dataVal & 0x7F;
-                    // high bit turns into +256
-                    blockID = gBoxData[boxIndex].origType =
-                        gBoxData[boxIndex].type = block->grid[chunkIndex] | 0x100;
-                }
-                else {
-                    // normal case - just transfer the data
-                    gBoxData[boxIndex].data = dataVal;
-                    blockID = gBoxData[boxIndex].origType =
-                        gBoxData[boxIndex].type = block->grid[chunkIndex];
-                }
+                // grid[] holds the type's low 8 bits; data[]'s top 4 bits hold the type's bits
+                // 8-11 and its low 12 bits are dataVal (see nbt.h) - no BLOCK_HEAD/BLOCK_FLOWER_POT
+                // carve-out needed, unlike the old single-TYPE_HIGH_BIT1-in-dataVal promotion scheme.
+                unsigned short dataVal = BLOCK_DATAVAL_FROM_DATA(block->data[chunkIndex]);
+                gBoxData[boxIndex].data = dataVal;
+                blockID = gBoxData[boxIndex].origType =
+                    gBoxData[boxIndex].type = BLOCK_TYPE_FROM_GRID_DATA(block->grid[chunkIndex], block->data[chunkIndex]);
+                // if you hit this, something has gone odd with the type-extension nibble, which shouldn't happen.
+                assert(blockID < NUM_BLOCKS_DEFINED);
 
                 // tile entities needed if using old data format
                 if (!gIs13orNewer) {
@@ -2908,9 +2898,9 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
                                             if (pBE->data < 15) {
                                                 // from nbt.cpp
                                                 //{ 0, 176, 0, "white_banner", STANDING_SIGN_PROP },
-                                                //{ 0,  23,    HIGH_BIT, "orange_banner", STANDING_SIGN_PROP },
+                                                //{ 0,  23,    TYPE_HIGH_BIT1, "orange_banner", STANDING_SIGN_PROP },
                                                 //{ 0, 177,           0, "white_wall_banner", FACING_PROP },
-                                                //{ 0,  38,    HIGH_BIT, "orange_wall_banner", FACING_PROP },
+                                                //{ 0,  38,    TYPE_HIGH_BIT1, "orange_wall_banner", FACING_PROP },
                                                 if (blockID == BLOCK_STANDING_BANNER) {
                                                     gBoxData[boxIndex].type = (23 | 0x100) + 14 - pBE->data;
                                                 }
@@ -3545,7 +3535,7 @@ static bool applyChangeBlockCommand(ChangeBlockCommand* pCBC)
     int boxIndex;
     int x, y, z;
     unsigned short toType = pCBC->intoType;
-    unsigned char toData = pCBC->intoData;
+    unsigned short toData = pCBC->intoData;
 
     IBox boxBounds = gSolidBox;
     if (pCBC->hasLocation)
@@ -16654,7 +16644,7 @@ static void fillGroups(IBox* bounds, int masterGroupID, bool solid, int fillType
                             int i;
                             int leafFound = 0;
                             int woodSearch = 1;
-                            unsigned char leafData = 0;
+                            unsigned short leafData = 0;
                             for (i = 0; i < 6 && woodSearch; i++)
                             {
                                 int index = boxIndex + gFaceOffset[i];
@@ -33417,7 +33407,9 @@ static int writeSchematicBox()
                 // if you're storing 1.13+ types, you're out of luck - converted to grass
                 if (gBoxData[boxIndex].type < 256) {
                     type = (unsigned char)gBoxData[boxIndex].type;
-                    data = gBoxData[boxIndex].data;
+                    // legacy .schematic "Data" is a single byte/block; dataVal has always been
+                    // ≤ 255 for every block reachable via this narrow (type < 256) legacy path.
+                    data = (unsigned char)gBoxData[boxIndex].data;
 
                     // for 1.13+ we properly use all the bits (separate faces) for huge mushrooms, instead of the old 0-15
                     // system in 1.12 and earlier. To keep it simple here, if a 1.13+ huge mushroom is found, we convert as possible

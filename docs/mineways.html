@@ -1531,11 +1531,13 @@ Minecraft for Windows 10, also known as the <a href="https://minecraft.wiki/w/Be
 <P>
 The options I know for conversion from Bedrock to Classic Minecraft are:
 <UL>
+  <LI><a href="https://www.chunker.app/">Chunker</a> - free, and appears to work. Recommended. But, there's a catch for all these converters - see below.
   <LI><a href="https://www.amuletmc.com/">Amulet</a>, which works on Windows, Mac, and Linux. No longer free for the latest version. The documentation is <a href="https://github.com/Amulet-Team/Amulet-Map-Editor/blob/master/amulet_map_editor/programs/convert/readme.md">here</a>. Upside: converts 1.17+ worlds. Downside: a bit slow and looks like it locks up at times.
   <LI><a href="https://web.archive.org/web/20210513191001/https://www.mcctoolchest.com/Download">MCC ToolChest PE</a> - a little quirky, but free. Sadly, it seems to have disappeared in June 2021; we link to the archived site where you can still download it (should work for Minecraft 1.16 and earlier).</LI>
   <LI><a href="https://www.universalminecrafttool.com/">Universal Minecraft Tool</a> - evidently more reliable than the MCC ToolChest, but is a subscription service.</LI>
-  <LI><a href="https://www.chunker.app/">Chunker</a> - free, but unfortunately, as of version v1.20.0, I've found this utility unreliable. Some chunks it converts cannot even be read by Minecraft (Java edition) itself.
 </UL>
+
+<P><b>Bedrock conversion headache:</b> You might find chunks missing after using one of the converters above. It turns out it's not a problem with the converter. As FormerlyMyles, maintainer of Chunker, explained to me, "The Bedrock engine does not save chunks which haven't been modified and Chunker has no way of recovering them." See his comment and my problem report <a href="https://github.com/HiveGamesOSS/Chunker/issues/2612#issuecomment-5652403984">here</a>, which also contains some partial solutions. That said, if you've built anything in any chunk, or modified a chunk in the slightest (or even let the chunk age a bit and things grow), the chunk should appear when converted.
 
 <P><b>Short Amulet instructions:</b> <a href="https://www.amuletmc.com/">Amulet</a> converts, but need to have a world to save into. Make an empty world in Java (Classic) Minecraft, easiest is to make a superflat world. Start Amulet and make the window much larger (this is important for usability - in general, resize all windows in Amulet to be larger, so you can see all the controls). Pick "Open World". Pick "Bedrock" and select the world you want to convert. Click the "Convert" tab along the left edge. "Select Output World" and choose the empty superflat world you made at the start. Click the "Convert" tab at the bottom (a large world can take a fair bit of time to convert - patience). If you don't see the "Convert" tab, you need to resize the Amulet window to make it visible.
 
@@ -4410,7 +4412,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 9/11/2026</p>
+		<br id="lastUpdate">Last updated 9/13/2026</p>
 	</div>
 </div>
 

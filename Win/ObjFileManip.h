@@ -96,7 +96,7 @@ typedef struct ChangeBlockCommand {
     // to location - there is always only one
     bool hasInto;
     unsigned short intoType;
-    unsigned char intoData;
+    unsigned short intoData;
 
     // location range
     bool hasLocation;	// if not set, whole export volume is used

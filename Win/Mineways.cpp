@@ -384,7 +384,7 @@ static struct {
     {_T("Error: cannot read import file."), _T("Import error"), MB_OK | MB_ICONERROR},	// <<14
     {_T("Error: opened import file, but cannot read it properly."), _T("Import error"), MB_OK | MB_ICONERROR},	// <<15
     {_T("Error: out of memory - terrainExt*.png texture is too large. Try 'Help | Give more export memory!', or please use a texture with a lower resolution."), _T("Memory error"), MB_OK | MB_ICONERROR},	// <<16
-    {_T("Error: out of memory - volume of world chosen is too large. RESTART PROGRAM, then try 'Help | Give more export memory!'. If that fails, export smaller portions of your world."), _T("Memory error"), MB_OK | MB_ICONERROR},	// <<17
+    {_T("Error: out of memory - volume of world chosen is too large. RESTART PROGRAM, then try 'Help | Give more export memory!'. If that fails, export smaller portions of your world. Give the 'hunk_maker.py' program that comes with Mineways a look."), _T("Memory error"), MB_OK | MB_ICONERROR},	// <<17
     {_T("Error: directory for individual textures could not be created. Please fix whatever you put for the directory next to the 'Export separate tiles' option. Do not use a path of any sort, just give a folder name."), _T("Internal error"), MB_OK | MB_ICONERROR},	// <<18
     {_T("Error: yikes, internal error! Please let me know what you were doing and what went wrong: erich@acm.org"), _T("Internal error"), MB_OK | MB_ICONERROR},	// <<18
 
@@ -661,7 +661,8 @@ int APIENTRY _tWinMain(
     wcscpy_s(gImportPath, MAX_PATH_AND_FILE, L"");
 
     gWorldGuide.type = WORLD_UNLOADED_TYPE;
-    gWorldGuide.sch.blocks = gWorldGuide.sch.data = NULL;
+    gWorldGuide.sch.blocks = NULL;
+    gWorldGuide.sch.data = NULL;
     gWorldGuide.nbtVersion = 0;
 
     // start it with something, anything...
@@ -3722,7 +3723,7 @@ static int loadSpongeSchematic(wchar_t* pathAndFile)
 
     int width = 0, height = 0, length = 0;
     unsigned char* blocks = NULL;
-    unsigned char* data = NULL;
+    unsigned short* data = NULL;
     int retval = GetSpongeSchematic(pathAndFile, &width, &height, &length, &blocks, &data);
     if (retval != 1) {
         if (blocks) free(blocks);
@@ -3748,12 +3749,12 @@ static int loadSpongeSchematic(wchar_t* pathAndFile)
     //      which uses gWorldGuide.minHeight=0 from loadWorld). MC 1.16 still uses 0..255 — the
     //      switch to -64..319 happens at data version >= 2685 (1.17 beta). So 2586 stays in the
     //      old range and Ctrl-A / Select-All highlights line up with where the blocks live.
-    //   2. gMcVersion >= 13 so gIs13orNewer = true. .schem palettes carry 1.13+ block IDs that
-    //      Mineways internally flags with HIGH_BIT in dataVal; ObjFileManip.cpp:2796 only
-    //      promotes that flag to type|0x100 (recovering blocks > 255 like the copper golem
-    //      statues at IDs 502/503) when gIs13orNewer is true. With the legacy 1.12.2 value
-    //      (1343) the promotion was skipped and modern blocks round-tripped as their low-byte
-    //      cousins (e.g. blockId 246 → "blue_glazed_terracotta" instead of copper_golem_statue).
+    //   2. gMcVersion >= 13 so gIs13orNewer = true. .schem palettes carry 1.13+ block IDs whose
+    //      high bits (>255) Mineways packs into the top nibble of dataVal (see nbt.h); a wrong
+    //      gMcVersion here doesn't affect that unpacking (BLOCK_TYPE_FROM_GRID_DATA in
+    //      ObjFileManip.cpp/MinewaysMap.cpp applies unconditionally), but gIs13orNewer still
+    //      gates other 1.13+-only parsing paths (e.g. tile-entity handling), so it must be set
+    //      for modern blocks like the copper golem statues at IDs 502/503 to come through intact.
     gVersionID = 2586;
     gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
     setHeightsFromVersionID();
@@ -3783,7 +3784,7 @@ static int loadSchematic(wchar_t* pathAndFile)
         return 100 + 4;
 
     gWorldGuide.sch.blocks = (unsigned char*)malloc(gWorldGuide.sch.numBlocks);
-    gWorldGuide.sch.data = (unsigned char*)malloc(gWorldGuide.sch.numBlocks);
+    gWorldGuide.sch.data = (unsigned short*)malloc((size_t)gWorldGuide.sch.numBlocks * sizeof(unsigned short));
     if (gWorldGuide.sch.blocks == NULL || gWorldGuide.sch.data == NULL) {
         free(gWorldGuide.sch.blocks);
         gWorldGuide.sch.blocks = NULL;
@@ -9566,12 +9567,12 @@ static void addRangeToDataBitsArray(ChangeBlockCommand* pCBC, int fromType, int 
 static void saveCBinto(ChangeBlockCommand* pCBC, int intoType, int intoData)
 {
     // if someone cleverly tries to pick a block using the nbt.cpp values, convert here so that the type is properly a number > 255, as needed
-    if ((intoData & HIGH_BIT) && (intoType != BLOCK_HEAD) && (intoType != BLOCK_FLOWER_POT)) {
+    if ((intoData & TYPE_HIGH_BIT1) && (intoType != BLOCK_HEAD) && (intoType != BLOCK_FLOWER_POT)) {
         intoData &= 0x7F;
         intoType |= 0x100;
     }
     pCBC->intoType = (unsigned short)intoType;
-    pCBC->intoData = (unsigned char)intoData;
+    pCBC->intoData = (unsigned short)intoData;
     pCBC->hasInto = true;
 }
 

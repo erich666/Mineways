@@ -46,7 +46,7 @@ static int skipListDepth(bfFile* pbf, int depth, int* tagBudget);
 static int skipCompoundDepth(bfFile* pbf, int depth, int* tagBudget);
 
 static int readBiomePalette(bfFile* pbf, unsigned char* paletteBiomeEntry, int& entryIndex);
-static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned char* paletteBlockEntry, unsigned char* paletteDataEntry, int& entryIndex, char* unknownBlock, int unknownBlockID);
+static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned char* paletteBlockEntry, unsigned short* paletteDataEntry, int& entryIndex, char* unknownBlock, int unknownBlockID);
 static int readBlockData(bfFile* pbf, int& bigbufflen, unsigned char* bigbuff);
 
 typedef struct BlockTranslator {
@@ -404,7 +404,7 @@ static TranslationTuple* modTranslations = NULL;
 //   bits 0x0C: copper_golem_pose (standing/sitting/running/star 0-3)
 //   bits 0x30: oxidation subtype (copper/exposed/weathered/oxidized 0-3) -- picked by findSpongeTranslator
 //   bit  0x40: WATERLOGGED_BIT
-//   bit  0x80: HIGH_BIT marker (type > 255)
+//   bit  0x80: TYPE_HIGH_BIT1 marker (type > 255)
 #define COPPER_GOLEM_PROP 73
 
 // BLOCK_NOTEBLOCK (25). Non-graphical but preserved for .schem round-trip per
@@ -435,7 +435,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
     // hash is computed once when 1.13 data is first read in.
     // second column is "traditional" type value, as found in blockInfo.cpp; third column is high-order bit and data value, fourth is Minecraft name
-    // Note: the HIGH_BIT gets "transferred" to the type in MinewaysMap's IDBlock() method, about 100 lines in.
+    // Note: the TYPE_HIGH_BIT1 gets "transferred" to the type in MinewaysMap's IDBlock() method, about 100 lines in.
     // The list of names and data values: https://minecraft.wiki/w/Java_Edition_data_values
     // and older https://minecraft.wiki/w/Java_Edition_data_values/Pre-flattening#Block_IDs
     //hash,ID,BIT|dataval,  name, common properties flags
@@ -918,118 +918,118 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 205,           2, "prismarine_slab", SLAB_PROP }, // added to purpur slab and double slab, dataVal 2, just to be safe (see purpur_slab)
     { 0, 205,           3, "prismarine_brick_slab", SLAB_PROP }, // added to purpur slab and double slab, dataVal 3
     { 0, 205,           4, "dark_prismarine_slab", SLAB_PROP }, // added to purpur slab and double slab, dataVal 4
-    { 0,   1,    HIGH_BIT, "prismarine_stairs", STAIRS_PROP },
-    { 0,   2,    HIGH_BIT, "prismarine_brick_stairs", STAIRS_PROP },
-    { 0,   3,    HIGH_BIT, "dark_prismarine_stairs", STAIRS_PROP },
-    { 0,   4,    HIGH_BIT, "spruce_trapdoor", TRAPDOOR_PROP },
-    { 0,   5,    HIGH_BIT, "birch_trapdoor", TRAPDOOR_PROP },
-    { 0,   6,    HIGH_BIT, "jungle_trapdoor", TRAPDOOR_PROP },
-    { 0,   7,    HIGH_BIT, "acacia_trapdoor", TRAPDOOR_PROP },
-    { 0,   8,    HIGH_BIT, "dark_oak_trapdoor", TRAPDOOR_PROP },
-    { 0,   9,    HIGH_BIT, "spruce_button", BUTTON_PROP },	// TODO++
-    { 0,  10,    HIGH_BIT, "birch_button", BUTTON_PROP },
-    { 0,  11,    HIGH_BIT, "jungle_button", BUTTON_PROP },
-    { 0,  12,    HIGH_BIT, "acacia_button", BUTTON_PROP },
-    { 0,  13,    HIGH_BIT, "dark_oak_button", BUTTON_PROP },
+    { 0,   1,    TYPE_HIGH_BIT1, "prismarine_stairs", STAIRS_PROP },
+    { 0,   2,    TYPE_HIGH_BIT1, "prismarine_brick_stairs", STAIRS_PROP },
+    { 0,   3,    TYPE_HIGH_BIT1, "dark_prismarine_stairs", STAIRS_PROP },
+    { 0,   4,    TYPE_HIGH_BIT1, "spruce_trapdoor", TRAPDOOR_PROP },
+    { 0,   5,    TYPE_HIGH_BIT1, "birch_trapdoor", TRAPDOOR_PROP },
+    { 0,   6,    TYPE_HIGH_BIT1, "jungle_trapdoor", TRAPDOOR_PROP },
+    { 0,   7,    TYPE_HIGH_BIT1, "acacia_trapdoor", TRAPDOOR_PROP },
+    { 0,   8,    TYPE_HIGH_BIT1, "dark_oak_trapdoor", TRAPDOOR_PROP },
+    { 0,   9,    TYPE_HIGH_BIT1, "spruce_button", BUTTON_PROP },	// TODO++
+    { 0,  10,    TYPE_HIGH_BIT1, "birch_button", BUTTON_PROP },
+    { 0,  11,    TYPE_HIGH_BIT1, "jungle_button", BUTTON_PROP },
+    { 0,  12,    TYPE_HIGH_BIT1, "acacia_button", BUTTON_PROP },
+    { 0,  13,    TYPE_HIGH_BIT1, "dark_oak_button", BUTTON_PROP },
 	{ 0,  70,           2, "spruce_pressure_plate", PRESSURE_PROP }, // lowest bit is powered
     { 0,  70,           4, "birch_pressure_plate", PRESSURE_PROP },
     { 0,  70,           6, "jungle_pressure_plate", PRESSURE_PROP },
     { 0,  70,           8, "acacia_pressure_plate", PRESSURE_PROP },
     { 0,  70,          10, "dark_oak_pressure_plate", PRESSURE_PROP },
-    { 0,  19,  HIGH_BIT | 0, "stripped_oak_log", AXIS_PROP },
-    { 0,  19,  HIGH_BIT | 1, "stripped_spruce_log", AXIS_PROP },
-    { 0,  19,  HIGH_BIT | 2, "stripped_birch_log", AXIS_PROP },
-    { 0,  19,  HIGH_BIT | 3, "stripped_jungle_log", AXIS_PROP },
-    { 0,  20,  HIGH_BIT | 0, "stripped_acacia_log", AXIS_PROP },
-    { 0,  20,  HIGH_BIT | 1, "stripped_dark_oak_log", AXIS_PROP },
-    { 0,  21,  HIGH_BIT | 0, "stripped_oak_wood", AXIS_PROP },
-    { 0,  21,  HIGH_BIT | 1, "stripped_spruce_wood", AXIS_PROP },
-    { 0,  21,  HIGH_BIT | 2, "stripped_birch_wood", AXIS_PROP },
-    { 0,  21,  HIGH_BIT | 3, "stripped_jungle_wood", AXIS_PROP },
-    { 0,  22,  HIGH_BIT | 0, "stripped_acacia_wood", AXIS_PROP },
-    { 0,  22,  HIGH_BIT | 1, "stripped_dark_oak_wood", AXIS_PROP },
+    { 0,  19,  TYPE_HIGH_BIT1 | 0, "stripped_oak_log", AXIS_PROP },
+    { 0,  19,  TYPE_HIGH_BIT1 | 1, "stripped_spruce_log", AXIS_PROP },
+    { 0,  19,  TYPE_HIGH_BIT1 | 2, "stripped_birch_log", AXIS_PROP },
+    { 0,  19,  TYPE_HIGH_BIT1 | 3, "stripped_jungle_log", AXIS_PROP },
+    { 0,  20,  TYPE_HIGH_BIT1 | 0, "stripped_acacia_log", AXIS_PROP },
+    { 0,  20,  TYPE_HIGH_BIT1 | 1, "stripped_dark_oak_log", AXIS_PROP },
+    { 0,  21,  TYPE_HIGH_BIT1 | 0, "stripped_oak_wood", AXIS_PROP },
+    { 0,  21,  TYPE_HIGH_BIT1 | 1, "stripped_spruce_wood", AXIS_PROP },
+    { 0,  21,  TYPE_HIGH_BIT1 | 2, "stripped_birch_wood", AXIS_PROP },
+    { 0,  21,  TYPE_HIGH_BIT1 | 3, "stripped_jungle_wood", AXIS_PROP },
+    { 0,  22,  TYPE_HIGH_BIT1 | 0, "stripped_acacia_wood", AXIS_PROP },
+    { 0,  22,  TYPE_HIGH_BIT1 | 1, "stripped_dark_oak_wood", AXIS_PROP },
     { 0, 176,           0, "ominous_banner", STANDING_SIGN_PROP },  // maybe not a real thing, but it's listed in the 1.17.1\assets\minecraft\lang\en_us.json file as a block, so let's be safe
     { 0, 176,           0, "white_banner", STANDING_SIGN_PROP },
-    { 0,  23,    HIGH_BIT, "orange_banner", STANDING_SIGN_PROP },	// we could crush these a bit into four banners per entry by using bits 32 and 64 for different types.
-    { 0,  24,    HIGH_BIT, "magenta_banner", STANDING_SIGN_PROP },
-    { 0,  25,    HIGH_BIT, "light_blue_banner", STANDING_SIGN_PROP },
-    { 0,  26,    HIGH_BIT, "yellow_banner", STANDING_SIGN_PROP },
-    { 0,  27,    HIGH_BIT, "lime_banner", STANDING_SIGN_PROP },
-    { 0,  28,    HIGH_BIT, "pink_banner", STANDING_SIGN_PROP },
-    { 0,  29,    HIGH_BIT, "gray_banner", STANDING_SIGN_PROP },
-    { 0,  30,    HIGH_BIT, "light_gray_banner", STANDING_SIGN_PROP },
-    { 0,  31,    HIGH_BIT, "cyan_banner", STANDING_SIGN_PROP },
-    { 0,  32,    HIGH_BIT, "purple_banner", STANDING_SIGN_PROP },
-    { 0,  33,    HIGH_BIT, "blue_banner", STANDING_SIGN_PROP },
-    { 0,  34,    HIGH_BIT, "brown_banner", STANDING_SIGN_PROP },
-    { 0,  35,    HIGH_BIT, "green_banner", STANDING_SIGN_PROP },
-    { 0,  36,    HIGH_BIT, "red_banner", STANDING_SIGN_PROP },
-    { 0,  37,    HIGH_BIT, "black_banner", STANDING_SIGN_PROP }, // TODO++ colors need to be added
+    { 0,  23,    TYPE_HIGH_BIT1, "orange_banner", STANDING_SIGN_PROP },	// we could crush these a bit into four banners per entry by using bits 32 and 64 for different types.
+    { 0,  24,    TYPE_HIGH_BIT1, "magenta_banner", STANDING_SIGN_PROP },
+    { 0,  25,    TYPE_HIGH_BIT1, "light_blue_banner", STANDING_SIGN_PROP },
+    { 0,  26,    TYPE_HIGH_BIT1, "yellow_banner", STANDING_SIGN_PROP },
+    { 0,  27,    TYPE_HIGH_BIT1, "lime_banner", STANDING_SIGN_PROP },
+    { 0,  28,    TYPE_HIGH_BIT1, "pink_banner", STANDING_SIGN_PROP },
+    { 0,  29,    TYPE_HIGH_BIT1, "gray_banner", STANDING_SIGN_PROP },
+    { 0,  30,    TYPE_HIGH_BIT1, "light_gray_banner", STANDING_SIGN_PROP },
+    { 0,  31,    TYPE_HIGH_BIT1, "cyan_banner", STANDING_SIGN_PROP },
+    { 0,  32,    TYPE_HIGH_BIT1, "purple_banner", STANDING_SIGN_PROP },
+    { 0,  33,    TYPE_HIGH_BIT1, "blue_banner", STANDING_SIGN_PROP },
+    { 0,  34,    TYPE_HIGH_BIT1, "brown_banner", STANDING_SIGN_PROP },
+    { 0,  35,    TYPE_HIGH_BIT1, "green_banner", STANDING_SIGN_PROP },
+    { 0,  36,    TYPE_HIGH_BIT1, "red_banner", STANDING_SIGN_PROP },
+    { 0,  37,    TYPE_HIGH_BIT1, "black_banner", STANDING_SIGN_PROP }, // TODO++ colors need to be added
     { 0, 177,           0, "white_wall_banner", FACING_PROP },
-    { 0,  38,    HIGH_BIT, "orange_wall_banner", FACING_PROP },
-    { 0,  39,    HIGH_BIT, "magenta_wall_banner", FACING_PROP },
-    { 0,  40,    HIGH_BIT, "light_blue_wall_banner", FACING_PROP },
-    { 0,  41,    HIGH_BIT, "yellow_wall_banner", FACING_PROP },
-    { 0,  42,    HIGH_BIT, "lime_wall_banner", FACING_PROP },
-    { 0,  43,    HIGH_BIT, "pink_wall_banner", FACING_PROP },
-    { 0,  44,    HIGH_BIT, "gray_wall_banner", FACING_PROP },
-    { 0,  45,    HIGH_BIT, "light_gray_wall_banner", FACING_PROP },
-    { 0,  46,    HIGH_BIT, "cyan_wall_banner", FACING_PROP },
-    { 0,  47,    HIGH_BIT, "purple_wall_banner", FACING_PROP },
-    { 0,  48,    HIGH_BIT, "blue_wall_banner", FACING_PROP },
-    { 0,  49,    HIGH_BIT, "brown_wall_banner", FACING_PROP },
-    { 0,  50,    HIGH_BIT, "green_wall_banner", FACING_PROP },
-    { 0,  51,    HIGH_BIT, "red_wall_banner", FACING_PROP },
-    { 0,  52,    HIGH_BIT, "black_wall_banner", FACING_PROP },
-    { 0,  53,    HIGH_BIT, "tall_seagrass", TALL_FLOWER_PROP },
-    { 0,  54,    HIGH_BIT, "seagrass", NO_PROP },
-    { 0,  55,  HIGH_BIT | 0, "smooth_stone", NO_PROP },
-    { 0,  55,  HIGH_BIT | 1, "smooth_sandstone", NO_PROP },
-    { 0,  55,  HIGH_BIT | 2, "smooth_red_sandstone", NO_PROP },
-    { 0,  55,  HIGH_BIT | 3, "smooth_quartz", NO_PROP },
-    { 0,  56,    HIGH_BIT, "blue_ice", NO_PROP },
-    { 0,  57,    HIGH_BIT, "dried_kelp_block", NO_PROP },
-    { 0,  58,  HIGH_BIT | 0, "kelp_plant", TRULY_NO_PROP }, // the lower part
-    { 0,  58,  HIGH_BIT | 1, "kelp", TRULY_NO_PROP }, // the top, growing part; don't care about the age
+    { 0,  38,    TYPE_HIGH_BIT1, "orange_wall_banner", FACING_PROP },
+    { 0,  39,    TYPE_HIGH_BIT1, "magenta_wall_banner", FACING_PROP },
+    { 0,  40,    TYPE_HIGH_BIT1, "light_blue_wall_banner", FACING_PROP },
+    { 0,  41,    TYPE_HIGH_BIT1, "yellow_wall_banner", FACING_PROP },
+    { 0,  42,    TYPE_HIGH_BIT1, "lime_wall_banner", FACING_PROP },
+    { 0,  43,    TYPE_HIGH_BIT1, "pink_wall_banner", FACING_PROP },
+    { 0,  44,    TYPE_HIGH_BIT1, "gray_wall_banner", FACING_PROP },
+    { 0,  45,    TYPE_HIGH_BIT1, "light_gray_wall_banner", FACING_PROP },
+    { 0,  46,    TYPE_HIGH_BIT1, "cyan_wall_banner", FACING_PROP },
+    { 0,  47,    TYPE_HIGH_BIT1, "purple_wall_banner", FACING_PROP },
+    { 0,  48,    TYPE_HIGH_BIT1, "blue_wall_banner", FACING_PROP },
+    { 0,  49,    TYPE_HIGH_BIT1, "brown_wall_banner", FACING_PROP },
+    { 0,  50,    TYPE_HIGH_BIT1, "green_wall_banner", FACING_PROP },
+    { 0,  51,    TYPE_HIGH_BIT1, "red_wall_banner", FACING_PROP },
+    { 0,  52,    TYPE_HIGH_BIT1, "black_wall_banner", FACING_PROP },
+    { 0,  53,    TYPE_HIGH_BIT1, "tall_seagrass", TALL_FLOWER_PROP },
+    { 0,  54,    TYPE_HIGH_BIT1, "seagrass", NO_PROP },
+    { 0,  55,  TYPE_HIGH_BIT1 | 0, "smooth_stone", NO_PROP },
+    { 0,  55,  TYPE_HIGH_BIT1 | 1, "smooth_sandstone", NO_PROP },
+    { 0,  55,  TYPE_HIGH_BIT1 | 2, "smooth_red_sandstone", NO_PROP },
+    { 0,  55,  TYPE_HIGH_BIT1 | 3, "smooth_quartz", NO_PROP },
+    { 0,  56,    TYPE_HIGH_BIT1, "blue_ice", NO_PROP },
+    { 0,  57,    TYPE_HIGH_BIT1, "dried_kelp_block", NO_PROP },
+    { 0,  58,  TYPE_HIGH_BIT1 | 0, "kelp_plant", TRULY_NO_PROP }, // the lower part
+    { 0,  58,  TYPE_HIGH_BIT1 | 1, "kelp", TRULY_NO_PROP }, // the top, growing part; don't care about the age
     { 0,   9,      BIT_16, "bubble_column", 0x0 },	// consider as full block of water for now, need to investigate if there's anything to static render (I don't think so...?)
-    { 0,  59,  HIGH_BIT | 0, "tube_coral_block", NO_PROP },
-    { 0,  59,  HIGH_BIT | 1, "brain_coral_block", NO_PROP },
-    { 0,  59,  HIGH_BIT | 2, "bubble_coral_block", NO_PROP },
-    { 0,  59,  HIGH_BIT | 3, "fire_coral_block", NO_PROP },
-    { 0,  59,  HIGH_BIT | 4, "horn_coral_block", NO_PROP },
-    { 0,  60,  HIGH_BIT | 0, "dead_tube_coral_block", NO_PROP },
-    { 0,  60,  HIGH_BIT | 1, "dead_brain_coral_block", NO_PROP },
-    { 0,  60,  HIGH_BIT | 2, "dead_bubble_coral_block", NO_PROP },
-    { 0,  60,  HIGH_BIT | 3, "dead_fire_coral_block", NO_PROP },
-    { 0,  60,  HIGH_BIT | 4, "dead_horn_coral_block", NO_PROP },
-    { 0,  61,  HIGH_BIT | 0, "tube_coral", NO_PROP },
-    { 0,  61,  HIGH_BIT | 1, "brain_coral", NO_PROP },
-    { 0,  61,  HIGH_BIT | 2, "bubble_coral", NO_PROP },
-    { 0,  61,  HIGH_BIT | 3, "fire_coral", NO_PROP },
-    { 0,  61,  HIGH_BIT | 4, "horn_coral", NO_PROP },
-    { 0,  62,  HIGH_BIT | 0, "tube_coral_fan", NO_PROP },	// here's where we go nuts: using 7 bits (one waterlogged)
-    { 0,  62,  HIGH_BIT | 1, "brain_coral_fan", NO_PROP },
-    { 0,  62,  HIGH_BIT | 2, "bubble_coral_fan", NO_PROP },
-    { 0,  62,  HIGH_BIT | 3, "fire_coral_fan", NO_PROP },
-    { 0,  62,  HIGH_BIT | 4, "horn_coral_fan", NO_PROP },
-    { 0,  63,  HIGH_BIT | 0, "dead_tube_coral_fan", NO_PROP },
-    { 0,  63,  HIGH_BIT | 1, "dead_brain_coral_fan", NO_PROP },
-    { 0,  63,  HIGH_BIT | 2, "dead_bubble_coral_fan", NO_PROP },
-    { 0,  63,  HIGH_BIT | 3, "dead_fire_coral_fan", NO_PROP },
-    { 0,  63,  HIGH_BIT | 4, "dead_horn_coral_fan", NO_PROP },
-    { 0,  64,  HIGH_BIT | 0, "tube_coral_wall_fan", FAN_PROP },
-    { 0,  64,  HIGH_BIT | 1, "brain_coral_wall_fan", FAN_PROP },
-    { 0,  64,  HIGH_BIT | 2, "bubble_coral_wall_fan", FAN_PROP },
-    { 0,  64,  HIGH_BIT | 3, "fire_coral_wall_fan", FAN_PROP },
-    { 0,  64,  HIGH_BIT | 4, "horn_coral_wall_fan", FAN_PROP },
-    { 0,  65,  HIGH_BIT | 0, "dead_tube_coral_wall_fan", FAN_PROP },
-    { 0,  65,  HIGH_BIT | 1, "dead_brain_coral_wall_fan", FAN_PROP },
-    { 0,  65,  HIGH_BIT | 2, "dead_bubble_coral_wall_fan", FAN_PROP },
-    { 0,  65,  HIGH_BIT | 3, "dead_fire_coral_wall_fan", FAN_PROP },
-    { 0,  65,  HIGH_BIT | 4, "dead_horn_coral_wall_fan", FAN_PROP },
-    { 0,  66,    HIGH_BIT, "conduit", NO_PROP },
-    { 0,  67,    HIGH_BIT, "sea_pickle", PICKLE_PROP },
-    { 0,  68,    HIGH_BIT, "turtle_egg", EGG_PROP },
+    { 0,  59,  TYPE_HIGH_BIT1 | 0, "tube_coral_block", NO_PROP },
+    { 0,  59,  TYPE_HIGH_BIT1 | 1, "brain_coral_block", NO_PROP },
+    { 0,  59,  TYPE_HIGH_BIT1 | 2, "bubble_coral_block", NO_PROP },
+    { 0,  59,  TYPE_HIGH_BIT1 | 3, "fire_coral_block", NO_PROP },
+    { 0,  59,  TYPE_HIGH_BIT1 | 4, "horn_coral_block", NO_PROP },
+    { 0,  60,  TYPE_HIGH_BIT1 | 0, "dead_tube_coral_block", NO_PROP },
+    { 0,  60,  TYPE_HIGH_BIT1 | 1, "dead_brain_coral_block", NO_PROP },
+    { 0,  60,  TYPE_HIGH_BIT1 | 2, "dead_bubble_coral_block", NO_PROP },
+    { 0,  60,  TYPE_HIGH_BIT1 | 3, "dead_fire_coral_block", NO_PROP },
+    { 0,  60,  TYPE_HIGH_BIT1 | 4, "dead_horn_coral_block", NO_PROP },
+    { 0,  61,  TYPE_HIGH_BIT1 | 0, "tube_coral", NO_PROP },
+    { 0,  61,  TYPE_HIGH_BIT1 | 1, "brain_coral", NO_PROP },
+    { 0,  61,  TYPE_HIGH_BIT1 | 2, "bubble_coral", NO_PROP },
+    { 0,  61,  TYPE_HIGH_BIT1 | 3, "fire_coral", NO_PROP },
+    { 0,  61,  TYPE_HIGH_BIT1 | 4, "horn_coral", NO_PROP },
+    { 0,  62,  TYPE_HIGH_BIT1 | 0, "tube_coral_fan", NO_PROP },	// here's where we go nuts: using 7 bits (one waterlogged)
+    { 0,  62,  TYPE_HIGH_BIT1 | 1, "brain_coral_fan", NO_PROP },
+    { 0,  62,  TYPE_HIGH_BIT1 | 2, "bubble_coral_fan", NO_PROP },
+    { 0,  62,  TYPE_HIGH_BIT1 | 3, "fire_coral_fan", NO_PROP },
+    { 0,  62,  TYPE_HIGH_BIT1 | 4, "horn_coral_fan", NO_PROP },
+    { 0,  63,  TYPE_HIGH_BIT1 | 0, "dead_tube_coral_fan", NO_PROP },
+    { 0,  63,  TYPE_HIGH_BIT1 | 1, "dead_brain_coral_fan", NO_PROP },
+    { 0,  63,  TYPE_HIGH_BIT1 | 2, "dead_bubble_coral_fan", NO_PROP },
+    { 0,  63,  TYPE_HIGH_BIT1 | 3, "dead_fire_coral_fan", NO_PROP },
+    { 0,  63,  TYPE_HIGH_BIT1 | 4, "dead_horn_coral_fan", NO_PROP },
+    { 0,  64,  TYPE_HIGH_BIT1 | 0, "tube_coral_wall_fan", FAN_PROP },
+    { 0,  64,  TYPE_HIGH_BIT1 | 1, "brain_coral_wall_fan", FAN_PROP },
+    { 0,  64,  TYPE_HIGH_BIT1 | 2, "bubble_coral_wall_fan", FAN_PROP },
+    { 0,  64,  TYPE_HIGH_BIT1 | 3, "fire_coral_wall_fan", FAN_PROP },
+    { 0,  64,  TYPE_HIGH_BIT1 | 4, "horn_coral_wall_fan", FAN_PROP },
+    { 0,  65,  TYPE_HIGH_BIT1 | 0, "dead_tube_coral_wall_fan", FAN_PROP },
+    { 0,  65,  TYPE_HIGH_BIT1 | 1, "dead_brain_coral_wall_fan", FAN_PROP },
+    { 0,  65,  TYPE_HIGH_BIT1 | 2, "dead_bubble_coral_wall_fan", FAN_PROP },
+    { 0,  65,  TYPE_HIGH_BIT1 | 3, "dead_fire_coral_wall_fan", FAN_PROP },
+    { 0,  65,  TYPE_HIGH_BIT1 | 4, "dead_horn_coral_wall_fan", FAN_PROP },
+    { 0,  66,    TYPE_HIGH_BIT1, "conduit", NO_PROP },
+    { 0,  67,    TYPE_HIGH_BIT1, "sea_pickle", PICKLE_PROP },
+    { 0,  68,    TYPE_HIGH_BIT1, "turtle_egg", EGG_PROP },
     { 0,  26,           0, "black_bed", BED_PROP }, // TODO+ bed colors should have separate blocks or whatever
     { 0,  26,           0, "red_bed", BED_PROP },
     { 0,  26,           0, "green_bed", BED_PROP },
@@ -1048,17 +1048,17 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  26,           0, "white_bed", BED_PROP },
 
     // 1.14
-    { 0,  69,  HIGH_BIT | 0, "dead_tube_coral", NO_PROP },
-    { 0,  69,  HIGH_BIT | 1, "dead_brain_coral", NO_PROP },
-    { 0,  69,  HIGH_BIT | 2, "dead_bubble_coral", NO_PROP },
-    { 0,  69,  HIGH_BIT | 3, "dead_fire_coral", NO_PROP },
-    { 0,  69,  HIGH_BIT | 4, "dead_horn_coral", NO_PROP },
+    { 0,  69,  TYPE_HIGH_BIT1 | 0, "dead_tube_coral", NO_PROP },
+    { 0,  69,  TYPE_HIGH_BIT1 | 1, "dead_brain_coral", NO_PROP },
+    { 0,  69,  TYPE_HIGH_BIT1 | 2, "dead_bubble_coral", NO_PROP },
+    { 0,  69,  TYPE_HIGH_BIT1 | 3, "dead_fire_coral", NO_PROP },
+    { 0,  69,  TYPE_HIGH_BIT1 | 4, "dead_horn_coral", NO_PROP },
     { 0,  63,           0, "oak_sign", STANDING_SIGN_PROP }, // in 1.14 it's no longer just "sign", it's oak_sign, acacia_sign, etc. - use bits 16, 32, 64 for the 6 types
     { 0,  63,      BIT_16, "spruce_sign", STANDING_SIGN_PROP },
     { 0,  63,      BIT_32, "birch_sign", STANDING_SIGN_PROP },
     { 0,  63,BIT_32 | BIT_16, "jungle_sign", STANDING_SIGN_PROP },
-    { 0,  70,      HIGH_BIT, "acacia_sign", STANDING_SIGN_PROP },
-    { 0,  70,HIGH_BIT | BIT_16, "dark_oak_sign", STANDING_SIGN_PROP },
+    { 0,  70,      TYPE_HIGH_BIT1, "acacia_sign", STANDING_SIGN_PROP },
+    { 0,  70,TYPE_HIGH_BIT1 | BIT_16, "dark_oak_sign", STANDING_SIGN_PROP },
     { 0,  68,           0, "oak_wall_sign", WALL_SIGN_PROP }, // in 1.14 it's oak_wall_sign, acacia_wall_sign, etc.
     { 0,  68,       BIT_8, "spruce_wall_sign", WALL_SIGN_PROP },
     { 0,  68,      BIT_16, "birch_wall_sign", WALL_SIGN_PROP },
@@ -1068,13 +1068,13 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  38,           9, "cornflower", NO_PROP },
     { 0,  38,          10, "lily_of_the_valley", NO_PROP },
     { 0,  38,          11, "wither_rose", NO_PROP },
-    { 0,  71,    HIGH_BIT, "sweet_berry_bush", AGE_PROP },
+    { 0,  71,    TYPE_HIGH_BIT1, "sweet_berry_bush", AGE_PROP },
     { 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 9, "potted_cornflower", NO_PROP },
     { 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 10, "potted_lily_of_the_valley", NO_PROP },
     { 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 11, "potted_wither_rose", NO_PROP },
     { 0, BLOCK_FLOWER_POT,         BAMBOO_FIELD | 0, "potted_bamboo", NO_PROP },
     { 0,   6,	           6, "bamboo_sapling", SAPLING_PROP },	// put with the other saplings
-    { 0,  72,	    HIGH_BIT, "bamboo", LEAF_SIZE_PROP },
+    { 0,  72,	TYPE_HIGH_BIT1, "bamboo", LEAF_SIZE_PROP },
     { 0, 182,	           1, "cut_red_sandstone_slab", SLAB_PROP }, // added to red_sandstone_slab and double slab
     { 0, 182,	           2, "smooth_red_sandstone_slab", SLAB_PROP },
     { 0, 182,	           3, "cut_sandstone_slab", SLAB_PROP },
@@ -1085,26 +1085,26 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 205,	           5, "red_nether_brick_slab", SLAB_PROP }, // added to purpur slab and double slab, dataVal 4
     { 0, 205,	           6, "mossy_stone_brick_slab", SLAB_PROP },
     { 0, 205,	           7, "mossy_cobblestone_slab", SLAB_PROP },
-    { 0,  74,	HIGH_BIT | 0, "andesite_slab", SLAB_PROP },
-    { 0,  74,	HIGH_BIT | 1, "polished_andesite_slab", SLAB_PROP },
-    { 0,  74,	HIGH_BIT | 2, "diorite_slab", SLAB_PROP },
-    { 0,  74,	HIGH_BIT | 3, "polished_diorite_slab", SLAB_PROP },
-    { 0,  74,	HIGH_BIT | 4, "end_stone_brick_slab", SLAB_PROP },
-    { 0,  74,	HIGH_BIT | 5, "stone_slab", SLAB_PROP },	// the 1.14 stone_slab is entirely "normal" stone, no chiseling - it's a new slab type; 1.13 used this to mean what is now "smooth_stone_slab", and so we rename that in the nbt.cpp code.
-    { 0, 109,	    HIGH_BIT, "stone_stairs", STAIRS_PROP },
-    { 0, 110,	    HIGH_BIT, "granite_stairs", STAIRS_PROP },
-    { 0, 111,       HIGH_BIT, "polished_granite_stairs", STAIRS_PROP },
-    { 0, 112,	    HIGH_BIT, "smooth_quartz_stairs", STAIRS_PROP },
-    { 0, 113,	    HIGH_BIT, "diorite_stairs", STAIRS_PROP },
-    { 0, 114,       HIGH_BIT, "polished_diorite_stairs", STAIRS_PROP },
-    { 0, 115,	    HIGH_BIT, "end_stone_brick_stairs", STAIRS_PROP },
-    { 0, 116,	    HIGH_BIT, "andesite_stairs", STAIRS_PROP },
-    { 0, 117,       HIGH_BIT, "polished_andesite_stairs", STAIRS_PROP },
-    { 0, 118,	    HIGH_BIT, "red_nether_brick_stairs", STAIRS_PROP },
-    { 0, 119,	    HIGH_BIT, "mossy_stone_brick_stairs", STAIRS_PROP },
-    { 0, 120,       HIGH_BIT, "mossy_cobblestone_stairs", STAIRS_PROP },
-    { 0, 121,	    HIGH_BIT, "smooth_sandstone_stairs", STAIRS_PROP },
-    { 0, 122,	    HIGH_BIT, "smooth_red_sandstone_stairs", STAIRS_PROP },
+    { 0,  74,	TYPE_HIGH_BIT1 | 0, "andesite_slab", SLAB_PROP },
+    { 0,  74,	TYPE_HIGH_BIT1 | 1, "polished_andesite_slab", SLAB_PROP },
+    { 0,  74,	TYPE_HIGH_BIT1 | 2, "diorite_slab", SLAB_PROP },
+    { 0,  74,	TYPE_HIGH_BIT1 | 3, "polished_diorite_slab", SLAB_PROP },
+    { 0,  74,	TYPE_HIGH_BIT1 | 4, "end_stone_brick_slab", SLAB_PROP },
+    { 0,  74,	TYPE_HIGH_BIT1 | 5, "stone_slab", SLAB_PROP },	// the 1.14 stone_slab is entirely "normal" stone, no chiseling - it's a new slab type; 1.13 used this to mean what is now "smooth_stone_slab", and so we rename that in the nbt.cpp code.
+    { 0, 109,	TYPE_HIGH_BIT1, "stone_stairs", STAIRS_PROP },
+    { 0, 110,	TYPE_HIGH_BIT1, "granite_stairs", STAIRS_PROP },
+    { 0, 111,       TYPE_HIGH_BIT1, "polished_granite_stairs", STAIRS_PROP },
+    { 0, 112,	TYPE_HIGH_BIT1, "smooth_quartz_stairs", STAIRS_PROP },
+    { 0, 113,	TYPE_HIGH_BIT1, "diorite_stairs", STAIRS_PROP },
+    { 0, 114,       TYPE_HIGH_BIT1, "polished_diorite_stairs", STAIRS_PROP },
+    { 0, 115,	TYPE_HIGH_BIT1, "end_stone_brick_stairs", STAIRS_PROP },
+    { 0, 116,	TYPE_HIGH_BIT1, "andesite_stairs", STAIRS_PROP },
+    { 0, 117,       TYPE_HIGH_BIT1, "polished_andesite_stairs", STAIRS_PROP },
+    { 0, 118,	TYPE_HIGH_BIT1, "red_nether_brick_stairs", STAIRS_PROP },
+    { 0, 119,	TYPE_HIGH_BIT1, "mossy_stone_brick_stairs", STAIRS_PROP },
+    { 0, 120,       TYPE_HIGH_BIT1, "mossy_cobblestone_stairs", STAIRS_PROP },
+    { 0, 121,	TYPE_HIGH_BIT1, "smooth_sandstone_stairs", STAIRS_PROP },
+    { 0, 122,	TYPE_HIGH_BIT1, "smooth_red_sandstone_stairs", STAIRS_PROP },
     { 0, 139,              2, "brick_wall", WALL_PROP },
     { 0, 139,              3, "granite_wall", WALL_PROP },
     { 0, 139,              4, "diorite_wall", WALL_PROP },
@@ -1117,28 +1117,28 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 139,             11, "red_nether_brick_wall", WALL_PROP },
     { 0, 139,             12, "sandstone_wall", WALL_PROP },
     { 0, 139,             13, "red_sandstone_wall", WALL_PROP },
-    { 0,  75,		HIGH_BIT, "jigsaw", EXTENDED_FACING_PROP },
-    { 0,  76,       HIGH_BIT, "composter", NO_PROP }, // level directly translates to dataVal
+    { 0,  75,		TYPE_HIGH_BIT1, "jigsaw", EXTENDED_FACING_PROP },
+    { 0,  76,       TYPE_HIGH_BIT1, "composter", NO_PROP }, // level directly translates to dataVal
     { 0, BLOCK_FURNACE,	      BIT_16, "loom", FACING_PROP },	// add to furnace and burning furnace
     { 0, BLOCK_FURNACE,	      BIT_32, "smoker", FURNACE_PROP },
     { 0, BLOCK_FURNACE,BIT_32 | BIT_16, "blast_furnace", FURNACE_PROP },
-    { 0,  77,       HIGH_BIT, "barrel", BARREL_PROP },
-    { 0,  78,       HIGH_BIT, "stonecutter", SWNE_FACING_PROP },	// use just the lower two bits instead of three for facing. S=0, etc.
+    { 0,  77,       TYPE_HIGH_BIT1, "barrel", BARREL_PROP },
+    { 0,  78,       TYPE_HIGH_BIT1, "stonecutter", SWNE_FACING_PROP },	// use just the lower two bits instead of three for facing. S=0, etc.
     { 0, BLOCK_CRAFTING_TABLE,	1, "cartography_table", NO_PROP },
     { 0, BLOCK_CRAFTING_TABLE,	2, "fletching_table", NO_PROP },
     { 0, BLOCK_CRAFTING_TABLE,	3, "smithing_table", NO_PROP },
-    { 0,  79,       HIGH_BIT, "grindstone", GRINDSTONE_PROP }, // facing SWNE and face: floor|ceiling|wall
-    { 0,  80,       HIGH_BIT, "lectern", LECTERN_PROP },
-    { 0,  81,       HIGH_BIT, "bell", BELL_PROP },
-    { 0,  82,       HIGH_BIT, "lantern", LANTERN_PROP },	// uses just "hanging" for bit 0x1
-    { 0,  83,       HIGH_BIT, "campfire", CAMPFIRE_PROP },
-    { 0,  84,       HIGH_BIT, "scaffolding", SCAFFOLDING_PROP },	// bit 0x1=bottom, bits 0xE=distance 0..7
+    { 0,  79,       TYPE_HIGH_BIT1, "grindstone", GRINDSTONE_PROP }, // facing SWNE and face: floor|ceiling|wall
+    { 0,  80,       TYPE_HIGH_BIT1, "lectern", LECTERN_PROP },
+    { 0,  81,       TYPE_HIGH_BIT1, "bell", BELL_PROP },
+    { 0,  82,       TYPE_HIGH_BIT1, "lantern", LANTERN_PROP },	// uses just "hanging" for bit 0x1
+    { 0,  83,       TYPE_HIGH_BIT1, "campfire", CAMPFIRE_PROP },
+    { 0,  84,       TYPE_HIGH_BIT1, "scaffolding", SCAFFOLDING_PROP },	// bit 0x1=bottom, bits 0xE=distance 0..7
 
     // 1.15
-    { 0,  85,       HIGH_BIT, "bee_nest", EXTENDED_SWNE_FACING_PROP },	// facing is 0x3, honey_level is 0x01C, nest/hive is 0x20
-    { 0,  85,HIGH_BIT | BIT_32, "beehive", EXTENDED_SWNE_FACING_PROP },
-    { 0,  86,       HIGH_BIT, "honey_block", NO_PROP },
-    { 0,  87,       HIGH_BIT, "honeycomb_block", NO_PROP },
+    { 0,  85,       TYPE_HIGH_BIT1, "bee_nest", EXTENDED_SWNE_FACING_PROP },	// facing is 0x3, honey_level is 0x01C, nest/hive is 0x20
+    { 0,  85,TYPE_HIGH_BIT1 | BIT_32, "beehive", EXTENDED_SWNE_FACING_PROP },
+    { 0,  86,       TYPE_HIGH_BIT1, "honey_block", NO_PROP },
+    { 0,  87,       TYPE_HIGH_BIT1, "honeycomb_block", NO_PROP },
 
     // 1.16
     { 0, BLOCK_SOUL_SAND,  1, "soul_soil", NO_PROP },	// with soul sand
@@ -1161,10 +1161,10 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 162,     BIT_16 | 3, "warped_hyphae", AXIS_PROP },	// same as logs below, but with a high bit set to mean that it's "wood" texture on the endcaps. 
     { 0, 162,              2, "crimson_stem", AXIS_PROP },	// log equivalent
     { 0, 162,              3, "warped_stem", AXIS_PROP },
-    { 0,  20,   HIGH_BIT | 2, "stripped_crimson_stem", AXIS_PROP },	// extension of stripped acacia (log)
-    { 0,  20,   HIGH_BIT | 3, "stripped_warped_stem", AXIS_PROP },
-    { 0,  22,   HIGH_BIT | 2, "stripped_crimson_hyphae", AXIS_PROP },	// extension of stripped acacia wood
-    { 0,  22,   HIGH_BIT | 3, "stripped_warped_hyphae", AXIS_PROP },
+    { 0,  20,   TYPE_HIGH_BIT1 | 2, "stripped_crimson_stem", AXIS_PROP },	// extension of stripped acacia (log)
+    { 0,  20,   TYPE_HIGH_BIT1 | 3, "stripped_warped_stem", AXIS_PROP },
+    { 0,  22,   TYPE_HIGH_BIT1 | 2, "stripped_crimson_hyphae", AXIS_PROP },	// extension of stripped acacia wood
+    { 0,  22,   TYPE_HIGH_BIT1 | 3, "stripped_warped_hyphae", AXIS_PROP },
     { 0,   5,              6, "crimson_planks", NO_PROP },
     { 0,   5,              7, "warped_planks", NO_PROP },
     { 0,   1,              7, "blackstone", NO_PROP },
@@ -1179,70 +1179,70 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 112,              1, "chiseled_nether_bricks", NO_PROP },
     { 0, 112,              2, "cracked_nether_bricks", NO_PROP },
     { 0, BLOCK_CRAFTING_TABLE,	4, "lodestone", NO_PROP },
-    { 0,  88,       HIGH_BIT, "crying_obsidian", NO_PROP },
+    { 0,  88,       TYPE_HIGH_BIT1, "crying_obsidian", NO_PROP },
     { 0, BLOCK_TNT,		   1, "target", TRULY_NO_PROP },
-    { 0,  89,       HIGH_BIT, "respawn_anchor", NO_PROP },
+    { 0,  89,       TYPE_HIGH_BIT1, "respawn_anchor", NO_PROP },
     { 0, 139,             14, "blackstone_wall", WALL_PROP },
     { 0, 139,             15, "polished_blackstone_wall", WALL_PROP },
     { 0, 139,             16, "polished_blackstone_brick_wall", WALL_PROP },	// yeah, that's right, 16 baby - no data values used for walls, it's all implied in Mineways
-    { 0, 123,       HIGH_BIT, "crimson_stairs", STAIRS_PROP },
-    { 0, 124,       HIGH_BIT, "warped_stairs", STAIRS_PROP },
-    { 0, 125,       HIGH_BIT, "blackstone_stairs", STAIRS_PROP },
-    { 0, 126,       HIGH_BIT, "polished_blackstone_stairs", STAIRS_PROP },
-    { 0, 127,       HIGH_BIT, "polished_blackstone_brick_stairs", STAIRS_PROP },
-    { 0,  90,       HIGH_BIT, "crimson_trapdoor", TRAPDOOR_PROP },
-    { 0,  91,       HIGH_BIT, "warped_trapdoor", TRAPDOOR_PROP },
-    { 0,  92,       HIGH_BIT, "crimson_button", BUTTON_PROP },
-    { 0,  93,       HIGH_BIT, "warped_button", BUTTON_PROP },
-    { 0,  94,       HIGH_BIT, "polished_blackstone_button", BUTTON_PROP },
-    { 0,  95,       HIGH_BIT, "crimson_fence", FENCE_PROP },
-    { 0,  96,       HIGH_BIT, "warped_fence", FENCE_PROP },
-    { 0,  97,       HIGH_BIT, "crimson_fence_gate", FENCE_GATE_PROP },
-    { 0,  98,       HIGH_BIT, "warped_fence_gate", FENCE_GATE_PROP },
-    { 0,  99,       HIGH_BIT, "crimson_door", DOOR_PROP },
-    { 0, 100,       HIGH_BIT, "warped_door", DOOR_PROP },
+    { 0, 123,       TYPE_HIGH_BIT1, "crimson_stairs", STAIRS_PROP },
+    { 0, 124,       TYPE_HIGH_BIT1, "warped_stairs", STAIRS_PROP },
+    { 0, 125,       TYPE_HIGH_BIT1, "blackstone_stairs", STAIRS_PROP },
+    { 0, 126,       TYPE_HIGH_BIT1, "polished_blackstone_stairs", STAIRS_PROP },
+    { 0, 127,       TYPE_HIGH_BIT1, "polished_blackstone_brick_stairs", STAIRS_PROP },
+    { 0,  90,       TYPE_HIGH_BIT1, "crimson_trapdoor", TRAPDOOR_PROP },
+    { 0,  91,       TYPE_HIGH_BIT1, "warped_trapdoor", TRAPDOOR_PROP },
+    { 0,  92,       TYPE_HIGH_BIT1, "crimson_button", BUTTON_PROP },
+    { 0,  93,       TYPE_HIGH_BIT1, "warped_button", BUTTON_PROP },
+    { 0,  94,       TYPE_HIGH_BIT1, "polished_blackstone_button", BUTTON_PROP },
+    { 0,  95,       TYPE_HIGH_BIT1, "crimson_fence", FENCE_PROP },
+    { 0,  96,       TYPE_HIGH_BIT1, "warped_fence", FENCE_PROP },
+    { 0,  97,       TYPE_HIGH_BIT1, "crimson_fence_gate", FENCE_GATE_PROP },
+    { 0,  98,       TYPE_HIGH_BIT1, "warped_fence_gate", FENCE_GATE_PROP },
+    { 0,  99,       TYPE_HIGH_BIT1, "crimson_door", DOOR_PROP },
+    { 0, 100,       TYPE_HIGH_BIT1, "warped_door", DOOR_PROP },
     { 0,  70,          12, "crimson_pressure_plate", PRESSURE_PROP },
     { 0,  70,          14, "warped_pressure_plate", PRESSURE_PROP },
     { 0,  70,          16, "polished_blackstone_pressure_plate", PRESSURE_PROP },
-    { 0, 105,       HIGH_BIT, "crimson_slab", SLAB_PROP },	// new set of slabs - note that 104 is used by the corresponding double slabs
-    { 0, 105,   HIGH_BIT | 1, "warped_slab", SLAB_PROP },
-    { 0, 105,   HIGH_BIT | 2, "blackstone_slab", SLAB_PROP },
-    { 0, 105,   HIGH_BIT | 3, "polished_blackstone_slab", SLAB_PROP },
-    { 0, 105,   HIGH_BIT | 4, "polished_blackstone_brick_slab", SLAB_PROP },
-    { 0,  70, HIGH_BIT | BIT_32, "crimson_sign", STANDING_SIGN_PROP },
-    { 0,  70, HIGH_BIT | BIT_32 | BIT_16, "warped_sign", STANDING_SIGN_PROP },
+    { 0, 105,       TYPE_HIGH_BIT1, "crimson_slab", SLAB_PROP },	// new set of slabs - note that 104 is used by the corresponding double slabs
+    { 0, 105,   TYPE_HIGH_BIT1 | 1, "warped_slab", SLAB_PROP },
+    { 0, 105,   TYPE_HIGH_BIT1 | 2, "blackstone_slab", SLAB_PROP },
+    { 0, 105,   TYPE_HIGH_BIT1 | 3, "polished_blackstone_slab", SLAB_PROP },
+    { 0, 105,   TYPE_HIGH_BIT1 | 4, "polished_blackstone_brick_slab", SLAB_PROP },
+    { 0,  70, TYPE_HIGH_BIT1 | BIT_32, "crimson_sign", STANDING_SIGN_PROP },
+    { 0,  70, TYPE_HIGH_BIT1 | BIT_32 | BIT_16, "warped_sign", STANDING_SIGN_PROP },
     { 0,  68, BIT_32 | BIT_16, "crimson_wall_sign", WALL_SIGN_PROP },
     { 0,  68, BIT_32 | BIT_16 | BIT_8, "warped_wall_sign", WALL_SIGN_PROP },
     { 0, BLOCK_FIRE,  BIT_16, "soul_fire", AGE_PROP },
-    { 0, 106,       HIGH_BIT, "soul_torch", TORCH_PROP },	// was soul_fire_torch in an earlier 1.16 beta, like 16
-    { 0, 106,       HIGH_BIT, "soul_wall_torch", TORCH_PROP },	// was soul_fire_torch in an earlier 1.16 beta, like 16
-    { 0,  82, HIGH_BIT | 0x2, "soul_lantern", LANTERN_PROP },
-    { 0,  83, HIGH_BIT | 0x8, "soul_campfire", CAMPFIRE_PROP },
-    { 0, 107,       HIGH_BIT, "weeping_vines_plant", TRULY_NO_PROP },
-    { 0, 107, HIGH_BIT | BIT_32, "weeping_vines", TRULY_NO_PROP },
-    { 0, 107,       HIGH_BIT | 1, "twisting_vines_plant", TRULY_NO_PROP },
-    { 0, 107, HIGH_BIT | BIT_32 | 1, "twisting_vines", TRULY_NO_PROP },
-    { 0, 108,       HIGH_BIT, "chain", AXIS_PROP },
-    { 0, 108,       HIGH_BIT, "iron_chain", AXIS_PROP },    // Java edition 1.21.9 has renamed "chain" to "iron_chain", wo we have to include both here for compatibility with older versions.
+    { 0, 106,       TYPE_HIGH_BIT1, "soul_torch", TORCH_PROP },	// was soul_fire_torch in an earlier 1.16 beta, like 16
+    { 0, 106,       TYPE_HIGH_BIT1, "soul_wall_torch", TORCH_PROP },	// was soul_fire_torch in an earlier 1.16 beta, like 16
+    { 0,  82, TYPE_HIGH_BIT1 | 0x2, "soul_lantern", LANTERN_PROP },
+    { 0,  83, TYPE_HIGH_BIT1 | 0x8, "soul_campfire", CAMPFIRE_PROP },
+    { 0, 107,       TYPE_HIGH_BIT1, "weeping_vines_plant", TRULY_NO_PROP },
+    { 0, 107, TYPE_HIGH_BIT1 | BIT_32, "weeping_vines", TRULY_NO_PROP },
+    { 0, 107,       TYPE_HIGH_BIT1 | 1, "twisting_vines_plant", TRULY_NO_PROP },
+    { 0, 107, TYPE_HIGH_BIT1 | BIT_32 | 1, "twisting_vines", TRULY_NO_PROP },
+    { 0, 108,       TYPE_HIGH_BIT1, "chain", AXIS_PROP },
+    { 0, 108,       TYPE_HIGH_BIT1, "iron_chain", AXIS_PROP },    // Java edition 1.21.9 has renamed "chain" to "iron_chain", wo we have to include both here for compatibility with older versions.
 
     // 1.17
-    { 0, 128,       HIGH_BIT, "candle", CANDLE_PROP },  // 129 is lit
-    { 0, 130,   HIGH_BIT |  0, "white_candle", CANDLE_PROP }, // 131 is lit
-    { 0, 130,   HIGH_BIT |  1, "orange_candle", CANDLE_PROP },
-    { 0, 130,   HIGH_BIT |  2, "magenta_candle", CANDLE_PROP },
-    { 0, 130,   HIGH_BIT |  3, "light_blue_candle", CANDLE_PROP },
-    { 0, 130,   HIGH_BIT |  4, "yellow_candle", CANDLE_PROP },
-    { 0, 130,   HIGH_BIT |  5, "lime_candle", CANDLE_PROP },
-    { 0, 130,   HIGH_BIT |  6, "pink_candle", CANDLE_PROP },
-    { 0, 130,   HIGH_BIT |  7, "gray_candle", CANDLE_PROP },
-    { 0, 130,   HIGH_BIT |  8, "light_gray_candle", CANDLE_PROP },
-    { 0, 130,   HIGH_BIT |  9, "cyan_candle", CANDLE_PROP },
-    { 0, 130,   HIGH_BIT | 10, "purple_candle", CANDLE_PROP },
-    { 0, 130,   HIGH_BIT | 11, "blue_candle", CANDLE_PROP },
-    { 0, 130,   HIGH_BIT | 12, "brown_candle", CANDLE_PROP },
-    { 0, 130,   HIGH_BIT | 13, "green_candle", CANDLE_PROP },
-    { 0, 130,   HIGH_BIT | 14, "red_candle", CANDLE_PROP },
-    { 0, 130,   HIGH_BIT | 15, "black_candle", CANDLE_PROP },
+    { 0, 128,       TYPE_HIGH_BIT1, "candle", CANDLE_PROP },  // 129 is lit
+    { 0, 130,   TYPE_HIGH_BIT1 |  0, "white_candle", CANDLE_PROP }, // 131 is lit
+    { 0, 130,   TYPE_HIGH_BIT1 |  1, "orange_candle", CANDLE_PROP },
+    { 0, 130,   TYPE_HIGH_BIT1 |  2, "magenta_candle", CANDLE_PROP },
+    { 0, 130,   TYPE_HIGH_BIT1 |  3, "light_blue_candle", CANDLE_PROP },
+    { 0, 130,   TYPE_HIGH_BIT1 |  4, "yellow_candle", CANDLE_PROP },
+    { 0, 130,   TYPE_HIGH_BIT1 |  5, "lime_candle", CANDLE_PROP },
+    { 0, 130,   TYPE_HIGH_BIT1 |  6, "pink_candle", CANDLE_PROP },
+    { 0, 130,   TYPE_HIGH_BIT1 |  7, "gray_candle", CANDLE_PROP },
+    { 0, 130,   TYPE_HIGH_BIT1 |  8, "light_gray_candle", CANDLE_PROP },
+    { 0, 130,   TYPE_HIGH_BIT1 |  9, "cyan_candle", CANDLE_PROP },
+    { 0, 130,   TYPE_HIGH_BIT1 | 10, "purple_candle", CANDLE_PROP },
+    { 0, 130,   TYPE_HIGH_BIT1 | 11, "blue_candle", CANDLE_PROP },
+    { 0, 130,   TYPE_HIGH_BIT1 | 12, "brown_candle", CANDLE_PROP },
+    { 0, 130,   TYPE_HIGH_BIT1 | 13, "green_candle", CANDLE_PROP },
+    { 0, 130,   TYPE_HIGH_BIT1 | 14, "red_candle", CANDLE_PROP },
+    { 0, 130,   TYPE_HIGH_BIT1 | 15, "black_candle", CANDLE_PROP },
     { 0,  92,            0x7, "candle_cake", CANDLE_CAKE_PROP },
     { 0,  92,     BIT_16 | 0, "white_candle_cake", CANDLE_CAKE_PROP },  // funky: cake can be either with a single candle, lit or not, OR have a bite taken out of it. 
     { 0,  92,     BIT_16 | 1, "orange_candle_cake", CANDLE_CAKE_PROP },
@@ -1260,381 +1260,381 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  92,     BIT_16 | 13, "green_candle_cake", CANDLE_CAKE_PROP },
     { 0,  92,     BIT_16 | 14, "red_candle_cake", CANDLE_CAKE_PROP },
     { 0,  92,     BIT_16 | 15, "black_candle_cake", CANDLE_CAKE_PROP },
-    { 0, 132,   HIGH_BIT | 0, "amethyst_block", NO_PROP },
-    { 0, 133,   HIGH_BIT | 0, "small_amethyst_bud", AMETHYST_PROP }, // 2 bits for type, 3 bits for direction
-    { 0, 133,   HIGH_BIT | 1, "medium_amethyst_bud", AMETHYST_PROP }, // 2 bits for type, 3 bits for direction
-    { 0, 133,   HIGH_BIT | 2, "large_amethyst_bud", AMETHYST_PROP }, // 2 bits for type, 3 bits for direction
-    { 0, 133,   HIGH_BIT | 3, "amethyst_cluster", AMETHYST_PROP }, // 2 bits for type, 3 bits for direction
-    { 0, 132,   HIGH_BIT | 1, "budding_amethyst", NO_PROP },
-    { 0, 132,   HIGH_BIT | 2, "calcite", NO_PROP },
-    { 0, 132,   HIGH_BIT | 3, "tuff", NO_PROP },
+    { 0, 132,   TYPE_HIGH_BIT1 | 0, "amethyst_block", NO_PROP },
+    { 0, 133,   TYPE_HIGH_BIT1 | 0, "small_amethyst_bud", AMETHYST_PROP }, // 2 bits for type, 3 bits for direction
+    { 0, 133,   TYPE_HIGH_BIT1 | 1, "medium_amethyst_bud", AMETHYST_PROP }, // 2 bits for type, 3 bits for direction
+    { 0, 133,   TYPE_HIGH_BIT1 | 2, "large_amethyst_bud", AMETHYST_PROP }, // 2 bits for type, 3 bits for direction
+    { 0, 133,   TYPE_HIGH_BIT1 | 3, "amethyst_cluster", AMETHYST_PROP }, // 2 bits for type, 3 bits for direction
+    { 0, 132,   TYPE_HIGH_BIT1 | 1, "budding_amethyst", NO_PROP },
+    { 0, 132,   TYPE_HIGH_BIT1 | 2, "calcite", NO_PROP },
+    { 0, 132,   TYPE_HIGH_BIT1 | 3, "tuff", NO_PROP },
     { 0,  20,              1, "tinted_glass", NO_PROP },  // stuffed in with glass
-    { 0, 132,   HIGH_BIT | 4, "dripstone_block", NO_PROP },
-    { 0, 134,       HIGH_BIT, "pointed_dripstone", DRIPSTONE_PROP },    // 5 thickness, vertical_direction: up/down
-    { 0, 132,   HIGH_BIT | 5, "copper_ore", NO_PROP },
-    { 0, 132,   HIGH_BIT | 6, "deepslate_copper_ore", NO_PROP },
-    { 0, 132,   HIGH_BIT | 7, "copper_block", NO_PROP },
-    { 0, 132,   HIGH_BIT | 8, "exposed_copper", NO_PROP },
-    { 0, 132,   HIGH_BIT | 9, "weathered_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 10, "oxidized_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 11, "cut_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 12, "exposed_cut_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 13, "weathered_cut_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 14, "oxidized_cut_copper", NO_PROP },
-    { 0, 135,	    HIGH_BIT, "cut_copper_stairs", STAIRS_PROP },
-    { 0, 136,	    HIGH_BIT, "exposed_cut_copper_stairs", STAIRS_PROP },
-    { 0, 137,	    HIGH_BIT, "weathered_cut_copper_stairs", STAIRS_PROP },
-    { 0, 138,	    HIGH_BIT, "oxidized_cut_copper_stairs", STAIRS_PROP },
-    { 0, 142,	HIGH_BIT | 0, "cut_copper_slab", SLAB_PROP },
-    { 0, 142,	HIGH_BIT | 1, "exposed_cut_copper_slab", SLAB_PROP },
-    { 0, 142,	HIGH_BIT | 2, "weathered_cut_copper_slab", SLAB_PROP },
-    { 0, 142,	HIGH_BIT | 3, "oxidized_cut_copper_slab", SLAB_PROP },
-    { 0, 132,  HIGH_BIT | 15, "waxed_copper_block", NO_PROP },
-    { 0, 132,  HIGH_BIT | 16, "waxed_exposed_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 17, "waxed_weathered_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 18, "waxed_oxidized_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 19, "waxed_cut_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 20, "waxed_exposed_cut_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 21, "waxed_weathered_cut_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 22, "waxed_oxidized_cut_copper", NO_PROP },
-    { 0, 143,	    HIGH_BIT, "waxed_cut_copper_stairs", STAIRS_PROP },
-    { 0, 145,	    HIGH_BIT, "waxed_exposed_cut_copper_stairs", STAIRS_PROP },
-    { 0, 146,	    HIGH_BIT, "waxed_weathered_cut_copper_stairs", STAIRS_PROP },
-    { 0, 147,	    HIGH_BIT, "waxed_oxidized_cut_copper_stairs", STAIRS_PROP },
-    { 0, 142,	HIGH_BIT | 4, "waxed_cut_copper_slab", SLAB_PROP },
-    { 0, 142,	HIGH_BIT | 5, "waxed_exposed_cut_copper_slab", SLAB_PROP },
-    { 0, 142,	HIGH_BIT | 6, "waxed_weathered_cut_copper_slab", SLAB_PROP },
-    { 0, 142,	HIGH_BIT | 7, "waxed_oxidized_cut_copper_slab", SLAB_PROP },
-    { 0, 139,	    HIGH_BIT, "lightning_rod", EXTENDED_FACING_PROP },
-    { 0, 148,	    HIGH_BIT, "cave_vines", BERRIES_PROP },
-    { 0, 148,	HIGH_BIT | 1, "cave_vines_plant", BERRIES_PROP },    // ignore the age
-    { 0, 150,	    HIGH_BIT, "spore_blossom", NO_PROP },
-    { 0, 151,	    HIGH_BIT, "azalea", NO_PROP },
+    { 0, 132,   TYPE_HIGH_BIT1 | 4, "dripstone_block", NO_PROP },
+    { 0, 134,       TYPE_HIGH_BIT1, "pointed_dripstone", DRIPSTONE_PROP },    // 5 thickness, vertical_direction: up/down
+    { 0, 132,   TYPE_HIGH_BIT1 | 5, "copper_ore", NO_PROP },
+    { 0, 132,   TYPE_HIGH_BIT1 | 6, "deepslate_copper_ore", NO_PROP },
+    { 0, 132,   TYPE_HIGH_BIT1 | 7, "copper_block", NO_PROP },
+    { 0, 132,   TYPE_HIGH_BIT1 | 8, "exposed_copper", NO_PROP },
+    { 0, 132,   TYPE_HIGH_BIT1 | 9, "weathered_copper", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 10, "oxidized_copper", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 11, "cut_copper", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 12, "exposed_cut_copper", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 13, "weathered_cut_copper", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 14, "oxidized_cut_copper", NO_PROP },
+    { 0, 135,	TYPE_HIGH_BIT1, "cut_copper_stairs", STAIRS_PROP },
+    { 0, 136,	TYPE_HIGH_BIT1, "exposed_cut_copper_stairs", STAIRS_PROP },
+    { 0, 137,	TYPE_HIGH_BIT1, "weathered_cut_copper_stairs", STAIRS_PROP },
+    { 0, 138,	TYPE_HIGH_BIT1, "oxidized_cut_copper_stairs", STAIRS_PROP },
+    { 0, 142,	TYPE_HIGH_BIT1 | 0, "cut_copper_slab", SLAB_PROP },
+    { 0, 142,	TYPE_HIGH_BIT1 | 1, "exposed_cut_copper_slab", SLAB_PROP },
+    { 0, 142,	TYPE_HIGH_BIT1 | 2, "weathered_cut_copper_slab", SLAB_PROP },
+    { 0, 142,	TYPE_HIGH_BIT1 | 3, "oxidized_cut_copper_slab", SLAB_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 15, "waxed_copper_block", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 16, "waxed_exposed_copper", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 17, "waxed_weathered_copper", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 18, "waxed_oxidized_copper", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 19, "waxed_cut_copper", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 20, "waxed_exposed_cut_copper", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 21, "waxed_weathered_cut_copper", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 22, "waxed_oxidized_cut_copper", NO_PROP },
+    { 0, 143,	TYPE_HIGH_BIT1, "waxed_cut_copper_stairs", STAIRS_PROP },
+    { 0, 145,	TYPE_HIGH_BIT1, "waxed_exposed_cut_copper_stairs", STAIRS_PROP },
+    { 0, 146,	TYPE_HIGH_BIT1, "waxed_weathered_cut_copper_stairs", STAIRS_PROP },
+    { 0, 147,	TYPE_HIGH_BIT1, "waxed_oxidized_cut_copper_stairs", STAIRS_PROP },
+    { 0, 142,	TYPE_HIGH_BIT1 | 4, "waxed_cut_copper_slab", SLAB_PROP },
+    { 0, 142,	TYPE_HIGH_BIT1 | 5, "waxed_exposed_cut_copper_slab", SLAB_PROP },
+    { 0, 142,	TYPE_HIGH_BIT1 | 6, "waxed_weathered_cut_copper_slab", SLAB_PROP },
+    { 0, 142,	TYPE_HIGH_BIT1 | 7, "waxed_oxidized_cut_copper_slab", SLAB_PROP },
+    { 0, 139,	TYPE_HIGH_BIT1, "lightning_rod", EXTENDED_FACING_PROP },
+    { 0, 148,	TYPE_HIGH_BIT1, "cave_vines", BERRIES_PROP },
+    { 0, 148,	TYPE_HIGH_BIT1 | 1, "cave_vines_plant", BERRIES_PROP },    // ignore the age
+    { 0, 150,	TYPE_HIGH_BIT1, "spore_blossom", NO_PROP },
+    { 0, 151,	TYPE_HIGH_BIT1, "azalea", NO_PROP },
     { 0, BLOCK_FLOWER_POT,         AZALEA_FIELD | 0, "potted_azalea_bush", NO_PROP },
     { 0, BLOCK_FLOWER_POT,         AZALEA_FIELD | 1, "potted_flowering_azalea_bush", NO_PROP },
-    { 0, 151,	HIGH_BIT | 1, "flowering_azalea", NO_PROP },
+    { 0, 151,	TYPE_HIGH_BIT1 | 1, "flowering_azalea", NO_PROP },
     { 0, 161,	           2, "azalea_leaves", NO_PROP },
     { 0, 161,	           3, "flowering_azalea_leaves", NO_PROP },
     { 0, 171,             16, "moss_carpet", NO_PROP },
-    { 0, 132,  HIGH_BIT | 23, "moss_block", NO_PROP },
-    { 0, 152,	    HIGH_BIT, "big_dripleaf", BIG_DRIPLEAF_PROP },
-    { 0, 152,	HIGH_BIT | 1, "big_dripleaf_stem", BIG_DRIPLEAF_PROP },
-    { 0, 153,	    HIGH_BIT, "small_dripleaf", SMALL_DRIPLEAF_PROP },
-    { 0, 132,  HIGH_BIT | 24, "rooted_dirt", NO_PROP },
-    { 0, 107,   HIGH_BIT | 2, "hanging_roots", TRULY_NO_PROP },  // weeping vines
-    { 0, 132,  HIGH_BIT | 25, "powder_snow", NO_PROP },
-    { 0, 154,       HIGH_BIT, "glow_lichen", VINE_PROP },
-    { 0, 155,       HIGH_BIT, "sculk_sensor", CALIBRATED_SCULK_SENSOR_PROP },   // doesn't really need facing for this one, but sculk_sensor_phase is used
+    { 0, 132,  TYPE_HIGH_BIT1 | 23, "moss_block", NO_PROP },
+    { 0, 152,	TYPE_HIGH_BIT1, "big_dripleaf", BIG_DRIPLEAF_PROP },
+    { 0, 152,	TYPE_HIGH_BIT1 | 1, "big_dripleaf_stem", BIG_DRIPLEAF_PROP },
+    { 0, 153,	TYPE_HIGH_BIT1, "small_dripleaf", SMALL_DRIPLEAF_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 24, "rooted_dirt", NO_PROP },
+    { 0, 107,   TYPE_HIGH_BIT1 | 2, "hanging_roots", TRULY_NO_PROP },  // weeping vines
+    { 0, 132,  TYPE_HIGH_BIT1 | 25, "powder_snow", NO_PROP },
+    { 0, 154,       TYPE_HIGH_BIT1, "glow_lichen", VINE_PROP },
+    { 0, 155,       TYPE_HIGH_BIT1, "sculk_sensor", CALIBRATED_SCULK_SENSOR_PROP },   // doesn't really need facing for this one, but sculk_sensor_phase is used
     { 0, 216,              3, "deepslate", AXIS_PROP }, // with bone block, basalt, etc.
-    { 0, 132,  HIGH_BIT | 26, "cobbled_deepslate", NO_PROP },
-    { 0, 142,	HIGH_BIT | BIT_16 | 0, "cobbled_deepslate_slab", SLAB_PROP },    // double slab is 136, traditional (and a waste)
-    { 0, 156,	    HIGH_BIT, "cobbled_deepslate_stairs", STAIRS_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 26, "cobbled_deepslate", NO_PROP },
+    { 0, 142,	TYPE_HIGH_BIT1 | BIT_16 | 0, "cobbled_deepslate_slab", SLAB_PROP },    // double slab is 136, traditional (and a waste)
+    { 0, 156,	TYPE_HIGH_BIT1, "cobbled_deepslate_stairs", STAIRS_PROP },
     { 0, 139,             17, "cobbled_deepslate_wall", WALL_PROP },	// no data values used for walls, it's all implied in Mineways
-    { 0, 132,  HIGH_BIT | 27, "chiseled_deepslate", NO_PROP },
-    { 0, 132,  HIGH_BIT | 28, "polished_deepslate", NO_PROP },
-    { 0, 142,	HIGH_BIT | BIT_16 | 1, "polished_deepslate_slab", SLAB_PROP },
-    { 0, 157,	    HIGH_BIT, "polished_deepslate_stairs", STAIRS_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 27, "chiseled_deepslate", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 28, "polished_deepslate", NO_PROP },
+    { 0, 142,	TYPE_HIGH_BIT1 | BIT_16 | 1, "polished_deepslate_slab", SLAB_PROP },
+    { 0, 157,	TYPE_HIGH_BIT1, "polished_deepslate_stairs", STAIRS_PROP },
     { 0, 139,             18, "polished_deepslate_wall", WALL_PROP },	// no data values used for walls, it's all implied in Mineways
-    { 0, 132,  HIGH_BIT | 29, "deepslate_bricks", NO_PROP },
-    { 0, 142,	HIGH_BIT | BIT_16 | 2, "deepslate_brick_slab", SLAB_PROP },
-    { 0, 158,	    HIGH_BIT, "deepslate_brick_stairs", STAIRS_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 29, "deepslate_bricks", NO_PROP },
+    { 0, 142,	TYPE_HIGH_BIT1 | BIT_16 | 2, "deepslate_brick_slab", SLAB_PROP },
+    { 0, 158,	TYPE_HIGH_BIT1, "deepslate_brick_stairs", STAIRS_PROP },
     { 0, 139,             19, "deepslate_brick_wall", WALL_PROP },	// no data values used for walls, it's all implied in Mineways
-    { 0, 132,  HIGH_BIT | 30, "deepslate_tiles", NO_PROP },
-    { 0, 142,	HIGH_BIT | BIT_16 | 3, "deepslate_tile_slab", SLAB_PROP },
-    { 0, 159,	    HIGH_BIT, "deepslate_tile_stairs", STAIRS_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 30, "deepslate_tiles", NO_PROP },
+    { 0, 142,	TYPE_HIGH_BIT1 | BIT_16 | 3, "deepslate_tile_slab", SLAB_PROP },
+    { 0, 159,	TYPE_HIGH_BIT1, "deepslate_tile_stairs", STAIRS_PROP },
     { 0, 139,             20, "deepslate_tile_wall", WALL_PROP },	// no data values used for walls, it's all implied in Mineways
-    { 0, 132,  HIGH_BIT | 31, "cracked_deepslate_bricks", NO_PROP },
-    { 0, 132,  HIGH_BIT | 32, "cracked_deepslate_tiles", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 31, "cracked_deepslate_bricks", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 32, "cracked_deepslate_tiles", NO_PROP },
     { 0, 216,     BIT_16 | 0, "infested_deepslate", AXIS_PROP }, // with bone block, basalt, etc. - continues deepslate
-    { 0, 132,  HIGH_BIT | 33, "smooth_basalt", NO_PROP },   // note this form of basalt is simply a block, no directionality like other basalt
-    { 0, 132,  HIGH_BIT | 34, "raw_iron_block", NO_PROP },
-    { 0, 132,  HIGH_BIT | 35, "raw_copper_block", NO_PROP },
-    { 0, 132,  HIGH_BIT | 36, "raw_gold_block", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 33, "smooth_basalt", NO_PROP },   // note this form of basalt is simply a block, no directionality like other basalt
+    { 0, 132,  TYPE_HIGH_BIT1 | 34, "raw_iron_block", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 35, "raw_copper_block", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 36, "raw_gold_block", NO_PROP },
     { 0, 208,              0, "dirt_path", NO_PROP },   // in 1.17 renamed to dirt path and given textures https://minecraft.wiki/w/Dirt_Path
-    { 0, 132,  HIGH_BIT | 37, "deepslate_coal_ore", NO_PROP },
-    { 0, 132,  HIGH_BIT | 38, "deepslate_iron_ore", NO_PROP },  // copper done way earlier, so be it...
-    { 0, 132,  HIGH_BIT | 39, "deepslate_gold_ore", NO_PROP },
-    { 0, 132,  HIGH_BIT | 40, "deepslate_redstone_ore", NO_PROP },
-    { 0, 132,  HIGH_BIT | 41, "deepslate_emerald_ore", NO_PROP },
-    { 0, 132,  HIGH_BIT | 42, "deepslate_lapis_ore", NO_PROP },
-    { 0, 132,  HIGH_BIT | 43, "deepslate_diamond_ore", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 37, "deepslate_coal_ore", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 38, "deepslate_iron_ore", NO_PROP },  // copper done way earlier, so be it...
+    { 0, 132,  TYPE_HIGH_BIT1 | 39, "deepslate_gold_ore", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 40, "deepslate_redstone_ore", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 41, "deepslate_emerald_ore", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 42, "deepslate_lapis_ore", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 43, "deepslate_diamond_ore", NO_PROP },
     { 0, 118,            0x0, "water_cauldron", NO_PROP }, // I assume this is the same as a cauldron, basically, with the level > 0, https://minecraft.wiki/w/Cauldron
     { 0, 118,            0x4, "lava_cauldron", NO_PROP }, // level directly translates to dataVal, bottom two bits
     { 0, 118,            0x8, "powder_snow_cauldron", NO_PROP }, // level directly translates to dataVal, bottom two bits
     { 0, 0,                0, "light", NO_PROP },   // for now, just make it air, since it normally doesn't appear
 
     // 1.19
-    { 0, 160,       HIGH_BIT, "mangrove_log", AXIS_PROP },
-    { 0, 160, HIGH_BIT | BIT_16, "mangrove_wood", AXIS_PROP },	// same as log, but with a high bit set to mean that it's "wood" texture on the endcaps. 
+    { 0, 160,       TYPE_HIGH_BIT1, "mangrove_log", AXIS_PROP },
+    { 0, 160, TYPE_HIGH_BIT1 | BIT_16, "mangrove_wood", AXIS_PROP },	// same as log, but with a high bit set to mean that it's "wood" texture on the endcaps. 
     { 0,   5,              8, "mangrove_planks", NO_PROP },
-    { 0, 162,       HIGH_BIT, "mangrove_door", DOOR_PROP },
-    { 0, 163,       HIGH_BIT, "mangrove_trapdoor", TRAPDOOR_PROP },
-    { 0, 164,       HIGH_BIT, "mangrove_propagule", PROPAGULE_PROP },   // also has hanging property, waterlogged prop
+    { 0, 162,       TYPE_HIGH_BIT1, "mangrove_door", DOOR_PROP },
+    { 0, 163,       TYPE_HIGH_BIT1, "mangrove_trapdoor", TRAPDOOR_PROP },
+    { 0, 164,       TYPE_HIGH_BIT1, "mangrove_propagule", PROPAGULE_PROP },   // also has hanging property, waterlogged prop
     { 0, BLOCK_FLOWER_POT,        SAPLING_FIELD | 6, "potted_mangrove_propagule", NO_PROP },
-    { 0, 165,       HIGH_BIT, "mangrove_roots", NO_PROP },
-    { 0, 166,       HIGH_BIT, "muddy_mangrove_roots", AXIS_PROP },
-    { 0, 167,   HIGH_BIT | 0, "stripped_mangrove_log", AXIS_PROP },
-    { 0, 168,   HIGH_BIT | 0, "stripped_mangrove_wood", AXIS_PROP },
-    { 0, 181,       HIGH_BIT, "mangrove_leaves", LEAF_PROP },
-    { 0,  74,	HIGH_BIT | 6, "mangrove_slab", SLAB_PROP },
-    { 0,  74,	HIGH_BIT | 7, "mud_brick_slab", SLAB_PROP },
-    { 0, 169,	    HIGH_BIT, "mangrove_stairs", STAIRS_PROP },
-    { 0, 170,	    HIGH_BIT, "mud_brick_stairs", STAIRS_PROP },
-    { 0, 171,       HIGH_BIT, "mangrove_sign", STANDING_SIGN_PROP },
-    { 0, 172,       HIGH_BIT, "mangrove_wall_sign", WALL_SIGN_PROP },
+    { 0, 165,       TYPE_HIGH_BIT1, "mangrove_roots", NO_PROP },
+    { 0, 166,       TYPE_HIGH_BIT1, "muddy_mangrove_roots", AXIS_PROP },
+    { 0, 167,   TYPE_HIGH_BIT1 | 0, "stripped_mangrove_log", AXIS_PROP },
+    { 0, 168,   TYPE_HIGH_BIT1 | 0, "stripped_mangrove_wood", AXIS_PROP },
+    { 0, 181,       TYPE_HIGH_BIT1, "mangrove_leaves", LEAF_PROP },
+    { 0,  74,	TYPE_HIGH_BIT1 | 6, "mangrove_slab", SLAB_PROP },
+    { 0,  74,	TYPE_HIGH_BIT1 | 7, "mud_brick_slab", SLAB_PROP },
+    { 0, 169,	TYPE_HIGH_BIT1, "mangrove_stairs", STAIRS_PROP },
+    { 0, 170,	TYPE_HIGH_BIT1, "mud_brick_stairs", STAIRS_PROP },
+    { 0, 171,       TYPE_HIGH_BIT1, "mangrove_sign", STANDING_SIGN_PROP },
+    { 0, 172,       TYPE_HIGH_BIT1, "mangrove_wall_sign", WALL_SIGN_PROP },
     { 0,  70,          18, "mangrove_pressure_plate", PRESSURE_PROP },
-    { 0, 174,       HIGH_BIT, "mangrove_button", BUTTON_PROP },
-    { 0, 175,       HIGH_BIT, "mangrove_fence", FENCE_PROP },
-    { 0, 176,       HIGH_BIT, "mangrove_fence_gate", FENCE_GATE_PROP },
-    { 0, 132,  HIGH_BIT | 44, "mud", NO_PROP },
-    { 0, 132,  HIGH_BIT | 45, "mud_bricks", NO_PROP },
-    { 0, 132,  HIGH_BIT | 46, "packed_mud", NO_PROP },
+    { 0, 174,       TYPE_HIGH_BIT1, "mangrove_button", BUTTON_PROP },
+    { 0, 175,       TYPE_HIGH_BIT1, "mangrove_fence", FENCE_PROP },
+    { 0, 176,       TYPE_HIGH_BIT1, "mangrove_fence_gate", FENCE_GATE_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 44, "mud", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 45, "mud_bricks", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 46, "packed_mud", NO_PROP },
     { 0, 139,             21, "mud_brick_wall", WALL_PROP },	// no data values used for walls, it's all implied in Mineways
     { 0,   3,              5, "reinforced_deepslate", NO_PROP },
-    { 0, 132,  HIGH_BIT | 47, "sculk", NO_PROP },
-    { 0,  88,   HIGH_BIT | 1, "sculk_catalyst", NO_PROP },  // part of crying obsidian, as it emits
-    { 0, 177,       HIGH_BIT, "sculk_shrieker", NO_PROP },
-    { 0, 178,       HIGH_BIT, "sculk_vein", VINE_PROP },
-    { 0, 179,       HIGH_BIT, "frogspawn", NO_PROP },
-    { 0, 180,       HIGH_BIT, "ochre_froglight", AXIS_PROP },
-    { 0, 180,   HIGH_BIT | 1, "verdant_froglight", AXIS_PROP },
-    { 0, 180,   HIGH_BIT | 2, "pearlescent_froglight", AXIS_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 47, "sculk", NO_PROP },
+    { 0,  88,   TYPE_HIGH_BIT1 | 1, "sculk_catalyst", NO_PROP },  // part of crying obsidian, as it emits
+    { 0, 177,       TYPE_HIGH_BIT1, "sculk_shrieker", NO_PROP },
+    { 0, 178,       TYPE_HIGH_BIT1, "sculk_vein", VINE_PROP },
+    { 0, 179,       TYPE_HIGH_BIT1, "frogspawn", NO_PROP },
+    { 0, 180,       TYPE_HIGH_BIT1, "ochre_froglight", AXIS_PROP },
+    { 0, 180,   TYPE_HIGH_BIT1 | 1, "verdant_froglight", AXIS_PROP },
+    { 0, 180,   TYPE_HIGH_BIT1 | 2, "pearlescent_froglight", AXIS_PROP },
 
-    // 1.20 - starts at 182 + HIGH_BIT
-    { 0, 161,       HIGH_BIT, "decorated_pot", TRULY_NO_PROP }, // well, waterlogged
-    { 0, 155, HIGH_BIT | 0x4, "calibrated_sculk_sensor", CALIBRATED_SCULK_SENSOR_PROP }, // also power and sculk_sensor_phase, but not needed so not saved
-    { 0, 182,       HIGH_BIT, "cherry_button", BUTTON_PROP },
-    { 0, 183,       HIGH_BIT, "cherry_door", DOOR_PROP },
-    { 0, 184,       HIGH_BIT, "cherry_fence", FENCE_PROP },
-    { 0, 185,       HIGH_BIT, "cherry_fence_gate", FENCE_GATE_PROP },
-    { 0, 181,   HIGH_BIT | 1, "cherry_leaves", LEAF_PROP },
-    { 0, 160,   HIGH_BIT | 1, "cherry_log", AXIS_PROP },
+    // 1.20 - starts at 182 + TYPE_HIGH_BIT1
+    { 0, 161,       TYPE_HIGH_BIT1, "decorated_pot", TRULY_NO_PROP }, // well, waterlogged
+    { 0, 155, TYPE_HIGH_BIT1 | 0x4, "calibrated_sculk_sensor", CALIBRATED_SCULK_SENSOR_PROP }, // also power and sculk_sensor_phase, but not needed so not saved
+    { 0, 182,       TYPE_HIGH_BIT1, "cherry_button", BUTTON_PROP },
+    { 0, 183,       TYPE_HIGH_BIT1, "cherry_door", DOOR_PROP },
+    { 0, 184,       TYPE_HIGH_BIT1, "cherry_fence", FENCE_PROP },
+    { 0, 185,       TYPE_HIGH_BIT1, "cherry_fence_gate", FENCE_GATE_PROP },
+    { 0, 181,   TYPE_HIGH_BIT1 | 1, "cherry_leaves", LEAF_PROP },
+    { 0, 160,   TYPE_HIGH_BIT1 | 1, "cherry_log", AXIS_PROP },
     { 0,   5,              9, "cherry_planks", NO_PROP },
     { 0,  70,          20, "cherry_pressure_plate", PRESSURE_PROP },
     { 0,   6,	           7, "cherry_sapling", SAPLING_PROP },	// put with the other saplings
-    { 0, 171, HIGH_BIT | BIT_16, "cherry_sign", STANDING_SIGN_PROP },
+    { 0, 171, TYPE_HIGH_BIT1 | BIT_16, "cherry_sign", STANDING_SIGN_PROP },
     { 0, 126,              6, "cherry_slab", SLAB_PROP },
-    { 0, 187,	    HIGH_BIT, "cherry_stairs", STAIRS_PROP },
-    { 0, 188,       HIGH_BIT, "cherry_trapdoor", TRAPDOOR_PROP },
-    { 0, 172, HIGH_BIT | BIT_8, "cherry_wall_sign", WALL_SIGN_PROP },
-    { 0, 160, HIGH_BIT | BIT_16 | 1, "cherry_wood", AXIS_PROP },
-    { 0, 167,   HIGH_BIT | 1, "stripped_cherry_log", AXIS_PROP },
-    { 0, 168,   HIGH_BIT | 1, "stripped_cherry_wood", AXIS_PROP },
+    { 0, 187,	TYPE_HIGH_BIT1, "cherry_stairs", STAIRS_PROP },
+    { 0, 188,       TYPE_HIGH_BIT1, "cherry_trapdoor", TRAPDOOR_PROP },
+    { 0, 172, TYPE_HIGH_BIT1 | BIT_8, "cherry_wall_sign", WALL_SIGN_PROP },
+    { 0, 160, TYPE_HIGH_BIT1 | BIT_16 | 1, "cherry_wood", AXIS_PROP },
+    { 0, 167,   TYPE_HIGH_BIT1 | 1, "stripped_cherry_log", AXIS_PROP },
+    { 0, 168,   TYPE_HIGH_BIT1 | 1, "stripped_cherry_wood", AXIS_PROP },
     { 0, BLOCK_FLOWER_POT,        SAPLING_FIELD | 7, "potted_cherry_sapling", NO_PROP },
     { 0, 170,              1, "bamboo_block", AXIS_PROP },
-    { 0, 189,       HIGH_BIT, "bamboo_button", BUTTON_PROP },
-    { 0, 190,       HIGH_BIT, "bamboo_door", DOOR_PROP },
-    { 0, 191,       HIGH_BIT, "bamboo_fence", FENCE_PROP },
-    { 0, 192,       HIGH_BIT, "bamboo_fence_gate", FENCE_GATE_PROP },
+    { 0, 189,       TYPE_HIGH_BIT1, "bamboo_button", BUTTON_PROP },
+    { 0, 190,       TYPE_HIGH_BIT1, "bamboo_door", DOOR_PROP },
+    { 0, 191,       TYPE_HIGH_BIT1, "bamboo_fence", FENCE_PROP },
+    { 0, 192,       TYPE_HIGH_BIT1, "bamboo_fence_gate", FENCE_GATE_PROP },
     { 0,   5,             10, "bamboo_planks", NO_PROP },
     { 0,  70,          22, "bamboo_pressure_plate", PRESSURE_PROP },
-    { 0, 171, HIGH_BIT | BIT_32, "bamboo_sign", STANDING_SIGN_PROP },
+    { 0, 171, TYPE_HIGH_BIT1 | BIT_32, "bamboo_sign", STANDING_SIGN_PROP },
     { 0, 126,              7, "bamboo_slab", SLAB_PROP },
-    { 0, 194,	    HIGH_BIT, "bamboo_stairs", STAIRS_PROP },
-    { 0, 195,       HIGH_BIT, "bamboo_trapdoor", TRAPDOOR_PROP },
-    { 0, 172, HIGH_BIT | BIT_16, "bamboo_wall_sign", WALL_SIGN_PROP },
+    { 0, 194,	TYPE_HIGH_BIT1, "bamboo_stairs", STAIRS_PROP },
+    { 0, 195,       TYPE_HIGH_BIT1, "bamboo_trapdoor", TRAPDOOR_PROP },
+    { 0, 172, TYPE_HIGH_BIT1 | BIT_16, "bamboo_wall_sign", WALL_SIGN_PROP },
     { 0,   5,             11, "bamboo_mosaic", NO_PROP },
-    { 0, 105,   HIGH_BIT | 5, "bamboo_mosaic_slab", SLAB_PROP },
-    { 0, 196,	    HIGH_BIT, "bamboo_mosaic_stairs", STAIRS_PROP },
+    { 0, 105,   TYPE_HIGH_BIT1 | 5, "bamboo_mosaic_slab", SLAB_PROP },
+    { 0, 196,	TYPE_HIGH_BIT1, "bamboo_mosaic_stairs", STAIRS_PROP },
     { 0, 170,              2, "stripped_bamboo_block", AXIS_PROP },
     { 0,  47,         BIT_16, "chiseled_bookshelf", BOOKSHELF_PROP },
-    { 0, 197,	    HIGH_BIT, "pink_petals", PINK_PETALS_PROP },
-    { 0, 198,       HIGH_BIT, "pitcher_crop", PITCHER_CROP_PROP },
+    { 0, 197,	TYPE_HIGH_BIT1, "pink_petals", PINK_PETALS_PROP },
+    { 0, 198,       TYPE_HIGH_BIT1, "pitcher_crop", PITCHER_CROP_PROP },
     { 0, 175,              6, "pitcher_plant", TALL_FLOWER_PROP },
-    { 0, 199,       HIGH_BIT, "sniffer_egg", EGG_PROP }, // hatch property is only one used, 0xC
-    { 0, 200,       HIGH_BIT, "suspicious_gravel", NO_PROP },   // dusted property
-    { 0, 200,   HIGH_BIT | 4, "suspicious_sand", NO_PROP },   // dusted property
-    { 0, 201,       HIGH_BIT, "torchflower_crop", NO_PROP },    // just age
+    { 0, 199,       TYPE_HIGH_BIT1, "sniffer_egg", EGG_PROP }, // hatch property is only one used, 0xC
+    { 0, 200,       TYPE_HIGH_BIT1, "suspicious_gravel", NO_PROP },   // dusted property
+    { 0, 200,   TYPE_HIGH_BIT1 | 4, "suspicious_sand", NO_PROP },   // dusted property
+    { 0, 201,       TYPE_HIGH_BIT1, "torchflower_crop", NO_PROP },    // just age
     { 0,  37,              1, "torchflower", NO_PROP },
     { 0, BLOCK_FLOWER_POT,  YELLOW_FLOWER_FIELD | 1, "potted_torchflower", NO_PROP },
-    { 0, 202,       HIGH_BIT, "oak_wall_hanging_sign", SWNE_FACING_PROP },
-    { 0, 202, HIGH_BIT | (1 << 2), "spruce_wall_hanging_sign", SWNE_FACING_PROP },
-    { 0, 202, HIGH_BIT | (2 << 2), "birch_wall_hanging_sign", SWNE_FACING_PROP },
-    { 0, 202, HIGH_BIT | (3 << 2), "jungle_wall_hanging_sign", SWNE_FACING_PROP },
-    { 0, 202, HIGH_BIT | (4 << 2), "acacia_wall_hanging_sign", SWNE_FACING_PROP },
-    { 0, 202, HIGH_BIT | (5 << 2), "dark_oak_wall_hanging_sign", SWNE_FACING_PROP },
-    { 0, 202, HIGH_BIT | (6 << 2), "crimson_wall_hanging_sign", SWNE_FACING_PROP },
-    { 0, 202, HIGH_BIT | (7 << 2), "warped_wall_hanging_sign", SWNE_FACING_PROP },
-    { 0, 202, HIGH_BIT | (8 << 2), "mangrove_wall_hanging_sign", SWNE_FACING_PROP },
-    { 0, 202, HIGH_BIT | (9 << 2), "cherry_wall_hanging_sign", SWNE_FACING_PROP },
-    { 0, 202, HIGH_BIT | (10 << 2), "bamboo_wall_hanging_sign", SWNE_FACING_PROP },
-    { 0, 203,       HIGH_BIT, "oak_hanging_sign", ATTACHED_HANGING_SIGN },
-    { 0, 203, HIGH_BIT | BIT_32, "spruce_hanging_sign", ATTACHED_HANGING_SIGN },
-    { 0, 204,       HIGH_BIT, "birch_hanging_sign", ATTACHED_HANGING_SIGN },
-    { 0, 204, HIGH_BIT | BIT_32, "jungle_hanging_sign", ATTACHED_HANGING_SIGN },
-    { 0, 205,       HIGH_BIT, "acacia_hanging_sign", ATTACHED_HANGING_SIGN },
-    { 0, 205, HIGH_BIT | BIT_32, "dark_oak_hanging_sign", ATTACHED_HANGING_SIGN },
-    { 0, 206,       HIGH_BIT, "crimson_hanging_sign", ATTACHED_HANGING_SIGN },
-    { 0, 206, HIGH_BIT | BIT_32, "warped_hanging_sign", ATTACHED_HANGING_SIGN },
-    { 0, 207,       HIGH_BIT, "mangrove_hanging_sign", ATTACHED_HANGING_SIGN },
-    { 0, 207, HIGH_BIT | BIT_32, "cherry_hanging_sign", ATTACHED_HANGING_SIGN },
-    { 0, 208,       HIGH_BIT, "bamboo_hanging_sign", ATTACHED_HANGING_SIGN },
+    { 0, 202,       TYPE_HIGH_BIT1, "oak_wall_hanging_sign", SWNE_FACING_PROP },
+    { 0, 202, TYPE_HIGH_BIT1 | (1 << 2), "spruce_wall_hanging_sign", SWNE_FACING_PROP },
+    { 0, 202, TYPE_HIGH_BIT1 | (2 << 2), "birch_wall_hanging_sign", SWNE_FACING_PROP },
+    { 0, 202, TYPE_HIGH_BIT1 | (3 << 2), "jungle_wall_hanging_sign", SWNE_FACING_PROP },
+    { 0, 202, TYPE_HIGH_BIT1 | (4 << 2), "acacia_wall_hanging_sign", SWNE_FACING_PROP },
+    { 0, 202, TYPE_HIGH_BIT1 | (5 << 2), "dark_oak_wall_hanging_sign", SWNE_FACING_PROP },
+    { 0, 202, TYPE_HIGH_BIT1 | (6 << 2), "crimson_wall_hanging_sign", SWNE_FACING_PROP },
+    { 0, 202, TYPE_HIGH_BIT1 | (7 << 2), "warped_wall_hanging_sign", SWNE_FACING_PROP },
+    { 0, 202, TYPE_HIGH_BIT1 | (8 << 2), "mangrove_wall_hanging_sign", SWNE_FACING_PROP },
+    { 0, 202, TYPE_HIGH_BIT1 | (9 << 2), "cherry_wall_hanging_sign", SWNE_FACING_PROP },
+    { 0, 202, TYPE_HIGH_BIT1 | (10 << 2), "bamboo_wall_hanging_sign", SWNE_FACING_PROP },
+    { 0, 203,       TYPE_HIGH_BIT1, "oak_hanging_sign", ATTACHED_HANGING_SIGN },
+    { 0, 203, TYPE_HIGH_BIT1 | BIT_32, "spruce_hanging_sign", ATTACHED_HANGING_SIGN },
+    { 0, 204,       TYPE_HIGH_BIT1, "birch_hanging_sign", ATTACHED_HANGING_SIGN },
+    { 0, 204, TYPE_HIGH_BIT1 | BIT_32, "jungle_hanging_sign", ATTACHED_HANGING_SIGN },
+    { 0, 205,       TYPE_HIGH_BIT1, "acacia_hanging_sign", ATTACHED_HANGING_SIGN },
+    { 0, 205, TYPE_HIGH_BIT1 | BIT_32, "dark_oak_hanging_sign", ATTACHED_HANGING_SIGN },
+    { 0, 206,       TYPE_HIGH_BIT1, "crimson_hanging_sign", ATTACHED_HANGING_SIGN },
+    { 0, 206, TYPE_HIGH_BIT1 | BIT_32, "warped_hanging_sign", ATTACHED_HANGING_SIGN },
+    { 0, 207,       TYPE_HIGH_BIT1, "mangrove_hanging_sign", ATTACHED_HANGING_SIGN },
+    { 0, 207, TYPE_HIGH_BIT1 | BIT_32, "cherry_hanging_sign", ATTACHED_HANGING_SIGN },
+    { 0, 208,       TYPE_HIGH_BIT1, "bamboo_hanging_sign", ATTACHED_HANGING_SIGN },
     { 0, 144,        6 << 4, "piglin_wall_head", HEAD_WALL_PROP },
     { 0, 144, 0x80 | 6 << 4, "piglin_head", HEAD_PROP },
-    { 0, 209,       HIGH_BIT, "trial_spawner", NO_PROP },
-    { 0, 210,       HIGH_BIT, "vault", NO_PROP },
-    { 0, 211,       HIGH_BIT, "crafter", CRAFTER_PROP },
-    { 0, 212,       HIGH_BIT, "heavy_core", NO_PROP },
-    { 0, 132,  HIGH_BIT | 48, "polished_tuff", NO_PROP },
-    { 0, 213,       HIGH_BIT, "copper_bulb", BULB_PROP },
-    { 0, 213,   HIGH_BIT | 1, "exposed_copper_bulb", BULB_PROP },
-    { 0, 213,   HIGH_BIT | 2, "weathered_copper_bulb", BULB_PROP },
-    { 0, 213,   HIGH_BIT | 3, "oxidized_copper_bulb", BULB_PROP },
-    { 0, 213,   HIGH_BIT | 4, "waxed_copper_bulb", BULB_PROP },
-    { 0, 213,   HIGH_BIT | 5, "waxed_exposed_copper_bulb", BULB_PROP },
-    { 0, 213,   HIGH_BIT | 6, "waxed_weathered_copper_bulb", BULB_PROP },
-    { 0, 213,   HIGH_BIT | 7, "waxed_oxidized_copper_bulb", BULB_PROP },
-    { 0, 246,   HIGH_BIT | 0x00, "copper_golem_statue",                  COPPER_GOLEM_PROP },
-    { 0, 246,   HIGH_BIT | 0x10, "exposed_copper_golem_statue",          COPPER_GOLEM_PROP },
-    { 0, 246,   HIGH_BIT | 0x20, "weathered_copper_golem_statue",        COPPER_GOLEM_PROP },
-    { 0, 246,   HIGH_BIT | 0x30, "oxidized_copper_golem_statue",         COPPER_GOLEM_PROP },
-    { 0, 247,   HIGH_BIT | 0x00, "waxed_copper_golem_statue",            COPPER_GOLEM_PROP },
-    { 0, 247,   HIGH_BIT | 0x10, "waxed_exposed_copper_golem_statue",    COPPER_GOLEM_PROP },
-    { 0, 247,   HIGH_BIT | 0x20, "waxed_weathered_copper_golem_statue",  COPPER_GOLEM_PROP },
-    { 0, 247,   HIGH_BIT | 0x30, "waxed_oxidized_copper_golem_statue",   COPPER_GOLEM_PROP },
-    { 0, 132,  HIGH_BIT | 49, "chiseled_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 50, "exposed_chiseled_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 51, "weathered_chiseled_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 52, "oxidized_chiseled_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 53, "waxed_chiseled_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 54, "waxed_exposed_chiseled_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 55, "waxed_weathered_chiseled_copper", NO_PROP },
-    { 0, 132,  HIGH_BIT | 56, "waxed_oxidized_chiseled_copper", NO_PROP },
-    { 0, 214,       HIGH_BIT, "copper_grate", NO_PROP },
-    { 0, 214,   HIGH_BIT | 1, "exposed_copper_grate", NO_PROP },
-    { 0, 214,   HIGH_BIT | 2, "weathered_copper_grate", NO_PROP },
-    { 0, 214,   HIGH_BIT | 3, "oxidized_copper_grate", NO_PROP },
-    { 0, 214,   HIGH_BIT | 4, "waxed_copper_grate", NO_PROP },
-    { 0, 214,   HIGH_BIT | 5, "waxed_exposed_copper_grate", NO_PROP },
-    { 0, 214,   HIGH_BIT | 6, "waxed_weathered_copper_grate", NO_PROP },
-    { 0, 214,   HIGH_BIT | 7, "waxed_oxidized_copper_grate", NO_PROP },
-    { 0, 142,   HIGH_BIT | BIT_16 | 4, "tuff_slab", SLAB_PROP },
-    { 0, 142,   HIGH_BIT | BIT_16 | 5, "polished_tuff_slab", SLAB_PROP },
-    { 0, 142,   HIGH_BIT | BIT_16 | 6, "tuff_brick_slab", SLAB_PROP },
-    { 0, 132,  HIGH_BIT | 57, "tuff_bricks", NO_PROP },
-    { 0, 132,  HIGH_BIT | 58, "chiseled_tuff", NO_PROP },
-    { 0, 132,  HIGH_BIT | 59, "chiseled_tuff_bricks", NO_PROP },
-    { 0, 215,	    HIGH_BIT, "tuff_stairs", STAIRS_PROP },
-    { 0, 216,	    HIGH_BIT, "polished_tuff_stairs", STAIRS_PROP },
-    { 0, 217,	    HIGH_BIT, "tuff_brick_stairs", STAIRS_PROP },
+    { 0, 209,       TYPE_HIGH_BIT1, "trial_spawner", NO_PROP },
+    { 0, 210,       TYPE_HIGH_BIT1, "vault", NO_PROP },
+    { 0, 211,       TYPE_HIGH_BIT1, "crafter", CRAFTER_PROP },
+    { 0, 212,       TYPE_HIGH_BIT1, "heavy_core", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 48, "polished_tuff", NO_PROP },
+    { 0, 213,       TYPE_HIGH_BIT1, "copper_bulb", BULB_PROP },
+    { 0, 213,   TYPE_HIGH_BIT1 | 1, "exposed_copper_bulb", BULB_PROP },
+    { 0, 213,   TYPE_HIGH_BIT1 | 2, "weathered_copper_bulb", BULB_PROP },
+    { 0, 213,   TYPE_HIGH_BIT1 | 3, "oxidized_copper_bulb", BULB_PROP },
+    { 0, 213,   TYPE_HIGH_BIT1 | 4, "waxed_copper_bulb", BULB_PROP },
+    { 0, 213,   TYPE_HIGH_BIT1 | 5, "waxed_exposed_copper_bulb", BULB_PROP },
+    { 0, 213,   TYPE_HIGH_BIT1 | 6, "waxed_weathered_copper_bulb", BULB_PROP },
+    { 0, 213,   TYPE_HIGH_BIT1 | 7, "waxed_oxidized_copper_bulb", BULB_PROP },
+    { 0, 246,   TYPE_HIGH_BIT1 | 0x00, "copper_golem_statue",                  COPPER_GOLEM_PROP },
+    { 0, 246,   TYPE_HIGH_BIT1 | 0x10, "exposed_copper_golem_statue",          COPPER_GOLEM_PROP },
+    { 0, 246,   TYPE_HIGH_BIT1 | 0x20, "weathered_copper_golem_statue",        COPPER_GOLEM_PROP },
+    { 0, 246,   TYPE_HIGH_BIT1 | 0x30, "oxidized_copper_golem_statue",         COPPER_GOLEM_PROP },
+    { 0, 247,   TYPE_HIGH_BIT1 | 0x00, "waxed_copper_golem_statue",            COPPER_GOLEM_PROP },
+    { 0, 247,   TYPE_HIGH_BIT1 | 0x10, "waxed_exposed_copper_golem_statue",    COPPER_GOLEM_PROP },
+    { 0, 247,   TYPE_HIGH_BIT1 | 0x20, "waxed_weathered_copper_golem_statue",  COPPER_GOLEM_PROP },
+    { 0, 247,   TYPE_HIGH_BIT1 | 0x30, "waxed_oxidized_copper_golem_statue",   COPPER_GOLEM_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 49, "chiseled_copper", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 50, "exposed_chiseled_copper", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 51, "weathered_chiseled_copper", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 52, "oxidized_chiseled_copper", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 53, "waxed_chiseled_copper", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 54, "waxed_exposed_chiseled_copper", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 55, "waxed_weathered_chiseled_copper", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 56, "waxed_oxidized_chiseled_copper", NO_PROP },
+    { 0, 214,       TYPE_HIGH_BIT1, "copper_grate", NO_PROP },
+    { 0, 214,   TYPE_HIGH_BIT1 | 1, "exposed_copper_grate", NO_PROP },
+    { 0, 214,   TYPE_HIGH_BIT1 | 2, "weathered_copper_grate", NO_PROP },
+    { 0, 214,   TYPE_HIGH_BIT1 | 3, "oxidized_copper_grate", NO_PROP },
+    { 0, 214,   TYPE_HIGH_BIT1 | 4, "waxed_copper_grate", NO_PROP },
+    { 0, 214,   TYPE_HIGH_BIT1 | 5, "waxed_exposed_copper_grate", NO_PROP },
+    { 0, 214,   TYPE_HIGH_BIT1 | 6, "waxed_weathered_copper_grate", NO_PROP },
+    { 0, 214,   TYPE_HIGH_BIT1 | 7, "waxed_oxidized_copper_grate", NO_PROP },
+    { 0, 142,   TYPE_HIGH_BIT1 | BIT_16 | 4, "tuff_slab", SLAB_PROP },
+    { 0, 142,   TYPE_HIGH_BIT1 | BIT_16 | 5, "polished_tuff_slab", SLAB_PROP },
+    { 0, 142,   TYPE_HIGH_BIT1 | BIT_16 | 6, "tuff_brick_slab", SLAB_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 57, "tuff_bricks", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 58, "chiseled_tuff", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 59, "chiseled_tuff_bricks", NO_PROP },
+    { 0, 215,	TYPE_HIGH_BIT1, "tuff_stairs", STAIRS_PROP },
+    { 0, 216,	TYPE_HIGH_BIT1, "polished_tuff_stairs", STAIRS_PROP },
+    { 0, 217,	TYPE_HIGH_BIT1, "tuff_brick_stairs", STAIRS_PROP },
     { 0, 139,	          22, "tuff_wall", WALL_PROP },     // no data values used for walls, it's all implied in Mineways
     { 0, 139,	          23, "polished_tuff_wall", WALL_PROP },
     { 0, 139,	          24, "tuff_brick_wall", WALL_PROP },
-    { 0, 218,       HIGH_BIT, "copper_trapdoor", TRAPDOOR_PROP },
-    { 0, 219,       HIGH_BIT, "exposed_copper_trapdoor", TRAPDOOR_PROP },
-    { 0, 220,       HIGH_BIT, "weathered_copper_trapdoor", TRAPDOOR_PROP },
-    { 0, 221,       HIGH_BIT, "oxidized_copper_trapdoor", TRAPDOOR_PROP },
-    { 0, 222,       HIGH_BIT, "waxed_copper_trapdoor", TRAPDOOR_PROP },
-    { 0, 223,       HIGH_BIT, "waxed_exposed_copper_trapdoor", TRAPDOOR_PROP },
-    { 0, 224,       HIGH_BIT, "waxed_weathered_copper_trapdoor", TRAPDOOR_PROP },
-    { 0, 225,       HIGH_BIT, "waxed_oxidized_copper_trapdoor", TRAPDOOR_PROP },
-    { 0, 226,       HIGH_BIT, "copper_door", DOOR_PROP },
-    { 0, 227,       HIGH_BIT, "exposed_copper_door", DOOR_PROP },
-    { 0, 228,       HIGH_BIT, "weathered_copper_door", DOOR_PROP },
-    { 0, 229,       HIGH_BIT, "oxidized_copper_door", DOOR_PROP },
-    { 0, 230,       HIGH_BIT, "waxed_copper_door", DOOR_PROP },
-    { 0, 231,       HIGH_BIT, "waxed_exposed_copper_door", DOOR_PROP },
-    { 0, 232,       HIGH_BIT, "waxed_weathered_copper_door", DOOR_PROP },
-    { 0, 233,       HIGH_BIT, "waxed_oxidized_copper_door", DOOR_PROP },
+    { 0, 218,       TYPE_HIGH_BIT1, "copper_trapdoor", TRAPDOOR_PROP },
+    { 0, 219,       TYPE_HIGH_BIT1, "exposed_copper_trapdoor", TRAPDOOR_PROP },
+    { 0, 220,       TYPE_HIGH_BIT1, "weathered_copper_trapdoor", TRAPDOOR_PROP },
+    { 0, 221,       TYPE_HIGH_BIT1, "oxidized_copper_trapdoor", TRAPDOOR_PROP },
+    { 0, 222,       TYPE_HIGH_BIT1, "waxed_copper_trapdoor", TRAPDOOR_PROP },
+    { 0, 223,       TYPE_HIGH_BIT1, "waxed_exposed_copper_trapdoor", TRAPDOOR_PROP },
+    { 0, 224,       TYPE_HIGH_BIT1, "waxed_weathered_copper_trapdoor", TRAPDOOR_PROP },
+    { 0, 225,       TYPE_HIGH_BIT1, "waxed_oxidized_copper_trapdoor", TRAPDOOR_PROP },
+    { 0, 226,       TYPE_HIGH_BIT1, "copper_door", DOOR_PROP },
+    { 0, 227,       TYPE_HIGH_BIT1, "exposed_copper_door", DOOR_PROP },
+    { 0, 228,       TYPE_HIGH_BIT1, "weathered_copper_door", DOOR_PROP },
+    { 0, 229,       TYPE_HIGH_BIT1, "oxidized_copper_door", DOOR_PROP },
+    { 0, 230,       TYPE_HIGH_BIT1, "waxed_copper_door", DOOR_PROP },
+    { 0, 231,       TYPE_HIGH_BIT1, "waxed_exposed_copper_door", DOOR_PROP },
+    { 0, 232,       TYPE_HIGH_BIT1, "waxed_weathered_copper_door", DOOR_PROP },
+    { 0, 233,       TYPE_HIGH_BIT1, "waxed_oxidized_copper_door", DOOR_PROP },
     // 1.21.4
     { 0,  37,              2, "closed_eyeblossom", NO_PROP },
     { 0,  37,              3, "open_eyeblossom", NO_PROP },
-    { 0, 193,       HIGH_BIT, "creaking_heart", CREAKING_HEART_PROP },
-    { 0, 102,       HIGH_BIT, "pale_hanging_moss", NO_PROP },   // "tip" is always looked for and add 0x1
-    { 0, 132,  HIGH_BIT | 60, "pale_moss_block", NO_PROP },
-    { 0, 103,       HIGH_BIT, "pale_moss_carpet", PALE_MOSS_CARPET_PROP },
-    { 0,  14,       HIGH_BIT, "pale_oak_button", BUTTON_PROP },
-    { 0,  15,       HIGH_BIT, "pale_oak_door", DOOR_PROP },
-    { 0,  16,       HIGH_BIT, "pale_oak_fence", FENCE_PROP },
-    { 0,  17,       HIGH_BIT, "pale_oak_fence_gate", FENCE_GATE_PROP },
-    { 0, 208, HIGH_BIT | BIT_32, "pale_oak_hanging_sign", ATTACHED_HANGING_SIGN },    // atop bamboo_hanging_sign
-    { 0, 181,   HIGH_BIT | 2, "pale_oak_leaves", LEAF_PROP },
-    { 0, 160,   HIGH_BIT | 2, "pale_oak_log", AXIS_PROP },
+    { 0, 193,       TYPE_HIGH_BIT1, "creaking_heart", CREAKING_HEART_PROP },
+    { 0, 102,       TYPE_HIGH_BIT1, "pale_hanging_moss", NO_PROP },   // "tip" is always looked for and add 0x1
+    { 0, 132,  TYPE_HIGH_BIT1 | 60, "pale_moss_block", NO_PROP },
+    { 0, 103,       TYPE_HIGH_BIT1, "pale_moss_carpet", PALE_MOSS_CARPET_PROP },
+    { 0,  14,       TYPE_HIGH_BIT1, "pale_oak_button", BUTTON_PROP },
+    { 0,  15,       TYPE_HIGH_BIT1, "pale_oak_door", DOOR_PROP },
+    { 0,  16,       TYPE_HIGH_BIT1, "pale_oak_fence", FENCE_PROP },
+    { 0,  17,       TYPE_HIGH_BIT1, "pale_oak_fence_gate", FENCE_GATE_PROP },
+    { 0, 208, TYPE_HIGH_BIT1 | BIT_32, "pale_oak_hanging_sign", ATTACHED_HANGING_SIGN },    // atop bamboo_hanging_sign
+    { 0, 181,   TYPE_HIGH_BIT1 | 2, "pale_oak_leaves", LEAF_PROP },
+    { 0, 160,   TYPE_HIGH_BIT1 | 2, "pale_oak_log", AXIS_PROP },
     { 0,   5,             12, "pale_oak_planks", NO_PROP },
     { 0,  70,             24, "pale_oak_pressure_plate", PRESSURE_PROP },
     { 0,  37,              4, "pale_oak_sapling", NO_PROP },
-    { 0, 171, HIGH_BIT | BIT_32 | BIT_16, "pale_oak_sign", STANDING_SIGN_PROP },
-    { 0, 105,   HIGH_BIT | 6, "pale_oak_slab", SLAB_PROP },
-    { 0,  18,       HIGH_BIT, "pale_oak_stairs", STAIRS_PROP },
-    { 0, 101,       HIGH_BIT, "pale_oak_trapdoor", TRAPDOOR_PROP },
-    { 0, 202, HIGH_BIT | (11 << 2), "pale_oak_wall_hanging_sign", SWNE_FACING_PROP },
-    { 0, 172, HIGH_BIT | BIT_16 | BIT_8, "pale_oak_wall_sign", WALL_SIGN_PROP },
-    { 0, 160, HIGH_BIT | BIT_16 | 2, "pale_oak_wood", AXIS_PROP },
+    { 0, 171, TYPE_HIGH_BIT1 | BIT_32 | BIT_16, "pale_oak_sign", STANDING_SIGN_PROP },
+    { 0, 105,   TYPE_HIGH_BIT1 | 6, "pale_oak_slab", SLAB_PROP },
+    { 0,  18,       TYPE_HIGH_BIT1, "pale_oak_stairs", STAIRS_PROP },
+    { 0, 101,       TYPE_HIGH_BIT1, "pale_oak_trapdoor", TRAPDOOR_PROP },
+    { 0, 202, TYPE_HIGH_BIT1 | (11 << 2), "pale_oak_wall_hanging_sign", SWNE_FACING_PROP },
+    { 0, 172, TYPE_HIGH_BIT1 | BIT_16 | BIT_8, "pale_oak_wall_sign", WALL_SIGN_PROP },
+    { 0, 160, TYPE_HIGH_BIT1 | BIT_16 | 2, "pale_oak_wood", AXIS_PROP },
     { 0, BLOCK_FLOWER_POT,  YELLOW_FLOWER_FIELD | 2, "potted_closed_eyeblossom", NO_PROP },
     { 0, BLOCK_FLOWER_POT,  YELLOW_FLOWER_FIELD | 3, "potted_open_eyeblossom", NO_PROP },
     { 0, BLOCK_FLOWER_POT,  YELLOW_FLOWER_FIELD | 4, "potted_pale_oak_sapling", NO_PROP },  // darn, all the sapling spots are filled up!
-    { 0, 132,  HIGH_BIT | 61, "chiseled_resin_bricks", NO_PROP },
-    { 0, 132,  HIGH_BIT | 62, "resin_block", NO_PROP },
-    { 0, 105,   HIGH_BIT | 7, "resin_brick_slab", SLAB_PROP },
-    { 0, 173,       HIGH_BIT, "resin_brick_stairs", STAIRS_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 61, "chiseled_resin_bricks", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 62, "resin_block", NO_PROP },
+    { 0, 105,   TYPE_HIGH_BIT1 | 7, "resin_brick_slab", SLAB_PROP },
+    { 0, 173,       TYPE_HIGH_BIT1, "resin_brick_stairs", STAIRS_PROP },
     { 0, 139,	          25, "resin_brick_wall", WALL_PROP },
-    { 0, 132,  HIGH_BIT | 63, "resin_bricks", NO_PROP },
-    { 0, 186,       HIGH_BIT, "resin_clump", VINE_PROP },
-    { 0, 167,   HIGH_BIT | 2, "stripped_pale_oak_log", AXIS_PROP },
-    { 0, 168,   HIGH_BIT | 2, "stripped_pale_oak_wood", AXIS_PROP },
-    { 0, 197,  HIGH_BIT | 16, "leaf_litter", PINK_PETALS_PROP },
-    { 0, 197,  HIGH_BIT | 32, "wildflowers", PINK_PETALS_PROP },
-    { 0, 234,       HIGH_BIT, "test_block", NO_PROP },
+    { 0, 132,  TYPE_HIGH_BIT1 | 63, "resin_bricks", NO_PROP },
+    { 0, 186,       TYPE_HIGH_BIT1, "resin_clump", VINE_PROP },
+    { 0, 167,   TYPE_HIGH_BIT1 | 2, "stripped_pale_oak_log", AXIS_PROP },
+    { 0, 168,   TYPE_HIGH_BIT1 | 2, "stripped_pale_oak_wood", AXIS_PROP },
+    { 0, 197,  TYPE_HIGH_BIT1 | 16, "leaf_litter", PINK_PETALS_PROP },
+    { 0, 197,  TYPE_HIGH_BIT1 | 32, "wildflowers", PINK_PETALS_PROP },
+    { 0, 234,       TYPE_HIGH_BIT1, "test_block", NO_PROP },
     { 0,   1,             16, "test_instance_block", NO_PROP },
     { 0,  31,              6, "bush", NO_PROP },
     { 0,  31,              7, "cactus_flower", NO_PROP },
     { 0,  31,              8, "short_dry_grass", NO_PROP },
     { 0,  31,              9, "tall_dry_grass", NO_PROP },
     { 0,  31,             10, "firefly_bush", NO_PROP },
-    { 0, 235,       HIGH_BIT, "dried_ghast", GHAST_PROP },
-    { 0, 236,       HIGH_BIT, "copper_bars", FENCE_PROP },
-    { 0, 236, HIGH_BIT | BIT_16, "exposed_copper_bars", FENCE_PROP },
-    { 0, 236, HIGH_BIT | BIT_32, "weathered_copper_bars", FENCE_PROP },
-    { 0, 236, HIGH_BIT | BIT_32 | BIT_16, "oxidized_copper_bars", FENCE_PROP },
-    { 0, 237,       HIGH_BIT, "waxed_copper_bars", FENCE_PROP },
-    { 0, 237, HIGH_BIT | BIT_16, "waxed_exposed_copper_bars", FENCE_PROP },
-    { 0, 237, HIGH_BIT | BIT_32, "waxed_weathered_copper_bars", FENCE_PROP },
-    { 0, 237, HIGH_BIT | BIT_32 | BIT_16, "waxed_oxidized_copper_bars", FENCE_PROP },
-    { 0, 108,   HIGH_BIT | 1, "copper_chain", AXIS_PROP },  // annoyingly, copper uses 0x1, exposed 0x2, weathered 0x3, oxidized 0x10..., waxed_oxidized 0x20
-    { 0, 108,   HIGH_BIT | 2, "exposed_copper_chain", AXIS_PROP },
-    { 0, 108,   HIGH_BIT | 3, "weathered_copper_chain", AXIS_PROP },
-    { 0, 108,   HIGH_BIT | BIT_16, "oxidized_copper_chain", AXIS_PROP },
-    { 0, 108,   HIGH_BIT | BIT_16 | 1, "waxed_copper_chain", AXIS_PROP },
-    { 0, 108,   HIGH_BIT | BIT_16 | 2, "waxed_exposed_copper_chain", AXIS_PROP },
-    { 0, 108,   HIGH_BIT | BIT_16 | 3, "waxed_weathered_copper_chain", AXIS_PROP },
-    { 0, 108,   HIGH_BIT | BIT_32, "waxed_oxidized_copper_chain", AXIS_PROP },
-    { 0, 238,       HIGH_BIT, "copper_torch", TORCH_PROP },
-    { 0, 238,       HIGH_BIT, "copper_wall_torch", TORCH_PROP },
-    { 0,  82, HIGH_BIT | (2 << 1), "copper_lantern", LANTERN_PROP },
-    { 0,  82, HIGH_BIT | (3 << 1), "exposed_copper_lantern", LANTERN_PROP },
-    { 0,  82, HIGH_BIT | (4 << 1), "weathered_copper_lantern", LANTERN_PROP },
-    { 0,  82, HIGH_BIT | (5 << 1), "oxidized_copper_lantern", LANTERN_PROP },
-    { 0,  82, HIGH_BIT | (6 << 1), "waxed_copper_lantern", LANTERN_PROP },
-    { 0,  82, HIGH_BIT | (7 << 1), "waxed_exposed_copper_lantern", LANTERN_PROP },
-    { 0,  82, HIGH_BIT | (8 << 1), "waxed_weathered_copper_lantern", LANTERN_PROP },
-    { 0,  82, HIGH_BIT | (9 << 1), "waxed_oxidized_copper_lantern", LANTERN_PROP },
-    { 0, 139, HIGH_BIT | (1 << 4), "exposed_lightning_rod", EXTENDED_FACING_PROP },
-    { 0, 139, HIGH_BIT | (2 << 4), "weathered_lightning_rod", EXTENDED_FACING_PROP },
-    { 0, 139, HIGH_BIT | (3 << 4), "oxidized_lightning_rod", EXTENDED_FACING_PROP },
-    { 0, 239,            HIGH_BIT, "waxed_lightning_rod", EXTENDED_FACING_PROP },
-    { 0, 239, HIGH_BIT | (1 << 4), "waxed_exposed_lightning_rod", EXTENDED_FACING_PROP },
-    { 0, 239, HIGH_BIT | (2 << 4), "waxed_weathered_lightning_rod", EXTENDED_FACING_PROP },
-    { 0, 239, HIGH_BIT | (3 << 4), "waxed_oxidized_lightning_rod", EXTENDED_FACING_PROP },
-    { 0, 240,            HIGH_BIT, "copper_chest", CHEST_PROP },
-    { 0, 240,   HIGH_BIT | BIT_32, "exposed_copper_chest", CHEST_PROP },
-    { 0, 241,            HIGH_BIT, "oxidized_copper_chest", CHEST_PROP },
-    { 0, 241,   HIGH_BIT | BIT_32, "weathered_copper_chest", CHEST_PROP },
-    { 0, 242,            HIGH_BIT, "waxed_copper_chest", CHEST_PROP },
-    { 0, 242,   HIGH_BIT | BIT_32, "waxed_exposed_copper_chest", CHEST_PROP },
-    { 0, 243,            HIGH_BIT, "waxed_oxidized_copper_chest", CHEST_PROP },
-    { 0, 243,   HIGH_BIT | BIT_32, "waxed_weathered_copper_chest", CHEST_PROP },
-    { 0, 244,            HIGH_BIT, "acacia_shelf", SHELF_PROP },
-    { 0, 244, HIGH_BIT | (1 << 3), "birch_shelf", SHELF_PROP },
-    { 0, 244, HIGH_BIT | (2 << 3), "cherry_shelf", SHELF_PROP },
-    { 0, 244, HIGH_BIT | (3 << 3), "crimson_shelf", SHELF_PROP },
-    { 0, 244, HIGH_BIT | (4 << 3), "dark_oak_shelf", SHELF_PROP },
-    { 0, 244, HIGH_BIT | (5 << 3), "jungle_shelf", SHELF_PROP },
-    { 0, 244, HIGH_BIT | (6 << 3), "mangrove_shelf", SHELF_PROP },
-    { 0, 244, HIGH_BIT | (7 << 3), "oak_shelf", SHELF_PROP },
-    { 0, 245,            HIGH_BIT, "pale_oak_shelf", SHELF_PROP },
-    { 0, 245, HIGH_BIT | (1 << 3), "warped_shelf", SHELF_PROP },
-    { 0, 245, HIGH_BIT | (2 << 3), "bamboo_shelf", SHELF_PROP },
-    { 0, 245, HIGH_BIT | (3 << 3), "spruce_shelf", SHELF_PROP },
+    { 0, 235,       TYPE_HIGH_BIT1, "dried_ghast", GHAST_PROP },
+    { 0, 236,       TYPE_HIGH_BIT1, "copper_bars", FENCE_PROP },
+    { 0, 236, TYPE_HIGH_BIT1 | BIT_16, "exposed_copper_bars", FENCE_PROP },
+    { 0, 236, TYPE_HIGH_BIT1 | BIT_32, "weathered_copper_bars", FENCE_PROP },
+    { 0, 236, TYPE_HIGH_BIT1 | BIT_32 | BIT_16, "oxidized_copper_bars", FENCE_PROP },
+    { 0, 237,       TYPE_HIGH_BIT1, "waxed_copper_bars", FENCE_PROP },
+    { 0, 237, TYPE_HIGH_BIT1 | BIT_16, "waxed_exposed_copper_bars", FENCE_PROP },
+    { 0, 237, TYPE_HIGH_BIT1 | BIT_32, "waxed_weathered_copper_bars", FENCE_PROP },
+    { 0, 237, TYPE_HIGH_BIT1 | BIT_32 | BIT_16, "waxed_oxidized_copper_bars", FENCE_PROP },
+    { 0, 108,   TYPE_HIGH_BIT1 | 1, "copper_chain", AXIS_PROP },  // annoyingly, copper uses 0x1, exposed 0x2, weathered 0x3, oxidized 0x10..., waxed_oxidized 0x20
+    { 0, 108,   TYPE_HIGH_BIT1 | 2, "exposed_copper_chain", AXIS_PROP },
+    { 0, 108,   TYPE_HIGH_BIT1 | 3, "weathered_copper_chain", AXIS_PROP },
+    { 0, 108,   TYPE_HIGH_BIT1 | BIT_16, "oxidized_copper_chain", AXIS_PROP },
+    { 0, 108,   TYPE_HIGH_BIT1 | BIT_16 | 1, "waxed_copper_chain", AXIS_PROP },
+    { 0, 108,   TYPE_HIGH_BIT1 | BIT_16 | 2, "waxed_exposed_copper_chain", AXIS_PROP },
+    { 0, 108,   TYPE_HIGH_BIT1 | BIT_16 | 3, "waxed_weathered_copper_chain", AXIS_PROP },
+    { 0, 108,   TYPE_HIGH_BIT1 | BIT_32, "waxed_oxidized_copper_chain", AXIS_PROP },
+    { 0, 238,       TYPE_HIGH_BIT1, "copper_torch", TORCH_PROP },
+    { 0, 238,       TYPE_HIGH_BIT1, "copper_wall_torch", TORCH_PROP },
+    { 0,  82, TYPE_HIGH_BIT1 | (2 << 1), "copper_lantern", LANTERN_PROP },
+    { 0,  82, TYPE_HIGH_BIT1 | (3 << 1), "exposed_copper_lantern", LANTERN_PROP },
+    { 0,  82, TYPE_HIGH_BIT1 | (4 << 1), "weathered_copper_lantern", LANTERN_PROP },
+    { 0,  82, TYPE_HIGH_BIT1 | (5 << 1), "oxidized_copper_lantern", LANTERN_PROP },
+    { 0,  82, TYPE_HIGH_BIT1 | (6 << 1), "waxed_copper_lantern", LANTERN_PROP },
+    { 0,  82, TYPE_HIGH_BIT1 | (7 << 1), "waxed_exposed_copper_lantern", LANTERN_PROP },
+    { 0,  82, TYPE_HIGH_BIT1 | (8 << 1), "waxed_weathered_copper_lantern", LANTERN_PROP },
+    { 0,  82, TYPE_HIGH_BIT1 | (9 << 1), "waxed_oxidized_copper_lantern", LANTERN_PROP },
+    { 0, 139, TYPE_HIGH_BIT1 | (1 << 4), "exposed_lightning_rod", EXTENDED_FACING_PROP },
+    { 0, 139, TYPE_HIGH_BIT1 | (2 << 4), "weathered_lightning_rod", EXTENDED_FACING_PROP },
+    { 0, 139, TYPE_HIGH_BIT1 | (3 << 4), "oxidized_lightning_rod", EXTENDED_FACING_PROP },
+    { 0, 239,            TYPE_HIGH_BIT1, "waxed_lightning_rod", EXTENDED_FACING_PROP },
+    { 0, 239, TYPE_HIGH_BIT1 | (1 << 4), "waxed_exposed_lightning_rod", EXTENDED_FACING_PROP },
+    { 0, 239, TYPE_HIGH_BIT1 | (2 << 4), "waxed_weathered_lightning_rod", EXTENDED_FACING_PROP },
+    { 0, 239, TYPE_HIGH_BIT1 | (3 << 4), "waxed_oxidized_lightning_rod", EXTENDED_FACING_PROP },
+    { 0, 240,            TYPE_HIGH_BIT1, "copper_chest", CHEST_PROP },
+    { 0, 240,   TYPE_HIGH_BIT1 | BIT_32, "exposed_copper_chest", CHEST_PROP },
+    { 0, 241,            TYPE_HIGH_BIT1, "oxidized_copper_chest", CHEST_PROP },
+    { 0, 241,   TYPE_HIGH_BIT1 | BIT_32, "weathered_copper_chest", CHEST_PROP },
+    { 0, 242,            TYPE_HIGH_BIT1, "waxed_copper_chest", CHEST_PROP },
+    { 0, 242,   TYPE_HIGH_BIT1 | BIT_32, "waxed_exposed_copper_chest", CHEST_PROP },
+    { 0, 243,            TYPE_HIGH_BIT1, "waxed_oxidized_copper_chest", CHEST_PROP },
+    { 0, 243,   TYPE_HIGH_BIT1 | BIT_32, "waxed_weathered_copper_chest", CHEST_PROP },
+    { 0, 244,            TYPE_HIGH_BIT1, "acacia_shelf", SHELF_PROP },
+    { 0, 244, TYPE_HIGH_BIT1 | (1 << 3), "birch_shelf", SHELF_PROP },
+    { 0, 244, TYPE_HIGH_BIT1 | (2 << 3), "cherry_shelf", SHELF_PROP },
+    { 0, 244, TYPE_HIGH_BIT1 | (3 << 3), "crimson_shelf", SHELF_PROP },
+    { 0, 244, TYPE_HIGH_BIT1 | (4 << 3), "dark_oak_shelf", SHELF_PROP },
+    { 0, 244, TYPE_HIGH_BIT1 | (5 << 3), "jungle_shelf", SHELF_PROP },
+    { 0, 244, TYPE_HIGH_BIT1 | (6 << 3), "mangrove_shelf", SHELF_PROP },
+    { 0, 244, TYPE_HIGH_BIT1 | (7 << 3), "oak_shelf", SHELF_PROP },
+    { 0, 245,            TYPE_HIGH_BIT1, "pale_oak_shelf", SHELF_PROP },
+    { 0, 245, TYPE_HIGH_BIT1 | (1 << 3), "warped_shelf", SHELF_PROP },
+    { 0, 245, TYPE_HIGH_BIT1 | (2 << 3), "bamboo_shelf", SHELF_PROP },
+    { 0, 245, TYPE_HIGH_BIT1 | (3 << 3), "spruce_shelf", SHELF_PROP },
     { 0,  37,                   5, "golden_dandelion", NO_PROP },
     { 0, BLOCK_FLOWER_POT,  YELLOW_FLOWER_FIELD | 5, "potted_golden_dandelion", NO_PROP },
     { 0,   1,             17, "cinnabar", NO_PROP },
@@ -1645,30 +1645,30 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,   1,             22, "polished_sulfur", NO_PROP },
     { 0,   1,             23, "sulfur_bricks", NO_PROP },
     { 0,   1,             24, "chiseled_sulfur", NO_PROP },
-    { 0, 248,       HIGH_BIT, "cinnabar_stairs", STAIRS_PROP },
-    { 0, 249,       HIGH_BIT, "polished_cinnabar_stairs", STAIRS_PROP },
-    { 0, 250,       HIGH_BIT, "cinnabar_brick_stairs", STAIRS_PROP },
-    { 0, 251,       HIGH_BIT, "sulfur_stairs", STAIRS_PROP },
-    { 0, 252,       HIGH_BIT, "polished_sulfur_stairs", STAIRS_PROP },
-    { 0, 253,       HIGH_BIT, "sulfur_brick_stairs", STAIRS_PROP },
-    { 0, 254,       HIGH_BIT, "potent_sulfur", NO_PROP },
+    { 0, 248,       TYPE_HIGH_BIT1, "cinnabar_stairs", STAIRS_PROP },
+    { 0, 249,       TYPE_HIGH_BIT1, "polished_cinnabar_stairs", STAIRS_PROP },
+    { 0, 250,       TYPE_HIGH_BIT1, "cinnabar_brick_stairs", STAIRS_PROP },
+    { 0, 251,       TYPE_HIGH_BIT1, "sulfur_stairs", STAIRS_PROP },
+    { 0, 252,       TYPE_HIGH_BIT1, "polished_sulfur_stairs", STAIRS_PROP },
+    { 0, 253,       TYPE_HIGH_BIT1, "sulfur_brick_stairs", STAIRS_PROP },
+    { 0, 254,       TYPE_HIGH_BIT1, "potent_sulfur", NO_PROP },
     { 0, 139,	          26, "cinnabar_wall", WALL_PROP },
     { 0, 139,	          27, "polished_cinnabar_wall", WALL_PROP },
     { 0, 139,	          28, "cinnabar_brick_wall", WALL_PROP },
     { 0, 139,	          29, "sulfur_wall", WALL_PROP },
     { 0, 139,	          30, "polished_sulfur_wall", WALL_PROP },
     { 0, 139,	          31, "sulfur_brick_wall", WALL_PROP },
-    { 0, 105,   HIGH_BIT | BIT_16 | 0, "cinnabar_slab", SLAB_PROP },
-    { 0, 105,   HIGH_BIT | BIT_16 | 1, "polished_cinnabar_slab", SLAB_PROP },
-    { 0, 105,   HIGH_BIT | BIT_16 | 2, "cinnabar_brick_slab", SLAB_PROP },
-    { 0, 105,   HIGH_BIT | BIT_16 | 3, "sulfur_slab", SLAB_PROP },
-    { 0, 105,   HIGH_BIT | BIT_16 | 4, "polished_sulfur_slab", SLAB_PROP },
-    { 0, 105,   HIGH_BIT | BIT_16 | 5, "sulfur_brick_slab", SLAB_PROP },
-    { 0, 134,   HIGH_BIT | BIT_16, "sulfur_spike", DRIPSTONE_PROP },    // 5 thicknesses, vertical_direction: up/down
+    { 0, 105,   TYPE_HIGH_BIT1 | BIT_16 | 0, "cinnabar_slab", SLAB_PROP },
+    { 0, 105,   TYPE_HIGH_BIT1 | BIT_16 | 1, "polished_cinnabar_slab", SLAB_PROP },
+    { 0, 105,   TYPE_HIGH_BIT1 | BIT_16 | 2, "cinnabar_brick_slab", SLAB_PROP },
+    { 0, 105,   TYPE_HIGH_BIT1 | BIT_16 | 3, "sulfur_slab", SLAB_PROP },
+    { 0, 105,   TYPE_HIGH_BIT1 | BIT_16 | 4, "polished_sulfur_slab", SLAB_PROP },
+    { 0, 105,   TYPE_HIGH_BIT1 | BIT_16 | 5, "sulfur_brick_slab", SLAB_PROP },
+    { 0, 134,   TYPE_HIGH_BIT1 | BIT_16, "sulfur_spike", DRIPSTONE_PROP },    // 5 thicknesses, vertical_direction: up/down
 
     // 1.20.3 additions (short_grass added next to "grass", above), https://minecraft.wiki/w/Java_Edition_1.20.3#General_2
 
- // Note: 140, 144 are reserved for the extra bit needed for BLOCK_FLOWER_POT and BLOCK_HEAD, so don't use these HIGH_BIT values
+ // Note: 140, 144 are reserved for the extra bit needed for BLOCK_FLOWER_POT and BLOCK_HEAD, so don't use these TYPE_HIGH_BIT1 values
 };
 
 #define HASH_SIZE 1024
@@ -2416,7 +2416,7 @@ unsigned char mod16(int val)
 #define FORMAT_1_13_THROUGH_1_17    1
 #define FORMAT_1_18_AND_NEWER       2
 // return negative value on error, 1 on read OK, 2 on read and it's empty, and higher bits than 1 or 2 are warnings
-int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int minHeight, int maxHeight, int & mfsHeight, char* unknownBlock, int unknownBlockID)
+int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned short* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int minHeight, int maxHeight, int & mfsHeight, char* unknownBlock, int unknownBlockID)
 {
     int len, nsections, i;
     int biome_save;
@@ -2678,7 +2678,7 @@ SectionsCode:
     }
 
     memset(buff, 0, 16 * 16 * heightAlloc);
-    memset(data, 0, 16 * 16 * heightAlloc);
+    memset(data, 0, 16 * 16 * heightAlloc * sizeof(unsigned short));
     memset(blockLight, 0, 16 * 16 * heightAlloc / 2);
 
     // the maximum relative height compared to Y, i.e., divided by 16 (not the allocation size, heightAlloc). For 1.18, for example, it should be 20,
@@ -2807,9 +2807,10 @@ SectionsCode:
                     if (bfread(pbf, data4buff, len) != len)
                         return LINE_ERROR;
                     unsigned char* din = data4buff;
-                    unsigned char* dret = &data[16 * 16 * 16 * y];
+                    unsigned short* dret = &data[16 * 16 * 16 * y];
                     for (int id = 0; id < 16 * 16 * 8; id++) {
-                        // low, high 4-bits saved
+                        // low, high 4-bits saved (pre-1.13 "Data" tag is always 4 bits, well within
+                        // the new 12-bit dataVal range - no type-extension nibble involved here)
                         *dret++ = *din & 0xf;
                         *dret++ = *din++ >> 4;
                     }
@@ -2828,7 +2829,8 @@ SectionsCode:
             int paletteLength = 0;
             // could theoretically get higher...
             unsigned char paletteBlockEntry[MAX_PALETTE];
-            unsigned char paletteDataEntry[MAX_PALETTE];
+            // low 12 bits dataVal, top 4 bits the type's bits 8-11 - see PACK_TYPE_EXT_AND_DATAVAL in nbt.h.
+            unsigned short paletteDataEntry[MAX_PALETTE];
             for (;;)
             {
                 ret = 0;
@@ -3207,6 +3209,11 @@ SectionsCode:
                     if (skipType(pbf, type) < 0)
                         return LINE_ERROR;
             }
+
+            // paletteDataEntry[] is already packed by readPalette() (low 12 bits dataVal, top 4
+            // bits the type's bits 8-11 - see PACK_TYPE_EXT_AND_DATAVAL in nbt.h), matching
+            // block->data[]'s format directly - no separate conversion pass needed here.
+
             // Now that we have all the data, convert bigbuff layer into buff and data values
             // DEBUG: set a condition of entryIndex > 2 - shows just the chunk slices that are not just a single block type & air
             // BlockStates in Sections elements no longer contain values stretching over multiple 64 - bit fields.
@@ -3238,7 +3245,7 @@ SectionsCode:
                     const int bigbuffByteLength = bigbufflen * 8;
 
                     unsigned char* bout = buff + 16 * 16 * 16 * (int)(y - minHeight16);
-                    unsigned char* dout = data + 16 * 16 * 16 * (int)(y - minHeight16);
+                    unsigned short* dout = data + 16 * 16 * 16 * (int)(y - minHeight16);
                     sectionHeight = 16 * (y - minHeight16) + 15;
                     // and update the maxFilledSectionHeight
                     if (sectionHeight > mfsHeight) {
@@ -3326,9 +3333,12 @@ SectionsCode:
                     // we're done - the chunk is already filled with 0's. If not air, then
                     // we need to fill the 16x16x16 volume with the item's value.
                     unsigned char* bout = buff + 16 * 16 * 16 * (int)(y - minHeight16);
-                    unsigned char* dout = data + 16 * 16 * 16 * (int)(y - minHeight16);
+                    unsigned short* dout = data + 16 * 16 * 16 * (int)(y - minHeight16);
                     memset(bout, paletteBlockEntry[0], 16 * 16 * 16);
-                    memset(dout, paletteDataEntry[0], 16 * 16 * 16);
+                    // memset only fills a repeated *byte*, so it can't be used for a uniform
+                    // unsigned short fill - loop instead (dout[0] is the same for every entry).
+                    for (int fillIdx = 0; fillIdx < 16 * 16 * 16; fillIdx++)
+                        dout[fillIdx] = paletteDataEntry[0];
 
                     // and update the maxFilledSectionHeight
                     if (sectionHeight > mfsHeight) {
@@ -3340,8 +3350,8 @@ SectionsCode:
         }
     }
     // if we somehow didn't get a biome for this 1.18 chunk, go figure out why;
-    // This can definitely happen with 1.18 worlds converted by Amulet
-    assert(gotBiome);
+    // This can definitely happen with 1.18 worlds converted by Amulet or Chunker. TODOTODO
+    //assert(gotBiome);
 
     if (mfsHeight <= EMPTY_MAX_HEIGHT) {
         // no real data found in the block - this can happen with modded worlds, etc.
@@ -3636,7 +3646,7 @@ static int readBiomePalette(bfFile* pbf, unsigned char* paletteBiomeEntry, int& 
     return 0;
 }
 
-static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned char *paletteBlockEntry, unsigned char *paletteDataEntry, int& entryIndex, char* unknownBlock, int unknownBlockID)
+static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned char *paletteBlockEntry, unsigned short *paletteDataEntry, int& entryIndex, char* unknownBlock, int unknownBlockID)
 {
     int dataVal, len;
     unsigned char type;
@@ -3738,7 +3748,15 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 if (typeIndex > -1) {
                     useData = true;
                     paletteBlockEntry[entryIndex] = BlockTranslations[typeIndex].blockId;
-                    paletteDataEntry[entryIndex] = BlockTranslations[typeIndex].dataVal;
+                    // BlockTranslations[] still speaks the old 8-bit encoding (dataVal's low 7 bits
+                    // = real data, TYPE_HIGH_BIT1 = "promote type by 256" - the table's own ceiling,
+                    // unchanged). Pack that into the wide format here so paletteDataEntry[] is
+                    // correct from this point on; PROP arms below OR further real dataVal bits into
+                    // the low 12 bits without touching the type-extension nibble (bits 12-15).
+                    {
+                        int fullType = BlockTranslations[typeIndex].blockId | ((BlockTranslations[typeIndex].dataVal & TYPE_HIGH_BIT1) << 1);
+                        paletteDataEntry[entryIndex] = PACK_TYPE_EXT_AND_DATAVAL(fullType, BlockTranslations[typeIndex].dataVal & 0x7F);
+                    }
                 }
                 else {
                     // unknown type
@@ -3769,7 +3787,11 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                                 // found a match
                                 matched = true;
                                 paletteBlockEntry[entryIndex] = BlockTranslations[ptt->type].blockId;
-                                paletteDataEntry[entryIndex] = BlockTranslations[ptt->type].dataVal;
+                                // see the matching pack above - same table, same conversion.
+                                {
+                                    int fullType = BlockTranslations[ptt->type].blockId | ((BlockTranslations[ptt->type].dataVal & TYPE_HIGH_BIT1) << 1);
+                                    paletteDataEntry[entryIndex] = PACK_TYPE_EXT_AND_DATAVAL(fullType, BlockTranslations[ptt->type].dataVal & 0x7F);
+                                }
                                 // note that any dataVal translation will be magic - might destroy life as we know it.
                                 // But, allow the user to do it using ":*".
                                 useData = ptt->useData;
@@ -3802,8 +3824,9 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                     // Make unknown blocks air (0) by default, or whatever the user has set with the script command "Set unknown block ID".
                     paletteBlockEntry[entryIndex] = (unsigned char)(unknownBlockID & 0xff);
 
-                    // data value high bit set if needed
-                    paletteDataEntry[entryIndex] = (unknownBlockID > 255) ? HIGH_BIT : 0;
+                    // unknownBlockID can be a full 0-4095 type now (not just 0-511 via a single
+                    // promotion bit) - pack its bits 8-11 into the type-extension nibble directly.
+                    paletteDataEntry[entryIndex] = PACK_TYPE_EXT_AND_DATAVAL(unknownBlockID, 0);
                     returnCode |= NBT_WARNING_NAME_NOT_FOUND;
                 }
             }
@@ -4777,7 +4800,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 //   0x03=north, 0x0C=east, 0x30=south, 0xC0=west
                 // bit 0x40 conflicts with WATERLOGGED_BIT — wire isn't waterloggable in MC
                 // and the universal waterlogged write check at the .schem writer excludes
-                // WIRE_PROP. bit 0x80 conflicts with HIGH_BIT — ObjFileManip:2796 excludes
+                // WIRE_PROP. bit 0x80 conflicts with TYPE_HIGH_BIT1 — ObjFileManip:2796 excludes
                 // BLOCK_REDSTONE_WIRE from the type-promotion path.
                 //dataVal = wire_n | (wire_e << 2) | (wire_s << 4) | (wire_w << 6);
                 //wire_n = wire_e = wire_s = wire_w = 0;
@@ -5299,6 +5322,11 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             // always check for waterlogged
             dataVal |= (waterlogged ? WATERLOGGED_BIT : 0x0);
 
+            // dataVal (local) only ever occupies bits 0-7 (the PROP arms above); OR-ing it into
+            // paletteDataEntry[entryIndex] here only touches the low 12 (dataVal) bits, leaving
+            // the type-extension nibble (bits 12-15, set above from BlockTranslations[]/
+            // unknownBlockID) untouched. A PROP arm can freely use bits up to 0x800 (bit 11) for
+            // new properties - that no longer collides with type promotion the way bit 0x80 once did.
             paletteDataEntry[entryIndex] |= dataVal;
         }
         // ugh, need to clear this out each time, whether it's used or not.
@@ -5395,7 +5423,7 @@ SectionsCode:
         int paletteLength = 0;
         // could theoretically get higher...
         unsigned char paletteBlockEntry[MAX_PALETTE];
-        unsigned char paletteDataEntry[MAX_PALETTE];
+        unsigned short paletteDataEntry[MAX_PALETTE];
         for (;;)
         {
             ret = 0;
@@ -5820,7 +5848,7 @@ bool nbtGetValidatedSchematicVolume(int width, int height, int length, int* numB
 }
 
 // return 1 on success
-int nbtGetSchematicBlocksAndData(bfFile* pbf, int numBlocks, unsigned char* schematicBlocks, unsigned char* schematicBlockData)
+int nbtGetSchematicBlocksAndData(bfFile* pbf, int numBlocks, unsigned char* schematicBlocks, unsigned short* schematicBlockData)
 {
     int len;
     //Data/version
@@ -5866,8 +5894,20 @@ int nbtGetSchematicBlocksAndData(bfFile* pbf, int numBlocks, unsigned char* sche
             // check that array is the right size
             if (len != numBlocks)
                 return 0;
-            if (bfread(pbf, schematicBlockData, len) < 0)
+            // The legacy .schematic "Data" tag is a raw byte/block on disk (blockId here is always
+            // < 256 - no "AddBlocks" support - so there's no promotion flag to interpret: each byte
+            // is just dataVal, zero-extended into the wider schematicBlockData entry). Read into a
+            // scratch byte buffer first since bfread only ever writes 1 byte/element.
+            unsigned char* rawData = (unsigned char*)malloc((size_t)len);
+            if (rawData == NULL)
                 return LINE_ERROR;
+            if (bfread(pbf, rawData, len) < 0) {
+                free(rawData);
+                return LINE_ERROR;
+            }
+            for (int i = 0; i < len; i++)
+                schematicBlockData[i] = rawData[i];
+            free(rawData);
             found++;
         }
         if (!ret)
@@ -5990,7 +6030,7 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
         return false;
     }
     int blockId = (int)BlockTranslations[idx].blockId;
-    int dataVal = (int)BlockTranslations[idx].dataVal;   // subtype + HIGH_BIT marker (if blockId > 255)
+    int dataVal = (int)BlockTranslations[idx].dataVal;   // subtype + TYPE_HIGH_BIT1 marker (if blockId > 255)
     unsigned long tf = BlockTranslations[idx].translateFlags;
 
     // Tokenize the property list (if any).
@@ -6757,7 +6797,7 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
     // lit=false was explicit, swap to the unlit blockId. The BlockTranslations lookup always
     // returns blockId 76 (the lit form) for these names, so the swap to 75
     // (BLOCK_REDSTONE_TORCH_OFF) has to happen here. blockId check excludes plain "torch" (50),
-    // "soul_torch" (106|HIGH_BIT), and "copper_torch" (238|HIGH_BIT) which also share TORCH_PROP
+    // "soul_torch" (106|TYPE_HIGH_BIT1), and "copper_torch" (238|TYPE_HIGH_BIT1) which also share TORCH_PROP
     // but don't have a lit/unlit form. `litExplicit` guards against silently flipping the default
     // when a state string omits `lit` (Minecraft's redstone-torch default is lit=true).
     if (tf == TORCH_PROP && litExplicit && !lit && blockId == 76) {
@@ -6780,8 +6820,8 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
     // BERRIES_PROP cave_vines remap
     if (tf == BERRIES_PROP && berries) {
         if (blockId == 148) {   // BLOCK_CAVE_VINES base (with or without subtype)
-            // Writer: BLOCK_CAVE_VINES_LIT (149 + HIGH_BIT = 405) → BLOCK_CAVE_VINES on export
-            blockId = 149;     // 149 | HIGH_BIT → fullType = 405 = BLOCK_CAVE_VINES_LIT
+            // Writer: BLOCK_CAVE_VINES_LIT (149 + TYPE_HIGH_BIT1 = 405) → BLOCK_CAVE_VINES on export
+            blockId = 149;     // 149 | TYPE_HIGH_BIT1 → fullType = 405 = BLOCK_CAVE_VINES_LIT
         }
     }
     // SLAB_PROP type=double remap
@@ -6794,33 +6834,33 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             blockId -= 1;
             break;
         case 74: case 73: case 75: case 76: case 77: case 78:
-            // The new 1.14+ slabs (block 74 + HIGH_BIT subtypes) don't have explicit doubles in
+            // The new 1.14+ slabs (block 74 + TYPE_HIGH_BIT1 subtypes) don't have explicit doubles in
             // Mineways. Fall back to type=top (lossy).
             dataVal |= 0x8;
             break;
         default:
             // For high-blockId slabs (andesite_slab=330, crimson_slab=361, cut_copper_slab=398),
-            // they live at HIGH_BIT-flagged entries; subtract 1 from the underlying blockId.
+            // they live at TYPE_HIGH_BIT1-flagged entries; subtract 1 from the underlying blockId.
             // The Mineways block ID returned by findIndexFromName here might be the low 8 bits;
-            // the full type comes from blockId | (HIGH_BIT-bit). For these cases the table has
-            // dataVal with HIGH_BIT set. Since blockId itself is 8 bits, this fallback covers
-            // the common HIGH_BIT families approximately — see code review note.
+            // the full type comes from blockId | (TYPE_HIGH_BIT1-bit). For these cases the table has
+            // dataVal with TYPE_HIGH_BIT1 set. Since blockId itself is 8 bits, this fallback covers
+            // the common TYPE_HIGH_BIT1 families approximately — see code review note.
             // Stub: treat as top.
             dataVal |= 0x8;
             break;
         }
     }
 
-    // Done. Note: blockId may be > 255 (e.g., 256 = BLOCK_AIR+HIGH_BIT space). The legacy schematic
-    // storage encodes >255 by putting low 8 bits in *outBlockId and HIGH_BIT in *outDataVal.
+    // Done. Note: blockId may be > 255 (e.g., 256 = BLOCK_AIR+TYPE_HIGH_BIT1 space). The legacy schematic
+    // storage encodes >255 by putting low 8 bits in *outBlockId and TYPE_HIGH_BIT1 in *outDataVal.
     if (blockId > 255) {
         *outBlockId = blockId & 0xFF;
-        *outDataVal = dataVal | HIGH_BIT;
+        *outDataVal = dataVal | TYPE_HIGH_BIT1;
     }
     else {
         *outBlockId = blockId;
-        // BlockTranslations entries with dataVal containing HIGH_BIT mean the type is >255 even
-        // when blockId field is ≤255. The findIndexFromName lookup returns dataVal with HIGH_BIT
+        // BlockTranslations entries with dataVal containing TYPE_HIGH_BIT1 mean the type is >255 even
+        // when blockId field is ≤255. The findIndexFromName lookup returns dataVal with TYPE_HIGH_BIT1
         // marker; preserve it in the output dataVal so extractChunk reconstructs type|0x100.
         *outDataVal = dataVal;
     }
@@ -6982,7 +7022,7 @@ static bool spongeReadBlocksCompound(bfFile* pbf,
 
 int nbtGetSpongeSchematic(bfFile* pbf,
     int* outWidth, int* outHeight, int* outLength,
-    unsigned char** outBlocks, unsigned char** outData)
+    unsigned char** outBlocks, unsigned short** outData)
 {
     *outBlocks = NULL;
     *outData = NULL;
@@ -7156,7 +7196,7 @@ int nbtGetSpongeSchematic(bfFile* pbf,
     if (!spongeImportFitsMemoryBudget(numBlocks, palCapacity, dataBytesLen)) SPONGE_FAIL();
 
     *outBlocks = (unsigned char*)malloc((size_t)numBlocks);
-    *outData = (unsigned char*)malloc((size_t)numBlocks);
+    *outData = (unsigned short*)malloc((size_t)numBlocks * sizeof(unsigned short));
     if (*outBlocks == NULL || *outData == NULL) {
         if (*outBlocks) { free(*outBlocks); *outBlocks = NULL; }
         if (*outData) { free(*outData); *outData = NULL; }
@@ -7166,6 +7206,10 @@ int nbtGetSpongeSchematic(bfFile* pbf,
     // Sponge voxel order: i = x + z*Width + y*Width*Length (X fastest, Y slowest), which is
     // identical to the legacy schematic format's order — createBlockFromSchematic uses
     // `(y * length + z) * width + x`, the same loop expressed differently. No reordering needed.
+    //
+    // palBlockIds[idx]/palDataVals[idx] are still in spongeParseStateString's old 8-bit encoding
+    // (dataVal's TYPE_HIGH_BIT1 = "promote type by 256"); repack into *outData's wider (12-bit dataVal +
+    // 4-bit type-extension nibble) form - same conversion as nbtGetBlocks does for its palette.
     int pos = 0;
     for (int i = 0; i < numBlocks; i++) {
         if (pos >= dataBytesLen) {
@@ -7179,8 +7223,11 @@ int nbtGetSpongeSchematic(bfFile* pbf,
             (*outBlocks)[i] = 0; (*outData)[i] = 0;
         }
         else {
-            (*outBlocks)[i] = (unsigned char)(palBlockIds[idx] & 0xFF);
-            (*outData)[i] = (unsigned char)(palDataVals[idx] & 0xFF);
+            int blockIdVal = palBlockIds[idx] & 0xFF;
+            int oldDataVal = palDataVals[idx] & 0xFF;
+            int fullType = blockIdVal | ((oldDataVal & TYPE_HIGH_BIT1) << 1);
+            (*outBlocks)[i] = (unsigned char)blockIdVal;
+            (*outData)[i] = PACK_TYPE_EXT_AND_DATAVAL(fullType, oldDataVal & 0x7F);
         }
     }
 
@@ -7220,7 +7267,7 @@ static void buildSpongeReverseIndex()
     memset(gSpongeReverseCount, 0, sizeof(gSpongeReverseCount));
     for (int i = 0; i < NUM_TRANS; i++) {
         const BlockTranslator* e = &BlockTranslations[i];
-        int fullType = e->blockId | ((e->dataVal & HIGH_BIT) ? 0x100 : 0);
+        int fullType = e->blockId | ((e->dataVal & TYPE_HIGH_BIT1) ? 0x100 : 0);
         if (fullType < NUM_BLOCKS_DEFINED && gSpongeReverseCount[fullType] < SPONGE_MAX_SUBTYPES) {
             gSpongeReverse[fullType][gSpongeReverseCount[fullType]++] = e;
         }
@@ -7363,7 +7410,7 @@ static SpongeLookupRemap remapForSpongeLookup(int type, int dataVal)
         switch (type & 0x1FF) {
         case BLOCK_LOG:                 // BlockTranslations: blockId 17, dataVal=BIT_16|subtype → oak/spruce/birch/jungle_wood
         case BLOCK_AD_LOG:              // blockId 162, BIT_16|subtype → acacia/dark_oak_wood
-        case BLOCK_MANGROVE_LOG:        // blockId 160 + HIGH_BIT, BIT_16 → mangrove_wood
+        case BLOCK_MANGROVE_LOG:        // blockId 160 + TYPE_HIGH_BIT1, BIT_16 → mangrove_wood
             dataVal = BIT_16 | subtype;
             break;
         case BLOCK_STRIPPED_OAK:        // wood form lives at a different Mineways block ID
@@ -7399,7 +7446,7 @@ static SpongeLookupRemap remapForSpongeLookup(int type, int dataVal)
     // Burning-furnace fixup: lit furnace / smoker / blast_furnace all land under
     // BLOCK_BURNING_FURNACE (62) on the read side — see FURNACE_PROP arm in readPalette
     // where `if (lit) paletteBlockEntry[entryIndex] = 62;`. BlockTranslations has no entries
-    // for blockId 62 (those slots are reserved for the *_coral_fan family via HIGH_BIT), so
+    // for blockId 62 (those slots are reserved for the *_coral_fan family via TYPE_HIGH_BIT1), so
     // without this remap the burning variants fall through to "minecraft:air". Remap to
     // BLOCK_FURNACE (61) — which has "furnace" / "loom" / "smoker" / "blast_furnace" entries
     // distinguished by BIT_16 / BIT_32 in dataVal — and emit `lit=true` in the FURNACE_PROP arm.
@@ -7900,7 +7947,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case AMETHYST_PROP: {
-        // Block 133 + HIGH_BIT: small/medium/large amethyst bud + amethyst cluster (4 subtype
+        // Block 133 + TYPE_HIGH_BIT1: small/medium/large amethyst bud + amethyst cluster (4 subtype
         // entries, picked by findSpongeTranslator). Read-side packs `dataVal = dropper_facing << 2`
         // (nbt.cpp:4923), so the 6-way facing enum lives in bits 0x1C (2-4):
         //   0 = down, 1 = up, 2 = north, 3 = south, 4 = west, 5 = east  (Minecraft enum)
@@ -7910,7 +7957,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case DRIPSTONE_PROP: {
-        // pointed_dripstone (block 134 + HIGH_BIT). Read-side packs `dataVal = thickness | vertical_direction`
+        // pointed_dripstone (block 134 + TYPE_HIGH_BIT1). Read-side packs `dataVal = thickness | vertical_direction`
         // (nbt.cpp:4928):
         //   bits 0x7: thickness — 0=tip, 1=tip_merge, 2=frustum, 3=middle, 4=base
         //   bit 0x8: vertical_direction (0=up, 1=down)
@@ -8086,8 +8133,8 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case VINE_PROP: {
-        // vine (106), chorus_plant (199 - no HIGH_BIT? actually subtype 0), glow_lichen (154+HIGH_BIT),
-        // sculk_vein (178+HIGH_BIT), resin_clump (186+HIGH_BIT). Read-side packs the six face flags
+        // vine (106), chorus_plant (199 - no TYPE_HIGH_BIT1? actually subtype 0), glow_lichen (154+TYPE_HIGH_BIT1),
+        // sculk_vein (178+TYPE_HIGH_BIT1), resin_clump (186+TYPE_HIGH_BIT1). Read-side packs the six face flags
         // into bits 0x1=south, 0x02=west, 0x04=north, 0x08=east, 0x10 (BIT_16)=down, 0x20 (BIT_32)=up.
         // If all six were originally false, the read side stamps dataVal to 0x3F ("all sides"); that
         // shows up here as a fully-covered block. Plain "vine" doesn't have a `down` property in
@@ -8117,7 +8164,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case GHAST_PROP: {
-        // dried_ghast (block 235 + HIGH_BIT). Read-side packs
+        // dried_ghast (block 235 + TYPE_HIGH_BIT1). Read-side packs
         // `dataVal = (hydration << 2) | ((door_facing+3)%4)` (nbt.cpp:4748):
         //   bits 0x03: SWNE facing (0=south, 1=west, 2=north, 3=east)
         //   bits 0x0C (>>2): hydration (0..3)
@@ -8130,7 +8177,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case SHELF_PROP: {
-        // Wood-type shelves (blocks 244/245 + HIGH_BIT, subtype in bits 0x38). Read-side packs
+        // Wood-type shelves (blocks 244/245 + TYPE_HIGH_BIT1, subtype in bits 0x38). Read-side packs
         // `dataVal = door_facing | (powered ? 4 : 0)` (nbt.cpp:4480). door_facing's encoding is
         // *not* the same SWNE order as anvil/bed/etc. — it's the literal facing-parser values:
         //   0 = east, 1 = south, 2 = west, 3 = north  (see facing parse at nbt.cpp:3822-3848)
@@ -8168,7 +8215,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case CALIBRATED_SCULK_SENSOR_PROP: {
-        // sculk_sensor (block 155 + HIGH_BIT, subtype 0) and calibrated_sculk_sensor (subtype 0x4).
+        // sculk_sensor (block 155 + TYPE_HIGH_BIT1, subtype 0) and calibrated_sculk_sensor (subtype 0x4).
         // Read-side packs `dataVal = ((door_facing+3)%4) | (dataVal & BIT_16)` (nbt.cpp:4724):
         //   bits 0x03: SWNE facing (only meaningful for the calibrated variant)
         //   bit  0x04: calibrated subtype flag (BlockTranslations: picks the name via subtype lookup)
@@ -8185,7 +8232,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case PINK_PETALS_PROP: {
-        // pink_petals (block 197 + HIGH_BIT). Read-side packs
+        // pink_petals (block 197 + TYPE_HIGH_BIT1). Read-side packs
         // `dataVal = (door_facing % 4) | ((flower_amount - 1) << 2)` (nbt.cpp:4957):
         //   bits 0x03: SWNE facing (0=south, 1=west, 2=north, 3=east)
         //   bits 0x0C (>>2): flower_amount - 1, range 0..3 (= 1..4 petals)
@@ -8197,7 +8244,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case PITCHER_CROP_PROP: {
-        // pitcher_crop (block 198 + HIGH_BIT). Read-side packs `dataVal = age | (half ? 0x8 : 0)`
+        // pitcher_crop (block 198 + TYPE_HIGH_BIT1). Read-side packs `dataVal = age | (half ? 0x8 : 0)`
         // (nbt.cpp:4961):
         //   bits 0x07: age (0..4)
         //   bit  0x08: half (0=lower, 1=upper)
@@ -8209,7 +8256,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case CRAFTER_PROP: {
-        // crafter (block 211 + HIGH_BIT). Read-side packs
+        // crafter (block 211 + TYPE_HIGH_BIT1). Read-side packs
         // `dataVal = orientation | (crafting ? BIT_16 : 0) | (triggered ? BIT_32 : 0)` (nbt.cpp:4969):
         //   bits 0x0F: orientation enum (12 values; see readPalette orientation parse ~nbt.cpp:4143)
         //   bit  0x10 (BIT_16): crafting
@@ -8238,7 +8285,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case BULB_PROP: {
-        // BULB_PROP is now copper_bulb (block 213 + HIGH_BIT, full type 469) only — chiseled_copper
+        // BULB_PROP is now copper_bulb (block 213 + TYPE_HIGH_BIT1, full type 469) only — chiseled_copper
         // and copper_grate use NO_PROP. Read-side packs `dataVal |= (lit ? 0x8 : 0) | (powered ?
         // BIT_16 : 0)` for bulbs (nbt.cpp:4974). Alphabetical: lit < powered.
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "lit", (dataVal & 0x8) ? "true" : "false");
@@ -8247,7 +8294,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case PALE_MOSS_CARPET_PROP: {
-        // pale_moss_carpet (block 103 + HIGH_BIT). Read-side stores per-side state and a "bottom"
+        // pale_moss_carpet (block 103 + TYPE_HIGH_BIT1). Read-side stores per-side state and a "bottom"
         // flag (nbt.cpp:4984 + per-side parsing 3922-3970):
         //   bit 0x01: bottom (from "bottom" property)
         //   bit 0x02: north_tall (set when north == "tall")
@@ -8267,7 +8314,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case PROPAGULE_PROP: {
-        // mangrove_propagule (block 164 + HIGH_BIT). Read-side packs
+        // mangrove_propagule (block 164 + TYPE_HIGH_BIT1). Read-side packs
         // `dataVal = hanging ? (0x8 | age) : 0` (nbt.cpp:4950):
         //   bit 0x08: hanging
         //   bits 0-2: age (0-4) — only meaningful when hanging
@@ -8281,7 +8328,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case BIG_DRIPLEAF_PROP: {
-        // Block 152 + HIGH_BIT. Read-side packs `(door_facing | (tilt << 2)) << 1` (nbt.cpp:4932):
+        // Block 152 + TYPE_HIGH_BIT1. Read-side packs `(door_facing | (tilt << 2)) << 1` (nbt.cpp:4932):
         //   bit 0x01: stem flag (BlockTranslations: 0 = big_dripleaf, 1 = big_dripleaf_stem)
         //             — picked up by findSpongeTranslator via subtype lookup.
         //   bits 0x06 (>>1): SWNE facing (0=south, 1=west, 2=north, 3=east).
@@ -8311,7 +8358,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case SMALL_DRIPLEAF_PROP: {
-        // Block 153 + HIGH_BIT. Read-side packs `(door_facing << 1) | (half ? 0 : 1)` (nbt.cpp:4936)
+        // Block 153 + TYPE_HIGH_BIT1. Read-side packs `(door_facing << 1) | (half ? 0 : 1)` (nbt.cpp:4936)
         // — note `half` was set when value=="upper", and the bit ends up as `0` for upper, `1` for lower.
         //   bit 0x01: half (0=upper, 1=lower — INVERTED from the usual convention)
         //   bits 0x06 (>>1): SWNE facing (0=south, 1=west, 2=north, 3=east).

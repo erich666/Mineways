@@ -55,7 +55,35 @@ enum { BF_BUFFER, BF_GZIP };
 #define BIT_16 0x10
 #define BIT_32 0x20
 #define WATERLOGGED_BIT 0x40
-#define HIGH_BIT 0x80
+#define TYPE_HIGH_BIT1 0x80
+
+// WorldBlock.data[] / BoxCell.data are unsigned short: the low 12 bits are dataVal (subtype/state,
+// 0-4095), the top 4 bits are the high bits (8-11) of the block's type. grid[] (or BoxCell.type's
+// low byte) holds the low 8 bits of type, giving a combined 12-bit type (0-4095). This replaces the
+// old scheme where TYPE_HIGH_BIT1 (0x80) in an 8-bit dataVal byte doubled as a "type >= 256" promotion
+// flag (with BLOCK_HEAD/BLOCK_FLOWER_POT carved out, since they used bit 0x80 as real data) - with
+// promotion moved to its own bit range (12-15), disjoint from all real dataVal bits (0-11, which
+// still include bit 7 / TYPE_HIGH_BIT1), no carve-out is needed anymore.
+#define DATAVAL_MASK    0x0FFF
+#define TYPE_EXT_MASK   0xF000
+// OR this into a data[] value to promote its block's type by exactly 256 (nibble bit 0 of the
+// type-extension field) - the direct replacement for the old "OR in TYPE_HIGH_BIT1" idiom, used by the
+// synthetic test-world writer (MinewaysMap.cpp testBlock()) wherever a neighbor cell's type is
+// hardcoded to be > 255 rather than computed from an origType (see typeHighBit for that case).
+#define TYPE_PROMOTE_256 0x1000
+
+// Combine grid[]/BoxCell.type's low byte with data's type-extension nibble into a full type.
+static inline unsigned short BLOCK_TYPE_FROM_GRID_DATA(int gridVal, int dataVal16) {
+    return (gridVal & 0xFF) | ((dataVal16 & TYPE_EXT_MASK) >> 4);
+}
+// Extract just the dataVal (subtype/state) bits from a widened data value.
+static inline unsigned short BLOCK_DATAVAL_FROM_DATA(int dataVal16) {
+    return dataVal16 & DATAVAL_MASK;
+}
+// Pack a (possibly promoted) type's high bits and a dataVal back into a data[] value.
+static inline unsigned short PACK_TYPE_EXT_AND_DATAVAL(int type, int dataVal) {
+    return (unsigned short)((dataVal & DATAVAL_MASK) | (((type >> 8) & 0xF) << 12));
+}
 
 // old data values mixed with new. This works because 0 means empty under both systems, and the high bits (0xff00) are set for all new-style flowers,
 // so the old data values 1-13 don't overlap the new ones, which are 16 and higher.
@@ -113,7 +141,7 @@ typedef struct TranslationTuple {
 } TranslationTuple;
 
 bfFile newNBT(const wchar_t* filename, int* err);
-int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned char* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int minHeight, int maxHeight, int& mfsHeight, char* unknownBlock, int unknownBlockID);
+int nbtGetBlocks(bfFile* pbf, unsigned char* buff, unsigned short* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int minHeight, int maxHeight, int& mfsHeight, char* unknownBlock, int unknownBlockID);
 int nbtGetHeights(bfFile* pbf, int & minHeight, int & maxHeight, int mcVersion);
 int nbtGetSpawn(bfFile* pbf, int* x, int* y, int* z);
 int nbtGetFileVersion(bfFile* pbf, int* version);
@@ -126,18 +154,19 @@ int nbtGetDimension(bfFile* pbf, int* dimension);
 int nbtGetDimensionDirect(bfFile* pbf, int* dimension);
 //void nbtGetRandomSeed(bfFile *pbf,long long *seed);
 int nbtGetSchematicWord(bfFile* pbf, char* field, int* value);
-int nbtGetSchematicBlocksAndData(bfFile* pbf, int numBlocks, unsigned char* schematicBlocks, unsigned char* schematicBlockData);
+int nbtGetSchematicBlocksAndData(bfFile* pbf, int numBlocks, unsigned char* schematicBlocks, unsigned short* schematicBlockData);
 bool nbtGetValidatedSchematicVolume(int width, int height, int length, int* numBlocks);
 
 // Read a Sponge Schematic v3 (.schem) file. Returns 1 on success, 0 on parse failure.
 // On success, *outBlocks and *outData are malloc'd with `(*outWidth) * (*outHeight) * (*outLength)`
-// bytes each. The arrays use the same in-memory format that the legacy schematic loader produces:
-// block ID's low 8 bits in *outBlocks, dataVal in *outData (with HIGH_BIT set when the block ID > 255).
-// State-string properties (axis, facing, …) are currently ignored — only the base block name is
-// recovered. Issue #40.
+// entries each (*outBlocks: 1 byte/entry, *outData: 2 bytes/entry). The arrays use the same
+// in-memory format as WorldBlock's grid[]/data[]: block ID's low 8 bits in *outBlocks, dataVal in
+// the low 12 bits of *outData, and the block ID's bits 8-11 in *outData's top 4 bits (see
+// BLOCK_TYPE_FROM_GRID_DATA). State-string properties (axis, facing, …) are currently ignored —
+// only the base block name is recovered. Issue #40.
 int nbtGetSpongeSchematic(bfFile* pbf,
     int* outWidth, int* outHeight, int* outLength,
-    unsigned char** outBlocks, unsigned char** outData);
+    unsigned char** outBlocks, unsigned short** outData);
 void nbtClose(bfFile* pbf);
 
 int SlowFindIndexFromName(char* name);
