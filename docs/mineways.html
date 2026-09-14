@@ -2903,6 +2903,8 @@ Find the latest Mac port on the <a href="downloads.html#mac">downloads/quick sta
 <P>
 The textures and rules used in Minecraft for how blocks appear and connect have changed over time, such as how stairs and chests are formed. If you want the closest fidelity, for a given version of Minecraft use the following version of Mineways. That said, older versions may have bugs fixed in newer versions. So, for texture consistency, you could also go the route of using the Minecraft textures of your world's version and make a special terrainExt file for Mineways, as explained on <a href="textures.html">the textures page</a>.
 <UL>
+<LI>Minecraft 26.3: Mineways version 14.00 or newer
+<LI>Minecraft 26.2: Mineways version 13.01 or newer
 <LI>Minecraft 26.1: Mineways version 13.00 or newer (version 12.11 up supports it, but does not include golem support)
 <LI>Minecraft 1.21: Mineways version 12.00 or newer
 <LI>Minecraft 1.20: Mineways version 11.00 or newer
@@ -2920,6 +2922,19 @@ The textures and rules used in Minecraft for how blocks appear and connect have 
 From newest to oldest. The very newest is sometimes unreleased work in progress, with "*" meaning "to do" and "**" meaning "stretch goal."
 
 <UL>
+<LI><B>Version 14.00</B>, 9/**/2026 TODO - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1400.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+  <BR>
+    <UL>
+	<LI>Add Minecraft 26.3 blocks. TODO.
+	<LI>3-byte block storage. Mineways used 9 bits for the type, 7 bits for the block's data. 26.3 pushed the number of types over 511, forcing a new architecture. Now types have 12 bits (4096 types, plenty of room for future expansion) and 12 bits for data (likely enough). The downside is that block storage then takes 50 percent more room. But...
+	<LI>Bug fix: increase region export size. An exported region used to be tested to see if it would exceed 2^31 bytes of allocated data, a leftover from the Windows-32 days. Worse still, it would abort export if the full region selected was going to allocate space beyond this number of bytes. Mineways actually checks the volume and "lowers the sky" to the highest block in the region, which saves export memory. Also, it's the number of blocks, not blocks * bytes, that's more relevant with the current code. Long and short, removing this limitation and making sure the number of blocks is stored in a "long long" (64-bit) value, Mineways should now handle regions that are at least four times larger that before, if not larger.
+	<LI>Slightly improved .schem export and import. More non-graphical attributes are read in and written out. Note-blocks' "instrument", decorated pot's "facing" and "cracked", sculk catalyst's "bloom", TNT's "unstable", and shelf's mysterious "side_chain" properties are now supported. The "short" piston property is ignored - it shouldn't appear in snapshots normally. Bubble-column's "drag" property is also ignored, since Mineways currently turns these into stationary water.
+	<LI>Be more careful about properly freeing image memory, out-of-memory conditions, file separators for any Mac version, TGA exceptions, etc. <I>(Thanks to Will Breiler for <a href="https://github.com/erich666/Mineways/pull/166">the copious improvements</a>. See <a href="https://github.com/wbreiler/Mineways/tree/master">his fork</a> for a Mac-buildable version of Mineways.)</I>
+	<LI>Golem facing was incorrect, bleeding into other properties. Fixed.
+	<LI>Minor improvements to error messages, mineways.bat, etc.
+	</UL>
+	
+<P>
 <LI>Version 13.01, 9/1/2026 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1301.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
     <UL>

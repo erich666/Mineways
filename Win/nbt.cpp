@@ -68,6 +68,41 @@ typedef struct BiomeTranslator {
 // arbitrarily high number. TODOTODO - make this dynamic, if possible and sensible.
 #define MAX_PALETTE	512
 
+// note_block's `instrument` property (NOTE_BLOCK_PROP, bits 0x7C0). Minecraft normally derives
+// this from the block placed directly below the note block, but Sponge schematics store it
+// explicitly, so we round-trip it. Order is alphabetical, matching the wiki's block-state list:
+// https://minecraft.wiki/w/Note_Block#Block_states
+static const char* const gNoteBlockInstruments[] = {
+    "banjo", "basedrum", "bass", "bell", "bit", "chime", "cow_bell", "creeper", "custom_head",
+    "didgeridoo", "dragon", "flute", "guitar", "harp", "hat", "iron_xylophone", "piglin", "pling",
+    "skeleton", "snare", "wither_skeleton", "xylophone", "zombie"
+};
+#define NUM_NOTE_BLOCK_INSTRUMENTS ((int)(sizeof(gNoteBlockInstruments) / sizeof(gNoteBlockInstruments[0])))
+// "harp" is the instrument Minecraft uses when nothing underneath a note block gives it a
+// special sound, so it's the most sensible fallback for an unrecognized/missing instrument name.
+#define NOTE_BLOCK_INSTRUMENT_DEFAULT 13
+
+// Returns 0..NUM_NOTE_BLOCK_INSTRUMENTS-1 for a recognized instrument name, else the default.
+static int spongeInstrumentFromName(const char* name)
+{
+    for (int i = 0; i < NUM_NOTE_BLOCK_INSTRUMENTS; i++) {
+        if (strcmp(name, gNoteBlockInstruments[i]) == 0) {
+            return i;
+        }
+    }
+    return NOTE_BLOCK_INSTRUMENT_DEFAULT;
+}
+
+// Returns the instrument name for a 0..31 field value (only 0..22 are meaningful; anything else,
+// which shouldn't happen in practice, falls back to the default rather than indexing out of range).
+static const char* spongeInstrumentName(int instrument)
+{
+    if (instrument < 0 || instrument >= NUM_NOTE_BLOCK_INSTRUMENTS) {
+        instrument = NOTE_BLOCK_INSTRUMENT_DEFAULT;
+    }
+    return gNoteBlockInstruments[instrument];
+}
+
 static bool makeHash = true;
 static bool makeBiomeHash = true;
 static TranslationTuple* modTranslations = NULL;
@@ -88,6 +123,7 @@ static TranslationTuple* modTranslations = NULL;
 // bites: CANDLE_CAKE_PROP
 // bottom: true|false - scaffolding, for which we ignore the "distance" field
 // conditional: COMMAND_BLOCK_PROP
+// cracked: DECORATED_POT_PROP
 // delay: REPEATER_PROP
 // disarmed: TRIPWIRE_PROP
 // distance: LEAF_PROP
@@ -97,15 +133,16 @@ static TranslationTuple* modTranslations = NULL;
 // enabled: HOPPER_PROP
 // extended: PISTON_PROP
 // face: LEVER_PROP, BUTTON_PROP
-// facing: DOOR_PROP, TORCH_PROP, STAIRS_PROP, LEVER_PROP, CHEST_PROP, FURNACE_PROP, FACING_PROP, BUTTON_PROP, SWNE_FACING_PROP, 
+// facing: DOOR_PROP, TORCH_PROP, STAIRS_PROP, LEVER_PROP, CHEST_PROP, FURNACE_PROP, FACING_PROP, BUTTON_PROP, SWNE_FACING_PROP,
 //     BED_PROP, DROPPER_PROP, TRAPDOOR_PROP, PISTON_PROP, PISTON_HEAD_PROP, COMMAND_BLOCK_PROP, HOPPER_PROP, OBSERVER_PROP,
-//     REPEATER_PROP, COMPARATOR_PROP, HEAD_WALL_PROP
+//     REPEATER_PROP, COMPARATOR_PROP, HEAD_WALL_PROP, DECORATED_POT_PROP
 // falling: FLUID_PROP
 // half: DOOR_PROP, TALL_FLOWER_PROP, STAIRS_PROP, TRAPDOOR_PROP
 // hanging: LANTERN_PROP (really just sets dataVal directly to 0x1 if true)
 // has_book: LECTERN_PROP
 // hinge: DOOR_PROP
 // in_wall: fence gate
+// instrument: NOTE_BLOCK_PROP
 // inverted: DAYLIGHT_PROP
 // layers: SNOW_PROP
 // leaves: LEAF_SIZE_PROP
@@ -125,6 +162,7 @@ static TranslationTuple* modTranslations = NULL;
 // rotation: STANDING_SIGN_PROP, HEAD_PROP
 // shape: STAIRS_PROP, RAIL_PROP
 // short: PISTON_HEAD_PROP
+// side_chain: SHELF_PROP
 // signal_fire: CAMPFIRE_PROP
 // snowy: SNOWY_PROP
 // stage: SAPLING_PROP
@@ -401,6 +439,10 @@ static TranslationTuple* modTranslations = NULL;
 #define GHAST_PROP  71
 // facing: south|west|north|east 0-3
 // powered: true|false 0/4
+// wood-type subtype: bits 0x38, carried in dataVal by the BlockTranslations entry
+// side_chain: true|false 0/0x100 - meaning unknown (not documented anywhere we could find,
+//   and the code that reads it doesn't act on it visually), but round-tripped for .schem
+//   import/export per user request. See https://minecraft.wiki/w/Shelf#Block_states
 #define SHELF_PROP	72
 //   bits 0x03: facing (south/west/north/east 0-3)
 //   bits 0x0C: copper_golem_pose (standing/sitting/running/star 0-3)
@@ -411,9 +453,16 @@ static TranslationTuple* modTranslations = NULL;
 
 // BLOCK_NOTEBLOCK (25). Non-graphical but preserved for .schem round-trip per
 // https://minecraft.wiki/w/Note_Block#Block_states
-//   bit  0x01: powered
-//   bits 0x3E: note value 0..24 (5 bits, stored << 1 into bits 1..5)
-// `instrument` is determined by the block below at game time, not stored here.
+//   bit   0x01: powered
+//   bits  0x3E: note value 0..24 (5 bits, stored << 1 into bits 1..5)
+//   bits 0x7C0: instrument, 0..22 (5 bits, stored << 6 into bits 6..10); index is the
+//               alphabetical position in Minecraft's instrument list (banjo=0, basedrum=1,
+//               bass=2, bell=3, bit=4, chime=5, cow_bell=6, creeper=7, custom_head=8,
+//               didgeridoo=9, dragon=10, flute=11, guitar=12, harp=13, hat=14,
+//               iron_xylophone=15, piglin=16, pling=17, skeleton=18, snare=19,
+//               wither_skeleton=20, xylophone=21, zombie=22). Minecraft normally derives
+//               this from the block below at game time, but Sponge schematics store it
+//               explicitly, so we round-trip it for .schem import/export.
 #define NOTE_BLOCK_PROP 74
 
 // BLOCK_SCAFFOLDING (340). Non-graphical but preserved for .schem round-trip.
@@ -432,6 +481,13 @@ static TranslationTuple* modTranslations = NULL;
 //   bit  0x08: any slot occupied (Mineways doesn't track per-slot occupancy)
 //   bit  0x10 (BIT_16): chiseled variant marker (from BlockTranslations subtype)
 #define BOOKSHELF_PROP 76
+
+// BLOCK_DECORATED_POT (417). Non-graphical (Mineways always draws it the same way) but
+// preserved for .schem round-trip per https://minecraft.wiki/w/Decorated_Pot#Block_states
+//   bits 0x03: facing SWNE (south=0, west=1, north=2, east=3) - same remap as COPPER_GOLEM_PROP
+//   bit  0x04: cracked
+//   bit  0x40: waterlogged (set elsewhere via WATERLOGGED_BIT)
+#define DECORATED_POT_PROP 77
 
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
@@ -723,7 +779,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  22,           0, "lapis_block", NO_PROP },
     { 0,  23,           0, "dispenser", DROPPER_PROP },
     { 0, 158,           0, "dropper", DROPPER_PROP },
-    { 0,  25,           0, "note_block", NOTE_BLOCK_PROP },	// note + powered preserved for .schem round-trip; instrument is positional, not stored
+    { 0,  25,           0, "note_block", NOTE_BLOCK_PROP },	// note + powered + instrument preserved for .schem round-trip
     { 0,  92,           0, "cake", CANDLE_CAKE_PROP },
     { 0,  26,           0, "bed", BED_PROP },   // 1.13 bed was renamed "red_bed"; we leave this in, just in case
     { 0,  96,           0, "oak_trapdoor", TRAPDOOR_PROP },
@@ -1403,7 +1459,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 180,   TYPE_HIGH_BIT1 | 2, "pearlescent_froglight", AXIS_PROP },
 
     // 1.20 - starts at 182 + TYPE_HIGH_BIT1
-    { 0, 161,       TYPE_HIGH_BIT1, "decorated_pot", TRULY_NO_PROP }, // well, waterlogged
+    { 0, 161,       TYPE_HIGH_BIT1, "decorated_pot", DECORATED_POT_PROP }, // facing + cracked + waterlogged preserved for .schem round-trip
     { 0, 155, TYPE_HIGH_BIT1 | 0x4, "calibrated_sculk_sensor", CALIBRATED_SCULK_SENSOR_PROP }, // also power and sculk_sensor_phase, but not needed so not saved
     { 0, 182,       TYPE_HIGH_BIT1, "cherry_button", BUTTON_PROP },
     { 0, 183,       TYPE_HIGH_BIT1, "cherry_door", DOOR_PROP },
@@ -3666,21 +3722,21 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
     // for doors
     bool half, north, south, east, west, down, lit, powered, triggered, extended, attached, disarmed,
         conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall, signal_fire, has_book,
-        up, hanging, crafting;
+        up, hanging, crafting, cracked, side_chain;
     int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age,
         delay, locked, sticky, hatch, leaves, single, attachment, honey_level, stairs, bites, tilt,
         thickness, vertical_direction, berries, flower_amount, orientation, hydration,
-        copper_golem_pose, note, distance;
+        copper_golem_pose, note, distance, instrument;
         // maybe someday - right now not enough bits: wire_n, wire_e, wire_s, wire_w;	// redstone_wire connection states (0=none, 1=side, 2=up)
     // to avoid Release build warning, but should always be set by code in practice
     int typeIndex = 0;
     half = north = south = east = west = down = lit = powered = triggered = extended = attached = disarmed
         = conditional = inverted = enabled = doubleSlab = mode = in_wall = signal_fire = has_book
-        = up = hanging = crafting = false; // waterlogged is always set false in loop
+        = up = hanging = crafting = cracked = side_chain = false; // waterlogged is always set false in loop
     axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
         delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt =
         thickness = vertical_direction = berries = flower_amount = orientation = hydration =
-        copper_golem_pose = note = distance = 0;
+        copper_golem_pose = note = distance = instrument = 0;
         // maybe someday - right now not enough bits: wire_n = wire_e = wire_s = wire_w = 0;
     int pmc = 0;
 
@@ -4663,6 +4719,43 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             if (strcmp(value, "true") == 0) dataVal |= 0x01;
                         }
 
+                        // note_block: instrument 0..22, packed into bits 0x7C0 of dataVal by NOTE_BLOCK_PROP arm.
+                        else if (strcmp(token, "instrument") == 0) {
+                            instrument = spongeInstrumentFromName(value);
+                        }
+
+                        // BLOCK_CRYING_OBSIDIAN (344) / sculk_catalyst. Only sculk_catalyst carries this
+                        // property; bit 0x02 of dataVal holds whether it's actively "blooming". Bit 0x01
+                        // already distinguishes sculk_catalyst from crying_obsidian (see BlockTranslations),
+                        // so 0x02 is free. Non-graphical but preserved for .schem round-trip; the writer
+                        // emits it via a type-keyed special case (sculk_catalyst is NO_PROP so there is no
+                        // per-family arm to hook into).
+                        else if (strcmp(token, "bloom") == 0) {
+                            if (strcmp(value, "true") == 0) dataVal |= 0x02;
+                        }
+
+                        // BLOCK_TNT (46). Only tnt carries this property (target shares the blockId via
+                        // bit 0x01); bit 0x02 of dataVal holds whether it explodes when punched.
+                        // Non-graphical but preserved for .schem round-trip; the writer emits it via a
+                        // type-keyed special case (tnt is TRULY_NO_PROP so there is no per-family arm).
+                        else if (strcmp(token, "unstable") == 0) {
+                            if (strcmp(value, "true") == 0) dataVal |= 0x02;
+                        }
+
+                        // decorated_pot: cracked, folded into dataVal by DECORATED_POT_PROP arm below.
+                        else if (strcmp(token, "cracked") == 0) {
+                            cracked = (strcmp(value, "true") == 0);
+                        }
+
+                        // shelf: side_chain, folded into dataVal by SHELF_PROP arm below. Meaning is
+                        // undocumented anywhere we could find (and the wiki's own page doesn't explain
+                        // it either), and Mineways doesn't act on it visually - assumed boolean (like
+                        // every other previously-ignored property here) and round-tripped as-is for
+                        // .schem import/export per user request.
+                        else if (strcmp(token, "side_chain") == 0) {
+                            side_chain = (strcmp(value, "true") == 0);
+                        }
+
                         else if (strcmp(token, "potent_sulfur_state") == 0) {
                             // BLOCK_POTENT_SULFUR's only property
                             // bottom 3 bits gives state:
@@ -4682,15 +4775,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
 #ifdef _DEBUG
                         else {
                             // ignore, not used by Mineways for now, BlockTranslations[typeIndex]
-                            // TODOTODO we should implement all that we can, for .schem read/write.
                             if (strcmp(token, "short") == 0) {} // for piston, short is true for animation, only. Ignored by Mineways. TODO: Could be added, but unlikely to be set or useful, and it's transitory.
-                            else if (strcmp(token, "instrument") == 0) {} // note_block's instrument is currently ignored by Mineways. Not enough bits to hold it.
-                            else if (strcmp(token, "drag") == 0) {} // bubble column, which currently is turned into stationary water by Mineways, so ignored.
-                            else if (strcmp(token, "unstable") == 0) {}	// does TNT blow up when punched? We've reused TNT for a few other blocks, so let's not mess with this, and it's not graphical anyway.
-                            else if (strcmp(token, "bloom") == 0) {}	// for sculk catalyst; ignoring, as skulk catalyst is doubled with crying obsidian (they both emit), so it's a bit confusing to add this. Doable, just messy. TODO
-                            else if (strcmp(token, "cracked") == 0) {}	// for decorated pot - ignored; (facing is also ignored for decorated pot)
-                            // creaking_heart's `natural` is parsed above
-                            else if (strcmp(token, "side_chain") == 0) {}	// for shelf - ignored, there's no room for this bit, and no one knows what this is for: https://minecraft.wiki/w/Shelf#Block_states
+                            else if (strcmp(token, "drag") == 0) {} // bubble column, which currently is turned into stationary water by Mineways, so ignored. bubble_column has no real representation in Mineways (it's rendered as plain stationary water) and no PROP arm to attach state to; would need a bigger design change.
                             else {
                                 // unknown property - look at token and value
                                 static int ignore = 0;
@@ -4721,17 +4807,37 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 //   bit  0x40: waterlogged (set elsewhere via WATERLOGGED_BIT)
                 // door_facing values from the facing parser are 1=south, 2=west, 3=north, 0=east;
                 // the standard SWNE remap is `(door_facing + 3) % 4` (same as REPEATER_PROP / BED_PROP).
-                dataVal |= ((door_facing + 3) % 4) | (copper_golem_pose << 2);
+                // Plain assignment (not |=): the generic "facing" token handler above also ORs raw
+                // bits into dataVal for other PROP families' benefit (DOOR_PROP/STAIRS_PROP style -
+                // e.g. dataVal |= 3 for "south"), which would otherwise leak into the low 2 bits here
+                // and corrupt the SWNE encoding (this was a real bug - south picked up dataVal |= 3
+                // from the facing handler, which the |= below couldn't clear, so it never became 0
+                // like it should have). Every other user of this exact remap (DECORATED_POT_PROP,
+                // REPEATER_PROP, BED_PROP, etc.) already uses assignment for the same reason.
+                dataVal = ((door_facing + 3) % 4) | (copper_golem_pose << 2);
                 copper_golem_pose = 0;
                 break;
 
             case NOTE_BLOCK_PROP:
                 // BLOCK_NOTEBLOCK (25). Non-graphical, but preserved for .schem round-trip.
-                //   bit  0x01: powered
-                //   bits 0x3E: note pitch 0..24, shifted into bits 1..5
-                dataVal |= (powered ? 0x01 : 0) | ((note & 0x1F) << 1);
+                //   bit   0x01: powered
+                //   bits  0x3E: note pitch 0..24, shifted into bits 1..5
+                //   bits 0x7C0: instrument 0..22, shifted into bits 6..10
+                dataVal |= (powered ? 0x01 : 0) | ((note & 0x1F) << 1) | ((instrument & 0x1F) << 6);
                 powered = false;
                 note = 0;
+                instrument = NOTE_BLOCK_INSTRUMENT_DEFAULT;
+                break;
+
+            case DECORATED_POT_PROP:
+                // BLOCK_DECORATED_POT (417). Non-graphical, but preserved for .schem round-trip.
+                //   bits 0x03: facing SWNE (south=0, west=1, north=2, east=3)
+                //   bit  0x04: cracked
+                // Plain assignment (not |=), since the generic "facing" token handler above also
+                // ORs raw bits into dataVal for other PROP families (DOOR_PROP/STAIRS_PROP style);
+                // door_facing is the clean value to remap here, same as COPPER_GOLEM_PROP.
+                dataVal = ((door_facing + 3) % 4) | (cracked ? 0x4 : 0);
+                cracked = false;
                 break;
 
                 // These next two use shared properties, which means the other PROPs that use any of these need to reset them (except for dropper_facing and door_facing).
@@ -4773,9 +4879,11 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 break;
 
             case SHELF_PROP:
-                dataVal = door_facing | (powered ? 4 : 0);
+                // bit 0x100: side_chain, meaning unknown - round-tripped as-is, see SHELF_PROP #define comment.
+                dataVal = door_facing | (powered ? 4 : 0) | (side_chain ? 0x100 : 0);
                 door_facing = face = 0; // don't need to do door_facing, and in fact the rest of the code doesn't reset this, as it should always be set by this prop anyway.
                 powered = false;
+                side_chain = false;
                 break;
 
             case NO_PROP:
@@ -6114,6 +6222,11 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
         if (strcmp(k, "has_bottle_2") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x4; continue; }
         // BLOCK_JUKEBOX (84) is NO_PROP; has_record lives in bit 0x01 (mirror of world reader).
         if (strcmp(k, "has_record") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x1; continue; }
+        // sculk_catalyst (shares BLOCK_CRYING_OBSIDIAN/344, NO_PROP) `bloom`, and TNT (TRULY_NO_PROP)
+        // `unstable` both live in bit 0x02 — mirror of world reader; safe to share the bit since the
+        // two blocks never coexist in the same BlockTranslations row lookup.
+        if (strcmp(k, "bloom") == 0)    { if (strcmp(v, "true") == 0) dataVal |= 0x2; continue; }
+        if (strcmp(k, "unstable") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x2; continue; }
         // BLOCK_SCULK_SHRIEKER (433) is NO_PROP; bit 0x01 = can_summon, bit 0x02 = shrieking.
         if (strcmp(k, "can_summon") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x1; continue; }
         if (strcmp(k, "shrieking") == 0)  { if (strcmp(v, "true") == 0) dataVal |= 0x2; continue; }
@@ -6385,13 +6498,16 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             break;
 
         case NOTE_BLOCK_PROP:
-            // bit 0x01 = powered, bits 0x3E = note 0..24 (mirror of NOTE_BLOCK_PROP world arm).
-            // `instrument` is positional in Minecraft (set by the block below) — not stored.
+            // bit 0x01 = powered, bits 0x3E = note 0..24, bits 0x7C0 = instrument 0..22
+            // (mirror of NOTE_BLOCK_PROP world arm).
             if (strcmp(k, "powered") == 0) {
                 if (strcmp(v, "true") == 0) dataVal |= 0x01;
             }
             else if (strcmp(k, "note") == 0) {
                 dataVal = (dataVal & ~0x3E) | ((atoi(v) & 0x1F) << 1);
+            }
+            else if (strcmp(k, "instrument") == 0) {
+                dataVal = (dataVal & ~0x7C0) | ((spongeInstrumentFromName(v) & 0x1F) << 6);
             }
             break;
 
@@ -6676,6 +6792,7 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
         case SHELF_PROP:
             if (strcmp(k, "facing") == 0)         dataVal = (dataVal & ~0x3) | spongeDoorFacingIdxFromName(v);
             else if (strcmp(k, "powered") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x4; lit = false; }
+            else if (strcmp(k, "side_chain") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x100; }
             break;
 
         case COPPER_GOLEM_PROP:
@@ -6690,6 +6807,16 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
                 else if (strcmp(v, "running") == 0) p = 2;
                 else if (strcmp(v, "star")    == 0) p = 3;
                 dataVal = (dataVal & ~0xC) | (p << 2);
+            }
+            break;
+
+        case DECORATED_POT_PROP:
+            // facing bits 0x03 (SWNE), cracked bit 0x04. waterlogged handled universally.
+            if (strcmp(k, "facing") == 0) {
+                dataVal = (dataVal & ~0x3) | spongeSwneIdxFromName(v);
+            }
+            else if (strcmp(k, "cracked") == 0) {
+                if (strcmp(v, "true") == 0) dataVal |= 0x4;
             }
             break;
 
@@ -7848,9 +7975,9 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
 
     case NOTE_BLOCK_PROP: {
         // BLOCK_NOTEBLOCK (25). bit 0x01 = powered, bits 0x3E = note pitch (0..24, shifted into
-        // bits 1..5). `instrument` isn't tracked — Minecraft derives it from the block below,
-        // so omitting it is fine (the game recomputes on placement). Alphabetical: instrument
-        // omitted, note < powered.
+        // bits 1..5), bits 0x7C0 = instrument (0..22, shifted into bits 6..10). Alphabetical:
+        // instrument < note < powered.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "instrument", spongeInstrumentName((dataVal >> 6) & 0x1F));
         char noteStr[3];
         snprintf(noteStr, sizeof(noteStr), "%d", (dataVal >> 1) & 0x1F);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "note", noteStr);
@@ -8180,9 +8307,11 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
 
     case SHELF_PROP: {
         // Wood-type shelves (blocks 244/245 + TYPE_HIGH_BIT1, subtype in bits 0x38). Read-side packs
-        // `dataVal = door_facing | (powered ? 4 : 0)` (nbt.cpp:4480). door_facing's encoding is
-        // *not* the same SWNE order as anvil/bed/etc. — it's the literal facing-parser values:
-        //   0 = east, 1 = south, 2 = west, 3 = north  (see facing parse at nbt.cpp:3822-3848)
+        // `dataVal = door_facing | (powered ? 4 : 0) | (side_chain ? 0x100 : 0)` (nbt.cpp:4480).
+        // door_facing's encoding is *not* the same SWNE order as anvil/bed/etc. — it's the literal
+        // facing-parser values: 0 = east, 1 = south, 2 = west, 3 = north (see facing parse at
+        // nbt.cpp:3822-3848). bit 0x100 = side_chain — meaning unknown, round-tripped as-is (see
+        // SHELF_PROP #define comment).
         const char* facing;
         switch (dataVal & 0x3) {
         case 0: facing = "east"; break;
@@ -8190,9 +8319,10 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         case 2: facing = "west"; break;
         default: facing = "north"; break;  // 3
         }
-        // Alphabetical: facing < powered.
+        // Alphabetical: facing < powered < side_chain.
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x4) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "side_chain", (dataVal & 0x100) ? "true" : "false");
         break;
     }
 
@@ -8212,6 +8342,15 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         case 3: pose = "star";     break;
         }
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "copper_golem_pose", pose);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeSwneFromDataVal(dataVal));
+        break;
+    }
+
+    case DECORATED_POT_PROP: {
+        // BLOCK_DECORATED_POT (417). bits 0x03 = facing (SWNE), bit 0x04 = cracked,
+        // bit 0x40 = waterlogged (emitted by universal post-switch path).
+        // Alphabetical: cracked < facing < waterlogged.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "cracked", (dataVal & 0x4) ? "true" : "false");
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeSwneFromDataVal(dataVal));
         break;
     }
@@ -8701,6 +8840,20 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     // bit 0x01. Non-graphical but preserved for .schem round-trip.
     if ((type & 0x1FF) == BLOCK_JUKEBOX) {
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "has_record", (dataVal & 0x1) ? "true" : "false");
+    }
+
+    // BLOCK_TNT (46) is TRULY_NO_PROP; shares its blockId with "target" via bit 0x01 (0=tnt,
+    // 1=target - see BlockTranslations). "unstable" only exists on the "tnt" block state, so only
+    // emit it for the tnt subtype; bit 0x02 holds it (mirror of world reader).
+    if ((type & 0x1FF) == BLOCK_TNT && (dataVal & 0x1) == 0) {
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "unstable", (dataVal & 0x2) ? "true" : "false");
+    }
+
+    // BLOCK_CRYING_OBSIDIAN (344) is NO_PROP; shares its blockId with "sculk_catalyst" via bit
+    // 0x01 (0=crying_obsidian, 1=sculk_catalyst - see BlockTranslations). "bloom" only exists on
+    // sculk_catalyst, so only emit it for that subtype; bit 0x02 holds it (mirror of world reader).
+    if ((type & 0x1FF) == BLOCK_CRYING_OBSIDIAN && (dataVal & 0x1) != 0) {
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "bloom", (dataVal & 0x2) ? "true" : "false");
     }
 
     // BLOCK_SCULK_SHRIEKER (433) is NO_PROP. World reader packs bit 0x01 = can_summon,
