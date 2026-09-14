@@ -128,6 +128,8 @@ static TranslationTuple* modTranslations = NULL;
 // disarmed: TRIPWIRE_PROP
 // distance: LEAF_PROP
 // down|up: MUSHROOM_PROP, MUSHROOM_STEM_PROP
+// drag: true|false - bubble_column (shares BLOCK_STATIONARY_WATER/9 with plain water); NO_PROP,
+//   folded in directly (see the special case in spongeBuildBlockStateString)
 // east|north|west|south: MUSHROOM_PROP, MUSHROOM_STEM_PROP, WIRE_PROP
 // eggs: EGG_PROP
 // enabled: HOPPER_PROP
@@ -283,9 +285,10 @@ static TranslationTuple* modTranslations = NULL;
 // extended: true|false
 #define PISTON_PROP			 EXTENDED_FACING_PROP
 // facing: down|up|north|south|west|east
-// extended: true|false - ignored, don't know what that is (block wouldn't exist otherwise, right?
-// type: sticky|normal
-// short: true|false - TODO, piston arm is shorter by 4 pixels, https://minecraft.wiki/w/Piston#Block_state_2 - not sure how to generate this state, so leaving it alone
+// type: sticky|normal - bit 0x8, shared with PISTON_PROP's "extended" (see EXTENDED_FACING_PROP
+//   arm in readPalette / spongeParseStateString / spongeBuildBlockStateString)
+// short: true|false - arm is mid-animation (drawn 4 pixels shorter); purely transitory, so this
+//   will almost never be true in a saved .schem, but round-tripped anyway (bit 0x10)
 #define PISTON_HEAD_PROP	 EXTENDED_FACING_PROP
 // south|west|north|east: true|false
 #define FENCE_PROP	 34
@@ -3722,7 +3725,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
     // for doors
     bool half, north, south, east, west, down, lit, powered, triggered, extended, attached, disarmed,
         conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall, signal_fire, has_book,
-        up, hanging, crafting, cracked, side_chain;
+        up, hanging, crafting, cracked, side_chain, pistonShort;
     int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age,
         delay, locked, sticky, hatch, leaves, single, attachment, honey_level, stairs, bites, tilt,
         thickness, vertical_direction, berries, flower_amount, orientation, hydration,
@@ -3732,7 +3735,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
     int typeIndex = 0;
     half = north = south = east = west = down = lit = powered = triggered = extended = attached = disarmed
         = conditional = inverted = enabled = doubleSlab = mode = in_wall = signal_fire = has_book
-        = up = hanging = crafting = cracked = side_chain = false; // waterlogged is always set false in loop
+        = up = hanging = crafting = cracked = side_chain = pistonShort = false; // waterlogged is always set false in loop
     axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
         delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt =
         thickness = vertical_direction = berries = flower_amount = orientation = hydration =
@@ -4174,6 +4177,24 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         // PISTON_PROP and PISTON_HEAD_PROP
                         else if (strcmp(token, "extended") == 0) {
                             extended = (strcmp(value, "true") == 0);
+                        }
+                        // PISTON_HEAD_PROP only: true while the arm is retracting/extending (it's
+                        // drawn 4 pixels shorter during that animation). Purely transitory - a saved
+                        // .schem always shows a piston either fully extended or fully retracted, so
+                        // this will almost never actually be true in practice - but folded into
+                        // dataVal by the EXTENDED_FACING_PROP arm below anyway, for round-trip fidelity.
+                        else if (strcmp(token, "short") == 0) {
+                            pistonShort = (strcmp(value, "true") == 0);
+                        }
+                        // bubble_column (shares BLOCK_STATIONARY_WATER/9, disambiguated from plain
+                        // water by bit 0x10). "drag" is true when the column pulls entities down -
+                        // a whirlpool, produced by a magma block below - and false when it pushes
+                        // them up (produced by soul sand below). https://minecraft.wiki/w/Bubble_Column#Block_states
+                        // Non-graphical - Mineways renders bubble_column as plain stationary water -
+                        // but preserved for .schem round-trip; the writer emits it via a type-keyed
+                        // special case (bubble_column is NO_PROP so there is no per-family arm).
+                        else if (strcmp(token, "drag") == 0) {
+                            if (strcmp(value, "true") == 0) dataVal |= 0x01;
                         }
                         // MUSHROOM_PROP and MUSHROOM_STEM_PROP
                         // also WIRE_PROP: none or side;
@@ -4774,14 +4795,9 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
 
 #ifdef _DEBUG
                         else {
-                            // ignore, not used by Mineways for now, BlockTranslations[typeIndex]
-                            if (strcmp(token, "short") == 0) {} // for piston, short is true for animation, only. Ignored by Mineways. TODO: Could be added, but unlikely to be set or useful, and it's transitory.
-                            else if (strcmp(token, "drag") == 0) {} // bubble column, which currently is turned into stationary water by Mineways, so ignored. bubble_column has no real representation in Mineways (it's rendered as plain stationary water) and no PROP arm to attach state to; would need a bigger design change.
-                            else {
-                                // unknown property - look at token and value
-                                static int ignore = 0;
-                                assert(ignore);
-                            }
+                            // unknown property - look at token and value
+                            static int ignore = 0;
+                            assert(ignore);
                         }
 #endif
                     }
@@ -4844,7 +4860,9 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             case EXTENDED_FACING_PROP:
                 // properties DROPPER_PROP, PISTON_PROP, PISTON_HEAD_PROP, HOPPER_PROP, COMMAND_BLOCK_PROP, 
                 // also WALL_SIGN_PROP, OBSERVER_PROP
-                dataVal = dropper_facing | (extended ? 8 : 0) | sticky | (enabled ? 8 : 0) | (conditional ? 8 : 0) | (open ? 8 : 0) | (powered ? 8 : 0) | (triggered ? 8 : 0);
+                // bit 0x10: piston_head's "short" (arm mid-animation) - unused by every other
+                // consumer of this shared PROP family, so it's safe to always fold in.
+                dataVal = dropper_facing | (extended ? 8 : 0) | sticky | (enabled ? 8 : 0) | (conditional ? 8 : 0) | (open ? 8 : 0) | (powered ? 8 : 0) | (triggered ? 8 : 0) | (pistonShort ? 0x10 : 0);
                 // We have to reset, as this property is used by lots of different blocks, each of which sets its own set of properties.
                 // Normally we don't have to reset, as (for example) a fence gate FENCE_GATE_PROP will always set the "open" property, it's always present, so when a second fence
                 // gate is found in the palette, it is guaranteed to have set this value, i.e., no clearing is needed there.
@@ -4859,6 +4877,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 conditional = false;
                 open = 0x0;
                 powered = false;
+                pistonShort = false;
                 break;
             case EXTENDED_SWNE_FACING_PROP:
                 // properties GRINDSTONE_PROP, LECTERN_PROP, BELL_PROP, CAMPFIRE_PROP
@@ -6227,6 +6246,9 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
         // two blocks never coexist in the same BlockTranslations row lookup.
         if (strcmp(k, "bloom") == 0)    { if (strcmp(v, "true") == 0) dataVal |= 0x2; continue; }
         if (strcmp(k, "unstable") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x2; continue; }
+        // bubble_column (shares BLOCK_STATIONARY_WATER/9, NO_PROP, disambiguated from water by bit
+        // 0x10) `drag` lives in bit 0x01 (mirror of world reader).
+        if (strcmp(k, "drag") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x1; continue; }
         // BLOCK_SCULK_SHRIEKER (433) is NO_PROP; bit 0x01 = can_summon, bit 0x02 = shrieking.
         if (strcmp(k, "can_summon") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x1; continue; }
         if (strcmp(k, "shrieking") == 0)  { if (strcmp(v, "true") == 0) dataVal |= 0x2; continue; }
@@ -6294,6 +6316,12 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             }
             else if (strcmp(k, "extended") == 0) {   // piston-specific (we just store the bit)
                 if (strcmp(v, "true") == 0) dataVal |= 0x8;
+            }
+            else if (strcmp(k, "short") == 0) {   // piston_head-specific (we just store the bit)
+                if (strcmp(v, "true") == 0) dataVal |= 0x10;
+            }
+            else if (strcmp(k, "type") == 0) {   // piston_head-specific: sticky|normal, reuses bit 0x8
+                if (strcmp(v, "sticky") == 0) dataVal |= 0x8;
             }
             break;
 
@@ -7821,13 +7849,26 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         //   dispenser / dropper    -> triggered (non-graphical)
         // For now we only emit it for pistons (visually significant: it controls whether the head
         // is out). The others can be added the same way if requested.
+        //
+        // Bit 0x10 is piston_head-only: "short" (arm mid-animation), unused by every other
+        // consumer of this family (see EXTENDED_FACING_PROP arm in readPalette).
+        //
+        // piston_head/moving_piston also reuse bit 0x8 for "type" (sticky|normal) instead of
+        // "extended" - read in by the "type" token parser (readPalette / spongeParseStateString),
+        // which sets `sticky` to 8 or 0, but until now never written back out here, so it was
+        // silently dropped on .schem export (piston_head always came back "normal").
         int fullType = type & 0x1FF;
         bool isPiston = (fullType == BLOCK_PISTON || fullType == BLOCK_STICKY_PISTON);
-        // Alphabetical: extended < facing
+        bool isPistonHead = (fullType == BLOCK_PISTON_HEAD);
+        // Alphabetical: extended < facing < short < type
         if (isPiston) {
             spongeAppendProp(props, (int)sizeof(props), &plen, &started, "extended", (dataVal & 0x8) ? "true" : "false");
         }
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeFacing6FromDataVal(dataVal));
+        if (isPistonHead) {
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "short", (dataVal & 0x10) ? "true" : "false");
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "type", (dataVal & 0x8) ? "sticky" : "normal");
+        }
         break;
     }
 
@@ -8854,6 +8895,13 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     // sculk_catalyst, so only emit it for that subtype; bit 0x02 holds it (mirror of world reader).
     if ((type & 0x1FF) == BLOCK_CRYING_OBSIDIAN && (dataVal & 0x1) != 0) {
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "bloom", (dataVal & 0x2) ? "true" : "false");
+    }
+
+    // BLOCK_STATIONARY_WATER (9) is NO_PROP; shares its blockId with plain "water" via bit 0x10
+    // (0=water, 1=bubble_column - see BlockTranslations). "drag" only exists on bubble_column, so
+    // only emit it for that subtype; bit 0x01 holds it (mirror of world reader).
+    if ((type & 0x1FF) == BLOCK_STATIONARY_WATER && (dataVal & 0x10) != 0) {
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "drag", (dataVal & 0x1) ? "true" : "false");
     }
 
     // BLOCK_SCULK_SHRIEKER (433) is NO_PROP. World reader packs bit 0x01 = can_summon,
