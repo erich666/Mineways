@@ -1160,15 +1160,21 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
             wchar_t terrainFileCat[MAX_PATH_AND_FILE];
             wcscpy_s(terrainFileCat, MAX_PATH, terrainFileName);
             int len = (int)wcslen(terrainFileCat);
-            if (_wcsicmp(&terrainFileCat[len - 4], L".png") == 0)
+            if (len >= 4 && _wcsicmp(&terrainFileCat[len - 4], L".png") == 0)
             {
                 // remove .png suffix
                 terrainFileCat[len - 4] = 0x0;
             }
             else {
                 // else read will fail, but so be it for the first, RGBA file
-                if (catIndex > 0)
+                if (catIndex > 0) {
+                    // Nothing gets read into this image, so it must not be left
+                    // non-NULL: every consumer of pInputTerrainImage treats a non-NULL
+                    // entry as loaded and indexes straight into image_data.
+                    delete gModel.pInputTerrainImage[catIndex];
+                    gModel.pInputTerrainImage[catIndex] = NULL;
                     continue;
+                }
             }
             wcscat_s(terrainFileCat, MAX_PATH, gCatSuffixes[catIndex]);
             wcscat_s(terrainFileCat, MAX_PATH, L".png");
@@ -1238,7 +1244,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
 
             if (catIndex == CATEGORY_RGBA) {
                 // compute progress increments, now that we know the input texture size
-                determineProgressValues(fileType, xmax - xmin, zmax - zmin);
+                determineProgressValues(fileType, gBoxSize[X] - 3, gBoxSize[Z] - 3);
                 startProgress = false;
             }
             UPDATE_PROGRESS(gProgress.start.readTextures + (float)(catIndex+1) * (float)gProgress.absolute.readTextures / (float)gTotalInputTextures);
@@ -1246,7 +1252,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     }
     if (startProgress) {
         // compute progress increments
-        determineProgressValues(fileType, xmax - xmin, zmax - zmin);
+        determineProgressValues(fileType, gBoxSize[X] - 3, gBoxSize[Z] - 3);
     }
 
     UPDATE_STATUS(gProgress.start.readBlocks, L"Read selected blocks");
@@ -13071,8 +13077,6 @@ static FaceRecord* allocFaceRecordFromPool()
             gModel.faceRecordPool = pFRP;
         }
         else {
-            // out of memory! Not sure what to do...
-            assert(pFRP);
             return NULL;
         }
     }
@@ -13105,8 +13109,6 @@ static SimplifyFaceRecord* allocSimplifyFaceRecordFromPool()
                 gModel.simplifyFaceRecordPool = pSFRP;
             }
             else {
-                // out of memory! Not sure what to do...
-                assert(pSFRP);
                 return NULL;
             }
         }
@@ -35979,7 +35981,7 @@ static void compositePNGSwatchOverColor(progimage_info* dst, int dstSwatch, int 
     unsigned int* dsti = (unsigned int*)(&dst->image_data[0]) + drow * swatchSize * dst->width + dcol * swatchSize;
 
     int row, col;
-    unsigned char or, og, ob, oa;
+    unsigned char ovr, og, ob, oa;
     unsigned char dr, dg, db, da;
     unsigned int* coveri, * cdsti;  // cppcheck-suppress 398
 
@@ -35992,7 +35994,7 @@ static void compositePNGSwatchOverColor(progimage_info* dst, int dstSwatch, int 
         {
             unsigned char oma;
 
-            GET_PNG_TEXEL(or, og, ob, oa, *coveri);
+            GET_PNG_TEXEL(ovr, og, ob, oa, *coveri);
 
             oma = 255 - oa;
 
@@ -36011,7 +36013,7 @@ static void compositePNGSwatchOverColor(progimage_info* dst, int dstSwatch, int 
             else
             {
                 // full blend must be done: use over, http://en.wikipedia.org/wiki/Alpha_compositing
-                dr = (unsigned char)((or * oa * 255 + ur * ua * oma) / (255 * 255));
+                dr = (unsigned char)((ovr * oa * 255 + ur * ua * oma) / (255 * 255));
                 dg = (unsigned char)((og * oa * 255 + ug * ua * oma) / (255 * 255));
                 db = (unsigned char)((ob * oa * 255 + ub * ua * oma) / (255 * 255));
                 da = (unsigned char)((oa * 255 + ua * oma) / 255);

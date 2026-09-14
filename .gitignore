@@ -1,3 +1,4 @@
+security-review.md
 *.exe
 *.exp
 *.ilk
@@ -78,3 +79,10 @@ Win/Mineways_english.rc
 TileMaker/TileMaker/Luna_64x_1.19/*
 TileMaker/TileMaker/26.2*
 /.claude
+Mac/*.o
+Mac/*.o.tmp
+Mac/*.d
+Mac/.MinewaysVersion.h
+Mac/mineways
+Mac/Mineways.app/
+.DS_Store

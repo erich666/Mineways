@@ -1,0 +1,90 @@
+# Builds the wxWidgets macOS port (Mac/) into a self-contained Mineways.app.
+# - Every push/PR touching Mac/ or Win/ builds and uploads the app as a workflow artifact.
+# - Pushing a tag like "v13.1" additionally attaches the zipped app to a GitHub Release.
+#
+# Ships unsigned (ad-hoc signed only, no Apple Developer account needed). Finder may
+# report the downloaded app as "damaged" due to the quarantine flag on unsigned code —
+# see the release body / README for the one-line `xattr -cr` fix.
+name: macOS Build
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+    paths:
+      - 'Mac/**'
+      - 'Win/*.cpp'
+      - 'Win/*.h'
+      - '.github/workflows/macos-build.yml'
+  pull_request:
+    paths:
+      - 'Mac/**'
+      - 'Win/*.cpp'
+      - 'Win/*.h'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: brew install wxwidgets dylibbundler
+
+      - name: Build app bundle
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            make -C Mac MINEWAYS_VERSION="${GITHUB_REF#refs/tags/v}" app
+          else
+            make -C Mac app
+          fi
+
+      - name: Bundle dependencies (make app self-contained)
+        run: |
+          dylibbundler -od -b \
+            -x Mac/Mineways.app/Contents/MacOS/mineways \
+            -d Mac/Mineways.app/Contents/Frameworks \
+            -p @executable_path/../Frameworks
+
+      - name: Ad-hoc sign whole bundle
+        run: codesign --force --deep --sign - Mac/Mineways.app
+
+      - name: Zip app
+        run: ditto -c -k --keepParent Mac/Mineways.app Mineways-macOS.zip
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mineways-macOS
+          path: Mineways-macOS.zip
+
+      - name: Prepare Release Notes
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          echo "**First launch:** this build is unsigned (no paid Apple Developer account), so" > release_body.md
+          echo "after unzipping, macOS Gatekeeper may show \"Mineways.app is damaged and can't" >> release_body.md
+          echo "be opened\" — that's just the quarantine flag on an unsigned app, not a broken" >> release_body.md
+          echo "download or a broken zip. Fix it with one Terminal command, then open normally:" >> release_body.md
+          echo "" >> release_body.md
+          echo '```' >> release_body.md
+          echo "xattr -cr ~/Downloads/Mineways.app" >> release_body.md
+          echo '```' >> release_body.md
+          echo "" >> release_body.md
+          echo "(adjust the path if you moved the app first, e.g. to /Applications)" >> release_body.md
+          echo "" >> release_body.md
+          echo "---" >> release_body.md
+          echo "### Release Notes" >> release_body.md
+          echo "" >> release_body.md
+          # Extract the notes under the top-most ## [vX.Y] header until the next ## [ header
+          awk '/^## \[/{if (p) exit; p=1; next} p' CHANGELOG.md >> release_body.md
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Mineways-macOS.zip
+          body_path: release_body.md
