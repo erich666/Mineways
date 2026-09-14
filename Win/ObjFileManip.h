@@ -77,10 +77,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #define MW_CANNOT_READ_SELECTED_TERRAIN_FILE        (1<<22)
 #define MW_CANNOT_CREATE_PNG_FILE                   (1<<23)
+#define MW_TOO_LARGE_AN_INDEX                       (1<<24)
 
-#define MW_ERRORS                                 (1<<23)
+#define MW_ERRORS                                 (1<<24)
 
-#define MW_NUM_CODES                                24
+#define MW_NUM_CODES                                25
 
 // scripts can override the various blocks with other blocks while exporting
 typedef struct ChangeBlockCommand {
@@ -96,7 +97,7 @@ typedef struct ChangeBlockCommand {
     // to location - there is always only one
     bool hasInto;
     unsigned short intoType;
-    unsigned char intoData;
+    unsigned short intoData;
 
     // location range
     bool hasLocation;	// if not set, whole export volume is used

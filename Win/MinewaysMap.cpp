@@ -664,17 +664,13 @@ const char* IDBlock(int bx, int by, double cx, double cz, int w, int h, int yOff
 
     int chunkIndex = xoff + zoff * 16 + y * 256;
     assert((chunkIndex >> 8) <= block->maxFilledHeight);  // if block is reduced in size, make sure it's in bounds
-    *type = block->grid[chunkIndex];
-    *dataVal = block->data[chunkIndex];
-
-    // 1.13+ fun: move topmost dataVal value to type - note that BLOCK_HEAD and BLOCK_FLOWER_POT are "reserved" and the high-bit version is not used
-    // Here is where the high data bit gets masked off and moved to the type bit.
-    if (block->mcVersion >= 13) {
-        if ((*dataVal & HIGH_BIT) && (*type != BLOCK_HEAD) && (*type != BLOCK_FLOWER_POT)) {
-            *dataVal &= 0x7F;
-            *type |= 0x100;
-        }
-    }
+    // grid[] holds the type's low 8 bits; data[]'s top 4 bits hold the type's bits 8-11 and its
+    // low 12 bits are dataVal (see nbt.h). No BLOCK_HEAD/BLOCK_FLOWER_POT carve-out is needed:
+    // the type-extension nibble is disjoint from all real dataVal bits, unlike the old scheme
+    // where a single TYPE_HIGH_BIT1 in dataVal doubled as both a type>=256 flag and (for those two
+    // blocks) genuine data.
+    *type = BLOCK_TYPE_FROM_GRID_DATA(block->grid[chunkIndex], block->data[chunkIndex]);
+    *dataVal = BLOCK_DATAVAL_FROM_DATA(block->data[chunkIndex]);
 
     return RetrieveBlockSubname(*type, *dataVal); //, block), xoff, y, zoff);
 }
@@ -2957,13 +2953,8 @@ static unsigned short retrieveType(WorldBlock* block, unsigned int voxel)
 {
     assert(((int)voxel >> 8) <= block->maxFilledHeight);  // if block is reduced in size, make sure it's in bounds
 
-    unsigned short type = block->grid[voxel];
-    if (block->mcVersion >= 13) {
-        if ((block->data[voxel] & 0x80) && (type != BLOCK_HEAD) && (type != BLOCK_FLOWER_POT)) {
-            type |= 0x100;
-        }
-    }
-    return type;
+    // see BLOCK_TYPE_FROM_GRID_DATA in nbt.h - no BLOCK_HEAD/BLOCK_FLOWER_POT carve-out needed.
+    return (unsigned short)BLOCK_TYPE_FROM_GRID_DATA(block->grid[voxel], block->data[voxel]);
 }
 
 static unsigned int scaleColor(unsigned int color, float scale)
@@ -4674,7 +4665,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
 {
     unsigned int color = 0xFFFFFF;
     unsigned int r, g, b;
-    unsigned char dataVal;
+    unsigned short dataVal;
     bool lightComputed = false;
     float alpha;
     bool alphaComputed = false;
@@ -5602,17 +5593,17 @@ void addDiagonalBlocksToMap(int maxCount, int y, int type, int dataVal, int fina
     {
         neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
         block->grid[neighborIndex] = (unsigned char)type;
-        block->data[neighborIndex] = (unsigned char)((finalDataVal + 16) | typeHighBit);
+        block->data[neighborIndex] = (unsigned short)((finalDataVal + 16) | typeHighBit);
 
         if (dataVal + 32 < maxCount) {
             neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)((finalDataVal + 32) | typeHighBit);
+            block->data[neighborIndex] = (unsigned short)((finalDataVal + 32) | typeHighBit);
 
             if (dataVal + 48 < maxCount) {
                 neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
                 block->grid[neighborIndex] = (unsigned char)type;
-                block->data[neighborIndex] = (unsigned char)((finalDataVal + 48) | typeHighBit);
+                block->data[neighborIndex] = (unsigned short)((finalDataVal + 48) | typeHighBit);
             }
         }
     }
@@ -5630,10 +5621,11 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     int type = origType;
     int typeHighBit = 0x0;
     if (origType > 255) {
-        // how we signal a block type is > 255.
-        //finalDataVal |= HIGH_BIT; - now done at end
+        // how we signal a block type is > 255: fold its high bits into data's top nibble
+        // (bits 12-15) - see BLOCK_TYPE_FROM_GRID_DATA/PACK_TYPE_EXT_AND_DATAVAL in nbt.h.
+        //finalDataVal |= typeHighBit; - now done at end
         type &= 0xFF;
-        typeHighBit = HIGH_BIT;
+        typeHighBit = ((origType >> 8) & 0xF) << 12;
     }
 
     int neighborIndex;
@@ -5841,7 +5833,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             if (dataVal > 2) {
                 bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
                 block->grid[bi] = (unsigned char)type;
-                block->data[bi] = (unsigned char)(dataVal | 0x8 | typeHighBit); // 0x8 means half is upper
+                block->data[bi] = (unsigned short)(dataVal | 0x8 | typeHighBit); // 0x8 means half is upper
             }
         }
         break;
@@ -6222,15 +6214,15 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         // add new subtypes diagonally SE of original
         neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
         block->grid[neighborIndex] = (unsigned char)type;
-        block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16 | HIGH_BIT;
+        block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16 | TYPE_PROMOTE_256;
 
         neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
         block->grid[neighborIndex] = (unsigned char)type;
-        block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | HIGH_BIT;
+        block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | TYPE_PROMOTE_256;
 
         neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
         block->grid[neighborIndex] = (unsigned char)type;
-        block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | BIT_16 | HIGH_BIT;
+        block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | BIT_16 | TYPE_PROMOTE_256;
 
         break;
     case BLOCK_BONE_BLOCK:
@@ -6274,7 +6266,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         // add "wood" variant to map diagonally SE of original
         neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
         block->grid[neighborIndex] = (unsigned char)type;
-        block->data[neighborIndex] = (unsigned char)(finalDataVal | BIT_16 | typeHighBit);
+        block->data[neighborIndex] = (unsigned short)(finalDataVal | BIT_16 | typeHighBit);
         // uses all bits, 0-15
         addBlock = 1;
         break;
@@ -6287,7 +6279,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 // add "wood" variant to map
                 neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
                 block->grid[neighborIndex] = (unsigned char)type;
-                block->data[neighborIndex] = (unsigned char)(finalDataVal | BIT_16 | typeHighBit);
+                block->data[neighborIndex] = (unsigned short)(finalDataVal | BIT_16 | typeHighBit);
             }
         }
         break;
@@ -6348,7 +6340,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             // add new style diagonally SE of original
             neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)(finalDataVal | BIT_16 | typeHighBit);
+            block->data[neighborIndex] = (unsigned short)(finalDataVal | BIT_16 | typeHighBit);
         }
         break;
 
@@ -6365,7 +6357,9 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             // add new style diagonally SE of original
             neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)(finalDataVal | HIGH_BIT | BIT_16 | typeHighBit);
+            // TYPE_HIGH_BIT1 is redundant with typeHighBit here (these neighbor types are always > 255,
+            // so both terms agree), kept only because typeHighBit already covers the promotion.
+            block->data[neighborIndex] = (unsigned short)(finalDataVal | BIT_16 | typeHighBit);
         }
         break;
 
@@ -6382,7 +6376,9 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             // add new style diagonally SE of original
             neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)(finalDataVal | HIGH_BIT | BIT_16 | typeHighBit);
+            // TYPE_HIGH_BIT1 is redundant with typeHighBit here (these neighbor types are always > 255,
+            // so both terms agree), kept only because typeHighBit already covers the promotion.
+            block->data[neighborIndex] = (unsigned short)(finalDataVal | BIT_16 | typeHighBit);
         }
         break;
 
@@ -6408,23 +6404,23 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
 
             neighborIndex = BLOCK_INDEX(3 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)(dataVal + (4 << 2)) | HIGH_BIT;
+            block->data[neighborIndex] = (unsigned char)(dataVal + (4 << 2)) | TYPE_PROMOTE_256;
 
             neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y+1, 4 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)(dataVal + (5 << 2)) | HIGH_BIT;
+            block->data[neighborIndex] = (unsigned char)(dataVal + (5 << 2)) | TYPE_PROMOTE_256;
 
             neighborIndex = BLOCK_INDEX(4 + (type % 2) * 8, y+1, 3 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)(dataVal + (2 << 2)) | HIGH_BIT;
+            block->data[neighborIndex] = (unsigned char)(dataVal + (2 << 2)) | TYPE_PROMOTE_256;
 
             neighborIndex = BLOCK_INDEX(4 + (type % 2) * 8, y+1, 5 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)(dataVal + (3 << 2)) | HIGH_BIT;
+            block->data[neighborIndex] = (unsigned char)(dataVal + (3 << 2)) | TYPE_PROMOTE_256;
 
             neighborIndex = BLOCK_INDEX(4 + (type % 2) * 8, y+2, 4 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)(dataVal + (1 << 2)) | HIGH_BIT;
+            block->data[neighborIndex] = (unsigned char)(dataVal + (1 << 2)) | TYPE_PROMOTE_256;
         }
         break;
     case BLOCK_CANDLE:
@@ -6513,7 +6509,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 // make the block itself be up by two, so we can examine its top and bottom
                 bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 2, 4 + (dataVal % 2) * 8);
                 block->grid[bi] = (unsigned char)type;
-                block->data[bi] = (unsigned char)(dataVal | typeHighBit);
+                block->data[bi] = (unsigned short)(dataVal | typeHighBit);
                 addBlock = 0;
                 break;
             }
@@ -6533,7 +6529,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 // make the block itself be up by two, so we can examine its top and bottom
                 bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 2, 4 + (dataVal % 2) * 8);
                 block->grid[bi] = (unsigned char)type;
-                block->data[bi] = (unsigned char)(dataVal | typeHighBit);
+                block->data[bi] = (unsigned short)(dataVal | typeHighBit);
                 addBlock = 0;
                 break;
             case 2:
@@ -6834,19 +6830,19 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_WAXED_OXIDIZED_COPPER_DOOR:
         bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
         block->grid[bi] = (unsigned char)type;
-        block->data[bi] = (unsigned char)((dataVal & 0x7) | typeHighBit);
+        block->data[bi] = (unsigned short)((dataVal & 0x7) | typeHighBit);
         if (dataVal < 8)
         {
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
-            block->data[bi] = (unsigned char)(8 | typeHighBit);
+            block->data[bi] = (unsigned short)(8 | typeHighBit);
         }
         else
         {
             // other direction door (for double doors)
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
-            block->data[bi] = (unsigned char)(9 | typeHighBit);
+            block->data[bi] = (unsigned short)(9 | typeHighBit);
         }
         break;
     case BLOCK_BED:
@@ -7057,7 +7053,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
         block->grid[bi] = (unsigned char)type;
-        block->data[bi] = (unsigned char)(dataVal | typeHighBit);
+        block->data[bi] = (unsigned short)(dataVal | typeHighBit);
 
         block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 2, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
         break;
@@ -7089,7 +7085,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
             // just a post
-            block->data[bi] = (unsigned char)(((origType == BLOCK_CHORUS_PLANT)? BIT_16 : 0) | typeHighBit);
+            block->data[bi] = (unsigned short)(((origType == BLOCK_CHORUS_PLANT)? BIT_16 : 0) | typeHighBit);
         }
 
         // for just chorus plant, put endstone below
@@ -7109,28 +7105,28 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             // put block to north
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
-            block->data[bi] = (unsigned char)(0x1 | typeHighBit);
+            block->data[bi] = (unsigned short)(0x1 | typeHighBit);
         }
         if (dataVal & 0x8)
         {
             // put block to east
             bi = BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
-            block->data[bi] = (unsigned char)(0x2 | typeHighBit);
+            block->data[bi] = (unsigned short)(0x2 | typeHighBit);
         }
         if (dataVal & 0x1)
         {
             // put block to south
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
-            block->data[bi] = (unsigned char)(0x4 | typeHighBit);
+            block->data[bi] = (unsigned short)(0x4 | typeHighBit);
         }
         if (dataVal & 0x2)
         {
             // put block to west
             bi = BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
-            block->data[bi] = (unsigned char)(0x8 | typeHighBit);
+            block->data[bi] = (unsigned short)(0x8 | typeHighBit);
         }
         break;
     case BLOCK_COPPER_BARS:
@@ -7148,7 +7144,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
             // just a post
-            block->data[bi] = (unsigned char)(((origType == BLOCK_CHORUS_PLANT) ? BIT_16 : 0) | typeHighBit);
+            block->data[bi] = (unsigned short)(((origType == BLOCK_CHORUS_PLANT) ? BIT_16 : 0) | typeHighBit);
         }
 
         if (dataVal & 0x4)
@@ -7166,14 +7162,14 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             // put block to south
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
-            block->data[bi] = (unsigned char)(0x4 | typeHighBit);
+            block->data[bi] = (unsigned short)(0x4 | typeHighBit);
         }
         if (dataVal & 0x2)
         {
             // put block to west
             bi = BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
-            block->data[bi] = (unsigned char)(0x8 | typeHighBit);
+            block->data[bi] = (unsigned short)(0x8 | typeHighBit);
         }
         break;
     case BLOCK_STAINED_GLASS_PANE:	// color AND neighbors!
@@ -7182,7 +7178,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         // in the final dataVal are the color, not the neighbors. :( - need more bits
         bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
         block->grid[bi] = (unsigned char)type;
-        block->data[bi] = (unsigned char)(dataVal | typeHighBit);
+        block->data[bi] = (unsigned short)(dataVal | typeHighBit);
 
         if (dataVal & 0x1)
         {
@@ -7193,7 +7189,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
             // alternate between wall and mossy wall
-            block->data[bi] = (unsigned char)(dataVal | typeHighBit);
+            block->data[bi] = (unsigned short)(dataVal | typeHighBit);
         }
         if (dataVal & 0x2)
         {
@@ -7201,7 +7197,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             bi = BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
             // alternate between wall and mossy wall
-            block->data[bi] = (unsigned char)(dataVal | typeHighBit);
+            block->data[bi] = (unsigned short)(dataVal | typeHighBit);
         }
         if (dataVal & 0x4)
         {
@@ -7209,7 +7205,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
             // alternate between wall and mossy wall
-            block->data[bi] = (unsigned char)(dataVal | typeHighBit);
+            block->data[bi] = (unsigned short)(dataVal | typeHighBit);
         }
         if (dataVal & 0x8)
         {
@@ -7217,7 +7213,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             bi = BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
             // alternate between wall and mossy wall
-            block->data[bi] = (unsigned char)(dataVal | typeHighBit);
+            block->data[bi] = (unsigned short)(dataVal | typeHighBit);
         }
         break;
     case BLOCK_COBBLESTONE_WALL:
@@ -7232,13 +7228,13 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         if (dataVal & 0x1)
         {
             // alternate between wall and mossy wall - we set mossy wall if odd
-            block->data[bi] |= (unsigned char)(0x1 | typeHighBit);
+            block->data[bi] |= (unsigned short)(0x1 | typeHighBit);
 
             // put block to north
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
             // alternate between wall and mossy wall
-            block->data[bi] |= (unsigned char)((dataVal % 2) | typeHighBit);
+            block->data[bi] |= (unsigned short)((dataVal % 2) | typeHighBit);
         }
         if (dataVal & 0x2)
         {
@@ -7246,7 +7242,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             bi = BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
             // alternate between wall and mossy wall
-            block->data[bi] |= (unsigned char)((dataVal % 2) | typeHighBit);
+            block->data[bi] |= (unsigned short)((dataVal % 2) | typeHighBit);
         }
         if (dataVal & 0x4)
         {
@@ -7254,7 +7250,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
             // alternate between wall and mossy wall
-            block->data[bi] |= (unsigned char)((dataVal % 2) | typeHighBit);
+            block->data[bi] |= (unsigned short)((dataVal % 2) | typeHighBit);
         }
         if (dataVal & 0x8)
         {
@@ -7262,23 +7258,23 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             bi = BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
             // alternate between wall and mossy wall
-            block->data[bi] |= (unsigned char)((dataVal % 2) | typeHighBit);
+            block->data[bi] |= (unsigned short)((dataVal % 2) | typeHighBit);
         }
         // add neighbor of different material, to see it
         neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
         block->grid[neighborIndex] = (unsigned char)type;
-        block->data[neighborIndex] = (unsigned char)(dataVal | typeHighBit);
+        block->data[neighborIndex] = (unsigned short)(dataVal | typeHighBit);
         neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
         block->grid[neighborIndex] = (unsigned char)type;
-        block->data[neighborIndex] = (unsigned char)(dataVal | typeHighBit);
+        block->data[neighborIndex] = (unsigned short)(dataVal | typeHighBit);
         neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
         block->grid[neighborIndex] = (unsigned char)type;
-        block->data[neighborIndex] = (unsigned char)(dataVal | typeHighBit);
+        block->data[neighborIndex] = (unsigned short)(dataVal | typeHighBit);
 
         // 16 through 31, just a post
         neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
         block->grid[neighborIndex] = (unsigned char)type;
-        block->data[neighborIndex] = (unsigned char)(dataVal | BIT_16 | typeHighBit);
+        block->data[neighborIndex] = (unsigned short)(dataVal | BIT_16 | typeHighBit);
         break;
     case BLOCK_REDSTONE_WIRE:
         // this one is specialized: dataVal just says where to put neighbors, NSEW
@@ -7328,7 +7324,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             // Note that we use trimVal here, different than the norm
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (trimVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
-            block->data[bi] |= (unsigned char)(trimVal | typeHighBit);
+            block->data[bi] |= (unsigned short)(trimVal | typeHighBit);
         }
         // double-chest on 0x8 (for mapping - in Minecraft chests have just 2,3,4,5)
         // - locked chests (April Fool's joke) don't really have doubles, but whatever
@@ -7339,14 +7335,14 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             // north/south, so put one to west (-1 X)
             bi = BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (trimVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
-            block->data[bi] |= (unsigned char)(trimVal | typeHighBit);
+            block->data[bi] |= (unsigned short)(trimVal | typeHighBit);
             break;
         case 0x8 | 4:
         case 0x8 | 5:
             // west/east, so put one to north (-1 Z)
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (trimVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
-            block->data[bi] |= (unsigned char)(trimVal | typeHighBit);
+            block->data[bi] |= (unsigned short)(trimVal | typeHighBit);
             break;
         default:
             // fine - do nothing
@@ -7366,7 +7362,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             // Note that we use trimVal here, different than the norm
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (trimVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
-            block->data[bi] |= (unsigned char)(trimAndMtlVal | typeHighBit);
+            block->data[bi] |= (unsigned short)(trimAndMtlVal | typeHighBit);
         }
         // double-chest on 0x8 (for mapping - in Minecraft chests have just 2,3,4,5)
         // - locked chests (April Fool's joke) don't really have doubles, but whatever
@@ -7377,14 +7373,14 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             // north/south, so put one to west (-1 X)
             bi = BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (trimVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
-            block->data[bi] |= (unsigned char)(trimAndMtlVal | typeHighBit);
+            block->data[bi] |= (unsigned short)(trimAndMtlVal | typeHighBit);
             break;
         case 0x8 | 4:
         case 0x8 | 5:
             // west/east, so put one to north (-1 Z)
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (trimVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
-            block->data[bi] |= (unsigned char)(trimAndMtlVal | typeHighBit);
+            block->data[bi] |= (unsigned short)(trimAndMtlVal | typeHighBit);
             break;
         default:
             // fine - do nothing
@@ -7474,7 +7470,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             // add leaves above
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)(BLOCK_TALL_SEAGRASS & 0xFF);
-            block->data[bi] = (unsigned char)(8 | HIGH_BIT);	// like flower, add 8
+            block->data[bi] = (unsigned short)(8 | TYPE_PROMOTE_256);	// like flower, add 8
         }
         break;
     case BLOCK_WEEPING_VINES:
@@ -7487,14 +7483,14 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 block->grid[bi] = (unsigned char)(BLOCK_WEEPING_VINES & 0xFF);
                 if (dataVal == 0) {
                     finalDataVal = BIT_32;
-                    block->data[bi] = (unsigned char)HIGH_BIT;
+                    block->data[bi] = (unsigned short)TYPE_PROMOTE_256;
                     // hang off something
                     bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 2, 4 + (dataVal % 2) * 8);
                     block->grid[bi] = (unsigned char)BLOCK_STONE;
                 }
                 else {
                     // twisting vines are 0x1
-                    block->data[bi] = (unsigned char)(HIGH_BIT | BIT_32 | 0x1);
+                    block->data[bi] = (unsigned short)(TYPE_PROMOTE_256 | BIT_32 | 0x1);
                 }
             }
             else {
@@ -7512,7 +7508,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)(BLOCK_KELP & 0xFF);
             // not entirely sure about this number, but 10 seems to be the norm
-            block->data[bi] = (unsigned char)(1 | HIGH_BIT);	// just add 1 for top
+            block->data[bi] = (unsigned short)(1 | TYPE_PROMOTE_256);	// just add 1 for top
         }
         break;
     case BLOCK_SEA_PICKLE:
@@ -7670,11 +7666,11 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             // put block above
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
             block->grid[bi] = BLOCK_SCAFFOLDING & 0xff;
-            block->data[bi] = (unsigned char)HIGH_BIT;
+            block->data[bi] = (unsigned short)TYPE_PROMOTE_256;
             // put block to south, above, floating
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 5 + (dataVal % 2) * 8);
             block->grid[bi] = BLOCK_SCAFFOLDING & 0xff;
-            block->data[bi] = (unsigned char)(HIGH_BIT | 0x1);
+            block->data[bi] = (unsigned short)(TYPE_PROMOTE_256 | 0x1);
             finalDataVal = (dataVal % 2) | ((dataVal >= 2) ? WATERLOGGED_BIT : 0);
         }
         break;
@@ -7693,7 +7689,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
         block->grid[bi] = BLOCK_BIG_DRIPLEAF & 0xff;
         // tilt, and facing
-        block->data[bi] = (unsigned char)(HIGH_BIT | (dataVal << 1));
+        block->data[bi] = (unsigned short)(TYPE_PROMOTE_256 | (dataVal << 1));
         // stem uses facing
         finalDataVal = ((dataVal & 0x3) << 1) | 0x1;
         break;
@@ -7706,7 +7702,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
             block->grid[bi] = BLOCK_SMALL_DRIPLEAF & 0xff;
             // facing
-            block->data[bi] = (unsigned char)(HIGH_BIT | (dataVal << 1));
+            block->data[bi] = (unsigned short)(TYPE_PROMOTE_256 | (dataVal << 1));
             // stem uses facing
             finalDataVal = ((dataVal & 0x3) << 1) | 0x1;
         }
@@ -7747,22 +7743,22 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
     case BLOCK_CRAFTER:
         // uses bits 0-11, with variations to show other styles
-        // This is for when adding content with the HIGH_BIT set
+        // This is for when adding content with the TYPE_HIGH_BIT1 set
         if (dataVal < 12) {
             addBlock = 1;
 
             // add new style diagonally SE of original
             neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16 | HIGH_BIT;
+            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16 | TYPE_PROMOTE_256;
 
             neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | HIGH_BIT;
+            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | TYPE_PROMOTE_256;
 
             neighborIndex = BLOCK_INDEX(7 + (type % 2) * 8, y, 7 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | BIT_16 | HIGH_BIT;
+            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_32 | BIT_16 | TYPE_PROMOTE_256;
         }
         break;
     case BLOCK_COPPER_BULB:
@@ -7772,7 +7768,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
 
             neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16 | HIGH_BIT;
+            block->data[neighborIndex] = (unsigned char)finalDataVal | BIT_16 | TYPE_PROMOTE_256;
         }
         break;
 
@@ -7792,11 +7788,11 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             // TODOTODO - add more variants, but this is just for testing quickly
             neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)(0x01 | finalDataVal | HIGH_BIT);
+            block->data[neighborIndex] = (unsigned short)(0x01 | finalDataVal | TYPE_PROMOTE_256);
             // standing + waterlogged variant
             neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
-            block->data[neighborIndex] = (unsigned char)(finalDataVal | WATERLOGGED_BIT | HIGH_BIT);
+            block->data[neighborIndex] = (unsigned short)(finalDataVal | WATERLOGGED_BIT | TYPE_PROMOTE_256);
         }
         break;
 
@@ -7839,23 +7835,23 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             if (dataVal & 0x2) {
                 // put moss block to north
                 block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = (unsigned char)(BLOCK_AMETHYST & 0xff);
-                block->data[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = HIGH_BIT | 60;
+                block->data[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = TYPE_PROMOTE_256 | 60;
             }
             if (dataVal & 0x4) {
                 // put moss block to east
                 block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned char)(BLOCK_AMETHYST & 0xff);
-                block->data[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = HIGH_BIT | 60;
+                block->data[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = TYPE_PROMOTE_256 | 60;
             }
             if (dataVal & 0x8) {
                 // put moss block to south
                 block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = (unsigned char)(BLOCK_AMETHYST & 0xff);
-                block->data[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = HIGH_BIT | 60;
+                block->data[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = TYPE_PROMOTE_256 | 60;
             }
             // currently not done
             if (dataVal & 0x10) {
                 // put moss block to west
                 block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned char)(BLOCK_AMETHYST & 0xff);
-                block->data[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = HIGH_BIT | 60;
+                block->data[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = TYPE_PROMOTE_256 | 60;
             }
         }
         break;
@@ -7867,7 +7863,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         // waterlogged
         neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
         block->grid[neighborIndex] = (unsigned char)(type & 0xff);
-        block->data[neighborIndex] = HIGH_BIT | (unsigned char)finalDataVal | WATERLOGGED_BIT;
+        block->data[neighborIndex] = TYPE_PROMOTE_256 | (unsigned char)finalDataVal | WATERLOGGED_BIT;
         break;
 
     case BLOCK_ACACIA_SHELF:
@@ -7925,7 +7921,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         finalDataVal |= typeHighBit;
         bi = BLOCK_INDEX(4 + (origType % 2) * 8, y, 4 + (dataVal % 2) * 8);
         block->grid[bi] = (unsigned char)type;
-        block->data[bi] = (unsigned char)finalDataVal;
+        block->data[bi] = (unsigned short)finalDataVal;
 #ifdef _DEBUG
         static bool extraBlock = false;
         if (extraBlock)
@@ -7934,7 +7930,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             // note: this will generate two assertions with pistons. Ignore them.
             bi = BLOCK_INDEX(4 + (origType % 2) * 8, y, 5 + (dataVal % 2) * 8);
             block->grid[bi] = (unsigned char)type;
-            block->data[bi] = (unsigned char)finalDataVal;
+            block->data[bi] = (unsigned short)finalDataVal;
         }
 #endif
     }
@@ -8395,7 +8391,7 @@ int createBlockFromSchematic(WorldGuide* pWorldGuide, int cx, int cz, WorldBlock
 
     // clear the rest, so we fill these in as found
     memset(block->grid, 0, 16 * 16 * block->heightAlloc);
-    memset(block->data, 0, 16 * 16 * block->heightAlloc);
+    memset(block->data, 0, 16 * 16 * block->heightAlloc * sizeof(unsigned short));
 
     block->maxFilledSectionHeight = block->maxFilledHeight = pWorldGuide->sch.height - 1;
 
@@ -8678,7 +8674,7 @@ int GetSchematicWord(const wchar_t* schematic, char* field, int* value)
 }
 
 // return 1 on success, 0 for failure, -1 means schematic doesn't exist or can't be opened.
-int GetSchematicBlocksAndData(const wchar_t* schematic, int numBlocks, unsigned char* schematicBlocks, unsigned char* schematicBlockData)
+int GetSchematicBlocksAndData(const wchar_t* schematic, int numBlocks, unsigned char* schematicBlocks, unsigned short* schematicBlockData)
 {
     bfFile bf;
     int err = 0;
@@ -8692,7 +8688,7 @@ int GetSchematicBlocksAndData(const wchar_t* schematic, int numBlocks, unsigned 
 // Reads a Sponge Schematic v3 (.schem) file. Returns 1 on success (and malloc's outputs which
 // the caller frees); 0 on parse failure; -1 if the file couldn't be opened. Issue #40.
 int GetSpongeSchematic(const wchar_t* schematic, int* width, int* height, int* length,
-    unsigned char** blocks, unsigned char** data)
+    unsigned char** blocks, unsigned short** data)
 {
     bfFile bf;
     int err = 0;

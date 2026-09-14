@@ -51,10 +51,12 @@ typedef struct WorldBlock {
     // e.g., if maxHeight is 384, maxFilledHeight is 383 for a filled chunk, as the levels are 0-383. This is important for reallocing and for testing ranges
     int maxFilledSectionHeight;    // set to EMPTY_MAX_HEIGHT if not yet determined. Gives the height for the first non-zero content found, by 16-height sections. The value could be lower, so use:
     int maxFilledHeight;    // set to EMPTY_MAX_HEIGHT if not yet determined. Gives the height for the first non-zero content found. Lowest value is 0 (not -96 i.e. -gMinHeight for 1.17)
-    unsigned char *grid;  // blockid array [y+(z+x*16)*256] -> [16 * 16 * 384]
-    // someday we'll need the top four bits field when > 256 blocks
-    // unsigned char add[16*16*128];   // the Add tag - see http://www.minecraftwiki.net/wiki/Anvil_file_format
-    unsigned char *data;  // byte additional data about each block, i.e., subtype such as log type, etc. -> [16 * 16 * 384]
+    unsigned char *grid;  // blockid array, low 8 bits of each block's type [y+(z+x*16)*256] -> [16 * 16 * 384]
+    // data holds 16 bits per block: the low 12 bits are dataVal (subtype/state, e.g. log type),
+    // the top 4 bits are the high bits (8-11) of the block's type - see BLOCK_TYPE_FROM_GRID_DATA /
+    // BLOCK_DATAVAL_FROM_DATA / PACK_TYPE_EXT_AND_DATAVAL in nbt.h. Combined with grid[], this gives
+    // a 12-bit type (0-4095) and a 12-bit dataVal (0-4095).
+    unsigned short *data;  // additional data about each block -> [16 * 16 * 384]
     unsigned char *light; // half-byte lighting data -> [16 * 16 * 384/2]
 
     unsigned char rendercache[16 * 16 * 4]; // bitmap of last render

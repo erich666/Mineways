@@ -371,27 +371,28 @@ static struct {
     {_T("Warning: at least one dimension of the model is too long.\n\nCheck the dimensions for this printer's material: look in the top of the model file itself, using a text editor."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<4
     {_T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock. Mineways does not understand blocks added by mods, and uses the older (simpler) schematic format so does not support blocks added in 1.13 or newer versions. If you are not using mods nor exporting 1.13 or newer blocks, your version of Mineways may be out of date. Check http://mineways.com for a newer version."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<5
     {_T("Warning: too few rows of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt*.png with 80 rows."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<6 VERTICAL_TILES
-    {_T("Warning: one or more Change Block commands specified location(s) that were outside the selected volume."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<6
-    {_T("Warning: with the large Terrain File you're using, the output texture is extremely large. Other programs make have problems using it. We recommend that you use the 'Export tiles' option instead, or reduce the size of your Terrain File by using the '-t 256' (or smaller) option in TileMaker.\n\nThis warning will not be repeated this session."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<6
-    {_T("Warning: only air blocks found; no file output. If you see something on the map, you likely need to set the Depth slider near the top to 0, or tap the space bar for a reasonable guess."), _T("Export warning"), MB_OK | MB_ICONWARNING},	// <<7
-    {_T("Warning: all solid blocks were deleted; no file output"), _T("Export warning"), MB_OK | MB_ICONWARNING},	// <<8
+    {_T("Warning: one or more Change Block commands specified location(s) that were outside the selected volume."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<7
+    {_T("Warning: with the large Terrain File you're using, the output texture is extremely large. Other programs make have problems using it. We recommend that you use the 'Export tiles' option instead, or reduce the size of your Terrain File by using the '-t 256' (or smaller) option in TileMaker.\n\nThis warning will not be repeated this session."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<8
+    {_T("Warning: only air blocks found; no file output. If you see something on the map, you likely need to set the Depth slider near the top to 0, or tap the space bar for a reasonable guess."), _T("Export warning"), MB_OK | MB_ICONWARNING},	// <<9
+    {_T("Warning: all solid blocks were deleted; no file output"), _T("Export warning"), MB_OK | MB_ICONWARNING},	// <<10
 
-    {_T("Error creating export file; no file output"), _T("Export error"), MB_OK | MB_ICONERROR},	// <<9
-    {_T("Error: cannot write to export file"), _T("Export error"), MB_OK | MB_ICONERROR},	// <<10
-    {_T("Error: the incoming terrainExt*.png file resolution must be divisible by 16 horizontally and at least 16 pixels wide."), _T("Export error"), MB_OK | MB_ICONERROR},	// <<11
-    {_T("Error: the incoming terrainExt*.png file image has fewer than 16 rows of block tiles."), _T("Export error"), MB_OK | MB_ICONERROR},	// <<12
-    {_T("Error: the exported volume cannot have a dimension greater than 65535."), _T("Export error"), MB_OK | MB_ICONERROR},	// <<13 MW_DIMENSION_TOO_LARGE
-    {_T("Error: cannot read import file."), _T("Import error"), MB_OK | MB_ICONERROR},	// <<14
-    {_T("Error: opened import file, but cannot read it properly."), _T("Import error"), MB_OK | MB_ICONERROR},	// <<15
-    {_T("Error: out of memory - terrainExt*.png texture is too large. Try 'Help | Give more export memory!', or please use a texture with a lower resolution."), _T("Memory error"), MB_OK | MB_ICONERROR},	// <<16
-    {_T("Error: out of memory - volume of world chosen is too large. RESTART PROGRAM, then try 'Help | Give more export memory!'. If that fails, export smaller portions of your world."), _T("Memory error"), MB_OK | MB_ICONERROR},	// <<17
-    {_T("Error: directory for individual textures could not be created. Please fix whatever you put for the directory next to the 'Export separate tiles' option. Do not use a path of any sort, just give a folder name."), _T("Internal error"), MB_OK | MB_ICONERROR},	// <<18
-    {_T("Error: yikes, internal error! Please let me know what you were doing and what went wrong: erich@acm.org"), _T("Internal error"), MB_OK | MB_ICONERROR},	// <<18
+    {_T("Error creating export file; no file output"), _T("Export error"), MB_OK | MB_ICONERROR},	// <<11
+    {_T("Error: cannot write to export file"), _T("Export error"), MB_OK | MB_ICONERROR},	// <<12
+    {_T("Error: the incoming terrainExt*.png file resolution must be divisible by 16 horizontally and at least 16 pixels wide."), _T("Export error"), MB_OK | MB_ICONERROR},	// <<13
+    {_T("Error: the incoming terrainExt*.png file image has fewer than 16 rows of block tiles."), _T("Export error"), MB_OK | MB_ICONERROR},	// <<14
+    {_T("Error: the exported volume cannot have a dimension greater than 65535."), _T("Export error"), MB_OK | MB_ICONERROR},	// <<15 MW_DIMENSION_TOO_LARGE
+    {_T("Error: cannot read import file."), _T("Import error"), MB_OK | MB_ICONERROR},	// <<16
+    {_T("Error: opened import file, but cannot read it properly."), _T("Import error"), MB_OK | MB_ICONERROR},	// <<17
+    {_T("Error: out of memory - terrainExt*.png texture is too large. Try 'Help | Give more export memory!', or please use a texture with a lower resolution."), _T("Memory error"), MB_OK | MB_ICONERROR},	// <<18
+    {_T("Error: out of memory - likely the volume of world chosen is too large. RESTART PROGRAM, then try 'Help | Give more export memory!'. If that fails, export smaller portions of your world. See the 'hunk_maker.py' program that comes with Mineways for making a set of smaller exports."), _T("Memory error"), MB_OK | MB_ICONERROR},	// <<19
+    {_T("Error: directory for individual textures could not be created. Please fix whatever you put for the directory next to the 'Export separate tiles' option. Do not use a path of any sort, just give a folder name."), _T("Internal error"), MB_OK | MB_ICONERROR},	// <<20
+    {_T("Error: yikes, internal error! Please let me know what you were doing and what went wrong: erich@acm.org"), _T("Internal error"), MB_OK | MB_ICONERROR},	// <<21
 
     // old error, but now we don't notice if the file has changed, so we make it identical to the "file missing" error
-    // {_T("Error: cannot read your custom terrainExt*.png file.\n\nPNG error: %s"), _T("Export error"), MB_OK|MB_ICONERROR},	// << 19
-    {_T("Error: cannot read terrainExt*.png file.\n\nPNG error: %s\n\nPlease check that your terrainExt*.png file is a valid PNG file. If you continue to have problems, download Mineways again."), _T("Export error"), MB_OK | MB_ICONERROR},	// << 19
-    {_T("Error writing to export file; partial file output\n\nPNG error: %s.\nThis error can often mean that antivirus software (such as Avast) is blocking Mineways. You need to give Mineways permission to write files. Another possibility is that your directory path is confusing Mineways. Try something simple, like c:\temp."), _T("Export error"), MB_OK | MB_ICONERROR},	// <<21
+    // {_T("Error: cannot read your custom terrainExt*.png file.\n\nPNG error: %s"), _T("Export error"), MB_OK|MB_ICONERROR},	// << 22
+    {_T("Error: cannot read terrainExt*.png file.\n\nPNG error: %s\n\nPlease check that your terrainExt*.png file is a valid PNG file. If you continue to have problems, download Mineways again."), _T("Export error"), MB_OK | MB_ICONERROR},	// << 22
+    {_T("Error writing to export file; partial file output\n\nPNG error: %s.\nThis error can often mean that antivirus software (such as Avast) is blocking Mineways. You need to give Mineways permission to write files. Another possibility is that your directory path is confusing Mineways. Try something simple, like c:\temp."), _T("Export error"), MB_OK | MB_ICONERROR},	// <<23
+    {_T("Error: too large an export volume. Mineways currently has a limit of 2^31 (2.1 billion) blocks that can be selected and exported at one time. See the 'hunk_maker.py' program that comes with Mineways for making a set of smaller exports. Also feel free to write me, erich@acm.org; maybe you'll convince me to rewrite the (pretty involved) code to allow larger exports."), _T("Internal error"), MB_OK | MB_ICONERROR},	// <<24
 };
 
 #define RUNNING_SCRIPT_STATUS_MESSAGE L"Running script commands"
@@ -661,7 +662,8 @@ int APIENTRY _tWinMain(
     wcscpy_s(gImportPath, MAX_PATH_AND_FILE, L"");
 
     gWorldGuide.type = WORLD_UNLOADED_TYPE;
-    gWorldGuide.sch.blocks = gWorldGuide.sch.data = NULL;
+    gWorldGuide.sch.blocks = NULL;
+    gWorldGuide.sch.data = NULL;
     gWorldGuide.nbtVersion = 0;
 
     // start it with something, anything...
@@ -3722,7 +3724,7 @@ static int loadSpongeSchematic(wchar_t* pathAndFile)
 
     int width = 0, height = 0, length = 0;
     unsigned char* blocks = NULL;
-    unsigned char* data = NULL;
+    unsigned short* data = NULL;
     int retval = GetSpongeSchematic(pathAndFile, &width, &height, &length, &blocks, &data);
     if (retval != 1) {
         if (blocks) free(blocks);
@@ -3748,12 +3750,12 @@ static int loadSpongeSchematic(wchar_t* pathAndFile)
     //      which uses gWorldGuide.minHeight=0 from loadWorld). MC 1.16 still uses 0..255 — the
     //      switch to -64..319 happens at data version >= 2685 (1.17 beta). So 2586 stays in the
     //      old range and Ctrl-A / Select-All highlights line up with where the blocks live.
-    //   2. gMcVersion >= 13 so gIs13orNewer = true. .schem palettes carry 1.13+ block IDs that
-    //      Mineways internally flags with HIGH_BIT in dataVal; ObjFileManip.cpp:2796 only
-    //      promotes that flag to type|0x100 (recovering blocks > 255 like the copper golem
-    //      statues at IDs 502/503) when gIs13orNewer is true. With the legacy 1.12.2 value
-    //      (1343) the promotion was skipped and modern blocks round-tripped as their low-byte
-    //      cousins (e.g. blockId 246 → "blue_glazed_terracotta" instead of copper_golem_statue).
+    //   2. gMcVersion >= 13 so gIs13orNewer = true. .schem palettes carry 1.13+ block IDs whose
+    //      high bits (>255) Mineways packs into the top nibble of dataVal (see nbt.h); a wrong
+    //      gMcVersion here doesn't affect that unpacking (BLOCK_TYPE_FROM_GRID_DATA in
+    //      ObjFileManip.cpp/MinewaysMap.cpp applies unconditionally), but gIs13orNewer still
+    //      gates other 1.13+-only parsing paths (e.g. tile-entity handling), so it must be set
+    //      for modern blocks like the copper golem statues at IDs 502/503 to come through intact.
     gVersionID = 2586;
     gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
     setHeightsFromVersionID();
@@ -3783,7 +3785,7 @@ static int loadSchematic(wchar_t* pathAndFile)
         return 100 + 4;
 
     gWorldGuide.sch.blocks = (unsigned char*)malloc(gWorldGuide.sch.numBlocks);
-    gWorldGuide.sch.data = (unsigned char*)malloc(gWorldGuide.sch.numBlocks);
+    gWorldGuide.sch.data = (unsigned short*)malloc((size_t)gWorldGuide.sch.numBlocks * sizeof(unsigned short));
     if (gWorldGuide.sch.blocks == NULL || gWorldGuide.sch.data == NULL) {
         free(gWorldGuide.sch.blocks);
         gWorldGuide.sch.blocks = NULL;
@@ -9566,12 +9568,12 @@ static void addRangeToDataBitsArray(ChangeBlockCommand* pCBC, int fromType, int 
 static void saveCBinto(ChangeBlockCommand* pCBC, int intoType, int intoData)
 {
     // if someone cleverly tries to pick a block using the nbt.cpp values, convert here so that the type is properly a number > 255, as needed
-    if ((intoData & HIGH_BIT) && (intoType != BLOCK_HEAD) && (intoType != BLOCK_FLOWER_POT)) {
+    if ((intoData & TYPE_HIGH_BIT1) && (intoType != BLOCK_HEAD) && (intoType != BLOCK_FLOWER_POT)) {
         intoData &= 0x7F;
         intoType |= 0x100;
     }
     pCBC->intoType = (unsigned short)intoType;
-    pCBC->intoData = (unsigned char)intoData;
+    pCBC->intoData = (unsigned short)intoData;
     pCBC->hasInto = true;
 }
 
@@ -10608,8 +10610,6 @@ static bool saveMapFile(int xmin, int zmin, int xmax, int ymax, int zmax, wchar_
 
     // 0 means success. Currently we don't say what goes wrong otherwise.
     retCode = writepng(mapimage, 3, mapFileNameSafe);
-
-    writepng_cleanup(mapimage);
     delete mapimage;
 
     // turn highlight back on, now that we're done

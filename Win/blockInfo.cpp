@@ -333,7 +333,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 254 */ "Unknown Block",          		0x565656, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1,  1, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },	// same as bedrock - BLOCK_FAKE is used here
     { /* 255 */ "Structure Block",        		0x665E5F, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 25, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
 
-    // just to be safe, we don't use 256 and consider it AIR
+    // just to be safe, we don't use 256 and consider it AIR - actually, a feature: any time we see a type value whose low 8 bits is 0x00, it's air; no need to check the high bits
     //			 name                           read_color ralpha color     prem-clr  alpha,   txX,  Y,  mtl, flags
     { /* 256 */ "Air",                    		0x000000, 0.000f, 0xff7711, 0xff7711, 0.12345f, 13, 14, 0x00, BLF_NONE },
     { /* 257 */ "Prismarine Stairs",      		0x66ADA1, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 22, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },

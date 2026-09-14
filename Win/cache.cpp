@@ -301,9 +301,10 @@ WorldBlock* block_alloc(int minHeight, int maxHeight)
     if (requestedHeight <= 0 || requestedHeight > INT_MAX)
         return NULL;
     int height = (int)requestedHeight;
-    if ((size_t)height > SIZE_MAX / (16 * 16 * sizeof(unsigned char)))
+    if ((size_t)height > SIZE_MAX / (16 * 16 * sizeof(unsigned short)))
         return NULL;
     size_t gridSize = 16 * 16 * (size_t)height * sizeof(unsigned char);
+    size_t dataSize = 16 * 16 * (size_t)height * sizeof(unsigned short);
     size_t lightSize = gridSize / 2;
     WorldBlock* ret = NULL;
     // is a cached block available and is it the right size?
@@ -335,7 +336,7 @@ WorldBlock* block_alloc(int minHeight, int maxHeight)
             block_force_free(ret);
             return NULL;
         }
-        ret->data = (unsigned char*)malloc(gridSize);
+        ret->data = (unsigned short*)malloc(dataSize);
         if (ret->data == NULL) {
             block_force_free(ret);
             return NULL;
@@ -416,9 +417,10 @@ void block_realloc(WorldBlock* block)
                 return;
 
             size_t gridSize = 256 * (size_t)heightAlloc;
+            size_t dataSize = gridSize * sizeof(unsigned short);
             size_t lightSize = 128 * (size_t)heightAlloc;
             unsigned char* grid = (unsigned char*)malloc(gridSize);
-            unsigned char* data = (unsigned char*)malloc(gridSize);
+            unsigned short* data = (unsigned short*)malloc(dataSize);
             unsigned char* light = (unsigned char*)malloc(lightSize);
             if (grid == NULL || data == NULL || light == NULL) {
                 free(grid);
@@ -428,7 +430,7 @@ void block_realloc(WorldBlock* block)
             }
 
             memcpy(grid, block->grid, gridSize);
-            memcpy(data, block->data, gridSize);
+            memcpy(data, block->data, dataSize);
             memcpy(light, block->light, lightSize);
             free(block->grid);
             free(block->data);

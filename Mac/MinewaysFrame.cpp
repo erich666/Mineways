@@ -200,7 +200,7 @@ static int LoadSchematicFile(const wchar_t* pathAndFile, bool isSponge)
     if (isSponge) {
         int w = 0, h = 0, l = 0;
         unsigned char* blocks = nullptr;
-        unsigned char* data   = nullptr;
+        unsigned short* data  = nullptr;
         int rv = GetSpongeSchematic(pathAndFile, &w, &h, &l, &blocks, &data);
         if (rv != 1) { free(blocks); free(data); return 100 + (rv == -1 ? 1 : 5); }
         gWorldGuide.sch.width  = w; gWorldGuide.sch.height = h; gWorldGuide.sch.length = l;
@@ -217,7 +217,7 @@ static int LoadSchematicFile(const wchar_t* pathAndFile, bool isSponge)
         if (!nbtGetValidatedSchematicVolume(gWorldGuide.sch.width, gWorldGuide.sch.height,
                                             gWorldGuide.sch.length, &gWorldGuide.sch.numBlocks)) return 104;
         gWorldGuide.sch.blocks = (unsigned char*)malloc(gWorldGuide.sch.numBlocks);
-        gWorldGuide.sch.data   = (unsigned char*)malloc(gWorldGuide.sch.numBlocks);
+        gWorldGuide.sch.data   = (unsigned short*)malloc(gWorldGuide.sch.numBlocks * sizeof(*gWorldGuide.sch.data));
         if (!gWorldGuide.sch.blocks || !gWorldGuide.sch.data) {
             free(gWorldGuide.sch.blocks); gWorldGuide.sch.blocks = nullptr;
             free(gWorldGuide.sch.data);   gWorldGuide.sch.data   = nullptr;
@@ -347,7 +347,8 @@ MinewaysFrame::MinewaysFrame(wxWindow* parent)
 
     // World guide: start unloaded
     gWorldGuide.type = WORLD_UNLOADED_TYPE;
-    gWorldGuide.sch.blocks = gWorldGuide.sch.data = nullptr;
+    gWorldGuide.sch.blocks = nullptr;
+    gWorldGuide.sch.data = nullptr;
     gWorldGuide.nbtVersion = 0;
 
     // Default terrain file: bundle Resources/ first, then exe dir for standalone runs
