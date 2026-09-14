@@ -63,7 +63,9 @@ typedef struct BiomeTranslator {
     char* name;
 } BiomeTranslator;
 
-// our bit shift code reader can read only up to 2^9 entries right now. TODO
+// our bit shift code reader can read only up to 2^9 entries right now. But really, for the palette,
+// we just need "enough" entries for whatever block is coming in, I believe. So this is just an
+// arbitrarily high number. TODOTODO - make this dynamic, if possible and sensible.
 #define MAX_PALETTE	512
 
 static bool makeHash = true;

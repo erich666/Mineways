@@ -102,7 +102,12 @@ static BoxCell* gBoxData = NULL;
 static unsigned char* gBiomeArray = NULL;
 static IPoint gBoxSize;
 static int gBoxSizeYZ = UNINITIALIZED_INT;
-static int gBoxSizeXYZ = UNINITIALIZED_INT;
+// make this "long long" so that we can see if it's too large for a simple boxIndex value.
+// May someday go with "long long" throughout the system, or size_t (WIN32 might require that),
+// but this has lots of code involved, and the vertexIndices array would also need to be expanded,
+// along with touchGrid.
+// and indexed with long longs. TODOTODO
+static long long gBoxSizeXYZ = UNINITIALIZED_INT;
 // the box bounds of gBoxData that has something in it, before processing
 static IBox gSolidBox;
 // the box bounds of gBoxData that has something in it, +1 in all directions for air
@@ -2239,7 +2244,7 @@ static int initializeModelData()
     }
     // There is an index location for each grid cell. It gets filled in as vertices are found to exist.
     // Each location is set with the vertex index in the list of vertices output. Not memory efficient...
-    gModel.vertexIndices = (int*)malloc(gBoxSizeXYZ * sizeof(int));   // this one never needs realloc
+    gModel.vertexIndices = (int*)malloc((size_t)gBoxSizeXYZ * sizeof(int));   // this one never needs realloc
     // These may be reallocated as we go.
     gModel.vertexListSize = startNumVerts;
     gModel.vertices = (Point*)malloc(startNumVerts * sizeof(Point));
@@ -2566,7 +2571,15 @@ static int populateBox(WorldGuide* pWorldGuide, ChangeBlockCommand* pCBC, IBox* 
     if (initializeRetCode != MW_NO_ERROR)
         return initializeRetCode;
 
-    gBoxData = (BoxCell*)calloc(gBoxSizeXYZ, sizeof(BoxCell));
+    // currently we may be able to allocate greater than INT_MAX with calloc, below, but this means
+    // changing (a lot of) code for indexing this array (int to long long) and the vertexIndices array.
+    // TODOTODO see if there's a need.
+    if (gBoxSizeXYZ > INT_MAX)
+    {
+        return MW_TOO_LARGE_AN_INDEX;
+    }
+
+    gBoxData = (BoxCell*)calloc((size_t)gBoxSizeXYZ, sizeof(BoxCell));
     if (gBoxData == NULL)
     {
         return MW_WORLD_EXPORT_TOO_LARGE;
@@ -16874,7 +16887,7 @@ static int fixTouchingEdges()
     //int maxVal;
 
     // big allocation, not much to be done about it.
-    gTouchGrid = (TouchCell*)calloc(gBoxSizeXYZ, sizeof(TouchCell));
+    gTouchGrid = (TouchCell*)calloc((size_t)gBoxSizeXYZ, sizeof(TouchCell));
     if (gTouchGrid == NULL)
         return MW_WORLD_EXPORT_TOO_LARGE;
     //memset((void*)gTouchGrid, 0, gBoxSizeXYZ * sizeof(TouchCell));
