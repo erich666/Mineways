@@ -151,6 +151,26 @@ On master, removing HIGH_BIT promotion will break >255 block IDs silently.
 
 ---
 
+## Terrain atlas: 32 tiles wide (tiles.h, TileMaker, ObjFileManip.cpp)
+
+- `terrainExt.png` is `XTILES` (32) tiles wide and `VERTICAL_TILES` (80) rows tall. `Win/tiles.h` `gTilesTable` has one entry per cell, so
+  its index is `col + XTILES*row`. The left 16 columns hold all the older tiles at their original positions; the right 16 are for new tiles.
+- A tile entry may set optional `spanX/spanY` (one image covering NxN tiles, e.g., 32x32 image = 2x2 tiles). The anchor cell holds the name; the cells it
+  covers are left blank and reserved. TileMaker copies the whole region (`tileSpan()`); Mineways does not yet use spans.
+- In ObjFileManip.cpp, swatch indices are **paged**, not the table index: page 0 is the left 16 columns row by row, page 1 the right 16 columns
+  (`TILES_PER_PAGE`). Each page is 16 tiles wide, so all the `swatchLoc + 1`, `+ 16` and wrap-past-column-15 code works as it always has.
+  - `SWATCH_INDEX(col,row)` is plain `col + row*16`: an overflowing col wraps to the next row (e.g., `SWATCH_INDEX(14 + (dataVal & 7), 36)`). Use it for literal
+    left-page tiles and for computed offsets.
+  - `TILE_TO_SWATCH(col,row)` takes a real tile column 0-31 (what tiles.h and `gBlockDefinitions[].txrX` hold). Use it for anything from block/tile data, and add
+    offsets *after* it: `TILE_TO_SWATCH(b.txrX, b.txrY) + (dataVal & 3)`. Never put the offset in its col argument, since col >= 16 means the right page there.
+  - Convert back with `swatchToCol/Row/TableIndex()` or `TILES_ENTRY(swatchLoc)` when indexing `gTilesTable` or the input terrain image. Loops over `TOTAL_TILES` that use
+    the index as a swatch need `TILES_ENTRY(i)`; loops that only read the table (e.g., using `txrX/txrY`) use `gTilesTable[i]`.
+- TileMaker's chest/shelf/copper-chest tile runs also wrap at 16 columns (they live in the left half); `poplar_shelf` is pinned at 20-22,0.
+- Old 16-wide terrainBase/terrainExt files are detected (height > 3*width) and widened on load, in both TileMaker and Mineways.
+- The embedded fallback `Win/terrainExtData.*` is 512x1280 (16px tiles x 32 wide). Regenerate with `TileMaker -i terrainBase.png -nt -t 16`, then dump to C arrays.
+- Output texture resolution is `2 * terrain width` (was `4 *` when 16 wide), so the memory use and swatch capacity are about what they were.
+- Test: `Mineways.exe -headless script.mwscript` with "Export all textures to three large images"; the process exit crash (0xC0000005) also happens in HEAD, so ignore it.
+
 ## Culling Scheme system (Win/CullingSchemes.cpp/.h, plus hooks)
 
 User-defined sets of blocks to hide from both map view and exports. Parallel

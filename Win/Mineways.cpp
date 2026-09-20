@@ -378,7 +378,7 @@ static struct {
 
     {_T("Error creating export file; no file output"), _T("Export error"), MB_OK | MB_ICONERROR},	// <<11
     {_T("Error: cannot write to export file"), _T("Export error"), MB_OK | MB_ICONERROR},	// <<12
-    {_T("Error: the incoming terrainExt*.png file resolution must be divisible by 16 horizontally and at least 16 pixels wide."), _T("Export error"), MB_OK | MB_ICONERROR},	// <<13
+    {_T("Error: the incoming terrainExt*.png file resolution must be divisible by 32 horizontally and at least 32 pixels wide."), _T("Export error"), MB_OK | MB_ICONERROR},	// <<13
     {_T("Error: the incoming terrainExt*.png file image has fewer than 16 rows of block tiles."), _T("Export error"), MB_OK | MB_ICONERROR},	// <<14
     {_T("Error: the exported volume cannot have a dimension greater than 65535."), _T("Export error"), MB_OK | MB_ICONERROR},	// <<15 MW_DIMENSION_TOO_LARGE
     {_T("Error: cannot read import file."), _T("Import error"), MB_OK | MB_ICONERROR},	// <<16

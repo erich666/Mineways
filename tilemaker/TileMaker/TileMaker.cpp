@@ -11,6 +11,7 @@
 #include <windows.h>
 #include <tchar.h>
 #include <stdio.h>
+#include <vector>
 
 #include "readtga.h"
 #include "tiles.h"
@@ -181,10 +182,10 @@ static ChestData gShelfData1219[] = {
 };
 
 // transfer the above template to here, then fix "to tile" by incrementing each by 3*index, modulo-ing the tile numbers
-ChestData gShelves[12][3];
+ChestData gShelves[TOTAL_SHELF_TILES][3];
 
 // then point the follow NULL pointers to these 12 gShelves.
-static Chest gShelf1219[12] = {
+static Chest gShelf1219[TOTAL_SHELF_TILES] = {
 	{ L"acacia_shelf", 3, 32, 32, NULL },
 	{ L"birch_shelf", 3, 32, 32, NULL },
 	{ L"cherry_shelf", 3, 32, 32, NULL },
@@ -197,6 +198,7 @@ static Chest gShelf1219[12] = {
 	{ L"warped_shelf", 3, 32, 32, NULL },
 	{ L"bamboo_shelf", 3, 32, 32, NULL },
 	{ L"spruce_shelf", 3, 32, 32, NULL },
+	{ L"poplar_shelf", 3, 32, 32, NULL },	// tiles are in the new right half, see below
 };
 
 static int gErrorCount = 0;
@@ -229,6 +231,7 @@ int shareFileRecords(FileGrid* pfg, wchar_t* tile1, wchar_t* tile2);
 bool swapFileRecords(FileGrid* pfg, int index1, int index2);
 int checkFileWidth(FileRecord* pfr, int overlayTileSize, bool square, bool isFileGrid, int index, int lavaFlowIndex, int waterFlowIndex, int tentacleIndexStart);
 int trueWidth(int index, int width, int lavaFlowIndex, int waterFlowIndex, int tentacleIndexStart);
+static int tileSpan(int index);
 
 int testFileForPowerOfTwo(int width, int height, const wchar_t* cFileName, bool square);
 
@@ -462,7 +465,7 @@ int wmain(int argc, wchar_t* argv[])
 	if (verbose)
 		wprintf(L"TileMaker version %s\n", VERSION_STRING);
 
-	xTiles = 16;	// this should always be the same for all things
+	xTiles = XTILES;	// tiles per row, from tiles.h - this should always be the same for all things
 	if (!nobase)
 	{
 		// read the base terrain file - must be a PNG
@@ -500,6 +503,20 @@ int wmain(int argc, wchar_t* argv[])
 		if (verbose)
 			wprintf(L"The base terrain is '%s'\n", terrainBase);
 
+		// Older terrainBase.png files are 16 tiles wide (and so much taller than wide). Widen those to XTILES by padding
+		// the right side with empty tiles, so existing tiles stay at the same column and row.
+		if (basicterrain.height > 3 * basicterrain.width && xTiles > 16) {
+			unsigned long oldWidth = (unsigned long)basicterrain.width;
+			unsigned long newWidth = oldWidth * xTiles / 16;
+			std::vector<unsigned char> widened((size_t)newWidth * basicterrain.height * 4, 0x0);
+			for (unsigned long r = 0; r < (unsigned long)basicterrain.height; r++) {
+				memcpy(&widened[(size_t)r * newWidth * 4], &basicterrain.image_data[(size_t)r * oldWidth * 4], (size_t)oldWidth * 4);
+			}
+			basicterrain.image_data.swap(widened);
+			basicterrain.width = newWidth;
+			if (verbose)
+				wprintf(L"NOTE: base terrain is 16 tiles wide, so it was widened to %d tiles wide.\n", xTiles);
+		}
 		baseTileSize = basicterrain.width / xTiles;
 		baseYTiles = basicterrain.height / baseTileSize;
 	}
@@ -517,18 +534,39 @@ int wmain(int argc, wchar_t* argv[])
 	// output should be the size of the output number of tiles
 	outputYTiles = VERTICAL_TILES; // used to be baseYTiles - that's no good
 
+	// reality check: tiles that cover a region of tiles must be square, fit, and not overlap any named tile
+	for (int tileid = 0; tileid < TOTAL_TILES; tileid++) {
+		if (gTilesTable[tileid].spanX > 1) {
+			int span = gTilesTable[tileid].spanX;
+			if (gTilesTable[tileid].spanY != span || gTilesTable[tileid].txrX + span > XTILES || gTilesTable[tileid].txrY + span > VERTICAL_TILES) {
+				wprintf(L"INTERNAL WARNING: Tile %s is not square or does not fit in the terrain image.\n", gTilesTable[tileid].filename);
+				gWarningCount++;
+			}
+			else {
+				for (int dy = 0; dy < span; dy++) {
+					for (int dx = 0; dx < span; dx++) {
+						if ((dx > 0 || dy > 0) && wcslen(gTilesTable[tileid + dx + dy * XTILES].filename) > 0) {
+							wprintf(L"INTERNAL WARNING: Tile %s covers tile %d,%d, which is already used by %s.\n", gTilesTable[tileid].filename, gTilesTable[tileid].txrX + dx, gTilesTable[tileid].txrY + dy, gTilesTable[tileid + dx + dy * XTILES].filename);
+							gWarningCount++;
+						}
+					}
+				}
+			}
+		}
+	}
+
 #ifdef _DEBUG
 	// reality check: make sure no tile in the tiles.h array is used twice (hey, I've made this mistake it in the past)
 	for (int tileid = 0; tileid < TOTAL_TILES - 1; tileid++) {
-		if ((gTilesTable[tileid].txrX != tileid % 16) || (gTilesTable[tileid].txrY != (int)(tileid / 16))) {
-			wprintf(L"INTERNAL WARNING: Tile %d,%d does not have the expected txrX and txrY values\n", tileid % 16, (int)(tileid / 16));
+		if ((gTilesTable[tileid].txrX != tileid % XTILES) || (gTilesTable[tileid].txrY != (int)(tileid / XTILES))) {
+			wprintf(L"INTERNAL WARNING: Tile %d,%d does not have the expected txrX and txrY values\n", tileid % XTILES, (int)(tileid / XTILES));
 			assert(0);
 			gWarningCount++;
 		}
 		if (wcslen(gTilesTable[tileid].filename) > 0) {
 			for (int testtile = tileid + 1; testtile < TOTAL_TILES; testtile++) {
 				if (_wcsicmp(gTilesTable[tileid].filename, gTilesTable[testtile].filename) == 0) {
-					wprintf(L"INTERNAL WARNING: Tile %d,%d and tile %d,%d have the same file name %wS\n", tileid % 16, (int)(tileid / 16), testtile % 16, (int)(testtile / 16), gTilesTable[tileid].filename);
+					wprintf(L"INTERNAL WARNING: Tile %d,%d and tile %d,%d have the same file name %wS\n", tileid % XTILES, (int)(tileid / XTILES), testtile % XTILES, (int)(testtile / XTILES), gTilesTable[tileid].filename);
 					assert(0);
 					gWarningCount++;
 				}
@@ -948,7 +986,7 @@ int wmain(int argc, wchar_t* argv[])
 			// test if new image size to be allocated would be larger than 2^32, which is impossible to allocate (and the image would be unusable anyway)
 			if (destination_ptr->width > 16384) {
 				wprintf(L"***** ERROR: The tile size that is desired, %d X %d, is larger than can be allocated\n  (and likely larger than anything you would ever want to use).\n  Please run again with the '-t tileSize' option, choosing a power of two\n  value less than this, such as 256, 512, or 1024.\n",
-					destination_ptr->width / 16, destination_ptr->width / 16);
+					destination_ptr->width / XTILES, destination_ptr->width / XTILES);
 				// quit!
 				return 1;
 			}
@@ -1140,8 +1178,8 @@ int wmain(int argc, wchar_t* argv[])
 							}
 						}
 
-						float zoom = (float)destination_ptr->width / (float)(trueWidth(index, tile.width, lavaFlowIndex, waterFlowIndex, tentacleIndexStart) * 16);
-						if (copyPNGTile(destination_ptr, channels, gTilesTable[index].txrX, gTilesTable[index].txrY, chosenTile, &tile, 0, 0, 16, 16, 0, 0, 0x0, zoom)) {
+						float zoom = (float)destination_ptr->width / (float)(trueWidth(index, tile.width, lavaFlowIndex, waterFlowIndex, tentacleIndexStart) * XTILES);
+						if (copyPNGTile(destination_ptr, channels, gTilesTable[index].txrX, gTilesTable[index].txrY, chosenTile, &tile, 0, 0, 16 * tileSpan(index), 16 * tileSpan(index), 0, 0, 0x0, zoom)) {
 							// failed to copy, somehow
 							assert(0);
 							return 1;
@@ -1175,7 +1213,7 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 				// go through 16 side and bottoms
 				for (i = 0; i < 16; i++) {
 					bool sideNeeded = !gFG.fr[fullIndex].exists;
-					bool bottomNeeded = !gFG.fr[fullIndex + 16].exists;	// bottoms follow sides
+					bool bottomNeeded = !gFG.fr[fullIndex + XTILES].exists;	// bottoms follow sides, one row down
 					if (sideNeeded || bottomNeeded) {
 						// Compute shulker box sides and bottoms, if not input
 
@@ -1223,7 +1261,7 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 						}
 						if (bottomNeeded) {
 							// note it "exists" (on output, only) so that the -m missing option is fooled
-							gFG.fr[fullIndex + 16].exists = true;
+							gFG.fr[fullIndex + XTILES].exists = true;
 							copyPNGArea(destination_ptr, gTilesTable[topIndex].txrX * outputTileSize, (gTilesTable[topIndex].txrY + 5) * outputTileSize, outputTileSize, outputTileSize,
 								destination_ptr, gTilesTable[neutralBottomIndex].txrX * outputTileSize, gTilesTable[neutralBottomIndex].txrY * outputTileSize);
 							multPNGTileByColor(destination_ptr, gTilesTable[topIndex].txrX, gTilesTable[topIndex].txrY + 5, mult_color);
@@ -1296,7 +1334,7 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 						gChest1219[count++].data = gNormalRightChest115;
 						gChest1219[count++].data = gEnderChest115;
 					}
-					// starting location 7,72 and count up from there
+					// starting location 7,72 and count up from there, wrapping at 16 columns (these tiles live in the left 16 columns of tiles.h)
 					int swatchLoc = 72 * 16 + 7;
 					int elem;
 					// for the four copper chests, set the single, left, and right parameters
@@ -1401,18 +1439,23 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 				Chest* shelf = gShelf1219;
 
 				int swatchLoc = gShelfData1219[0].txrX + 16 * gShelfData1219[0].txrY;
-				for (int is = 0; is < 12; is++) {
+				for (int is = 0; is < TOTAL_SHELF_TILES; is++) {
 					for (int ip = 0; ip < 3; ip++) {
 						gShelves[is][ip] = gShelfData1219[ip];
 						// set "to tile" loc
 						gShelves[is][ip].txrX = swatchLoc % 16;
 						gShelves[is][ip].txrY = swatchLoc / 16;
 						swatchLoc++;
+						if (is == TOTAL_SHELF_TILES - 1) {
+							// poplar shelf is not in the 16-wrapped run above; its tiles are at 20,0 21,0 22,0
+							gShelves[is][ip].txrX = 20 + ip;
+							gShelves[is][ip].txrY = 0;
+						}
 					}
 					gShelf1219[is].data = gShelves[is];
 				}
 
-				// set up the 12 shelf records, similar to above.
+				// set up the shelf records, similar to above.
 
 				transferChestData(catIndex, numShelfs, allShelfs, anyShelfs, shelf, gShelfGrid, gShelfNames, destination_ptr, filesProcessed, channels, normalsZoom, verbose, rc);
 			}
@@ -1890,10 +1933,17 @@ int checkFileWidth(FileRecord *pfr, int overlayTileSize, bool square, bool isFil
 	return overlayTileSize;
 }
 
+// how many tiles across (and down) the image for this tile covers; normally 1, more for images that cover a region of tiles (see tiles.h)
+static int tileSpan(int index)
+{
+	return (index >= 0 && index < TOTAL_TILES && gTilesTable[index].spanX > 1) ? gTilesTable[index].spanX : 1;
+}
+
+// Width of one tile's worth of the image. Flow textures and tentacles are twice as wide, multi-tile images are a number of tiles wide.
 int trueWidth(int index, int width, int lavaFlowIndex, int waterFlowIndex, int tentacleIndexStart)
 {
-	return (index == lavaFlowIndex || index == waterFlowIndex ||
-		index == tentacleIndexStart || index == tentacleIndexStart + 7 || index == tentacleIndexStart + 14 || index == tentacleIndexStart + 21 ) ? width / 2 : width;
+	return ((index == lavaFlowIndex || index == waterFlowIndex ||
+		index == tentacleIndexStart || index == tentacleIndexStart + 7 || index == tentacleIndexStart + 14 || index == tentacleIndexStart + 21 ) ? width / 2 : width) / tileSpan(index);
 }
 
 int testFileForPowerOfTwo(int width, int height, const wchar_t* cFileName, bool square)
@@ -2075,7 +2125,7 @@ static int setBlackToNearlyBlack(progimage_info* src)
 };
 
 
-// Give the destination image, the tile location on that destination (multiplied by destination width/16),
+// Give the destination image, the tile location on that destination (multiplied by destination width/XTILES),
 // the source image, the upper left and lower right destination pixels, the upper left source location + 1 (limit), any flags,
 // and the zoom factor for going from source to destination - zoom > 1 means destination is larger, zoom < 1 means source is larger
 // flags: 0x1 flip horizontally, 0x2 flip vertically, can be OR'ed together
@@ -2094,7 +2144,7 @@ static int copyPNGTile(progimage_info* dst, int channels, unsigned long dst_x, u
 	if (zoom == 1.0f) // dst->width == src->width * 16 )
 	{
 		//tile matches destination tile size - copy
-		tileSize = dst->width / 16;
+		tileSize = dst->width / XTILES;
 
 		// 16x16 is assumed, so scale up all our lo and hi values if not the case
 		if (tileSize != 16) {
@@ -2139,7 +2189,7 @@ static int copyPNGTile(progimage_info* dst, int channels, unsigned long dst_x, u
 	else if (zoom > 1.0f) // dst->width > src->width * 16 )
 	{
 		// magnify
-		tileSize = (int)((float)dst->width / zoom) / 16;
+		tileSize = (int)((float)dst->width / zoom) / XTILES;
 
 		if (tileSize <= 0) {
 			swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR: somehow, the largest tile size is computed to be %d - this needs to be a positive number.\n", tileSize);
@@ -2195,7 +2245,7 @@ static int copyPNGTile(progimage_info* dst, int channels, unsigned long dst_x, u
 	else // zoom < 1.0f
 	{
 		// minify
-		tileSize = dst->width / 16;
+		tileSize = dst->width / XTILES;
 
 		// 16x16 is assumed, so scale up all our lo and hi values if not the case
 		if (tileSize != 16) {
@@ -2258,7 +2308,7 @@ static void multPNGTileByColor(progimage_info* dst, int dst_x, int dst_y, int* c
 	unsigned long row, col, i;
 	unsigned char* dst_data;
 
-	unsigned long tileSize = dst->width / 16;
+	unsigned long tileSize = dst->width / XTILES;
 
 	for (row = 0; row < tileSize; row++)
 	{
@@ -2385,7 +2435,7 @@ static void getBrightestPNGPixel(progimage_info* src, int channels, unsigned lon
 static int isPNGTileEmpty(progimage_info* dst, int dst_x, int dst_y)
 {
 	// look at all data: are all alphas 0?
-	unsigned long tileSize = dst->width / 16;
+	unsigned long tileSize = dst->width / XTILES;
 	unsigned char* dst_data;
 	unsigned long row, col;
 
@@ -2408,7 +2458,7 @@ static int isPNGTileEmpty(progimage_info* dst, int dst_x, int dst_y)
 static void makePNGTileEmpty(progimage_info* dst, int dst_x, int dst_y)
 {
 	// look at all data: are all alphas 0?
-	unsigned long tileSize = dst->width / 16;
+	unsigned long tileSize = dst->width / XTILES;
 	unsigned int* dst_data;
 	unsigned long row, col;
 
@@ -2530,7 +2580,7 @@ static void makeSolidTile(progimage_info* dst, int chosenTile, int solid)
 	double sum_color[3], sum;
 	unsigned long tileSize;
 
-	tileSize = dst->width / 16;
+	tileSize = dst->width / XTILES;
 
 	dst_offset = ((chosenTile % 16) * tileSize + (int)(chosenTile / 16) * tileSize * dst->width) * 4;
 
