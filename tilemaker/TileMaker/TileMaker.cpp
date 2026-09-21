@@ -248,7 +248,7 @@ static void getBrightestPNGPixel(progimage_info* src, int channels, unsigned lon
 static int computeVerticalTileOffset(progimage_info* src, int chosenTile);
 static int isPNGTileEmpty(progimage_info* dst, int dst_x, int dst_y);
 static void makePNGTileEmpty(progimage_info* dst, int dst_x, int dst_y);
-static void makeSolidTile(progimage_info* dst, int chosenTile, int solid);
+static void makeSolidTile(progimage_info* dst, int chosenTile, int solid, int span);
 
 static void copyPNG(progimage_info* dst, progimage_info* src);
 static void copyPNGArea(progimage_info* dst, unsigned long dst_x_min, unsigned long dst_y_min, unsigned long size_x, unsigned long size_y, progimage_info* src, int src_x_min, int src_y_min);
@@ -1593,9 +1593,22 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 				// if solid is desired, blend final result and replace in-place
 				if (solid || solidcutout)
 				{
+					// tiles that are covered by an image that spans more than one tile are done along with that image
+					std::vector<bool> coveredBySpan(TOTAL_TILES, false);
 					for (i = 0; i < TOTAL_TILES; i++)
 					{
-						makeSolidTile(destination_ptr, i, solid);
+						int span = tileSpan(i);
+						for (int dy = 0; dy < span; dy++) {
+							for (int dx = 0; dx < span; dx++) {
+								if ((dx > 0 || dy > 0) && i + dx + dy * XTILES < TOTAL_TILES)
+									coveredBySpan[i + dx + dy * XTILES] = true;
+							}
+						}
+					}
+					for (i = 0; i < TOTAL_TILES; i++)
+					{
+						if (!coveredBySpan[i])
+							makeSolidTile(destination_ptr, i, solid, tileSpan(i));
 					}
 				}
 			}
@@ -1943,7 +1956,9 @@ static int tileSpan(int index)
 int trueWidth(int index, int width, int lavaFlowIndex, int waterFlowIndex, int tentacleIndexStart)
 {
 	return ((index == lavaFlowIndex || index == waterFlowIndex ||
-		index == tentacleIndexStart || index == tentacleIndexStart + 7 || index == tentacleIndexStart + 14 || index == tentacleIndexStart + 21 ) ? width / 2 : width) / tileSpan(index);
+		// offsets to the other tentacles. Not confusing at all, no no.
+		// Note that the tileSpan call catches the extra-wide tiles such as straw_bed and shelf_mushroom*'s
+		index == tentacleIndexStart || index == tentacleIndexStart - 9 + XTILES || index == tentacleIndexStart - 2 + XTILES || index == tentacleIndexStart - 11 + 2*XTILES ) ? width / 2 : width) / tileSpan(index);
 }
 
 int testFileForPowerOfTwo(int width, int height, const wchar_t* cFileName, bool square)
@@ -2570,7 +2585,9 @@ static void copyPNGArea(progimage_info* dst, unsigned long dst_x_min, unsigned l
 }
 
 
-static void makeSolidTile(progimage_info* dst, int chosenTile, int solid)
+// chosenTile is the index of the tile in gTilesTable, i.e., column + XTILES * row. span is how many tiles wide and high the image at that tile is (1 for most)
+// - all of those tiles are made one color.
+static void makeSolidTile(progimage_info* dst, int chosenTile, int solid, int span)
 {
 	unsigned long row, col, dst_offset;
 	unsigned char* dst_data;
@@ -2580,9 +2597,9 @@ static void makeSolidTile(progimage_info* dst, int chosenTile, int solid)
 	double sum_color[3], sum;
 	unsigned long tileSize;
 
-	tileSize = dst->width / XTILES;
+	tileSize = (dst->width / XTILES) * span;
 
-	dst_offset = ((chosenTile % 16) * tileSize + (int)(chosenTile / 16) * tileSize * dst->width) * 4;
+	dst_offset = ((chosenTile % XTILES) * (dst->width / XTILES) + (int)(chosenTile / XTILES) * (dst->width / XTILES) * dst->width) * 4;
 
 	sum_color[0] = sum_color[1] = sum_color[2] = sum = 0;
 

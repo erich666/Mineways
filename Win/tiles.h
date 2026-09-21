@@ -31,6 +31,7 @@
 
 // If this tile is not the final tile, identify it as being something that gets used to synthesize a new output tile.
 // That is, the tile, when output by Mineways, will have a different name with a _y.png suffix.
+// For example, some leaves and grass have a grayscale texture to start, and a green color is derived from the biome.
 #define SBIT_SYNTHESIZED         0x400
 
 // If set, the incoming .png's black pixels should be treated as having an alpha of 0.
@@ -2244,7 +2245,7 @@ static struct {
     {  2, 67, 442, 0, L"resin_clump", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
     {  3, 67, 271, 0, L"pale_oak_door_bottom", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     {  4, 67, 271, 0, L"pale_oak_door_top", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
-    {  5, 67,  18, 0, L"pale_oak_leaves", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYNTHESIZED },
+    {  5, 67,  18, 0, L"pale_oak_leaves", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES },
     {  6, 67, 437, 0, L"pale_oak_log_top", L"", SWATCH_REPEAT_ALL },
     {  7, 67, 437, 0, L"pale_oak_log", L"pale_oak_log_side", SWATCH_REPEAT_ALL },   // JG-RTX second name
     {  8, 67,   5, 0, L"pale_oak_planks", L"", SWATCH_REPEAT_ALL },
@@ -2631,9 +2632,9 @@ static struct {
     {  5, 79, 390, 0, L"sulfur_spike_down_middle", L"", SBIT_CLAMP_TOP | SBIT_DECAL },
     {  6, 79, 390, 0, L"sulfur_spike_down_base", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
     {  7, 79, 396, 0, L"red_shrub", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  8, 79,   0, 0, L"yellow_poplar_leaves", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYNTHESIZED },
-    {  9, 79,   0, 0, L"orange_poplar_leaves", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYNTHESIZED },
-    { 10, 79,   0, 0, L"red_poplar_leaves", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYNTHESIZED },
+    {  8, 79, 437, 3, L"yellow_poplar_leaves", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES },
+    {  9, 79, 437, 4, L"orange_poplar_leaves", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES },
+    { 10, 79, 437, 5, L"red_poplar_leaves", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES },
     { 11, 79,   0, 0, L"poplar_log_top", L"", SWATCH_REPEAT_ALL },
     { 12, 79,   0, 0, L"poplar_log", L"", SWATCH_REPEAT_ALL },
     { 13, 79,   0, 0, L"stripped_poplar_log_top", L"", SWATCH_REPEAT_ALL },

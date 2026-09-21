@@ -21274,7 +21274,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             break;
         case BLOCK_MANGROVE_LEAVES:						// getSwatch
-            switch (dataVal & 0x3)
+            switch (dataVal & 0x7)
             {
             default:
                 assert(0);
@@ -21286,6 +21286,15 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case 2: // pale oak
                 swatchLoc = SWATCH_INDEX(5, 67);
+                break;
+            case 3: // yellow poplar
+                swatchLoc = SWATCH_INDEX(8, 79);
+                break;
+            case 4: // orange poplar
+                swatchLoc = SWATCH_INDEX(9, 79);
+                break;
+            case 5: // red poplar
+                swatchLoc = SWATCH_INDEX(10, 79);
                 break;
             }
             break;

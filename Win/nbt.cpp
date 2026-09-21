@@ -476,6 +476,9 @@ static TranslationTuple* modTranslations = NULL;
 // LEAF_PROP distance bits (user-specified 0x28 in spec, but only 2 bits there; using
 // 0x38 = bits 3..5 to fit the full 3-bit distance 0..7 without overlapping persistent (0x4)).
 #define LEAF_DISTANCE_BITS 0x38
+// LEAF_PROP layout: bits 0x07 are the subtype (0-2 for mangrove/cherry/pale oak, 3-5 for the poplar leaves), 0x38 distance, 0x40 waterlogged (see WATERLOGGED_BIT),
+// and persistent is here (it used to be 0x4, which the subtype now needs).
+#define LEAF_PERSISTENT_BIT 0x80
 
 // BLOCK_BOOKSHELF (47) chiseled variant. Plain bookshelf is stateless and stays NO_PROP.
 //   bits 0x07: facing 1..4 (1=east, 2=west, 3=south, 4=north) — same encoding as TORCH_PROP
@@ -1470,6 +1473,9 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 184,       TYPE_HIGH_BIT1, "cherry_fence", FENCE_PROP },
     { 0, 185,       TYPE_HIGH_BIT1, "cherry_fence_gate", FENCE_GATE_PROP },
     { 0, 181,   TYPE_HIGH_BIT1 | 1, "cherry_leaves", LEAF_PROP },
+    { 0, 181,   TYPE_HIGH_BIT1 | 3, "yellow_poplar_leaves", LEAF_PROP },
+    { 0, 181,   TYPE_HIGH_BIT1 | 4, "orange_poplar_leaves", LEAF_PROP },
+    { 0, 181,   TYPE_HIGH_BIT1 | 5, "red_poplar_leaves", LEAF_PROP },
     { 0, 160,   TYPE_HIGH_BIT1 | 1, "cherry_log", AXIS_PROP },
     { 0,   5,              9, "cherry_planks", NO_PROP },
     { 0,  70,          20, "cherry_pressure_plate", PRESSURE_PROP },
@@ -4218,7 +4224,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             // https://minecraft.wiki/w/Java_Edition_data_values#Leaves
                             // ignore, since it is has no graphical effect
 #ifndef GRAPHICAL_ONLY
-                            dataVal = (strcmp(value, "true") == 0) ? 4 : 0;
+                            dataVal = (strcmp(value, "true") == 0) ? LEAF_PERSISTENT_BIT : 0;
 #endif
                         }
                         // SLAB_PROP
@@ -5180,7 +5186,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 break;
 
             case LEAF_PROP:
-                // dataVal already has subtype (bits 0x03) + persistent (bit 0x04) from earlier parsers.
+                // dataVal already has persistent (bit LEAF_PERSISTENT_BIT) from earlier parsers; the subtype (bits 0x07) comes from the BlockTranslations entry.
                 // distance (0..7) goes into bits 0x38 — 3 bits — preserved for .schem round-trip though
                 // non-graphical.
                 dataVal |= (distance & 0x7) << 3;
@@ -6713,10 +6719,10 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             break;
 
         case LEAF_PROP:
-            // persistent: true|false, bit 0x4. distance: 0..7, bits 0x38.
+            // persistent: true|false, bit LEAF_PERSISTENT_BIT. distance: 0..7, bits 0x38.
             // Both preserved for .schem round-trip though non-graphical.
             if (strcmp(k, "persistent") == 0) {
-                if (strcmp(v, "true") == 0) dataVal |= 0x4;
+                if (strcmp(v, "true") == 0) dataVal |= LEAF_PERSISTENT_BIT;
             }
             else if (strcmp(k, "distance") == 0) {
                 dataVal = (dataVal & ~0x38) | ((atoi(v) & 0x7) << 3);
@@ -8198,13 +8204,13 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case LEAF_PROP: {
-        // Leaves families. Subtype (leaf kind) is in bits 0x03; `persistent` lives in bit 0x04
-        // (nbt.cpp:3727); `distance` (0..7) lives in bits 0x38 (LEAF_PROP packing arm).
+        // Leaves families. Subtype (leaf kind) is in bits 0x07; `persistent` lives in LEAF_PERSISTENT_BIT;
+        // `distance` (0..7) lives in bits 0x38 (LEAF_PROP packing arm).
         // Alphabetical: distance < persistent.
         char distStr[3];
         snprintf(distStr, sizeof(distStr), "%d", (dataVal >> 3) & 0x7);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "distance", distStr);
-        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "persistent", (dataVal & 0x4) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "persistent", (dataVal & LEAF_PERSISTENT_BIT) ? "true" : "false");
         break;
     }
 

@@ -2546,7 +2546,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
 
     case BLOCK_MANGROVE_LEAVES:
         // since these leaves are > 256 in type, we can safely use all the bits
-        switch (dataVal & 0x3)
+        switch (dataVal & 0x7)
         {
         default:
             assert(0);
@@ -2556,6 +2556,12 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Cherry Leaves";
         case 2:
             return "Pale Oak Leaves";
+        case 3:
+            return "Yellow Poplar Leaves";
+        case 4:
+            return "Orange Poplar Leaves";
+        case 5:
+            return "Red Poplar Leaves";
         }
         break;
 
@@ -3470,7 +3476,7 @@ unsigned int GetBlockDataColor(int type, int dataVal)
         }
 
     case BLOCK_MANGROVE_LEAVES:
-        switch (dataVal & 0x3)
+        switch (dataVal & 0x7)
         {
         default:
         case 0:
@@ -3482,6 +3488,15 @@ unsigned int GetBlockDataColor(int type, int dataVal)
         case 2:
             // pale oak
             return 0x7A7F77;
+        case 3:
+            // yellow poplar, average of the texture's visible pixels
+            return 0xD78628;
+        case 4:
+            // orange poplar
+            return 0xBC5618;
+        case 5:
+            // red poplar
+            return 0x9A2C27;
         }
 
     case BLOCK_GRASS:
@@ -4781,7 +4796,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
 
     case BLOCK_MANGROVE_LEAVES:
         dataVal = block->data[voxel];
-        switch (dataVal & 0x3)
+        switch (dataVal & 0x7)
         {
         default:
             assert(0);
@@ -4798,6 +4813,18 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         case 2:
             // pale oak, not affected by biome AFAIK, it's gray in the default biome in a test world
             color = 0x7A7F77; // just a guess - normally listed at https://minecraft.wiki/w/Block_colors#Foliage_colors
+            break;
+        case 3:
+            // yellow poplar, not affected by biome
+            color = 0xD78628;
+            break;
+        case 4:
+            // orange poplar
+            color = 0xBC5618;
+            break;
+        case 5:
+            // red poplar
+            color = 0x9A2C27;
             break;
         }
         break;
@@ -5747,7 +5774,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_PRISMARINE:
     case BLOCK_NETHER_BRICKS:
     case BLOCK_RED_MUSHROOM:
-    case BLOCK_MANGROVE_LEAVES:
         // uses 0-2
         if (dataVal < 3)
         {
@@ -5816,6 +5842,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_JACK_O_LANTERN:
     case BLOCK_RESPAWN_ANCHOR:
     case BLOCK_DANDELION:
+    case BLOCK_MANGROVE_LEAVES:     // uses 0-5: mangrove, cherry, pale oak, and the yellow, orange, and red poplar leaves
         // uses 0-5
         if (dataVal < 6)
         {
