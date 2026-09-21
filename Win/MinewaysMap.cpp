@@ -842,6 +842,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Potted Pale Oak Sapling";
         case YELLOW_FLOWER_FIELD | 5:
             return "Potted Golden Dandelion";
+        case YELLOW_FLOWER_FIELD | 6:
+            return "Potted Poplar Sapling";
         case 1:
         case RED_FLOWER_FIELD | 0:
             return "Potted Poppy";
@@ -898,8 +900,6 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Potted Mangrove Propagule";
         case SAPLING_FIELD | 7:
             return "Potted Cherry Sapling";
-        case SAPLING_FIELD | 8:
-            return "Potted Pale Oak Sapling";
 
         case RED_MUSHROOM_FIELD | 0:
         case 7:
@@ -999,6 +999,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Pale Oak Sapling";
         case 5:
             return "Golden Dandelion";
+        case 6:
+            return "Poplar Sapling";
         }
         break;
 
@@ -1097,6 +1099,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Bamboo Mosaic";
         case 12:
             return "Pale Oak Planks";
+        case 13:
+            return "Poplar Planks";
         }
         break;
 
@@ -1431,6 +1435,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Stripped Cherry Log";
         case 2:
             return "Stripped Pale Oak Log";
+        case 3:
+            return "Stripped Poplar Log";
         }
         break;
 
@@ -1446,6 +1452,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Stripped Cherry Wood";
         case 2:
             return "Stripped Pale Oak Wood";
+        case 3:
+            return "Stripped Poplar Wood";
         }
         break;
 
@@ -1486,6 +1494,7 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         break;
 
     case BLOCK_MANGROVE_SIGN_POST:
+    case BLOCK_POPLAR_SIGN_POST:
         switch (dataVal & (BIT_16 | BIT_32))
         {
         default:
@@ -1760,6 +1769,9 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             break;
         case BIT_16 | 5: // sulfur_bricks
             strcat_s(gConcatString, 100, "Sulfur Brick Slab");
+            break;
+        case BIT_16 | 6: // poplar slab
+            strcat_s(gConcatString, 100, "Poplar Slab");
             break;
         }
         return gConcatString;
@@ -2157,6 +2169,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
                 return "Cherry Wood";
             case 2:
                 return "Pale Oak Wood";
+            case 3:
+                return "Poplar Wood";
             }
         }
         else {
@@ -2171,6 +2185,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
                 return "Cherry Log";
             case 2:
                 return "Pale Oak Log";
+            case 3:
+                return "Poplar Log";
             }
         }
         break;
@@ -2617,6 +2633,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Bamboo Wall Hanging Sign";
         case 11 << 2:
             return "Pale Oak Wall Hanging Sign";
+        case 12 << 2:
+            return "Poplar Wall Hanging Sign";
         }
         break;
 
@@ -2750,6 +2768,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Bamboo Pressure Plate";
         case 12:
             return "Pale Oak Pressure Plate";
+        case 13:
+            return "Poplar Pressure Plate";
         }
         break;
     case BLOCK_COPPER_BARS:
@@ -2894,6 +2914,8 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             return "Bamboo Shelf";
         case 3:
             return "Spruce Shelf";
+        case 4:
+            return "Poplar Shelf";
         }
         break;
 
@@ -3136,6 +3158,8 @@ unsigned int GetBlockDataColor(int type, int dataVal)
             return gBlockDefinitions[BLOCK_BAMBOO_MOSAIC_STAIRS].pcolor;
         case 12: // Pale Oak Planks
             return gBlockDefinitions[BLOCK_PALE_OAK_STAIRS].pcolor;
+        case 13: // Poplar Planks
+            return gBlockDefinitions[BLOCK_POPLAR_STAIRS].pcolor;
         }
 
     case BLOCK_WOODEN_DOUBLE_SLAB:
@@ -3194,6 +3218,8 @@ unsigned int GetBlockDataColor(int type, int dataVal)
             return 0xBDAD5C;
         case BIT_16 | 5: // sulfur_bricks
             return 0xBCAB5C;
+        case BIT_16 | 6: // poplar
+            return 0x978B80;
         }
 
     case BLOCK_WEEPING_VINES:
@@ -3720,6 +3746,8 @@ unsigned int GetBlockDataColor(int type, int dataVal)
             return 0x9FA498;
         case 5: // golden dandelion
             return 0xAD884C;
+        case 6: // poplar sapling
+            return 0x9C5426;
         }
 
     case BLOCK_LIGHTNING_ROD:
@@ -3916,6 +3944,7 @@ unsigned int GetBlockDataColor(int type, int dataVal)
         }
 
     case BLOCK_MANGROVE_SIGN_POST:
+    case BLOCK_POPLAR_SIGN_POST:
         switch (dataVal & (BIT_16 | BIT_32))
         {
         default:
@@ -3952,6 +3981,7 @@ unsigned int GetBlockDataColor(int type, int dataVal)
         }
 
     case BLOCK_MANGROVE_WALL_SIGN:
+    case BLOCK_POPLAR_WALL_SIGN:
         switch (dataVal & (BIT_8 | BIT_16 | BIT_32))
         {
         default:
@@ -4324,6 +4354,7 @@ unsigned int GetBlockDataColor(int type, int dataVal)
     case BLOCK_MANGROVE_LOG:
     case BLOCK_STRIPPED_MANGROVE:
     case BLOCK_STRIPPED_MANGROVE_WOOD:
+        // the end-piece color, e.g., cherry_log_top
         switch (dataVal & 0x3)
         {
         default:
@@ -4333,6 +4364,8 @@ unsigned int GetBlockDataColor(int type, int dataVal)
             return 0xCA9C96;
         case 2:	// pale oak
             return 0xD1C8C7;
+        case 3: // poplar
+            return 0x8D8075;
         }
 
     case BLOCK_HAY:
@@ -4385,6 +4418,8 @@ unsigned int GetBlockDataColor(int type, int dataVal)
             return 0xC4AF52;
         case 11 << 2:	// pale oak
             return 0xE5DBDA;
+        case 12 << 2:	// poplar
+            return 0xA5998C;
         }
 
     case BLOCK_OAK_HANGING_SIGN:
@@ -4541,6 +4576,8 @@ unsigned int GetBlockDataColor(int type, int dataVal)
             return 0xC4AF52;
         case 12: // Pale Oak Pressure Plate
             return 0xE5DBDA;
+        case 13: // Poplar Pressure Plate
+            return 0x978B80;
         }
 
     case BLOCK_COPPER_BARS:
@@ -4641,7 +4678,7 @@ unsigned int GetBlockDataColor(int type, int dataVal)
         }
 
     case BLOCK_PALE_OAK_SHELF:
-        switch ((dataVal & 0x28) >> 3)
+        switch ((dataVal & 0x38) >> 3)
         {
         default:
             assert(0);
@@ -4653,6 +4690,8 @@ unsigned int GetBlockDataColor(int type, int dataVal)
             return 0xC3AF51;
         case 3:
             return 0x6F5734;
+        case 4: // poplar
+            return 0xA29689;
         }
 
     case BLOCK_POINTED_DRIPSTONE:
@@ -5841,9 +5880,15 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_PUMPKIN:
     case BLOCK_JACK_O_LANTERN:
     case BLOCK_RESPAWN_ANCHOR:
-    case BLOCK_DANDELION:
     case BLOCK_MANGROVE_LEAVES:     // uses 0-5: mangrove, cherry, pale oak, and the yellow, orange, and red poplar leaves
         // uses 0-5
+        if (dataVal < 6)
+        {
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_DANDELION:
+        // uses 0-6
         if (dataVal < 6)
         {
             addBlock = 1;
@@ -5985,6 +6030,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_CHERRY_FENCE_GATE:
     case BLOCK_BAMBOO_FENCE_GATE:
     case BLOCK_PALE_OAK_FENCE_GATE:
+    case BLOCK_POPLAR_FENCE_GATE:
     case BLOCK_FARMLAND:
     case BLOCK_BREWING_STAND:
     case BLOCK_ACACIA_WOOD_STAIRS:
@@ -6045,6 +6091,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_POLISHED_TUFF_STAIRS:
     case BLOCK_TUFF_BRICK_STAIRS:
     case BLOCK_PALE_OAK_STAIRS:
+    case BLOCK_POPLAR_STAIRS:
     case BLOCK_RESIN_BRICK_STAIRS:
     case BLOCK_CINNABAR_STAIRS:
     case BLOCK_POLISHED_CINNABAR_STAIRS:
@@ -6093,7 +6140,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             addBlock = 1;
         }
         break;
-    case BLOCK_OAK_PLANKS:
     case BLOCK_POPPY:
         // uses 0-11
         if (dataVal < 12)
@@ -6235,6 +6281,13 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             addBlock = 1;
         }
         break;
+    case BLOCK_OAK_PLANKS:
+        // uses 0-12
+        if (dataVal < 13)
+        {
+            addBlock = 1;
+        }
+        break;
     case BLOCK_AMETHYST:
         addBlock = 1;
 
@@ -6299,23 +6352,20 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
     case BLOCK_MANGROVE_LOG:
         // uses high bits for directions
-        if ((dataVal & 0x03) < 3) {    // mangrove and cherry and pale_oak
-            addBlock = 1;
-            // add "wood" variant to map diagonally SE of original
-            if (dataVal < ((origType == BLOCK_LOG) ? 4 : 2)) {
-                // add "wood" variant to map
-                neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
-                block->grid[neighborIndex] = (unsigned char)type;
-                block->data[neighborIndex] = (unsigned short)(finalDataVal | BIT_16 | typeHighBit);
-            }
+        // mangrove and cherry and pale_oak and poplar - all four slots
+        addBlock = 1;
+        // add "wood" variant to map diagonally SE of original
+        if (dataVal < ((origType == BLOCK_LOG) ? 4 : 2)) {
+            // add "wood" variant to map
+            neighborIndex = BLOCK_INDEX(6 + (type % 2) * 8, y, 6 + (dataVal % 2) * 8);
+            block->grid[neighborIndex] = (unsigned char)type;
+            block->data[neighborIndex] = (unsigned short)(finalDataVal | BIT_16 | typeHighBit);
         }
         break;
     case BLOCK_STRIPPED_MANGROVE:
     case BLOCK_STRIPPED_MANGROVE_WOOD:
-        // use 0-1,4-5,8-9,12-13
-        if ((dataVal & 0x03) < 3) {    // mangrove and cherry and pale oak
-            addBlock = 1;
-        }
+        // mangrove and cherry and pale oak and poplar: all four
+        addBlock = 1;
         break;
     case BLOCK_STRIPPED_OAK:
     case BLOCK_STRIPPED_OAK_WOOD:
@@ -6399,7 +6449,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
     case BLOCK_CRIMSON_SLAB:
         addBlock = 1;
-        if ((dataVal & 0x7) < 6) {
+        if ((dataVal & 0x7) < 7) {
             // add new style diagonally SE of original
             neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
             block->grid[neighborIndex] = (unsigned char)type;
@@ -6407,6 +6457,11 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             // so both terms agree), kept only because typeHighBit already covers the promotion.
             block->data[neighborIndex] = (unsigned short)(finalDataVal | BIT_16 | typeHighBit);
         }
+        break;
+
+    case BLOCK_POPLAR_SIGN_POST:
+        // a single kind of sign: rotation is all there is
+        addBlock = 1;
         break;
 
     case BLOCK_SIGN_POST:
@@ -6720,6 +6775,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
 
     case BLOCK_WALL_SIGN:
     case BLOCK_MANGROVE_WALL_SIGN:
+    case BLOCK_POPLAR_WALL_SIGN:
         // there are now 8 materials for wall signs and 4 for mangrove wall signs. Rather than going absolutely nuts, we change the dataVal for each.
         // directions are 2-5, so allow those and 10-13
         if ((dataVal & 0x7) >= 2 && (dataVal & 0x7) <= 5)
@@ -6729,6 +6785,10 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             if (origType == BLOCK_WALL_SIGN) {
                 // cycle 8 materials
                 finalDataVal = ((dataVal % 8) << 3) | (dataVal & 0x7);
+            }
+            else if (origType == BLOCK_POPLAR_WALL_SIGN) {
+                // only one material, so just the direction
+                finalDataVal = dataVal & 0x7;
             }
             else {
                 // cycle 4 materials
@@ -6842,6 +6902,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_DARK_OAK_DOOR:
     case BLOCK_ACACIA_DOOR:
     case BLOCK_PALE_OAK_DOOR:
+    case BLOCK_POPLAR_DOOR:
     case BLOCK_CRIMSON_DOOR:
     case BLOCK_WARPED_DOOR:
     case BLOCK_MANGROVE_DOOR:
@@ -6913,6 +6974,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_ACACIA_BUTTON:
     case BLOCK_DARK_OAK_BUTTON:
     case BLOCK_PALE_OAK_BUTTON:
+    case BLOCK_POPLAR_BUTTON:
     case BLOCK_CRIMSON_BUTTON:
     case BLOCK_WARPED_BUTTON:
     case BLOCK_POLISHED_BLACKSTONE_BUTTON:
@@ -6972,6 +7034,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_WAXED_WEATHERED_COPPER_TRAPDOOR:
     case BLOCK_WAXED_OXIDIZED_COPPER_TRAPDOOR:
     case BLOCK_PALE_OAK_TRAPDOOR:
+    case BLOCK_POPLAR_TRAPDOOR:
         // use all 0-15
         addBlock = 1;
 
@@ -7097,6 +7160,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_CHERRY_FENCE:
     case BLOCK_BAMBOO_FENCE:
     case BLOCK_PALE_OAK_FENCE:
+    case BLOCK_POPLAR_FENCE:
     case BLOCK_IRON_BARS:
     case BLOCK_GLASS_PANE:
     case BLOCK_CHORUS_PLANT:
@@ -7760,6 +7824,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_CRIMSON_HANGING_SIGN:
     case BLOCK_MANGROVE_HANGING_SIGN:
     case BLOCK_BAMBOO_HANGING_SIGN:
+    case BLOCK_POPLAR_HANGING_SIGN:
         // 0-64,
         // add new style diagonally SE of original
         {
@@ -7822,12 +7887,12 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
 
-    case BLOCK_STONE_PRESSURE_PLATE: // now has 26 states
-		// 0-25
+    case BLOCK_STONE_PRESSURE_PLATE: // now has 28 states
+		// 0-27
 	    {
 		    // always add the block, since we know we're above 16
 		    addBlock = 1;
-            addDiagonalBlocksToMap(26, y, type, dataVal, finalDataVal, typeHighBit, block);
+            addDiagonalBlocksToMap(28, y, type, dataVal, finalDataVal, typeHighBit, block);
         }
         break;
 
@@ -7894,7 +7959,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
 
     case BLOCK_ACACIA_SHELF:
     case BLOCK_PALE_OAK_SHELF:
-        // there are 8 materials for acacia shelves and 4 for pale oak shelves. Rather than going absolutely nuts, we change the dataVal for each.
+        // there are 8 materials for acacia shelves and 5 for pale oak shelves. Rather than going absolutely nuts, we change the dataVal for each.
         // directions are 2-5, so allow those and 10-13
         addBlock = 1;
         // set higher bits BIT_8 and BIT_16
@@ -7903,8 +7968,8 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             finalDataVal = (((dataVal/2) % 8) << 3) | (dataVal & 0x3) | ((dataVal & 0x1) << 2);
         }
         else {
-            // cycle 4 materials, alternate powered
-            finalDataVal = (((dataVal/4) % 4) << 3) | (dataVal & 0x3) | ((dataVal & 0x1) << 2);
+            // cycle 5 materials, alternate powered; yes, there will be repeats. Could test and not add blocks. TODOTODO
+            finalDataVal = (((dataVal/2) % 5) << 3) | (dataVal & 0x3) | ((dataVal & 0x1) << 2);
         }
 
         // for first 4, show with extra block, so it looks mounted

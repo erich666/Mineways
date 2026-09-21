@@ -171,6 +171,20 @@ On master, removing HIGH_BIT promotion will break >255 block IDs silently.
 - Output texture resolution is `2 * terrain width` (was `4 *` when 16 wide), so the memory use and swatch capacity are about what they were.
 - Test: `Mineways.exe -headless script.mwscript` with "Export all textures to three large images"; the process exit crash (0xC0000005) also happens in HEAD, so ignore it.
 
+## Block types above 511 (poplar, etc.)
+
+- The world grid stores a 12-bit type (low 8 bits in `grid[]`, bits 8-11 in the top nibble of `data[]`), so types to 4095 work. `BlockTranslator.blockId` is now `unsigned short`: a row with `blockId` >= 512
+  (e.g., `{ 0, 513, 0, "poplar_button", BUTTON_PROP }`) gives the whole type, and needs no `TYPE_HIGH_BIT1`. Rows below 512 are as before (`blockId` plus `TYPE_HIGH_BIT1` for +256). The `.schem` code
+  (`spongeParseStateString`, `findSpongeTranslator`, the `type & 0xFFF` tests) handles this too.
+- **Never use a type whose low 8 bits are 0 (256, 512, 768, ...)**: it reads as air. 512 is a placeholder row and `BLOCK_AIR_512`.
+- A wood that has many block types gets: subtypes of existing types where there is room (log/wood/stripped/planks/slab/sapling/pressure plate/shelf/wall hanging sign/leaves) and new types where there is not
+  (stairs, button, door, fence, fence gate, trapdoor, sign, wall sign, hanging sign). For a new wood, mirror poplar: grep `BLOCK_PALE_OAK_` and `BLOCK_POPLAR_` for every place to add cases, and the sign, hanging sign, shelf,
+  pressure plate and door getSwatch code for the tiles. A tile in the right half of the terrain image needs `TILE_TO_SWATCH(col,row)`, never `SWATCH_INDEX(col,row)` with col >= 16 (that wraps to the next row).
+- Leaf subtype is `dataVal & 0x7` (mangrove 0, cherry 1, pale oak 2, yellow/orange/red poplar 3/4/5). `persistent` is `LEAF_PERSISTENT_BIT` (0x100), not 0x4 or 0x80: the .schem reader treats 0x80 as "type + 256" and
+  keeps only 7 bits of dataVal, so persistent is not kept through a .schem (it is not graphical).
+- Checks that worked for a new wood: export the 26.3 debug world (it has every poplar state), compare each poplar state's geometry to its pale oak twin (same shape expected), list each material's swatches from
+  the OBJ UVs, and round-trip through `Export schematic:` and back.
+
 ## Minecraft 26.3 (DataVersion 5023) chunk palettes (nbt.cpp readPalette)
 
 - A block palette is no longer always a list of `{Name, Properties}` compounds. In 26.3 chunks it can be: a **list of strings** (`minecraft:stone`, when no entry needs

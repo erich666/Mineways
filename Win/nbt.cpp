@@ -51,7 +51,7 @@ static int readBlockData(bfFile* pbf, int& bigbufflen, unsigned char* bigbuff);
 
 typedef struct BlockTranslator {
     int hashSum;
-    unsigned char blockId;
+    unsigned short blockId;   // the type's low 8 bits, plus 256 if dataVal has TYPE_HIGH_BIT1. A blockId over 511 is the whole type (types this large have no TYPE_HIGH_BIT1).
     unsigned char dataVal;
     char* name;
     unsigned long translateFlags;
@@ -478,7 +478,7 @@ static TranslationTuple* modTranslations = NULL;
 #define LEAF_DISTANCE_BITS 0x38
 // LEAF_PROP layout: bits 0x07 are the subtype (0-2 for mangrove/cherry/pale oak, 3-5 for the poplar leaves), 0x38 distance, 0x40 waterlogged (see WATERLOGGED_BIT),
 // and persistent is here (it used to be 0x4, which the subtype now needs).
-#define LEAF_PERSISTENT_BIT 0x80
+#define LEAF_PERSISTENT_BIT 0x100   // not 0x80: in the .schem reading code that bit means "type + 256". That code keeps only the low 7 bits, so persistent is not kept when reading a .schem (it is not graphical).
 
 // BLOCK_BOOKSHELF (47) chiseled variant. Plain bookshelf is stateless and stays NO_PROP.
 //   bits 0x07: facing 1..4 (1=east, 2=west, 3=south, 4=north) — same encoding as TORCH_PROP
@@ -1735,8 +1735,28 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 134,   TYPE_HIGH_BIT1 | BIT_16, "sulfur_spike", DRIPSTONE_PROP },    // 5 thicknesses, vertical_direction: up/down
 
     // 1.20.3 additions (short_grass added next to "grass", above), https://minecraft.wiki/w/Java_Edition_1.20.3#General_2
+    { 0, 160,   TYPE_HIGH_BIT1 | 3, "poplar_log", AXIS_PROP },
+    { 0, 160,   TYPE_HIGH_BIT1 | BIT_16 | 3, "poplar_wood", AXIS_PROP },
+    { 0,   5,             13, "poplar_planks", NO_PROP },
+    { 0, 167,   TYPE_HIGH_BIT1 | 3, "stripped_poplar_log", AXIS_PROP },
+    { 0, 168,   TYPE_HIGH_BIT1 | 3, "stripped_poplar_wood", AXIS_PROP },
+    { 0, 105,   TYPE_HIGH_BIT1 | BIT_16 | 6, "poplar_slab", SLAB_PROP },
+    // poplar: these types (513 and up) are above what the low 8 bits plus TYPE_HIGH_BIT1 can hold, so blockId is the whole type
+    { 0, 255,       TYPE_HIGH_BIT1, "poplar_stairs", STAIRS_PROP },
+    { 0, 513,                    0, "poplar_button", BUTTON_PROP },
+    { 0, 514,                    0, "poplar_door", DOOR_PROP },
+    { 0, 515,                    0, "poplar_fence", FENCE_PROP },
+    { 0, 516,                    0, "poplar_fence_gate", FENCE_GATE_PROP },
+    { 0, 517,                    0, "poplar_trapdoor", TRAPDOOR_PROP },
+    { 0, 518,                    0, "poplar_sign", STANDING_SIGN_PROP },
+    { 0, 519,                    0, "poplar_wall_sign", WALL_SIGN_PROP },
+    { 0, 520,                    0, "poplar_hanging_sign", ATTACHED_HANGING_SIGN },
+    { 0, 202, TYPE_HIGH_BIT1 | (12 << 2), "poplar_wall_hanging_sign", SWNE_FACING_PROP },
+    { 0,  70,                   26, "poplar_pressure_plate", PRESSURE_PROP },
+    { 0, 245, TYPE_HIGH_BIT1 | (4 << 3), "poplar_shelf", SHELF_PROP },
+    { 0,  37,                    6, "poplar_sapling", NO_PROP },
+    { 0, BLOCK_FLOWER_POT, YELLOW_FLOWER_FIELD | 6, "potted_poplar_sapling", NO_PROP },
 
- // Note: 140, 144 are reserved for the extra bit needed for BLOCK_FLOWER_POT and BLOCK_HEAD, so don't use these TYPE_HIGH_BIT1 values
 };
 
 #define HASH_SIZE 1024
@@ -4057,7 +4077,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 typeIndex = findIndexFromName(thisBlockName);
                 if (typeIndex > -1) {
                     useData = true;
-                    paletteBlockEntry[entryIndex] = BlockTranslations[typeIndex].blockId;
+                    paletteBlockEntry[entryIndex] = (unsigned char)(BlockTranslations[typeIndex].blockId & 0xFF);
                     // BlockTranslations[] still speaks the old 8-bit encoding (dataVal's low 7 bits
                     // = real data, TYPE_HIGH_BIT1 = "promote type by 256" - the table's own ceiling,
                     // unchanged). Pack that into the wide format here so paletteDataEntry[] is
@@ -4096,7 +4116,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             if (strcmp(ptt->name, unknownName) == 0) {
                                 // found a match
                                 matched = true;
-                                paletteBlockEntry[entryIndex] = BlockTranslations[ptt->type].blockId;
+                                paletteBlockEntry[entryIndex] = (unsigned char)(BlockTranslations[ptt->type].blockId & 0xFF);
                                 // see the matching pack above - same table, same conversion.
                                 {
                                     int fullType = BlockTranslations[ptt->type].blockId | ((BlockTranslations[ptt->type].dataVal & TYPE_HIGH_BIT1) << 1);
@@ -7260,7 +7280,12 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
 
     // Done. Note: blockId may be > 255 (e.g., 256 = BLOCK_AIR+TYPE_HIGH_BIT1 space). The legacy schematic
     // storage encodes >255 by putting low 8 bits in *outBlockId and TYPE_HIGH_BIT1 in *outDataVal.
-    if (blockId > 255) {
+    if (blockId > 511) {
+        // a type over 511 does not fit in the low 8 bits plus TYPE_HIGH_BIT1, so pass it whole
+        *outBlockId = blockId;
+        *outDataVal = dataVal;
+    }
+    else if (blockId > 255) {
         *outBlockId = blockId & 0xFF;
         *outDataVal = dataVal | TYPE_HIGH_BIT1;
     }
@@ -7632,7 +7657,7 @@ int nbtGetSpongeSchematic(bfFile* pbf,
         else {
             int blockIdVal = palBlockIds[idx] & 0xFF;
             int oldDataVal = palDataVals[idx] & 0xFF;
-            int fullType = blockIdVal | ((oldDataVal & TYPE_HIGH_BIT1) << 1);
+            int fullType = (palBlockIds[idx] > 511) ? palBlockIds[idx] : (blockIdVal | ((oldDataVal & TYPE_HIGH_BIT1) << 1));
             (*outBlocks)[i] = (unsigned char)blockIdVal;
             (*outData)[i] = PACK_TYPE_EXT_AND_DATAVAL(fullType, oldDataVal & 0x7F);
         }
@@ -7687,7 +7712,7 @@ static void buildSpongeReverseIndex()
 // subtype match. Falls back to the first registered entry for the type if no exact match.
 static const BlockTranslator* findSpongeTranslator(int type, int dataVal)
 {
-    int fullType = type & 0x1FF;
+    int fullType = type & 0xFFF;
     if (fullType <= 0 || fullType >= NUM_BLOCKS_DEFINED) {
         return (fullType == 0 && gSpongeReverseCount[0] > 0) ? gSpongeReverse[0][0] : NULL;
     }
@@ -7814,7 +7839,7 @@ static SpongeLookupRemap remapForSpongeLookup(int type, int dataVal)
     // emits the default `axis=y` — correct, since a `_wood` block has the same texture on every face.
     if ((dataVal & 0xC) == 0xC) {
         int subtype = dataVal & 0x3;
-        switch (type & 0x1FF) {
+        switch (type & 0xFFF) {
         case BLOCK_LOG:                 // BlockTranslations: blockId 17, dataVal=BIT_16|subtype → oak/spruce/birch/jungle_wood
         case BLOCK_AD_LOG:              // blockId 162, BIT_16|subtype → acacia/dark_oak_wood
         case BLOCK_MANGROVE_LOG:        // blockId 160 + TYPE_HIGH_BIT1, BIT_16 → mangrove_wood
@@ -7847,8 +7872,8 @@ static SpongeLookupRemap remapForSpongeLookup(int type, int dataVal)
     // `minecraft:lava` with a `level` property to distinguish the two. BlockTranslations only
     // has entries for blockIds 9 and 11, so the flowing forms fell through to "minecraft:air".
     // Remap to the stationary ID; FLUID_PROP arm emits `level` from dataVal.
-    if ((type & 0x1FF) == BLOCK_WATER) type = BLOCK_STATIONARY_WATER;
-    else if ((type & 0x1FF) == BLOCK_LAVA) type = BLOCK_STATIONARY_LAVA;
+    if ((type & 0xFFF) == BLOCK_WATER) type = BLOCK_STATIONARY_WATER;
+    else if ((type & 0xFFF) == BLOCK_LAVA) type = BLOCK_STATIONARY_LAVA;
 
     // Burning-furnace fixup: lit furnace / smoker / blast_furnace all land under
     // BLOCK_BURNING_FURNACE (62) on the read side — see FURNACE_PROP arm in readPalette
@@ -7858,7 +7883,7 @@ static SpongeLookupRemap remapForSpongeLookup(int type, int dataVal)
     // BLOCK_FURNACE (61) — which has "furnace" / "loom" / "smoker" / "blast_furnace" entries
     // distinguished by BIT_16 / BIT_32 in dataVal — and emit `lit=true` in the FURNACE_PROP arm.
     r.isLitFurnace = false;
-    if ((type & 0x1FF) == BLOCK_BURNING_FURNACE) {
+    if ((type & 0xFFF) == BLOCK_BURNING_FURNACE) {
         type = BLOCK_FURNACE;
         r.isLitFurnace = true;
     }
@@ -7868,10 +7893,10 @@ static SpongeLookupRemap remapForSpongeLookup(int type, int dataVal)
     // ("redstone_ore" at 73, "redstone_lamp" at 123) are in BlockTranslations; the lit ones
     // (74, 124) are not, so they fell to "minecraft:air". Remap and emit `lit=true` below.
     r.isLitRedstoneOre = false;
-    if ((type & 0x1FF) == BLOCK_GLOWING_REDSTONE_ORE) {
+    if ((type & 0xFFF) == BLOCK_GLOWING_REDSTONE_ORE) {
         type = BLOCK_REDSTONE_ORE;
         r.isLitRedstoneOre = true;
-    } else if ((type & 0x1FF) == 124) {  // lit redstone_lamp; no named constant in blockInfo.h
+    } else if ((type & 0xFFF) == 124) {  // lit redstone_lamp; no named constant in blockInfo.h
         type = 123;                       // unlit redstone_lamp
         r.isLitRedstoneOre = true;
     }
@@ -7881,10 +7906,10 @@ static SpongeLookupRemap remapForSpongeLookup(int type, int dataVal)
     // no BlockTranslations entries. Remap to their unlit twins so the right palette entry is
     // chosen, then emit `lit=true` in the CANDLE_PROP arm.
     r.isLitCandle = false;
-    if ((type & 0x1FF) == BLOCK_LIT_CANDLE) {
+    if ((type & 0xFFF) == BLOCK_LIT_CANDLE) {
         type = BLOCK_CANDLE;
         r.isLitCandle = true;
-    } else if ((type & 0x1FF) == BLOCK_LIT_COLORED_CANDLE) {
+    } else if ((type & 0xFFF) == BLOCK_LIT_COLORED_CANDLE) {
         type = BLOCK_COLORED_CANDLE;
         r.isLitCandle = true;
     }
@@ -7894,8 +7919,8 @@ static SpongeLookupRemap remapForSpongeLookup(int type, int dataVal)
     // "redstone_torch" / "redstone_wall_torch" entries only under blockId 76, so without
     // this remap unlit torches fell through to "minecraft:air". Remap 75 -> 76 so the lookup
     // hits the TORCH_PROP entry; the lit/unlit decision is made from `origType` in the arm.
-    if ((type & 0x1FF) == BLOCK_REDSTONE_TORCH_OFF) {
-        type = (type & ~0x1FF) | BLOCK_REDSTONE_TORCH_ON;
+    if ((type & 0xFFF) == BLOCK_REDSTONE_TORCH_OFF) {
+        type = (type & ~0xFFF) | BLOCK_REDSTONE_TORCH_ON;
     }
 
     // Redstone-repeater powered-fixup: Mineways shifts the block ID by +1 when the repeater
@@ -7904,8 +7929,8 @@ static SpongeLookupRemap remapForSpongeLookup(int type, int dataVal)
     // remap the powered form fell through to "minecraft:air". Remap 94 -> 93 so the lookup
     // hits the REPEATER_PROP entry, and let that arm emit `powered=true` via this flag.
     r.isPoweredRepeater = false;
-    if ((type & 0x1FF) == BLOCK_REDSTONE_REPEATER_ON) {
-        type = (type & ~0x1FF) | BLOCK_REDSTONE_REPEATER_OFF;
+    if ((type & 0xFFF) == BLOCK_REDSTONE_REPEATER_ON) {
+        type = (type & ~0xFFF) | BLOCK_REDSTONE_REPEATER_OFF;
         r.isPoweredRepeater = true;
     }
 
@@ -7914,8 +7939,8 @@ static SpongeLookupRemap remapForSpongeLookup(int type, int dataVal)
     // "comparator" row under blockId 149, so the deprecated form fell through to "minecraft:air".
     // Modern Minecraft has a single `minecraft:comparator` with `powered=true|false`. Remap to
     // 149 and force the `powered` bit on so the COMPARATOR_PROP arm emits `powered=true`.
-    if ((type & 0x1FF) == BLOCK_REDSTONE_COMPARATOR_DEPRECATED) {
-        type = (type & ~0x1FF) | BLOCK_REDSTONE_COMPARATOR;
+    if ((type & 0xFFF) == BLOCK_REDSTONE_COMPARATOR_DEPRECATED) {
+        type = (type & ~0xFFF) | BLOCK_REDSTONE_COMPARATOR;
         dataVal |= 0x8;
     }
 
@@ -7925,8 +7950,8 @@ static SpongeLookupRemap remapForSpongeLookup(int type, int dataVal)
     // BlockTranslations only has "daylight_detector" under 151, so 178 fell through to
     // "minecraft:air". Remap to 151 and let the DAYLIGHT_PROP arm emit `inverted=true`.
     r.isInvertedDaylightDetector = false;
-    if ((type & 0x1FF) == BLOCK_DAYLIGHT_DETECTOR) {
-        type = (type & ~0x1FF) | BLOCK_DAYLIGHT_SENSOR;
+    if ((type & 0xFFF) == BLOCK_DAYLIGHT_DETECTOR) {
+        type = (type & ~0xFFF) | BLOCK_DAYLIGHT_SENSOR;
         r.isInvertedDaylightDetector = true;
     }
 
@@ -7935,7 +7960,7 @@ static SpongeLookupRemap remapForSpongeLookup(int type, int dataVal)
     // has no 405 entry, so without a remap the berry-bearing cave vines would drop to air.
     // Remap to BLOCK_CAVE_VINES (404) and emit berries=true below.
     r.isBerriesLit = false;
-    if ((type & 0x1FF) == BLOCK_CAVE_VINES_LIT) {
+    if ((type & 0xFFF) == BLOCK_CAVE_VINES_LIT) {
         type = BLOCK_CAVE_VINES;
         r.isBerriesLit = true;
     }
@@ -7946,7 +7971,7 @@ static SpongeLookupRemap remapForSpongeLookup(int type, int dataVal)
     // BLOCK_*_DOUBLE_SLAB IDs, so without this remap they fall through to "minecraft:air"
     // (silently dropped by WorldEdit). Remap to the single slab and emit `type=double` below.
     r.isDoubleSlab = false;
-    switch (type & 0x1FF) {
+    switch (type & 0xFFF) {
     case BLOCK_STONE_DOUBLE_SLAB:           // 43 → 44 (smooth_stone_slab/sandstone_slab/...)
     case BLOCK_WOODEN_DOUBLE_SLAB:          // 125 → 126 (oak_slab/spruce_slab/...)
     case BLOCK_RED_SANDSTONE_DOUBLE_SLAB:   // 181 → 182
@@ -7965,7 +7990,7 @@ static SpongeLookupRemap remapForSpongeLookup(int type, int dataVal)
     // renderer treats lit and unlit as different materials).
     // Strip the lit bit just for the lookup; the BULB_PROP arm still reads it from `dataVal`.
     int lookupDataVal = dataVal;
-    if ((type & 0x1FF) == BLOCK_COPPER_BULB) {
+    if ((type & 0xFFF) == BLOCK_COPPER_BULB) {
         lookupDataVal &= ~0x8;
     }
 
@@ -8016,7 +8041,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     // Capture the caller's original block id before any of the remaps below rewrite it. A few
     // property arms (TORCH_PROP for the unlit redstone-torch case) want to consult the original
     // identity even after the remap has folded 75 onto 76 to satisfy the palette lookup.
-    int origType = type & 0x1FF;
+    int origType = type & 0xFFF;
 
     SpongeLookupRemap r = remapForSpongeLookup(type, dataVal);
     type = r.type;
@@ -8107,7 +8132,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         // "extended" - read in by the "type" token parser (readPalette / spongeParseStateString),
         // which sets `sticky` to 8 or 0, but until now never written back out here, so it was
         // silently dropped on .schem export (piston_head always came back "normal").
-        int fullType = type & 0x1FF;
+        int fullType = type & 0xFFF;
         bool isPiston = (fullType == BLOCK_PISTON || fullType == BLOCK_STICKY_PISTON);
         bool isPistonHead = (fullType == BLOCK_PISTON_HEAD);
         // Alphabetical: extended < facing < short < type
@@ -8977,7 +9002,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         // copper variants exported as plain `torch` / `wall_torch`.
         int facing = dataVal & 0x7;
         bool isWall = (facing >= 1 && facing <= 4);
-        int fullType = type & 0x1FF;
+        int fullType = type & 0xFFF;
         bool isRedstone = (fullType == BLOCK_REDSTONE_TORCH_OFF || fullType == BLOCK_REDSTONE_TORCH_ON);
         if (isRedstone) {
             name = isWall ? "redstone_wall_torch" : "redstone_torch";
@@ -9088,7 +9113,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     // into dataVal — bit 0x4 is ominous, low 2 bits are state index (0=inactive, 1=active,
     // 2=waiting_for_players, 3=ejecting_reward). Emit them so the export round-trips.
     // Alphabetical: ominous < trial_spawner_state.
-    if ((type & 0x1FF) == BLOCK_TRIAL_SPAWNER) {
+    if ((type & 0xFFF) == BLOCK_TRIAL_SPAWNER) {
         const char* state;
         switch (dataVal & 0x3) {
         default:
@@ -9105,7 +9130,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     // bit 0x4 and vault_state into bits 0x18 (index << 3): 0=inactive, 1=active, 2=unlocking,
     // 3=ejecting. The MinewaysMap.cpp color switch (case BLOCK_VAULT, mask 0x1C) confirms this
     // layout. Alphabetical: ominous < vault_state.
-    if ((type & 0x1FF) == BLOCK_VAULT) {
+    if ((type & 0xFFF) == BLOCK_VAULT) {
         const char* state;
         switch ((dataVal >> 3) & 0x3) {
         default:
@@ -9121,7 +9146,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     // BLOCK_BREWING_STAND (117) is NO_PROP, but the world reader packs the three bottle-slot
     // occupancy flags into dataVal bits 0x1/0x2/0x4 (see nbt.cpp:4051-4058). Emit them so the
     // bottle layout round-trips. Alphabetical: has_bottle_0 < has_bottle_1 < has_bottle_2.
-    if ((type & 0x1FF) == BLOCK_BREWING_STAND) {
+    if ((type & 0xFFF) == BLOCK_BREWING_STAND) {
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "has_bottle_0", (dataVal & 0x1) ? "true" : "false");
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "has_bottle_1", (dataVal & 0x2) ? "true" : "false");
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "has_bottle_2", (dataVal & 0x4) ? "true" : "false");
@@ -9129,34 +9154,34 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
 
     // BLOCK_JUKEBOX (84) is NO_PROP; world reader at nbt.cpp:~4452 packs `has_record` into
     // bit 0x01. Non-graphical but preserved for .schem round-trip.
-    if ((type & 0x1FF) == BLOCK_JUKEBOX) {
+    if ((type & 0xFFF) == BLOCK_JUKEBOX) {
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "has_record", (dataVal & 0x1) ? "true" : "false");
     }
 
     // BLOCK_TNT (46) is TRULY_NO_PROP; shares its blockId with "target" via bit 0x01 (0=tnt,
     // 1=target - see BlockTranslations). "unstable" only exists on the "tnt" block state, so only
     // emit it for the tnt subtype; bit 0x02 holds it (mirror of world reader).
-    if ((type & 0x1FF) == BLOCK_TNT && (dataVal & 0x1) == 0) {
+    if ((type & 0xFFF) == BLOCK_TNT && (dataVal & 0x1) == 0) {
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "unstable", (dataVal & 0x2) ? "true" : "false");
     }
 
     // BLOCK_CRYING_OBSIDIAN (344) is NO_PROP; shares its blockId with "sculk_catalyst" via bit
     // 0x01 (0=crying_obsidian, 1=sculk_catalyst - see BlockTranslations). "bloom" only exists on
     // sculk_catalyst, so only emit it for that subtype; bit 0x02 holds it (mirror of world reader).
-    if ((type & 0x1FF) == BLOCK_CRYING_OBSIDIAN && (dataVal & 0x1) != 0) {
+    if ((type & 0xFFF) == BLOCK_CRYING_OBSIDIAN && (dataVal & 0x1) != 0) {
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "bloom", (dataVal & 0x2) ? "true" : "false");
     }
 
     // BLOCK_STATIONARY_WATER (9) is NO_PROP; shares its blockId with plain "water" via bit 0x10
     // (0=water, 1=bubble_column - see BlockTranslations). "drag" only exists on bubble_column, so
     // only emit it for that subtype; bit 0x01 holds it (mirror of world reader).
-    if ((type & 0x1FF) == BLOCK_STATIONARY_WATER && (dataVal & 0x10) != 0) {
+    if ((type & 0xFFF) == BLOCK_STATIONARY_WATER && (dataVal & 0x10) != 0) {
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "drag", (dataVal & 0x1) ? "true" : "false");
     }
 
     // BLOCK_SCULK_SHRIEKER (433) is NO_PROP. World reader packs bit 0x01 = can_summon,
     // bit 0x02 = shrieking. Alphabetical: can_summon < shrieking.
-    if ((type & 0x1FF) == BLOCK_SCULK_SHRIEKER) {
+    if ((type & 0xFFF) == BLOCK_SCULK_SHRIEKER) {
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "can_summon", (dataVal & 0x1) ? "true" : "false");
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "shrieking", (dataVal & 0x2) ? "true" : "false");
     }

@@ -585,7 +585,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 498 */ "Waxed Copper Chest",           0xBF6B4F, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 72, 0x20, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
     { /* 499 */ "Waxed Oxidised Copper Chest",  0x52A386, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 74, 0x20, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
     { /* 500 */ "Acacia Shelf",                 0xAB5B3A, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 76, 0x38, BLF_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
-    { /* 501 */ "Pale Oak Shelf",               0xF3ECEA, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 77, 0x18, BLF_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
+    { /* 501 */ "Pale Oak Shelf",               0xF3ECEA, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 77, 0x38, BLF_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
     // Copper Golem Statues (1.21.10+). Subtype mask 0x30 covers the 4 oxidation levels in
     // bits 4-5 of dataVal; bits 0-1 = facing, bits 2-3 = copper_golem_pose, bit 0x40 =
     // waterlogged. Textures default to placeholder atlas tile (txrX=0, txrY=40) until the
@@ -599,7 +599,18 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 508 */ "Polished Sulfur Stairs",       0xBDAD5C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 78, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 509 */ "Sulfur Brick Stairs",          0xBCAB5C, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 78, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 510 */ "Potent Sulfur",                0xD3D162, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 78, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
+    { /* 511 */ "Poplar Stairs",      		    0x978B80, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 79, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
 
-    // Important note: 396 is skipped, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
+    // just to be safe, we don't use 256 and consider it AIR - actually, a feature: any time we see a type value whose low 8 bits is 0x00, it's air; no need to check the high bits
+    //			 name                           read_color ralpha color     prem-clr  alpha,   txX,  Y,  mtl, flags
+    { /* 512 */ "Air",                    		0x000000, 0.000f, 0xff7711, 0xff7711, 0.12345f, 13, 14, 0x00, BLF_NONE },
+    { /* 513 */ "Poplar Button",  	    	    0x978B80, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 79, 0x00, BLF_FLATTEN_SMALL | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },
+    { /* 514 */ "Poplar Door",   	        	0x998E83, 1.000f, 0xff7711, 0xff7711, 0.12345f, 17,  0, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
+    { /* 515 */ "Poplar Fence",         		0x978B80, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 79, 0x00, BLF_MIDDLER | BLF_FENCE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 516 */ "Poplar Fence Gate",  		    0x978B80, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 79, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_FENCE_GATE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE },
+    { /* 517 */ "Poplar Trapdoor",     		    0x968B80, 1.000f, 0xff7711, 0xff7711, 0.12345f, 18,  0, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_FLATTEN | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
+    { /* 518 */ "Poplar Sign",                 0x978B80, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 79, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
+    { /* 519 */ "Poplar Wall Sign",            0x978B80, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 79, 0x00, BLF_FLATTEN_SMALL | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG },
+    { /* 520 */ "Poplar Hanging Sign",         0xA5998C, 1.000f, 0xff7711, 0xff7711, 0.12345f, 14, 79, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG },
 };
 

@@ -3969,6 +3969,7 @@ static int computeFlatFlags(int boxIndex)
     case BLOCK_LADDER:						// computeFlatFlags
     case BLOCK_WALL_SIGN:
     case BLOCK_MANGROVE_WALL_SIGN:
+    case BLOCK_POPLAR_WALL_SIGN:
     case BLOCK_WALL_BANNER:
     case BLOCK_ORANGE_WALL_BANNER:
     case BLOCK_MAGENTA_WALL_BANNER:
@@ -4044,6 +4045,7 @@ static int computeFlatFlags(int boxIndex)
     case BLOCK_ACACIA_BUTTON:
     case BLOCK_DARK_OAK_BUTTON:
     case BLOCK_PALE_OAK_BUTTON:
+    case BLOCK_POPLAR_BUTTON:
     case BLOCK_CRIMSON_BUTTON:
     case BLOCK_WARPED_BUTTON:
     case BLOCK_POLISHED_BLACKSTONE_BUTTON:
@@ -4120,6 +4122,7 @@ static int computeFlatFlags(int boxIndex)
     case BLOCK_WAXED_WEATHERED_COPPER_TRAPDOOR:
     case BLOCK_WAXED_OXIDIZED_COPPER_TRAPDOOR:
     case BLOCK_PALE_OAK_TRAPDOOR:
+    case BLOCK_POPLAR_TRAPDOOR:
         if (gBoxData[boxIndex].data & 0x4)
         {
             // trapdoor is open, so is against a wall
@@ -5285,6 +5288,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_CHERRY_FENCE:
     case BLOCK_BAMBOO_FENCE:
     case BLOCK_PALE_OAK_FENCE:
+    case BLOCK_POPLAR_FENCE:
         //groupByBlock = (gModel.options->exportFlags & EXPT_GROUP_BY_BLOCK);
         // if fence is to be fattened, instead make it like a brick wall - stronger
         if (fatten)
@@ -6212,6 +6216,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             // Pale Oak Pressure Plate
             swatchLoc = SWATCH_INDEX(8, 67);
             break;
+        case 13:
+            // Poplar Pressure Plate
+            swatchLoc = SWATCH_INDEX(15, 79);
+            break;
         }
         // (ALMOST) SAME AS CODE IN NEXT case BLOCK:
         // if printing and the location below the plate is empty, then don't make plate (it'll be too thin)
@@ -6396,6 +6404,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_POLISHED_TUFF_STAIRS:
     case BLOCK_TUFF_BRICK_STAIRS:
     case BLOCK_PALE_OAK_STAIRS:
+    case BLOCK_POPLAR_STAIRS:
     case BLOCK_RESIN_BRICK_STAIRS:
     case BLOCK_CINNABAR_STAIRS:
     case BLOCK_POLISHED_CINNABAR_STAIRS:
@@ -6870,7 +6879,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 topSwatchLoc = bottomSwatchLoc = sideSwatchLoc =  SWATCH_INDEX(9, 78);
                 break;
             case BIT_16 | 5: // sulfur_bricks
-                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc =  SWATCH_INDEX(10, 78);
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(10, 78);
+                break;
+            case BIT_16 | 6: // poplar_slab
+                topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(15, 79);
                 break;
             }
             break;
@@ -6939,6 +6951,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_ACACIA_BUTTON:
     case BLOCK_DARK_OAK_BUTTON:
     case BLOCK_PALE_OAK_BUTTON:
+    case BLOCK_POPLAR_BUTTON:
     case BLOCK_CRIMSON_BUTTON:
     case BLOCK_WARPED_BUTTON:
     case BLOCK_POLISHED_BLACKSTONE_BUTTON:
@@ -7019,6 +7032,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
     case BLOCK_WALL_SIGN:						// saveBillboardOrGeometry
     case BLOCK_MANGROVE_WALL_SIGN:
+    case BLOCK_POPLAR_WALL_SIGN:
         if (type == BLOCK_WALL_SIGN) {
             switch (dataVal & (BIT_32 | BIT_16 | BIT_8)) {
             default:
@@ -7055,6 +7069,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 swatchLoc = SWATCH_INDEX(8, 44);
                 break;
             }
+        }
+        else if (type == BLOCK_POPLAR_WALL_SIGN) {
+            // poplar sign: just the one kind
+            swatchLoc = SWATCH_INDEX(15, 79);   // planks
         }
         else {
             // mangrove sign
@@ -7119,8 +7137,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         if (type == BLOCK_ACACIA_SHELF) {
             swatchLoc = SWATCH_INDEX(15, 75) + 3 * ((dataVal >> 3) & 0x7);
         }
+        else if (((dataVal >> 3) & 0x7) == 4) {
+            // poplar shelf: its tiles are in the right half of the terrain image, at 20,0 (front), 21,0 (back), and 22,0 (powered)
+            swatchLoc = TILE_TO_SWATCH(20, 0);
+        }
         else {
-            // pale oak shelf
+            // pale oak shelf (and warped, bamboo, spruce)
             swatchLoc = SWATCH_INDEX(7, 77) + 3 * ((dataVal >> 3) & 0x7);
         }
         swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc + 1; // top (actually called back)
@@ -7564,6 +7586,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_WAXED_WEATHERED_COPPER_TRAPDOOR:
     case BLOCK_WAXED_OXIDIZED_COPPER_TRAPDOOR:
     case BLOCK_PALE_OAK_TRAPDOOR:
+    case BLOCK_POPLAR_TRAPDOOR:
         // On second thought, in testing it worked fine.
         //if ( gModel.print3D && !(dataVal & 0x4) )
         //{
@@ -7624,6 +7647,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_SIGN_POST:						// saveBillboardOrGeometry
     case BLOCK_ACACIA_SIGN_POST:						// saveBillboardOrGeometry
     case BLOCK_MANGROVE_SIGN_POST:						// saveBillboardOrGeometry
+    case BLOCK_POPLAR_SIGN_POST:						// saveBillboardOrGeometry
         // set top to plank, bottom to log end
         if (type == BLOCK_SIGN_POST) {
             switch (dataVal & (BIT_32 | BIT_16)) {
@@ -7686,6 +7710,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 sideSwatchLoc = SWATCH_INDEX(1, 44);    // log bark, for the post
                 break;
             }
+        }
+        else if (type == BLOCK_POPLAR_SIGN_POST) {
+            // poplar: just the one kind
+            topSwatchLoc = sideSwatchLoc = SWATCH_INDEX(15, 79);   // planks
+            bottomSwatchLoc = SWATCH_INDEX(11, 79);   // end of log, for the post
+            sideSwatchLoc = SWATCH_INDEX(12, 79);    // log bark, for the post
         }
         else {
             // Mangrove, cherry, bamboo, pale oak
@@ -7841,6 +7871,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_DARK_OAK_DOOR:
     case BLOCK_ACACIA_DOOR:
     case BLOCK_PALE_OAK_DOOR:
+    case BLOCK_POPLAR_DOOR:
     case BLOCK_CRIMSON_DOOR:
     case BLOCK_WARPED_DOOR:
     case BLOCK_MANGROVE_DOOR:
@@ -8070,6 +8101,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_CHERRY_FENCE_GATE:
     case BLOCK_BAMBOO_FENCE_GATE:
     case BLOCK_PALE_OAK_FENCE_GATE:
+    case BLOCK_POPLAR_FENCE_GATE:
         gUsingTransform = 1;
         totalVertexCount = gModel.vertexCount;
         // Check if open
@@ -12215,6 +12247,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         case 11 << 2:	// pale oak
             swatchLoc = SWATCH_INDEX(8, 67);
             break;
+        case 12 << 2:	// poplar - stripped log
+            swatchLoc = SWATCH_INDEX(14, 79);
+            break;
         }
 
         gUsingTransform = 1;
@@ -12295,6 +12330,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_CRIMSON_HANGING_SIGN: // saveBillboardOrGeometry
     case BLOCK_MANGROVE_HANGING_SIGN: // saveBillboardOrGeometry
     case BLOCK_BAMBOO_HANGING_SIGN: // saveBillboardOrGeometry
+    case BLOCK_POPLAR_HANGING_SIGN: // saveBillboardOrGeometry
         // two main elements:
         // sign itself - stripped logs are used
         // chains - vertical or angled, depending on attached (which gives diagonal)
@@ -12327,6 +12363,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             if (dataVal & BIT_32) {
                 swatchLoc = SWATCH_INDEX(8, 59);    // cherry
             }
+            break;
+        case BLOCK_POPLAR_HANGING_SIGN:
+            // just the one kind, so the tile from the block definition is right
             break;
         case BLOCK_BAMBOO_HANGING_SIGN:
             if (dataVal & BIT_32) {
@@ -14141,6 +14180,7 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
             case BLOCK_POLISHED_TUFF_STAIRS:
             case BLOCK_TUFF_BRICK_STAIRS:
             case BLOCK_PALE_OAK_STAIRS:
+            case BLOCK_POPLAR_STAIRS:
             case BLOCK_RESIN_BRICK_STAIRS:
             case BLOCK_CINNABAR_STAIRS:
             case BLOCK_POLISHED_CINNABAR_STAIRS:
@@ -14265,6 +14305,7 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
             case BLOCK_WAXED_WEATHERED_COPPER_TRAPDOOR:
             case BLOCK_WAXED_OXIDIZED_COPPER_TRAPDOOR:
             case BLOCK_PALE_OAK_TRAPDOOR:
+            case BLOCK_POPLAR_TRAPDOOR:
                 if (!(dataVal & 0x4))
                 {
                     // trapdoor is flat on ground
@@ -14803,6 +14844,10 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         case 5:
             // golden dandelion
             swatchLoc = SWATCH_INDEX(3, 78);
+            break;
+        case 6:
+            // poplar sapling - yeah, it's weird to have it here, but we're out of sapling space
+            swatchLoc = TILE_TO_SWATCH(19, 0);   // poplar sapling is in the right half of the terrain image
             break;
         }
         break;
@@ -19320,6 +19365,7 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_POLISHED_TUFF_STAIRS:
         case BLOCK_TUFF_BRICK_STAIRS:
         case BLOCK_PALE_OAK_STAIRS:
+        case BLOCK_POPLAR_STAIRS:
         case BLOCK_RESIN_BRICK_STAIRS:
         case BLOCK_CINNABAR_STAIRS:
         case BLOCK_POLISHED_CINNABAR_STAIRS:
@@ -19431,6 +19477,7 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_WAXED_WEATHERED_COPPER_TRAPDOOR:
         case BLOCK_WAXED_OXIDIZED_COPPER_TRAPDOOR:
         case BLOCK_PALE_OAK_TRAPDOOR:
+        case BLOCK_POPLAR_TRAPDOOR:
             if (!view3D)
             {
                 // rotate as needed
@@ -20339,6 +20386,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_WAXED_WEATHERED_COPPER_TRAPDOOR:
         case BLOCK_WAXED_OXIDIZED_COPPER_TRAPDOOR:
         case BLOCK_PALE_OAK_TRAPDOOR:
+        case BLOCK_POPLAR_TRAPDOOR:
         case BLOCK_DAYLIGHT_SENSOR:
         case BLOCK_DAYLIGHT_DETECTOR:
         case BLOCK_LADDER:
@@ -20852,10 +20900,13 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     case 2: // pale oak
                         swatchLoc = SWATCH_XY_TO_INDEX(7, 67);
                         break;
+                    case 3: // poplar
+                        swatchLoc = SWATCH_XY_TO_INDEX(12, 79);
+                        break;
                     }
                 }
                 else {
-                    // log - set everything to side unless it's a top or bottom
+                    // log - set everything to side unless it's a top or bottom, the second couplet
                     switch (dataVal & 0x3)
                     {
                     default:
@@ -20868,6 +20919,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                         break;
                     case 2: // pale oak
                         SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 7, 67, 6, 67);
+                        break;
+                    case 3: // poplar
+                        SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 12, 79, 11, 79);
                         break;
                     }
                 }
@@ -20924,6 +20978,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 case 2: // pale oak
                     SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 12, 67, 11, 67);
                     break;
+                case 3: // poplar
+                    SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 14, 79, 13, 79);
+                    break;
                 }
                 break;
             case BLOCK_STRIPPED_OAK_WOOD:
@@ -20974,6 +21031,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     break;
                 case 2: // pale oak
                     swatchLoc = SWATCH_INDEX(12, 67);
+                    break;
+                case 3: // poplar
+                    swatchLoc = SWATCH_INDEX(14, 79);
                     break;
                 }
                 break;
@@ -21066,6 +21126,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case 12: // pale oak
                 swatchLoc = SWATCH_INDEX(8, 67);
+                break;
+            case 13: // poplar
+                swatchLoc = SWATCH_INDEX(15, 79);
                 break;
             }
             break;
@@ -22184,6 +22247,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_DARK_OAK_DOOR:
         case BLOCK_ACACIA_DOOR:
         case BLOCK_PALE_OAK_DOOR:
+        case BLOCK_POPLAR_DOOR:
         case BLOCK_CRIMSON_DOOR:
         case BLOCK_WARPED_DOOR:
         case BLOCK_MANGROVE_DOOR:
@@ -22229,6 +22293,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     break;
                 case BLOCK_PALE_OAK_DOOR:
                     swatchLoc = SWATCH_INDEX(4, 67);
+                    break;
+                case BLOCK_POPLAR_DOOR:
+                    // this tile is in the right half of the terrain image, so it needs TILE_TO_SWATCH. The bottom tile is the one before it, as for the others.
+                    swatchLoc = TILE_TO_SWATCH(17, 0);
                     break;
                 case BLOCK_CRIMSON_DOOR:
                     swatchLoc = SWATCH_INDEX(8, 43);
@@ -22287,6 +22355,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 case BLOCK_DARK_OAK_DOOR:
                 case BLOCK_ACACIA_DOOR:
                 case BLOCK_PALE_OAK_DOOR:
+                case BLOCK_POPLAR_DOOR:
                 case BLOCK_CRIMSON_DOOR:
                 case BLOCK_WARPED_DOOR:
                 case BLOCK_MANGROVE_DOOR:
@@ -23145,6 +23214,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             case 5:
                 // golden dandelion
                 swatchLoc = SWATCH_INDEX(3, 78);
+                break;
+            case 6:
+                // poplar sapling - yeah, it's weird to have it here, but we're out of sapling space
+                swatchLoc = TILE_TO_SWATCH(19, 0);   // poplar sapling is in the right half of the terrain image
                 break;
             }
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
@@ -24262,6 +24335,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case BIT_16 | 5: // sulfur_bricks
                 swatchLoc = SWATCH_INDEX(10, 78);
+                break;
+            case BIT_16 | 6: // poplar
+                swatchLoc = SWATCH_INDEX(15, 79);
                 break;
             }
             break;
@@ -33900,7 +33976,7 @@ static int writeSpongeSchematicBox()
                 int type = (int)gBoxData[boxIndex].type;
                 int dataVal = (int)gBoxData[boxIndex].data;
 
-                int lookupKey = (type & 0x1FF) * 256 + (dataVal & 0xFF);
+                int lookupKey = (type & 0xFFF) * 256 + (dataVal & 0xFF);
                 if (lookupKey < 0 || lookupKey >= NUM_BLOCKS_DEFINED * 256) {
                     // unknown block — fall back to air, count it for the user-facing warning
                     type = 0;
@@ -36941,6 +37017,7 @@ static bool faceCanTile(int faceId)
     case BLOCK_ACACIA_BUTTON:
     case BLOCK_DARK_OAK_BUTTON:
     case BLOCK_PALE_OAK_BUTTON:
+    case BLOCK_POPLAR_BUTTON:
     case BLOCK_CRIMSON_BUTTON:
     case BLOCK_WARPED_BUTTON:
     case BLOCK_POLISHED_BLACKSTONE_BUTTON:
@@ -36969,12 +37046,16 @@ static bool faceCanTile(int faceId)
     case BLOCK_BAMBOO_FENCE:
     case BLOCK_BAMBOO_FENCE_GATE:
     case BLOCK_PALE_OAK_FENCE:
+    case BLOCK_POPLAR_FENCE:
     case BLOCK_PALE_OAK_FENCE_GATE:
+    case BLOCK_POPLAR_FENCE_GATE:
     case BLOCK_SIGN_POST:
     case BLOCK_WALL_SIGN:
     case BLOCK_ACACIA_SIGN_POST:
     case BLOCK_MANGROVE_SIGN_POST:
+    case BLOCK_POPLAR_SIGN_POST:
     case BLOCK_MANGROVE_WALL_SIGN:
+    case BLOCK_POPLAR_WALL_SIGN:
     case BLOCK_TORCH:
     case BLOCK_COPPER_TORCH:
     case BLOCK_REDSTONE_TORCH_OFF:
@@ -37057,6 +37138,7 @@ static bool faceCanTile(int faceId)
     case BLOCK_CRIMSON_HANGING_SIGN:
     case BLOCK_MANGROVE_HANGING_SIGN:
     case BLOCK_BAMBOO_HANGING_SIGN:
+    case BLOCK_POPLAR_HANGING_SIGN:
     case BLOCK_HEAVY_CORE:
     case BLOCK_PINK_PETALS:
     case BLOCK_DRIED_GHAST:

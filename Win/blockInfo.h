@@ -429,7 +429,7 @@ typedef struct Options {
 } Options;
 
 // number of blocks with entries in block info table (max number at bottom + 1) - now that 255 is used, we need this
-#define NUM_BLOCKS_DEFINED 511
+#define NUM_BLOCKS_DEFINED 521
 // number of official Minecraft blocks (no longer needed - we used to have the block after everything be special)
 #define NUM_BLOCKS_STANDARD NUM_BLOCKS_DEFINED
 // number of blocks we want to show on the map (no longer needed - includes the unknown one)
@@ -1053,4 +1053,14 @@ enum block_types {
     BLOCK_POLISHED_SULFUR_STAIRS = 508,
     BLOCK_SULFUR_BRICK_STAIRS = 509,
     BLOCK_POTENT_SULFUR = 510,
+    BLOCK_POPLAR_STAIRS = 511,
+    BLOCK_AIR_512 = 512,    // not used: a type whose low 8 bits are 0 (256, 512, 768...) reads as air
+    BLOCK_POPLAR_BUTTON = 513,
+    BLOCK_POPLAR_DOOR = 514,
+    BLOCK_POPLAR_FENCE = 515,
+    BLOCK_POPLAR_FENCE_GATE = 516,
+    BLOCK_POPLAR_TRAPDOOR = 517,
+    BLOCK_POPLAR_SIGN_POST = 518,
+    BLOCK_POPLAR_WALL_SIGN = 519,
+    BLOCK_POPLAR_HANGING_SIGN = 520,
 };
