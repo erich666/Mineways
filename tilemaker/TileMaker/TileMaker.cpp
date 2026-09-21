@@ -1509,7 +1509,7 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 						}
 
 						// copy from area to area, scaling as needed; pot tile is 32x32 default
-						float zoom = (float)destination_ptr->width / (256.0f * (float)potImage.width / 32.0f);
+						float zoom = (float)destination_ptr->width / ((16.0f * XTILES) * (float)potImage.width / 32.0f);	// 16 units per tile, XTILES tiles across
 
 						// copy bits:
 						// MW_decorated_pot_base1
@@ -1521,19 +1521,19 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 							0, 0, 8, 8,	// to rectangle
 							8, 0,		// from upper left
 							0x0,
-							zoom);	// default is 256 / 64 * 4 or 128 * 2
+							zoom);	// default is (16 * XTILES) / 64 * 4 or 128 * 2 - the 16 * XTILES is 512 now
 						copyPNGTile(destination_ptr, channels, 1, 61, 0,
 							&potImage,
 							0, 8, 16, 11,	// to rectangle
 							0, 8,		// from upper left
 							0x0,
-							zoom);	// default is 256 / 64 * 4 or 128 * 2
+							zoom);	// default is (16 * XTILES) / 64 * 4 or 128 * 2 - the 16 * XTILES is 512 now
 						copyPNGTile(destination_ptr, channels, 1, 61, 0,
 							&potImage,
 							0, 11, 12, 12,	// to rectangle
 							0, 11,		// from upper left
 							0x0,
-							zoom);	// default is 256 / 64 * 4 or 128 * 2
+							zoom);	// default is (16 * XTILES) / 64 * 4 or 128 * 2 - the 16 * XTILES is 512 now
 
 						// MW_decorated_pot_base2
 						//   16,0 to 23,7 -> 0,0 to 7,7
@@ -1544,19 +1544,19 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 							0, 0, 8, 8,	// to rectangle
 							16, 0,		// from upper left
 							0x0,
-							zoom);	// default is 256 / 64 * 4 or 128 * 2
+							zoom);	// default is (16 * XTILES) / 64 * 4 or 128 * 2 - the 16 * XTILES is 512 now
 						copyPNGTile(destination_ptr, channels, 2, 61, 0,
 							&potImage,
 							0, 8, 16, 11,	// to rectangle
 							16, 8,		// from upper left
 							0x0,
-							zoom);	// default is 256 / 64 * 4 or 128 * 2
+							zoom);	// default is (16 * XTILES) / 64 * 4 or 128 * 2 - the 16 * XTILES is 512 now
 						copyPNGTile(destination_ptr, channels, 2, 61, 0,
 							&potImage,
 							0, 11, 12, 12,	// to rectangle
 							12, 11,		// from upper left
 							0x0,
-							zoom);	// default is 256 / 64 * 4 or 128 * 2
+							zoom);	// default is (16 * XTILES) / 64 * 4 or 128 * 2 - the 16 * XTILES is 512 now
 
 						// MW_decorated_pot_base3
 						//   0,13 to 13,26 -> 1,1 to 14,14
@@ -1565,7 +1565,7 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 							1, 1, 15, 15,	// to rectangle
 							0, 13,		// from upper left
 							0x0,
-							zoom);	// default is 256 / 64 * 4 or 128 * 2
+							zoom);	// default is (16 * XTILES) / 64 * 4 or 128 * 2 - the 16 * XTILES is 512 now
 
 						// MW_decorated_pot_base4
 						//   14,13 to 13,26 -> 1,1 to 14,14
@@ -1574,7 +1574,7 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 							1, 1, 15, 15,	// to rectangle
 							14, 13,		// from upper left
 							0x0,
-							zoom);	// default is 256 / 64 * 4 or 128 * 2
+							zoom);	// default is (16 * XTILES) / 64 * 4 or 128 * 2 - the 16 * XTILES is 512 now
 
 						if (zoom != 1.0f && catIndex == CATEGORY_NORMALS) {
 							normalsZoom = true;
@@ -1798,14 +1798,14 @@ void transferChestData( int catIndex, int numChests, bool &allChests, bool &anyC
 				}
 
 				// copy from area to area, scaling as needed
-				float zoom = (float)destination_ptr->width / (256.0f * (float)chestImage.width / (float)pChest->defaultResX);
+				float zoom = (float)destination_ptr->width / ((16.0f * XTILES) * (float)chestImage.width / (float)pChest->defaultResX);	// 16 units per tile, XTILES tiles across (this was 256 when the terrain image was 16 tiles wide)
 				copyPNGTile(destination_ptr, channels, pChest->data[copyIndex].txrX, pChest->data[copyIndex].txrY, 0,
 					&chestImage,
 					pChest->data[copyIndex].toX, pChest->data[copyIndex].toY,
 					pChest->data[copyIndex].toX + pChest->data[copyIndex].sizeX, pChest->data[copyIndex].toY + pChest->data[copyIndex].sizeY,
 					pChest->data[copyIndex].fromX, pChest->data[copyIndex].fromY,
 					pChest->data[copyIndex].flags,
-					zoom);	// default is 256 / 64 * 4 or 128 * 2
+					zoom);	// default is (16 * XTILES) / 64 * 4 or 128 * 2 - the 16 * XTILES is 512 now
 
 				if (zoom != 1.0f && catIndex == CATEGORY_NORMALS) {
 					normalsZoom = true;
