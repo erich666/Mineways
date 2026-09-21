@@ -171,6 +171,25 @@ On master, removing HIGH_BIT promotion will break >255 block IDs silently.
 - Output texture resolution is `2 * terrain width` (was `4 *` when 16 wide), so the memory use and swatch capacity are about what they were.
 - Test: `Mineways.exe -headless script.mwscript` with "Export all textures to three large images"; the process exit crash (0xC0000005) also happens in HEAD, so ignore it.
 
+## Minecraft 26.3 (DataVersion 5023) chunk palettes (nbt.cpp readPalette)
+
+- A block palette is no longer always a list of `{Name, Properties}` compounds. In 26.3 chunks it can be: a **list of strings** (`minecraft:stone`, when no entry needs
+  properties); or a **list of compounds** where a state that is not the block's default has `id` (not `Name`) and `properties` (not `Properties`), and a default-state
+  entry is a string wrapped in a compound with an **empty tag name** (`{"": "minecraft:stone"}`; 1.21.5+ heterogeneous-list wrapping). Older chunks keep the old form, even
+  inside a 26.3 world (chunks convert only when the game loads them), so both are read.
+- **A default-state block has no properties at all.** `readPalette` starts every property at false/0, which is right for most blocks but not e.g. `facing` (starts as east; the
+  default is north), walls (`up=true`), signs (`rotation=8`), etc. So when an entry has no properties, `defaultStateProperties()` makes up the default properties in memory and runs
+  them through the same parser. It first looks the block up in the generated table `Win/defaultStates.h` (every block with properties in the debug worlds), then falls back to
+  hand-written rules (`familyFacesNorthByDefault()` etc.) for blocks not in the table, i.e., newer or modded blocks.
+- **`Win/defaultStates.h` is generated - do not edit it.** Run `tools/make_default_states.ps1 -OldWorld <26.2 Debug World> -NewWorld <26.3 Debug World>` after fully generating both
+  debug worlds (fly to the far corners so every chunk exists). A block's default is the state the older world lists that the newer world does not list with properties. Redo this for
+  each new Minecraft version that adds blocks with properties, and check the "note" lines it prints for blocks whose default it could not tell.
+- All property variables are now reset at the start of every palette entry. Before, a stale `powered` from an earlier entry made a waterlogged campfire a soul campfire (both use
+  0x8), depending on palette order, which differs between 26.2 and 26.3.
+- Testing: export the debug worlds' block layer (y 70) from both versions, then `tools/compare_debug_worlds.cs` (load with Add-Type) decodes each state from the chunks and compares its
+  exported geometry between the two worlds by position (the OBJ is centred on the selection: world = OBJ + 256). Result on 26.2 vs 26.3: 32,132 of 32,363 states identical; the rest are
+  float noise (signs) and per-position random geometry (chorus plant). Debug worlds hold states that cannot occur in play, so it's a stress test, not the goal.
+
 ## Culling Scheme system (Win/CullingSchemes.cpp/.h, plus hooks)
 
 User-defined sets of blocks to hide from both map view and exports. Parallel

@@ -7709,7 +7709,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
 
         // don't add anything for these "high_bit" reserved spots
-    case BLOCK_RESERVED_FLOWER_POT:
     case BLOCK_RESERVED_MOB_HEAD:
         break;
 

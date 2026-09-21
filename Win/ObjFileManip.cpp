@@ -3847,6 +3847,7 @@ static int computeFlatFlags(int boxIndex)
     case BLOCK_SAPLING:
     case BLOCK_GRASS:
     case BLOCK_DEAD_BUSH:
+    case BLOCK_RED_SHRUB:
     case BLOCK_NETHER_WART:
     case BLOCK_CARROTS:
     case BLOCK_POTATOES:
@@ -4818,6 +4819,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_BROWN_MUSHROOM:
     case BLOCK_GRASS:
     case BLOCK_DEAD_BUSH:
+    case BLOCK_RED_SHRUB:
     case BLOCK_SUGAR_CANE:
     case BLOCK_DOUBLE_FLOWER:
     case BLOCK_KELP:
@@ -20343,6 +20345,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_BROWN_MUSHROOM:
         case BLOCK_RED_MUSHROOM:
         case BLOCK_DEAD_BUSH:
+        case BLOCK_RED_SHRUB:
         case BLOCK_PUMPKIN_STEM:
         case BLOCK_MELON_STEM:
         case BLOCK_SEAGRASS:
@@ -25585,6 +25588,10 @@ static bool saveRectangleTextureUVs(int swatchLoc, int type, float minu, float m
 static int saveTextureUV(int swatchLoc, int type, float u, float v)
 {
     int i;
+    // When no textures are being exported, there is no texture layout (e.g., gModel.swatchesPerRow is not set), and the UVs are never used.
+    // Some callers (billboards such as the azalea) ask for them anyway, so give back a harmless index instead of computing a swatch location.
+    if (!gModel.exportTexture)
+        return 0;
     assert(swatchLoc < NUM_MAX_SWATCHES);
     // uvSwatches is used ONLY to see if the UV pair coming in has been saved before. If not, room is made to save the new UV.
     int count = gModel.uvSwatches[swatchLoc].count;

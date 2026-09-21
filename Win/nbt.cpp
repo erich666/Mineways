@@ -1367,6 +1367,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 142,	TYPE_HIGH_BIT1 | 6, "waxed_weathered_cut_copper_slab", SLAB_PROP },
     { 0, 142,	TYPE_HIGH_BIT1 | 7, "waxed_oxidized_cut_copper_slab", SLAB_PROP },
     { 0, 139,	TYPE_HIGH_BIT1, "lightning_rod", EXTENDED_FACING_PROP },
+    { 0, 140,	TYPE_HIGH_BIT1, "red_shrub", NO_PROP },
     { 0, 148,	TYPE_HIGH_BIT1, "cave_vines", BERRIES_PROP },
     { 0, 148,	TYPE_HIGH_BIT1 | 1, "cave_vines_plant", BERRIES_PROP },    // ignore the age
     { 0, 150,	TYPE_HIGH_BIT1, "spore_blossom", NO_PROP },
@@ -3707,18 +3708,163 @@ static int readBiomePalette(bfFile* pbf, unsigned char* paletteBiomeEntry, int& 
     return 0;
 }
 
+// The default state of each block with properties, made by tools/make_default_states.ps1 from Minecraft debug worlds.
+#include "defaultStates.h"
+
+// As of 26.3 (DataVersion 5023), a palette entry that is the block's default state is stored without any Properties: as a plain string, e.g. "minecraft:oak_log",
+// or as a compound with just a name. The property parsing below starts all properties at false/0, which is the block's default for almost everything,
+// but not for blocks such as walls (up is true by default), levers (face is wall), hoppers (facing down), and so on. This returns the properties of the
+// default state, as "name=value,name=value", or NULL if there is nothing to add. The generated table gDefaultStates has the default of every block
+// with properties that was in the debug worlds; the tests after that are for blocks that are not in it (newer versions, mods) and are our best guesses.
+static const char* defaultStateProperties(const char* fullName)
+{
+    const char* name = fullName;
+    if (strncmp(name, "minecraft:", 10) == 0)
+        name += 10;
+    {
+        // binary search of the table, which is sorted by name
+        int lo = 0;
+        int hi = NUM_DEFAULT_STATES - 1;
+        while (lo <= hi) {
+            int mid = (lo + hi) / 2;
+            int cmp = strcmp(name, gDefaultStates[mid].name);
+            if (cmp == 0)
+                return gDefaultStates[mid].props;
+            if (cmp < 0)
+                hi = mid - 1;
+            else
+                lo = mid + 1;
+        }
+    }
+    size_t len = strlen(name);
+    // ends with?
+#define NAME_ENDS_WITH(s) (len >= sizeof(s) - 1 && strcmp(name + len - (sizeof(s) - 1), s) == 0)
+
+    if (NAME_ENDS_WITH("_wall"))    // cobblestone_wall, etc. Wall torches, signs, and so on end with something else.
+        return "up=true,north=none,east=none,south=none,west=none,waterlogged=false";
+    if (NAME_ENDS_WITH("_button") || strcmp(name, "lever") == 0 || strcmp(name, "grindstone") == 0)
+        return "face=wall,facing=north,powered=false";
+    if (strcmp(name, "redstone_torch") == 0)
+        return "lit=true";
+    if (strcmp(name, "redstone_wall_torch") == 0)
+        return "facing=north,lit=true";
+    if (strcmp(name, "campfire") == 0 || strcmp(name, "soul_campfire") == 0)
+        return "lit=true,signal_fire=false,waterlogged=false,facing=north";
+    if (strcmp(name, "hopper") == 0)
+        return "enabled=true,facing=down";
+    if (strcmp(name, "observer") == 0)
+        return "facing=south,powered=false";
+    if (strcmp(name, "end_rod") == 0 || strstr(name, "lightning_rod") != NULL || NAME_ENDS_WITH("shulker_box") ||
+        strcmp(name, "amethyst_cluster") == 0 || NAME_ENDS_WITH("_amethyst_bud"))
+        return "facing=up";
+    if (strcmp(name, "repeater") == 0)
+        return "delay=1,facing=north,locked=false,powered=false";
+    if (strcmp(name, "snow") == 0)
+        return "layers=1";
+    if ((strcmp(name, "candle") == 0) || (NAME_ENDS_WITH("_candle")))
+        return "candles=1,lit=false,waterlogged=false";
+    if (strcmp(name, "sea_pickle") == 0)
+        return "pickles=1,waterlogged=true";
+    if (strcmp(name, "turtle_egg") == 0)
+        return "eggs=1,hatch=0";
+    if (strcmp(name, "pink_petals") == 0 || strcmp(name, "wildflowers") == 0)
+        return "flower_amount=1,facing=north";
+    if (strcmp(name, "leaf_litter") == 0)
+        return "segment_amount=1,facing=north";
+    if (strcmp(name, "water_cauldron") == 0 || strcmp(name, "powder_snow_cauldron") == 0)
+        return "level=1";
+    if (strcmp(name, "nether_portal") == 0)
+        return "axis=x";
+    if (strcmp(name, "conduit") == 0)
+        return "waterlogged=true";
+    if (strcmp(name, "pale_moss_carpet") == 0)
+        return "bottom=true,north=none,east=none,south=none,west=none";
+    if (strcmp(name, "pale_hanging_moss") == 0)
+        return "tip=true";
+    if (strcmp(name, "light") == 0)
+        return "level=15,waterlogged=false";
+    // standing and hanging signs default to rotation 8 (facing north), not 0 (facing south). Wall signs and heads (rotation 0) are not these.
+    if ((NAME_ENDS_WITH("_sign") || NAME_ENDS_WITH("_hanging_sign")) && strstr(name, "_wall_") == NULL)
+        return "rotation=8,attached=false,waterlogged=false";
+    // giant mushroom blocks and stems are all sides showing by default
+    if (strcmp(name, "brown_mushroom_block") == 0 || strcmp(name, "red_mushroom_block") == 0 || strcmp(name, "mushroom_stem") == 0)
+        return "down=true,east=true,north=true,south=true,up=true,west=true";
+    // corals (not their blocks) are waterlogged by default
+    if (strstr(name, "coral") != NULL && !NAME_ENDS_WITH("_coral_block")) {
+        if (strstr(name, "_wall_fan") != NULL)
+            return "facing=north,waterlogged=true";
+        return "waterlogged=true";
+    }
+    if (NAME_ENDS_WITH("_leaves"))
+        return "distance=7,persistent=false,waterlogged=false";
+    if (strcmp(name, "scaffolding") == 0)
+        return "distance=7,bottom=false,waterlogged=false";
+    if (strcmp(name, "crafter") == 0 || strcmp(name, "jigsaw") == 0)
+        return "orientation=north_up";
+#undef NAME_ENDS_WITH
+    return NULL;
+}
+
+// true if this family of block properties includes "facing", where the default state has it as north (unless defaultStateProperties() says otherwise for a particular block).
+// Facing north has to be set explicitly, since that's not what the properties start as (that's east).
+static bool familyFacesNorthByDefault(int family)
+{
+    switch (family) {
+    case DOOR_PROP:
+    case TORCH_PROP:
+    case STAIRS_PROP:
+    case LEVER_PROP:
+    case CHEST_PROP:
+    case FURNACE_PROP:
+    case FACING_PROP:
+    case BUTTON_PROP:
+    case FENCE_GATE_PROP:
+    case SWNE_FACING_PROP:
+    case BED_PROP:
+    case EXTENDED_FACING_PROP:  // also DROPPER_PROP, PISTON_PROP, COMMAND_BLOCK_PROP, HOPPER_PROP, OBSERVER_PROP, WALL_SIGN_PROP, BARREL_PROP
+    case TRAPDOOR_PROP:
+    case ANVIL_PROP:
+    case END_PORTAL_PROP:
+    case COCOA_PROP:
+    case TRIPWIRE_HOOK_PROP:
+    case REPEATER_PROP:
+    case COMPARATOR_PROP:
+    case HEAD_WALL_PROP:
+    case FAN_PROP:
+    case EXTENDED_SWNE_FACING_PROP: // also GRINDSTONE_PROP, LECTERN_PROP, BELL_PROP, CAMPFIRE_PROP
+    case HIGH_FACING_PROP:
+    case AMETHYST_PROP:
+    case BIG_DRIPLEAF_PROP:
+    case SMALL_DRIPLEAF_PROP:
+    case CALIBRATED_SCULK_SENSOR_PROP:
+    case PINK_PETALS_PROP:
+    case GHAST_PROP:
+    case SHELF_PROP:
+    case COPPER_GOLEM_PROP:
+    case BOOKSHELF_PROP:
+    case DECORATED_POT_PROP:
+        return true;
+    }
+    return false;
+}
+
 static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned char *paletteBlockEntry, unsigned short *paletteDataEntry, int& entryIndex, char* unknownBlock, int unknownBlockID)
 {
     int dataVal, len;
     unsigned char type;
     entryIndex = 0; // not strictly necessary, should be 0 coming into this function, but just to be safe
 
+    // Before 26.3, the palette is always a list of compounds ("Name" and "Properties" for each entry). From 26.3 on, a palette can also be
+    // a list of strings, with each string a block name, when none of the entries need properties.
+    bool stringEntries = false;
     {
         // get rid of "\n" after "Palette".
         unsigned char uctype = 0;
         if (bfread(pbf, &uctype, 1) < 0)
             return LINE_ERROR;
-        if (uctype != 10)
+        if (uctype == 8)
+            stringEntries = true;
+        else if (uctype != 10)
             return LINE_ERROR;
     }
 
@@ -3755,11 +3901,64 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
         return LINE_ERROR;
 
     char thisBlockName[MAX_NAME_LENGTH];
+    char entryName[MAX_NAME_LENGTH];    // the block's name for the current entry, kept since thisBlockName gets reused for other things
+
+    // Each entry is read from pbf. For a list of strings, we instead make a compound for each entry in memory, so that both forms
+    // are read by the same code. If an entry has no properties, we may also make up the properties of the default state in memory.
+    bfFile* pbfList = pbf;
+    bfFile memBf;
+    unsigned char memBuf[MAX_NAME_LENGTH * 8];
+    memBf.type = BF_BUFFER;
+    memBf.buf = memBuf;
+    memBf.buflen = 0;
+    memBf.offset = &memBf._offset;
+    memBf._offset = 0;
+    memBf.gz = NULL;
+    memBf.fptr = NULL;
+    memBf.skipBytesRemaining = 0;
 
     // go through entries in Palette
     while (nentries--) {
         // clear, so that NO_PROP doesn't inherit from other blocks, etc.
         dataVal = 0;
+        // Also clear every property, so that nothing is inherited from the previous entry. Each family below is supposed to reset the properties it uses, but some don't
+        // (for example, a stale "powered" turned a waterlogged campfire into a soul campfire, since both 0x8 mean powered and soul campfire), and what precedes an entry
+        // depends on the order of the palette, which changed with 26.3.
+        half = north = south = east = west = down = lit = powered = triggered = extended = attached = disarmed
+            = conditional = inverted = enabled = doubleSlab = mode = in_wall = signal_fire = has_book
+            = up = hanging = crafting = cracked = side_chain = pistonShort = false;
+        axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
+            delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt =
+            thickness = vertical_direction = berries = flower_amount = orientation = hydration =
+            copper_golem_pose = note = distance = instrument = 0;
+        pmc = 0;
+        pbf = pbfList;
+        bool sawProperties = false;
+        bool defaultsPass = false;
+        entryName[0] = 0;
+        if (stringEntries) {
+            // make a compound: string "Name" and then the end tag
+            len = readWord(pbfList);
+            if (len >= MAX_NAME_LENGTH)
+                return LINE_ERROR;
+            if (bfread(pbfList, thisBlockName, len) < 0)
+                return LINE_ERROR;
+            thisBlockName[len] = 0;
+            int mp = 0;
+            memBuf[mp++] = 8;
+            memBuf[mp++] = 0;
+            memBuf[mp++] = 4;
+            memcpy(&memBuf[mp], "Name", 4);
+            mp += 4;
+            memBuf[mp++] = (unsigned char)(len >> 8);
+            memBuf[mp++] = (unsigned char)(len & 0xff);
+            memcpy(&memBuf[mp], thisBlockName, len);
+            mp += len;
+            memBuf[mp++] = 0;
+            memBf.buflen = mp;
+            memBf._offset = 0;
+            pbf = &memBf;
+        }
         // avoid inheriting these properties, which are always folded in (false if not found in block, so does no harm)
         waterlogged = false;
         // set true if the block found is not known
@@ -3771,8 +3970,51 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             if (bfread(pbf, &type, 1) < 0)
                 return LINE_ERROR;
             // done walking through subarray?
-            if (type == 0)
+            if (type == 0) {
+                if (!sawProperties && !defaultsPass) {
+                    // No properties found for this block: it's in its default state (26.3 and on don't store those). Most blocks' defaults are what we get with no
+                    // properties set, but some are not, so for those make up the properties in memory and read them.
+                    const char* defaults = defaultStateProperties(entryName);
+                    if (defaults == NULL && useData && entryName[0] != 0 && typeIndex > -1 && familyFacesNorthByDefault((int)BlockTranslations[typeIndex].translateFlags)) {
+                        defaults = "facing=north";
+                    }
+                    if (defaults) {
+                        int mp = 0;
+                        memBuf[mp++] = 10;
+                        memBuf[mp++] = 0;
+                        memBuf[mp++] = 10;
+                        memcpy(&memBuf[mp], "Properties", 10);
+                        mp += 10;
+                        const char* s = defaults;
+                        while (*s) {
+                            const char* eq = strchr(s, '=');
+                            const char* end = strchr(s, ',');
+                            if (end == NULL)
+                                end = s + strlen(s);
+                            int tokLen = (int)(eq - s);
+                            int valLen = (int)(end - eq - 1);
+                            memBuf[mp++] = 8;
+                            memBuf[mp++] = 0;
+                            memBuf[mp++] = (unsigned char)tokLen;
+                            memcpy(&memBuf[mp], s, tokLen);
+                            mp += tokLen;
+                            memBuf[mp++] = 0;
+                            memBuf[mp++] = (unsigned char)valLen;
+                            memcpy(&memBuf[mp], eq + 1, valLen);
+                            mp += valLen;
+                            s = (*end == ',') ? end + 1 : end;
+                        }
+                        memBuf[mp++] = 0;   // end of Properties
+                        memBuf[mp++] = 0;   // end of entry
+                        memBf.buflen = mp;
+                        memBf._offset = 0;
+                        pbf = &memBf;
+                        defaultsPass = true;
+                        continue;
+                    }
+                }
                 break;
+            }
             len = readWord(pbf);
             if (len >= MAX_NAME_LENGTH)
                 return LINE_ERROR;
@@ -3780,7 +4022,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 return LINE_ERROR;
             thisBlockName[len] = 0;
 
-            if ((type == 8) && (strcmp(thisBlockName, "Name") == 0)) {
+            if ((type == 8) && ((strcmp(thisBlockName, "Name") == 0) || (strcmp(thisBlockName, "id") == 0) || (thisBlockName[0] == 0))) {   // from 26.3 on, the name is "id", and a string in a mixed list is stored in a compound with an empty name
 
                 len = readWord(pbf);
                 if (len < MAX_NAME_LENGTH) {
@@ -3792,6 +4034,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 }
                 // have to add end of string
                 thisBlockName[len] = 0x0;
+                strcpy_s(entryName, MAX_NAME_LENGTH, thisBlockName);
 
                 // incredibly stupid special case:
                 // in 1.13 "stone_slab" means "smooth_stone_slab" in 1.14 (in 1.14 "stone_slab" gives a slab with no chiseling, just pure stone)
@@ -3891,7 +4134,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                     returnCode |= NBT_WARNING_NAME_NOT_FOUND;
                 }
             }
-            else if ((type == 10) && (strcmp(thisBlockName, "Properties") == 0)) {
+            else if ((type == 10) && ((strcmp(thisBlockName, "Properties") == 0) || (strcmp(thisBlockName, "properties") == 0))) {   // "properties" from 26.3 on
+                sawProperties = true;
                 // Find the states for all blocks here: https://minecraft.wiki/w/Block_states
                 do {
                     if (bfread(pbf, &type, 1) < 0)
