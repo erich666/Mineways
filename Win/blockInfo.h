@@ -429,7 +429,7 @@ typedef struct Options {
 } Options;
 
 // number of blocks with entries in block info table (max number at bottom + 1) - now that 255 is used, we need this
-#define NUM_BLOCKS_DEFINED 521
+#define NUM_BLOCKS_DEFINED 539
 // number of official Minecraft blocks (no longer needed - we used to have the block after everything be special)
 #define NUM_BLOCKS_STANDARD NUM_BLOCKS_DEFINED
 // number of blocks we want to show on the map (no longer needed - includes the unknown one)
@@ -1063,4 +1063,22 @@ enum block_types {
     BLOCK_POPLAR_SIGN_POST = 518,
     BLOCK_POPLAR_WALL_SIGN = 519,
     BLOCK_POPLAR_HANGING_SIGN = 520,
+    BLOCK_WHITE_CONCRETE_STAIRS = 521,
+    BLOCK_ORANGE_CONCRETE_STAIRS = 522,
+    BLOCK_MAGENTA_CONCRETE_STAIRS = 523,
+    BLOCK_LIGHT_BLUE_CONCRETE_STAIRS = 524,
+    BLOCK_YELLOW_CONCRETE_STAIRS = 525,
+    BLOCK_LIME_CONCRETE_STAIRS = 526,
+    BLOCK_PINK_CONCRETE_STAIRS = 527,
+    BLOCK_GRAY_CONCRETE_STAIRS = 528,
+    BLOCK_LIGHT_GRAY_CONCRETE_STAIRS = 529,
+    BLOCK_CYAN_CONCRETE_STAIRS = 530,
+    BLOCK_PURPLE_CONCRETE_STAIRS = 531,
+    BLOCK_BLUE_CONCRETE_STAIRS = 532,
+    BLOCK_BROWN_CONCRETE_STAIRS = 533,
+    BLOCK_GREEN_CONCRETE_STAIRS = 534,
+    BLOCK_RED_CONCRETE_STAIRS = 535,
+    BLOCK_BLACK_CONCRETE_STAIRS = 536,
+    BLOCK_CONCRETE_DOUBLE_SLAB = 537,   // the 16 concrete colors: bits 0x7 and BIT_16 are the color, like BLOCK_CUT_COPPER_SLAB
+    BLOCK_CONCRETE_SLAB = 538,
 };

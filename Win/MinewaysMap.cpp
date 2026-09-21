@@ -709,6 +709,10 @@ static struct {
     { "Horn" },
 };
 
+// The 16 concrete colors, in the order of the concrete slab's subtypes: bits 0x7 give 0-7, and BIT_16 adds 8 (as for the cut copper slab, which also uses 0x17).
+static const char* gConcreteColorNames[16] = { "White", "Orange", "Magenta", "Light Blue", "Yellow", "Lime", "Pink", "Gray", "Light Gray", "Cyan", "Purple", "Blue", "Brown", "Green", "Red", "Black" };
+static const unsigned int gConcreteColors[16] = { 0xCFD5D6, 0xE06101, 0xA9309F, 0x2489C7, 0xF1AF15, 0x5EA918, 0xD6658F, 0x373A3E, 0x7D7D73, 0x157788, 0x64209C, 0x2D2F8F, 0x603C20, 0x495B24, 0x8E2121, 0x080A0F };
+#define CONCRETE_SLAB_COLOR_INDEX(dataVal) (((dataVal) & 0x7) | (((dataVal) & BIT_16) ? 8 : 0))
 const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block), int xoff, int y, int zoff)
 {
     ///////////////////////////////////
@@ -1774,6 +1778,13 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
             strcat_s(gConcatString, 100, "Poplar Slab");
             break;
         }
+        return gConcatString;
+
+    case BLOCK_CONCRETE_DOUBLE_SLAB:
+    case BLOCK_CONCRETE_SLAB:
+        strcpy_s(gConcatString, 100, (type == BLOCK_CONCRETE_DOUBLE_SLAB) ? "Double " : "");
+        strcat_s(gConcatString, 100, gConcreteColorNames[CONCRETE_SLAB_COLOR_INDEX(dataVal)]);
+        strcat_s(gConcatString, 100, " Concrete Slab");
         return gConcatString;
 
     case BLOCK_CUT_COPPER_DOUBLE_SLAB:
@@ -3658,6 +3669,10 @@ unsigned int GetBlockDataColor(int type, int dataVal)
             return 0x8B6950;
         }
 
+    case BLOCK_CONCRETE_DOUBLE_SLAB:
+    case BLOCK_CONCRETE_SLAB:
+        return gConcreteColors[CONCRETE_SLAB_COLOR_INDEX(dataVal)];
+
     case BLOCK_CUT_COPPER_DOUBLE_SLAB:
     case BLOCK_CUT_COPPER_SLAB:
         switch (dataVal & 0x17)
@@ -4759,6 +4774,8 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
     case BLOCK_ANDESITE_SLAB:
     case BLOCK_CUT_COPPER_DOUBLE_SLAB:
     case BLOCK_CUT_COPPER_SLAB:
+    case BLOCK_CONCRETE_DOUBLE_SLAB:
+    case BLOCK_CONCRETE_SLAB:
     case BLOCK_PURPUR_DOUBLE_SLAB:
     case BLOCK_PURPUR_SLAB:
         dataVal = block->data[voxel];
@@ -6092,6 +6109,22 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_TUFF_BRICK_STAIRS:
     case BLOCK_PALE_OAK_STAIRS:
     case BLOCK_POPLAR_STAIRS:
+    case BLOCK_WHITE_CONCRETE_STAIRS:
+    case BLOCK_ORANGE_CONCRETE_STAIRS:
+    case BLOCK_MAGENTA_CONCRETE_STAIRS:
+    case BLOCK_LIGHT_BLUE_CONCRETE_STAIRS:
+    case BLOCK_YELLOW_CONCRETE_STAIRS:
+    case BLOCK_LIME_CONCRETE_STAIRS:
+    case BLOCK_PINK_CONCRETE_STAIRS:
+    case BLOCK_GRAY_CONCRETE_STAIRS:
+    case BLOCK_LIGHT_GRAY_CONCRETE_STAIRS:
+    case BLOCK_CYAN_CONCRETE_STAIRS:
+    case BLOCK_PURPLE_CONCRETE_STAIRS:
+    case BLOCK_BLUE_CONCRETE_STAIRS:
+    case BLOCK_BROWN_CONCRETE_STAIRS:
+    case BLOCK_GREEN_CONCRETE_STAIRS:
+    case BLOCK_RED_CONCRETE_STAIRS:
+    case BLOCK_BLACK_CONCRETE_STAIRS:
     case BLOCK_RESIN_BRICK_STAIRS:
     case BLOCK_CINNABAR_STAIRS:
     case BLOCK_POLISHED_CINNABAR_STAIRS:
@@ -6419,6 +6452,21 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             block->grid[neighborIndex] = (unsigned char)type;
             block->data[neighborIndex] = (unsigned short)(finalDataVal | BIT_16 | typeHighBit);
         }
+        break;
+
+    case BLOCK_CONCRETE_DOUBLE_SLAB:
+        // double slabs don't have an 0x8 bit that means anything; all 16 colors: 0-7 and BIT_16 | 0-7
+        if (dataVal < 8) {
+            addBlock = 1;
+            addDiagonalBlocksToMap(16+8, y, type, dataVal, finalDataVal, typeHighBit, block);
+        }
+        break;
+    case BLOCK_CONCRETE_SLAB:
+        addBlock = 1;
+        // add the other eight colors diagonally SE of the original
+        neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
+        block->grid[neighborIndex] = (unsigned char)type;
+        block->data[neighborIndex] = (unsigned short)(finalDataVal | BIT_16 | typeHighBit);
         break;
 
     case BLOCK_CUT_COPPER_DOUBLE_SLAB:

@@ -6405,6 +6405,22 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_TUFF_BRICK_STAIRS:
     case BLOCK_PALE_OAK_STAIRS:
     case BLOCK_POPLAR_STAIRS:
+    case BLOCK_WHITE_CONCRETE_STAIRS:
+    case BLOCK_ORANGE_CONCRETE_STAIRS:
+    case BLOCK_MAGENTA_CONCRETE_STAIRS:
+    case BLOCK_LIGHT_BLUE_CONCRETE_STAIRS:
+    case BLOCK_YELLOW_CONCRETE_STAIRS:
+    case BLOCK_LIME_CONCRETE_STAIRS:
+    case BLOCK_PINK_CONCRETE_STAIRS:
+    case BLOCK_GRAY_CONCRETE_STAIRS:
+    case BLOCK_LIGHT_GRAY_CONCRETE_STAIRS:
+    case BLOCK_CYAN_CONCRETE_STAIRS:
+    case BLOCK_PURPLE_CONCRETE_STAIRS:
+    case BLOCK_BLUE_CONCRETE_STAIRS:
+    case BLOCK_BROWN_CONCRETE_STAIRS:
+    case BLOCK_GREEN_CONCRETE_STAIRS:
+    case BLOCK_RED_CONCRETE_STAIRS:
+    case BLOCK_BLACK_CONCRETE_STAIRS:
     case BLOCK_RESIN_BRICK_STAIRS:
     case BLOCK_CINNABAR_STAIRS:
     case BLOCK_POLISHED_CINNABAR_STAIRS:
@@ -6649,6 +6665,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_ANDESITE_SLAB:
     case BLOCK_CRIMSON_SLAB:
     case BLOCK_CUT_COPPER_SLAB:
+    case BLOCK_CONCRETE_SLAB:
         switch (type)
         {
         default:
@@ -6885,6 +6902,11 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(15, 79);
                 break;
             }
+            break;
+
+        case BLOCK_CONCRETE_SLAB:
+            // the 16 concrete colors are in a row of the terrain image: 0-7 are bits 0x7, and BIT_16 adds 8
+            topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX((dataVal & 0x7) + ((dataVal & BIT_16) ? 8 : 0), 29);
             break;
 
         case BLOCK_CUT_COPPER_SLAB:
@@ -14107,6 +14129,7 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
             case BLOCK_ANDESITE_SLAB:
             case BLOCK_CRIMSON_SLAB:
             case BLOCK_CUT_COPPER_SLAB:
+            case BLOCK_CONCRETE_SLAB:
                 // The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
                 // See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
                 if (dataVal & 0x8)
@@ -14181,6 +14204,22 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
             case BLOCK_TUFF_BRICK_STAIRS:
             case BLOCK_PALE_OAK_STAIRS:
             case BLOCK_POPLAR_STAIRS:
+            case BLOCK_WHITE_CONCRETE_STAIRS:
+            case BLOCK_ORANGE_CONCRETE_STAIRS:
+            case BLOCK_MAGENTA_CONCRETE_STAIRS:
+            case BLOCK_LIGHT_BLUE_CONCRETE_STAIRS:
+            case BLOCK_YELLOW_CONCRETE_STAIRS:
+            case BLOCK_LIME_CONCRETE_STAIRS:
+            case BLOCK_PINK_CONCRETE_STAIRS:
+            case BLOCK_GRAY_CONCRETE_STAIRS:
+            case BLOCK_LIGHT_GRAY_CONCRETE_STAIRS:
+            case BLOCK_CYAN_CONCRETE_STAIRS:
+            case BLOCK_PURPLE_CONCRETE_STAIRS:
+            case BLOCK_BLUE_CONCRETE_STAIRS:
+            case BLOCK_BROWN_CONCRETE_STAIRS:
+            case BLOCK_GREEN_CONCRETE_STAIRS:
+            case BLOCK_RED_CONCRETE_STAIRS:
+            case BLOCK_BLACK_CONCRETE_STAIRS:
             case BLOCK_RESIN_BRICK_STAIRS:
             case BLOCK_CINNABAR_STAIRS:
             case BLOCK_POLISHED_CINNABAR_STAIRS:
@@ -19366,6 +19405,22 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_TUFF_BRICK_STAIRS:
         case BLOCK_PALE_OAK_STAIRS:
         case BLOCK_POPLAR_STAIRS:
+        case BLOCK_WHITE_CONCRETE_STAIRS:
+        case BLOCK_ORANGE_CONCRETE_STAIRS:
+        case BLOCK_MAGENTA_CONCRETE_STAIRS:
+        case BLOCK_LIGHT_BLUE_CONCRETE_STAIRS:
+        case BLOCK_YELLOW_CONCRETE_STAIRS:
+        case BLOCK_LIME_CONCRETE_STAIRS:
+        case BLOCK_PINK_CONCRETE_STAIRS:
+        case BLOCK_GRAY_CONCRETE_STAIRS:
+        case BLOCK_LIGHT_GRAY_CONCRETE_STAIRS:
+        case BLOCK_CYAN_CONCRETE_STAIRS:
+        case BLOCK_PURPLE_CONCRETE_STAIRS:
+        case BLOCK_BLUE_CONCRETE_STAIRS:
+        case BLOCK_BROWN_CONCRETE_STAIRS:
+        case BLOCK_GREEN_CONCRETE_STAIRS:
+        case BLOCK_RED_CONCRETE_STAIRS:
+        case BLOCK_BLACK_CONCRETE_STAIRS:
         case BLOCK_RESIN_BRICK_STAIRS:
         case BLOCK_CINNABAR_STAIRS:
         case BLOCK_POLISHED_CINNABAR_STAIRS:
@@ -19414,6 +19469,7 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_ANDESITE_SLAB:
         case BLOCK_CRIMSON_SLAB:
         case BLOCK_CUT_COPPER_SLAB:
+        case BLOCK_CONCRETE_SLAB:
             // The topmost bit is about whether the half-slab is in the top half or bottom half (used to always be bottom half).
             // See http://www.minecraftwiki.net/wiki/Block_ids#Slabs_and_Double_Slabs
             if (neighborDataVal & 0x8)
@@ -24340,6 +24396,12 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 swatchLoc = SWATCH_INDEX(15, 79);
                 break;
             }
+            break;
+
+        case BLOCK_CONCRETE_DOUBLE_SLAB:					// getSwatch
+        case BLOCK_CONCRETE_SLAB:
+            // same tiles as the concrete block
+            swatchLoc = SWATCH_INDEX((dataVal & 0x7) + ((dataVal & BIT_16) ? 8 : 0), 29);
             break;
 
         case BLOCK_CUT_COPPER_DOUBLE_SLAB:					// getSwatch
