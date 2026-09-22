@@ -1788,6 +1788,38 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 538, BIT_16 | 5, "green_concrete_slab", SLAB_PROP },
     { 0, 538, BIT_16 | 6, "red_concrete_slab", SLAB_PROP },
     { 0, 538, BIT_16 | 7, "black_concrete_slab", SLAB_PROP },
+    { 0, 539, 0, "white_wool_stairs", STAIRS_PROP },
+    { 0, 540, 0, "orange_wool_stairs", STAIRS_PROP },
+    { 0, 541, 0, "magenta_wool_stairs", STAIRS_PROP },
+    { 0, 542, 0, "light_blue_wool_stairs", STAIRS_PROP },
+    { 0, 543, 0, "yellow_wool_stairs", STAIRS_PROP },
+    { 0, 544, 0, "lime_wool_stairs", STAIRS_PROP },
+    { 0, 545, 0, "pink_wool_stairs", STAIRS_PROP },
+    { 0, 546, 0, "gray_wool_stairs", STAIRS_PROP },
+    { 0, 547, 0, "light_gray_wool_stairs", STAIRS_PROP },
+    { 0, 548, 0, "cyan_wool_stairs", STAIRS_PROP },
+    { 0, 549, 0, "purple_wool_stairs", STAIRS_PROP },
+    { 0, 550, 0, "blue_wool_stairs", STAIRS_PROP },
+    { 0, 551, 0, "brown_wool_stairs", STAIRS_PROP },
+    { 0, 552, 0, "green_wool_stairs", STAIRS_PROP },
+    { 0, 553, 0, "red_wool_stairs", STAIRS_PROP },
+    { 0, 554, 0, "black_wool_stairs", STAIRS_PROP },
+    { 0, 555, 0, "white_wool_slab", SLAB_PROP },
+    { 0, 555, 1, "orange_wool_slab", SLAB_PROP },
+    { 0, 555, 2, "magenta_wool_slab", SLAB_PROP },
+    { 0, 555, 3, "light_blue_wool_slab", SLAB_PROP },
+    { 0, 555, 4, "yellow_wool_slab", SLAB_PROP },
+    { 0, 555, 5, "lime_wool_slab", SLAB_PROP },
+    { 0, 555, 6, "pink_wool_slab", SLAB_PROP },
+    { 0, 555, 7, "gray_wool_slab", SLAB_PROP },
+    { 0, 555, BIT_16 | 0, "light_gray_wool_slab", SLAB_PROP },
+    { 0, 555, BIT_16 | 1, "cyan_wool_slab", SLAB_PROP },
+    { 0, 555, BIT_16 | 2, "purple_wool_slab", SLAB_PROP },
+    { 0, 555, BIT_16 | 3, "blue_wool_slab", SLAB_PROP },
+    { 0, 555, BIT_16 | 4, "brown_wool_slab", SLAB_PROP },
+    { 0, 555, BIT_16 | 5, "green_wool_slab", SLAB_PROP },
+    { 0, 555, BIT_16 | 6, "red_wool_slab", SLAB_PROP },
+    { 0, 555, BIT_16 | 7, "black_wool_slab", SLAB_PROP },
 
 };
 
@@ -1901,6 +1933,7 @@ void makeHashTable()
         mask_array[BLOCK_CRIMSON_DOUBLE_SLAB] |= mask_array[BLOCK_CRIMSON_SLAB];
         mask_array[BLOCK_CUT_COPPER_DOUBLE_SLAB] |= mask_array[BLOCK_CUT_COPPER_SLAB];
         mask_array[BLOCK_CONCRETE_DOUBLE_SLAB] |= mask_array[BLOCK_CONCRETE_SLAB];
+        mask_array[BLOCK_WOOL_DOUBLE_SLAB] |= mask_array[BLOCK_WOOL_SLAB];
         // special case: kelp and kelp_plant are really the same thing, material-wise
         mask_array[BLOCK_KELP] = 0x0;
         // special case: cake can have a lit candle (a bit debatable anyway - illuminates the whole cake)
@@ -7290,8 +7323,12 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
         // red_sandstone_slab(182)→181, purpur_slab(205)→204, andesite_slab(330)→329,
         // crimson_slab(361)→360, cut_copper_slab(398)→397.
         switch (blockId) {
-        case 44: case 126: case 182: case 205:
+        case BLOCK_STONE_SLAB:
+        case BLOCK_WOODEN_SLAB:
+        case BLOCK_RED_SANDSTONE_SLAB:
+        case BLOCK_PURPUR_SLAB:
         case BLOCK_CONCRETE_SLAB:
+        case BLOCK_WOOL_SLAB:
             blockId -= 1;
             break;
         case 74: case 73: case 75: case 76: case 77: case 78:
@@ -8014,6 +8051,7 @@ static SpongeLookupRemap remapForSpongeLookup(int type, int dataVal)
     case BLOCK_CRIMSON_DOUBLE_SLAB:         // 360 → 361
     case BLOCK_CUT_COPPER_DOUBLE_SLAB:      // 397 → 398
     case BLOCK_CONCRETE_DOUBLE_SLAB:        // 537 → 538
+    case BLOCK_WOOL_DOUBLE_SLAB:        // 537 → 538
         type = type + 1;
         r.isDoubleSlab = true;
         break;

@@ -429,7 +429,7 @@ typedef struct Options {
 } Options;
 
 // number of blocks with entries in block info table (max number at bottom + 1) - now that 255 is used, we need this
-#define NUM_BLOCKS_DEFINED 539
+#define NUM_BLOCKS_DEFINED 557
 // number of official Minecraft blocks (no longer needed - we used to have the block after everything be special)
 #define NUM_BLOCKS_STANDARD NUM_BLOCKS_DEFINED
 // number of blocks we want to show on the map (no longer needed - includes the unknown one)
@@ -1081,4 +1081,22 @@ enum block_types {
     BLOCK_BLACK_CONCRETE_STAIRS = 536,
     BLOCK_CONCRETE_DOUBLE_SLAB = 537,   // the 16 concrete colors: bits 0x7 and BIT_16 are the color, like BLOCK_CUT_COPPER_SLAB
     BLOCK_CONCRETE_SLAB = 538,
+    BLOCK_WHITE_WOOL_STAIRS = 539,
+    BLOCK_ORANGE_WOOL_STAIRS = 540,
+    BLOCK_MAGENTA_WOOL_STAIRS = 541,
+    BLOCK_LIGHT_BLUE_WOOL_STAIRS = 542,
+    BLOCK_YELLOW_WOOL_STAIRS = 543,
+    BLOCK_LIME_WOOL_STAIRS = 544,
+    BLOCK_PINK_WOOL_STAIRS = 545,
+    BLOCK_GRAY_WOOL_STAIRS = 546,
+    BLOCK_LIGHT_GRAY_WOOL_STAIRS = 547,
+    BLOCK_CYAN_WOOL_STAIRS = 548,
+    BLOCK_PURPLE_WOOL_STAIRS = 549,
+    BLOCK_BLUE_WOOL_STAIRS = 550,
+    BLOCK_BROWN_WOOL_STAIRS = 551,
+    BLOCK_GREEN_WOOL_STAIRS = 552,
+    BLOCK_RED_WOOL_STAIRS = 553,
+    BLOCK_BLACK_WOOL_STAIRS = 554,
+    BLOCK_WOOL_DOUBLE_SLAB = 555,   // the 16 wool colors: bits 0x7 and BIT_16 are the color, like BLOCK_CUT_COPPER_SLAB
+    BLOCK_WOOL_SLAB = 556,
 };
