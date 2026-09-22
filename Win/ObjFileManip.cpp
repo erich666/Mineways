@@ -6927,7 +6927,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             break;
 
         case BLOCK_WOOL_SLAB:
-            topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = retrieveWoolSwatch(dataVal);
+            // retrieveWoolSwatch wants a plain 0-15 color index, but slab dataVal packs color as (0x7 | BIT_16) with bit 0x8 used for top/bottom - resolve that first
+            topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = retrieveWoolSwatch((dataVal & 0x7) + ((dataVal & BIT_16) ? 8 : 0));
             break;
 
         case BLOCK_CUT_COPPER_SLAB:
@@ -24461,8 +24462,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
 
         case BLOCK_WOOL_DOUBLE_SLAB:					// getSwatch
         case BLOCK_WOOL_SLAB:
-            // same tiles as the wool blocks
-            swatchLoc = retrieveWoolSwatch(dataVal);
+            // same tiles as the wool blocks; retrieveWoolSwatch wants a plain 0-15 color index, but slab dataVal packs color as (0x7 | BIT_16) with bit 0x8 used for top/bottom - resolve that first
+            swatchLoc = retrieveWoolSwatch((dataVal & 0x7) + ((dataVal & BIT_16) ? 8 : 0));
             break;
 
         case BLOCK_CUT_COPPER_DOUBLE_SLAB:					// getSwatch

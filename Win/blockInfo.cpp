@@ -644,8 +644,8 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 550 */ "Blue Wool Stairs",             0x2E3B97, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 11, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 551 */ "Brown Wool Stairs",            0x53351F, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 10, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 552 */ "Green Wool Stairs",            0x384B1B, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1,  9, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
-    { /* 553 */ "Red Wool Stairs",              0xA23732, 1.000f, 0xff7711, 0xff7711, 0.12345f, 14, 29, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
-    { /* 554 */ "Black Wool Stairs",            0x1D1818, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 29, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
-    { /* 555 */ "Double White Wool Slab",       0xEEEEEE, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1,  8, 0x17, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_LAME_WATERLOG | BLF_MAYWATERLOG },
-    { /* 556 */ "White Wool Slab",              0xEEEEEE, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1,  7, 0x17, BLF_HALF | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 553 */ "Red Wool Stairs",              0xA23732, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1,  8, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 554 */ "Black Wool Stairs",            0x1D1818, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1,  7, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 555 */ "Double White Wool Slab",       0xEEEEEE, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0,  4, 0x17, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_LAME_WATERLOG | BLF_MAYWATERLOG },
+    { /* 556 */ "White Wool Slab",              0xEEEEEE, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0,  4, 0x17, BLF_HALF | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
 };
