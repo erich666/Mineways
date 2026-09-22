@@ -741,6 +741,10 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
 static int saveBoxCustomUVVertices(int boxIndex, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
 static int saveBoxCustomUVFace(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int swatchLoc,
     float uMin, float uMax, float vMin, float vMax);
+static void saveMushroomSplitFace(int boxIndex, int type, int dataVal, int faceDirection, float splitCoord,
+    float minX, float maxX, float minY, float maxY, float minZ, float maxZ,
+    int swatchMinSide, float uMinMinSide, float uMaxMinSide, float vMinMinSide, float vMaxMinSide,
+    int swatchMaxSide, float uMinMaxSide, float uMaxMaxSide, float vMinMaxSide, float vMaxMaxSide);
 static int findFaceDimensions(float rect[4], int faceDirection, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
 static int lesserNeighborCoversRectangle(int faceDirection, int boxIndex, float rect[4]);
 static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRect[4]);
@@ -7383,19 +7387,62 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         totalVertexCount = gModel.vertexCount;
         gUsingTransform = 1;
 
+        // mushroom_top's west/north/east/south faces are wider (in real texels) than the vanilla art can
+        // supply from one swatch, in both stages - checked directly against an in-game screenshot: e.g. a
+        // face that's 10 texels wide geometrically ("north"/"south") was only showing 6-7 texels of actual
+        // texture, clipped at the packed image's quadrant boundary. Those go through saveMushroomSplitFace
+        // as two quads each, so the full-width vanilla art shows with no clipping (the faceUV[][0][...]
+        // table entries for these four directions are unused/stale - kept only as a record of what the
+        // single-quad, clipped version used to be). For stage 1, "bottom" (the underside) straddles too.
         int vA = saveBoxCustomUVVertices(boxIndex, boxA[stage][0], boxA[stage][1], boxA[stage][2], boxA[stage][3], boxA[stage][4], boxA[stage][5]);
         if (vA >= 0) {
-            for (int fd = 0; fd < 6; fd++) {
-                const MushroomFaceUV* fuv = &faceUV[stage][0][fd];
-                saveBoxCustomUVFace(vA, type, dataVal, fd, (fd == 0) ? 1 : 0, quadSwatch[fuv->dqx][fuv->dqy], fuv->uMin, fuv->uMax, fuv->vMin, fuv->vMax);
+            const MushroomFaceUV* fuvTop = &faceUV[stage][0][DIRECTION_BLOCK_TOP];
+            saveBoxCustomUVFace(vA, type, dataVal, DIRECTION_BLOCK_TOP, 1, quadSwatch[fuvTop->dqx][fuvTop->dqy], fuvTop->uMin, fuvTop->uMax, fuvTop->vMin, fuvTop->vMax);
+            if (stage == 0) {
+                // stage 0's "bottom" (the underside) doesn't straddle - it fits in one quadrant already.
+                const MushroomFaceUV* fuvBottom = &faceUV[stage][0][DIRECTION_BLOCK_BOTTOM];
+                saveBoxCustomUVFace(vA, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[fuvBottom->dqx][fuvBottom->dqy], fuvBottom->uMin, fuvBottom->uMax, fuvBottom->vMin, fuvBottom->vMax);
             }
         }
+        if (stage == 0) {
+            // west/east are 7 texels wide (straddle by only 1 texel); north/south are 10 (straddle by 4).
+            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_LO_X, 15.0f, 3, 13, 9, 11, 9, 16,
+                quadSwatch[0][0], 10, 16, 12, 14, quadSwatch[1][0], 0, 1, 12, 14);	// west
+            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_HI_X, 15.0f, 3, 13, 9, 11, 9, 16,
+                quadSwatch[0][0], 10, 16, 14, 16, quadSwatch[1][0], 0, 1, 14, 16);	// east
+            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 9.0f, 3, 13, 9, 11, 9, 16,
+                quadSwatch[0][0], 10, 16, 10, 12, quadSwatch[1][0], 0, 4, 10, 12);	// north
+            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 9.0f, 3, 13, 9, 11, 9, 16,
+                quadSwatch[0][0], 10, 16, 8, 10, quadSwatch[1][0], 0, 4, 8, 10);	// south
+        }
+        else {
+            // west/east are 10 texels wide; north/south are 14; "bottom"'s own row-span is 10. All straddle.
+            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_LO_X, 8.0f, 1, 15, 8, 11, 6, 16,
+                quadSwatch[0][0], 14, 16, 10, 13, quadSwatch[1][0], 0, 8, 10, 13);	// west
+            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_HI_X, 8.0f, 1, 15, 8, 11, 6, 16,
+                quadSwatch[0][0], 14, 16, 13, 16, quadSwatch[1][0], 0, 8, 13, 16);	// east
+            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 3.0f, 1, 15, 8, 11, 6, 16,
+                quadSwatch[0][0], 14, 16, 7, 10, quadSwatch[1][0], 0, 12, 7, 10);	// north
+            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 3.0f, 1, 15, 8, 11, 6, 16,
+                quadSwatch[0][0], 14, 16, 4, 7, quadSwatch[1][0], 0, 12, 4, 7);	// south
+            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_BOTTOM, 12.0f, 1, 15, 8, 11, 6, 16,
+                quadSwatch[0][0], 0, 14, 0, 6, quadSwatch[0][1], 0, 14, 12, 16);	// bottom (down)
+        }
+
         int vB = saveBoxCustomUVVertices(boxIndex, boxB[stage][0], boxB[stage][1], boxB[stage][2], boxB[stage][3], boxB[stage][4], boxB[stage][5]);
         if (vB >= 0) {
             for (int fd = 0; fd < 6; fd++) {
+                if (stage == 0 && fd == DIRECTION_BLOCK_TOP)
+                    continue;	// straddles; handled below via saveMushroomSplitFace instead
                 const MushroomFaceUV* fuv = &faceUV[stage][1][fd];
                 saveBoxCustomUVFace(vB, type, dataVal, fd, 0, quadSwatch[fuv->dqx][fuv->dqy], fuv->uMin, fuv->uMax, fuv->vMin, fuv->vMax);
             }
+        }
+        if (stage == 0) {
+            // mushroom_bottom's "up" face is hidden under mushroom_top in a solid render, but its 4-row
+            // span still straddles the boundary exactly in half - worth getting right regardless.
+            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_TOP, 14.0f, 5, 11, 8, 9, 12, 16,
+                quadSwatch[0][0], 0, 6, 2, 0, quadSwatch[0][1], 0, 6, 16, 14);
         }
         totalVertexCount = gModel.vertexCount - totalVertexCount;
 
@@ -14088,6 +14135,32 @@ static int saveBoxCustomUVFace(int startVertexIndex, int type, int dataVal, int 
     // vindex[] here is identical to the position-derived case in saveBoxAlltileGeometry (faceDirection switch above), just without the
     // rotUVs/reverseLoop options that block doesn't need - so reverseLoop=0, rotUVs=0.
     return saveBoxFace(swatchLoc, type, dataVal, faceDirection, markFirstFace, startVertexIndex, vindex, 0, 0, uMin / 16.0f, uMax / 16.0f, vMin / 16.0f, vMax / 16.0f);
+}
+
+// A face whose vanilla-art texture is wider (along one geometric axis) than the 16 texels one swatch can
+// supply straddles the packed image's quadrant boundary - see BLOCK_SHELF_MUSHROOM. This builds it as two
+// quads at splitCoord (a box-space X coordinate for the north/south faces, whose own "u" runs along X; a Z
+// coordinate for every other direction, whose own u or v runs along Z), each on its own partial-range box
+// (so each quad's geometry matches the fraction of the texture it actually shows) and its own swatch/UV:
+// minSide covers [the box's own min bound, splitCoord]; maxSide covers [splitCoord, the box's own max bound].
+static void saveMushroomSplitFace(int boxIndex, int type, int dataVal, int faceDirection, float splitCoord,
+    float minX, float maxX, float minY, float maxY, float minZ, float maxZ,
+    int swatchMinSide, float uMinMinSide, float uMaxMinSide, float vMinMinSide, float vMaxMinSide,
+    int swatchMaxSide, float uMinMaxSide, float uMaxMaxSide, float vMinMaxSide, float vMaxMaxSide)
+{
+    int vMinSide, vMaxSide;
+    if (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z || faceDirection == DIRECTION_BLOCK_SIDE_HI_Z) {
+        vMinSide = saveBoxCustomUVVertices(boxIndex, minX, splitCoord, minY, maxY, minZ, maxZ);
+        vMaxSide = saveBoxCustomUVVertices(boxIndex, splitCoord, maxX, minY, maxY, minZ, maxZ);
+    }
+    else {
+        vMinSide = saveBoxCustomUVVertices(boxIndex, minX, maxX, minY, maxY, minZ, splitCoord);
+        vMaxSide = saveBoxCustomUVVertices(boxIndex, minX, maxX, minY, maxY, splitCoord, maxZ);
+    }
+    if (vMinSide >= 0)
+        saveBoxCustomUVFace(vMinSide, type, dataVal, faceDirection, 0, swatchMinSide, uMinMinSide, uMaxMinSide, vMinMinSide, vMaxMinSide);
+    if (vMaxSide >= 0)
+        saveBoxCustomUVFace(vMaxSide, type, dataVal, faceDirection, 0, swatchMaxSide, uMinMaxSide, uMaxMaxSide, vMinMaxSide, vMaxMaxSide);
 }
 
 // Find if the specified face touches its voxel's face (i.e., is up against the voxel), and get the dimensions found.
