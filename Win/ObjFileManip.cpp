@@ -7317,50 +7317,53 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         struct MushroomFaceUV { unsigned char dqx, dqy; float uMin, uMax, vMin, vMax; };
         // indexed [stage 0/1][box 0=top/1=bottom][faceDirection 0-5, i.e. LO_X/BOTTOM/LO_Z/HI_X/TOP/HI_Z == west/bottom/north/east/top/south]
         // uMin/uMax/vMin/vMax are NOT simply the vanilla model's raw "uv": [x1,y1,x2,y2]" doubled to real pixels: saveBoxCustomUVFace fixes
-        // which geometric corner gets which of {uMin,uMax}x{vMin,vMax} purely by faceDirection, and that fixed corner assignment doesn't match
-        // the vanilla JSON's raw numbers for ANY face here (not just "up"/"down" - the side faces need the same correction, confirmed once we
-        // actually looked at them from the side instead of only checking internal self-consistency). u is the plain real-pixel column
-        // (uMin<uMax, no mirroring - the JSON's x1>x2 on every up/down face is not reproduced here and turned out not to be needed). v,
-        // empirically (checked against in-game screenshots of real placed blocks from both directly above and at an angle from below, since
-        // getting this wrong doesn't throw or look obviously broken - it just silently samples the wrong pixels), needs vMin = 16 - rowMin and
-        // vMax = 16 - rowMax, where rowMin/rowMax are the source image's real pixel rows (0 = top of the source crop) - i.e. v runs the same
-        // direction as row (both increasing together), just rebased from the tile's top edge instead of its bottom edge. This applies
-        // uniformly to every face direction below, not just "up"/"down".
+        // which geometric corner gets which of {uMin,uMax}x{vMin,vMax} purely by faceDirection - and that fixed corner assignment is NOT the
+        // same for every direction. Empirically (checked against in-game screenshots of real placed blocks, from directly above, at an angle
+        // from below, and side-on, since getting this wrong doesn't throw or look obviously broken - it just silently samples the wrong pixels
+        // or shows them upside down), every face needs vMin/vMax derived from the source image's real pixel rows (0 = top of the source crop),
+        // but which one gets "16 - rowMin" and which gets "16 - rowMax" flips between TOP and every other direction:
+        //   - TOP:                              vMin = 16 - rowMin, vMax = 16 - rowMax
+        //   - BOTTOM and all four side faces:   vMin = 16 - rowMax, vMax = 16 - rowMin
+        // (BOTTOM is TOP's mirror image, and the side faces turned out to share BOTTOM's convention rather than TOP's - confirmed by first
+        // fixing only TOP/BOTTOM uniformly, seeing the side faces and mushroom_top's underside still come out wrong, then re-deriving each
+        // direction's own corner assignment from saveBoxCustomUVFace's vindex[] tables instead of assuming they all match TOP.) u is the plain
+        // real-pixel column (uMin < uMax, no mirroring) for every face except mushroom_bottom's own "bottom" face on both stages, whose art is
+        // rotated 180 degrees from the rest (confirmed by comparing an export against an in-game screenshot) and so also needs uMin > uMax.
         static const MushroomFaceUV faceUV[2][2][6] = {
             { // stage 0 (small)
                 { // "mushroom_top" box, from [3,9,9] to [13,11,16] in the vanilla model
-                    { 0, 0, 10, 16, 14, 12 },	// west (source rows 2-4 -> v = 16-row)
-                    { 0, 0,  0, 10,  9,  2 },	// bottom (source rows 7-14 -> v = 16-row)
-                    { 0, 0, 10, 16, 12, 10 },	// north (source rows 4-6 -> v = 16-row)
-                    { 0, 0, 10, 16, 16, 14 },	// east (source rows 0-2 -> v = 16-row)
-                    { 0, 0,  0, 10, 16,  9 },	// top (source rows 0-7 -> v = 16-row)
-                    { 0, 0, 10, 16, 10,  8 },	// south (source rows 6-8 -> v = 16-row)
+                    { 0, 0, 10, 16, 12, 14 },	// west (source rows 2-4)
+                    { 0, 0,  0, 10,  2,  9 },	// bottom (source rows 7-14)
+                    { 0, 0, 10, 16, 10, 12 },	// north (source rows 4-6)
+                    { 0, 0, 10, 16, 14, 16 },	// east (source rows 0-2)
+                    { 0, 0,  0, 10, 16,  9 },	// top (source rows 0-7) - TOP's own convention, unchanged since the first fix
+                    { 0, 0, 10, 16,  8, 10 },	// south (source rows 6-8)
                 },
                 { // "mushroom_bottom" box, from [5,8,12] to [11,9,16]
-                    { 0, 0, 10, 14,  7,  6 },	// west (source rows 9-10 -> v = 16-row)
-                    { 0, 1,  0,  6, 14, 10 },	// bottom (source rows 2-6 -> v = 16-row)
-                    { 0, 0, 10, 16,  6,  5 },	// north (source rows 10-11 -> v = 16-row)
-                    { 0, 0, 10, 14,  8,  7 },	// east (source rows 8-9 -> v = 16-row)
-                    { 0, 0,  0,  6,  2,  0 },	// top (source rows 14-16 -> v = 16-row)
-                    { 0, 0, 10, 16,  5,  4 },	// south (source rows 11-12 -> v = 16-row)
+                    { 0, 0, 10, 14,  6,  7 },	// west (source rows 9-10)
+                    { 0, 1,  6,  0, 10, 14 },	// bottom (source rows 2-6; u also flipped - this face's own art is rotated 180 degrees)
+                    { 0, 0, 10, 16,  5,  6 },	// north (source rows 10-11)
+                    { 0, 0, 10, 14,  7,  8 },	// east (source rows 8-9)
+                    { 0, 0,  0,  6,  2,  0 },	// top (source rows 14-16) - TOP's own convention, unchanged since the first fix
+                    { 0, 0, 10, 16,  4,  5 },	// south (source rows 11-12)
                 },
             },
             { // stage 1 (large)
                 { // "mushroom_top" box, from [1,8,6] to [15,11,16]
-                    { 1, 0,  0,  8, 13, 10 },	// west (source rows 3-6 -> v = 16-row)
-                    { 0, 0,  0, 14,  6,  0 },	// bottom (source rows 10-16 -> v = 16-row)
-                    { 1, 0,  0, 12, 10,  7 },	// north (source rows 6-9 -> v = 16-row)
-                    { 1, 0,  0,  8, 16, 13 },	// east (source rows 0-3 -> v = 16-row)
-                    { 0, 0,  0, 14, 16,  6 },	// top (source rows 0-10 -> v = 16-row)
-                    { 1, 0,  0, 12,  7,  4 },	// south (source rows 9-12 -> v = 16-row)
+                    { 1, 0,  0,  8, 10, 13 },	// west (source rows 3-6)
+                    { 0, 0,  0, 14,  0,  6 },	// bottom (source rows 10-16)
+                    { 1, 0,  0, 12,  7, 10 },	// north (source rows 6-9)
+                    { 1, 0,  0,  8, 13, 16 },	// east (source rows 0-3)
+                    { 0, 0,  0, 14, 16,  6 },	// top (source rows 0-10) - TOP's own convention, unchanged since the first fix
+                    { 1, 0,  0, 12,  4,  7 },	// south (source rows 9-12)
                 },
                 { // "mushroom_bottom" box, from [4,6,10] to [12,8,16]
-                    { 0, 1,  8, 14, 10,  8 },	// west (source rows 6-8 -> v = 16-row)
-                    { 0, 1,  0,  8,  6,  0 },	// bottom (source rows 10-16 -> v = 16-row)
-                    { 0, 1,  8, 16,  8,  6 },	// north (source rows 8-10 -> v = 16-row)
-                    { 0, 1,  8, 14, 12, 10 },	// east (source rows 4-6 -> v = 16-row)
-                    { 0, 1,  0,  8, 12,  6 },	// top (source rows 4-10 -> v = 16-row)
-                    { 0, 1,  8, 16,  6,  4 },	// south (source rows 10-12 -> v = 16-row)
+                    { 0, 1,  8, 14,  8, 10 },	// west (source rows 6-8)
+                    { 0, 1,  8,  0,  0,  6 },	// bottom (source rows 10-16; u also flipped - this face's own art is rotated 180 degrees)
+                    { 0, 1,  8, 16,  6,  8 },	// north (source rows 8-10)
+                    { 0, 1,  8, 14, 10, 12 },	// east (source rows 4-6)
+                    { 0, 1,  0,  8, 12,  6 },	// top (source rows 4-10) - TOP's own convention, unchanged since the first fix
+                    { 0, 1,  8, 16,  4,  6 },	// south (source rows 10-12)
                 },
             },
         };
