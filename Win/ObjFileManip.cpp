@@ -7318,48 +7318,49 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // indexed [stage 0/1][box 0=top/1=bottom][faceDirection 0-5, i.e. LO_X/BOTTOM/LO_Z/HI_X/TOP/HI_Z == west/bottom/north/east/top/south]
         // uMin/uMax/vMin/vMax are NOT simply the vanilla model's raw "uv": [x1,y1,x2,y2]" doubled to real pixels: saveBoxCustomUVFace fixes
         // which geometric corner gets which of {uMin,uMax}x{vMin,vMax} purely by faceDirection, and that fixed corner assignment doesn't match
-        // the vanilla JSON's raw numbers for the "up"/"down" faces. u is the plain real-pixel column (uMin<uMax, no mirroring - the JSON's
-        // x1>x2 on every up/down face is not reproduced here and turned out not to be needed). v, empirically (checked against an in-game
-        // screenshot of real placed blocks, since getting this wrong doesn't throw or look obviously broken - it just silently samples the
-        // wrong pixels), needs vMin = 16 - rowMin and vMax = 16 - rowMax, where rowMin/rowMax are the source image's real pixel rows (0 = top
-        // of the source crop) - i.e. v runs the same direction as row (both increasing together), just rebased from the tile's top edge
-        // instead of its bottom edge. Side faces (west/north/east/south below) don't need any of this: they were never touched and still
-        // match the vanilla JSON's magnitude directly.
+        // the vanilla JSON's raw numbers for ANY face here (not just "up"/"down" - the side faces need the same correction, confirmed once we
+        // actually looked at them from the side instead of only checking internal self-consistency). u is the plain real-pixel column
+        // (uMin<uMax, no mirroring - the JSON's x1>x2 on every up/down face is not reproduced here and turned out not to be needed). v,
+        // empirically (checked against in-game screenshots of real placed blocks from both directly above and at an angle from below, since
+        // getting this wrong doesn't throw or look obviously broken - it just silently samples the wrong pixels), needs vMin = 16 - rowMin and
+        // vMax = 16 - rowMax, where rowMin/rowMax are the source image's real pixel rows (0 = top of the source crop) - i.e. v runs the same
+        // direction as row (both increasing together), just rebased from the tile's top edge instead of its bottom edge. This applies
+        // uniformly to every face direction below, not just "up"/"down".
         static const MushroomFaceUV faceUV[2][2][6] = {
             { // stage 0 (small)
                 { // "mushroom_top" box, from [3,9,9] to [13,11,16] in the vanilla model
-                    { 0, 0, 10, 16,  2,  4 },	// west
+                    { 0, 0, 10, 16, 14, 12 },	// west (source rows 2-4 -> v = 16-row)
                     { 0, 0,  0, 10,  9,  2 },	// bottom (source rows 7-14 -> v = 16-row)
-                    { 0, 0, 10, 16,  4,  6 },	// north
-                    { 0, 0, 10, 16,  0,  2 },	// east
+                    { 0, 0, 10, 16, 12, 10 },	// north (source rows 4-6 -> v = 16-row)
+                    { 0, 0, 10, 16, 16, 14 },	// east (source rows 0-2 -> v = 16-row)
                     { 0, 0,  0, 10, 16,  9 },	// top (source rows 0-7 -> v = 16-row)
-                    { 0, 0, 10, 16,  6,  8 },	// south
+                    { 0, 0, 10, 16, 10,  8 },	// south (source rows 6-8 -> v = 16-row)
                 },
                 { // "mushroom_bottom" box, from [5,8,12] to [11,9,16]
-                    { 0, 0, 10, 14,  9, 10 },	// west
+                    { 0, 0, 10, 14,  7,  6 },	// west (source rows 9-10 -> v = 16-row)
                     { 0, 1,  0,  6, 14, 10 },	// bottom (source rows 2-6 -> v = 16-row)
-                    { 0, 0, 10, 16, 10, 11 },	// north
-                    { 0, 0, 10, 14,  8,  9 },	// east
+                    { 0, 0, 10, 16,  6,  5 },	// north (source rows 10-11 -> v = 16-row)
+                    { 0, 0, 10, 14,  8,  7 },	// east (source rows 8-9 -> v = 16-row)
                     { 0, 0,  0,  6,  2,  0 },	// top (source rows 14-16 -> v = 16-row)
-                    { 0, 0, 10, 16, 11, 12 },	// south
+                    { 0, 0, 10, 16,  5,  4 },	// south (source rows 11-12 -> v = 16-row)
                 },
             },
             { // stage 1 (large)
                 { // "mushroom_top" box, from [1,8,6] to [15,11,16]
-                    { 1, 0,  0,  8,  3,  6 },	// west
+                    { 1, 0,  0,  8, 13, 10 },	// west (source rows 3-6 -> v = 16-row)
                     { 0, 0,  0, 14,  6,  0 },	// bottom (source rows 10-16 -> v = 16-row)
-                    { 1, 0,  0, 12,  6,  9 },	// north
-                    { 1, 0,  0,  8,  0,  3 },	// east
+                    { 1, 0,  0, 12, 10,  7 },	// north (source rows 6-9 -> v = 16-row)
+                    { 1, 0,  0,  8, 16, 13 },	// east (source rows 0-3 -> v = 16-row)
                     { 0, 0,  0, 14, 16,  6 },	// top (source rows 0-10 -> v = 16-row)
-                    { 1, 0,  0, 12,  9, 12 },	// south
+                    { 1, 0,  0, 12,  7,  4 },	// south (source rows 9-12 -> v = 16-row)
                 },
                 { // "mushroom_bottom" box, from [4,6,10] to [12,8,16]
-                    { 0, 1,  8, 14,  6,  8 },	// west
+                    { 0, 1,  8, 14, 10,  8 },	// west (source rows 6-8 -> v = 16-row)
                     { 0, 1,  0,  8,  6,  0 },	// bottom (source rows 10-16 -> v = 16-row)
-                    { 0, 1,  8, 16,  8, 10 },	// north
-                    { 0, 1,  8, 14,  4,  6 },	// east
+                    { 0, 1,  8, 16,  8,  6 },	// north (source rows 8-10 -> v = 16-row)
+                    { 0, 1,  8, 14, 12, 10 },	// east (source rows 4-6 -> v = 16-row)
                     { 0, 1,  0,  8, 12,  6 },	// top (source rows 4-10 -> v = 16-row)
-                    { 0, 1,  8, 16, 10, 12 },	// south
+                    { 0, 1,  8, 16,  6,  4 },	// south (source rows 10-12 -> v = 16-row)
                 },
             },
         };
