@@ -292,6 +292,51 @@ static inline int swatchToRow(int swatchLoc) { return (swatchLoc % TILES_PER_PAG
 static inline int swatchToTableIndex(int swatchLoc) { return swatchToCol(swatchLoc) + XTILES * swatchToRow(swatchLoc); }// the tiles.h entry for a swatch index
 #define TILES_ENTRY(swatchLoc) gTilesTable[swatchToTableIndex(swatchLoc)]
 
+// A tiles.h entry whose source image spans more than one tile (see the spanX/spanY comment in tiles.h)
+// has its name and material info - filename, typeForMtl, dataValForMtl, flags - on the entry at the
+// image's upper-left tile (the "anchor"); the other tiles the image covers are blank "member" cells that,
+// instead of 0, hold a negative spanX and/or spanY giving the column/row offset back to the anchor (e.g.
+// the member one column right of the anchor has spanX == -1, spanY == 0). A plain single tile, or a span's
+// own anchor, always has spanX >= 0 and spanY >= 0, so "either span field is negative" unambiguously means
+// "this is a member cell - go look at the anchor". This resolves any swatch to the tiles.h swatch location
+// that actually holds its name/material data: itself, unless it's a member cell, in which case its anchor.
+static int resolveTileAnchor(int swatchLoc)
+{
+    assert(swatchLoc >= 0 && swatchLoc < TOTAL_TILES);
+    if (TILES_ENTRY(swatchLoc).spanX < 0 || TILES_ENTRY(swatchLoc).spanY < 0) {
+        int anchorCol = TILES_ENTRY(swatchLoc).txrX + TILES_ENTRY(swatchLoc).spanX;
+        int anchorRow = TILES_ENTRY(swatchLoc).txrY + TILES_ENTRY(swatchLoc).spanY;
+        int anchorLoc = TILE_TO_SWATCH(anchorCol, anchorRow);
+        assert(TILES_ENTRY(anchorLoc).filename[0] != 0);   // the anchor itself must be a real, named tile
+        return anchorLoc;
+    }
+    return swatchLoc;
+}
+
+// Builds this swatch's material/tile-file base name into outName: the tile's own name if it has one, else
+// its span anchor's name (see resolveTileAnchor) with a "_<dCol>_<dRow>" suffix identifying which member
+// cell of the span this is. The suffix keeps every member of a multi-tile image its own distinct material
+// name and output filename - they're genuinely different sub-images, sharing the anchor's plain name would
+// make them collide (same .mtl material reused for different textures, same output .png overwritten by
+// whichever member happens to be written last).
+static void getTileMaterialNameW(int swatchLoc, wchar_t* outName, int outSizeChars)
+{
+    if (TILES_ENTRY(swatchLoc).filename[0] != 0) {
+        wcscpy_s(outName, outSizeChars, TILES_ENTRY(swatchLoc).filename);
+        return;
+    }
+    int anchorLoc = resolveTileAnchor(swatchLoc);
+    int dCol = TILES_ENTRY(swatchLoc).txrX - TILES_ENTRY(anchorLoc).txrX;
+    int dRow = TILES_ENTRY(swatchLoc).txrY - TILES_ENTRY(anchorLoc).txrY;
+    swprintf_s(outName, outSizeChars, L"%s_%d_%d", TILES_ENTRY(anchorLoc).filename, dCol, dRow);
+}
+static void getTileMaterialName(int swatchLoc, char* outName, int outSizeChars)
+{
+    wchar_t wName[MAX_PATH_AND_FILE];
+    getTileMaterialNameW(swatchLoc, wName, MAX_PATH_AND_FILE);
+    WcharToChar(wName, outName, outSizeChars);
+}
+
 // these are swatches that we will use for other things;
 // The swatches reused are the "breaking block" animations, which we'll never need
 #define TORCH_TOP               SWATCH_INDEX( 0,15 )
@@ -1846,11 +1891,13 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
                     if (gModel.tileList[CATEGORY_RGBA][i]) {
                         // tile found that should be output
                         wchar_t materialTile[MAX_PATH_AND_FILE];
-                        if (gModel.exportTiles && (TILES_ENTRY(i).flags & SBIT_SYNTHESIZED)) {
-                            concatFileName3(materialTile, gTextureDirectoryPath, TILES_ENTRY(i).filename, L"_y.png");
+                        wchar_t tileName[MAX_PATH_AND_FILE];
+                        getTileMaterialNameW(i, tileName, MAX_PATH_AND_FILE);
+                        if (gModel.exportTiles && (TILES_ENTRY(resolveTileAnchor(i)).flags & SBIT_SYNTHESIZED)) {
+                            concatFileName3(materialTile, gTextureDirectoryPath, tileName, L"_y.png");
                         }
                         else {
-                            concatFileName3(materialTile, gTextureDirectoryPath, TILES_ENTRY(i).filename, L".png");
+                            concatFileName3(materialTile, gTextureDirectoryPath, tileName, L".png");
                         }
                         rc = writeTileFromMasterOutput(materialTile, gModel.pPNGtexture, i, gModel.swatchSize, gModel.swatchesPerRow, false, 0);
                         assert(rc == 0);
@@ -1865,7 +1912,7 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
                             if (gModel.tileList[j][i]) {
                                 // special, stupid case: output roughness with _s for OBJ files, as specular is output
                                 int category = (isOBJ && j == CATEGORY_ROUGHNESS) ? CATEGORY_SPECULAR : j;
-                                concatFileName4(materialTile, gTextureDirectoryPath, TILES_ENTRY(i).filename, gCatSuffixes[category], L".png");
+                                concatFileName4(materialTile, gTextureDirectoryPath, tileName, gCatSuffixes[category], L".png");
 // Define in order to make separate emission grayscale textures for each light.
 // To make these look better, we multiply by the hue of the diffuse texture (i.e., scale the diffuse texture texel to the max and multiply).
 #define GENERATE_EMISSION_TILES
@@ -26889,10 +26936,12 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                             }
 
                             // new material per tile ID
-                            // swatch locations exactly correspond with tiles.h names
+                            // swatch locations exactly correspond with tiles.h names (or, for a member
+                            // cell of a multi-tile image, its span anchor's name plus an offset suffix -
+                            // see getTileMaterialName)
                             assert(prevSwatchLoc < TOTAL_TILES);
                             // TODO: could someday store mtlName in this same table; no need to convert every time
-                            WcharToChar(TILES_ENTRY(prevSwatchLoc).filename, mtlName, MAX_PATH_AND_FILE);
+                            getTileMaterialName(prevSwatchLoc, mtlName, MAX_PATH_AND_FILE);
                             sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
                             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                             // note in an array that this separate tile should be output as a material
@@ -26962,9 +27011,11 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                         }
                         if (gModel.exportTiles) {
                             // new material per tile ID
-                            // swatch locations exactly correspond with tiles.h names
+                            // swatch locations exactly correspond with tiles.h names (or, for a member
+                            // cell of a multi-tile image, its span anchor's name plus an offset suffix -
+                            // see getTileMaterialName)
                             assert(prevSwatchLoc < TOTAL_TILES);
-                            WcharToChar(TILES_ENTRY(prevSwatchLoc).filename, mtlName, MAX_PATH_AND_FILE);
+                            getTileMaterialName(prevSwatchLoc, mtlName, MAX_PATH_AND_FILE);
                             assert(strlen(mtlName));    // if hit, means a bad swatchLoc was assigned
                             sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
                             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -27289,7 +27340,7 @@ static int writeOBJTextureUV(float u, float v, int addComment, int swatchLoc)
     {
         if (swatchLoc < TOTAL_TILES) {
             char outName[MAX_PATH_AND_FILE];
-            WcharToChar(TILES_ENTRY(swatchLoc).filename, outName, MAX_PATH_AND_FILE);
+            getTileMaterialName(swatchLoc, outName, MAX_PATH_AND_FILE);
             assert(strlen(outName) > 0);
             sprintf_s(outputString, 1024, "# %s\nvt %.9f %.9f\n",
                 outName,
@@ -27428,10 +27479,13 @@ static int writeOBJMtlFile()
             for (i = 0; i < TOTAL_TILES; i++) {
                 // tile name is material name, possibly with _s if it's a synthesized tile.
                 if (gModel.tileList[CATEGORY_RGBA][i]) {
-                    // tile found that should be output
-                    WcharToChar(TILES_ENTRY(i).filename, mtlName, MAX_PATH_AND_FILE);
+                    // tile found that should be output. For a member cell of a multi-tile image, name/flags/
+                    // typeForMtl/dataValForMtl all come from its span anchor (see getTileMaterialName,
+                    // resolveTileAnchor) - only mtlName itself gets the offset suffix, to stay unique per member.
+                    int anchorLoc = resolveTileAnchor(i);
+                    getTileMaterialName(i, mtlName, MAX_PATH_AND_FILE);
                     // if singleTerrainFile, then don't modify the texture name like this.
-                    if (gModel.exportTiles && (TILES_ENTRY(i).flags & SBIT_SYNTHESIZED)) {
+                    if (gModel.exportTiles && (TILES_ENTRY(anchorLoc).flags & SBIT_SYNTHESIZED)) {
                         sprintf_s(textureRGBA, MAX_PATH_AND_FILE, "%s_y.png", mtlName); // with _y.png suffix
                     }
                     else {
@@ -27447,7 +27501,7 @@ static int writeOBJMtlFile()
                     else {
                         strcpy_s(textureRoot, mtlName);
                     }
-                    retCode = writeOBJFullMtlDescription(mtlName, TILES_ENTRY(i).typeForMtl, TILES_ENTRY(i).dataValForMtl, textureRGBA, textureRGBA, textureRGBA, textureRoot, i);
+                    retCode = writeOBJFullMtlDescription(mtlName, TILES_ENTRY(anchorLoc).typeForMtl, TILES_ENTRY(anchorLoc).dataValForMtl, textureRGBA, textureRGBA, textureRGBA, textureRoot, i);
                     if (retCode != MW_NO_ERROR)
                         return retCode;
                 }
@@ -29629,7 +29683,7 @@ static int writeVRMLTextureUV(float u, float v, int addComment, int swatchLoc)
     {
         if (swatchLoc < TOTAL_TILES) {
             char outName[MAX_PATH_AND_FILE];
-            WcharToChar(TILES_ENTRY(swatchLoc).filename, outName, MAX_PATH_AND_FILE);
+            getTileMaterialName(swatchLoc, outName, MAX_PATH_AND_FILE);
             assert(strlen(outName) > 0);
             sprintf_s(outputString, 1024, "# %s\n            %g %g\n",
                 outName,
@@ -31627,7 +31681,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
         bool isSemitransparent = false;
         float alpha = retrieveMtlAlpha(pFace->materialType);
         // TODO: could key off of the alpha of the tile, e.g.,
-        // TILES_ENTRY(swatchLoc).flags & TILE_USES_ALPHA - not sure there's any gain
+        // TILES_ENTRY(resolveTileAnchor(swatchLoc)).flags & TILE_USES_ALPHA - not sure there's any gain
         if (!gModel.print3D &&
             (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES)) {
 
@@ -31897,7 +31951,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     }
 
-                    sprintf_s(outputString, 256, "                asset inputs:diffuse_reflection_color_image = @%s/%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (TILES_ENTRY(swatchLoc).flags & SBIT_SYNTHESIZED)) ? "_y" : "");
+                    sprintf_s(outputString, 256, "                asset inputs:diffuse_reflection_color_image = @%s/%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (TILES_ENTRY(resolveTileAnchor(swatchLoc)).flags & SBIT_SYNTHESIZED)) ? "_y" : "");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "                    colorSpace = \"auto\"\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -31916,7 +31970,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     strcpy_s(outputString, 256, "                )\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
 
-                    sprintf_s(outputString, 256, "                asset inputs:specular_reflection_color_image = @%s/%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (TILES_ENTRY(swatchLoc).flags & SBIT_SYNTHESIZED)) ? "_y" : "");
+                    sprintf_s(outputString, 256, "                asset inputs:specular_reflection_color_image = @%s/%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (TILES_ENTRY(resolveTileAnchor(swatchLoc)).flags & SBIT_SYNTHESIZED)) ? "_y" : "");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "                    colorSpace = \"auto\"\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -32032,7 +32086,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     }
 
-                    sprintf_s(outputString, 256, "                asset inputs:specular_transmission_color_image = @%s/%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (TILES_ENTRY(swatchLoc).flags & SBIT_SYNTHESIZED)) ? "_y" : "");
+                    sprintf_s(outputString, 256, "                asset inputs:specular_transmission_color_image = @%s/%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (TILES_ENTRY(resolveTileAnchor(swatchLoc)).flags & SBIT_SYNTHESIZED)) ? "_y" : "");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "                    colorSpace = \"auto\"\n");  should not be auto, probably
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -32194,7 +32248,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     // and makes glass such as JG-RTX easier to see through. For water we don't use it, 
 
                     // currently not alphabetized - TODO - kind of messy to do so
-                    sprintf_s(outputString, 256, "                asset inputs:cutout_opacity_texture = @./%s/%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (TILES_ENTRY(swatchLoc).flags & SBIT_SYNTHESIZED)) ? "_y" : "");
+                    sprintf_s(outputString, 256, "                asset inputs:cutout_opacity_texture = @./%s/%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (TILES_ENTRY(resolveTileAnchor(swatchLoc)).flags & SBIT_SYNTHESIZED)) ? "_y" : "");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "                    colorSpace = \"auto\"\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -32232,7 +32286,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
 
                     //
-                    sprintf_s(outputString, 256, "                asset inputs:glass_color_texture = @./%s/%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (TILES_ENTRY(swatchLoc).flags & SBIT_SYNTHESIZED)) ? "_y" : "");
+                    sprintf_s(outputString, 256, "                asset inputs:glass_color_texture = @./%s/%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (TILES_ENTRY(resolveTileAnchor(swatchLoc)).flags & SBIT_SYNTHESIZED)) ? "_y" : "");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                     strcpy_s(outputString, 256, "                    colorSpace = \"sRGB\"\n");
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -32282,7 +32336,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                 // Not water, glass, slime, etc.
 
                 // add the "_y" if synthesized - material name differs from tile file name in this case
-                sprintf_s(outputString, 256, "                asset inputs:diffuse_texture = @./%s%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (TILES_ENTRY(swatchLoc).flags& SBIT_SYNTHESIZED)) ? "_y" : "");
+                sprintf_s(outputString, 256, "                asset inputs:diffuse_texture = @./%s%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (TILES_ENTRY(resolveTileAnchor(swatchLoc)).flags& SBIT_SYNTHESIZED)) ? "_y" : "");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "                    colorSpace = \"sRGB\"\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -32374,7 +32428,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
 
                         // same as the diffuse texture
-                        sprintf_s(outputString, 256, "                asset inputs:emissive_color_texture = @./%s%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (TILES_ENTRY(swatchLoc).flags & SBIT_SYNTHESIZED)) ? "_y" : "");
+                        sprintf_s(outputString, 256, "                asset inputs:emissive_color_texture = @./%s%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (TILES_ENTRY(resolveTileAnchor(swatchLoc)).flags & SBIT_SYNTHESIZED)) ? "_y" : "");
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                         strcpy_s(outputString, 256, "                    colorSpace = \"sRGB\"\n");
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -32430,7 +32484,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                         // Here's more convoluted logic, with the color texture getting used as the emitter mask, which is usually A Bad Idea.
                         //sprintf_s(outputString, 256, "                asset inputs:emissive_mask_texture = @./%s%s%s.png@ (\n", texturePath, mtlName,
                         //    hasEmission ? "_e" : 
-                        //        (gModel.exportTiles && (TILES_ENTRY(swatchLoc).flags & SBIT_SYNTHESIZED)) ? "_y" : "");
+                        //        (gModel.exportTiles && (TILES_ENTRY(resolveTileAnchor(swatchLoc)).flags & SBIT_SYNTHESIZED)) ? "_y" : "");
                         WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
 
                         strcpy_s(outputString, 256, "                    colorSpace = \"sRGB\"\n");
@@ -32686,7 +32740,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
                     WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 }
 
-                sprintf_s(outputString, 256, "                asset inputs:opacity_texture = @./%s%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (TILES_ENTRY(swatchLoc).flags& SBIT_SYNTHESIZED)) ? "_y" : "");
+                sprintf_s(outputString, 256, "                asset inputs:opacity_texture = @./%s%s%s.png@ (\n", texturePath, mtlName, (gModel.exportTiles && (TILES_ENTRY(resolveTileAnchor(swatchLoc)).flags& SBIT_SYNTHESIZED)) ? "_y" : "");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
                 strcpy_s(outputString, 256, "                    colorSpace = \"raw\"\n");
                 WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -32857,8 +32911,8 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             // in which case opacityThreshold is respected. For others (Most path tracers) transparency is properly 
             // respected and the opacityThreshold is ignored.
 
-            bool sRepeat = (TILES_ENTRY(swatchLoc).flags & SBIT_REPEAT_SIDES) ? true : false;
-            bool tRepeat = (TILES_ENTRY(swatchLoc).flags & SBIT_REPEAT_TOP_BOTTOM) ? true : false;
+            bool sRepeat = (TILES_ENTRY(resolveTileAnchor(swatchLoc)).flags & SBIT_REPEAT_SIDES) ? true : false;
+            bool tRepeat = (TILES_ENTRY(resolveTileAnchor(swatchLoc)).flags & SBIT_REPEAT_TOP_BOTTOM) ? true : false;
 
             strcpy_s(outputString, 256, "\n            def Shader \"PreviewSurface\"\n");
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -33057,7 +33111,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             strcpy_s(outputString, 256, "                uniform token info:id = \"UsdUVTexture\"\n");
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
-            sprintf_s(outputString, 256, "                asset inputs:file = @./%s%s%s.png@\n", texturePath, mtlName, (gModel.exportTiles && (TILES_ENTRY(swatchLoc).flags & SBIT_SYNTHESIZED)) ? "_y" : "");
+            sprintf_s(outputString, 256, "                asset inputs:file = @./%s%s%s.png@\n", texturePath, mtlName, (gModel.exportTiles && (TILES_ENTRY(resolveTileAnchor(swatchLoc)).flags & SBIT_SYNTHESIZED)) ? "_y" : "");
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
             strcpy_s(outputString, 256, "                token inputs:sourceColorSpace = \"sRGB\"\n");
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -33392,9 +33446,10 @@ static boolean findEndOfGroup(int startRun, int endCount, char* mtlName, int& ne
     // a lot of crazy logic deleted here for now... TODOUSD
     if (gModel.exportTiles) {
         // new material per tile ID
-        // swatch locations exactly correspond with tiles.h names
+        // swatch locations exactly correspond with tiles.h names (or, for a member cell of a multi-tile
+        // image, its span anchor's name plus an offset suffix - see getTileMaterialName)
         assert(prevSwatchLoc < TOTAL_TILES);
-        WcharToChar(TILES_ENTRY(prevSwatchLoc).filename, mtlName, MAX_PATH_AND_FILE);
+        getTileMaterialName(prevSwatchLoc, mtlName, MAX_PATH_AND_FILE);
         // note in an array that this separate tile should be output as a material
         gModel.tileList[CATEGORY_RGBA][prevSwatchLoc] = true;  // means has a texture
     }

@@ -83,8 +83,13 @@ static struct {
     const wchar_t* altFilename;   // new 1.13 name
     int flags;
     // Optional: for a single image that covers more than one tile, e.g., a 32x32 image is 2x2 tiles when tiles are 16x16. The tile entry at the upper left
-    // of the region holds the name and these spans; the other tiles it covers have blank names and are reserved (do not put anything else there).
-    // Leave off (zero) for the normal case of one tile. Spans are in tiles, and the region must be square.
+    // of the region (the "anchor") holds the name and these spans (a positive size, e.g. 2,2). The other tiles it covers ("member" cells) have blank
+    // names and, instead of 0, a negative spanX and/or spanY giving the column/row offset back to the anchor, e.g. the member one column right of the
+    // anchor has spanX == -1, spanY == 0; the member one column right and one row down has spanX == -1, spanY == -1. A plain single tile, or a span's
+    // own anchor, always has spanX >= 0 and spanY >= 0, so "either span field is negative" unambiguously flags a member cell (see resolveTileAnchor()
+    // and getTileMaterialName() in ObjFileManip.cpp, which use this to recover a member cell's name/material info from its anchor when needed, e.g.
+    // when a hand-authored .obj is imported with UVs that address a member cell directly). Leave both fields off (zero) for the normal case of one
+    // tile, or for a tile that's simply unused. Spans are in tiles, and the region must be square.
     int spanX;
     int spanY;
 
@@ -120,14 +125,14 @@ static struct {
     { 21,  0, 511, 0, L"MWO_poplar_shelf_back", L"", SWATCH_REPEAT_ALL },
     { 22,  0, 511, 0, L"MWO_poplar_shelf_powered", L"", SWATCH_REPEAT_ALL },
     { 23,  0,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24,  0,   0, 0, L"shelf_mushroom_stage0", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image, covers 24-25,0-1
-    { 25,  0,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 26,  0,   0, 0, L"shelf_mushroom_stage1", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image, covers 26-27,0-1
-    { 27,  0,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28,  0,   0, 0, L"straw_bed", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 4, 4 },	// 64x64 image, covers 28-31,0-3
-    { 29,  0,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 30,  0,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 31,  0,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 24,  0, 557, 0, L"shelf_mushroom_stage0", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 24-25,0-1
+    { 25,  0,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of shelf_mushroom_stage0 at 24,0
+    { 26,  0, 557, 0, L"shelf_mushroom_stage1", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 26-27,0-1
+    { 27,  0,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of shelf_mushroom_stage1 at 26,0
+    { 28,  0, 558, 0, L"straw_bed", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 4, 4 },	// 64x64 image (anchor), covers 28-31,0-3
+    { 29,  0,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of straw_bed at 28,0
+    { 30,  0,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -2, 0 },	// member of straw_bed at 28,0
+    { 31,  0,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -3, 0 },	// member of straw_bed at 28,0
     {  0,  1,   4, 0, L"cobblestone", L"", SWATCH_REPEAT_ALL },
     {  1,  1,   7, 0, L"bedrock", L"", SWATCH_REPEAT_ALL },
     {  2,  1,  12, 0, L"sand", L"", SWATCH_REPEAT_ALL },
@@ -152,14 +157,14 @@ static struct {
     { 21,  1,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 22,  1,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 23,  1,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24,  1,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25,  1,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 26,  1,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 27,  1,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28,  1,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29,  1,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 30,  1,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 31,  1,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 24,  1,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of shelf_mushroom_stage0 at 24,0
+    { 25,  1,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of shelf_mushroom_stage0 at 24,0
+    { 26,  1,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of shelf_mushroom_stage1 at 26,0
+    { 27,  1,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of shelf_mushroom_stage1 at 26,0
+    { 28,  1,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of straw_bed at 28,0
+    { 29,  1,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of straw_bed at 28,0
+    { 30,  1,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -2, -1 },	// member of straw_bed at 28,0
+    { 31,  1,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -3, -1 },	// member of straw_bed at 28,0
     {  0,  2,  14, 0, L"gold_ore", L"", SWATCH_REPEAT_ALL },
     {  1,  2,  15, 0, L"iron_ore", L"", SWATCH_REPEAT_ALL },
     {  2,  2,  16, 0, L"coal_ore", L"", SWATCH_REPEAT_ALL },
@@ -188,10 +193,10 @@ static struct {
     { 25,  2,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 26,  2,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 27,  2,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28,  2,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29,  2,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 30,  2,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 31,  2,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 28,  2,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -2 },	// member of straw_bed at 28,0
+    { 29,  2,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -2 },	// member of straw_bed at 28,0
+    { 30,  2,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -2, -2 },	// member of straw_bed at 28,0
+    { 31,  2,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -3, -2 },	// member of straw_bed at 28,0
     {  0,  3,  19, 0, L"sponge", L"", SWATCH_REPEAT_ALL },
     {  1,  3,  20, 0, L"glass", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },
     {  2,  3,  56, 0, L"diamond_ore", L"", SWATCH_REPEAT_ALL },
@@ -220,10 +225,10 @@ static struct {
     { 25,  3,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 26,  3,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 27,  3,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28,  3,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29,  3,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 30,  3,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 31,  3,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 28,  3,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -3 },	// member of straw_bed at 28,0
+    { 29,  3,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -3 },	// member of straw_bed at 28,0
+    { 30,  3,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -2, -3 },	// member of straw_bed at 28,0
+    { 31,  3,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -3, -3 },	// member of straw_bed at 28,0
     {  0,  4,  35, 0, L"white_wool", L"wool_colored_white", SWATCH_REPEAT_ALL },
     {  1,  4,  52, 0, L"spawner", L"mob_spawner", SWATCH_REPEAT_ALL | SBIT_DECAL },
     {  2,  4,  78, 0, L"snow", L"", SWATCH_REPEAT_ALL },
