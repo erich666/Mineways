@@ -495,6 +495,12 @@ static TranslationTuple* modTranslations = NULL;
 //   bit  0x40: waterlogged (set elsewhere via WATERLOGGED_BIT)
 #define DECORATED_POT_PROP 77
 
+// BLOCK_SHELF_MUSHROOM (557). A single block type (not waterloggable - it breaks instead, per
+// https://minecraft.wiki/w/Shelf_Mushroom) with two properties:
+//   bits 0x03: facing, door_facing encoding (0=east,1=south,2=west,3=north)
+//   bit  0x04: age (0=small/stage0, 1=large/stage1, from bonemeal)
+#define SHELF_MUSHROOM_PROP 78
+
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
     // hash is computed once when 1.13 data is first read in.
@@ -1820,6 +1826,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 556, BIT_16 | 5, "green_wool_slab", SLAB_PROP },
     { 0, 556, BIT_16 | 6, "red_wool_slab", SLAB_PROP },
     { 0, 556, BIT_16 | 7, "black_wool_slab", SLAB_PROP },
+    { 0, 557,                            0, "shelf_mushroom", SHELF_MUSHROOM_PROP },
 
 };
 
@@ -5241,6 +5248,12 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 side_chain = false;
                 break;
 
+            case SHELF_MUSHROOM_PROP:
+                // the generic "age" token parser above ORs the raw age value straight into dataVal (fine for plain AGE_PROP blocks), which
+                // would collide with door_facing's own low bits here, so rebuild dataVal from scratch rather than OR-ing into it.
+                dataVal = door_facing | ((age & 0x1) << 2);
+                break;
+
             case NO_PROP:
                 // these are also ones where nothing needs to be done. They could all be called NO_PROP,
                 // but it's handy to know what blocks have what properties associated with them.
@@ -7159,6 +7172,11 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             else if (strcmp(k, "side_chain") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x100; }
             break;
 
+        case SHELF_MUSHROOM_PROP:
+            if (strcmp(k, "facing") == 0)      dataVal = (dataVal & ~0x3) | spongeDoorFacingIdxFromName(v);
+            else if (strcmp(k, "age") == 0)    dataVal = (dataVal & ~0x4) | ((atoi(v) & 0x1) << 2);
+            break;
+
         case COPPER_GOLEM_PROP:
             // facing bits 0x03, pose bits 0x0C, waterlogged bit 0x40 (handled universally),
             // oxidation subtype bits 0x30 carried in dataVal by the BlockTranslations entry.
@@ -8712,6 +8730,22 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x4) ? "true" : "false");
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "side_chain", (dataVal & 0x100) ? "true" : "false");
+        break;
+    }
+
+    case SHELF_MUSHROOM_PROP: {
+        // BLOCK_SHELF_MUSHROOM (557). Read-side packs `dataVal = door_facing | ((age & 1) << 2)` (nbt.cpp SHELF_MUSHROOM_PROP arm).
+        // door_facing here is the same literal facing-parser encoding as SHELF_PROP: 0=east, 1=south, 2=west, 3=north.
+        const char* facing;
+        switch (dataVal & 0x3) {
+        case 0: facing = "east"; break;
+        case 1: facing = "south"; break;
+        case 2: facing = "west"; break;
+        default: facing = "north"; break;  // 3
+        }
+        // Alphabetical: age < facing.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "age", (dataVal & 0x4) ? "1" : "0");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
         break;
     }
 

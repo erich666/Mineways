@@ -1795,6 +1795,13 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         strcat_s(gConcatString, 100, " Wool Slab");
         return gConcatString;
 
+    case BLOCK_SHELF_MUSHROOM:
+        // dataVal bit 0x4 is age (0=small stage0, 1=large stage1); default name "Shelf Mushroom" covers age 0.
+        if (dataVal & 0x4) {
+            return "Large Shelf Mushroom";
+        }
+        break;
+
     case BLOCK_CUT_COPPER_DOUBLE_SLAB:
     case BLOCK_CUT_COPPER_SLAB:
         // a little wasteful if the default is returned after all
@@ -6163,6 +6170,13 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_RED_WOOL_STAIRS:
     case BLOCK_BLACK_WOOL_STAIRS:
         // uses 0-7 - TODO we could someday add more blocks to neighbor the others, in order to show the stairs' "step block trim" feature of week 39
+        if (dataVal < 8)
+        {
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_SHELF_MUSHROOM:
+        // uses 0-7: bits 0x3 are facing (door_facing), bit 0x4 is age
         if (dataVal < 8)
         {
             addBlock = 1;

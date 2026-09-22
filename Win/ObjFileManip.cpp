@@ -693,6 +693,9 @@ static void saveBoxReuseGeometryYFaces(int boxIndex, int type, int dataVal, int 
 static void saveBoxReuseGeometry(int boxIndex, int type, int dataVal, int swatchLoc, int faceMask, int rotUVs, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
 static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatchLocSet[6], int markFirstFace, int faceMask, int rotUVs, int reuseVerts,
     float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
+static int saveBoxCustomUVVertices(int boxIndex, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
+static int saveBoxCustomUVFace(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int swatchLoc,
+    float uMin, float uMax, float vMin, float vMax);
 static int findFaceDimensions(float rect[4], int faceDirection, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
 static int lesserNeighborCoversRectangle(int faceDirection, int boxIndex, float rect[4]);
 static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRect[4]);
@@ -7247,6 +7250,100 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         translateToOriginMtx(mtx, boxIndex);
         rotateMtx(mtx, 0.0f, angle, 0.0f);
         // undo translation
+        translateFromOriginMtx(mtx, boxIndex);
+        transformVertices(totalVertexCount, mtx);
+        gUsingTransform = 0;
+        break; // saveBillboardOrGeometry
+    }
+
+    case BLOCK_SHELF_MUSHROOM:						// saveBillboardOrGeometry
+    {
+        // Real geometry translated directly from Minecraft's own block/shelf_mushroom_stage0.json and stage1.json (two small flat boxes:
+        // a wider "cap" and a smaller "lip" beneath it). Unlike most Mineways blocks, the vanilla model's texture is one small image (per
+        // stage) with all six faces of both boxes hand-packed into it at custom UV positions - not a simple repeated/cropped 16x16 tile.
+        // tiles.h registers shelf_mushroom_stage0/1 as a 2x2-tile (32x32 pixel) image (spanX=2,spanY=2) so TileMaker copies it whole into
+        // the terrain atlas, but Mineways' own swatch/UV system (unlike TileMaker) has no concept of a multi-tile span: each of the 2x2
+        // tiles the image occupies is just an ordinary, separately-addressable swatch. So each vanilla face's UV rectangle is expressed
+        // below in its "home" quadrant's own 0-16 local coordinates (dqx,dqy selects which of the 4 quadrant swatches); a handful of faces
+        // (thin side edges) straddle a quadrant boundary in the original art and are clipped to whichever quadrant holds most of them -
+        // an approximation only on those thin edges, not on the top/bottom faces that are actually seen.
+        struct MushroomFaceUV { unsigned char dqx, dqy; float uMin, uMax, vMin, vMax; };
+        // indexed [stage 0/1][box 0=top/1=bottom][faceDirection 0-5, i.e. LO_X/BOTTOM/LO_Z/HI_X/TOP/HI_Z == west/bottom/north/east/top/south]
+        static const MushroomFaceUV faceUV[2][2][6] = {
+            { // stage 0 (small)
+                { // "mushroom_top" box, from [3,9,9] to [13,11,16] in the vanilla model
+                    { 0, 0, 10, 16,  2,  4 },	// west
+                    { 0, 0,  0, 10,  7, 14 },	// bottom
+                    { 0, 0, 10, 16,  4,  6 },	// north
+                    { 0, 0, 10, 16,  0,  2 },	// east
+                    { 0, 0,  0, 10,  0,  7 },	// top
+                    { 0, 0, 10, 16,  6,  8 },	// south
+                },
+                { // "mushroom_bottom" box, from [5,8,12] to [11,9,16]
+                    { 0, 0, 10, 14,  9, 10 },	// west
+                    { 0, 1,  0,  6,  2,  6 },	// bottom
+                    { 0, 0, 10, 16, 10, 11 },	// north
+                    { 0, 0, 10, 14,  8,  9 },	// east
+                    { 0, 0,  0,  6, 14, 16 },	// top
+                    { 0, 0, 10, 16, 11, 12 },	// south
+                },
+            },
+            { // stage 1 (large)
+                { // "mushroom_top" box, from [1,8,6] to [15,11,16]
+                    { 1, 0,  0,  8,  3,  6 },	// west
+                    { 0, 0,  0, 14, 10, 16 },	// bottom
+                    { 1, 0,  0, 12,  6,  9 },	// north
+                    { 1, 0,  0,  8,  0,  3 },	// east
+                    { 0, 0,  0, 14,  0, 10 },	// top
+                    { 1, 0,  0, 12,  9, 12 },	// south
+                },
+                { // "mushroom_bottom" box, from [4,6,10] to [12,8,16]
+                    { 0, 1,  8, 14,  6,  8 },	// west
+                    { 0, 1,  0,  8, 10, 16 },	// bottom
+                    { 0, 1,  8, 16,  8, 10 },	// north
+                    { 0, 1,  8, 14,  4,  6 },	// east
+                    { 0, 1,  0,  8,  4, 10 },	// top
+                    { 0, 1,  8, 16, 10, 12 },	// south
+                },
+            },
+        };
+        // box from/to (minX,maxX,minY,maxY,minZ,maxZ), indexed [stage][box]
+        static const float boxA[2][6] = { { 3,13, 9,11, 9,16 }, { 1,15, 8,11, 6,16 } };	// "mushroom_top"
+        static const float boxB[2][6] = { { 5,11, 8,9, 12,16 }, { 4,12, 6,8, 10,16 } };	// "mushroom_bottom"
+
+        int stage = (dataVal >> 2) & 0x1;	// age: 0 = small (stage0), 1 = large (stage1)
+        int anchorX = (stage == 0) ? 24 : 26;
+        // the four swatches for the packed image's four quadrants, indexed [dqx][dqy]
+        int quadSwatch[2][2];
+        quadSwatch[0][0] = TILE_TO_SWATCH(anchorX, 0);
+        quadSwatch[1][0] = TILE_TO_SWATCH(anchorX + 1, 0);
+        quadSwatch[0][1] = TILE_TO_SWATCH(anchorX, 1);
+        quadSwatch[1][1] = TILE_TO_SWATCH(anchorX + 1, 1);
+
+        totalVertexCount = gModel.vertexCount;
+        gUsingTransform = 1;
+
+        int vA = saveBoxCustomUVVertices(boxIndex, boxA[stage][0], boxA[stage][1], boxA[stage][2], boxA[stage][3], boxA[stage][4], boxA[stage][5]);
+        if (vA >= 0) {
+            for (int fd = 0; fd < 6; fd++) {
+                const MushroomFaceUV* fuv = &faceUV[stage][0][fd];
+                saveBoxCustomUVFace(vA, type, dataVal, fd, (fd == 0) ? 1 : 0, quadSwatch[fuv->dqx][fuv->dqy], fuv->uMin, fuv->uMax, fuv->vMin, fuv->vMax);
+            }
+        }
+        int vB = saveBoxCustomUVVertices(boxIndex, boxB[stage][0], boxB[stage][1], boxB[stage][2], boxB[stage][3], boxB[stage][4], boxB[stage][5]);
+        if (vB >= 0) {
+            for (int fd = 0; fd < 6; fd++) {
+                const MushroomFaceUV* fuv = &faceUV[stage][1][fd];
+                saveBoxCustomUVFace(vB, type, dataVal, fd, 0, quadSwatch[fuv->dqx][fuv->dqy], fuv->uMin, fuv->uMax, fuv->vMin, fuv->vMax);
+            }
+        }
+        totalVertexCount = gModel.vertexCount - totalVertexCount;
+
+        // the boxes above are built for facing=north (the vanilla model's default, unrotated orientation); rotate into place for the other
+        // three facings. door_facing: 0=east,1=south,2=west,3=north - map to the blockstate's own "y" rotation (north=0,east=90,south=180,west=270)
+        identityMtx(mtx);
+        translateToOriginMtx(mtx, boxIndex);
+        rotateMtx(mtx, 0.0f, (float)(((dataVal & 0x3) + 1) % 4) * 90.0f, 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(totalVertexCount, mtx);
         gUsingTransform = 0;
@@ -13863,6 +13960,74 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
     gModel.billboardCount++;
 
     return retCode;
+}
+
+// Create the 8 corner vertices of a box (minPix..maxPix in 0-16 pixel units, same convention as saveBoxAlltileGeometry), without outputting any
+// faces. Returns the index of the first of the 8 vertices, for use with saveBoxCustomUVFace(). Used for blocks whose texture is a hand-packed
+// atlas (translated directly from a Minecraft model JSON) where each face needs its own explicit UV rectangle rather than one auto-derived from
+// the face's position - see BLOCK_SHELF_MUSHROOM.
+static int saveBoxCustomUVVertices(int boxIndex, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ)
+{
+    IPoint anchor;
+    int startVertexIndex = gModel.vertexCount;
+
+    boxIndexToLoc(anchor, gModel.instancing ? 0 : boxIndex);
+
+    float fminx = minPixX / 16.0f, fmaxx = maxPixX / 16.0f;
+    float fminy = minPixY / 16.0f, fmaxy = maxPixY / 16.0f;
+    float fminz = minPixZ / 16.0f, fmaxz = maxPixZ / 16.0f;
+
+    for (int i = 0; i < 8; i++)
+    {
+        Point cornerVertex;
+        Vec3Scalar(cornerVertex, =, (i & 0x4) ? fmaxx : fminx, (i & 0x2) ? fmaxy : fminy, (i & 0x1) ? fmaxz : fminz);
+
+        if (checkVertexListSize() >= MW_BEGIN_ERRORS)
+            return -1;
+
+        float* pt = (float*)gModel.vertices[gModel.vertexCount];
+        pt[X] = (float)anchor[X] + cornerVertex[X];
+        pt[Y] = (float)anchor[Y] + cornerVertex[Y];
+        pt[Z] = (float)anchor[Z] + cornerVertex[Z];
+
+        gModel.vertexCount++;
+        assert(gModel.vertexCount <= gModel.vertexListSize);
+    }
+    return startVertexIndex;
+}
+
+// Save one face of a box created by saveBoxCustomUVVertices(), with an explicit UV rectangle (uMin..vMax, in the same 0-16 unit space as a
+// Minecraft model JSON's own "uv" field) instead of one auto-derived from the face's position. This lets a hand-packed texture atlas (several
+// faces' worth of art crammed into one image, addressed by a custom UV unwrap) be sampled faithfully. See BLOCK_SHELF_MUSHROOM.
+static int saveBoxCustomUVFace(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int swatchLoc,
+    float uMin, float uMax, float vMin, float vMax)
+{
+    int vindex[4];
+    switch (faceDirection)
+    {
+    default:
+    case DIRECTION_BLOCK_SIDE_LO_X:	// CCW
+        vindex[0] = 0x2 | 0x1; vindex[1] = 0x2; vindex[2] = 0; vindex[3] = 0x1;
+        break;
+    case DIRECTION_BLOCK_SIDE_HI_X:	// CCW
+        vindex[0] = 0x4 | 0x2; vindex[1] = 0x4 | 0x2 | 0x1; vindex[2] = 0x4 | 0x1; vindex[3] = 0x4;
+        break;
+    case DIRECTION_BLOCK_SIDE_LO_Z:
+        vindex[0] = 0x2; vindex[1] = 0x4 | 0x2; vindex[2] = 0x4; vindex[3] = 0;
+        break;
+    case DIRECTION_BLOCK_SIDE_HI_Z:
+        vindex[0] = 0x1 | 0x4 | 0x2; vindex[1] = 0x1 | 0x2; vindex[2] = 0x1; vindex[3] = 0x1 | 0x4;
+        break;
+    case DIRECTION_BLOCK_BOTTOM:
+        vindex[0] = 0x4 | 0x1; vindex[1] = 0x1; vindex[2] = 0; vindex[3] = 0x4;
+        break;
+    case DIRECTION_BLOCK_TOP:
+        vindex[0] = 0x2 | 0x4; vindex[1] = 0x2; vindex[2] = 0x2 | 0x1; vindex[3] = 0x2 | 0x4 | 0x1;
+        break;
+    }
+    // vindex[] here is identical to the position-derived case in saveBoxAlltileGeometry (faceDirection switch above), just without the
+    // rotUVs/reverseLoop options that block doesn't need - so reverseLoop=0, rotUVs=0.
+    return saveBoxFace(swatchLoc, type, dataVal, faceDirection, markFirstFace, startVertexIndex, vindex, 0, 0, uMin / 16.0f, uMax / 16.0f, vMin / 16.0f, vMax / 16.0f);
 }
 
 // Find if the specified face touches its voxel's face (i.e., is up against the voxel), and get the dimensions found.
