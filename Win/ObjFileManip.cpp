@@ -7404,14 +7404,22 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 saveBoxCustomUVFace(vA, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[fuvBottom->dqx][fuvBottom->dqy], fuvBottom->uMin, fuvBottom->uMax, fuvBottom->vMin, fuvBottom->vMax);
             }
         }
+        // saveBoxCustomUVFace's corner assignment makes EAST and NORTH the mirror image of WEST and SOUTH:
+        // re-deriving each direction's vindex[]/uv-ordering by hand shows WEST and SOUTH have u increasing
+        // the same way their own box-space axis does (Z for west, X for south), but EAST and NORTH have u
+        // running the *opposite* way along that same axis (they're the opposite-facing plane, so their
+        // natural "as viewed from outside" unwrap runs backwards) - confirmed empirically: the previous fix
+        // (which used the same u direction for all four) left EAST/NORTH's art mirrored/upside-down while
+        // WEST/SOUTH were already right. So EAST/NORTH below get uMin and uMax swapped from what WEST/SOUTH
+        // use for the equivalent span - same texture content and quadrant per side, just the opposite u order.
         if (stage == 0) {
             // west/east are 7 texels wide (straddle by only 1 texel); north/south are 10 (straddle by 4).
             saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_LO_X, 15.0f, 3, 13, 9, 11, 9, 16,
                 quadSwatch[0][0], 10, 16, 12, 14, quadSwatch[1][0], 0, 1, 12, 14);	// west
             saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_HI_X, 15.0f, 3, 13, 9, 11, 9, 16,
-                quadSwatch[0][0], 10, 16, 14, 16, quadSwatch[1][0], 0, 1, 14, 16);	// east
+                quadSwatch[0][0], 16, 10, 14, 16, quadSwatch[1][0], 1, 0, 14, 16);	// east (u swapped)
             saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 9.0f, 3, 13, 9, 11, 9, 16,
-                quadSwatch[0][0], 10, 16, 10, 12, quadSwatch[1][0], 0, 4, 10, 12);	// north
+                quadSwatch[0][0], 16, 10, 10, 12, quadSwatch[1][0], 4, 0, 10, 12);	// north (u swapped)
             saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 9.0f, 3, 13, 9, 11, 9, 16,
                 quadSwatch[0][0], 10, 16, 8, 10, quadSwatch[1][0], 0, 4, 8, 10);	// south
         }
@@ -7420,9 +7428,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_LO_X, 8.0f, 1, 15, 8, 11, 6, 16,
                 quadSwatch[0][0], 14, 16, 10, 13, quadSwatch[1][0], 0, 8, 10, 13);	// west
             saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_HI_X, 8.0f, 1, 15, 8, 11, 6, 16,
-                quadSwatch[0][0], 14, 16, 13, 16, quadSwatch[1][0], 0, 8, 13, 16);	// east
+                quadSwatch[0][0], 16, 14, 13, 16, quadSwatch[1][0], 8, 0, 13, 16);	// east (u swapped)
             saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 3.0f, 1, 15, 8, 11, 6, 16,
-                quadSwatch[0][0], 14, 16, 7, 10, quadSwatch[1][0], 0, 12, 7, 10);	// north
+                quadSwatch[0][0], 16, 14, 7, 10, quadSwatch[1][0], 12, 0, 7, 10);	// north (u swapped)
             saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 3.0f, 1, 15, 8, 11, 6, 16,
                 quadSwatch[0][0], 14, 16, 4, 7, quadSwatch[1][0], 0, 12, 4, 7);	// south
             saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_BOTTOM, 12.0f, 1, 15, 8, 11, 6, 16,
