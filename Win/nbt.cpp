@@ -501,6 +501,12 @@ static TranslationTuple* modTranslations = NULL;
 //   bit  0x04: age (0=small/stage0, 1=large/stage1, from bonemeal)
 #define SHELF_MUSHROOM_PROP 78
 
+// BLOCK_STRAW_BED (558). Like BED_PROP but with no "occupied" blockstate property (confirmed absent
+// from straw_bed.json's blockstates - it's a non-sleepable decorative object, not a real bed).
+//   bits 0x03: facing, SWNE encoding (0=south,1=west,2=north,3=east) - same convention as BED_PROP
+//   bit  0x08: part (0=foot,1=head)
+#define STRAW_BED_PROP 79
+
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
     // hash is computed once when 1.13 data is first read in.
@@ -1827,6 +1833,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 556, BIT_16 | 6, "red_wool_slab", SLAB_PROP },
     { 0, 556, BIT_16 | 7, "black_wool_slab", SLAB_PROP },
     { 0, 557,                            0, "shelf_mushroom", SHELF_MUSHROOM_PROP },
+    { 0, 558,                            0, "straw_bed", STRAW_BED_PROP },
 
 };
 
@@ -3900,6 +3907,10 @@ static const char* defaultStateProperties(const char* fullName)
         return "distance=7,bottom=false,waterlogged=false";
     if (strcmp(name, "crafter") == 0 || strcmp(name, "jigsaw") == 0)
         return "orientation=north_up";
+    // straw_bed's unrotated model variant (no "y" key) is facing=south,part=foot - unlike BED_PROP's
+    // real beds, whose default is north (see familyFacesNorthByDefault); straw_bed has no "occupied" property.
+    if (strcmp(name, "straw_bed") == 0)
+        return "facing=south,part=foot";
 #undef NAME_ENDS_WITH
     return NULL;
 }
@@ -5535,6 +5546,10 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 // note that "occupied" will not be set if GRAPHICAL_ONLY is defined
                 dataVal = ((door_facing + 3) % 4) + part + occupied;
                 break;
+            case STRAW_BED_PROP:
+                // south/west/north/east == 0/1/2/3; no "occupied" property exists for straw_bed
+                dataVal = ((door_facing + 3) % 4) + part;
+                break;
             case FENCE_PROP:
                 dataVal = (south ? 1 : 0) | (west ? 2 : 0) | (north ? 4 : 0) | (east ? 8 : 0);
                 break;
@@ -6720,6 +6735,11 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             if (strcmp(k, "facing") == 0)        dataVal = (dataVal & ~0x3) | spongeSwneIdxFromName(v);
             else if (strcmp(k, "occupied") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x4; }
             else if (strcmp(k, "part") == 0)     { if (strcmp(v, "head") == 0) dataVal |= 0x8; }
+            break;
+
+        case STRAW_BED_PROP:
+            if (strcmp(k, "facing") == 0)      dataVal = (dataVal & ~0x3) | spongeSwneIdxFromName(v);
+            else if (strcmp(k, "part") == 0)   { if (strcmp(v, "head") == 0) dataVal |= 0x8; }
             break;
 
         case REPEATER_PROP:
@@ -8994,6 +9014,13 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         // dataVal = swne_facing + part(0|8) + occupied(0|4)
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeSwneFromDataVal(dataVal));
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "occupied", (dataVal & 0x4) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "part", (dataVal & 0x8) ? "head" : "foot");
+        break;
+    }
+
+    case STRAW_BED_PROP: {
+        // BLOCK_STRAW_BED (558). dataVal = swne_facing + part(0|8); no "occupied" property.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeSwneFromDataVal(dataVal));
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "part", (dataVal & 0x8) ? "head" : "foot");
         break;
     }

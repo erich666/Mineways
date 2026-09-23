@@ -33,7 +33,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 #include <stdint.h>
 
-#define NUM_TRANS 1295
+#define NUM_TRANS 1296
 
 // versionID: what format is the data in https://minecraft.wiki/w/Data_version#List_of_data_versions
 // This 2685 version of 1.17 beta, 21w06a, went to a height of 384; went back to normal with 2709, 21w15a.

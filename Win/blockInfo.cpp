@@ -649,4 +649,5 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 555 */ "Double White Wool Slab",       0xEEEEEE, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0,  4, 0x17, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_LAME_WATERLOG | BLF_MAYWATERLOG },
     { /* 556 */ "White Wool Slab",              0xEEEEEE, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0,  4, 0x17, BLF_HALF | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 557 */ "Shelf Mushroom",               0xB06F40, 1.000f, 0xff7711, 0xff7711, 0.12345f, 24,  0, 0x04, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },
+    { /* 558 */ "Straw Bed",                    0xC2A542, 1.000f, 0xff7711, 0xff7711, 0.12345f, 28,  0, 0x00, BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
 };

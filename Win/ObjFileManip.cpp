@@ -7469,6 +7469,241 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break; // saveBillboardOrGeometry
     }
 
+    case BLOCK_STRAW_BED:							// saveBillboardOrGeometry
+    {
+        // Real geometry translated directly from Minecraft's own block/straw_bed_foot.json and straw_bed_head.json
+        // (15 elements total: foot has a base slab plus 3 thin "frill" overhangs that poke past the block's own
+        // X/Z bounds; head has a base slab, a raised pillow, 2 more frills, and 8 thin pillow-frill sheets). Like
+        // BLOCK_SHELF_MUSHROOM, the vanilla texture is one small hand-packed image (straw_bed.png, registered in
+        // tiles.h as a 4x4-tile/64x64 image anchored at (28,0)) with every face's UV rectangle placed at a custom
+        // spot rather than a simple repeated/cropped 16x16 tile, so every face here goes through
+        // saveBoxCustomUVVertices/saveBoxCustomUVFace with an explicit per-face UV rectangle (in real 0-64 pixel
+        // units, i.e. the vanilla model's own "uv" values x4) rather than one auto-derived from face position.
+        // Faces whose real-pixel UV rectangle crosses a 16-texel tile boundary in the packed atlas are split into
+        // multiple partial-range boxes (one saveBoxCustomUVVertices call each), each covering the proportional
+        // sub-range of world space that piece's fraction of the texture actually shows - same technique as
+        // BLOCK_SHELF_MUSHROOM's saveMushroomSplitFace, generalized here to 2D (row AND column) splits since these
+        // elements are packed far more densely than the mushroom's were.
+        //
+        // Every face's uMin/uMax/vMin/vMax below follows the same empirically-validated (via 5 rounds of
+        // BLOCK_SHELF_MUSHROOM fixes) per-direction rules baked into the code generator that produced this case:
+        //   - u's world axis is Z for west/east, X for north/south/up/down; v's world axis is Y for the four side
+        //     faces, Z for up/down.
+        //   - u runs DIRECT (world-axis-min <-> local-column-min) for west/south/up/down, and INVERSE
+        //     (world-axis-min <-> local-column-max) for east/north - and for a straddling face on an inverse
+        //     direction, the piece on the geometric-min side gets the piece with the HIGHER real-pixel column
+        //     range, not just a flipped u within a fixed column tile (re-derived and cross-checked by hand against
+        //     BLOCK_SHELF_MUSHROOM's own validated east/north split geometry before trusting the generator's output
+        //     for this block's two multi-column-tile north faces, head's "base" and "pillow").
+        //   - v = 16-rowMax,16-rowMin (rowMin<rowMax sorted, in that piece's own local tile row) for up; the
+        //     opposite pairing, v = 16-rowMin,16-rowMax, for down and all four side faces.
+        //   - a vanilla "rotation": 180 flag (frills_03/frills_04/frills_05 in the foot model) swaps both
+        //     uMin<->uMax and vMin<->vMax after the base formula above.
+        // Local (element-relative) box coordinates were taken verbatim from the vanilla model JSON; some frill
+        // elements extend a few pixels past the block's own 0-16 cube (e.g. foot's frills_04 to X=19, frills_05 to
+        // X=-3) exactly as they do in vanilla, which saveBoxCustomUVVertices supports fine (it only derives vertex
+        // positions from pixel coordinates - it doesn't require or clamp to the 0-16 range).
+
+        int part = (dataVal & 0x8) ? 1 : 0;	// 0 = foot, 1 = head
+        int bedFacing = dataVal & 0x3;	// SWNE: 0=south,1=west,2=north,3=east (same convention as BED_PROP)
+
+        // the 16 swatches for the packed 64x64 image's 4x4 tile grid, indexed [column][row]
+        int quadSwatch[4][4];
+        for (int qc = 0; qc < 4; qc++)
+            for (int qr = 0; qr < 4; qr++)
+                quadSwatch[qc][qr] = TILE_TO_SWATCH(28 + qc, qr);
+
+        totalVertexCount = gModel.vertexCount;
+        gUsingTransform = 1;
+
+        if (part == 0) {
+            // ---- FOOT ----
+            { // element: base
+              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 0.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 1, quadSwatch[1][2], 16.0f,0.0f, 3.0f,7.0f); } // base.north
+              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 0.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_X, 0, quadSwatch[0][2], 16.0f,0.0f, 3.0f,7.0f); } // base.east
+              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 0.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_X, 0, quadSwatch[2][2], 0.0f,16.0f, 3.0f,7.0f); } // base.west
+              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 9.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[1][1], 16.0f,0.0f, 7.0f,0.0f); } // base.up_11
+              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 0.0f,9.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[1][2], 16.0f,0.0f, 16.0f,7.0f); } // base.up_12
+              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 0.0f,7.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[2][1], 16.0f,0.0f, 0.0f,7.0f); } // base.down_21
+              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 7.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[2][2], 16.0f,0.0f, 7.0f,16.0f); } // base.down_22
+            }
+            { // element: frills_03
+              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.125000f,0.125000f, -3.0f,0.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][2], 16.0f,0.0f, 0.0f,3.0f); } // frills_03.up
+              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.125000f,0.125000f, -3.0f,0.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[0][3], 16.0f,0.0f, 16.0f,13.0f); } // frills_03.down
+            }
+            { // element: frills_04
+              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,19.0f, 0.105000f,0.105000f, 0.0f,7.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[3][1], 3.0f,0.0f, 0.0f,7.0f); } // frills_04.up_31
+              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,19.0f, 0.105000f,0.105000f, 7.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[3][2], 3.0f,0.0f, 7.0f,16.0f); } // frills_04.up_32
+              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,19.0f, 0.105000f,0.105000f, 9.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[3][1], 6.0f,3.0f, 7.0f,0.0f); } // frills_04.down_31
+              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,19.0f, 0.105000f,0.105000f, 0.0f,9.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[3][2], 6.0f,3.0f, 16.0f,7.0f); } // frills_04.down_32
+            }
+            { // element: frills_05
+              { int v = saveBoxCustomUVVertices(boxIndex, -3.0f,0.0f, 0.115000f,0.115000f, 9.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[3][1], 9.0f,6.0f, 0.0f,7.0f); } // frills_05.up_31
+              { int v = saveBoxCustomUVVertices(boxIndex, -3.0f,0.0f, 0.115000f,0.115000f, 0.0f,9.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[3][2], 9.0f,6.0f, 7.0f,16.0f); } // frills_05.up_32
+              { int v = saveBoxCustomUVVertices(boxIndex, -3.0f,0.0f, 0.115000f,0.115000f, 0.0f,7.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[3][1], 12.0f,9.0f, 7.0f,0.0f); } // frills_05.down_31
+              { int v = saveBoxCustomUVVertices(boxIndex, -3.0f,0.0f, 0.115000f,0.115000f, 7.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[3][2], 12.0f,9.0f, 16.0f,7.0f); } // frills_05.down_32
+            }
+        }
+        else {
+            // ---- HEAD ----
+            { // element: base
+              { int v = saveBoxCustomUVVertices(boxIndex, 8.0f,16.0f, 0.0f,4.0f, 0.0f,8.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 1, quadSwatch[0][1], 16.0f,8.0f, 7.0f,11.0f); } // base.north_01
+              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,8.0f, 0.0f,4.0f, 0.0f,8.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[1][1], 8.0f,0.0f, 7.0f,11.0f); } // base.north_11
+              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 0.0f,8.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_X, 0, quadSwatch[0][1], 8.0f,0.0f, 7.0f,11.0f); } // base.east
+              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 0.0f,8.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, quadSwatch[2][1], 0.0f,16.0f, 7.0f,11.0f); } // base.south
+              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 0.0f,8.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_X, 0, quadSwatch[1][1], 8.0f,16.0f, 7.0f,11.0f); } // base.west
+              { int v = saveBoxCustomUVVertices(boxIndex, 8.0f,16.0f, 0.0f,4.0f, 5.0f,8.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][0], 16.0f,8.0f, 3.0f,0.0f); } // base.up_00
+              { int v = saveBoxCustomUVVertices(boxIndex, 8.0f,16.0f, 0.0f,4.0f, 0.0f,5.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][1], 16.0f,8.0f, 16.0f,11.0f); } // base.up_01
+              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,8.0f, 0.0f,4.0f, 5.0f,8.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[1][0], 8.0f,0.0f, 3.0f,0.0f); } // base.up_10
+              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,8.0f, 0.0f,4.0f, 0.0f,5.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[1][1], 8.0f,0.0f, 16.0f,11.0f); } // base.up_11
+              { int v = saveBoxCustomUVVertices(boxIndex, 8.0f,16.0f, 0.0f,4.0f, 0.0f,3.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[1][0], 16.0f,8.0f, 0.0f,3.0f); } // base.down_10
+              { int v = saveBoxCustomUVVertices(boxIndex, 8.0f,16.0f, 0.0f,4.0f, 3.0f,8.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[1][1], 16.0f,8.0f, 11.0f,16.0f); } // base.down_11
+              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,8.0f, 0.0f,4.0f, 0.0f,3.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[2][0], 8.0f,0.0f, 0.0f,3.0f); } // base.down_20
+              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,8.0f, 0.0f,4.0f, 3.0f,8.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[2][1], 8.0f,0.0f, 11.0f,16.0f); } // base.down_21
+            }
+            { // element: pillow_frills_01
+              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 0.065000f,0.065000f, 9.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][1], 6.0f,4.0f, 7.0f,0.0f); } // pillow_frills_01.up_01
+              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 0.065000f,0.065000f, 8.0f,9.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][2], 6.0f,4.0f, 16.0f,15.0f); } // pillow_frills_01.up_02
+              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 0.065000f,0.065000f, 8.0f,15.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[0][1], 8.0f,6.0f, 0.0f,7.0f); } // pillow_frills_01.down_01
+              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 0.065000f,0.065000f, 15.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[0][2], 8.0f,6.0f, 15.0f,16.0f); } // pillow_frills_01.down_02
+            }
+            { // element: pillow_frills_02
+              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 4.960000f,4.960000f, 8.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[2][0], 10.0f,8.0f, 16.0f,8.0f); } // pillow_frills_02.up
+              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 4.960000f,4.960000f, 8.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[2][0], 12.0f,10.0f, 8.0f,16.0f); } // pillow_frills_02.down
+            }
+            { // element: pillow_frills_03
+              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 0.065000f,4.950000f, 8.025000f,8.025000f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[0][2], 6.0f,4.0f, 10.075000f,15.0f); } // pillow_frills_03.north
+              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 0.065000f,4.950000f, 8.025000f,8.025000f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, quadSwatch[0][2], 8.0f,6.0f, 10.075000f,15.0f); } // pillow_frills_03.south
+            }
+            { // element: pillow_frills_04
+              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 0.065000f,3.040635f, 15.985000f,15.985000f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[2][0], 10.0f,8.0f, 0.0f,3.0f); } // pillow_frills_04.north_20
+              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 3.040635f,4.950000f, 15.985000f,15.985000f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[2][1], 10.0f,8.0f, 14.075000f,16.0f); } // pillow_frills_04.north_21
+              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 0.065000f,3.040635f, 15.985000f,15.985000f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, quadSwatch[2][0], 10.0f,12.0f, 0.0f,3.0f); } // pillow_frills_04.south_20
+              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 3.040635f,4.950000f, 15.985000f,15.985000f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, quadSwatch[2][1], 10.0f,12.0f, 14.075000f,16.0f); } // pillow_frills_04.south_21
+            }
+            { // element: pillow_frills_05
+              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 0.050000f,0.050000f, 9.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][1], 2.0f,0.0f, 7.0f,0.0f); } // pillow_frills_05.up_01
+              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 0.050000f,0.050000f, 8.0f,9.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][2], 2.0f,0.0f, 16.0f,15.0f); } // pillow_frills_05.up_02
+              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 0.050000f,0.050000f, 8.0f,15.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[0][1], 2.0f,4.0f, 0.0f,7.0f); } // pillow_frills_05.down_01
+              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 0.050000f,0.050000f, 15.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[0][2], 2.0f,4.0f, 15.0f,16.0f); } // pillow_frills_05.down_02
+            }
+            { // element: pillow_frills_06
+              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 4.975000f,4.975000f, 8.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][0], 2.0f,0.0f, 16.0f,8.0f); } // pillow_frills_06.up
+              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 4.975000f,4.975000f, 8.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[0][0], 2.0f,4.0f, 8.0f,16.0f); } // pillow_frills_06.down
+            }
+            { // element: pillow_frills_07
+              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 0.050000f,4.975000f, 8.0f,8.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[0][2], 2.0f,0.0f, 10.075000f,15.0f); } // pillow_frills_07.north
+              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 0.050000f,4.975000f, 8.0f,8.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, quadSwatch[0][2], 4.0f,2.0f, 10.075000f,15.0f); } // pillow_frills_07.south
+            }
+            { // element: pillow_frills_08
+              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 0.050000f,3.050000f, 15.975000f,15.975000f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[0][0], 2.0f,0.0f, 0.0f,3.0f); } // pillow_frills_08.north_00
+              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 3.050000f,4.975000f, 15.975000f,15.975000f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[0][1], 2.0f,0.0f, 14.075000f,16.0f); } // pillow_frills_08.north_01
+              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 0.050000f,3.050000f, 15.975000f,15.975000f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, quadSwatch[0][0], 4.0f,2.0f, 0.0f,3.0f); } // pillow_frills_08.south_00
+              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 3.050000f,4.975000f, 15.975000f,15.975000f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, quadSwatch[0][1], 4.0f,2.0f, 14.075000f,16.0f); } // pillow_frills_08.south_01
+            }
+            { // element: pillow
+              { int v = saveBoxCustomUVVertices(boxIndex, 8.0f,16.0f, 0.0f,5.0f, 8.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[0][0], 16.0f,8.0f, 3.0f,8.0f); } // pillow.north_00
+              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,8.0f, 0.0f,5.0f, 8.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[1][0], 8.0f,0.0f, 3.0f,8.0f); } // pillow.north_10
+              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,5.0f, 8.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_X, 0, quadSwatch[0][0], 8.0f,0.0f, 3.0f,8.0f); } // pillow.east
+              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,5.0f, 8.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, quadSwatch[2][0], 0.0f,16.0f, 3.0f,8.0f); } // pillow.south
+              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,5.0f, 8.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_X, 0, quadSwatch[1][0], 8.0f,16.0f, 3.0f,8.0f); } // pillow.west
+              { int v = saveBoxCustomUVVertices(boxIndex, 8.0f,16.0f, 0.0f,5.0f, 8.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][0], 16.0f,8.0f, 16.0f,8.0f); } // pillow.up_00
+              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,8.0f, 0.0f,5.0f, 8.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[1][0], 8.0f,0.0f, 16.0f,8.0f); } // pillow.up_10
+              { int v = saveBoxCustomUVVertices(boxIndex, 8.0f,16.0f, 0.0f,5.0f, 8.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[1][0], 16.0f,8.0f, 8.0f,16.0f); } // pillow.down_10
+              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,8.0f, 0.0f,5.0f, 8.0f,16.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[2][0], 8.0f,0.0f, 8.0f,16.0f); } // pillow.down_20
+            }
+            { // element: frills_02
+              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,19.0f, 0.050000f,0.050000f, 0.0f,8.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[3][1], 3.0f,0.0f, 15.0f,7.0f); } // frills_02.up
+              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,19.0f, 0.050000f,0.050000f, 0.0f,8.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[3][1], 6.0f,3.0f, 7.0f,15.0f); } // frills_02.down
+            }
+            { // element: frills_03b
+              { int v = saveBoxCustomUVVertices(boxIndex, -3.0f,0.0f, 0.065000f,0.065000f, 0.0f,8.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[3][1], 9.0f,6.0f, 15.0f,7.0f); } // frills_03b.up
+              { int v = saveBoxCustomUVVertices(boxIndex, -3.0f,0.0f, 0.065000f,0.065000f, 0.0f,8.0f);
+                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[3][1], 12.0f,9.0f, 7.0f,15.0f); } // frills_03b.down
+            }
+        }
+
+        totalVertexCount = gModel.vertexCount - totalVertexCount;
+
+        // the elements above are built for facing=south (the vanilla model's default, unrotated orientation, per
+        // straw_bed.json's blockstates - unlike BLOCK_SHELF_MUSHROOM's door_facing/north default); rotate into
+        // place for the other three facings. SWNE facing maps directly to the blockstate's own "y" rotation
+        // (south=0,west=90,north=180,east=270), i.e. angle = facing * 90, with no remap needed.
+        identityMtx(mtx);
+        translateToOriginMtx(mtx, boxIndex);
+        rotateMtx(mtx, 0.0f, (float)bedFacing * 90.0f, 0.0f);
+        translateFromOriginMtx(mtx, boxIndex);
+        transformVertices(totalVertexCount, mtx);
+        gUsingTransform = 0;
+        break; // saveBillboardOrGeometry
+    }
+
     case BLOCK_COPPER_GOLEM_STATUE:				// saveBillboardOrGeometry
     case BLOCK_WAXED_COPPER_GOLEM_STATUE:
     {

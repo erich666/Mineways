@@ -1802,6 +1802,13 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         }
         break;
 
+    case BLOCK_STRAW_BED:
+        // dataVal bit 0x8 is part (0=foot,1=head); default name "Straw Bed" covers the foot half.
+        if (dataVal & 0x8) {
+            return "Straw Bed (Head)";
+        }
+        break;
+
     case BLOCK_CUT_COPPER_DOUBLE_SLAB:
     case BLOCK_CUT_COPPER_SLAB:
         // a little wasteful if the default is returned after all
@@ -6178,6 +6185,13 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_SHELF_MUSHROOM:
         // uses 0-7: bits 0x3 are facing (door_facing), bit 0x4 is age
         if (dataVal < 8)
+        {
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_STRAW_BED:
+        // valid values are {0,1,2,3,8,9,10,11}: bits 0x3 are SWNE facing, bit 0x8 is part - bits 0x4 unused
+        if ((dataVal & ~0xB) == 0)
         {
             addBlock = 1;
         }
