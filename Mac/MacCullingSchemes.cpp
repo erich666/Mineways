@@ -7,6 +7,7 @@
 #include <wx/config.h>
 #include <wx/checklst.h>
 #include <wx/sizer.h>
+#include <wx/tokenzr.h>
 #include <climits>
 #include "MacCullingSchemes.h"
 #include "stdafx.h"   // project types via compat.h -> blockInfo.h etc.
@@ -69,12 +70,15 @@ static void saveScheme(const MacCullingScheme& cs)
     wxConfig cfg("Mineways");
     cfg.SetPath(cfgPath(cs.id));
     cfg.Write("name", wxString::FromUTF8(cs.name));
-    // culled[] as hex string
-    wxString hex;
-    hex.Alloc(NUM_CULL_ENTRIES * 2);
-    for (int i = 0; i < NUM_CULL_ENTRIES; i++)
-        hex += wxString::Format("%02x", cs.culled[i]);
-    cfg.Write("culled", hex);
+    wxString names;
+    for (int i = 0; i < blockTransCount(); i++) {
+        const char* name = nullptr;
+        if (cs.culled[i] && blockTransNameAt(i, &name)) {
+            if (!names.IsEmpty()) names += '\n';
+            names += wxString::FromUTF8(name);
+        }
+    }
+    cfg.Write("culledNames", names);
     cfg.SetPath("/");
 }
 
@@ -84,12 +88,9 @@ static bool loadScheme(int id, MacCullingScheme& cs)
 
     wxConfig cfg("Mineways");
     cfg.SetPath(cfgPath(id));
-    wxString name, hex;
-    if (!cfg.Read("name", &name) || !cfg.Read("culled", &hex)) {
-        cfg.SetPath("/"); return false;
-    }
-
-    if (hex.length() != NUM_CULL_ENTRIES * 2) {
+    wxString name, hex, names;
+    bool hasNames = cfg.Read("culledNames", &names);
+    if (!cfg.Read("name", &name) || (!hasNames && !cfg.Read("culled", &hex))) {
         cfg.SetPath("/"); return false;
     }
 
@@ -100,22 +101,52 @@ static bool loadScheme(int id, MacCullingScheme& cs)
     }
     strcpy(decoded.name, utf8Name.data());
     decoded.id = id;
-    for (int i = 0; i < NUM_CULL_ENTRIES; i++) {
-        wxUniChar high = hex[2*i];
-        wxUniChar low = hex[2*i + 1];
-        auto isHexDigit = [](wxUniChar c) {
-            return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
-                   (c >= 'A' && c <= 'F');
-        };
-        unsigned long v = 0;
-        if (!isHexDigit(high) || !isHexDigit(low) ||
-            !hex.Mid(2*i, 2).ToULong(&v, 16) || v > 0xff) {
+    if (hasNames) {
+        if (names.length() > NUM_CULL_ENTRIES * 80) {
             cfg.SetPath("/"); return false;
         }
-        decoded.culled[i] = v ? 1 : 0;
+        wxStringTokenizer tokens(names, "\n");
+        int tokenCount = 0;
+        while (tokens.HasMoreTokens()) {
+            if (++tokenCount > NUM_CULL_ENTRIES) {
+                cfg.SetPath("/"); return false;
+            }
+            wxString selected = tokens.GetNextToken();
+            for (int i = 0; i < blockTransCount(); i++) {
+                const char* blockName = nullptr;
+                if (blockTransNameAt(i, &blockName) && selected == wxString::FromUTF8(blockName)) {
+                    decoded.culled[i] = 1;
+                    break;
+                }
+            }
+        }
+    } else {
+        // v13.01 stored 1206 row indices. 26.3 inserted red_shrub at 852 and
+        // three poplar leaves at 951-953 before appending the remaining blocks.
+        int count = (int)(hex.length() / 2);
+        if (hex.length() % 2 || (count != NUM_CULL_ENTRIES && count != 1206) ||
+            (count == 1206 && NUM_CULL_ENTRIES != 1296)) {
+            cfg.SetPath("/"); return false;
+        }
+        for (int i = 0; i < count; i++) {
+            wxUniChar high = hex[2*i];
+            wxUniChar low = hex[2*i + 1];
+            auto isHexDigit = [](wxUniChar c) {
+                return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
+                       (c >= 'A' && c <= 'F');
+            };
+            unsigned long v = 0;
+            if (!isHexDigit(high) || !isHexDigit(low) ||
+                !hex.Mid(2*i, 2).ToULong(&v, 16) || v > 0xff) {
+                cfg.SetPath("/"); return false;
+            }
+            int currentIndex = count == 1206 ? i + (i >= 950 ? 4 : i >= 852 ? 1 : 0) : i;
+            decoded.culled[currentIndex] = v ? 1 : 0;
+        }
     }
     cfg.SetPath("/");
     cs = decoded;
+    if (!hasNames) saveScheme(cs);
     return true;
 }
 
