@@ -101,7 +101,7 @@ static void splitPath(const wchar_t* pathAndName, wchar_t* dir, wchar_t* name)
 static void progressCB(float /*p*/, wchar_t* /*buf*/) {}
 
 // Persist the full export dialog settings across launches, as a hex-encoded raw byte
-// blob (same idiom as MacCullingSchemes.cpp's culled[] persistence). A "size" key guards
+// blob. A "size" key guards
 // against loading a blob written by a build with a different ExportFileData layout.
 static void SaveExportFileData(const ExportFileData& e)
 {
