@@ -1316,7 +1316,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
 
             if (catIndex == CATEGORY_RGBA) {
                 // compute progress increments, now that we know the input texture size
-                determineProgressValues(fileType, gBoxSize[X] - 3, gBoxSize[Z] - 3);
+                determineProgressValues(fileType, xmax - xmin, zmax - zmin);
                 startProgress = false;
             }
             UPDATE_PROGRESS(gProgress.start.readTextures + (float)(catIndex+1) * (float)gProgress.absolute.readTextures / (float)gTotalInputTextures);
@@ -1324,7 +1324,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     }
     if (startProgress) {
         // compute progress increments
-        determineProgressValues(fileType, gBoxSize[X] - 3, gBoxSize[Z] - 3);
+        determineProgressValues(fileType, xmax - xmin, zmax - zmin);
     }
 
     UPDATE_STATUS(gProgress.start.readBlocks, L"Read selected blocks");
