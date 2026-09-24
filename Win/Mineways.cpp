@@ -370,7 +370,7 @@ static struct {
     {_T("Warning: multiple separate parts found after processing.\n\nThis may not be what you want to print. Increase the value for 'Delete floating parts' to delete these. Try the 'Debug: show separate parts' export option to see if the model is what you expected."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<3
     {_T("Warning: at least one dimension of the model is too long.\n\nCheck the dimensions for this printer's material: look in the top of the model file itself, using a text editor."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<4
     {_T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock. Mineways does not understand blocks added by mods, and uses the older (simpler) schematic format so does not support blocks added in 1.13 or newer versions. If you are not using mods nor exporting 1.13 or newer blocks, your version of Mineways may be out of date. Check http://mineways.com for a newer version."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<5
-    {_T("Warning: too few rows of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt*.png with 80 rows."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<6 VERTICAL_TILES
+    {_T("Warning: too few rows or columns of block textures were found in your terrain\ntexture file. Newer block types will not export properly.\nPlease use the TileMaker program or other image editor\nto make a TerrainExt*.png with 80 rows and 32 columns."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<6 VERTICAL_TILES
     {_T("Warning: one or more Change Block commands specified location(s) that were outside the selected volume."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<7
     {_T("Warning: with the large Terrain File you're using, the output texture is extremely large. Other programs make have problems using it. We recommend that you use the 'Export tiles' option instead, or reduce the size of your Terrain File by using the '-t 256' (or smaller) option in TileMaker.\n\nThis warning will not be repeated this session."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<8
     {_T("Warning: only air blocks found; no file output. If you see something on the map, you likely need to set the Depth slider near the top to 0, or tap the space bar for a reasonable guess."), _T("Export warning"), MB_OK | MB_ICONWARNING},	// <<9
@@ -378,7 +378,7 @@ static struct {
 
     {_T("Error creating export file; no file output"), _T("Export error"), MB_OK | MB_ICONERROR},	// <<11
     {_T("Error: cannot write to export file"), _T("Export error"), MB_OK | MB_ICONERROR},	// <<12
-    {_T("Error: the incoming terrainExt*.png file resolution must be divisible by 16 horizontally and at least 16 pixels wide."), _T("Export error"), MB_OK | MB_ICONERROR},	// <<13
+    {_T("Error: the incoming terrainExt*.png file resolution must be divisible by 32 horizontally and at least 32 pixels wide."), _T("Export error"), MB_OK | MB_ICONERROR},	// <<13
     {_T("Error: the incoming terrainExt*.png file image has fewer than 16 rows of block tiles."), _T("Export error"), MB_OK | MB_ICONERROR},	// <<14
     {_T("Error: the exported volume cannot have a dimension greater than 65535."), _T("Export error"), MB_OK | MB_ICONERROR},	// <<15 MW_DIMENSION_TOO_LARGE
     {_T("Error: cannot read import file."), _T("Import error"), MB_OK | MB_ICONERROR},	// <<16

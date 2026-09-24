@@ -71,10 +71,10 @@ static const wchar_t* gChestNamesAlt[] = { L"", L"double_normal", L"", L"", L"",
 static const wchar_t* gDecoratedPotNames[] = { L"decorated_pot_base" };
 static const wchar_t* gDecoratedPotNamesAlt[] = { L"" };
 
-#define TOTAL_SHELF_TILES	12
+#define TOTAL_SHELF_TILES	13
 static const wchar_t* gShelfNames[] = { L"acacia_shelf", L"birch_shelf", L"cherry_shelf", L"crimson_shelf", L"dark_oak_shelf",
-	L"jungle_shelf", L"mangrove_shelf", L"oak_shelf", L"pale_oak_shelf", L"warped_shelf", L"bamboo_shelf", L"spruce_shelf" };
-static const wchar_t* gShelfNamesAlt[] = { L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"" };
+	L"jungle_shelf", L"mangrove_shelf", L"oak_shelf", L"pale_oak_shelf", L"warped_shelf", L"bamboo_shelf", L"spruce_shelf", L"poplar_shelf" };
+static const wchar_t* gShelfNamesAlt[] = { L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"" };
 
 typedef struct ChestGrid {
 	int chestCount;

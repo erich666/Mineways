@@ -429,7 +429,7 @@ typedef struct Options {
 } Options;
 
 // number of blocks with entries in block info table (max number at bottom + 1) - now that 255 is used, we need this
-#define NUM_BLOCKS_DEFINED 511
+#define NUM_BLOCKS_DEFINED 559
 // number of official Minecraft blocks (no longer needed - we used to have the block after everything be special)
 #define NUM_BLOCKS_STANDARD NUM_BLOCKS_DEFINED
 // number of blocks we want to show on the map (no longer needed - includes the unknown one)
@@ -936,7 +936,7 @@ enum block_types {
     BLOCK_WEATHERED_CUT_COPPER_STAIRS = 393,
     BLOCK_OXIDIZED_CUT_COPPER_STAIRS = 394,
     BLOCK_LIGHTNING_ROD = 395,
-    BLOCK_RESERVED_FLOWER_POT = 396,
+    BLOCK_RED_SHRUB = 396,
     BLOCK_CUT_COPPER_DOUBLE_SLAB = 397,
     BLOCK_CUT_COPPER_SLAB = 398,
     BLOCK_WAXED_CUT_COPPER_STAIRS = 399,
@@ -1053,4 +1053,52 @@ enum block_types {
     BLOCK_POLISHED_SULFUR_STAIRS = 508,
     BLOCK_SULFUR_BRICK_STAIRS = 509,
     BLOCK_POTENT_SULFUR = 510,
+    BLOCK_POPLAR_STAIRS = 511,
+    BLOCK_AIR_512 = 512,    // not used: a type whose low 8 bits are 0 (256, 512, 768...) reads as air
+    BLOCK_POPLAR_BUTTON = 513,
+    BLOCK_POPLAR_DOOR = 514,
+    BLOCK_POPLAR_FENCE = 515,
+    BLOCK_POPLAR_FENCE_GATE = 516,
+    BLOCK_POPLAR_TRAPDOOR = 517,
+    BLOCK_POPLAR_SIGN_POST = 518,
+    BLOCK_POPLAR_WALL_SIGN = 519,
+    BLOCK_POPLAR_HANGING_SIGN = 520,
+    BLOCK_WHITE_CONCRETE_STAIRS = 521,
+    BLOCK_ORANGE_CONCRETE_STAIRS = 522,
+    BLOCK_MAGENTA_CONCRETE_STAIRS = 523,
+    BLOCK_LIGHT_BLUE_CONCRETE_STAIRS = 524,
+    BLOCK_YELLOW_CONCRETE_STAIRS = 525,
+    BLOCK_LIME_CONCRETE_STAIRS = 526,
+    BLOCK_PINK_CONCRETE_STAIRS = 527,
+    BLOCK_GRAY_CONCRETE_STAIRS = 528,
+    BLOCK_LIGHT_GRAY_CONCRETE_STAIRS = 529,
+    BLOCK_CYAN_CONCRETE_STAIRS = 530,
+    BLOCK_PURPLE_CONCRETE_STAIRS = 531,
+    BLOCK_BLUE_CONCRETE_STAIRS = 532,
+    BLOCK_BROWN_CONCRETE_STAIRS = 533,
+    BLOCK_GREEN_CONCRETE_STAIRS = 534,
+    BLOCK_RED_CONCRETE_STAIRS = 535,
+    BLOCK_BLACK_CONCRETE_STAIRS = 536,
+    BLOCK_CONCRETE_DOUBLE_SLAB = 537,   // the 16 concrete colors: bits 0x7 and BIT_16 are the color, like BLOCK_CUT_COPPER_SLAB
+    BLOCK_CONCRETE_SLAB = 538,
+    BLOCK_WHITE_WOOL_STAIRS = 539,
+    BLOCK_ORANGE_WOOL_STAIRS = 540,
+    BLOCK_MAGENTA_WOOL_STAIRS = 541,
+    BLOCK_LIGHT_BLUE_WOOL_STAIRS = 542,
+    BLOCK_YELLOW_WOOL_STAIRS = 543,
+    BLOCK_LIME_WOOL_STAIRS = 544,
+    BLOCK_PINK_WOOL_STAIRS = 545,
+    BLOCK_GRAY_WOOL_STAIRS = 546,
+    BLOCK_LIGHT_GRAY_WOOL_STAIRS = 547,
+    BLOCK_CYAN_WOOL_STAIRS = 548,
+    BLOCK_PURPLE_WOOL_STAIRS = 549,
+    BLOCK_BLUE_WOOL_STAIRS = 550,
+    BLOCK_BROWN_WOOL_STAIRS = 551,
+    BLOCK_GREEN_WOOL_STAIRS = 552,
+    BLOCK_RED_WOOL_STAIRS = 553,
+    BLOCK_BLACK_WOOL_STAIRS = 554,
+    BLOCK_WOOL_DOUBLE_SLAB = 555,   // the 16 wool colors: bits 0x7 and BIT_16 are the color, like BLOCK_CUT_COPPER_SLAB
+    BLOCK_WOOL_SLAB = 556,
+    BLOCK_SHELF_MUSHROOM = 557,   // bits 0x3 are facing (door_facing: 0=east,1=south,2=west,3=north), bit 0x4 is age (0=small,1=large)
+    BLOCK_STRAW_BED = 558,   // bits 0x3 are SWNE facing (south=0,west=1,north=2,east=3), bit 0x8 is part (0=foot,1=head)
 };

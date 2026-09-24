@@ -479,7 +479,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 393 */ "Weathered Cut Copper Stairs",  0x6F936E, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 394 */ "Oxidized Cut Copper Stairs",   0x529D81, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 395 */ "Lightning Rod",                0xC67155, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13, 50, 0x30, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_DNE_FLUID | BLF_CONNECTS_REDSTONE | BLF_MAYWATERLOG },
-    { /* 396 */ "(unused)" /* "Flower Pot" */,  0x7C4536, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 11, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },   //8C
+    { /* 396 */ "Red Shrub",                    0x7A2316, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 79, 0x00, BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID },	// like dead bush, or bush, but cannot be put in a flower pot
     { /* 397 */ "Double Cut Copper Slab",   	0xC16D53, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 50, 0x17, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_LAME_WATERLOG | BLF_MAYWATERLOG }, // bizarrely, may waterlog, though pretty pointless; important for instancing
     { /* 398 */ "Cut Copper Slab",              0xC16D53, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 50, 0x17, BLF_HALF | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//2c/44 - was 6,0, and 5,0 side
     { /* 399 */ "Waxed Cut Copper Stairs",      0xC16D53, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
@@ -520,7 +520,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 434 */ "Sculk Vein",           		0x0B3C45, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 56, 0x00, BLF_BILLBOARD | BLF_FLATTEN_SMALL | BLF_PANE | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_OFFSET | BLF_MAYWATERLOG },
     { /* 435 */ "Frogspawn",               		0x4D5581, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 54, 0x00, BLF_FLATTEN | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_OFFSET },
     { /* 436 */ "Ochre Froglight",         		0xFBF6D2, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 55, 0x03, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_EMITTER },
-    { /* 437 */ "Mangrove Leaves",				0x6fac2c, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 54, 0x3f, BLF_WHOLE | BLF_CUTOUTS | BLF_LEAF_PART | BLF_MAYWATERLOG },
+    { /* 437 */ "Mangrove Leaves",				0x6fac2c, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 54, 0x07, BLF_WHOLE | BLF_CUTOUTS | BLF_LEAF_PART | BLF_MAYWATERLOG },
         // 1.20, though I snuck Decorated Pot in a slot above
     { /* 438 */ "Cherry Button",                0xE3B4AE, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 57, 0x00, BLF_FLATTEN_SMALL | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },
     { /* 439 */ "Cherry Door",                  0xE0ACA7, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 57, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
@@ -585,7 +585,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 498 */ "Waxed Copper Chest",           0xBF6B4F, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 72, 0x20, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
     { /* 499 */ "Waxed Oxidised Copper Chest",  0x52A386, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 74, 0x20, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
     { /* 500 */ "Acacia Shelf",                 0xAB5B3A, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 76, 0x38, BLF_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
-    { /* 501 */ "Pale Oak Shelf",               0xF3ECEA, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 77, 0x18, BLF_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
+    { /* 501 */ "Pale Oak Shelf",               0xF3ECEA, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 77, 0x38, BLF_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
     // Copper Golem Statues (1.21.10+). Subtype mask 0x30 covers the 4 oxidation levels in
     // bits 4-5 of dataVal; bits 0-1 = facing, bits 2-3 = copper_golem_pose, bit 0x40 =
     // waterlogged. Textures default to placeholder atlas tile (txrX=0, txrY=40) until the
@@ -599,7 +599,55 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 508 */ "Polished Sulfur Stairs",       0xBDAD5C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 78, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 509 */ "Sulfur Brick Stairs",          0xBCAB5C, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 78, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 510 */ "Potent Sulfur",                0xD3D162, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 78, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
+    { /* 511 */ "Poplar Stairs",      		    0x978B80, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 79, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
 
-    // Important note: 396 is skipped, it's the BLOCK_FLOWER_POT, also skip 400, BLOCK_HEAD. Nicer still would be to redo the code for those two blocks (and redo IDBlock() method) so that we don't use up all 8 bits
+    // just to be safe, we don't use 256 and consider it AIR - actually, a feature: any time we see a type value whose low 8 bits is 0x00, it's air; no need to check the high bits
+    //			 name                           read_color ralpha color     prem-clr  alpha,   txX,  Y,  mtl, flags
+    { /* 512 */ "Air",                    		0x000000, 0.000f, 0xff7711, 0xff7711, 0.12345f, 13, 14, 0x00, BLF_NONE },
+    { /* 513 */ "Poplar Button",  	    	    0x978B80, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 79, 0x00, BLF_FLATTEN_SMALL | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },
+    { /* 514 */ "Poplar Door",   	        	0x998E83, 1.000f, 0xff7711, 0xff7711, 0.12345f, 17,  0, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
+    { /* 515 */ "Poplar Fence",         		0x978B80, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 79, 0x00, BLF_MIDDLER | BLF_FENCE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 516 */ "Poplar Fence Gate",  		    0x978B80, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 79, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_FENCE_GATE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE },
+    { /* 517 */ "Poplar Trapdoor",     		    0x968B80, 1.000f, 0xff7711, 0xff7711, 0.12345f, 18,  0, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_FLATTEN | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
+    { /* 518 */ "Poplar Sign",                  0x978B80, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 79, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
+    { /* 519 */ "Poplar Wall Sign",             0x978B80, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 79, 0x00, BLF_FLATTEN_SMALL | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG },
+    { /* 520 */ "Poplar Hanging Sign",          0xA5998C, 1.000f, 0xff7711, 0xff7711, 0.12345f, 14, 79, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG },
+    { /* 521 */ "White Concrete Stairs",        0xCFD5D6, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 29, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 522 */ "Orange Concrete Stairs",       0xE06101, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 29, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 523 */ "Magenta Concrete Stairs",      0xA9309F, 1.000f, 0xff7711, 0xff7711, 0.12345f,  2, 29, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 524 */ "Light Blue Concrete Stairs",   0x2489C7, 1.000f, 0xff7711, 0xff7711, 0.12345f,  3, 29, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 525 */ "Yellow Concrete Stairs",       0xF1AF15, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 29, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 526 */ "Lime Concrete Stairs",         0x5EA918, 1.000f, 0xff7711, 0xff7711, 0.12345f,  5, 29, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 527 */ "Pink Concrete Stairs",         0xD6658F, 1.000f, 0xff7711, 0xff7711, 0.12345f,  6, 29, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 528 */ "Gray Concrete Stairs",         0x373A3E, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 29, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 529 */ "Light Gray Concrete Stairs",   0x7D7D73, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 29, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 530 */ "Cyan Concrete Stairs",         0x157788, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 29, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 531 */ "Purple Concrete Stairs",       0x64209C, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 29, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 532 */ "Blue Concrete Stairs",         0x2D2F8F, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 29, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 533 */ "Brown Concrete Stairs",        0x603C20, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 29, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 534 */ "Green Concrete Stairs",        0x495B24, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13, 29, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 535 */ "Red Concrete Stairs",          0x8E2121, 1.000f, 0xff7711, 0xff7711, 0.12345f, 14, 29, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 536 */ "Black Concrete Stairs",        0x080A0F, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 29, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 537 */ "Double White Concrete Slab",   0xCFD5D6, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 29, 0x17, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_LAME_WATERLOG | BLF_MAYWATERLOG },
+    { /* 538 */ "White Concrete Slab",          0xCFD5D6, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 29, 0x17, BLF_HALF | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 539 */ "White Wool Stairs",            0xEEEEEE, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0,  4, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 540 */ "Orange Wool Stairs",           0xDA8248, 1.000f, 0xff7711, 0xff7711, 0.12345f,  2, 13, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 541 */ "Magenta Wool Stairs",          0xBA5EC2, 1.000f, 0xff7711, 0xff7711, 0.12345f,  2, 12, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 542 */ "Light Blue Wool Stairs",       0x7B96CD, 1.000f, 0xff7711, 0xff7711, 0.12345f,  2, 11, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 543 */ "Yellow Wool Stairs",           0xC1B52A, 1.000f, 0xff7711, 0xff7711, 0.12345f,  2, 10, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 544 */ "Lime Wool Stairs",             0x46BA3A, 1.000f, 0xff7711, 0xff7711, 0.12345f,  2,  9, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 545 */ "Pink Wool Stairs",             0xD597A7, 1.000f, 0xff7711, 0xff7711, 0.12345f,  2,  8, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 546 */ "Gray Wool Stairs",             0x434343, 1.000f, 0xff7711, 0xff7711, 0.12345f,  2,  7, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 547 */ "Light Gray Wool Stairs",       0xA6ACAC, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 14, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 548 */ "Cyan Wool Stairs",             0x307592, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 13, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 549 */ "Purple Wool Stairs",           0x8643BF, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 12, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 550 */ "Blue Wool Stairs",             0x2E3B97, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 11, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 551 */ "Brown Wool Stairs",            0x53351F, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 10, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 552 */ "Green Wool Stairs",            0x384B1B, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1,  9, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 553 */ "Red Wool Stairs",              0xA23732, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1,  8, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 554 */ "Black Wool Stairs",            0x1D1818, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1,  7, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 555 */ "Double White Wool Slab",       0xEEEEEE, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0,  4, 0x17, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_LAME_WATERLOG | BLF_MAYWATERLOG },
+    { /* 556 */ "White Wool Slab",              0xEEEEEE, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0,  4, 0x17, BLF_HALF | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
+    { /* 557 */ "Shelf Mushroom",               0xB06F40, 1.000f, 0xff7711, 0xff7711, 0.12345f, 24,  0, 0x04, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },
+    { /* 558 */ "Straw Bed",                    0xC2A542, 1.000f, 0xff7711, 0xff7711, 0.12345f, 28,  0, 0x00, BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
 };
-

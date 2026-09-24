@@ -151,6 +151,59 @@ On master, removing HIGH_BIT promotion will break >255 block IDs silently.
 
 ---
 
+## Terrain atlas: 32 tiles wide (tiles.h, TileMaker, ObjFileManip.cpp)
+
+- `terrainExt.png` is `XTILES` (32) tiles wide and `VERTICAL_TILES` (80) rows tall. `Win/tiles.h` `gTilesTable` has one entry per cell, so
+  its index is `col + XTILES*row`. The left 16 columns hold all the older tiles at their original positions; the right 16 are for new tiles.
+- A tile entry may set optional `spanX/spanY` (one image covering NxN tiles, e.g., 32x32 image = 2x2 tiles). The anchor cell holds the name; the cells it
+  covers are left blank and reserved. TileMaker copies the whole region (`tileSpan()`); Mineways does not yet use spans.
+- In ObjFileManip.cpp, swatch indices are **paged**, not the table index: page 0 is the left 16 columns row by row, page 1 the right 16 columns
+  (`TILES_PER_PAGE`). Each page is 16 tiles wide, so all the `swatchLoc + 1`, `+ 16` and wrap-past-column-15 code works as it always has.
+  - `SWATCH_INDEX(col,row)` is plain `col + row*16`: an overflowing col wraps to the next row (e.g., `SWATCH_INDEX(14 + (dataVal & 7), 36)`). Use it for literal
+    left-page tiles and for computed offsets.
+  - `TILE_TO_SWATCH(col,row)` takes a real tile column 0-31 (what tiles.h and `gBlockDefinitions[].txrX` hold). Use it for anything from block/tile data, and add
+    offsets *after* it: `TILE_TO_SWATCH(b.txrX, b.txrY) + (dataVal & 3)`. Never put the offset in its col argument, since col >= 16 means the right page there.
+  - Convert back with `swatchToCol/Row/TableIndex()` or `TILES_ENTRY(swatchLoc)` when indexing `gTilesTable` or the input terrain image. Loops over `TOTAL_TILES` that use
+    the index as a swatch need `TILES_ENTRY(i)`; loops that only read the table (e.g., using `txrX/txrY`) use `gTilesTable[i]`.
+- TileMaker's chest/shelf/copper-chest tile runs also wrap at 16 columns (they live in the left half); `poplar_shelf` is pinned at 20-22,0.
+- Old 16-wide terrainBase/terrainExt files are detected (height > 3*width) and widened on load, in both TileMaker and Mineways.
+- The embedded fallback `Win/terrainExtData.*` is 512x1280 (16px tiles x 32 wide). Regenerate with `TileMaker -i terrainBase.png -nt -t 16`, then dump to C arrays.
+- Output texture resolution is `2 * terrain width` (was `4 *` when 16 wide), so the memory use and swatch capacity are about what they were.
+- Test: `Mineways.exe -headless script.mwscript` with "Export all textures to three large images"; the process exit crash (0xC0000005) also happens in HEAD, so ignore it.
+
+## Block types above 511 (poplar, etc.)
+
+- The world grid stores a 12-bit type (low 8 bits in `grid[]`, bits 8-11 in the top nibble of `data[]`), so types to 4095 work. `BlockTranslator.blockId` is now `unsigned short`: a row with `blockId` >= 512
+  (e.g., `{ 0, 513, 0, "poplar_button", BUTTON_PROP }`) gives the whole type, and needs no `TYPE_HIGH_BIT1`. Rows below 512 are as before (`blockId` plus `TYPE_HIGH_BIT1` for +256). The `.schem` code
+  (`spongeParseStateString`, `findSpongeTranslator`, the `type & 0xFFF` tests) handles this too.
+- **Never use a type whose low 8 bits are 0 (256, 512, 768, ...)**: it reads as air. 512 is a placeholder row and `BLOCK_AIR_512`.
+- A wood that has many block types gets: subtypes of existing types where there is room (log/wood/stripped/planks/slab/sapling/pressure plate/shelf/wall hanging sign/leaves) and new types where there is not
+  (stairs, button, door, fence, fence gate, trapdoor, sign, wall sign, hanging sign). For a new wood, mirror poplar: grep `BLOCK_PALE_OAK_` and `BLOCK_POPLAR_` for every place to add cases, and the sign, hanging sign, shelf,
+  pressure plate and door getSwatch code for the tiles. A tile in the right half of the terrain image needs `TILE_TO_SWATCH(col,row)`, never `SWATCH_INDEX(col,row)` with col >= 16 (that wraps to the next row).
+- Leaf subtype is `dataVal & 0x7` (mangrove 0, cherry 1, pale oak 2, yellow/orange/red poplar 3/4/5). `persistent` is `LEAF_PERSISTENT_BIT` (0x100), not 0x4 or 0x80: the .schem reader treats 0x80 as "type + 256" and
+  keeps only 7 bits of dataVal, so persistent is not kept through a .schem (it is not graphical).
+- Checks that worked for a new wood: export the 26.3 debug world (it has every poplar state), compare each poplar state's geometry to its pale oak twin (same shape expected), list each material's swatches from
+  the OBJ UVs, and round-trip through `Export schematic:` and back.
+
+## Minecraft 26.3 (DataVersion 5023) chunk palettes (nbt.cpp readPalette)
+
+- A block palette is no longer always a list of `{Name, Properties}` compounds. In 26.3 chunks it can be: a **list of strings** (`minecraft:stone`, when no entry needs
+  properties); or a **list of compounds** where a state that is not the block's default has `id` (not `Name`) and `properties` (not `Properties`), and a default-state
+  entry is a string wrapped in a compound with an **empty tag name** (`{"": "minecraft:stone"}`; 1.21.5+ heterogeneous-list wrapping). Older chunks keep the old form, even
+  inside a 26.3 world (chunks convert only when the game loads them), so both are read.
+- **A default-state block has no properties at all.** `readPalette` starts every property at false/0, which is right for most blocks but not e.g. `facing` (starts as east; the
+  default is north), walls (`up=true`), signs (`rotation=8`), etc. So when an entry has no properties, `defaultStateProperties()` makes up the default properties in memory and runs
+  them through the same parser. It first looks the block up in the generated table `Win/defaultStates.h` (every block with properties in the debug worlds), then falls back to
+  hand-written rules (`familyFacesNorthByDefault()` etc.) for blocks not in the table, i.e., newer or modded blocks.
+- **`Win/defaultStates.h` is generated - do not edit it.** Run `tools/make_default_states.ps1 -OldWorld <26.2 Debug World> -NewWorld <26.3 Debug World>` after fully generating both
+  debug worlds (fly to the far corners so every chunk exists). A block's default is the state the older world lists that the newer world does not list with properties. Redo this for
+  each new Minecraft version that adds blocks with properties, and check the "note" lines it prints for blocks whose default it could not tell.
+- All property variables are now reset at the start of every palette entry. Before, a stale `powered` from an earlier entry made a waterlogged campfire a soul campfire (both use
+  0x8), depending on palette order, which differs between 26.2 and 26.3.
+- Testing: export the debug worlds' block layer (y 70) from both versions, then `tools/compare_debug_worlds.cs` (load with Add-Type) decodes each state from the chunks and compares its
+  exported geometry between the two worlds by position (the OBJ is centred on the selection: world = OBJ + 256). Result on 26.2 vs 26.3: 32,132 of 32,363 states identical; the rest are
+  float noise (signs) and per-position random geometry (chorus plant). Debug worlds hold states that cannot occur in play, so it's a stress test, not the goal.
+
 ## Culling Scheme system (Win/CullingSchemes.cpp/.h, plus hooks)
 
 User-defined sets of blocks to hide from both map view and exports. Parallel
