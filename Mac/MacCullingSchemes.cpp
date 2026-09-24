@@ -125,17 +125,6 @@ static void deleteScheme(int id)
     cfg.DeleteGroup(cfgPath(id));
 }
 
-static int nextSchemeId()
-{
-    wxConfig cfg("Mineways");
-    long id = 0;
-    if (!cfg.Read("/CullingSchemes/schemeId", &id) || id < 0 || id >= INT_MAX)
-        id = 0;
-    id++;
-    cfg.Write("/CullingSchemes/schemeId", id);
-    return (int)id;
-}
-
 // Enumerate all saved scheme IDs (returns sorted list)
 static wxArrayInt listSchemeIds()
 {
@@ -155,6 +144,28 @@ static wxArrayInt listSchemeIds()
     cfg.SetPath("/");
     ids.Sort([](int* a, int* b){ return (*a > *b) - (*a < *b); });
     return ids;
+}
+
+static int nextSchemeId()
+{
+    wxConfig cfg("Mineways");
+    long id = 0;
+    if (!cfg.Read("/CullingSchemes/schemeId", &id) || id < 0 || id >= INT_MAX)
+        id = 0;
+    wxArrayInt ids = listSchemeIds();
+    for (int existing : ids)
+        if (existing > id) id = existing;
+    if (id >= INT_MAX) {
+        id = 0;
+        for (int existing : ids) {
+            if (existing != id + 1) break;
+            ++id;
+        }
+    }
+    if (id >= INT_MAX) return 0;
+    ++id;
+    cfg.Write("/CullingSchemes/schemeId", id);
+    return (int)id;
 }
 
 static MacCullingScheme gCurCS;
@@ -365,6 +376,7 @@ void doCullingSchemesMac(wxWindow* parent)
 
     btnNew->Bind(wxEVT_BUTTON, [&](wxCommandEvent&) {
         int id = nextSchemeId();
+        if (!id) return;
         MacCullingScheme cs = {};
         cs.id = id;
         snprintf(cs.name, 255, "Culling Scheme %d", id);
@@ -394,6 +406,7 @@ void doCullingSchemesMac(wxWindow* parent)
         MacCullingScheme src;
         if (!loadScheme(rowIds[sel], src)) return;
         int id = nextSchemeId();
+        if (!id) return;
         MacCullingScheme cs = src;
         cs.id = id;
         snprintf(cs.name, 255, "%s copy", src.name);
