@@ -337,6 +337,100 @@ static void getTileMaterialName(int swatchLoc, char* outName, int outSizeChars)
     WcharToChar(wName, outName, outSizeChars);
 }
 
+// How many tiles wide (and high - spans are square) the image anchored at this swatch is: 1 for a normal tile.
+static int tileSpan(int swatchLoc)
+{
+    if (swatchLoc < 0 || swatchLoc >= TOTAL_TILES)
+        return 1;
+    return (TILES_ENTRY(swatchLoc).spanX > 1) ? TILES_ENTRY(swatchLoc).spanX : 1;
+}
+
+// Multi-tile ("span") images, such as straw_bed.png, are used whole by model faces (see saveBoxModelFace), never chopped into their
+// separate 16x16 tiles: when exporting individual tiles the image is written out as one file with UVs over the whole image, so it
+// can be swapped out after export. When exporting a mosaic, each span image gets its own contiguous block of span x span swatch slots
+// in the mosaic, with a border span texels wide (SWATCH_BORDER scaled up by the span) filled by clamping the image's edges.
+#define MAX_SPAN_IMAGES 16
+typedef struct SpanImage {
+    int anchorLoc;  // tiles.h swatch location of the image's upper left tile
+    int span;       // image is span x span tiles
+    int blockCol;   // mosaic swatch slot column and row of the reserved block's upper left, -1 if none
+    int blockRow;
+    UVList uvList;  // span UVs saved so far, so that they can be shared
+} SpanImage;
+static SpanImage gSpanImages[MAX_SPAN_IMAGES];
+static int gSpanImageCount = 0;
+
+static void freeSpanImages()
+{
+    for (int i = 0; i < gSpanImageCount; i++) {
+        free(gSpanImages[i].uvList.records);
+    }
+    memset(gSpanImages, 0, sizeof(gSpanImages));
+    gSpanImageCount = 0;
+}
+
+// find all span images in tiles.h
+static void initSpanImages()
+{
+    freeSpanImages();
+    for (int i = 0; i < TOTAL_TILES; i++) {
+        if (gTilesTable[i].spanX > 1) {
+            assert(gTilesTable[i].spanX == gTilesTable[i].spanY);  // spans must be square
+            assert(gSpanImageCount < MAX_SPAN_IMAGES);
+            if (gSpanImageCount < MAX_SPAN_IMAGES) {
+                SpanImage* pSpan = &gSpanImages[gSpanImageCount++];
+                pSpan->anchorLoc = TILE_TO_SWATCH(gTilesTable[i].txrX, gTilesTable[i].txrY);
+                pSpan->span = gTilesTable[i].spanX;
+                pSpan->blockCol = pSpan->blockRow = -1;
+            }
+        }
+    }
+}
+
+static SpanImage* findSpanImage(int anchorLoc)
+{
+    for (int i = 0; i < gSpanImageCount; i++) {
+        if (gSpanImages[i].anchorLoc == anchorLoc)
+            return &gSpanImages[i];
+    }
+    return NULL;
+}
+
+// Mosaic export: reserve the span images' blocks in the bottom right corner of the mosaic's swatch slots, largest first, side by side
+// from right to left, all sitting on the bottom row. Composite swatches (see getCompositeSwatch) are allocated upwards from TOTAL_TILES
+// and skip over these slots. Returns false if the blocks don't fit without overlapping the tiles themselves.
+static bool reserveSpanBlocks()
+{
+    int rightCol = gModel.swatchesPerRow;
+    for (int size = 64; size > 1; size--) {
+        for (int i = 0; i < gSpanImageCount; i++) {
+            if (gSpanImages[i].span == size) {
+                gSpanImages[i].blockCol = rightCol - size;
+                gSpanImages[i].blockRow = gModel.swatchesPerRow - size;
+                rightCol -= size;
+                // first slot of the block's top row is its lowest numbered slot, which must be past the tiles
+                if (rightCol < 0 || gSpanImages[i].blockRow * gModel.swatchesPerRow + gSpanImages[i].blockCol < TOTAL_TILES)
+                    return false;
+            }
+        }
+    }
+    return true;
+}
+
+static bool isSpanReservedSlot(int swatchLoc)
+{
+    int col, row;
+    SWATCH_TO_COL_ROW(swatchLoc, col, row);
+    for (int i = 0; i < gSpanImageCount; i++) {
+        const SpanImage* pSpan = &gSpanImages[i];
+        if (pSpan->blockCol >= 0 &&
+            col >= pSpan->blockCol && col < pSpan->blockCol + pSpan->span &&
+            row >= pSpan->blockRow && row < pSpan->blockRow + pSpan->span)
+            return true;
+    }
+    return false;
+}
+
 // these are swatches that we will use for other things;
 // The swatches reused are the "breaking block" animations, which we'll never need
 #define TORCH_TOP               SWATCH_INDEX( 0,15 )
@@ -739,12 +833,22 @@ static void saveBoxReuseGeometry(int boxIndex, int type, int dataVal, int swatch
 static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatchLocSet[6], int markFirstFace, int faceMask, int rotUVs, int reuseVerts,
     float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
 static int saveBoxCustomUVVertices(int boxIndex, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
-static int saveBoxCustomUVFace(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int swatchLoc,
-    float uMin, float uMax, float vMin, float vMax);
-static void saveMushroomSplitFace(int boxIndex, int type, int dataVal, int faceDirection, float splitCoord,
-    float minX, float maxX, float minY, float maxY, float minZ, float maxZ,
-    int swatchMinSide, float uMinMinSide, float uMaxMinSide, float vMinMinSide, float vMaxMinSide,
-    int swatchMaxSide, float uMinMaxSide, float uMaxMaxSide, float vMinMaxSide, float vMaxMaxSide);
+// One face of a Minecraft block model JSON element: direction, "uv" [u1,v1,u2,v2] in 0-16 units over the whole texture, and "rotation"
+typedef struct ModelFace {
+    int faceDirection;
+    float uv[4];
+    int rotation;
+} ModelFace;
+// One Minecraft block model JSON element: "from", "to" (in 0-16 pixel units) and its faces
+typedef struct ModelElement {
+    float from[3];
+    float to[3];
+    int faceCount;
+    ModelFace face[6];
+} ModelElement;
+static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount);
+static int saveBoxModelFace(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int anchorLoc, const float uv[4], int rotation);
+static int saveSpanTextureUV(int anchorLoc, int type, float su, float sv);
 static int findFaceDimensions(float rect[4], int faceDirection, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
 static int lesserNeighborCoversRectangle(int faceDirection, int boxIndex, float rect[4]);
 static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRect[4]);
@@ -848,7 +952,7 @@ static void resolveFaceNormals();
 
 static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float power);
 
-static int mosaicUVtoSeparateUV();
+static int mosaicUVtoSeparateUV(int* pUVOutputCount);
 
 static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* box, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC);
 static int writeBinarySTLBox(WorldGuide* pWorldGuide, IBox* box, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC);
@@ -935,6 +1039,9 @@ static int createBaseMaterialTexture();
 static void copyPNGArea(progimage_info* dst, int dst_x_min, int dst_y_min, int size_x, int size_y, progimage_info* src, int src_x_min, int src_y_min);
 static void copyPNGAreaChannels(progimage_info* dst, int dst_x_min, int dst_y_min, int size_x, int size_y, progimage_info* src, int src_x_min, int src_y_min, int channels);
 static void extendPBRSwatchBorder(progimage_info* dst, int swatchCol, int swatchRow, int swatchSize, int tileSize, int channels);
+static void gatherSpanFromMaster(progimage_info* dst, int dstX, int dstY, progimage_info* src, int anchorLoc, int span, int swatchSize, int swatchesPerRow);
+static void clampImageBorder(progimage_info* img, int x0, int y0, int size, int border, int channels);
+static void getSpanBlockImageOrigin(const SpanImage* pSpan, int& x0, int& y0);
 static void setColorPNGArea(progimage_info* dst, int dst_x_min, int dst_y_min, int size_x, int size_y, unsigned int value);
 static void stretchSwatchToTop(progimage_info* dst, int swatchIndex, float startStretch);
 static void stretchSwatchToFill(progimage_info* dst, int swatchIndex, int xlo, int ylo, int xhi, int yhi);
@@ -1368,6 +1475,21 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         gModel.textureUVPerSwatch = (float)gModel.swatchSize / (float)gModel.textureResolution; // e.g. 18 / 256
         gModel.textureUVPerTile = (float)gModel.tileSize / (float)gModel.textureResolution; // e.g. 16 / 256
         gModel.swatchListSize = gModel.swatchesPerRow * gModel.swatchesPerRow;
+
+        // multi-tile images get their own blocks in a mosaic; see reserveSpanBlocks()
+        initSpanImages();
+        if ((gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) && !gModel.exportTiles) {
+            // Only very small tiles (under 16x16) could fail to fit, in which case make a larger mosaic
+            while (!reserveSpanBlocks()) {
+                gModel.textureResolution *= 2;
+                gModel.invTextureResolution = 1.0f / (float)gModel.textureResolution;
+                gModel.swatchesPerRow = (int)(gModel.textureResolution / gModel.swatchSize);
+                gModel.textureUVPerSwatch = (float)gModel.swatchSize / (float)gModel.textureResolution;
+                gModel.textureUVPerTile = (float)gModel.tileSize / (float)gModel.textureResolution;
+                // composites are limited by the per-swatch UV lists
+                gModel.swatchListSize = min(gModel.swatchesPerRow * gModel.swatchesPerRow, NUM_MAX_SWATCHES);
+            }
+        }
 
         if (EXPORT_TEXTURE) {
             retCode |= createBaseMaterialTexture();
@@ -3366,7 +3488,7 @@ static int filterBox(ChangeBlockCommand* pCBC)
                         if (type != BLOCK_AIR)
                         {
                             int flags = gBlockDefinitions[type].flags;
-                            // check: is it geometry we can export? Clear it out if so.
+                            // check: is it geometry we can export? Export and clear it out if so.
 
                             // If we're 3d printing, or rendering without textures, then export 3D printable bits,
                             // on the assumption that the software can merge the data properly with the solid model.
@@ -3377,6 +3499,9 @@ static int filterBox(ChangeBlockCommand* pCBC)
                                 retVal = saveBillboardOrGeometry(boxIndex, type);
                                 if (retVal == 1)
                                 {
+                                    // successfully saved minor geometry - count it just once
+                                    gModel.billboardCount++;
+
                                     // this block is then cleared out, since it's been processed.
                                     if (IS_WATERLOGGED(type, boxIndex)) {
                                         // clears to water if waterlogged, e.g., seagrass
@@ -7309,157 +7434,66 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
     case BLOCK_SHELF_MUSHROOM:						// saveBillboardOrGeometry
     {
-        // Real geometry translated directly from Minecraft's own block/shelf_mushroom_stage0.json and stage1.json (two small flat boxes:
-        // a wider "cap" and a smaller "lip" beneath it). Unlike most Mineways blocks, the vanilla model's texture is one small image (per
-        // stage) with all six faces of both boxes hand-packed into it at custom UV positions - not a simple repeated/cropped 16x16 tile.
-        // tiles.h registers shelf_mushroom_stage0/1 as a 2x2-tile (32x32 pixel) image (spanX=2,spanY=2) so TileMaker copies it whole into
-        // the terrain atlas, but Mineways' own swatch/UV system (unlike TileMaker) has no concept of a multi-tile span: each of the 2x2
-        // tiles the image occupies is just an ordinary, separately-addressable swatch. So each vanilla face's UV rectangle is expressed
-        // below in its "home" quadrant's own 0-16 local coordinates (dqx,dqy selects which of the 4 quadrant swatches); a handful of faces
-        // (thin side edges) straddle a quadrant boundary in the original art and are clipped to whichever quadrant holds most of them -
-        // an approximation only on those thin edges, not on the top/bottom faces that are actually seen.
-        struct MushroomFaceUV { unsigned char dqx, dqy; float uMin, uMax, vMin, vMax; };
-        // indexed [stage 0/1][box 0=top/1=bottom][faceDirection 0-5, i.e. LO_X/BOTTOM/LO_Z/HI_X/TOP/HI_Z == west/bottom/north/east/top/south]
-        // uMin/uMax/vMin/vMax are NOT simply the vanilla model's raw "uv": [x1,y1,x2,y2]" doubled to real pixels: saveBoxCustomUVFace fixes
-        // which geometric corner gets which of {uMin,uMax}x{vMin,vMax} purely by faceDirection - and that fixed corner assignment is NOT the
-        // same for every direction. Empirically (checked against in-game screenshots of real placed blocks, from directly above, at an angle
-        // from below, and side-on, since getting this wrong doesn't throw or look obviously broken - it just silently samples the wrong pixels
-        // or shows them upside down), every face needs vMin/vMax derived from the source image's real pixel rows (0 = top of the source crop),
-        // but which one gets "16 - rowMin" and which gets "16 - rowMax" flips between TOP and every other direction:
-        //   - TOP:                              vMin = 16 - rowMin, vMax = 16 - rowMax
-        //   - BOTTOM and all four side faces:   vMin = 16 - rowMax, vMax = 16 - rowMin
-        // (BOTTOM is TOP's mirror image, and the side faces turned out to share BOTTOM's convention rather than TOP's - confirmed by first
-        // fixing only TOP/BOTTOM uniformly, seeing the side faces and mushroom_top's underside still come out wrong, then re-deriving each
-        // direction's own corner assignment from saveBoxCustomUVFace's vindex[] tables instead of assuming they all match TOP.) u is the plain
-        // real-pixel column (uMin < uMax, no mirroring) for every face except mushroom_bottom's own "bottom" face on both stages, whose art is
-        // rotated 180 degrees from the rest (confirmed by comparing an export against an in-game screenshot) and so also needs uMin > uMax.
-        static const MushroomFaceUV faceUV[2][2][6] = {
-            { // stage 0 (small)
-                { // "mushroom_top" box, from [3,9,9] to [13,11,16] in the vanilla model
-                    { 0, 0, 10, 16, 12, 14 },	// west (source rows 2-4)
-                    { 0, 0,  0, 10,  2,  9 },	// bottom (source rows 7-14)
-                    { 0, 0, 10, 16, 10, 12 },	// north (source rows 4-6)
-                    { 0, 0, 10, 16, 14, 16 },	// east (source rows 0-2)
-                    { 0, 0,  0, 10, 16,  9 },	// top (source rows 0-7) - TOP's own convention, unchanged since the first fix
-                    { 0, 0, 10, 16,  8, 10 },	// south (source rows 6-8)
-                },
-                { // "mushroom_bottom" box, from [5,8,12] to [11,9,16]
-                    { 0, 0, 10, 14,  6,  7 },	// west (source rows 9-10)
-                    { 0, 1,  6,  0, 10, 14 },	// bottom (source rows 2-6; u also flipped - this face's own art is rotated 180 degrees)
-                    { 0, 0, 10, 16,  5,  6 },	// north (source rows 10-11)
-                    { 0, 0, 10, 14,  7,  8 },	// east (source rows 8-9)
-                    { 0, 0,  0,  6,  2,  0 },	// top (source rows 14-16) - TOP's own convention, unchanged since the first fix
-                    { 0, 0, 10, 16,  4,  5 },	// south (source rows 11-12)
-                },
+        // Minecraft's block/shelf_mushroom_stage0.json and stage1.json, used verbatim: element boxes, and each face's uv and rotation
+        // on the whole 32x32 shelf_mushroom_stage0/1.png image (a 2x2 tile span in tiles.h). See saveModelElements.
+        static const ModelElement stage0Elements[] = {
+            { // mushroom_top
+                { 3.0f, 9.0f, 9.0f }, { 13.0f, 11.0f, 16.0f }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 5.0f, 2.0f, 10.0f, 3.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 5.0f, 0.0f, 8.5f, 1.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 5.0f, 3.0f, 10.0f, 4.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 5.0f, 1.0f, 8.5f, 2.0f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 5.0f, 3.5f, 0.0f, 0.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 5.0f, 3.5f, 0.0f, 7.0f }, 0 },
+                }
             },
-            { // stage 1 (large)
-                { // "mushroom_top" box, from [1,8,6] to [15,11,16]
-                    { 1, 0,  0,  8, 10, 13 },	// west (source rows 3-6)
-                    { 0, 0,  0, 14,  0,  6 },	// bottom (source rows 10-16)
-                    { 1, 0,  0, 12,  7, 10 },	// north (source rows 6-9)
-                    { 1, 0,  0,  8, 13, 16 },	// east (source rows 0-3)
-                    { 0, 0,  0, 14, 16,  6 },	// top (source rows 0-10) - TOP's own convention, unchanged since the first fix
-                    { 1, 0,  0, 12,  4,  7 },	// south (source rows 9-12)
-                },
-                { // "mushroom_bottom" box, from [4,6,10] to [12,8,16]
-                    { 0, 1,  8, 14,  8, 10 },	// west (source rows 6-8)
-                    { 0, 1,  8,  0,  0,  6 },	// bottom (source rows 10-16; u also flipped - this face's own art is rotated 180 degrees)
-                    { 0, 1,  8, 16,  6,  8 },	// north (source rows 8-10)
-                    { 0, 1,  8, 14, 10, 12 },	// east (source rows 4-6)
-                    { 0, 1,  0,  8, 12,  6 },	// top (source rows 4-10) - TOP's own convention, unchanged since the first fix
-                    { 0, 1,  8, 16,  4,  6 },	// south (source rows 10-12)
-                },
+            { // mushroom_bottom
+                { 5.0f, 8.0f, 12.0f }, { 11.0f, 9.0f, 16.0f }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 5.0f, 5.0f, 8.0f, 5.5f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 5.0f, 4.0f, 7.0f, 4.5f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 5.0f, 5.5f, 8.0f, 6.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 5.0f, 4.5f, 7.0f, 5.0f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 3.0f, 9.0f, 0.0f, 7.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 3.0f, 9.0f, 0.0f, 11.0f }, 0 },
+                }
             },
         };
-        // box from/to (minX,maxX,minY,maxY,minZ,maxZ), indexed [stage][box]
-        static const float boxA[2][6] = { { 3,13, 9,11, 9,16 }, { 1,15, 8,11, 6,16 } };	// "mushroom_top"
-        static const float boxB[2][6] = { { 5,11, 8,9, 12,16 }, { 4,12, 6,8, 10,16 } };	// "mushroom_bottom"
+        static const ModelElement stage1Elements[] = {
+            { // mushroom_top
+                { 1.0f, 8.0f, 6.0f }, { 15.0f, 11.0f, 16.0f }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 7.0f, 3.0f, 14.0f, 4.5f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 7.0f, 0.0f, 12.0f, 1.5f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 7.0f, 4.5f, 14.0f, 6.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 7.0f, 1.5f, 12.0f, 3.0f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 7.0f, 5.0f, 0.0f, 0.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 7.0f, 5.0f, 0.0f, 10.0f }, 0 },
+                }
+            },
+            { // mushroom_bottom
+                { 4.0f, 6.0f, 10.0f }, { 12.0f, 8.0f, 16.0f }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4.0f, 12.0f, 8.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 4.0f, 10.0f, 7.0f, 11.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 4.0f, 13.0f, 8.0f, 14.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 4.0f, 11.0f, 7.0f, 12.0f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 4.0f, 13.0f, 0.0f, 10.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 4.0f, 13.0f, 0.0f, 16.0f }, 0 },
+                }
+            },
+        };
 
         int stage = (dataVal >> 2) & 0x1;	// age: 0 = small (stage0), 1 = large (stage1)
-        int anchorX = (stage == 0) ? 24 : 26;
-        // the four swatches for the packed image's four quadrants, indexed [dqx][dqy]
-        int quadSwatch[2][2];
-        quadSwatch[0][0] = TILE_TO_SWATCH(anchorX, 0);
-        quadSwatch[1][0] = TILE_TO_SWATCH(anchorX + 1, 0);
-        quadSwatch[0][1] = TILE_TO_SWATCH(anchorX, 1);
-        quadSwatch[1][1] = TILE_TO_SWATCH(anchorX + 1, 1);
-
         totalVertexCount = gModel.vertexCount;
         gUsingTransform = 1;
-
-        // mushroom_top's west/north/east/south faces are wider (in real texels) than the vanilla art can
-        // supply from one swatch, in both stages - checked directly against an in-game screenshot: e.g. a
-        // face that's 10 texels wide geometrically ("north"/"south") was only showing 6-7 texels of actual
-        // texture, clipped at the packed image's quadrant boundary. Those go through saveMushroomSplitFace
-        // as two quads each, so the full-width vanilla art shows with no clipping (the faceUV[][0][...]
-        // table entries for these four directions are unused/stale - kept only as a record of what the
-        // single-quad, clipped version used to be). For stage 1, "bottom" (the underside) straddles too.
-        int vA = saveBoxCustomUVVertices(boxIndex, boxA[stage][0], boxA[stage][1], boxA[stage][2], boxA[stage][3], boxA[stage][4], boxA[stage][5]);
-        if (vA >= 0) {
-            const MushroomFaceUV* fuvTop = &faceUV[stage][0][DIRECTION_BLOCK_TOP];
-            saveBoxCustomUVFace(vA, type, dataVal, DIRECTION_BLOCK_TOP, 1, quadSwatch[fuvTop->dqx][fuvTop->dqy], fuvTop->uMin, fuvTop->uMax, fuvTop->vMin, fuvTop->vMax);
-            if (stage == 0) {
-                // stage 0's "bottom" (the underside) doesn't straddle - it fits in one quadrant already.
-                const MushroomFaceUV* fuvBottom = &faceUV[stage][0][DIRECTION_BLOCK_BOTTOM];
-                saveBoxCustomUVFace(vA, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[fuvBottom->dqx][fuvBottom->dqy], fuvBottom->uMin, fuvBottom->uMax, fuvBottom->vMin, fuvBottom->vMax);
-            }
-        }
-        // saveBoxCustomUVFace's corner assignment makes EAST and NORTH the mirror image of WEST and SOUTH:
-        // re-deriving each direction's vindex[]/uv-ordering by hand shows WEST and SOUTH have u increasing
-        // the same way their own box-space axis does (Z for west, X for south), but EAST and NORTH have u
-        // running the *opposite* way along that same axis (they're the opposite-facing plane, so their
-        // natural "as viewed from outside" unwrap runs backwards). Getting this right for a face that also
-        // straddles the quadrant boundary means recomputing the whole split from scratch for EAST/NORTH,
-        // not just flipping uMin/uMax within each of WEST/SOUTH's two pieces (tried that first - it's wrong:
-        // since the coordinate-to-texel mapping runs backwards, the split point itself falls somewhere else,
-        // and the two pieces' quadrants swap sides too, not just their own internal u order). Concretely,
-        // for EAST/NORTH: minSide (the box's lower X or Z) shows the *higher* texel values - which is
-        // whichever quadrant that ends up being, generally the *other* one from WEST/SOUTH's minSide - and
-        // each piece's own u is a plain ascending pair within itself either way.
         if (stage == 0) {
-            // west/east are 7 texels wide (straddle by only 1 texel); north/south are 10 (straddle by 4).
-            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_LO_X, 15.0f, 3, 13, 9, 11, 9, 16,
-                quadSwatch[0][0], 10, 16, 12, 14, quadSwatch[1][0], 0, 1, 12, 14);	// west
-            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_HI_X, 10.0f, 3, 13, 9, 11, 9, 16,
-                quadSwatch[1][0], 0, 1, 14, 16, quadSwatch[0][0], 10, 16, 14, 16);	// east (recomputed)
-            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 7.0f, 3, 13, 9, 11, 9, 16,
-                quadSwatch[1][0], 0, 4, 10, 12, quadSwatch[0][0], 10, 16, 10, 12);	// north (recomputed)
-            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 9.0f, 3, 13, 9, 11, 9, 16,
-                quadSwatch[0][0], 10, 16, 8, 10, quadSwatch[1][0], 0, 4, 8, 10);	// south
+            saveModelElements(boxIndex, type, dataVal, TILE_TO_SWATCH(24, 0), stage0Elements, sizeof(stage0Elements) / sizeof(ModelElement));
         }
         else {
-            // west/east are 10 texels wide; north/south are 14; "bottom"'s own row-span is 10. All straddle.
-            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_LO_X, 8.0f, 1, 15, 8, 11, 6, 16,
-                quadSwatch[0][0], 14, 16, 10, 13, quadSwatch[1][0], 0, 8, 10, 13);	// west
-            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_HI_X, 14.0f, 1, 15, 8, 11, 6, 16,
-                quadSwatch[1][0], 0, 8, 13, 16, quadSwatch[0][0], 14, 16, 13, 16);	// east (recomputed)
-            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 13.0f, 1, 15, 8, 11, 6, 16,
-                quadSwatch[1][0], 0, 12, 7, 10, quadSwatch[0][0], 14, 16, 7, 10);	// north (recomputed)
-            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 3.0f, 1, 15, 8, 11, 6, 16,
-                quadSwatch[0][0], 14, 16, 4, 7, quadSwatch[1][0], 0, 12, 4, 7);	// south
-            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_BOTTOM, 12.0f, 1, 15, 8, 11, 6, 16,
-                quadSwatch[0][0], 0, 14, 0, 6, quadSwatch[0][1], 0, 14, 12, 16);	// bottom (down)
-        }
-
-        int vB = saveBoxCustomUVVertices(boxIndex, boxB[stage][0], boxB[stage][1], boxB[stage][2], boxB[stage][3], boxB[stage][4], boxB[stage][5]);
-        if (vB >= 0) {
-            for (int fd = 0; fd < 6; fd++) {
-                if (stage == 0 && fd == DIRECTION_BLOCK_TOP)
-                    continue;	// straddles; handled below via saveMushroomSplitFace instead
-                const MushroomFaceUV* fuv = &faceUV[stage][1][fd];
-                saveBoxCustomUVFace(vB, type, dataVal, fd, 0, quadSwatch[fuv->dqx][fuv->dqy], fuv->uMin, fuv->uMax, fuv->vMin, fuv->vMax);
-            }
-        }
-        if (stage == 0) {
-            // mushroom_bottom's "up" face is hidden under mushroom_top in a solid render, but its 4-row
-            // span still straddles the boundary exactly in half - worth getting right regardless.
-            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_TOP, 14.0f, 5, 11, 8, 9, 12, 16,
-                quadSwatch[0][0], 0, 6, 2, 0, quadSwatch[0][1], 0, 6, 16, 14);
+            saveModelElements(boxIndex, type, dataVal, TILE_TO_SWATCH(26, 0), stage1Elements, sizeof(stage1Elements) / sizeof(ModelElement));
         }
         totalVertexCount = gModel.vertexCount - totalVertexCount;
 
-        // the boxes above are built for facing=north (the vanilla model's default, unrotated orientation); rotate into place for the other
-        // three facings. door_facing: 0=east,1=south,2=west,3=north - map to the blockstate's own "y" rotation (north=0,east=90,south=180,west=270)
+        // the model is for facing=north (unrotated); rotate into place for the other three facings.
+        // door_facing: 0=east,1=south,2=west,3=north - map to the blockstate's own "y" rotation (north=0,east=90,south=180,west=270)
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
         rotateMtx(mtx, 0.0f, (float)(((dataVal & 0x3) + 1) % 4) * 90.0f, 0.0f);
@@ -7471,230 +7505,134 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
     case BLOCK_STRAW_BED:							// saveBillboardOrGeometry
     {
-        // Real geometry translated directly from Minecraft's own block/straw_bed_foot.json and straw_bed_head.json
-        // (15 elements total: foot has a base slab plus 3 thin "frill" overhangs that poke past the block's own
-        // X/Z bounds; head has a base slab, a raised pillow, 2 more frills, and 8 thin pillow-frill sheets). Like
-        // BLOCK_SHELF_MUSHROOM, the vanilla texture is one small hand-packed image (straw_bed.png, registered in
-        // tiles.h as a 4x4-tile/64x64 image anchored at (28,0)) with every face's UV rectangle placed at a custom
-        // spot rather than a simple repeated/cropped 16x16 tile, so every face here goes through
-        // saveBoxCustomUVVertices/saveBoxCustomUVFace with an explicit per-face UV rectangle (in real 0-64 pixel
-        // units, i.e. the vanilla model's own "uv" values x4) rather than one auto-derived from face position.
-        // Faces whose real-pixel UV rectangle crosses a 16-texel tile boundary in the packed atlas are split into
-        // multiple partial-range boxes (one saveBoxCustomUVVertices call each), each covering the proportional
-        // sub-range of world space that piece's fraction of the texture actually shows - same technique as
-        // BLOCK_SHELF_MUSHROOM's saveMushroomSplitFace, generalized here to 2D (row AND column) splits since these
-        // elements are packed far more densely than the mushroom's were.
-        //
-        // Every face's uMin/uMax/vMin/vMax below follows the same empirically-validated (via 5 rounds of
-        // BLOCK_SHELF_MUSHROOM fixes) per-direction rules baked into the code generator that produced this case:
-        //   - u's world axis is Z for west/east, X for north/south/up/down; v's world axis is Y for the four side
-        //     faces, Z for up/down.
-        //   - u runs DIRECT (world-axis-min <-> local-column-min) for west/south/up/down, and INVERSE
-        //     (world-axis-min <-> local-column-max) for east/north - and for a straddling face on an inverse
-        //     direction, the piece on the geometric-min side gets the piece with the HIGHER real-pixel column
-        //     range, not just a flipped u within a fixed column tile (re-derived and cross-checked by hand against
-        //     BLOCK_SHELF_MUSHROOM's own validated east/north split geometry before trusting the generator's output
-        //     for this block's two multi-column-tile north faces, head's "base" and "pillow").
-        //   - v = 16-rowMax,16-rowMin (rowMin<rowMax sorted, in that piece's own local tile row) for up; the
-        //     opposite pairing, v = 16-rowMin,16-rowMax, for down and all four side faces.
-        //   - a vanilla "rotation": 180 flag (frills_03/frills_04/frills_05 in the foot model) swaps both
-        //     uMin<->uMax and vMin<->vMax after the base formula above.
-        // Local (element-relative) box coordinates were taken verbatim from the vanilla model JSON; some frill
-        // elements extend a few pixels past the block's own 0-16 cube (e.g. foot's frills_04 to X=19, frills_05 to
-        // X=-3) exactly as they do in vanilla, which saveBoxCustomUVVertices supports fine (it only derives vertex
-        // positions from pixel coordinates - it doesn't require or clamp to the 0-16 range).
+        // Minecraft's block/straw_bed_foot.json and straw_bed_head.json, used verbatim: element boxes, and each face's uv and rotation
+        // on the whole 64x64 straw_bed.png image (a 4x4 tile span in tiles.h). See saveModelElements. Some "frill" elements poke out past
+        // the block's own 0-16 bounds, as they do in Minecraft.
+        static const ModelElement footElements[] = {
+            { // base
+                { 0.0f, 0.0f, 0.0f }, { 16.0f, 4.0f, 16.0f }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4.0f, 10.25f, 8.0f, 11.25f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0.0f, 10.25f, 4.0f, 11.25f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8.0f, 10.25f, 12.0f, 11.25f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 8.0f, 10.25f, 4.0f, 6.25f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 12.0f, 6.25f, 8.0f, 10.25f }, 0 },
+                }
+            },
+            { // frills_03
+                { 0.0f, 0.125f, -3.0f }, { 16.0f, 0.125f, 0.0f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 0.0f, 11.25f, 4.0f, 12.0f }, 180 },
+                    { DIRECTION_BLOCK_BOTTOM, { 0.0f, 12.75f, 4.0f, 12.0f }, 180 },
+                }
+            },
+            { // frills_04
+                { 16.0f, 0.105f, 0.0f }, { 19.0f, 0.105f, 16.0f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 11.999999999999998f, 6.25f, 12.749999999999998f, 10.25f }, 180 },
+                    { DIRECTION_BLOCK_BOTTOM, { 12.749999999999998f, 10.25f, 13.499999999999998f, 6.25f }, 180 },
+                }
+            },
+            { // frills_05
+                { -3.0f, 0.115f, 0.0f }, { 0.0f, 0.115f, 16.0f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 13.499999999999998f, 10.25f, 14.249999999999998f, 6.25f }, 180 },
+                    { DIRECTION_BLOCK_BOTTOM, { 14.249999999999998f, 6.25f, 14.999999999999998f, 10.25f }, 180 },
+                }
+            },
+        };
+        static const ModelElement headElements[] = {
+            { // base
+                { 0.0f, 0.0f, 0.0f }, { 16.0f, 4.0f, 8.0f }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2.0f, 5.25f, 6.0f, 6.25f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0.0f, 5.25f, 2.0f, 6.25f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 8.0f, 5.25f, 12.0f, 6.25f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 6.0f, 5.25f, 8.0f, 6.25f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 6.0f, 5.25f, 2.0f, 3.25f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 10.0f, 3.25f, 6.0f, 5.25f }, 0 },
+                }
+            },
+            { // pillow_frills_01
+                { -2.0f, 0.065f, 8.0f }, { 0.0f, 0.065f, 16.0f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 1.5f, 8.25f, 1.0f, 6.25f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 2.0f, 6.25f, 1.5f, 8.25f }, 0 },
+                }
+            },
+            { // pillow_frills_02
+                { -2.0f, 4.96f, 8.0f }, { 0.0f, 4.96f, 16.0f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 10.5f, 2.0f, 10.0f, 0.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 11.0f, 0.0f, 10.5f, 2.0f }, 0 },
+                }
+            },
+            { // pillow_frills_03
+                { -2.0f, 0.065f, 8.025f }, { 0.0f, 4.95f, 8.025f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1.0f, 8.25f, 1.5f, 9.48125f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2.0f, 8.25f, 1.5f, 9.48125f }, 0 },
+                }
+            },
+            { // pillow_frills_04
+                { -2.0f, 0.065f, 15.985f }, { 0.0f, 4.95f, 15.985f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 10.0f, 3.25f, 10.5f, 4.481249999999999f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 10.5f, 3.25f, 11.0f, 4.481249999999999f }, 0 },
+                }
+            },
+            { // pillow_frills_05
+                { 16.0f, 0.05f, 8.0f }, { 18.0f, 0.05f, 16.0f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 0.5f, 8.25f, 0.0f, 6.25f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 0.5f, 6.25f, 1.0f, 8.25f }, 0 },
+                }
+            },
+            { // pillow_frills_06
+                { 16.0f, 4.975f, 8.0f }, { 18.0f, 4.975f, 16.0f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 0.5f, 2.0f, 0.0f, 0.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 0.5f, 0.0f, 1.0f, 2.0f }, 0 },
+                }
+            },
+            { // pillow_frills_07
+                { 16.0f, 0.05000000000000001f, 8.0f }, { 18.0f, 4.975f, 8.0f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 8.25f, 0.5f, 9.48125f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 1.0f, 8.25f, 0.5f, 9.48125f }, 0 },
+                }
+            },
+            { // pillow_frills_08
+                { 16.0f, 0.05000000000000001f, 15.975f }, { 18.0f, 4.975f, 15.975f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 3.25f, 0.5f, 4.48125f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 1.0f, 3.25f, 0.5f, 4.48125f }, 0 },
+                }
+            },
+            { // pillow
+                { 0.0f, 0.0f, 8.0f }, { 16.0f, 5.0f, 16.0f }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2.0f, 2.0f, 6.0f, 3.25f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0.0f, 2.0f, 2.0f, 3.25f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 8.0f, 2.0f, 12.0f, 3.25f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 6.0f, 2.0f, 8.0f, 3.25f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 6.0f, 2.0f, 2.0f, 0.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 10.0f, 0.0f, 6.0f, 2.0f }, 0 },
+                }
+            },
+            { // frills_02
+                { 16.0f, 0.05f, 0.0f }, { 19.0f, 0.05f, 8.0f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 12.75f, 6.25f, 12.0f, 4.25f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 13.5f, 4.25f, 12.75f, 6.25f }, 0 },
+                }
+            },
+            { // frills_03
+                { -3.0f, 0.065f, 0.0f }, { 0.0f, 0.065f, 8.0f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 14.25f, 6.25f, 13.5f, 4.25f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 15.0f, 4.25f, 14.25f, 6.25f }, 0 },
+                }
+            },
+        };
 
-        int part = (dataVal & 0x8) ? 1 : 0;	// 0 = foot, 1 = head
         int bedFacing = dataVal & 0x3;	// SWNE: 0=south,1=west,2=north,3=east (same convention as BED_PROP)
-
-        // the 16 swatches for the packed 64x64 image's 4x4 tile grid, indexed [column][row]
-        int quadSwatch[4][4];
-        for (int qc = 0; qc < 4; qc++)
-            for (int qr = 0; qr < 4; qr++)
-                quadSwatch[qc][qr] = TILE_TO_SWATCH(28 + qc, qr);
-
         totalVertexCount = gModel.vertexCount;
         gUsingTransform = 1;
-
-        if (part == 0) {
-            // ---- FOOT ----
-            { // element: base
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 0.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 1, quadSwatch[1][2], 16.0f,0.0f, 3.0f,7.0f); } // base.north
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 0.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_X, 0, quadSwatch[0][2], 16.0f,0.0f, 3.0f,7.0f); } // base.east
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 0.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_X, 0, quadSwatch[2][2], 0.0f,16.0f, 3.0f,7.0f); } // base.west
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 9.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[1][1], 16.0f,0.0f, 7.0f,0.0f); } // base.up_11
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 0.0f,9.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[1][2], 16.0f,0.0f, 16.0f,7.0f); } // base.up_12
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 0.0f,7.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[2][1], 16.0f,0.0f, 0.0f,7.0f); } // base.down_21
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 7.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[2][2], 16.0f,0.0f, 7.0f,16.0f); } // base.down_22
-            }
-            { // element: frills_03
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.125000f,0.125000f, -3.0f,0.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][2], 16.0f,0.0f, 0.0f,3.0f); } // frills_03.up
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.125000f,0.125000f, -3.0f,0.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[0][3], 16.0f,0.0f, 16.0f,13.0f); } // frills_03.down
-            }
-            { // element: frills_04
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,19.0f, 0.105000f,0.105000f, 0.0f,7.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[3][1], 3.0f,0.0f, 0.0f,7.0f); } // frills_04.up_31
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,19.0f, 0.105000f,0.105000f, 7.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[3][2], 3.0f,0.0f, 7.0f,16.0f); } // frills_04.up_32
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,19.0f, 0.105000f,0.105000f, 9.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[3][1], 6.0f,3.0f, 7.0f,0.0f); } // frills_04.down_31
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,19.0f, 0.105000f,0.105000f, 0.0f,9.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[3][2], 6.0f,3.0f, 16.0f,7.0f); } // frills_04.down_32
-            }
-            { // element: frills_05
-              { int v = saveBoxCustomUVVertices(boxIndex, -3.0f,0.0f, 0.115000f,0.115000f, 9.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[3][1], 9.0f,6.0f, 0.0f,7.0f); } // frills_05.up_31
-              { int v = saveBoxCustomUVVertices(boxIndex, -3.0f,0.0f, 0.115000f,0.115000f, 0.0f,9.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[3][2], 9.0f,6.0f, 7.0f,16.0f); } // frills_05.up_32
-              { int v = saveBoxCustomUVVertices(boxIndex, -3.0f,0.0f, 0.115000f,0.115000f, 0.0f,7.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[3][1], 12.0f,9.0f, 7.0f,0.0f); } // frills_05.down_31
-              { int v = saveBoxCustomUVVertices(boxIndex, -3.0f,0.0f, 0.115000f,0.115000f, 7.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[3][2], 12.0f,9.0f, 16.0f,7.0f); } // frills_05.down_32
-            }
+        if (dataVal & 0x8) {
+            saveModelElements(boxIndex, type, dataVal, TILE_TO_SWATCH(28, 0), headElements, sizeof(headElements) / sizeof(ModelElement));
         }
         else {
-            // ---- HEAD ----
-            { // element: base
-              { int v = saveBoxCustomUVVertices(boxIndex, 8.0f,16.0f, 0.0f,4.0f, 0.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 1, quadSwatch[0][1], 16.0f,8.0f, 7.0f,11.0f); } // base.north_01
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,8.0f, 0.0f,4.0f, 0.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[1][1], 8.0f,0.0f, 7.0f,11.0f); } // base.north_11
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 0.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_X, 0, quadSwatch[0][1], 8.0f,0.0f, 7.0f,11.0f); } // base.east
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 0.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, quadSwatch[2][1], 0.0f,16.0f, 7.0f,11.0f); } // base.south
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 0.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_X, 0, quadSwatch[1][1], 8.0f,16.0f, 7.0f,11.0f); } // base.west
-              { int v = saveBoxCustomUVVertices(boxIndex, 8.0f,16.0f, 0.0f,4.0f, 5.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][0], 16.0f,8.0f, 3.0f,0.0f); } // base.up_00
-              { int v = saveBoxCustomUVVertices(boxIndex, 8.0f,16.0f, 0.0f,4.0f, 0.0f,5.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][1], 16.0f,8.0f, 16.0f,11.0f); } // base.up_01
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,8.0f, 0.0f,4.0f, 5.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[1][0], 8.0f,0.0f, 3.0f,0.0f); } // base.up_10
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,8.0f, 0.0f,4.0f, 0.0f,5.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[1][1], 8.0f,0.0f, 16.0f,11.0f); } // base.up_11
-              { int v = saveBoxCustomUVVertices(boxIndex, 8.0f,16.0f, 0.0f,4.0f, 0.0f,3.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[1][0], 16.0f,8.0f, 0.0f,3.0f); } // base.down_10
-              { int v = saveBoxCustomUVVertices(boxIndex, 8.0f,16.0f, 0.0f,4.0f, 3.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[1][1], 16.0f,8.0f, 11.0f,16.0f); } // base.down_11
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,8.0f, 0.0f,4.0f, 0.0f,3.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[2][0], 8.0f,0.0f, 0.0f,3.0f); } // base.down_20
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,8.0f, 0.0f,4.0f, 3.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[2][1], 8.0f,0.0f, 11.0f,16.0f); } // base.down_21
-            }
-            { // element: pillow_frills_01
-              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 0.065000f,0.065000f, 9.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][1], 6.0f,4.0f, 7.0f,0.0f); } // pillow_frills_01.up_01
-              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 0.065000f,0.065000f, 8.0f,9.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][2], 6.0f,4.0f, 16.0f,15.0f); } // pillow_frills_01.up_02
-              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 0.065000f,0.065000f, 8.0f,15.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[0][1], 8.0f,6.0f, 0.0f,7.0f); } // pillow_frills_01.down_01
-              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 0.065000f,0.065000f, 15.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[0][2], 8.0f,6.0f, 15.0f,16.0f); } // pillow_frills_01.down_02
-            }
-            { // element: pillow_frills_02
-              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 4.960000f,4.960000f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[2][0], 10.0f,8.0f, 16.0f,8.0f); } // pillow_frills_02.up
-              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 4.960000f,4.960000f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[2][0], 12.0f,10.0f, 8.0f,16.0f); } // pillow_frills_02.down
-            }
-            { // element: pillow_frills_03
-              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 0.065000f,4.950000f, 8.025000f,8.025000f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[0][2], 6.0f,4.0f, 10.075000f,15.0f); } // pillow_frills_03.north
-              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 0.065000f,4.950000f, 8.025000f,8.025000f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, quadSwatch[0][2], 8.0f,6.0f, 10.075000f,15.0f); } // pillow_frills_03.south
-            }
-            { // element: pillow_frills_04
-              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 0.065000f,3.040635f, 15.985000f,15.985000f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[2][0], 10.0f,8.0f, 0.0f,3.0f); } // pillow_frills_04.north_20
-              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 3.040635f,4.950000f, 15.985000f,15.985000f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[2][1], 10.0f,8.0f, 14.075000f,16.0f); } // pillow_frills_04.north_21
-              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 0.065000f,3.040635f, 15.985000f,15.985000f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, quadSwatch[2][0], 10.0f,12.0f, 0.0f,3.0f); } // pillow_frills_04.south_20
-              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 3.040635f,4.950000f, 15.985000f,15.985000f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, quadSwatch[2][1], 10.0f,12.0f, 14.075000f,16.0f); } // pillow_frills_04.south_21
-            }
-            { // element: pillow_frills_05
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 0.050000f,0.050000f, 9.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][1], 2.0f,0.0f, 7.0f,0.0f); } // pillow_frills_05.up_01
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 0.050000f,0.050000f, 8.0f,9.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][2], 2.0f,0.0f, 16.0f,15.0f); } // pillow_frills_05.up_02
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 0.050000f,0.050000f, 8.0f,15.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[0][1], 2.0f,4.0f, 0.0f,7.0f); } // pillow_frills_05.down_01
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 0.050000f,0.050000f, 15.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[0][2], 2.0f,4.0f, 15.0f,16.0f); } // pillow_frills_05.down_02
-            }
-            { // element: pillow_frills_06
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 4.975000f,4.975000f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][0], 2.0f,0.0f, 16.0f,8.0f); } // pillow_frills_06.up
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 4.975000f,4.975000f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[0][0], 2.0f,4.0f, 8.0f,16.0f); } // pillow_frills_06.down
-            }
-            { // element: pillow_frills_07
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 0.050000f,4.975000f, 8.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[0][2], 2.0f,0.0f, 10.075000f,15.0f); } // pillow_frills_07.north
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 0.050000f,4.975000f, 8.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, quadSwatch[0][2], 4.0f,2.0f, 10.075000f,15.0f); } // pillow_frills_07.south
-            }
-            { // element: pillow_frills_08
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 0.050000f,3.050000f, 15.975000f,15.975000f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[0][0], 2.0f,0.0f, 0.0f,3.0f); } // pillow_frills_08.north_00
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 3.050000f,4.975000f, 15.975000f,15.975000f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[0][1], 2.0f,0.0f, 14.075000f,16.0f); } // pillow_frills_08.north_01
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 0.050000f,3.050000f, 15.975000f,15.975000f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, quadSwatch[0][0], 4.0f,2.0f, 0.0f,3.0f); } // pillow_frills_08.south_00
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 3.050000f,4.975000f, 15.975000f,15.975000f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, quadSwatch[0][1], 4.0f,2.0f, 14.075000f,16.0f); } // pillow_frills_08.south_01
-            }
-            { // element: pillow
-              { int v = saveBoxCustomUVVertices(boxIndex, 8.0f,16.0f, 0.0f,5.0f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[0][0], 16.0f,8.0f, 3.0f,8.0f); } // pillow.north_00
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,8.0f, 0.0f,5.0f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[1][0], 8.0f,0.0f, 3.0f,8.0f); } // pillow.north_10
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,5.0f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_X, 0, quadSwatch[0][0], 8.0f,0.0f, 3.0f,8.0f); } // pillow.east
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,5.0f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, quadSwatch[2][0], 0.0f,16.0f, 3.0f,8.0f); } // pillow.south
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,5.0f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_X, 0, quadSwatch[1][0], 8.0f,16.0f, 3.0f,8.0f); } // pillow.west
-              { int v = saveBoxCustomUVVertices(boxIndex, 8.0f,16.0f, 0.0f,5.0f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][0], 16.0f,8.0f, 16.0f,8.0f); } // pillow.up_00
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,8.0f, 0.0f,5.0f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[1][0], 8.0f,0.0f, 16.0f,8.0f); } // pillow.up_10
-              { int v = saveBoxCustomUVVertices(boxIndex, 8.0f,16.0f, 0.0f,5.0f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[1][0], 16.0f,8.0f, 8.0f,16.0f); } // pillow.down_10
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,8.0f, 0.0f,5.0f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[2][0], 8.0f,0.0f, 8.0f,16.0f); } // pillow.down_20
-            }
-            { // element: frills_02
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,19.0f, 0.050000f,0.050000f, 0.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[3][1], 3.0f,0.0f, 15.0f,7.0f); } // frills_02.up
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,19.0f, 0.050000f,0.050000f, 0.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[3][1], 6.0f,3.0f, 7.0f,15.0f); } // frills_02.down
-            }
-            { // element: frills_03b
-              { int v = saveBoxCustomUVVertices(boxIndex, -3.0f,0.0f, 0.065000f,0.065000f, 0.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[3][1], 9.0f,6.0f, 15.0f,7.0f); } // frills_03b.up
-              { int v = saveBoxCustomUVVertices(boxIndex, -3.0f,0.0f, 0.065000f,0.065000f, 0.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[3][1], 12.0f,9.0f, 7.0f,15.0f); } // frills_03b.down
-            }
+            saveModelElements(boxIndex, type, dataVal, TILE_TO_SWATCH(28, 0), footElements, sizeof(footElements) / sizeof(ModelElement));
         }
-
         totalVertexCount = gModel.vertexCount - totalVertexCount;
 
-        // the elements above are built for facing=south (the vanilla model's default, unrotated orientation, per
-        // straw_bed.json's blockstates - unlike BLOCK_SHELF_MUSHROOM's door_facing/north default); rotate into
-        // place for the other three facings. SWNE facing maps directly to the blockstate's own "y" rotation
-        // (south=0,west=90,north=180,east=270), i.e. angle = facing * 90, with no remap needed.
+        // the model is for facing=south (unrotated); rotate into place for the other three facings. SWNE facing maps directly to the
+        // blockstate's own "y" rotation (south=0,west=90,north=180,east=270)
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
         rotateMtx(mtx, 0.0f, (float)bedFacing * 90.0f, 0.0f);
@@ -14311,15 +14249,14 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
         addBounds(anchor, &gModel.billboardBounds);
     }
 
-    gModel.billboardCount++;
+    // was gModel.billboardCount++; - shouldn't do it here, it will overcount minor things like stairs, etc., that have more than one box or billboard, etc.
 
     return retCode;
 }
 
 // Create the 8 corner vertices of a box (minPix..maxPix in 0-16 pixel units, same convention as saveBoxAlltileGeometry), without outputting any
-// faces. Returns the index of the first of the 8 vertices, for use with saveBoxCustomUVFace(). Used for blocks whose texture is a hand-packed
-// atlas (translated directly from a Minecraft model JSON) where each face needs its own explicit UV rectangle rather than one auto-derived from
-// the face's position - see BLOCK_SHELF_MUSHROOM.
+// faces. Vertex i is at X max if (i & 0x4), Y max if (i & 0x2), Z max if (i & 0x1). Returns the index of the first of the 8 vertices, for use
+// with saveBoxModelFace(). The box may extend outside the 0-16 block, as some Minecraft model elements do.
 static int saveBoxCustomUVVertices(int boxIndex, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ)
 {
     IPoint anchor;
@@ -14350,64 +14287,60 @@ static int saveBoxCustomUVVertices(int boxIndex, float minPixX, float maxPixX, f
     return startVertexIndex;
 }
 
-// Save one face of a box created by saveBoxCustomUVVertices(), with an explicit UV rectangle (uMin..vMax, in the same 0-16 unit space as a
-// Minecraft model JSON's own "uv" field) instead of one auto-derived from the face's position. This lets a hand-packed texture atlas (several
-// faces' worth of art crammed into one image, addressed by a custom UV unwrap) be sampled faithfully. See BLOCK_SHELF_MUSHROOM.
-static int saveBoxCustomUVFace(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int swatchLoc,
-    float uMin, float uMax, float vMin, float vMax)
+// Save one face of a box created by saveBoxCustomUVVertices(), textured exactly as Minecraft does for a block model JSON element's face:
+// uv is the face's "uv" [u1,v1,u2,v2] (0-16 units over the whole texture, v going down, and u1 > u2 or v1 > v2 to mirror), rotation is
+// the face's "rotation" (0, 90, 180, 270). The texture is the whole image anchored at anchorLoc, which may span multiple tiles (e.g.
+// straw_bed.png); see saveSpanTextureUV.
+static int saveBoxModelFace(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int anchorLoc, const float uv[4], int rotation)
 {
+    // Minecraft's vertex order for each face direction (FaceInfo), as box corner bits: 0x4 X max, 0x2 Y max, 0x1 Z max. Counterclockwise
+    // as seen from outside the box, as Mineways wants.
+    static const int faceVindex[6][4] = {
+        { 0x2, 0x0, 0x1, 0x3 },	// DIRECTION_BLOCK_SIDE_LO_X, west
+        { 0x1, 0x0, 0x4, 0x5 },	// DIRECTION_BLOCK_BOTTOM, down
+        { 0x6, 0x4, 0x0, 0x2 },	// DIRECTION_BLOCK_SIDE_LO_Z, north
+        { 0x7, 0x5, 0x4, 0x6 },	// DIRECTION_BLOCK_SIDE_HI_X, east
+        { 0x2, 0x3, 0x7, 0x6 },	// DIRECTION_BLOCK_TOP, up
+        { 0x3, 0x1, 0x5, 0x7 },	// DIRECTION_BLOCK_SIDE_HI_Z, south
+    };
+    assert(faceDirection >= 0 && faceDirection < 6);
     int vindex[4];
-    switch (faceDirection)
-    {
-    default:
-    case DIRECTION_BLOCK_SIDE_LO_X:	// CCW
-        vindex[0] = 0x2 | 0x1; vindex[1] = 0x2; vindex[2] = 0; vindex[3] = 0x1;
-        break;
-    case DIRECTION_BLOCK_SIDE_HI_X:	// CCW
-        vindex[0] = 0x4 | 0x2; vindex[1] = 0x4 | 0x2 | 0x1; vindex[2] = 0x4 | 0x1; vindex[3] = 0x4;
-        break;
-    case DIRECTION_BLOCK_SIDE_LO_Z:
-        vindex[0] = 0x2; vindex[1] = 0x4 | 0x2; vindex[2] = 0x4; vindex[3] = 0;
-        break;
-    case DIRECTION_BLOCK_SIDE_HI_Z:
-        vindex[0] = 0x1 | 0x4 | 0x2; vindex[1] = 0x1 | 0x2; vindex[2] = 0x1; vindex[3] = 0x1 | 0x4;
-        break;
-    case DIRECTION_BLOCK_BOTTOM:
-        vindex[0] = 0x4 | 0x1; vindex[1] = 0x1; vindex[2] = 0; vindex[3] = 0x4;
-        break;
-    case DIRECTION_BLOCK_TOP:
-        vindex[0] = 0x2 | 0x4; vindex[1] = 0x2; vindex[2] = 0x2 | 0x1; vindex[3] = 0x2 | 0x4 | 0x1;
-        break;
+    int uvIndices[4] = { 0, 0, 0, 0 };
+    for (int i = 0; i < 4; i++) {
+        vindex[i] = faceVindex[faceDirection][i];
+        if (gModel.exportTexture) {
+            // Minecraft's BlockFaceUV: corner i of the face gets u1 or u2, v1 or v2, shifted by the rotation
+            int shifted = (i + rotation / 90) % 4;
+            float u = (shifted == 0 || shifted == 1) ? uv[0] : uv[2];
+            float v = (shifted == 0 || shifted == 3) ? uv[1] : uv[3];
+            uvIndices[i] = saveSpanTextureUV(anchorLoc, type, u / 16.0f, 1.0f - v / 16.0f);
+            if (uvIndices[i] < 0)
+                return MW_WORLD_EXPORT_TOO_LARGE;
+        }
     }
-    // vindex[] here is identical to the position-derived case in saveBoxAlltileGeometry (faceDirection switch above), just without the
-    // rotUVs/reverseLoop options that block doesn't need - so reverseLoop=0, rotUVs=0.
-    return saveBoxFace(swatchLoc, type, dataVal, faceDirection, markFirstFace, startVertexIndex, vindex, 0, 0, uMin / 16.0f, uMax / 16.0f, vMin / 16.0f, vMax / 16.0f);
+    return saveBoxFaceUVs(type, dataVal, faceDirection, markFirstFace, startVertexIndex, vindex, uvIndices);
 }
 
-// A face whose vanilla-art texture is wider (along one geometric axis) than the 16 texels one swatch can
-// supply straddles the packed image's quadrant boundary - see BLOCK_SHELF_MUSHROOM. This builds it as two
-// quads at splitCoord (a box-space X coordinate for the north/south faces, whose own "u" runs along X; a Z
-// coordinate for every other direction, whose own u or v runs along Z), each on its own partial-range box
-// (so each quad's geometry matches the fraction of the texture it actually shows) and its own swatch/UV:
-// minSide covers [the box's own min bound, splitCoord]; maxSide covers [splitCoord, the box's own max bound].
-static void saveMushroomSplitFace(int boxIndex, int type, int dataVal, int faceDirection, float splitCoord,
-    float minX, float maxX, float minY, float maxY, float minZ, float maxZ,
-    int swatchMinSide, float uMinMinSide, float uMaxMinSide, float vMinMinSide, float vMaxMinSide,
-    int swatchMaxSide, float uMinMaxSide, float uMaxMaxSide, float vMinMaxSide, float vMaxMaxSide)
+// Save the elements of a Minecraft block model, as given in its JSON file, all textured by the (possibly multi-tile) image at anchorLoc.
+// The first face saved is marked as the first face of the block.
+static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount)
 {
-    int vMinSide, vMaxSide;
-    if (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z || faceDirection == DIRECTION_BLOCK_SIDE_HI_Z) {
-        vMinSide = saveBoxCustomUVVertices(boxIndex, minX, splitCoord, minY, maxY, minZ, maxZ);
-        vMaxSide = saveBoxCustomUVVertices(boxIndex, splitCoord, maxX, minY, maxY, minZ, maxZ);
+    int retCode = MW_NO_ERROR;
+    int markFirstFace = 1;
+    for (int e = 0; e < elementCount; e++) {
+        const ModelElement* pElem = &elements[e];
+        int startVertexIndex = saveBoxCustomUVVertices(boxIndex, pElem->from[X], pElem->to[X], pElem->from[Y], pElem->to[Y], pElem->from[Z], pElem->to[Z]);
+        if (startVertexIndex < 0)
+            return retCode | MW_WORLD_EXPORT_TOO_LARGE;
+        for (int f = 0; f < pElem->faceCount; f++) {
+            const ModelFace* pFace = &pElem->face[f];
+            retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, pFace->faceDirection, markFirstFace, anchorLoc, pFace->uv, pFace->rotation);
+            if (retCode >= MW_BEGIN_ERRORS)
+                return retCode;
+            markFirstFace = 0;
+        }
     }
-    else {
-        vMinSide = saveBoxCustomUVVertices(boxIndex, minX, maxX, minY, maxY, minZ, splitCoord);
-        vMaxSide = saveBoxCustomUVVertices(boxIndex, minX, maxX, minY, maxY, splitCoord, maxZ);
-    }
-    if (vMinSide >= 0)
-        saveBoxCustomUVFace(vMinSide, type, dataVal, faceDirection, 0, swatchMinSide, uMinMinSide, uMaxMinSide, vMinMinSide, vMaxMinSide);
-    if (vMaxSide >= 0)
-        saveBoxCustomUVFace(vMaxSide, type, dataVal, faceDirection, 0, swatchMaxSide, uMinMaxSide, uMaxMaxSide, vMinMaxSide, vMaxMaxSide);
+    return retCode;
 }
 
 // Find if the specified face touches its voxel's face (i.e., is up against the voxel), and get the dimensions found.
@@ -16617,7 +16550,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     //translateFromOriginMtx(mtx, boxIndex);
     //transformVertices(totalVertexCount,mtx);
 
-    gModel.billboardCount++;
+    // was gModel.billboardCount++; - shouldn't do it here, it will overcount minor things like stairs, etc., that have more than one box or billboard, etc.
 
     addBounds(anchor, &gModel.billboardBounds);
     VecScalar(anchor, +=, 1);
@@ -26194,7 +26127,9 @@ static int getCompositeSwatch(int swatchLoc, int backgroundIndex, int faceDirect
         pSwatch = pSwatch->next;
     }
 
-    // can't find swatch, so see if we can make it
+    // can't find swatch, so see if we can make it - skipping any slots reserved for multi-tile images
+    while (gModel.swatchCount < gModel.swatchListSize && isSpanReservedSlot(gModel.swatchCount))
+        gModel.swatchCount++;
     if (gModel.swatchCount >= gModel.swatchListSize)
     {
         // no room for more swatches. Plan B: find the default swatch for this type
@@ -26412,12 +26347,89 @@ static int saveTextureUV(int swatchLoc, int type, float u, float v)
     gModel.uvIndexList[gModel.uvIndexCount].uc = (float)col * gModel.textureUVPerSwatch + u * gModel.textureUVPerTile + gModel.invTextureResolution;
     gModel.uvIndexList[gModel.uvIndexCount].vc = 1.0f - ((float)row * gModel.textureUVPerSwatch + (1.0f - v) * gModel.textureUVPerTile + gModel.invTextureResolution);
     gModel.uvIndexList[gModel.uvIndexCount].swatchLoc = swatchLoc;
+    gModel.uvIndexList[gModel.uvIndexCount].spanAnchor = -1;
     gModel.uvIndexCount++;
 
     // also save what type is associated with this swatchLoc, to allow output of name in comments.
     // Multiple types can be associated with the same swatchLoc, we just save the last one (often the most
     // visible one) here. Could get fancier and also pass in and save dataVal and use RetrieveBlockSubname on output.
     gModel.uvSwatchToType[swatchLoc] = type;
+
+    return uvr->index;
+}
+
+// Save a UV on a whole multi-tile image, e.g. straw_bed.png, anchored at anchorLoc. su, sv are 0-1 over the whole image, with sv
+// going up. Returns the UV's index, as saveTextureUV does.
+static int saveSpanTextureUV(int anchorLoc, int type, float su, float sv)
+{
+    if (!gModel.exportTexture)
+        return 0;
+    if (!(gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES)) {
+        // solid colors: the swatch is the block type (see getSwatch) and the location on it doesn't matter
+        return saveTextureUV(type, type, su, sv);
+    }
+    SpanImage* pSpan = findSpanImage(anchorLoc);
+    assert(pSpan);
+    if (pSpan == NULL)
+        return -1;
+    // mosaic export needs the image's reserved block
+    assert(gModel.exportTiles || pSpan->blockCol >= 0);
+
+    // shared already?
+    UVRecord* uvr = pSpan->uvList.records;
+    for (int i = 0; i < pSpan->uvList.count; i++, uvr++) {
+        if ((uvr->u == su) && (uvr->v == sv))
+            return uvr->index;
+    }
+
+    // no, so add it
+    if (pSpan->uvList.count == pSpan->uvList.size) {
+        int newSize = (pSpan->uvList.size == 0) ? 64 : pSpan->uvList.size * 2;
+        UVRecord* records = (UVRecord*)realloc(pSpan->uvList.records, (size_t)newSize * sizeof(UVRecord));
+        if (records == NULL)
+            return -1;
+        pSpan->uvList.records = records;
+        pSpan->uvList.size = newSize;
+    }
+    if (gModel.uvIndexCount == gModel.uvIndexListSize) {
+        if (gModel.uvIndexListSize < 0 || gModel.uvIndexListSize > INT_MAX - gModel.uvIndexListSize / 2 - 1)
+            return -1;
+        int newSize = gModel.uvIndexListSize + gModel.uvIndexListSize / 2 + 1;
+        if ((size_t)newSize > (size_t)-1 / sizeof(UVOutput))
+            return -1;
+        UVOutput* output = (UVOutput*)realloc(gModel.uvIndexList, (size_t)newSize * sizeof(UVOutput));
+        if (output == NULL)
+            return -1;
+        gModel.uvIndexList = output;
+        gModel.uvIndexListSize = newSize;
+    }
+    uvr = &pSpan->uvList.records[pSpan->uvList.count++];
+    uvr->u = su;
+    uvr->v = sv;
+    uvr->index = gModel.uvIndexCount;
+
+    assert(su >= 0.0f && su <= 1.0f);
+    assert(sv >= 0.0f && sv <= 1.0f);
+    UVOutput* pOut = &gModel.uvIndexList[gModel.uvIndexCount];
+    pOut->swatchLoc = anchorLoc;
+    pOut->spanAnchor = anchorLoc;
+    pOut->su = su;
+    pOut->sv = sv;
+    pOut->outIndex = 0;
+    if (pSpan->blockCol >= 0) {
+        // location in the mosaic
+        int x0, y0;
+        getSpanBlockImageOrigin(pSpan, x0, y0);
+        float imageSize = (float)(pSpan->span * gModel.tileSize);
+        pOut->uc = ((float)x0 + su * imageSize) / (float)gModel.textureResolution;
+        pOut->vc = 1.0f - ((float)y0 + (1.0f - sv) * imageSize) / (float)gModel.textureResolution;
+    }
+    else {
+        pOut->uc = su;
+        pOut->vc = sv;
+    }
+    gModel.uvIndexCount++;
+    gModel.uvSwatchToType[anchorLoc] = type;
 
     return uvr->index;
 }
@@ -26451,6 +26463,7 @@ static void freeModel(Model* pModel)
             pModel->uvSwatches[i].records = NULL;
         }
     }
+    freeSpanImages();
 
     if (pModel->faceList)
     {
@@ -26977,7 +26990,8 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
 }
 
 // done for OBJ, when getting ready to export unified list of texture coordinates
-static int mosaicUVtoSeparateUV()
+// pUVOutputCount returns the number of "vt" lines written, needed for relative indices
+static int mosaicUVtoSeparateUV(int* pUVOutputCount)
 {
     int retCode = MW_NO_ERROR;
     int index;
@@ -26989,6 +27003,9 @@ static int mosaicUVtoSeparateUV()
     // Then as we go through the face list we translate again, find the loc, and in the array we find the new UV index to us
     for (int i = 0; i < gModel.uvIndexCount; i++)
     {
+        // UVs on multi-tile images are output separately, below
+        if (gModel.uvIndexList[i].spanAnchor >= 0)
+            continue;
         // Unscramble the eggs. Given a UV, multiply by the resolution of the map. This give 0-512 or whatever, really 1-511 for OBJ output, which starts counting at 1.
         // Modulo the swatchSize. This gives 0-18 inclusive (or whatever the swatch size is), really 1-17.
         // Subtract 1 to give 0-16 or whatever. Divide by tileSize and multiply by 16 to get the 0-16 index location
@@ -27037,6 +27054,20 @@ static int mosaicUVtoSeparateUV()
         }
     }
 
+    // UVs on multi-tile images, such as straw_bed.png, are over the whole image, which is output as a single file
+    for (int i = 0; i < gModel.uvIndexCount; i++)
+    {
+        if (gModel.uvIndexList[i].spanAnchor >= 0) {
+            gModel.uvIndexList[i].outIndex = ++indexID;
+            retCode |= writeOBJTextureUV(gModel.uvIndexList[i].su, gModel.uvIndexList[i].sv, false, 0);
+            if (retCode >= MW_BEGIN_ERRORS)
+                return retCode;
+        }
+    }
+
+    // indexID is now the total number of UVs output: grid, simplify-extended, and multi-tile
+    *pUVOutputCount = indexID;
+
     return retCode;
 }
 
@@ -27064,6 +27095,8 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
     FaceRecord* pFace;
 
     int vt[4];
+    // number of "vt" lines actually output, for relative indices; differs from uvIndexCount when exporting tiles
+    int uvOutputCount = gModel.uvIndexCount;
 
 #define OUTPUT_NORMALS
 #ifdef OUTPUT_NORMALS
@@ -27135,7 +27168,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
         if (gModel.exportTiles) {
             // go from the "UVs for one giant mosaic" to "UVs per tile" -
             // happily, all coordinates are powers of two, so this process is lossless
-            retCode = mosaicUVtoSeparateUV();
+            retCode = mosaicUVtoSeparateUV(&uvOutputCount);
             if (retCode >= MW_BEGIN_ERRORS)
                 goto Exit;
         }
@@ -27428,7 +27461,11 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                 for (j = 0; j < 4; j++) {
                     // is it a swatch value, or a simplify extended value? [2] is always a non- [0,1] range UV index. So confusing... :)
                     // Negative indices means "negate and use this value-1 as an X & Y indexed location"
-                    if (pFace->uvIndex[j] >= 0) {
+                    if (pFace->uvIndex[j] >= 0 && gModel.uvIndexList[pFace->uvIndex[j]].spanAnchor >= 0) {
+                        // multi-tile image UV, output on its own
+                        vt[j] = gModel.uvIndexList[pFace->uvIndex[j]].outIndex;
+                    }
+                    else if (pFace->uvIndex[j] >= 0) {
                         index = (int)((((int)(gModel.uvIndexList[pFace->uvIndex[j]].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale) +
                             (NUM_UV_GRID_RESOLUTION + 1) * (int)(16 - ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale));
                         vt[j] = gModel.uvGridList[index];
@@ -27464,9 +27501,9 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                 else
                 {
                     sprintf_s(outputString, 256, "f %d/%d/%d %d/%d/%d %d/%d/%d\n",
-                        pFace->vertexIndex[0] - gModel.vertexCount, vt[0] - gModel.uvIndexCount - 1, outputFaceDirection,
-                        pFace->vertexIndex[1] - gModel.vertexCount, vt[1] - gModel.uvIndexCount - 1, outputFaceDirection,
-                        pFace->vertexIndex[2] - gModel.vertexCount, vt[2] - gModel.uvIndexCount - 1, outputFaceDirection
+                        pFace->vertexIndex[0] - gModel.vertexCount, vt[0] - uvOutputCount - 1, outputFaceDirection,
+                        pFace->vertexIndex[1] - gModel.vertexCount, vt[1] - uvOutputCount - 1, outputFaceDirection,
+                        pFace->vertexIndex[2] - gModel.vertexCount, vt[2] - uvOutputCount - 1, outputFaceDirection
                     );
                 }
             }
@@ -27493,10 +27530,10 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                 else
                 {
                     sprintf_s(outputString, 256, "f %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d\n",
-                        pFace->vertexIndex[offset] - gModel.vertexCount, vt[offset] - gModel.uvIndexCount - 1, outputFaceDirection,
-                        pFace->vertexIndex[offset + 1] - gModel.vertexCount, vt[offset + 1] - gModel.uvIndexCount - 1, outputFaceDirection,
-                        pFace->vertexIndex[offset + 2] - gModel.vertexCount, vt[offset + 2] - gModel.uvIndexCount - 1, outputFaceDirection,
-                        pFace->vertexIndex[(offset + 3) % 4] - gModel.vertexCount, vt[(offset + 3) % 4] - gModel.uvIndexCount - 1, outputFaceDirection
+                        pFace->vertexIndex[offset] - gModel.vertexCount, vt[offset] - uvOutputCount - 1, outputFaceDirection,
+                        pFace->vertexIndex[offset + 1] - gModel.vertexCount, vt[offset + 1] - uvOutputCount - 1, outputFaceDirection,
+                        pFace->vertexIndex[offset + 2] - gModel.vertexCount, vt[offset + 2] - uvOutputCount - 1, outputFaceDirection,
+                        pFace->vertexIndex[(offset + 3) % 4] - gModel.vertexCount, vt[(offset + 3) % 4] - uvOutputCount - 1, outputFaceDirection
                     );
                 }
             }
@@ -27516,9 +27553,9 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                 else
                 {
                     sprintf_s(outputString, 256, "f %d/%d %d/%d %d/%d\n",
-                        pFace->vertexIndex[0] - gModel.vertexCount, vt[0] - gModel.uvIndexCount - 1,
-                        pFace->vertexIndex[1] - gModel.vertexCount, vt[1] - gModel.uvIndexCount - 1,
-                        pFace->vertexIndex[2] - gModel.vertexCount, vt[2] - gModel.uvIndexCount - 1
+                        pFace->vertexIndex[0] - gModel.vertexCount, vt[0] - uvOutputCount - 1,
+                        pFace->vertexIndex[1] - gModel.vertexCount, vt[1] - uvOutputCount - 1,
+                        pFace->vertexIndex[2] - gModel.vertexCount, vt[2] - uvOutputCount - 1
                     );
                 }
             }
@@ -27536,10 +27573,10 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                 else
                 {
                     sprintf_s(outputString, 256, "f %d/%d %d/%d %d/%d %d/%d\n",
-                        pFace->vertexIndex[0] - gModel.vertexCount, vt[0] - gModel.uvIndexCount - 1,
-                        pFace->vertexIndex[1] - gModel.vertexCount, vt[1] - gModel.uvIndexCount - 1,
-                        pFace->vertexIndex[2] - gModel.vertexCount, vt[2] - gModel.uvIndexCount - 1,
-                        pFace->vertexIndex[3] - gModel.vertexCount, vt[3] - gModel.uvIndexCount - 1
+                        pFace->vertexIndex[0] - gModel.vertexCount, vt[0] - uvOutputCount - 1,
+                        pFace->vertexIndex[1] - gModel.vertexCount, vt[1] - uvOutputCount - 1,
+                        pFace->vertexIndex[2] - gModel.vertexCount, vt[2] - uvOutputCount - 1,
+                        pFace->vertexIndex[3] - gModel.vertexCount, vt[3] - uvOutputCount - 1
                     );
                 }
             }
@@ -29275,6 +29312,19 @@ static int createBaseMaterialTexture()
         }
     }
 
+    // Copy each multi-tile image whole into its reserved mosaic block (see reserveSpanBlocks), from its member tiles as processed above.
+    if (useTextureImage && !gModel.exportTiles) {
+        for (i = 0; i < gSpanImageCount; i++) {
+            const SpanImage* pSpan = &gSpanImages[i];
+            if (pSpan->blockCol >= 0) {
+                int x0, y0;
+                getSpanBlockImageOrigin(pSpan, x0, y0);
+                gatherSpanFromMaster(mainprog, x0, y0, mainprog, pSpan->anchorLoc, pSpan->span, gModel.swatchSize, gModel.swatchesPerRow);
+                clampImageBorder(mainprog, x0, y0, pSpan->span * gModel.tileSize, pSpan->span * SWATCH_BORDER, 4);
+            }
+        }
+    }
+
     // Create PBR mosaic textures (normals, metallic, emission, roughness) for mosaic export.
     // These mirror the RGBA mosaic layout but skip RGBA-specific post-processing.
     if (useTextureImage && !gModel.exportTiles) {
@@ -29299,8 +29349,9 @@ static int createBaseMaterialTexture()
             }
 
             // Copy terrain tiles into mosaic at same swatch positions as RGBA.
-            // NUM_BLOCKS_MAP is the starting swatch index for terrain tiles (after solid-color swatches).
-            int pbrSwatchCount = NUM_BLOCKS_MAP;
+            // In texture-image mode no solid-color swatches are made, so the RGBA copy above starts
+            // terrain tiles at swatch 0, matching TILE_TO_SWATCH(), which the UVs use.
+            int pbrSwatchCount = 0;
             for (int pbrRow = 0; pbrRow < (XTILES / 16) * VERTICAL_TILES; pbrRow++) {
                 for (int pbrCol = 0; pbrCol < 16; pbrCol++) {
                     int dstCol2, dstRow2;
@@ -29316,6 +29367,19 @@ static int createBaseMaterialTexture()
                     // extend borders for UV filtering
                     extendPBRSwatchBorder(pbrProg, dstCol2, dstRow2, gModel.swatchSize, gModel.tileSize, channels);
                     pbrSwatchCount++;
+                }
+            }
+
+            // multi-tile images, whole, into their reserved blocks
+            for (int s = 0; s < gSpanImageCount; s++) {
+                const SpanImage* pSpan = &gSpanImages[s];
+                if (pSpan->blockCol >= 0) {
+                    int x0, y0;
+                    int size = pSpan->span * gModel.tileSize;
+                    getSpanBlockImageOrigin(pSpan, x0, y0);
+                    copyPNGAreaChannels(pbrProg, x0, y0, size, size, gModel.pInputTerrainImage[cat],
+                        swatchToCol(pSpan->anchorLoc) * gModel.tileSize, swatchToRow(pSpan->anchorLoc) * gModel.tileSize, channels);
+                    clampImageBorder(pbrProg, x0, y0, size, pSpan->span * SWATCH_BORDER, channels);
                 }
             }
 
@@ -31202,7 +31266,12 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
             if (gModel.exportTiles) {
                 // is it a swatch value, or a simplify extended value?
                 // Negative indices means "negate and use this value-1 as an X & Y indexed location"
-                if (pFace->uvIndex[j] >= 0) {
+                if (pFace->uvIndex[j] >= 0 && gModel.uvIndexList[pFace->uvIndex[j]].spanAnchor >= 0) {
+                    // multi-tile image UV, over the whole image
+                    uc = gModel.uvIndexList[pFace->uvIndex[j]].su;
+                    vc = gModel.uvIndexList[pFace->uvIndex[j]].sv;
+                }
+                else if (pFace->uvIndex[j] >= 0) {
                     uc = (float)((((int)(gModel.uvIndexList[pFace->uvIndex[j]].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale) / (float)NUM_UV_GRID_RESOLUTION;
                     vc = (float)(16 - ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale)) / (float)NUM_UV_GRID_RESOLUTION;
                 }
@@ -34742,7 +34811,8 @@ static int writeEmissiveScaledTile(wchar_t* filename, int index)
     int numChannels = 3;
     unsigned char* imageDst, * imageDiffuseSrc, * imageEmitSrc;  // cppcheck-suppress 398
     progimage_info dst;
-    dst.height = dst.width = gModel.tileSize;
+    // a multi-tile image is output whole
+    dst.height = dst.width = gModel.tileSize * tileSpan(index);
     dst.image_data.resize(dst.height * dst.width * numChannels);
 
     imageDst = &dst.image_data[0];
@@ -34841,7 +34911,8 @@ static int writeTileFromCategoryInput(wchar_t *filename, int index, int category
     int numChannels = gCatChannels[category];
     unsigned char* imageDst, * imageSrc;  // cppcheck-suppress 398
     progimage_info dst;
-    dst.height = dst.width = gModel.tileSize;
+    // a multi-tile image is output whole
+    dst.height = dst.width = gModel.tileSize * tileSpan(index);
     dst.image_data.resize(dst.height * dst.width * numChannels);
 
     imageDst = &dst.image_data[0];
@@ -34919,8 +34990,8 @@ static boolean isTileValue(int category, int swatchLoc, boolean checkAllPixels, 
         int perRow = gModel.pInputTerrainImage[category]->width * numChannels;
         int tileStart = (swatchToRow(swatchLoc) * perRow * gModel.tileSize) +
             (swatchToCol(swatchLoc) * gModel.tileSize * numChannels);
-        // size of area to check in tile
-        int size = checkAllPixels ? gModel.tileSize : 1;
+        // size of area to check in tile - all of a multi-tile image
+        int size = checkAllPixels ? gModel.tileSize * tileSpan(swatchLoc) : 1;
         for (int row = 0; row < size; row++)
         {
             unsigned char* image_data = &(gModel.pInputTerrainImage[category]->image_data[tileStart + row * perRow]);
@@ -34947,8 +35018,8 @@ static boolean isTileValueConstant(int category, int swatchLoc, unsigned char &v
         int perRow = gModel.pInputTerrainImage[category]->width;
         int tileStart = (swatchToRow(swatchLoc) * perRow * gModel.tileSize) +
             (swatchToCol(swatchLoc) * gModel.tileSize);
-        // size of area to check in tile
-        int size = gModel.tileSize;
+        // size of area to check in tile - all of a multi-tile image
+        int size = gModel.tileSize * tileSpan(swatchLoc);
         unsigned char* image_data = &(gModel.pInputTerrainImage[category]->image_data[tileStart]);
         value = *image_data;
         for (int row = 0; row < size; row++)
@@ -34979,7 +35050,8 @@ static int tileAlphaStatus(int swatchLoc)
     int tileStart = (swatchToRow(swatchLoc) * perRow * gModel.tileSize) +
         (swatchToCol(swatchLoc) * gModel.tileSize * numChannels);
     int retCode = 0;    // assume opaque
-    for (int row = 0; row < gModel.tileSize; row++)
+    // all rows of a multi-tile image
+    for (int row = 0; row < gModel.tileSize * tileSpan(swatchLoc); row++)
     {
         // add 3 to get to alpha channel
         unsigned char* image_data = &(gModel.pInputTerrainImage[CATEGORY_RGBA]->image_data[tileStart + row * perRow + 3]);
@@ -35898,6 +35970,41 @@ static void extendPBRSwatchBorder(progimage_info* dst, int swatchCol, int swatch
     int botSrc = (botSrcY * dst->width + startX) * channels;
     int botDst = (botDstY * dst->width + startX) * channels;
     memcpy(&dst->image_data[botDst], &dst->image_data[botSrc], fullWidth * channels);
+}
+
+// Copy a multi-tile image, reassembled from its member tiles' swatch interiors in the mosaic src, into the RGBA image dst with its
+// upper left corner at dstX, dstY.
+static void gatherSpanFromMaster(progimage_info* dst, int dstX, int dstY, progimage_info* src, int anchorLoc, int span, int swatchSize, int swatchesPerRow)
+{
+    int tileSize = swatchSize - 2 * SWATCH_BORDER;
+    for (int dRow = 0; dRow < span; dRow++) {
+        for (int dCol = 0; dCol < span; dCol++) {
+            int memberLoc = TILE_TO_SWATCH(swatchToCol(anchorLoc) + dCol, swatchToRow(anchorLoc) + dRow);
+            copyPNGArea(dst, dstX + dCol * tileSize, dstY + dRow * tileSize, tileSize, tileSize, src,
+                (memberLoc % swatchesPerRow) * swatchSize + SWATCH_BORDER, (memberLoc / swatchesPerRow) * swatchSize + SWATCH_BORDER);
+        }
+    }
+}
+
+// Fill the border, "border" texels wide, around the size x size image at x0, y0 by extending (clamping) the image's edge texels outwards.
+static void clampImageBorder(progimage_info* img, int x0, int y0, int size, int border, int channels)
+{
+    for (int y = y0 - border; y < y0 + size + border; y++) {
+        int sy = min(max(y, y0), y0 + size - 1);
+        for (int x = x0 - border; x < x0 + size + border; x++) {
+            int sx = min(max(x, x0), x0 + size - 1);
+            if (sx != x || sy != y) {
+                memcpy(&img->image_data[(y * img->width + x) * channels], &img->image_data[(sy * img->width + sx) * channels], channels);
+            }
+        }
+    }
+}
+
+// Mosaic texel location of the upper left corner of a span image inside its reserved block, i.e., just inside the block's border
+static void getSpanBlockImageOrigin(const SpanImage* pSpan, int& x0, int& y0)
+{
+    x0 = pSpan->blockCol * gModel.swatchSize + pSpan->span * SWATCH_BORDER;
+    y0 = pSpan->blockRow * gModel.swatchSize + pSpan->span * SWATCH_BORDER;
 }
 
 static void setColorPNGArea(progimage_info* dst, int dst_x_min, int dst_y_min, int size_x, int size_y, unsigned int value)
@@ -36891,6 +36998,18 @@ static void convertAlphaToGrayscale(progimage_info* dst)
 static bool writeTileFromMasterOutput(wchar_t* filename, progimage_info* src, int swatchLoc, int swatchSize, int swatchesPerRow, bool makeGrayscale, int clampToBlack)
 {
     int rc = MW_NO_ERROR;
+    // A multi-tile image is output whole: gather it from its tiles into a single large "swatch" and output that
+    progimage_info spanSrc;
+    int span = tileSpan(swatchLoc);
+    if (span > 1) {
+        spanSrc.width = spanSrc.height = span * (swatchSize - 2) + 2;
+        spanSrc.image_data.resize(spanSrc.width * spanSrc.height * 4, 0);
+        gatherSpanFromMaster(&spanSrc, 1, 1, src, swatchLoc, span, swatchSize, swatchesPerRow);
+        src = &spanSrc;
+        swatchLoc = 0;
+        swatchSize = spanSrc.width;
+        swatchesPerRow = 1;
+    }
     // does the output need to have an alpha? Emitters don't
     bool usesAlpha = doesTileHaveAlpha(src, swatchLoc, swatchSize, swatchesPerRow);
     // TODO OK, this is a kludge
@@ -37646,6 +37765,12 @@ static bool faceCanTile(int faceId)
 
     // check if last two vertices match - if so, it's a triangle, so can be ignored
     if (pFace->vertexIndex[2] == pFace->vertexIndex[3])
+    {
+        return false;
+    }
+
+    // faces textured with a multi-tile image, such as straw_bed.png, never tile
+    if (gModel.exportTexture && gModel.uvIndexList[pFace->uvIndex[0]].spanAnchor >= 0)
     {
         return false;
     }

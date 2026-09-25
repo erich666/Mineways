@@ -263,6 +263,8 @@ static bool gHeadless = false;
 // Cached stdin handle captured before AttachConsole is called.
 // AttachConsole may replace the standard handles, so we save the original (potentially inherited pipe) here.
 static HANDLE gHeadlessStdIn = NULL;
+// Set when a script's "Close" command has been run, so no further command-line scripts are processed.
+static bool gCloseRequested = false;
 
 // left mouse button maps to left by default, etc.
 // The left mouse button pans the view, middle selects height of the bottom, right sets or adjusts the selection rectangle
@@ -407,6 +409,7 @@ BOOL				InitInstance(HINSTANCE, int);
 LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
 static boolean badFileSuffix(int fileType, TCHAR* filePath);
+static void freeMinewaysResources();
 static void closeMineways();
 static bool startExecutionLogFile(const LPWSTR* argList, int argCount);
 static int modifyWindowSizeFromCommandLine(int* x, int* y, const LPWSTR* argList, int argCount);
@@ -741,9 +744,7 @@ int APIENTRY _tWinMain(
         // else: scripts already executed during WM_CREATE, just exit
 
         // Cleanup without PostQuitMessage (we never entered the message loop)
-        if (gArgList) { LocalFree(gArgList); gArgList = NULL; }
-        if (gExecutionLogfile) { PortaClose(gExecutionLogfile); gExecutionLogfile = 0x0; }
-        Cache_Empty();
+        freeMinewaysResources();
         return 0;
     }
 
@@ -2951,6 +2952,12 @@ static boolean badFileSuffix(int fileType, TCHAR *filePath)
 
 static void closeMineways()
 {
+    freeMinewaysResources();
+    PostQuitMessage(0);
+}
+
+static void freeMinewaysResources()
+{
     int i;
     if (gArgList) {
         LocalFree(gArgList);
@@ -2972,8 +2979,6 @@ static void closeMineways()
         gCustomCurrency = NULL;
     }
     Cache_Empty();
-
-    PostQuitMessage(0);
 }
 // parse on startup, looking for an execution log file name.
 // Return true if successful (i.e. no error found) - does NOT mean a log file was opened, just that the parse was OK.
@@ -3360,6 +3365,10 @@ static bool processCreateArguments(WindowSet& ws, const char** pBlockLabel, LPAR
             // TODO: someday maybe add a check that if the argument is a level.dat, try to load that.
             LOG_INFO(gExecutionLogfile, " runImportOrScript\n");
             runImportOrScript(argList[argIndex], ws, pBlockLabel, holdlParam, false);
+            // script said "Close": skip any remaining scripts. argList may also have been freed by closeMineways().
+            if (gCloseRequested) {
+                break;
+            }
             argIndex++;
         }
     }
@@ -6592,7 +6601,12 @@ Exit:
     // after all that, should the program be closed?
     if (is.closeProgram)
     {
-        closeMineways();
+        gCloseRequested = true;
+        // In headless mode WinMain frees everything and exits once the command-line scripts are done.
+        // Freeing here would pull gArgList out from under processCreateArguments and WinMain.
+        if (!gHeadless) {
+            closeMineways();
+        }
     }
     return retCode;
 }

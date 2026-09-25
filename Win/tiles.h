@@ -89,7 +89,8 @@ static struct {
     // own anchor, always has spanX >= 0 and spanY >= 0, so "either span field is negative" unambiguously flags a member cell (see resolveTileAnchor()
     // and getTileMaterialName() in ObjFileManip.cpp, which use this to recover a member cell's name/material info from its anchor when needed, e.g.
     // when a hand-authored .obj is imported with UVs that address a member cell directly). Leave both fields off (zero) for the normal case of one
-    // tile, or for a tile that's simply unused. Spans are in tiles, and the region must be square.
+    // tile, or for a tile that's simply unused. Spans are in tiles, and the region must be square. Exported models use the image whole, addressed by
+    // the anchor (see saveBoxModelFace() in ObjFileManip.cpp): individual texture export writes it as one file, e.g. straw_bed.png.
     int spanX;
     int spanY;
 

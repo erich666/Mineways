@@ -2932,7 +2932,10 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 	<LI>Bug fix: increase region export size. An exported region used to be tested to see if it would exceed 2^31 bytes of allocated data, a leftover from the Windows-32 days. Worse still, it would abort export if the full region selected was going to allocate space beyond this number of bytes. Mineways actually checks the volume and "lowers the sky" to the highest block in the region, which saves export memory. Also, it's the number of blocks, not blocks * bytes, that's more relevant with the current code. Long and short, removing this limitation and making sure the number of blocks is stored in a "long long" (64-bit) value, Mineways should now handle regions that are at least four times larger that before, if not larger.
 	<LI>Slightly improved .schem export and import. More non-graphical attributes are read in and written out. Note-blocks' "instrument", decorated pot's "facing" and "cracked", sculk catalyst's "bloom", TNT's "unstable", piston's "sticky" and "short", bubble-column's "drag", and shelf's mysterious "side_chain" properties are now supported.
 	<LI>Be more careful about properly freeing image memory, out-of-memory conditions, file separators for any Mac version, TGA exceptions, etc. <I>(Thanks to Will Breiler for <a href="https://github.com/erich666/Mineways/pull/166">the copious improvements</a>. See <a href="https://github.com/wbreiler/Mineways/tree/master">his fork</a> for a Mac-buildable version of Mineways.)</I>
+	<LI>Fix output count of smaller blocks. Was overcounting, based on number of boxes etc. for an object, e.g., each stairs gave a count of two, top and bottom.
 	<LI>Golem facing was incorrect, bleeding into other properties. Fixed.
+	<LI>Azaleas exported without textures could cause a crash. Fixed.
+	<LI>Campfires could turn into soul campfires due to stale state held when "powered" is set. Fixed.
 	<LI>Minor improvements to error messages, mineways.bat, etc.
 	</UL>
 	
