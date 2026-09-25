@@ -839,10 +839,13 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
     float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
 static int saveBoxCustomUVVertices(int boxIndex, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
 // One face of a Minecraft block model JSON element: direction, "uv" [u1,v1,u2,v2] in 0-16 units over the whole texture, and "rotation"
+// billboardBack is set (to 1) on the back face of a flat, two-faced element, such as a straw bed frill. It is output only when
+// gModel.singleSided is true ("Double all billboard faces"); otherwise the front face alone is output, to be rendered double-sided.
 typedef struct ModelFace {
     int faceDirection;
     float uv[4];
     int rotation;
+    int billboardBack;
 } ModelFace;
 // One Minecraft block model JSON element: "from", "to" (in 0-16 pixel units) and its faces
 typedef struct ModelElement {
@@ -7527,19 +7530,19 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             { // frills_03
                 { 0.0f, Z_FIGHTING_BIAS, -3.0f }, { 16.0f, Z_FIGHTING_BIAS, 0.0f }, 2, {
                     { DIRECTION_BLOCK_TOP, { 0.0f, 11.25f, 4.0f, 12.0f }, 180 },
-                    { DIRECTION_BLOCK_BOTTOM, { 0.0f, 12.75f, 4.0f, 12.0f }, 180 },
+                    { DIRECTION_BLOCK_BOTTOM, { 0.0f, 12.75f, 4.0f, 12.0f }, 180, 1 },
                 }
             },
             { // frills_04
                 { 16.0f, Z_FIGHTING_BIAS, 0.0f }, { 19.0f, Z_FIGHTING_BIAS, 16.0f }, 2, {
                     { DIRECTION_BLOCK_TOP, { 12.0f, 6.25f, 12.75f, 10.25f }, 180 },
-                    { DIRECTION_BLOCK_BOTTOM, { 12.75f, 10.25f, 13.5f, 6.25f }, 180 },
+                    { DIRECTION_BLOCK_BOTTOM, { 12.75f, 10.25f, 13.5f, 6.25f }, 180, 1 },
                 }
             },
             { // frills_05
                 { -3.0f, Z_FIGHTING_BIAS, 0.0f }, { 0.0f, Z_FIGHTING_BIAS, 16.0f }, 2, {
                     { DIRECTION_BLOCK_TOP, { 13.5f, 10.25f, 14.25f, 6.25f }, 180 },
-                    { DIRECTION_BLOCK_BOTTOM, { 14.25f, 6.25f, 15.0f, 10.25f }, 180 },
+                    { DIRECTION_BLOCK_BOTTOM, { 14.25f, 6.25f, 15.0f, 10.25f }, 180, 1 },
                 }
             },
         };
@@ -7557,48 +7560,48 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             { // pillow_frills_01
                 { -2.0f, Z_FIGHTING_BIAS, 8.0f }, { 0.0f, Z_FIGHTING_BIAS, 16.0f }, 2, {
                     { DIRECTION_BLOCK_TOP, { 1.5f, 8.25f, 1.0f, 6.25f }, 0 },
-                    { DIRECTION_BLOCK_BOTTOM, { 2.0f, 6.25f, 1.5f, 8.25f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 2.0f, 6.25f, 1.5f, 8.25f }, 0, 1 },
                 }
             },
             { // pillow_frills_02
                 { -2.0f, 5.0f, 8.0f }, { 0.0f, 5.0f, 16.0f }, 2, {
                     { DIRECTION_BLOCK_TOP, { 10.5f, 2.0f, 10.0f, 0.0f }, 0 },
-                    { DIRECTION_BLOCK_BOTTOM, { 11.0f, 0.0f, 10.5f, 2.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 11.0f, 0.0f, 10.5f, 2.0f }, 0, 1 },
                 }
             },
             { // pillow_frills_03
                 { -2.0f, 0.0f, 8.0f }, { 0.0f, 5.0f, 8.0f }, 2, {
                     { DIRECTION_BLOCK_SIDE_LO_Z, { 1.0f, 8.25f, 1.5f, 9.5f }, 0 },
-                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2.0f, 8.25f, 1.5f, 9.5f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2.0f, 8.25f, 1.5f, 9.5f }, 0, 1 },
                 }
             },
             { // pillow_frills_04
                 { -2.0f, 0.0f, 16.0f }, { 0.0f, 5.0f, 16.0f }, 2, {
-                    { DIRECTION_BLOCK_SIDE_LO_Z, { 10.0f, 3.25f, 10.5f, 4.5f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 10.0f, 3.25f, 10.5f, 4.5f }, 0, 1 },
                     { DIRECTION_BLOCK_SIDE_HI_Z, { 10.5f, 3.25f, 11.0f, 4.5f }, 0 },
                 }
             },
             { // pillow_frills_05
                 { 16.0f, Z_FIGHTING_BIAS, 8.0f }, { 18.0f, Z_FIGHTING_BIAS, 16.0f }, 2, {
                     { DIRECTION_BLOCK_TOP, { 0.5f, 8.25f, 0.0f, 6.25f }, 0 },
-                    { DIRECTION_BLOCK_BOTTOM, { 0.5f, 6.25f, 1.0f, 8.25f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 0.5f, 6.25f, 1.0f, 8.25f }, 0, 1 },
                 }
             },
             { // pillow_frills_06
                 { 16.0f, 5.0f, 8.0f }, { 18.0f, 5.0f, 16.0f }, 2, {
                     { DIRECTION_BLOCK_TOP, { 0.5f, 2.0f, 0.0f, 0.0f }, 0 },
-                    { DIRECTION_BLOCK_BOTTOM, { 0.5f, 0.0f, 1.0f, 2.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 0.5f, 0.0f, 1.0f, 2.0f }, 0, 1 },
                 }
             },
             { // pillow_frills_07
                 { 16.0f, 0.0f, 8.0f }, { 18.0f, 5.0f, 8.0f }, 2, {
                     { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 8.25f, 0.5f, 9.5f }, 0 },
-                    { DIRECTION_BLOCK_SIDE_HI_Z, { 1.0f, 8.25f, 0.5f, 9.5f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 1.0f, 8.25f, 0.5f, 9.5f }, 0, 1 },
                 }
             },
             { // pillow_frills_08
                 { 16.0f, 0.0f, 16.0f }, { 18.0f, 5.0f, 16.0f }, 2, {
-                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 3.25f, 0.5f, 4.5f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 3.25f, 0.5f, 4.5f }, 0, 1 },
                     { DIRECTION_BLOCK_SIDE_HI_Z, { 1.0f, 3.25f, 0.5f, 4.5f }, 0 },
                 }
             },
@@ -7615,13 +7618,13 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             { // frills_02
                 { 16.0f, Z_FIGHTING_BIAS, 0.0f }, { 19.0f, Z_FIGHTING_BIAS, 8.0f }, 2, {
                     { DIRECTION_BLOCK_TOP, { 12.75f, 6.25f, 12.0f, 4.25f }, 0 },
-                    { DIRECTION_BLOCK_BOTTOM, { 13.5f, 4.25f, 12.75f, 6.25f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 13.5f, 4.25f, 12.75f, 6.25f }, 0, 1 },
                 }
             },
             { // frills_03
                 { -3.0f, Z_FIGHTING_BIAS, 0.0f }, { 0.0f, Z_FIGHTING_BIAS, 8.0f }, 2, {
                     { DIRECTION_BLOCK_TOP, { 14.25f, 6.25f, 13.5f, 4.25f }, 0 },
-                    { DIRECTION_BLOCK_BOTTOM, { 15.0f, 4.25f, 14.25f, 6.25f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 15.0f, 4.25f, 14.25f, 6.25f }, 0, 1 },
                 }
             },
         };
@@ -14340,6 +14343,9 @@ static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc,
             return retCode | MW_WORLD_EXPORT_TOO_LARGE;
         for (int f = 0; f < pElem->faceCount; f++) {
             const ModelFace* pFace = &pElem->face[f];
+            // the back of a flat element is output only when billboards are doubled
+            if (pFace->billboardBack && !gModel.singleSided)
+                continue;
             retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, pFace->faceDirection, markFirstFace, anchorLoc, pFace->uv, pFace->rotation);
             if (retCode >= MW_BEGIN_ERRORS)
                 return retCode;
