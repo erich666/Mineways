@@ -49,9 +49,14 @@ THE POSSIBILITY OF SUCH DAMAGE.
 // Set to a tiny number to have front and back faces of billboards be separated a bit.
 // TODO: currently works only for those billboards made by using the various multitile calls,
 // not by the traditional billboard calls.
-//#define STOP_Z_FIGHTING	(0.0002f/2.0f)
+//#define STOP_DOUBLE_SIDED_BILLBOARD_Z_FIGHTING	(0.0002f/2.0f)
 // feature currently disabled, G3D was fixed so this is no longer an issue.
-#define STOP_Z_FIGHTING	0.0f
+#define STOP_DOUBLE_SIDED_BILLBOARD_Z_FIGHTING	0.0f
+
+// Some blocks, such as leaf litter and straw beds, have elements that are directly on the ground
+// but need to be slightly above, to avoid (or at least ameliorate) z-fighting. This value sets
+// how much of a texel height these output elements are moved upwards
+#define Z_FIGHTING_BIAS 0.05f
 
 // If the model is going to undergo a transform, we don't know the normal of the surface,
 // so figure out the normal at the end of the run.
@@ -7507,7 +7512,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     {
         // Minecraft's block/straw_bed_foot.json and straw_bed_head.json, used verbatim: element boxes, and each face's uv and rotation
         // on the whole 64x64 straw_bed.png image (a 4x4 tile span in tiles.h). See saveModelElements. Some "frill" elements poke out past
-        // the block's own 0-16 bounds, as they do in Minecraft.
+        // the block's own 0-16 bounds, as they do in Minecraft. Frill coordinates are rounded to exact texel boundaries (Minecraft's
+        // model nudges them slightly), except that the horizontal frills on the ground are raised by Z_FIGHTING_BIAS.
         static const ModelElement footElements[] = {
             { // base
                 { 0.0f, 0.0f, 0.0f }, { 16.0f, 4.0f, 16.0f }, 5, {
@@ -7519,21 +7525,21 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 }
             },
             { // frills_03
-                { 0.0f, 0.125f, -3.0f }, { 16.0f, 0.125f, 0.0f }, 2, {
+                { 0.0f, Z_FIGHTING_BIAS, -3.0f }, { 16.0f, Z_FIGHTING_BIAS, 0.0f }, 2, {
                     { DIRECTION_BLOCK_TOP, { 0.0f, 11.25f, 4.0f, 12.0f }, 180 },
                     { DIRECTION_BLOCK_BOTTOM, { 0.0f, 12.75f, 4.0f, 12.0f }, 180 },
                 }
             },
             { // frills_04
-                { 16.0f, 0.105f, 0.0f }, { 19.0f, 0.105f, 16.0f }, 2, {
-                    { DIRECTION_BLOCK_TOP, { 11.999999999999998f, 6.25f, 12.749999999999998f, 10.25f }, 180 },
-                    { DIRECTION_BLOCK_BOTTOM, { 12.749999999999998f, 10.25f, 13.499999999999998f, 6.25f }, 180 },
+                { 16.0f, Z_FIGHTING_BIAS, 0.0f }, { 19.0f, Z_FIGHTING_BIAS, 16.0f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 12.0f, 6.25f, 12.75f, 10.25f }, 180 },
+                    { DIRECTION_BLOCK_BOTTOM, { 12.75f, 10.25f, 13.5f, 6.25f }, 180 },
                 }
             },
             { // frills_05
-                { -3.0f, 0.115f, 0.0f }, { 0.0f, 0.115f, 16.0f }, 2, {
-                    { DIRECTION_BLOCK_TOP, { 13.499999999999998f, 10.25f, 14.249999999999998f, 6.25f }, 180 },
-                    { DIRECTION_BLOCK_BOTTOM, { 14.249999999999998f, 6.25f, 14.999999999999998f, 10.25f }, 180 },
+                { -3.0f, Z_FIGHTING_BIAS, 0.0f }, { 0.0f, Z_FIGHTING_BIAS, 16.0f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 13.5f, 10.25f, 14.25f, 6.25f }, 180 },
+                    { DIRECTION_BLOCK_BOTTOM, { 14.25f, 6.25f, 15.0f, 10.25f }, 180 },
                 }
             },
         };
@@ -7549,51 +7555,51 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 }
             },
             { // pillow_frills_01
-                { -2.0f, 0.065f, 8.0f }, { 0.0f, 0.065f, 16.0f }, 2, {
+                { -2.0f, Z_FIGHTING_BIAS, 8.0f }, { 0.0f, Z_FIGHTING_BIAS, 16.0f }, 2, {
                     { DIRECTION_BLOCK_TOP, { 1.5f, 8.25f, 1.0f, 6.25f }, 0 },
                     { DIRECTION_BLOCK_BOTTOM, { 2.0f, 6.25f, 1.5f, 8.25f }, 0 },
                 }
             },
             { // pillow_frills_02
-                { -2.0f, 4.96f, 8.0f }, { 0.0f, 4.96f, 16.0f }, 2, {
+                { -2.0f, 5.0f, 8.0f }, { 0.0f, 5.0f, 16.0f }, 2, {
                     { DIRECTION_BLOCK_TOP, { 10.5f, 2.0f, 10.0f, 0.0f }, 0 },
                     { DIRECTION_BLOCK_BOTTOM, { 11.0f, 0.0f, 10.5f, 2.0f }, 0 },
                 }
             },
             { // pillow_frills_03
-                { -2.0f, 0.065f, 8.025f }, { 0.0f, 4.95f, 8.025f }, 2, {
-                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1.0f, 8.25f, 1.5f, 9.48125f }, 0 },
-                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2.0f, 8.25f, 1.5f, 9.48125f }, 0 },
+                { -2.0f, 0.0f, 8.0f }, { 0.0f, 5.0f, 8.0f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1.0f, 8.25f, 1.5f, 9.5f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2.0f, 8.25f, 1.5f, 9.5f }, 0 },
                 }
             },
             { // pillow_frills_04
-                { -2.0f, 0.065f, 15.985f }, { 0.0f, 4.95f, 15.985f }, 2, {
-                    { DIRECTION_BLOCK_SIDE_LO_Z, { 10.0f, 3.25f, 10.5f, 4.481249999999999f }, 0 },
-                    { DIRECTION_BLOCK_SIDE_HI_Z, { 10.5f, 3.25f, 11.0f, 4.481249999999999f }, 0 },
+                { -2.0f, 0.0f, 16.0f }, { 0.0f, 5.0f, 16.0f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 10.0f, 3.25f, 10.5f, 4.5f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 10.5f, 3.25f, 11.0f, 4.5f }, 0 },
                 }
             },
             { // pillow_frills_05
-                { 16.0f, 0.05f, 8.0f }, { 18.0f, 0.05f, 16.0f }, 2, {
+                { 16.0f, Z_FIGHTING_BIAS, 8.0f }, { 18.0f, Z_FIGHTING_BIAS, 16.0f }, 2, {
                     { DIRECTION_BLOCK_TOP, { 0.5f, 8.25f, 0.0f, 6.25f }, 0 },
                     { DIRECTION_BLOCK_BOTTOM, { 0.5f, 6.25f, 1.0f, 8.25f }, 0 },
                 }
             },
             { // pillow_frills_06
-                { 16.0f, 4.975f, 8.0f }, { 18.0f, 4.975f, 16.0f }, 2, {
+                { 16.0f, 5.0f, 8.0f }, { 18.0f, 5.0f, 16.0f }, 2, {
                     { DIRECTION_BLOCK_TOP, { 0.5f, 2.0f, 0.0f, 0.0f }, 0 },
                     { DIRECTION_BLOCK_BOTTOM, { 0.5f, 0.0f, 1.0f, 2.0f }, 0 },
                 }
             },
             { // pillow_frills_07
-                { 16.0f, 0.05000000000000001f, 8.0f }, { 18.0f, 4.975f, 8.0f }, 2, {
-                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 8.25f, 0.5f, 9.48125f }, 0 },
-                    { DIRECTION_BLOCK_SIDE_HI_Z, { 1.0f, 8.25f, 0.5f, 9.48125f }, 0 },
+                { 16.0f, 0.0f, 8.0f }, { 18.0f, 5.0f, 8.0f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 8.25f, 0.5f, 9.5f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 1.0f, 8.25f, 0.5f, 9.5f }, 0 },
                 }
             },
             { // pillow_frills_08
-                { 16.0f, 0.05000000000000001f, 15.975f }, { 18.0f, 4.975f, 15.975f }, 2, {
-                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 3.25f, 0.5f, 4.48125f }, 0 },
-                    { DIRECTION_BLOCK_SIDE_HI_Z, { 1.0f, 3.25f, 0.5f, 4.48125f }, 0 },
+                { 16.0f, 0.0f, 16.0f }, { 18.0f, 5.0f, 16.0f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 3.25f, 0.5f, 4.5f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 1.0f, 3.25f, 0.5f, 4.5f }, 0 },
                 }
             },
             { // pillow
@@ -7607,13 +7613,13 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 }
             },
             { // frills_02
-                { 16.0f, 0.05f, 0.0f }, { 19.0f, 0.05f, 8.0f }, 2, {
+                { 16.0f, Z_FIGHTING_BIAS, 0.0f }, { 19.0f, Z_FIGHTING_BIAS, 8.0f }, 2, {
                     { DIRECTION_BLOCK_TOP, { 12.75f, 6.25f, 12.0f, 4.25f }, 0 },
                     { DIRECTION_BLOCK_BOTTOM, { 13.5f, 4.25f, 12.75f, 6.25f }, 0 },
                 }
             },
             { // frills_03
-                { -3.0f, 0.065f, 0.0f }, { 0.0f, 0.065f, 8.0f }, 2, {
+                { -3.0f, Z_FIGHTING_BIAS, 0.0f }, { 0.0f, Z_FIGHTING_BIAS, 8.0f }, 2, {
                     { DIRECTION_BLOCK_TOP, { 14.25f, 6.25f, 13.5f, 4.25f }, 0 },
                     { DIRECTION_BLOCK_BOTTOM, { 15.0f, 4.25f, 14.25f, 6.25f }, 0 },
                 }
@@ -12488,10 +12494,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             {
                 // leaf litter?
                 if ((dataVal & 0x30) == 16) {
-                    // leaf litter tops - doesn't use heights, just a constant 0.5 (should really be flush, but this is close enough and avoids z-fighting)
+                    // leaf litter tops - doesn't use heights, just a constant Z_FIGHTING_BIAS (should really be flush, but this is close enough and avoids z-fighting)
                     saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, i == 0 ? 1 : 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | (gModel.singleSided ? 0x0 : DIR_BOTTOM_BIT),
                         (i < 2) ? 0.0f : 8.0f, (i < 2) ? 8.0f : 16.0f,
-                        0.05f, 0.05f,
+                        Z_FIGHTING_BIAS, Z_FIGHTING_BIAS,
                         (((i + 3) % 4) >= 2) ? 0.0f : 8.0f, (((i + 3) % 4) >= 2) ? 8.0f : 16.0f);
                 } else {
                     saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, i == 0 ? 1 : 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | (gModel.singleSided ? 0x0 : DIR_BOTTOM_BIT),
@@ -13919,18 +13925,18 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
         // add an epsilon to avoid z-fighting
         if (minPixX == maxPixX && !(faceMask & (DIR_LO_X_BIT | DIR_HI_X_BIT)))
         {
-            fminx -= STOP_Z_FIGHTING;
-            fmaxx += STOP_Z_FIGHTING;
+            fminx -= STOP_DOUBLE_SIDED_BILLBOARD_Z_FIGHTING;
+            fmaxx += STOP_DOUBLE_SIDED_BILLBOARD_Z_FIGHTING;
         }
         if (minPixY == maxPixY && !(faceMask & (DIR_BOTTOM_BIT | DIR_TOP_BIT)))
         {
-            fminy -= STOP_Z_FIGHTING;
-            fmaxy += STOP_Z_FIGHTING;
+            fminy -= STOP_DOUBLE_SIDED_BILLBOARD_Z_FIGHTING;
+            fmaxy += STOP_DOUBLE_SIDED_BILLBOARD_Z_FIGHTING;
         }
         if (minPixZ == maxPixZ && !(faceMask & (DIR_LO_Z_BIT | DIR_HI_Z_BIT)))
         {
-            fminz -= STOP_Z_FIGHTING;
-            fmaxz += STOP_Z_FIGHTING;
+            fminz -= STOP_DOUBLE_SIDED_BILLBOARD_Z_FIGHTING;
+            fmaxz += STOP_DOUBLE_SIDED_BILLBOARD_Z_FIGHTING;
         }
         for (i = 0; i < 8; i++)
         {
