@@ -1802,6 +1802,12 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         }
         break;
 
+    case BLOCK_BED:
+        // dataVal bit 0x8 is part (0=foot,1=head); default name "Bed" covers the foot half.
+        if (dataVal & 0x8) {
+            return "Bed (Head)";
+        }
+        break;
     case BLOCK_STRAW_BED:
         // dataVal bit 0x8 is part (0=foot,1=head); default name "Straw Bed" covers the foot half.
         if (dataVal & 0x8) {
@@ -6189,13 +6195,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             addBlock = 1;
         }
         break;
-    case BLOCK_STRAW_BED:
-        // valid values are {0,1,2,3,8,9,10,11}: bits 0x3 are SWNE facing, bit 0x8 is part - bits 0x4 unused
-        if ((dataVal & ~0xB) == 0)
-        {
-            addBlock = 1;
-        }
-        break;
     case BLOCK_WHEAT:
     case BLOCK_CARROTS:
     case BLOCK_POTATOES:
@@ -7042,6 +7041,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
     case BLOCK_BED:
+    case BLOCK_STRAW_BED:
         if (dataVal < 8)
         {
             addBlock = 1;
@@ -7051,25 +7051,25 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 // put head to south
                 bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
                 block->grid[bi] = (unsigned char)type;
-                block->data[bi] |= (unsigned char)(dataVal | 0x8);
+                block->data[bi] |= (unsigned short)(dataVal | typeHighBit | 0x8);
                 break;
             case 1:
                 // put head to west
                 bi = BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
                 block->grid[bi] = (unsigned char)type;
-                block->data[bi] |= (unsigned char)(dataVal | 0x8);
+                block->data[bi] |= (unsigned short)(dataVal | typeHighBit | 0x8);
                 break;
             case 2:
                 // put head to north
                 bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8);
                 block->grid[bi] = (unsigned char)type;
-                block->data[bi] |= (unsigned char)(dataVal | 0x8);
+                block->data[bi] |= (unsigned short)(dataVal | typeHighBit | 0x8);
                 break;
             case 3:
                 // put head to east
                 bi = BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
                 block->grid[bi] = (unsigned char)type;
-                block->data[bi] |= (unsigned char)(dataVal | 0x8);
+                block->data[bi] |= (unsigned short)(dataVal | typeHighBit | 0x8);
                 break;
             }
         }
@@ -7222,7 +7222,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 bi = BLOCK_INDEX(bx, by, bz);
                 block->grid[bi] = BLOCK_PISTON_HEAD;
                 // sticky or not, plus direction
-                block->data[bi] |= (unsigned char)(trimVal | ((origType == BLOCK_STICKY_PISTON) ? 0x8 : 0x0));
+                block->data[bi] |= (unsigned short)(trimVal | ((origType == BLOCK_STICKY_PISTON) ? 0x8 : 0x0));
             }
         }
         break;
@@ -7382,7 +7382,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         if (dataVal & 0x1)
         {
             // alternate between wall and mossy wall - we set mossy wall if odd
-            block->data[bi] |= (unsigned char)0x1;
+            block->data[bi] |= (unsigned short)0x1;
 
             // put block to north
             bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8);
