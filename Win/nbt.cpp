@@ -57,6 +57,26 @@ typedef struct BlockTranslator {
     unsigned long translateFlags;
 } BlockTranslator;
 
+// BlockTranslations[] speaks the old 8-bit encoding, where TYPE_HIGH_BIT1 in dataVal means "type + 256". Heads and
+// flower pots are the exception: their 0x80 is real data (a floor head's rotation mode; the potted cactus, bamboo and
+// azalea fields), and neither type has a +256 twin.
+static int translatorTypeHighBit(const BlockTranslator* bt)
+{
+    return (bt->blockId == BLOCK_HEAD || bt->blockId == BLOCK_FLOWER_POT) ? 0 : (bt->dataVal & TYPE_HIGH_BIT1);
+}
+
+// the entry's full type, blockId plus 256 if it has TYPE_HIGH_BIT1
+static int translatorFullType(const BlockTranslator* bt)
+{
+    return bt->blockId | (translatorTypeHighBit(bt) << 1);
+}
+
+// the entry's dataVal, without any TYPE_HIGH_BIT1
+static int translatorDataVal(const BlockTranslator* bt)
+{
+    return bt->dataVal & ~translatorTypeHighBit(bt);
+}
+
 typedef struct BiomeTranslator {
     int hashSum;
     unsigned char biomeID;
@@ -4170,8 +4190,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                     // correct from this point on; PROP arms below OR further real dataVal bits into
                     // the low 12 bits without touching the type-extension nibble (bits 12-15).
                     {
-                        int fullType = BlockTranslations[typeIndex].blockId | ((BlockTranslations[typeIndex].dataVal & TYPE_HIGH_BIT1) << 1);
-                        paletteDataEntry[entryIndex] = PACK_TYPE_EXT_AND_DATAVAL(fullType, BlockTranslations[typeIndex].dataVal & 0x7F);
+                        int fullType = translatorFullType(&BlockTranslations[typeIndex]);
+                        paletteDataEntry[entryIndex] = PACK_TYPE_EXT_AND_DATAVAL(fullType, translatorDataVal(&BlockTranslations[typeIndex]));
                     }
                 }
                 else {
@@ -4205,8 +4225,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                                 paletteBlockEntry[entryIndex] = (unsigned char)(BlockTranslations[ptt->type].blockId & 0xFF);
                                 // see the matching pack above - same table, same conversion.
                                 {
-                                    int fullType = BlockTranslations[ptt->type].blockId | ((BlockTranslations[ptt->type].dataVal & TYPE_HIGH_BIT1) << 1);
-                                    paletteDataEntry[entryIndex] = PACK_TYPE_EXT_AND_DATAVAL(fullType, BlockTranslations[ptt->type].dataVal & 0x7F);
+                                    int fullType = translatorFullType(&BlockTranslations[ptt->type]);
+                                    paletteDataEntry[entryIndex] = PACK_TYPE_EXT_AND_DATAVAL(fullType, translatorDataVal(&BlockTranslations[ptt->type]));
                                 }
                                 // note that any dataVal translation will be magic - might destroy life as we know it.
                                 // But, allow the user to do it using ":*".
@@ -6548,8 +6568,8 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
     // BlockTranslations[] speaks the old 8-bit encoding, where TYPE_HIGH_BIT1 in its dataVal means "type + 256".
     // Keep that apart from the real dataVal, so the property arms below can use all 12 dataVal bits (e.g. note
     // block's instrument, bits 0x7C0, and head rotation's 0x80 marker) without it being taken as a type promotion.
-    int typeHighBit = (int)BlockTranslations[idx].dataVal & TYPE_HIGH_BIT1;
-    int dataVal = (int)BlockTranslations[idx].dataVal & 0x7F;
+    int typeHighBit = translatorTypeHighBit(&BlockTranslations[idx]);
+    int dataVal = translatorDataVal(&BlockTranslations[idx]);
     unsigned long tf = BlockTranslations[idx].translateFlags;
 
     // Tokenize the property list (if any).
@@ -7905,7 +7925,7 @@ static void buildSpongeReverseIndex()
     memset(gSpongeReverseCount, 0, sizeof(gSpongeReverseCount));
     for (int i = 0; i < NUM_TRANS; i++) {
         const BlockTranslator* e = &BlockTranslations[i];
-        int fullType = e->blockId | ((e->dataVal & TYPE_HIGH_BIT1) ? 0x100 : 0);
+        int fullType = translatorFullType(e);
         if (fullType < NUM_BLOCKS_DEFINED && gSpongeReverseCount[fullType] < SPONGE_MAX_SUBTYPES) {
             gSpongeReverse[fullType][gSpongeReverseCount[fullType]++] = e;
         }
@@ -7927,9 +7947,15 @@ static const BlockTranslator* findSpongeTranslator(int type, int dataVal)
     if (n == 1) return gSpongeReverse[fullType][0];
 
     unsigned int mask = (unsigned int)gBlockDefinitions[fullType].subtype_mask & 0x7Fu;
+    unsigned int entryMask = 0x7Fu;
+    // a head's entry is picked by its kind (0x70) and floor bit (0x80); a flower pot's by its whole 8-bit contents
+    if (fullType == BLOCK_HEAD)
+        mask = entryMask = 0xF0u;
+    else if (fullType == BLOCK_FLOWER_POT)
+        mask = entryMask = 0xFFu;
     int subtype = (mask != 0) ? ((unsigned int)dataVal & mask) : 0;
     for (int i = 0; i < n; i++) {
-        if (((unsigned int)gSpongeReverse[fullType][i]->dataVal & 0x7Fu) == (unsigned int)subtype) {
+        if (((unsigned int)gSpongeReverse[fullType][i]->dataVal & entryMask) == (unsigned int)subtype) {
             return gSpongeReverse[fullType][i];
         }
     }

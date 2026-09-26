@@ -854,7 +854,7 @@ typedef struct ModelElement {
     int faceCount;
     ModelFace face[6];
 } ModelElement;
-static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount);
+static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, int yAngle);
 static int saveBoxModelFace(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int anchorLoc, const float uv[4], int rotation);
 static int saveSpanTextureUV(int anchorLoc, int type, float su, float sv);
 static int findFaceDimensions(float rect[4], int faceDirection, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
@@ -7575,21 +7575,22 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         };
 
         int stage = (dataVal >> 2) & 0x1;	// age: 0 = small (stage0), 1 = large (stage1)
+        // the model is for facing=north (unrotated); it's rotated into place for the other three facings.
+        // door_facing: 0=east,1=south,2=west,3=north - map to the blockstate's own "y" rotation (north=0,east=90,south=180,west=270)
+        int yAngle = (((dataVal & 0x3) + 1) % 4) * 90;
         totalVertexCount = gModel.vertexCount;
         gUsingTransform = 1;
         if (stage == 0) {
-            saveModelElements(boxIndex, type, dataVal, TILE_TO_SWATCH(24, 0), stage0Elements, sizeof(stage0Elements) / sizeof(ModelElement));
+            saveModelElements(boxIndex, type, dataVal, TILE_TO_SWATCH(24, 0), stage0Elements, sizeof(stage0Elements) / sizeof(ModelElement), yAngle);
         }
         else {
-            saveModelElements(boxIndex, type, dataVal, TILE_TO_SWATCH(26, 0), stage1Elements, sizeof(stage1Elements) / sizeof(ModelElement));
+            saveModelElements(boxIndex, type, dataVal, TILE_TO_SWATCH(26, 0), stage1Elements, sizeof(stage1Elements) / sizeof(ModelElement), yAngle);
         }
         totalVertexCount = gModel.vertexCount - totalVertexCount;
 
-        // the model is for facing=north (unrotated); rotate into place for the other three facings.
-        // door_facing: 0=east,1=south,2=west,3=north - map to the blockstate's own "y" rotation (north=0,east=90,south=180,west=270)
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
-        rotateMtx(mtx, 0.0f, (float)(((dataVal & 0x3) + 1) % 4) * 90.0f, 0.0f);
+        rotateMtx(mtx, 0.0f, (float)yAngle, 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(totalVertexCount, mtx);
         gUsingTransform = 0;
@@ -7715,21 +7716,22 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         };
 
         int bedFacing = dataVal & 0x3;	// SWNE: 0=south,1=west,2=north,3=east (same convention as BED_PROP)
+        // the model is for facing=south (unrotated); it's rotated into place for the other three facings. SWNE facing maps directly to the
+        // blockstate's own "y" rotation (south=0,west=90,north=180,east=270)
+        int yAngle = bedFacing * 90;
         totalVertexCount = gModel.vertexCount;
         gUsingTransform = 1;
         if (dataVal & 0x8) {
-            saveModelElements(boxIndex, type, dataVal, TILE_TO_SWATCH(28, 0), headElements, sizeof(headElements) / sizeof(ModelElement));
+            saveModelElements(boxIndex, type, dataVal, TILE_TO_SWATCH(28, 0), headElements, sizeof(headElements) / sizeof(ModelElement), yAngle);
         }
         else {
-            saveModelElements(boxIndex, type, dataVal, TILE_TO_SWATCH(28, 0), footElements, sizeof(footElements) / sizeof(ModelElement));
+            saveModelElements(boxIndex, type, dataVal, TILE_TO_SWATCH(28, 0), footElements, sizeof(footElements) / sizeof(ModelElement), yAngle);
         }
         totalVertexCount = gModel.vertexCount - totalVertexCount;
 
-        // the model is for facing=south (unrotated); rotate into place for the other three facings. SWNE facing maps directly to the
-        // blockstate's own "y" rotation (south=0,west=90,north=180,east=270)
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
-        rotateMtx(mtx, 0.0f, (float)bedFacing * 90.0f, 0.0f);
+        rotateMtx(mtx, 0.0f, (float)yAngle, 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(totalVertexCount, mtx);
         gUsingTransform = 0;
@@ -14415,9 +14417,59 @@ static int saveBoxModelFace(int startVertexIndex, int type, int dataVal, int fac
     return saveBoxFaceUVs(type, dataVal, faceDirection, markFirstFace, startVertexIndex, vindex, uvIndices);
 }
 
+// Is this model face on the side of its block, and hidden by the neighbor there (e.g. a full opaque block)?
+// The model is turned yAngle degrees about Y after it is saved (0, 90, 180, or 270; as rotateMtx and Minecraft's
+// blockstate "y" turn it, 90 taking north to east), so turn the element's box and face into the block's orientation first.
+static int modelFaceIsCovered(int boxIndex, const ModelElement* pElem, int faceDirection, int yAngle)
+{
+    float minX = pElem->from[X], maxX = pElem->to[X];
+    float minZ = pElem->from[Z], maxZ = pElem->to[Z];
+    for (int turn = 0; turn < ((yAngle / 90) & 0x3); turn++) {
+        // a quarter turn takes (x,z) to (16-z,x), and each side to the next one clockwise, seen from above
+        float newMinX = 16.0f - maxZ;
+        float newMaxX = 16.0f - minZ;
+        minZ = minX;
+        maxZ = maxX;
+        minX = newMinX;
+        maxX = newMaxX;
+        switch (faceDirection) {
+        case DIRECTION_BLOCK_SIDE_LO_Z: faceDirection = DIRECTION_BLOCK_SIDE_HI_X; break;
+        case DIRECTION_BLOCK_SIDE_HI_X: faceDirection = DIRECTION_BLOCK_SIDE_HI_Z; break;
+        case DIRECTION_BLOCK_SIDE_HI_Z: faceDirection = DIRECTION_BLOCK_SIDE_LO_X; break;
+        case DIRECTION_BLOCK_SIDE_LO_X: faceDirection = DIRECTION_BLOCK_SIDE_LO_Z; break;
+        default: break;
+        }
+    }
+    // the face must be on the block's side, and within it: a frill poking out past the block isn't covered by the neighbor
+    float rect[4];
+    float lo, hi;
+    switch (faceDirection) {
+    case DIRECTION_BLOCK_SIDE_LO_X:
+    case DIRECTION_BLOCK_SIDE_HI_X:
+        lo = minX; hi = maxX;
+        rect[0] = minZ; rect[1] = maxZ; rect[2] = pElem->from[Y]; rect[3] = pElem->to[Y];
+        break;
+    case DIRECTION_BLOCK_SIDE_LO_Z:
+    case DIRECTION_BLOCK_SIDE_HI_Z:
+        lo = minZ; hi = maxZ;
+        rect[0] = minX; rect[1] = maxX; rect[2] = pElem->from[Y]; rect[3] = pElem->to[Y];
+        break;
+    default:
+        lo = pElem->from[Y]; hi = pElem->to[Y];
+        rect[0] = minX; rect[1] = maxX; rect[2] = minZ; rect[3] = maxZ;
+        break;
+    }
+    int onSide = (faceDirection == DIRECTION_BLOCK_SIDE_LO_X || faceDirection == DIRECTION_BLOCK_BOTTOM || faceDirection == DIRECTION_BLOCK_SIDE_LO_Z) ?
+        (lo == 0.0f) : (hi == 16.0f);
+    if (!onSide || rect[0] < 0.0f || rect[1] > 16.0f || rect[2] < 0.0f || rect[3] > 16.0f)
+        return 0;
+    return lesserNeighborCoversRectangle(faceDirection, boxIndex, rect);
+}
+
 // Save the elements of a Minecraft block model, as given in its JSON file, all textured by the (possibly multi-tile) image at anchorLoc.
+// yAngle is the rotation about Y the caller gives the model afterwards, used to find which faces are hidden by neighbors.
 // The first face saved is marked as the first face of the block.
-static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount)
+static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, int yAngle)
 {
     int retCode = MW_NO_ERROR;
     int markFirstFace = 1;
@@ -14434,6 +14486,10 @@ static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc,
             const ModelFace* pFace = &pElem->face[f];
             // the back of a flat element is output only when billboards are doubled
             if (pFace->billboardBack && !gModel.singleSided)
+                continue;
+            // a face on the block's side is hidden if the neighbor there covers it, e.g. a straw bed's bottom on a full opaque
+            // block, or a shelf mushroom's back against its log
+            if (modelFaceIsCovered(boxIndex, pElem, pFace->faceDirection, yAngle))
                 continue;
             retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, pFace->faceDirection, markFirstFace, anchorLoc, pFace->uv, pFace->rotation);
             if (retCode >= MW_BEGIN_ERRORS)
@@ -19958,6 +20014,10 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
 {
     // we have partial blocks possible. Check if neighbor's type exists at all
     int type = gBoxData[neighborBoxIndex].type;
+    // A straw bed's geometry is output, and its voxel cleared to air, before full blocks' faces are made; it still
+    // covers the top of the block below, so look at what was there.
+    if (type == BLOCK_AIR && gBoxData[neighborBoxIndex].origType == BLOCK_STRAW_BED)
+        type = BLOCK_STRAW_BED;
     // not air?
     if (type > BLOCK_AIR)
     {
@@ -20126,6 +20186,10 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
                 return (faceDirection == DIRECTION_BLOCK_TOP);
             }
             break;
+
+        case BLOCK_STRAW_BED:				// lesserBlockCoversWholeFace
+            // no legs: the foot's base, and the head's base plus pillow, cover the whole top of the block below
+            return (faceDirection == DIRECTION_BLOCK_TOP);
 
         // if these are above, the bottom is always a full face
         case BLOCK_LAVA:
@@ -21202,7 +21266,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             break;
 
         case BLOCK_CRYING_OBSIDIAN:
-            switch (dataVal & 0xf)
+            // bit 0x2 is sculk catalyst's "bloom," which doesn't change its look
+            switch (dataVal & 0x1)
             {
             default:
                 assert(0);
@@ -26932,7 +26997,8 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
     case BLOCK_CRYING_OBSIDIAN:
         emission = 10.0f;
         if (splitByBlockType) {
-            switch (dataVal & 0xf) {
+            // bit 0x2 is sculk catalyst's "bloom," which doesn't change its emission
+            switch (dataVal & 0x1) {
             default:
                 assert(0);
             case 0:
@@ -26946,15 +27012,13 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
         break;
     case BLOCK_LANTERN:
         if (splitByBlockType) {
-            switch (dataVal & 0x1f) {
-                // actually use default, as all the copper variants emit the same
-            default:
-                assert(0);
-            case 0:
-                // default: emission = 15.0f;
-                break;
-            case 0x2: // soul lantern
+            // bit 0x1 is "hanging"; bits 0x1e are the variant: 0 lantern, 1 soul lantern, 2-9 the copper lanterns
+            switch ((dataVal >> 1) & 0xf) {
+            case 1: // soul lantern
                 emission = 10.0f;
+                break;
+            default:
+                // lantern and all the copper variants: emission = 15.0f;
                 break;
             }
         }

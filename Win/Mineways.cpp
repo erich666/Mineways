@@ -693,6 +693,16 @@ int APIENTRY _tWinMain(
     LOG_INFO(gExecutionLogfile, "execute MyRegisterClass\n");
     MyRegisterClass(hInstance);
 
+    // One-time initialization for mapping and object export
+    // set the pcolors properly once. They'll change from color schemes.
+    // Done before InitInstance: its WM_CREATE runs any scripts given on the command line, and their exports need these.
+    LOG_INFO(gExecutionLogfile, "execute SetMapPremultipliedColors\n");
+    SetMapPremultipliedColors(0);
+
+    // Set biome colors - TODO: add texture support, etc.
+    LOG_INFO(gExecutionLogfile, "execute PrecomputeBiomeColors\n");
+    PrecomputeBiomeColors();
+
     // Perform application initialization:
     LOG_INFO(gExecutionLogfile, "execute InitInstance\n");
     if (!InitInstance(hInstance, nCmdShow))
@@ -702,15 +712,6 @@ int APIENTRY _tWinMain(
 
     LOG_INFO(gExecutionLogfile, "execute LoadAccelerators\n");
     hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_MINEWAYS));
-
-    // One-time initialization for mapping and object export
-    // set the pcolors properly once. They'll change from color schemes.
-    LOG_INFO(gExecutionLogfile, "execute SetMapPremultipliedColors\n");
-    SetMapPremultipliedColors(0);
-
-    // Set biome colors - TODO: add texture support, etc.
-    LOG_INFO(gExecutionLogfile, "execute PrecomputeBiomeColors\n");
-    PrecomputeBiomeColors();
 
     gArrowCursor = LoadCursor(NULL, IDC_ARROW);
     gNsCursor = LoadCursor(NULL, IDC_SIZENS);
