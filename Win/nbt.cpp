@@ -568,7 +568,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  14,           0, "gold_ore", NO_PROP },
     { 0,  15,           0, "iron_ore", NO_PROP },
     { 0,  16,           0, "coal_ore", NO_PROP },
-    { 0,  17,  BIT_16 | 0, "oak_wood", AXIS_PROP },	// same as logs below, but with a high bit set to mean that it's "wood" texture on the endcaps. 
+    { 0,  17,  BIT_16 | 0, "oak_wood", AXIS_PROP },	// same as logs below, but with a high bit set to mean that it's "wood" texture on the endcaps.
     { 0,  17,  BIT_16 | 1, "spruce_wood", AXIS_PROP },
     { 0,  17,  BIT_16 | 2, "birch_wood", AXIS_PROP },
     { 0,  17,  BIT_16 | 3, "jungle_wood", AXIS_PROP },
@@ -1235,8 +1235,8 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 14, "potted_crimson_roots", NO_PROP },
     { 0, BLOCK_FLOWER_POT,     RED_FLOWER_FIELD | 15, "potted_warped_roots", NO_PROP },
     { 0,  89,              1, "shroomlight", NO_PROP },
-    { 0, 162,     BIT_16 | 2, "crimson_hyphae", AXIS_PROP },	// same as logs below, but with a high bit set to mean that it's "wood" texture on the endcaps. 
-    { 0, 162,     BIT_16 | 3, "warped_hyphae", AXIS_PROP },	// same as logs below, but with a high bit set to mean that it's "wood" texture on the endcaps. 
+    { 0, 162,     BIT_16 | 2, "crimson_hyphae", AXIS_PROP },	// same as logs below, but with a high bit set to mean that it's "wood" texture on the endcaps.
+    { 0, 162,     BIT_16 | 3, "warped_hyphae", AXIS_PROP },	// same as logs below, but with a high bit set to mean that it's "wood" texture on the endcaps.
     { 0, 162,              2, "crimson_stem", AXIS_PROP },	// log equivalent
     { 0, 162,              3, "warped_stem", AXIS_PROP },
     { 0,  20,   TYPE_HIGH_BIT1 | 2, "stripped_crimson_stem", AXIS_PROP },	// extension of stripped acacia (log)
@@ -1444,7 +1444,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
 
     // 1.19
     { 0, 160,       TYPE_HIGH_BIT1, "mangrove_log", AXIS_PROP },
-    { 0, 160, TYPE_HIGH_BIT1 | BIT_16, "mangrove_wood", AXIS_PROP },	// same as log, but with a high bit set to mean that it's "wood" texture on the endcaps. 
+    { 0, 160, TYPE_HIGH_BIT1 | BIT_16, "mangrove_wood", AXIS_PROP },	// same as log, but with a high bit set to mean that it's "wood" texture on the endcaps.
     { 0,   5,              8, "mangrove_planks", NO_PROP },
     { 0, 162,       TYPE_HIGH_BIT1, "mangrove_door", DOOR_PROP },
     { 0, 163,       TYPE_HIGH_BIT1, "mangrove_trapdoor", TRAPDOOR_PROP },

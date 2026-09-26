@@ -28,7 +28,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
+#ifdef WIN32
 #define ZLIB_WINAPI
+#endif
 #include "zlib.h"
 #include <stdio.h>
 #include <stdint.h>

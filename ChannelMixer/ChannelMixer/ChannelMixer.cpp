@@ -1778,7 +1778,7 @@ static void reportReadError(int rc, const wchar_t* filename)
 	case 104:
 		swprintf_s(gErrorString, 1000, L"***** ERROR [%s] - unsupported Targa TGA file type.\n", filename);
 		break;
-	case 106: // IMAGE_ERROR_UNSUPPORTED_FORMAT:
+	case IMAGE_ERROR_UNSUPPORTED_FORMAT:
 		swprintf_s(gErrorString, 1000, L"***** ERROR [%s] - unsupported image channel format.\n", filename);
 		break;
 	case 999:
