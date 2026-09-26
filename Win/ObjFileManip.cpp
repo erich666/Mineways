@@ -1383,6 +1383,8 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
                     continue;
                 }
             }
+            // keep any warning, e.g. that missing tiles were filled in from the built-in terrain
+            retCode |= localRetCode;
 
             // check if height of texture is sufficient.
             if (gModel.pInputTerrainImage[catIndex]->height / (gModel.pInputTerrainImage[catIndex]->width / XTILES) < 16)
@@ -2517,10 +2519,67 @@ static int initializeModelData()
     return MW_NO_ERROR;
 }
 
+// A terrain file made for an older Mineways lacks the newer tiles: they're fully transparent (or past its last
+// row), so those blocks would export invisible. Fill each such tile from the built-in terrainExtData, scaled to
+// the file's tile size, adding rows if the file has fewer than the built-in data. The RGBA image must already be
+// XTILES wide. Returns the number of tiles filled.
+static int fillMissingTilesFromBuiltIn(progimage_info* pITI)
+{
+    int tileSize = pITI->width / XTILES;
+    int builtInTileSize = gTerrainExtWidth / XTILES;
+    int builtInRows = gTerrainExtHeight / builtInTileSize;
+    if (tileSize <= 0 || builtInTileSize <= 0)
+        return 0;
+
+    // pad a short file with transparent rows, so that the missing rows get filled, too
+    if (pITI->height / tileSize < builtInRows) {
+        pITI->image_data.resize((size_t)pITI->width * (size_t)(builtInRows * tileSize) * 4, 0x0);
+        pITI->height = builtInRows * tileSize;
+    }
+
+    int filled = 0;
+    for (int row = 0; row < builtInRows; row++) {
+        for (int col = 0; col < XTILES; col++) {
+            // skip tiles that have any content in the file, or that are empty in the built-in data, too
+            bool fileEmpty = true;
+            for (int y = 0; y < tileSize && fileEmpty; y++) {
+                const unsigned char* p = &pITI->image_data[(((size_t)row * tileSize + y) * pITI->width + (size_t)col * tileSize) * 4];
+                for (int x = 0; x < tileSize; x++) {
+                    if (p[x * 4 + 3] != 0) { fileEmpty = false; break; }
+                }
+            }
+            if (!fileEmpty)
+                continue;
+            bool builtInEmpty = true;
+            for (int y = 0; y < builtInTileSize && builtInEmpty; y++) {
+                const unsigned char* p = &gTerrainExt[(((size_t)row * builtInTileSize + y) * gTerrainExtWidth + (size_t)col * builtInTileSize) * 4];
+                for (int x = 0; x < builtInTileSize; x++) {
+                    if (p[x * 4 + 3] != 0) { builtInEmpty = false; break; }
+                }
+            }
+            if (builtInEmpty)
+                continue;
+
+            // nearest-neighbor scale, which keeps Minecraft's pixel look when enlarging
+            for (int y = 0; y < tileSize; y++) {
+                int sy = y * builtInTileSize / tileSize;
+                for (int x = 0; x < tileSize; x++) {
+                    int sx = x * builtInTileSize / tileSize;
+                    memcpy(&pITI->image_data[(((size_t)row * tileSize + y) * pITI->width + (size_t)col * tileSize + x) * 4],
+                        &gTerrainExt[(((size_t)row * builtInTileSize + sy) * gTerrainExtWidth + (size_t)col * builtInTileSize + sx) * 4], 4);
+                }
+            }
+            filled++;
+        }
+    }
+    return filled;
+}
+
 static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* selectedTerrainFileName, int category, int exportFileType)
 {
     // file should be in same directory as .exe, sort of
     int rc = 0;
+    int warningCode = MW_NO_ERROR;
 
     if (wcslen(selectedTerrainFileName) > 0)
     {
@@ -2601,6 +2660,22 @@ static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* 
     // check that height is divisible by tile size
     if ((pITI->height % (pITI->width / XTILES)) != 0)
         return MW_IMAGE_WRONG_WIDTH;
+
+    // A terrain file from an older version lacks the newer tiles: fill them in from the built-in terrain. Only for a
+    // color file actually read (not the built-in one itself), and only if its pixels were read, not just its header.
+    if (category == CATEGORY_RGBA && !gModel.terrainImageNotFound && gCatChannels[category] == 4 &&
+        pITI->image_data.size() == (size_t)pITI->width * (size_t)pITI->height * 4 &&
+        gTerrainExtHeight == VERTICAL_TILES * (gTerrainExtWidth / XTILES)) {
+        int filled = fillMissingTilesFromBuiltIn(pITI);
+        if (filled > 0) {
+            wchar_t statusString[1024];
+            swprintf_s(statusString, 1024, L"Terrain file %s is missing %d tiles; filled them from the built-in terrain",
+                getFilename(selectedTerrainFileName), filled);
+            UPDATE_STATUS(-999.0f, statusString);
+            // and warn, as the texture pack is incomplete and some blocks now use Mineways' own textures
+            warningCode = MW_NOT_ENOUGH_ROWS;
+        }
+    }
 
     // should compute just once; CATEGORY_RGBA is assumed always read first
     if (category == CATEGORY_RGBA) {
@@ -2720,7 +2795,7 @@ static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* 
     }
 #endif
 
-    return MW_NO_ERROR;
+    return warningCode;
 }
 
 // assumes a single channel image
