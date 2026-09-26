@@ -2951,6 +2951,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 	<LI>Strongly improved .schem export and import. More non-graphical attributes are read in and written out. Note-blocks' "instrument", decorated pot's "facing" and "cracked", sculk catalyst's "bloom", TNT's "unstable", piston's "sticky" and "short", bubble-column's "drag", and shelf's mysterious "side_chain" properties are now supported. An insane number of fixed due to the new Claude Code Opus 5.5. That said, things like wall and glass pane connections are probably still problematic reading these in. Future work.
 	<LI>Be more careful about properly freeing image memory, out-of-memory conditions, file separators for any Mac version, TGA exceptions, etc. <I>(Thanks to Will Breiler for <a href="https://github.com/erich666/Mineways/pull/166">the copious improvements</a>. See <a href="https://github.com/wbreiler/Mineways/tree/master">his fork</a> for a Mac-buildable version of Mineways.)</I>
 	<LI>Fix output count of smaller blocks. Was overcounting, based on number of boxes etc. for an object, e.g., each stairs gave a count of two, top and bottom.
+	<LI>When an old terrain textures file is used, automatically fill in missing tiles with defaults and warn the user.
 	<LI>Golem facing was incorrect, bleeding into other properties. Fixed.
 	<LI>Azaleas exported without textures could cause a crash. Fixed.
 	<LI>Campfires could turn into soul campfires due to stale state held when "powered" is set. Fixed.

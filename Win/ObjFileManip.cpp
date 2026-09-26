@@ -1520,6 +1520,16 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         retCode |= MW_TEXTURE_RESOLUTION_HIGH;
     }
 
+    // an incomplete terrain file (tiles filled from the built-in terrain, or a material file padded or ignored)
+    // stays that way from export to export, so warn only once a session
+    static bool warnOnIncompleteTerrain = true;
+    if (retCode & MW_NOT_ENOUGH_ROWS) {
+        if (warnOnIncompleteTerrain)
+            warnOnIncompleteTerrain = false;
+        else
+            retCode &= ~MW_NOT_ENOUGH_ROWS;
+    }
+
     UPDATE_PROGRESS(gProgress.start.readBlocks + 0.45f * gProgress.absolute.readBlocks);
     retCode |= initializeModelData();
     if (retCode >= MW_BEGIN_ERRORS)
