@@ -75,7 +75,8 @@ typedef struct BiomeTranslator {
 static const char* const gNoteBlockInstruments[] = {
     "banjo", "basedrum", "bass", "bell", "bit", "chime", "cow_bell", "creeper", "custom_head",
     "didgeridoo", "dragon", "flute", "guitar", "harp", "hat", "iron_xylophone", "piglin", "pling",
-    "skeleton", "snare", "wither_skeleton", "xylophone", "zombie"
+    "skeleton", "snare", "trumpet", "trumpet_exposed", "trumpet_oxidized", "trumpet_weathered",
+    "wither_skeleton", "xylophone", "zombie"
 };
 #define NUM_NOTE_BLOCK_INSTRUMENTS ((int)(sizeof(gNoteBlockInstruments) / sizeof(gNoteBlockInstruments[0])))
 // "harp" is the instrument Minecraft uses when nothing underneath a note block gives it a
@@ -93,7 +94,7 @@ static int spongeInstrumentFromName(const char* name)
     return NOTE_BLOCK_INSTRUMENT_DEFAULT;
 }
 
-// Returns the instrument name for a 0..31 field value (only 0..22 are meaningful; anything else,
+// Returns the instrument name for a 0..31 field value (only 0..26 are meaningful; anything else,
 // which shouldn't happen in practice, falls back to the default rather than indexing out of range).
 static const char* spongeInstrumentName(int instrument)
 {
@@ -458,12 +459,13 @@ static TranslationTuple* modTranslations = NULL;
 // https://minecraft.wiki/w/Note_Block#Block_states
 //   bit   0x01: powered
 //   bits  0x3E: note value 0..24 (5 bits, stored << 1 into bits 1..5)
-//   bits 0x7C0: instrument, 0..22 (5 bits, stored << 6 into bits 6..10); index is the
+//   bits 0x7C0: instrument, 0..26 (5 bits, stored << 6 into bits 6..10); index is the
 //               alphabetical position in Minecraft's instrument list (banjo=0, basedrum=1,
 //               bass=2, bell=3, bit=4, chime=5, cow_bell=6, creeper=7, custom_head=8,
 //               didgeridoo=9, dragon=10, flute=11, guitar=12, harp=13, hat=14,
 //               iron_xylophone=15, piglin=16, pling=17, skeleton=18, snare=19,
-//               wither_skeleton=20, xylophone=21, zombie=22). Minecraft normally derives
+//               trumpet=20, trumpet_exposed=21, trumpet_oxidized=22, trumpet_weathered=23,
+//               wither_skeleton=24, xylophone=25, zombie=26). Minecraft normally derives
 //               this from the block below at game time, but Sponge schematics store it
 //               explicitly, so we round-trip it for .schem import/export.
 #define NOTE_BLOCK_PROP 74
@@ -3981,7 +3983,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
     // for doors
     bool half, north, south, east, west, down, lit, powered, triggered, extended, attached, disarmed,
         conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall, signal_fire, has_book,
-        up, hanging, crafting, cracked, side_chain, pistonShort;
+        up, hanging, crafting, cracked, side_chain, pistonShort, ominous;
     int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age,
         delay, locked, sticky, hatch, leaves, single, attachment, honey_level, stairs, bites, tilt,
         thickness, vertical_direction, berries, flower_amount, orientation, hydration,
@@ -3991,7 +3993,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
     int typeIndex = 0;
     half = north = south = east = west = down = lit = powered = triggered = extended = attached = disarmed
         = conditional = inverted = enabled = doubleSlab = mode = in_wall = signal_fire = has_book
-        = up = hanging = crafting = cracked = side_chain = pistonShort = false; // waterlogged is always set false in loop
+        = up = hanging = crafting = cracked = side_chain = pistonShort = ominous = false; // waterlogged is always set false in loop
     axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
         delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt =
         thickness = vertical_direction = berries = flower_amount = orientation = hydration =
@@ -4036,7 +4038,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
         // depends on the order of the palette, which changed with 26.3.
         half = north = south = east = west = down = lit = powered = triggered = extended = attached = disarmed
             = conditional = inverted = enabled = doubleSlab = mode = in_wall = signal_fire = has_book
-            = up = hanging = crafting = cracked = side_chain = pistonShort = false;
+            = up = hanging = crafting = cracked = side_chain = pistonShort = ominous = false;
         axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
             delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt =
             thickness = vertical_direction = berries = flower_amount = orientation = hydration =
@@ -4561,7 +4563,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             // for pale moss carpet, different meaning
                             if (strcmp(value, "low") == 0)
                             {
-                                pmc |= BIT_32;
+                                pmc |= 0x80 | BIT_32;   // north low: kept for .schem round-trip; rendering infers low sides from neighbors
                             }
                             else if (strcmp(value, "tall") == 0)
                             {
@@ -4579,7 +4581,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             // Can't shove into dataVal, as that wipes out wall type info, etc.
                             if (strcmp(value, "low") == 0)
                             {
-                                pmc |= BIT_32;
+                                pmc |= 0x100 | BIT_32;   // east low: kept for .schem round-trip; rendering infers low sides from neighbors
                             }
                             else if (strcmp(value, "tall") == 0)
                             {
@@ -4596,7 +4598,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             // for pale moss carpet, different meaning
                             if (strcmp(value, "low") == 0)
                             {
-                                pmc |= BIT_32;
+                                pmc |= 0x200 | BIT_32;   // south low: kept for .schem round-trip; rendering infers low sides from neighbors
                             }
                             else if (strcmp(value, "tall") == 0)
                             {
@@ -4612,7 +4614,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             // for pale moss carpet, different meaning
                             if (strcmp(value, "low") == 0)
                             {
-                                pmc |= BIT_32;
+                                pmc |= 0x400 | BIT_32;   // west low: kept for .schem round-trip; rendering infers low sides from neighbors
                             }
                             else if (strcmp(value, "tall") == 0)
                             {
@@ -4952,9 +4954,10 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             flower_amount = atoi(value);
                         }
 
-                        // for trial spawner and vault
+                        // for trial spawner and vault; folded into bit 0x4 after the property loop. Not OR'ed in here,
+                        // since the generic "facing" parse ORs a north-facing vault's 4 into the same bit.
                         else if (strcmp(token, "ominous") == 0) {
-                            dataVal |= (strcmp(value, "true") == 0) ? 0x4 : 0;
+                            ominous = (strcmp(value, "true") == 0);
                         }
 
                         // for trial_spawner:
@@ -5094,7 +5097,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             if (strcmp(value, "true") == 0) dataVal |= 0x01;
                         }
 
-                        // note_block: instrument 0..22, packed into bits 0x7C0 of dataVal by NOTE_BLOCK_PROP arm.
+                        // note_block: instrument 0..26, packed into bits 0x7C0 of dataVal by NOTE_BLOCK_PROP arm.
                         else if (strcmp(token, "instrument") == 0) {
                             instrument = spongeInstrumentFromName(value);
                         }
@@ -5192,7 +5195,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 // BLOCK_NOTEBLOCK (25). Non-graphical, but preserved for .schem round-trip.
                 //   bit   0x01: powered
                 //   bits  0x3E: note pitch 0..24, shifted into bits 1..5
-                //   bits 0x7C0: instrument 0..22, shifted into bits 6..10
+                //   bits 0x7C0: instrument 0..26, shifted into bits 6..10
                 dataVal |= (powered ? 0x01 : 0) | ((note & 0x1F) << 1) | ((instrument & 0x1F) << 6);
                 powered = false;
                 note = 0;
@@ -5240,7 +5243,9 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                     | (has_book ? 4 : 0) | (powered ? 8 : 0) // lectern, and bell is powered
                     | (attachment << 4) // bell: 0x30 field (note that bell's 0x04 field is not used
                     | (lit ? 4 : 0)
-                    //| (signal_fire ? 8 : 0) - commented out, as we now use 0x8 to mean it's a soul campfire; signal fire has no effect on rendering, AFAIK
+                    // campfire: 0x8 means soul campfire, so signal_fire (no effect on rendering, but kept for .schem
+                    // round-trip) goes in 0x10; only campfires have signal_fire, so it can't collide with the bell's 0x30
+                    | (signal_fire ? 0x10 : 0)
                     | (honey_level << 2); // bee_nest, beehive
                 door_facing = face = 0; // don't need to do door_facing, and in fact the rest of the code doesn't reset this, as it should always be set by this prop anyway.
                 has_book = false;
@@ -5497,7 +5502,9 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                     dataVal = 5 | ((dataVal <= 2) ? BIT_16 : 0x0);
                 }
                 else if (face == 2) {
-                    dataVal = 0 | ((dataVal <= 3) ? BIT_16 : 0x0);
+                    // same axis rule as the floor: east (1) and west (2) set BIT_16. This was "<= 3", which put
+                    // south-facing ceiling buttons on the east/west axis, unlike north-facing ones.
+                    dataVal = 0 | ((dataVal <= 2) ? BIT_16 : 0x0);
                 }
                 //else if (face == 1) {
                 // not needed, as dataVal should be set just right at this point for walls
@@ -5773,7 +5780,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 dataVal = (hanging ? (0x8 | age) : 0);
                 break;
             case PINK_PETALS_PROP:
-                // south/west/north/east == 0/1/2/3
+                // door_facing: east/south/west/north == 0/1/2/3
                 // flower_amount reduced from 1-4 to 0-3, then *4 and folded into 0xc
                 // We don't want power, but we do want to know if it's calibrated and if it's sculk_sensor_phase is active.
                 // Actually, we could leave off calibrated, 0x4 bit, as that should transmit at bottom
@@ -5805,6 +5812,19 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 // "bottom" is bit 0x1
                 // BIT_32 gets set if there is at least one low/tall side
                 dataVal |= pmc;
+            }
+
+            // trial spawner and vault (both NO_PROP): ominous is bit 0x4. The vault's low 2 bits are its facing,
+            // 0=north, 1=east, 2=south, 3=west (as the renderer reads them), but the generic "facing" parse OR'ed
+            // in its own values (south 3, west 2, north 4, east 1), so rebuild the low 3 bits from door_facing.
+            {
+                int fullType = BLOCK_TYPE_FROM_GRID_DATA(paletteBlockEntry[entryIndex], paletteDataEntry[entryIndex]);
+                if (fullType == BLOCK_VAULT) {
+                    dataVal = (dataVal & ~0x7) | ((door_facing + 1) % 4) | (ominous ? 0x4 : 0x0);
+                }
+                else if (fullType == BLOCK_TRIAL_SPAWNER) {
+                    dataVal |= (ominous ? 0x4 : 0x0);
+                }
             }
 
             // make sure upper bits are not set - they should not be! Well, except for heads. So, comment out this test
@@ -6494,9 +6514,10 @@ static int spongeParsePropList(char* propsBuf, char** keys, char** values, int m
 // Parse a Sponge palette state-string like "minecraft:oak_log[axis=y,waterlogged=false]" into a
 // Mineways (blockId, dataVal) pair, inverting `spongeBuildBlockStateString`. Returns true if the
 // block name was recognised. On unknown blocks emits BLOCK_AIR and returns false. (issue #40)
-static bool spongeParseStateString(const char* str, int* outBlockId, int* outDataVal)
+// Returns the full type (0-4095) in *outType and the 12-bit dataVal in *outDataVal.
+static bool spongeParseStateString(const char* str, int* outType, int* outDataVal)
 {
-    *outBlockId = 0;
+    *outType = 0;
     *outDataVal = 0;
 
     // Copy to a mutable buffer for in-place tokenization.
@@ -6523,7 +6544,11 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
         return false;
     }
     int blockId = (int)BlockTranslations[idx].blockId;
-    int dataVal = (int)BlockTranslations[idx].dataVal;   // subtype + TYPE_HIGH_BIT1 marker (if blockId > 255)
+    // BlockTranslations[] speaks the old 8-bit encoding, where TYPE_HIGH_BIT1 in its dataVal means "type + 256".
+    // Keep that apart from the real dataVal, so the property arms below can use all 12 dataVal bits (e.g. note
+    // block's instrument, bits 0x7C0, and head rotation's 0x80 marker) without it being taken as a type promotion.
+    int typeHighBit = (int)BlockTranslations[idx].dataVal & TYPE_HIGH_BIT1;
+    int dataVal = (int)BlockTranslations[idx].dataVal & 0x7F;
     unsigned long tf = BlockTranslations[idx].translateFlags;
 
     // Tokenize the property list (if any).
@@ -6540,6 +6565,12 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
     bool litExplicit = false;
     bool berries = false;
     bool typeIsDouble = false;
+    // DOOR_PROP properties, packed after the loop; defaults are Minecraft's
+    bool doorUpper = false, doorHinge = false, doorPowered = false, doorOpen = false;
+    int doorFacing = 3;     // north
+    // BUTTON_PROP face (0 floor, 1 wall, 2 ceiling) and facing (east 1, west 2, south 3, north 4), packed after
+    // the loop; defaults are Minecraft's, wall and north
+    int buttonFace = 1, buttonFacing = 4;
 
     for (int i = 0; i < numProps; i++) {
         const char* k = keys[i];
@@ -6547,7 +6578,9 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
 
         // ---- Universal props ----
         if (strcmp(k, "waterlogged") == 0) {
-            if (strcmp(v, "true") == 0) dataVal |= WATERLOGGED_BIT;
+            // these families use bit 0x40 for their own data and cannot be waterlogged (mirror of the writer)
+            if (strcmp(v, "true") == 0 && tf != MUSHROOM_PROP && tf != MUSHROOM_STEM_PROP && tf != NOTE_BLOCK_PROP)
+                dataVal |= WATERLOGGED_BIT;
             continue;
         }
         if (strcmp(k, "lit") == 0) {
@@ -6586,6 +6619,38 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             // "inactive" or unknown → 0
             dataVal = (dataVal & ~0x3) | s;
             continue;
+        }
+        if (strcmp(k, "facing") == 0 && (blockId | (typeHighBit << 1)) == BLOCK_VAULT) {
+            // BLOCK_VAULT (466) is NO_PROP: bits 0x3 = facing, 0=north, 1=east, 2=south, 3=west (mirror of the writer)
+            int f = 0;
+            if      (strcmp(v, "east") == 0)  f = 1;
+            else if (strcmp(v, "south") == 0) f = 2;
+            else if (strcmp(v, "west") == 0)  f = 3;
+            dataVal = (dataVal & ~0x3) | f;
+            continue;
+        }
+        {
+            // NO_PROP blocks whose one numeric property goes straight into the low dataVal bits (mirror of the writer)
+            int fullType = blockId | (typeHighBit << 1);
+            int mask = 0;
+            if (strcmp(k, "age") == 0 && (fullType == BLOCK_CARROTS || fullType == BLOCK_POTATOES || fullType == BLOCK_CHORUS_FLOWER)) mask = 0x7;
+            else if (strcmp(k, "age") == 0 && fullType == BLOCK_TORCHFLOWER_CROP) mask = 0x3;
+            else if (strcmp(k, "level") == 0 && fullType == BLOCK_COMPOSTER) mask = 0xF;
+            else if (strcmp(k, "level") == 0 && fullType == BLOCK_CAULDRON) mask = 0x3;
+            else if (strcmp(k, "charges") == 0 && fullType == BLOCK_RESPAWN_ANCHOR) mask = 0x7;
+            else if (strcmp(k, "dusted") == 0 && fullType == BLOCK_SUSPICIOUS_GRAVEL) mask = 0x3;
+            if (mask != 0) {
+                dataVal = (dataVal & ~mask) | (atoi(v) & mask);
+                continue;
+            }
+            if (strcmp(k, "mode") == 0 && fullType == BLOCK_TEST_BLOCK) {
+                int m = 0;  // start
+                if (strcmp(v, "log") == 0) m = 1;
+                else if (strcmp(v, "fail") == 0) m = 2;
+                else if (strcmp(v, "accept") == 0) m = 3;
+                dataVal = (dataVal & ~0x3) | m;
+                continue;
+            }
         }
         if (strcmp(k, "vault_state") == 0) {
             // BLOCK_VAULT (466): bits 0x18 = state index << 3.
@@ -6672,6 +6737,13 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             if (strcmp(k, "facing") == 0) {
                 dataVal = (dataVal & ~0x7) | spongeFacing4IdxFromName(v);
             }
+            else if (tf == CHEST_PROP && strcmp(k, "type") == 0) {
+                // bits 0x18: 1 = single, 3 = left, 2 = right (mirror of the world reader's CHEST_PROP arm)
+                int single = 1;
+                if (strcmp(v, "left") == 0)       single = 3;
+                else if (strcmp(v, "right") == 0) single = 2;
+                dataVal = (dataVal & ~0x18) | (single << 3);
+            }
             break;
 
         case EXTENDED_FACING_PROP:  // == BARREL/WALL_SIGN/DROPPER/PISTON/HOPPER/OBSERVER/COMMAND_BLOCK
@@ -6687,13 +6759,60 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             else if (strcmp(k, "type") == 0) {   // piston_head-specific: sticky|normal, reuses bit 0x8
                 if (strcmp(v, "sticky") == 0) dataVal |= 0x8;
             }
+            // bit 0x8 for the rest of the family, one name per block (mirror of the writer): observer and
+            // lightning rods "powered", hopper "enabled", command blocks "conditional", dispenser/dropper
+            // "triggered", barrel "open"
+            else if (strcmp(k, "powered") == 0 || strcmp(k, "enabled") == 0 || strcmp(k, "conditional") == 0 ||
+                strcmp(k, "triggered") == 0 || strcmp(k, "open") == 0) {
+                if (strcmp(v, "true") == 0) dataVal |= 0x8;
+            }
+            else if (strcmp(k, "orientation") == 0) {   // jigsaw, mirror of the writer
+                static const char* names[12] = { "down_west", "down_south", "down_north", "down_east",
+                    "up_west", "up_south", "up_north", "up_east", "west_up", "south_up", "north_up", "east_up" };
+                static const int bits[12] = { 0, 0x8, 0x10, 0x18, 1, 1 | 0x8, 1 | 0x10, 1 | 0x18, 2, 3, 4, 5 };
+                for (int j = 0; j < 12; j++) {
+                    if (strcmp(v, names[j]) == 0) { dataVal = (dataVal & ~0x1F) | bits[j]; break; }
+                }
+            }
             break;
 
         case SWNE_FACING_PROP:
         case ANVIL_PROP:
-        case EXTENDED_SWNE_FACING_PROP:
             if (strcmp(k, "facing") == 0) {
                 dataVal = (dataVal & ~0x3) | spongeSwneIdxFromName(v);
+            }
+            break;
+
+        case EXTENDED_SWNE_FACING_PROP:
+            // despite the name, stored as raw door_facing (east/south/west/north), as the world reader does;
+            // the rest mirrors the writer (campfire "lit" is handled with the other lit blocks after the loop)
+            if (strcmp(k, "facing") == 0) {
+                dataVal = (dataVal & ~0x3) | spongeDoorFacingIdxFromName(v);
+            }
+            else if (strcmp(k, "face") == 0) {              // grindstone
+                int f = 0;
+                if (strcmp(v, "wall") == 0) f = 1;
+                else if (strcmp(v, "ceiling") == 0) f = 2;
+                dataVal = (dataVal & ~0xC) | (f << 2);
+            }
+            else if (strcmp(k, "attachment") == 0) {        // bell
+                int a = 0;
+                if (strcmp(v, "ceiling") == 0) a = 1;
+                else if (strcmp(v, "single_wall") == 0) a = 2;
+                else if (strcmp(v, "double_wall") == 0) a = 3;
+                dataVal = (dataVal & ~0x30) | (a << 4);
+            }
+            else if (strcmp(k, "powered") == 0) {           // bell, lectern
+                if (strcmp(v, "true") == 0) dataVal |= 0x8;
+            }
+            else if (strcmp(k, "has_book") == 0) {          // lectern
+                if (strcmp(v, "true") == 0) dataVal |= 0x4;
+            }
+            else if (strcmp(k, "signal_fire") == 0) {       // campfire
+                if (strcmp(v, "true") == 0) dataVal |= 0x10;
+            }
+            else if (strcmp(k, "honey_level") == 0) {       // bee_nest, beehive
+                dataVal = (dataVal & ~0x1C) | ((atoi(v) & 0x7) << 2);
             }
             break;
 
@@ -6764,11 +6883,11 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
 
         case TRAPDOOR_PROP:
             if (strcmp(k, "facing") == 0) {
-                // bits 0-1 invert of FACING_PROP's enum (writer: case 0:east, 1:north, 2:south, 3:west)
+                // bits 0-1 = 4 - the world reader's facing bits: north=0, south=1, west=2, east=3 (mirror of the writer)
                 int b;
-                if (strcmp(v, "east") == 0) b = 0;
-                else if (strcmp(v, "north") == 0) b = 1;
-                else if (strcmp(v, "south") == 0) b = 2;
+                if (strcmp(v, "north") == 0) b = 0;
+                else if (strcmp(v, "south") == 0) b = 1;
+                else if (strcmp(v, "west") == 0) b = 2;
                 else b = 3;
                 dataVal = (dataVal & ~0x3) | b;
             }
@@ -6777,21 +6896,14 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             break;
 
         case DOOR_PROP:
-            if (strcmp(k, "half") == 0) {
-                if (strcmp(v, "upper") == 0) dataVal |= 0x8;
-            }
-            else if (strcmp(k, "hinge") == 0) {  // upper-half only
-                if (strcmp(v, "right") == 0) dataVal |= 0x1;
-            }
-            else if (strcmp(k, "powered") == 0) {  // upper-half only
-                if (strcmp(v, "true") == 0) dataVal |= 0x2;
-            }
-            else if (strcmp(k, "facing") == 0) {  // lower-half only
-                dataVal = (dataVal & ~0x3) | spongeDoorFacingIdxFromName(v);
-            }
-            else if (strcmp(k, "open") == 0) {  // lower-half only
-                if (strcmp(v, "true") == 0) dataVal |= 0x4;
-            }
+            // Minecraft gives both halves all five properties, but Mineways keeps hinge and powered only on the
+            // upper half and facing and open only on the lower (see the world reader), in overlapping bits.
+            // "facing" arrives before "half", so collect them all and pack after the loop.
+            if (strcmp(k, "half") == 0)         doorUpper = (strcmp(v, "upper") == 0);
+            else if (strcmp(k, "hinge") == 0)   doorHinge = (strcmp(v, "right") == 0);
+            else if (strcmp(k, "powered") == 0) doorPowered = (strcmp(v, "true") == 0);
+            else if (strcmp(k, "facing") == 0)  doorFacing = spongeDoorFacingIdxFromName(v);
+            else if (strcmp(k, "open") == 0)    doorOpen = (strcmp(v, "true") == 0);
             break;
 
         case FENCE_GATE_PROP:
@@ -6895,7 +7007,7 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             break;
 
         case NOTE_BLOCK_PROP:
-            // bit 0x01 = powered, bits 0x3E = note 0..24, bits 0x7C0 = instrument 0..22
+            // bit 0x01 = powered, bits 0x3E = note 0..24, bits 0x7C0 = instrument 0..26
             // (mirror of NOTE_BLOCK_PROP world arm).
             if (strcmp(k, "powered") == 0) {
                 if (strcmp(v, "true") == 0) dataVal |= 0x01;
@@ -6952,7 +7064,7 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
 
         case BIG_DRIPLEAF_PROP:
             // Subtype bit 0x1: 0=big_dripleaf (leaf), 1=big_dripleaf_stem — already set via name lookup
-            if (strcmp(k, "facing") == 0) dataVal = (dataVal & ~0x6) | (spongeSwneIdxFromName(v) << 1);
+            if (strcmp(k, "facing") == 0) dataVal = (dataVal & ~0x6) | (spongeDoorFacingIdxFromName(v) << 1);
             else if (strcmp(k, "tilt") == 0) {
                 int t = 0;
                 if (strcmp(v, "unstable") == 0) t = 1;
@@ -6963,7 +7075,7 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             break;
 
         case SMALL_DRIPLEAF_PROP:
-            if (strcmp(k, "facing") == 0) dataVal = (dataVal & ~0x6) | (spongeSwneIdxFromName(v) << 1);
+            if (strcmp(k, "facing") == 0) dataVal = (dataVal & ~0x6) | (spongeDoorFacingIdxFromName(v) << 1);
             else if (strcmp(k, "half") == 0) {   // INVERTED: 0=upper, 1=lower
                 if (strcmp(v, "lower") == 0) dataVal |= 0x1;
             }
@@ -7005,7 +7117,7 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             break;
 
         case PINK_PETALS_PROP:
-            if (strcmp(k, "facing") == 0) dataVal = (dataVal & ~0x3) | spongeSwneIdxFromName(v);
+            if (strcmp(k, "facing") == 0) dataVal = (dataVal & ~0x3) | spongeDoorFacingIdxFromName(v);
             else if (strcmp(k, "flower_amount") == 0) {
                 int n = atoi(v) - 1;
                 if (n < 0) n = 0; if (n > 3) n = 3;
@@ -7038,13 +7150,21 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             if (strcmp(k, "powered") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x10; }
             break;
 
-        case PALE_MOSS_CARPET_PROP:
+        case PALE_MOSS_CARPET_PROP: {
+            // mirror of the world reader: a tall side sets its bit, a low side its "low" bit (0x80..0x400), and
+            // either sets BIT_32, which the renderer requires before it draws any side
+            int tallBit = 0, lowBit = 0;
             if (strcmp(k, "bottom") == 0)     { if (strcmp(v, "true") == 0) dataVal |= 0x01; }
-            else if (strcmp(k, "north") == 0) { if (strcmp(v, "tall") == 0) dataVal |= 0x02; }
-            else if (strcmp(k, "east") == 0)  { if (strcmp(v, "tall") == 0) dataVal |= 0x04; }
-            else if (strcmp(k, "south") == 0) { if (strcmp(v, "tall") == 0) dataVal |= 0x08; }
-            else if (strcmp(k, "west") == 0)  { if (strcmp(v, "tall") == 0) dataVal |= 0x10; }
+            else if (strcmp(k, "north") == 0) { tallBit = 0x02; lowBit = 0x80; }
+            else if (strcmp(k, "east") == 0)  { tallBit = 0x04; lowBit = 0x100; }
+            else if (strcmp(k, "south") == 0) { tallBit = 0x08; lowBit = 0x200; }
+            else if (strcmp(k, "west") == 0)  { tallBit = 0x10; lowBit = 0x400; }
+            if (tallBit != 0) {
+                if (strcmp(v, "tall") == 0)     dataVal |= tallBit | BIT_32;
+                else if (strcmp(v, "low") == 0) dataVal |= lowBit | BIT_32;
+            }
             break;
+        }
 
         case CANDLE_CAKE_PROP:
             // plain cake → bites; candle_cakes → lit (BIT_32)
@@ -7090,26 +7210,19 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
         }
 
         case BUTTON_PROP: {
-            // Composite. The writer collapsed floor/ceiling east-vs-west into BIT_16; we only need
-            // to set the major-axis bits so the block has a valid form on import.
+            // Composite of face and facing, packed after the loop since "face" arrives before "facing"
+            // (it could not tell a wall button from a ceiling one when facing came in).
             if (strcmp(k, "face") == 0) {
-                if (strcmp(v, "floor") == 0)        dataVal = (dataVal & ~0x7) | 5;
-                else if (strcmp(v, "ceiling") == 0) dataVal = (dataVal & ~0x7) | 0;
-                // "wall" → low 3 bits come from facing below
+                if (strcmp(v, "floor") == 0)        buttonFace = 0;
+                else if (strcmp(v, "ceiling") == 0) buttonFace = 2;
+                else                                buttonFace = 1;     // wall
             }
             else if (strcmp(k, "facing") == 0) {
-                // Only meaningful when face=wall. We set low 3 bits to 1..4 (east/west/south/north)
-                // and BIT_16 for floor/ceiling east-vs-west marker. Cheap heuristic: if face=wall
-                // (low 3 bits already in 1..4 from a prior pass) we set the facing directly; otherwise
-                // we just mark BIT_16 for east/west.
-                int isWall = ((dataVal & 0x7) != 0 && (dataVal & 0x7) != 5);  // not ceiling/floor
-                int b;
-                if (strcmp(v, "east") == 0) b = 1;
-                else if (strcmp(v, "west") == 0) b = 2;
-                else if (strcmp(v, "south") == 0) b = 3;
-                else b = 4;  // north
-                if (isWall) dataVal = (dataVal & ~0x7) | b;
-                else if (b <= 2) dataVal |= 0x10;   // east/west marker for floor/ceiling
+                // the world reader's facing values: east 1, west 2, south 3, north 4
+                if (strcmp(v, "east") == 0) buttonFacing = 1;
+                else if (strcmp(v, "west") == 0) buttonFacing = 2;
+                else if (strcmp(v, "south") == 0) buttonFacing = 3;
+                else buttonFacing = 4;  // north
             }
             else if (strcmp(k, "powered") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x8; lit = false; }
             break;
@@ -7315,6 +7428,15 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             // the per-family arm via `continue`, so the bit has to be set here.
             dataVal |= 0x8;
             break;
+        case EXTENDED_SWNE_FACING_PROP:
+            // campfire and soul_campfire (the only ones in this family with `lit`): bit 0x4
+            dataVal |= 0x4;
+            break;
+        case CANDLE_CAKE_PROP:
+            // candle cakes: BIT_32 (the CANDLE_CAKE_PROP arm's own "lit" check never runs, since the universal
+            // `lit` handler takes the property first)
+            dataVal |= BIT_32;
+            break;
         case TORCH_PROP:
             // Mineways' lookup gives blockId=76 for both redstone_torch and redstone_wall_torch (lit
             // form). Reverse the writer's "unlit→75" branch: if NOT lit, switch to 75. The lit case
@@ -7355,56 +7477,32 @@ static bool spongeParseStateString(const char* str, int* outBlockId, int* outDat
             blockId = 149;     // 149 | TYPE_HIGH_BIT1 → fullType = 405 = BLOCK_CAVE_VINES_LIT
         }
     }
-    // SLAB_PROP type=double remap
+    // BUTTON_PROP, the same packing as the world reader's BUTTON_PROP arm: low 3 bits 5 = floor, 0 = ceiling, 1-4 = wall
+    // facing; for floor and ceiling, BIT_16 marks the east/west facing axis.
+    if (tf == BUTTON_PROP) {
+        int b;
+        if (buttonFace == 0)      b = 5 | ((buttonFacing <= 2) ? BIT_16 : 0x0);
+        else if (buttonFace == 2) b = 0 | ((buttonFacing <= 2) ? BIT_16 : 0x0);
+        else                      b = buttonFacing;
+        dataVal = (dataVal & ~(0x7 | BIT_16)) | b;
+    }
+    // DOOR_PROP: upper half = 0x8 | hinge (0x1) | powered (0x2); lower half = open (0x4) | door_facing (0x3)
+    if (tf == DOOR_PROP) {
+        dataVal = (dataVal & ~0xF) |
+            (doorUpper ? (0x8 | (doorHinge ? 0x1 : 0) | (doorPowered ? 0x2 : 0)) : ((doorOpen ? 0x4 : 0) | doorFacing));
+    }
+    // SLAB_PROP type=double remap: every slab family's double slab is the type just before it, e.g.
+    // smooth_stone_slab 44 -> 43, andesite_slab 330 -> 329, crimson_slab 361 -> 360, cut_copper_slab 398 -> 397,
+    // white_concrete_slab 538 -> 537. blockId is the type's low 8 bits for the TYPE_HIGH_BIT1 families (kept
+    // apart in typeHighBit), so decrementing it works for all of them, as the world reader does (readPalette).
     if (typeIsDouble && tf == SLAB_PROP) {
-        // Specific slabs with explicit DOUBLE_SLAB IDs: smooth_stone_slab(44)→43, oak_slab(126)→125,
-        // red_sandstone_slab(182)→181, purpur_slab(205)→204, andesite_slab(330)→329,
-        // crimson_slab(361)→360, cut_copper_slab(398)→397.
-        switch (blockId) {
-        case BLOCK_STONE_SLAB:
-        case BLOCK_WOODEN_SLAB:
-        case BLOCK_RED_SANDSTONE_SLAB:
-        case BLOCK_PURPUR_SLAB:
-        case BLOCK_CONCRETE_SLAB:
-        case BLOCK_WOOL_SLAB:
-            blockId -= 1;
-            break;
-        case 74: case 73: case 75: case 76: case 77: case 78:
-            // The new 1.14+ slabs (block 74 + TYPE_HIGH_BIT1 subtypes) don't have explicit doubles in
-            // Mineways. Fall back to type=top (lossy).
-            dataVal |= 0x8;
-            break;
-        default:
-            // For high-blockId slabs (andesite_slab=330, crimson_slab=361, cut_copper_slab=398),
-            // they live at TYPE_HIGH_BIT1-flagged entries; subtract 1 from the underlying blockId.
-            // The Mineways block ID returned by findIndexFromName here might be the low 8 bits;
-            // the full type comes from blockId | (TYPE_HIGH_BIT1-bit). For these cases the table has
-            // dataVal with TYPE_HIGH_BIT1 set. Since blockId itself is 8 bits, this fallback covers
-            // the common TYPE_HIGH_BIT1 families approximately — see code review note.
-            // Stub: treat as top.
-            dataVal |= 0x8;
-            break;
-        }
+        blockId -= 1;
     }
 
-    // Done. Note: blockId may be > 255 (e.g., 256 = BLOCK_AIR+TYPE_HIGH_BIT1 space). The legacy schematic
-    // storage encodes >255 by putting low 8 bits in *outBlockId and TYPE_HIGH_BIT1 in *outDataVal.
-    if (blockId > 511) {
-        // a type over 511 does not fit in the low 8 bits plus TYPE_HIGH_BIT1, so pass it whole
-        *outBlockId = blockId;
-        *outDataVal = dataVal;
-    }
-    else if (blockId > 255) {
-        *outBlockId = blockId & 0xFF;
-        *outDataVal = dataVal | TYPE_HIGH_BIT1;
-    }
-    else {
-        *outBlockId = blockId;
-        // BlockTranslations entries with dataVal containing TYPE_HIGH_BIT1 mean the type is >255 even
-        // when blockId field is ≤255. The findIndexFromName lookup returns dataVal with TYPE_HIGH_BIT1
-        // marker; preserve it in the output dataVal so extractChunk reconstructs type|0x100.
-        *outDataVal = dataVal;
-    }
+    // Done. The full type is blockId plus 256 if the table entry had TYPE_HIGH_BIT1 (a blockId over 511 is
+    // already the whole type), the same conversion the world reader uses (see readPalette).
+    *outType = (blockId > 511) ? blockId : (blockId | (typeHighBit << 1));
+    *outDataVal = dataVal & DATAVAL_MASK;
     return true;
 }
 
@@ -7513,9 +7611,9 @@ static bool spongeReadPalette(bfFile* pbf,
             }
             *palCapacity = newCap;
         }
-        int blockId, dataVal;
-        spongeParseStateString(pname, &blockId, &dataVal);
-        (*palBlockIds)[idx] = blockId;
+        int type, dataVal;
+        spongeParseStateString(pname, &type, &dataVal);
+        (*palBlockIds)[idx] = type;
         (*palDataVals)[idx] = dataVal;
         if (idx + 1 > *palCount) *palCount = idx + 1;
     }
@@ -7748,9 +7846,9 @@ int nbtGetSpongeSchematic(bfFile* pbf,
     // identical to the legacy schematic format's order — createBlockFromSchematic uses
     // `(y * length + z) * width + x`, the same loop expressed differently. No reordering needed.
     //
-    // palBlockIds[idx]/palDataVals[idx] are still in spongeParseStateString's old 8-bit encoding
-    // (dataVal's TYPE_HIGH_BIT1 = "promote type by 256"); repack into *outData's wider (12-bit dataVal +
-    // 4-bit type-extension nibble) form - same conversion as nbtGetBlocks does for its palette.
+    // palBlockIds[idx] holds the full type and palDataVals[idx] the 12-bit dataVal (see spongeParseStateString);
+    // pack them into *outBlocks (the type's low 8 bits) and *outData's wide form (12-bit dataVal + 4-bit
+    // type-extension nibble), the same format nbtGetBlocks produces for its palette.
     int pos = 0;
     for (int i = 0; i < numBlocks; i++) {
         if (pos >= dataBytesLen) {
@@ -7764,11 +7862,9 @@ int nbtGetSpongeSchematic(bfFile* pbf,
             (*outBlocks)[i] = 0; (*outData)[i] = 0;
         }
         else {
-            int blockIdVal = palBlockIds[idx] & 0xFF;
-            int oldDataVal = palDataVals[idx] & 0xFF;
-            int fullType = (palBlockIds[idx] > 511) ? palBlockIds[idx] : (blockIdVal | ((oldDataVal & TYPE_HIGH_BIT1) << 1));
-            (*outBlocks)[i] = (unsigned char)blockIdVal;
-            (*outData)[i] = PACK_TYPE_EXT_AND_DATAVAL(fullType, oldDataVal & 0x7F);
+            int fullType = palBlockIds[idx];
+            (*outBlocks)[i] = (unsigned char)(fullType & 0xFF);
+            (*outData)[i] = PACK_TYPE_EXT_AND_DATAVAL(fullType, palDataVals[idx]);
         }
     }
 
@@ -7891,6 +7987,18 @@ static const char* spongeSwneFromDataVal(int dataVal)
     case 3: return "east";
     }
     return "south";
+}
+
+// Families that store the world reader's raw door_facing (EXTENDED_SWNE_FACING_PROP, PINK_PETALS_PROP,
+// BIG_DRIPLEAF_PROP, SMALL_DRIPLEAF_PROP): dataVal & 0x3 = east/south/west/north. Mirror of spongeDoorFacingIdxFromName.
+static const char* spongeDoorFacingFromDataVal(int dataVal)
+{
+    switch (dataVal & 0x3) {
+    case 0: return "east";
+    case 1: return "south";
+    case 2: return "west";
+    }
+    return "north";
 }
 
 static const char* spongeAxisFromDataVal(int dataVal)
@@ -8171,6 +8279,37 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         return (n > 0 && n < outSize) ? n : -1;
     }
 
+    // For a few families, the subtype mask can't select the right BlockTranslations entry (e.g. kelp's mask is 0,
+    // and a growing melon stem's age falls back to the first entry, attached_melon_stem), so pick it from dataVal.
+    {
+        const char* want = NULL;
+        switch (type & 0xFFF) {
+        case BLOCK_KELP:            want = (dataVal & 0x1) ? "minecraft:kelp" : "minecraft:kelp_plant"; break;
+        case BLOCK_CAMPFIRE:        want = (dataVal & 0x8) ? "minecraft:soul_campfire" : "minecraft:campfire"; break;
+        case BLOCK_MELON_STEM:      want = (dataVal & 0x8) ? "minecraft:attached_melon_stem" : "minecraft:melon_stem"; break;
+        case BLOCK_PUMPKIN_STEM:    want = (dataVal & 0x8) ? "minecraft:attached_pumpkin_stem" : "minecraft:pumpkin_stem"; break;
+        case BLOCK_QUARTZ_BLOCK:    // quartz_pillar's axis is stored as dataVal 2, 3, 4
+            if ((dataVal & 0x7) >= 2 && (dataVal & 0x7) <= 4) want = "minecraft:quartz_pillar";
+            break;
+        case BLOCK_CAULDRON:        // bits 0xC: 0 = water (or empty), 0x4 lava, 0x8 powder snow; bits 0x3 = level
+            if ((dataVal & 0xC) == 0 && (dataVal & 0x3) != 0) want = "minecraft:water_cauldron";
+            break;
+        case BLOCK_CAKE:            // candle cakes: look up without the lit bit, BIT_32, which the table entries don't have
+            e = findSpongeTranslator(type, r.lookupDataVal & ~BIT_32);
+            break;
+        }
+        if (want != NULL) {
+            char wantBuf[64];
+            strcpy_s(wantBuf, sizeof(wantBuf), want);
+            int idx = findIndexFromName(wantBuf);
+            if (idx >= 0) e = &BlockTranslations[idx];
+        }
+        if (e == NULL) {
+            int n = snprintf(out, (size_t)outSize, "minecraft:air");
+            return (n > 0 && n < outSize) ? n : -1;
+        }
+    }
+
     char props[256];
     props[0] = '\0';
     int plen = 0;
@@ -8211,13 +8350,23 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         break;
     }
 
+    case CHEST_PROP: {
+        // facing, then type from bits 0x18: 1 = single, 3 = left, 2 = right (see the world reader's CHEST_PROP arm).
+        // 0 means an old-style chest with no half information; omit type there, and Minecraft defaults to single.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeFacing4FromDataVal(dataVal));
+        int single = (dataVal >> 3) & 0x3;
+        if (single != 0) {
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "type", (single == 3) ? "left" : (single == 2) ? "right" : "single");
+        }
+        break;
+    }
+
     case FACING_PROP:
     case FURNACE_PROP:
-    case CHEST_PROP:                // facing only, type omitted (Mineways doesn't track left/right halves cleanly)
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeFacing4FromDataVal(dataVal));
         // Alphabetical: "facing" < "lit". isLitFurnace is set only when we remapped from
         // BLOCK_BURNING_FURNACE above, which always has FURNACE_PROP, so it never fires for
-        // plain FACING_PROP/CHEST_PROP blocks.
+        // plain FACING_PROP blocks.
         if (isLitFurnace) {
             spongeAppendProp(props, (int)sizeof(props), &plen, &started, "lit", "true");
         }
@@ -8233,8 +8382,9 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         //   hopper                 -> enabled
         //   command_block          -> conditional
         //   dispenser / dropper    -> triggered (non-graphical)
-        // For now we only emit it for pistons (visually significant: it controls whether the head
-        // is out). The others can be added the same way if requested.
+        //   barrel                 -> open
+        //   lightning rods         -> powered
+        // Each is written under its own name, keyed by block type.
         //
         // Bit 0x10 is piston_head-only: "short" (arm mid-animation), unused by every other
         // consumer of this family (see EXTENDED_FACING_PROP arm in readPalette).
@@ -8246,11 +8396,46 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         int fullType = type & 0xFFF;
         bool isPiston = (fullType == BLOCK_PISTON || fullType == BLOCK_STICKY_PISTON);
         bool isPistonHead = (fullType == BLOCK_PISTON_HEAD);
-        // Alphabetical: extended < facing < short < type
+        bool isCommandBlock = (fullType == BLOCK_COMMAND_BLOCK || fullType == BLOCK_REPEATING_COMMAND_BLOCK || fullType == BLOCK_CHAIN_COMMAND_BLOCK);
+        bool isPowered = (fullType == BLOCK_OBSERVER || fullType == BLOCK_LIGHTNING_ROD || fullType == BLOCK_WAXED_LIGHTNING_ROD);
+        const char* bit8 = (dataVal & 0x8) ? "true" : "false";
+        // Alphabetical: conditional < enabled < extended < facing < open < powered < short < triggered < type
+        if (isCommandBlock) {
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "conditional", bit8);
+        }
+        if (fullType == BLOCK_HOPPER) {
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "enabled", bit8);
+        }
         if (isPiston) {
-            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "extended", (dataVal & 0x8) ? "true" : "false");
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "extended", bit8);
+        }
+        if (fullType == BLOCK_JIGSAW) {
+            // jigsaw has "orientation", not "facing". The world reader's orientation parse puts the first direction
+            // in bits 0x7 (0 down, 1 up, 2 west_up, 3 south_up, 4 north_up, 5 east_up - note west/north) and,
+            // for up/down, the second direction in bits 0x18 (0 west, 0x8 south, 0x10 north, 0x18 east).
+            static const char* horizontal[6] = { "down_west", "up_west", "west_up", "south_up", "north_up", "east_up" };
+            static const char* second[4] = { "west", "south", "north", "east" };
+            char orientation[16];
+            int first = dataVal & 0x7;
+            if (first <= 1) {
+                snprintf(orientation, sizeof(orientation), "%s_%s", first ? "up" : "down", second[(dataVal >> 3) & 0x3]);
+            }
+            else {
+                snprintf(orientation, sizeof(orientation), "%s", horizontal[first <= 5 ? first : 2]);
+            }
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "orientation", orientation);
+            break;
         }
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeFacing6FromDataVal(dataVal));
+        if (fullType == BLOCK_BARREL) {
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "open", bit8);
+        }
+        if (isPowered) {
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", bit8);
+        }
+        if (fullType == BLOCK_DISPENSER || fullType == BLOCK_DROPPER) {
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "triggered", bit8);
+        }
         if (isPistonHead) {
             spongeAppendProp(props, (int)sizeof(props), &plen, &started, "short", (dataVal & 0x10) ? "true" : "false");
             spongeAppendProp(props, (int)sizeof(props), &plen, &started, "type", (dataVal & 0x8) ? "sticky" : "normal");
@@ -8260,9 +8445,51 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
 
     case SWNE_FACING_PROP:
     case ANVIL_PROP:
-    case EXTENDED_SWNE_FACING_PROP: // == GRINDSTONE_PROP, LECTERN_PROP, BELL_PROP, CAMPFIRE_PROP
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeSwneFromDataVal(dataVal));
         break;
+
+    case EXTENDED_SWNE_FACING_PROP: { // == GRINDSTONE_PROP, LECTERN_PROP, BELL_PROP, CAMPFIRE_PROP
+        // Despite the name, the world reader stores raw door_facing in bits 0x3 (east/south/west/north). The rest,
+        // per block (see the world reader's EXTENDED_SWNE_FACING_PROP arm):
+        //   grindstone: face 0xC (0 floor, 1 wall, 2 ceiling)
+        //   bell: powered 0x8, attachment 0x30 (0 floor, 1 ceiling, 2 single_wall, 3 double_wall)
+        //   lectern: has_book 0x4, powered 0x8
+        //   campfire, soul_campfire: lit 0x4, soul 0x8 (the name), signal_fire 0x10
+        //   bee_nest, beehive: honey_level 0x1C, beehive 0x20 (the name)
+        int t = type & 0xFFF;
+        const char* facing = spongeDoorFacingFromDataVal(dataVal);
+        if (t == BLOCK_GRINDSTONE) {
+            static const char* faces[4] = { "floor", "wall", "ceiling", "floor" };
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "face", faces[(dataVal >> 2) & 0x3]);
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
+        }
+        else if (t == BLOCK_BELL) {
+            static const char* attachments[4] = { "floor", "ceiling", "single_wall", "double_wall" };
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "attachment", attachments[(dataVal >> 4) & 0x3]);
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x8) ? "true" : "false");
+        }
+        else if (t == BLOCK_LECTERN) {
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "has_book", (dataVal & 0x4) ? "true" : "false");
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x8) ? "true" : "false");
+        }
+        else if (t == BLOCK_CAMPFIRE) {
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "lit", (dataVal & 0x4) ? "true" : "false");
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "signal_fire", (dataVal & 0x10) ? "true" : "false");
+        }
+        else if (t == BLOCK_BEE_NEST) {
+            char honeyStr[3];
+            snprintf(honeyStr, sizeof(honeyStr), "%d", (dataVal >> 2) & 0x7);
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "honey_level", honeyStr);
+        }
+        else {
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
+        }
+        break;
+    }
 
     case STAIRS_PROP: {
         // bits 0-1 = facing (0=east,1=west,2=south,3=north); bit 2 = half (0=bottom,1=top)
@@ -8402,7 +8629,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
 
     case NOTE_BLOCK_PROP: {
         // BLOCK_NOTEBLOCK (25). bit 0x01 = powered, bits 0x3E = note pitch (0..24, shifted into
-        // bits 1..5), bits 0x7C0 = instrument (0..22, shifted into bits 6..10). Alphabetical:
+        // bits 1..5), bits 0x7C0 = instrument (0..26, shifted into bits 6..10). Alphabetical:
         // instrument < note < powered.
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "instrument", spongeInstrumentName((dataVal >> 6) & 0x1F));
         char noteStr[3];
@@ -8818,11 +9045,11 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     case PINK_PETALS_PROP: {
         // pink_petals (block 197 + TYPE_HIGH_BIT1). Read-side packs
         // `dataVal = (door_facing % 4) | ((flower_amount - 1) << 2)` (nbt.cpp:4957):
-        //   bits 0x03: SWNE facing (0=south, 1=west, 2=north, 3=east)
+        //   bits 0x03: door_facing (0=east, 1=south, 2=west, 3=north)
         //   bits 0x0C (>>2): flower_amount - 1, range 0..3 (= 1..4 petals)
         char petalsStr[2];
         snprintf(petalsStr, sizeof(petalsStr), "%d", ((dataVal >> 2) & 0x3) + 1);
-        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeSwneFromDataVal(dataVal));
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeDoorFacingFromDataVal(dataVal));
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "flower_amount", petalsStr);
         break;
     }
@@ -8886,14 +9113,14 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         //   bit 0x08: south_tall
         //   bit 0x10: west_tall
         //   bit 0x20 (BIT_32): set if any side is "low" or "tall" (we don't use it here)
-        // Mineways doesn't differentiate per-side "low" from "none" (it collapses both unless
-        // "tall"), so each side exports as either "tall" or "none". Acceptable lossy round-trip.
+        //   bits 0x80/0x100/0x200/0x400: north/east/south/west "low" (rendering infers low sides from
+        //   neighbors instead, but these keep them for the round-trip)
         // Alphabetical: bottom, east, north, south, west.
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "bottom", (dataVal & 0x01) ? "true" : "false");
-        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "east",  (dataVal & 0x04) ? "tall" : "none");
-        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "north", (dataVal & 0x02) ? "tall" : "none");
-        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "south", (dataVal & 0x08) ? "tall" : "none");
-        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "west",  (dataVal & 0x10) ? "tall" : "none");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "east",  (dataVal & 0x04) ? "tall" : (dataVal & 0x100) ? "low" : "none");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "north", (dataVal & 0x02) ? "tall" : (dataVal & 0x80) ? "low" : "none");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "south", (dataVal & 0x08) ? "tall" : (dataVal & 0x200) ? "low" : "none");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "west",  (dataVal & 0x10) ? "tall" : (dataVal & 0x400) ? "low" : "none");
         break;
     }
 
@@ -8915,18 +9142,11 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         // Block 152 + TYPE_HIGH_BIT1. Read-side packs `(door_facing | (tilt << 2)) << 1` (nbt.cpp:4932):
         //   bit 0x01: stem flag (BlockTranslations: 0 = big_dripleaf, 1 = big_dripleaf_stem)
         //             — picked up by findSpongeTranslator via subtype lookup.
-        //   bits 0x06 (>>1): SWNE facing (0=south, 1=west, 2=north, 3=east).
+        //   bits 0x06 (>>1): door_facing (0=east, 1=south, 2=west, 3=north).
         //   bits 0x18 (>>3): tilt enum (0=none, 1=unstable, 2=partial, 3=full).
         // The leaf has facing + tilt; the stem has facing only (no tilt). Both can be waterlogged
         // (generic check at bottom).
-        const char* facing;
-        switch ((dataVal >> 1) & 0x3) {
-        case 0: facing = "south"; break;
-        case 1: facing = "west"; break;
-        case 2: facing = "north"; break;
-        default: facing = "east"; break;
-        }
-        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeDoorFacingFromDataVal(dataVal >> 1));
         if (!(dataVal & 0x1)) {
             // big_dripleaf (leaf): emit tilt
             const char* tilt;
@@ -8945,16 +9165,9 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         // Block 153 + TYPE_HIGH_BIT1. Read-side packs `(door_facing << 1) | (half ? 0 : 1)` (nbt.cpp:4936)
         // — note `half` was set when value=="upper", and the bit ends up as `0` for upper, `1` for lower.
         //   bit 0x01: half (0=upper, 1=lower — INVERTED from the usual convention)
-        //   bits 0x06 (>>1): SWNE facing (0=south, 1=west, 2=north, 3=east).
+        //   bits 0x06 (>>1): door_facing (0=east, 1=south, 2=west, 3=north).
         // Modern Minecraft has small_dripleaf with facing + half (upper|lower) + waterlogged.
-        const char* facing;
-        switch ((dataVal >> 1) & 0x3) {
-        case 0: facing = "south"; break;
-        case 1: facing = "west"; break;
-        case 2: facing = "north"; break;
-        default: facing = "east"; break;
-        }
-        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeDoorFacingFromDataVal(dataVal >> 1));
         // Alphabetical: facing < half.
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "half", (dataVal & 0x1) ? "lower" : "upper");
         break;
@@ -9054,13 +9267,14 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case TRAPDOOR_PROP: {
-        // dataVal = (half<<3) | (open<<2) | (4 - facing_bits); facing bits come from FACING_PROP path
+        // dataVal = (half<<3) | (open<<2) | (4 - facing_bits); the world reader's facing bits are
+        // south=3, west=2, north=4, east=1 (see its "facing" token parse)
         const char* facing;
         switch (dataVal & 0x3) {
-        case 0: facing = "east"; break;     // 4 - 4 = 0 ⇒ originally north (door_facing 3, dataVal |= 4)
-        case 1: facing = "north"; break;    // 4 - 3 = 1 ⇒ south
-        case 2: facing = "south"; break;    // 4 - 2 = 2 ⇒ west
-        default: facing = "west"; break;    // 4 - 1 = 3 ⇒ east
+        case 0: facing = "north"; break;    // 4 - 4 = 0
+        case 1: facing = "south"; break;    // 4 - 3 = 1
+        case 2: facing = "west"; break;     // 4 - 2 = 2
+        default: facing = "east"; break;    // 4 - 1 = 3
         }
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "half", (dataVal & 0x8) ? "top" : "bottom");
@@ -9069,24 +9283,26 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case DOOR_PROP: {
-        // upper half: dataVal = 8 | hinge | (powered<<1); lower half: dataVal = open(0|4) | door_facing(0..3)
-        if (dataVal & 0x8) {
-            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "half", "upper");
-            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "hinge", (dataVal & 0x1) ? "right" : "left");
-            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x2) ? "true" : "false");
+        // upper half: dataVal = 8 | hinge | (powered<<1); lower half: dataVal = open(0|4) | door_facing(0..3).
+        // Minecraft wants all five properties on both halves. When the .schem writer finds this door's other
+        // half, it sets SPONGE_DOOR_PAIRED and puts that half's bits at 0x70: the lower half's open|facing
+        // for an upper half, the upper half's powered|hinge for a lower half. Unpaired, only this half's are known.
+        bool upper = (dataVal & 0x8) != 0;
+        bool paired = (dataVal & SPONGE_DOOR_PAIRED) != 0;
+        int lowerBits = upper ? ((dataVal >> 4) & 0x7) : (dataVal & 0x7);
+        int upperBits = upper ? (dataVal & 0x3) : ((dataVal >> 4) & 0x3);
+        if (!upper || paired) {
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeDoorFacingFromDataVal(lowerBits));
         }
-        else {
-            // door_facing: 0=east, 1=south, 2=west, 3=north
-            const char* facing;
-            switch (dataVal & 0x3) {
-            case 0: facing = "east"; break;
-            case 1: facing = "south"; break;
-            case 2: facing = "west"; break;
-            default: facing = "north"; break;
-            }
-            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
-            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "half", "lower");
-            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "open", (dataVal & 0x4) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "half", upper ? "upper" : "lower");
+        if (upper || paired) {
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "hinge", (upperBits & 0x1) ? "right" : "left");
+        }
+        if (!upper || paired) {
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "open", (lowerBits & 0x4) ? "true" : "false");
+        }
+        if (upper || paired) {
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (upperBits & 0x2) ? "true" : "false");
         }
         break;
     }
@@ -9260,11 +9476,41 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "trial_spawner_state", state);
     }
 
-    // BLOCK_VAULT, same pattern as trial_spawner. Read-side at nbt.cpp:4338+ packs ominous into
-    // bit 0x4 and vault_state into bits 0x18 (index << 3): 0=inactive, 1=active, 2=unlocking,
-    // 3=ejecting. The MinewaysMap.cpp color switch (case BLOCK_VAULT, mask 0x1C) confirms this
-    // layout. Alphabetical: ominous < vault_state.
+    // NO_PROP blocks whose one numeric property the world reader stores directly in the low dataVal bits
+    // (its "age", "level", "charges", "dusted" and "mode" parsers): emit it back under its name.
+    {
+        const char* key = NULL;
+        int value = 0;
+        switch (type & 0xFFF) {
+        case BLOCK_CARROTS:
+        case BLOCK_POTATOES:
+        case BLOCK_CHORUS_FLOWER:     key = "age"; value = dataVal & 0x7; break;
+        case BLOCK_TORCHFLOWER_CROP:  key = "age"; value = dataVal & 0x3; break;
+        case BLOCK_COMPOSTER:         key = "level"; value = dataVal & 0xF; break;
+        case BLOCK_CAULDRON:          // water_cauldron and powder_snow_cauldron have a level; cauldron and lava_cauldron don't
+            if ((dataVal & 0x3) != 0 && (dataVal & 0xC) != 0x4) { key = "level"; value = dataVal & 0x3; }
+            break;
+        case BLOCK_RESPAWN_ANCHOR:    key = "charges"; value = dataVal & 0x7; break;
+        case BLOCK_SUSPICIOUS_GRAVEL: key = "dusted"; value = dataVal & 0x3; break;   // and suspicious_sand, subtype 0x4
+        case BLOCK_TEST_BLOCK: {
+            static const char* modes[4] = { "start", "log", "fail", "accept" };
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "mode", modes[dataVal & 0x3]);
+            break;
+        }
+        }
+        if (key != NULL) {
+            char valueStr[4];
+            snprintf(valueStr, sizeof(valueStr), "%d", value);
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, key, valueStr);
+        }
+    }
+
+    // BLOCK_VAULT, same pattern as trial_spawner, plus facing. The world reader packs facing into bits 0x3
+    // (0=north, 1=east, 2=south, 3=west), ominous into bit 0x4 and vault_state into bits 0x18 (index << 3):
+    // 0=inactive, 1=active, 2=unlocking, 3=ejecting. The MinewaysMap.cpp color switch (case BLOCK_VAULT,
+    // mask 0x1C) confirms this layout. Alphabetical: facing < ominous < vault_state.
     if ((type & 0xFFF) == BLOCK_VAULT) {
+        static const char* vaultFacing[4] = { "north", "east", "south", "west" };
         const char* state;
         switch ((dataVal >> 3) & 0x3) {
         default:
@@ -9273,6 +9519,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         case 2: state = "unlocking"; break;
         case 3: state = "ejecting"; break;
         }
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", vaultFacing[dataVal & 0x3]);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "ominous", (dataVal & 0x4) ? "true" : "false");
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "vault_state", state);
     }
@@ -9321,9 +9568,10 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     // Waterlogged is additive across many block families — but a few props steal bit 0x40 for
-    // their own purposes (MUSHROOM_PROP/MUSHROOM_STEM_PROP use it as the stem flag), so skip
-    // the check for those families.
-    if ((dataVal & WATERLOGGED_BIT) && tf != MUSHROOM_PROP && tf != MUSHROOM_STEM_PROP) {
+    // their own purposes (MUSHROOM_PROP/MUSHROOM_STEM_PROP use it as the stem flag, NOTE_BLOCK_PROP
+    // as instrument bit 0, DOOR_PROP for a paired upper half's open bit; none of these blocks can be
+    // waterlogged), so skip the check for those families.
+    if ((dataVal & WATERLOGGED_BIT) && tf != MUSHROOM_PROP && tf != MUSHROOM_STEM_PROP && tf != NOTE_BLOCK_PROP && tf != DOOR_PROP) {
         // Most families don't have waterlogged; the extra prop is harmless on those that do.
         // The block families that *do* support waterlogged include stairs, slabs, fences, walls,
         // chests, signs, ladders, glow lichen, etc. Mineways uses bit 0x40 internally for this.
@@ -9347,6 +9595,10 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     if (name == e->name && strcmp(name, "bed") == 0) {
         // Mineways stores only one bed kind (BLOCK_BED, no per-color tracking). Export as red_bed.
         name = "red_bed";
+    }
+    else if (name == e->name && strcmp(name, "grass") == 0) {
+        // renamed short_grass in 1.20.3; "grass" comes first in its bucket for reading older worlds
+        name = "short_grass";
     }
 
     int n = snprintf(out, (size_t)outSize, "minecraft:%s%s", name, props);

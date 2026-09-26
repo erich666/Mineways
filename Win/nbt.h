@@ -177,6 +177,9 @@ void SetModTranslations(TranslationTuple* mt);
 // Properties are emitted in alphabetical order as required by the v2 spec. Returns the
 // number of bytes written (excluding the NUL), or -1 if the buffer was too small.
 int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize);
+// For a door half passed to spongeBuildBlockStateString: set when the door's other half was found, whose
+// data bits are then in 0x70 (see the DOOR_PROP case there), so all five door properties can be written.
+#define SPONGE_DOOR_PAIRED 0x100
 
 // ---- Small public surface over BlockTranslations[] for the Culling Schemes feature ----
 // The Culling editor needs to walk every Minecraft block-state name Mineways understands

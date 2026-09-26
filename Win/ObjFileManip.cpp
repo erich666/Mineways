@@ -34588,6 +34588,36 @@ static int spongeBlockStateString(int type, int dataVal, char* out, size_t outSi
     return spongeBuildBlockStateString(type, dataVal, out, (int)outSize);
 }
 
+static bool isDoorType(int type)
+{
+    switch (type) {
+    case BLOCK_WOODEN_DOOR:
+    case BLOCK_IRON_DOOR:
+    case BLOCK_SPRUCE_DOOR:
+    case BLOCK_BIRCH_DOOR:
+    case BLOCK_JUNGLE_DOOR:
+    case BLOCK_DARK_OAK_DOOR:
+    case BLOCK_ACACIA_DOOR:
+    case BLOCK_PALE_OAK_DOOR:
+    case BLOCK_POPLAR_DOOR:
+    case BLOCK_CRIMSON_DOOR:
+    case BLOCK_WARPED_DOOR:
+    case BLOCK_MANGROVE_DOOR:
+    case BLOCK_CHERRY_DOOR:
+    case BLOCK_BAMBOO_DOOR:
+    case BLOCK_COPPER_DOOR:
+    case BLOCK_EXPOSED_COPPER_DOOR:
+    case BLOCK_WEATHERED_COPPER_DOOR:
+    case BLOCK_OXIDIZED_COPPER_DOOR:
+    case BLOCK_WAXED_COPPER_DOOR:
+    case BLOCK_WAXED_EXPOSED_COPPER_DOOR:
+    case BLOCK_WAXED_WEATHERED_COPPER_DOOR:
+    case BLOCK_WAXED_OXIDIZED_COPPER_DOOR:
+        return true;
+    }
+    return false;
+}
+
 // Writes a Sponge Schematic v3 (.schem) file. Spec:
 //   https://github.com/SpongePowered/Schematic-Specification/blob/master/versions/schematic-3.md
 // File is gzipped NBT, big-endian. Voxel index = x + z*Width + y*Width*Length.
@@ -34698,13 +34728,16 @@ static int writeSpongeSchematicBox()
     //   1. (type, dataVal) -> palette index  : fast path, avoids rebuilding the state string
     //   2. string -> palette index           : dedupe across distinct (type, dataVal) sources
 
-    int* paletteIndexLookup = (int*)malloc((size_t)NUM_BLOCKS_DEFINED * 256 * sizeof(int));
+    // Keyed on the full 12-bit dataVal: some families (e.g. note block's instrument, bits 0x7C0) use bits
+    // above 0xFF, and an 8-bit key would make such blocks share the first-seen block's palette entry.
+    const int lookupDataVals = DATAVAL_MASK + 1;
+    int* paletteIndexLookup = (int*)malloc((size_t)NUM_BLOCKS_DEFINED * lookupDataVals * sizeof(int));
     if (paletteIndexLookup == NULL) {
         gzflush(gz, Z_FINISH);
         fclose(fptr);
         return retCode | MW_WORLD_EXPORT_TOO_LARGE;
     }
-    for (int i = 0; i < NUM_BLOCKS_DEFINED * 256; i++) paletteIndexLookup[i] = -1;
+    for (int i = 0; i < NUM_BLOCKS_DEFINED * lookupDataVals; i++) paletteIndexLookup[i] = -1;
 
     std::vector<std::string> paletteNames;
     paletteNames.reserve(256);
@@ -34734,8 +34767,23 @@ static int writeSpongeSchematicBox()
                 int type = (int)gBoxData[boxIndex].type;
                 int dataVal = (int)gBoxData[boxIndex].data;
 
-                int lookupKey = (type & 0xFFF) * 256 + (dataVal & 0xFF);
-                if (lookupKey < 0 || lookupKey >= NUM_BLOCKS_DEFINED * 256) {
+                // A door half holds only some of the door's properties (upper: hinge, powered; lower: facing, open),
+                // but Minecraft wants all of them on both halves. Add the other half's, if it's in the exported box.
+                if (isDoorType(type)) {
+                    int partnerY = (dataVal & 0x8) ? loc[Y] - 1 : loc[Y] + 1;
+                    if (partnerY >= gSolidBox.min[Y] && partnerY <= gSolidBox.max[Y]) {
+                        int partnerIndex = rotateQuarter
+                            ? BOX_INDEX(loc[Z], partnerY, loc[X])
+                            : BOX_INDEX(loc[X], partnerY, loc[Z]);
+                        int partnerData = (int)gBoxData[partnerIndex].data;
+                        if ((int)gBoxData[partnerIndex].type == type && ((partnerData ^ dataVal) & 0x8)) {
+                            dataVal = (dataVal & 0xF) | SPONGE_DOOR_PAIRED | ((partnerData & 0x7) << 4);
+                        }
+                    }
+                }
+
+                int lookupKey = (type & 0xFFF) * lookupDataVals + (dataVal & DATAVAL_MASK);
+                if (lookupKey < 0 || lookupKey >= NUM_BLOCKS_DEFINED * lookupDataVals) {
                     // unknown block — fall back to air, count it for the user-facing warning
                     type = 0;
                     dataVal = 0;
