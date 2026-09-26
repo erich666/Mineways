@@ -6699,6 +6699,8 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
         // bubble_column (shares BLOCK_STATIONARY_WATER/9, NO_PROP, disambiguated from water by bit
         // 0x10) `drag` lives in bit 0x01 (mirror of world reader).
         if (strcmp(k, "drag") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x1; continue; }
+        // BLOCK_PALE_HANGING_MOSS (358) is NO_PROP; `tip` lives in bit 0x01 (mirror of world reader).
+        if (strcmp(k, "tip") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x1; continue; }
         // BLOCK_SCULK_SHRIEKER (433) is NO_PROP; bit 0x01 = can_summon, bit 0x02 = shrieking.
         if (strcmp(k, "can_summon") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x1; continue; }
         if (strcmp(k, "shrieking") == 0)  { if (strcmp(v, "true") == 0) dataVal |= 0x2; continue; }
@@ -7395,6 +7397,8 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
 
         case DAYLIGHT_PROP:
             if (strcmp(k, "power") == 0) dataVal = (dataVal & ~0xF) | (atoi(v) & 0xF);
+            // the inverted form is its own type, as the world reader does (readPalette)
+            else if (strcmp(k, "inverted") == 0 && strcmp(v, "true") == 0) blockId = BLOCK_DAYLIGHT_DETECTOR;
             break;
 
         case FLUID_PROP:
@@ -7682,11 +7686,12 @@ static bool spongeReadBlocksCompound(bfFile* pbf,
 
 int nbtGetSpongeSchematic(bfFile* pbf,
     int* outWidth, int* outHeight, int* outLength,
-    unsigned char** outBlocks, unsigned short** outData)
+    unsigned char** outBlocks, unsigned short** outData, int* outDataVersion)
 {
     *outBlocks = NULL;
     *outData = NULL;
     *outWidth = *outHeight = *outLength = 0;
+    *outDataVersion = 0;
 
     // findIndexFromName (used by spongeParseStateString below) relies on HashArray[]; if no
     // 1.13+ chunk has been read this session, that table is still uninitialized. Force its
@@ -7773,6 +7778,10 @@ int nbtGetSpongeSchematic(bfFile* pbf,
             length = (short)readWord(pbf);
             haveLength = true;
         }
+        else if (strcmp(tname, "DataVersion") == 0 && type == 0x03) {
+            // the Minecraft version the block states are from, https://minecraft.wiki/w/Data_version
+            *outDataVersion = readInt(pbf);
+        }
         else if (strcmp(tname, "Blocks") == 0 && type == 0x0A) {
             // v3: Palette + Data nested under a "Blocks" compound.
             if (!haveWidth || !haveHeight || !haveLength) {
@@ -7820,7 +7829,7 @@ int nbtGetSpongeSchematic(bfFile* pbf,
             }
         }
         else {
-            // Version, DataVersion, Offset, Metadata, PaletteMax, Biomes, Entities,
+            // Version, Offset, Metadata, PaletteMax, Biomes, Entities,
             // BlockEntities (v2 top-level) … — all skipped for now.
             if (skipType(pbf, type) < 0) SPONGE_FAIL();
         }
@@ -9585,6 +9594,12 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     // only emit it for that subtype; bit 0x01 holds it (mirror of world reader).
     if ((type & 0xFFF) == BLOCK_STATIONARY_WATER && (dataVal & 0x10) != 0) {
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "drag", (dataVal & 0x1) ? "true" : "false");
+    }
+
+    // BLOCK_PALE_HANGING_MOSS (358) is NO_PROP; world reader packs `tip` into bit 0x01. It changes the
+    // texture used, and a missing `tip` means the default, tip=true, so it must always be written.
+    if ((type & 0xFFF) == BLOCK_PALE_HANGING_MOSS) {
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "tip", (dataVal & 0x1) ? "true" : "false");
     }
 
     // BLOCK_SCULK_SHRIEKER (433) is NO_PROP. World reader packs bit 0x01 = can_summon,

@@ -8901,13 +8901,13 @@ int GetSchematicBlocksAndData(const wchar_t* schematic, int numBlocks, unsigned 
 // Reads a Sponge Schematic v3 (.schem) file. Returns 1 on success (and malloc's outputs which
 // the caller frees); 0 on parse failure; -1 if the file couldn't be opened. Issue #40.
 int GetSpongeSchematic(const wchar_t* schematic, int* width, int* height, int* length,
-    unsigned char** blocks, unsigned short** data)
+    unsigned char** blocks, unsigned short** data, int* dataVersion)
 {
     bfFile bf;
     int err = 0;
     bf = newNBT(schematic, &err);
     if (bf.gz == 0x0) return -1;
-    int retval = nbtGetSpongeSchematic(&bf, width, height, length, blocks, data);
+    int retval = nbtGetSpongeSchematic(&bf, width, height, length, blocks, data, dataVersion);
     nbtClose(&bf);
     return retval;
 }

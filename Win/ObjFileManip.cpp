@@ -34937,9 +34937,10 @@ static int writeSpongeSchematicBox()
     CHECK_SPONGE_QUIT(schematicWriteCompoundTag(gz, "Schematic"));
 
     CHECK_SPONGE_QUIT(schematicWriteIntTag(gz, "Version", 3));
-    // DataVersion = MC 1.20 (3463). A single pinned value keeps the writer self-contained;
-    // see plan risk note about DataVersion choice.
-    CHECK_SPONGE_QUIT(schematicWriteIntTag(gz, "DataVersion", 3463));
+    // DataVersion is the source world's, so that readers (Mineways for version-dependent rendering, WorldEdit for
+    // which block upgrades to apply) know where the blocks came from. The block states are always 1.13+ names,
+    // so never claim a version before 1.13 (data version 1519).
+    CHECK_SPONGE_QUIT(schematicWriteIntTag(gz, "DataVersion", (gMinecraftWorldVersion >= 1519) ? gMinecraftWorldVersion : 1519));
 
     CHECK_SPONGE_QUIT(schematicWriteShortTag(gz, "Width", (short)width));
     CHECK_SPONGE_QUIT(schematicWriteShortTag(gz, "Height", (short)height));

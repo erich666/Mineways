@@ -164,9 +164,10 @@ bool nbtGetValidatedSchematicVolume(int width, int height, int length, int* numB
 // the low 12 bits of *outData, and the block ID's bits 8-11 in *outData's top 4 bits (see
 // BLOCK_TYPE_FROM_GRID_DATA). State-string properties (axis, facing, …) are currently ignored —
 // only the base block name is recovered. Issue #40.
+// outDataVersion is the file's DataVersion, or 0 if it has none.
 int nbtGetSpongeSchematic(bfFile* pbf,
     int* outWidth, int* outHeight, int* outLength,
-    unsigned char** outBlocks, unsigned short** outData);
+    unsigned char** outBlocks, unsigned short** outData, int* outDataVersion);
 void nbtClose(bfFile* pbf);
 
 int SlowFindIndexFromName(char* name);

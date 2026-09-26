@@ -3735,7 +3735,8 @@ static int loadSpongeSchematic(wchar_t* pathAndFile)
     int width = 0, height = 0, length = 0;
     unsigned char* blocks = NULL;
     unsigned short* data = NULL;
-    int retval = GetSpongeSchematic(pathAndFile, &width, &height, &length, &blocks, &data);
+    int dataVersion = 0;
+    int retval = GetSpongeSchematic(pathAndFile, &width, &height, &length, &blocks, &data, &dataVersion);
     if (retval != 1) {
         if (blocks) free(blocks);
         if (data) free(data);
@@ -3755,20 +3756,25 @@ static int loadSpongeSchematic(wchar_t* pathAndFile)
     gWorldGuide.sch.data = data;
 
     gSpawnX = gSpawnY = gSpawnZ = gPlayerX = gPlayerY = gPlayerZ = 0;
-    // Pin to MC 1.16.5 (data version 2586). Two constraints to satisfy:
+    // Use the file's DataVersion, so that version-dependent rendering (e.g. the lectern top, lower
+    // in 1.17 on, or 1.16's wall posts) matches the Minecraft version the schematic came from. Two
+    // constraints to satisfy:
     //   1. gMinHeight/gMaxHeight = 0..255 (matching createBlockFromSchematic's block placement,
-    //      which uses gWorldGuide.minHeight=0 from loadWorld). MC 1.16 still uses 0..255 — the
-    //      switch to -64..319 happens at data version >= 2685 (1.17 beta). So 2586 stays in the
-    //      old range and Ctrl-A / Select-All highlights line up with where the blocks live.
+    //      which uses gWorldGuide.minHeight=0 from loadWorld), not the -64..319 of 1.18 and newer
+    //      worlds, so Ctrl-A / Select-All highlights line up with where the blocks live. So the
+    //      heights are set directly here, not from the version.
     //   2. gMcVersion >= 13 so gIs13orNewer = true. .schem palettes carry 1.13+ block IDs whose
     //      high bits (>255) Mineways packs into the top nibble of dataVal (see nbt.h); a wrong
     //      gMcVersion here doesn't affect that unpacking (BLOCK_TYPE_FROM_GRID_DATA in
     //      ObjFileManip.cpp/MinewaysMap.cpp applies unconditionally), but gIs13orNewer still
     //      gates other 1.13+-only parsing paths (e.g. tile-entity handling), so it must be set
     //      for modern blocks like the copper golem statues at IDs 502/503 to come through intact.
-    gVersionID = 2586;
+    //      A file without a DataVersion (or with one from before 1.13, data version 1519, which a
+    //      Sponge schematic can't really be) is taken to be from 1.16.5, data version 2586.
+    gVersionID = (dataVersion >= 1519) ? dataVersion : 2586;
     gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
-    setHeightsFromVersionID();
+    gMinHeight = 0;
+    gMaxHeight = 255;
 
     return 0;
 }
@@ -3885,7 +3891,7 @@ static int loadWorld(HWND hWnd)
         gSpawnX = gSpawnY = gSpawnZ = gPlayerY = gPlayerZ = 0;
         // make the player location the newest block on the map, for ease in testing and seeing new blocks
         gPlayerX = 8 * NUM_BLOCKS_DEFINED;
-        gVersionID = 3953;	// Change this to the current release number https://minecraft.wiki/w/Data_version
+        gVersionID = 5023;	// 26.3. Change this to the current release number https://minecraft.wiki/w/Data_version
         gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
         setHeightsFromVersionID();
         break;
