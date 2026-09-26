@@ -24684,6 +24684,21 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 }
             }
 
+            // A jigsaw pointing up or down has a second direction, where its lock is (bits 0x18: 0 west, 0x8 south,
+            // 0x10 north, 0x18 east). The table above has the top and bottom textures' up pointing north; turn them to
+            // point toward the second direction, as Minecraft's blockstate y rotation does. (Command blocks have no
+            // second direction, so they are left as they were.)
+            if ((type == BLOCK_JIGSAW) && ((dataVal & 0x7) <= 1) && uvIndices &&
+                (faceDirection == DIRECTION_BLOCK_TOP || faceDirection == DIRECTION_BLOCK_BOTTOM)) {
+                // angle to turn from north, indexed by (dataVal & 0x18) >> 3: west, south, north, east
+                static const int topAngle[4] = { 270, 180, 0, 90 };
+                static const int bottomAngle[4] = { 90, 180, 0, 270 };
+                int second = (dataVal & 0x18) >> 3;
+                int iangle = (faceDirection == DIRECTION_BLOCK_TOP) ? topAngle[second] : bottomAngle[second];
+                if (iangle != 0)
+                    rotateIndices(localIndices, iangle);
+            }
+
             // adjust swatch location
             swatchLoc += swatchOffset;
 
