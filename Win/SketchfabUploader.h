@@ -48,6 +48,48 @@ static size_t WriteMemoryCallback(char *contents, size_t size, size_t nmemb, voi
     return size * nmemb;
 }
 
+// The libcurl we link uses OpenSSL (1.0.2), which has no trusted root certificates of its own, so verifying
+// Sketchfab's certificate fails with "Peer certificate cannot be authenticated with given CA certificates".
+// Give OpenSSL the Windows trusted root certificates instead, for each connection. The few OpenSSL
+// functions needed are declared here, as its headers are not in dependencies.
+#include <wincrypt.h>
+#pragma comment(lib, "crypt32.lib")
+extern "C" {
+    typedef struct x509_st X509;
+    typedef struct x509_store_st X509_STORE;
+    typedef struct ssl_ctx_st SSL_CTX;
+    X509* d2i_X509(X509** a, const unsigned char** in, long len);
+    X509_STORE* SSL_CTX_get_cert_store(const SSL_CTX* ctx);
+    int X509_STORE_add_cert(X509_STORE* ctx, X509* x);
+    int X509_STORE_set_flags(X509_STORE* ctx, unsigned long flags);
+    void X509_free(X509* a);
+}
+#define MW_X509_V_FLAG_TRUSTED_FIRST 0x8000
+
+static CURLcode addWindowsRootCertificates(CURL* curl, void* sslctx, void* userptr)
+{
+    UNREFERENCED_PARAMETER(curl);
+    UNREFERENCED_PARAMETER(userptr);
+    X509_STORE* store = SSL_CTX_get_cert_store((SSL_CTX*)sslctx);
+    HCERTSTORE hStore = CertOpenSystemStoreW(0, L"ROOT");
+    if (hStore) {
+        PCCERT_CONTEXT pCert = NULL;
+        while ((pCert = CertEnumCertificatesInStore(hStore, pCert)) != NULL) {
+            const unsigned char* encoded = pCert->pbCertEncoded;
+            X509* x509 = d2i_X509(NULL, &encoded, (long)pCert->cbCertEncoded);
+            if (x509) {
+                // fails harmlessly for a certificate already in the store
+                X509_STORE_add_cert(store, x509);
+                X509_free(x509);
+            }
+        }
+        CertCloseStore(hStore, 0);
+    }
+    // prefer a trusted root to an expired cross-signed path to it, which OpenSSL 1.0.2 otherwise may pick and reject
+    X509_STORE_set_flags(store, MW_X509_V_FLAG_TRUSTED_FIRST);
+    return CURLE_OK;
+}
+
 class SketchfabV2Uploader {
 private:
     struct ProgressbarUpdater prog;
@@ -145,6 +187,7 @@ public:
 
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
+        curl_easy_setopt(curl, CURLOPT_SSL_CTX_FUNCTION, addWindowsRootCertificates);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
         curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
@@ -211,6 +254,7 @@ std::pair<int, std::string> get(const std::string& url,
         curl_easy_setopt(curl, CURLOPT_FRESH_CONNECT, 1);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
+        curl_easy_setopt(curl, CURLOPT_SSL_CTX_FUNCTION, addWindowsRootCertificates);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
 
