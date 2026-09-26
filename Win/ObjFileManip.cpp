@@ -14338,6 +14338,10 @@ static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc,
     int markFirstFace = 1;
     for (int e = 0; e < elementCount; e++) {
         const ModelElement* pElem = &elements[e];
+        // a flat element (e.g. a straw bed frill) has no thickness, so it can't be 3D printed and would leave the
+        // model non-manifold: skip it
+        if (gModel.print3D && (pElem->from[X] == pElem->to[X] || pElem->from[Y] == pElem->to[Y] || pElem->from[Z] == pElem->to[Z]))
+            continue;
         int startVertexIndex = saveBoxCustomUVVertices(boxIndex, pElem->from[X], pElem->to[X], pElem->from[Y], pElem->to[Y], pElem->from[Z], pElem->to[Z]);
         if (startVertexIndex < 0)
             return retCode | MW_WORLD_EXPORT_TOO_LARGE;
