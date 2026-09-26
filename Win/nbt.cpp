@@ -4794,16 +4794,17 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         // for jigsaw and crafter
                         else if (strcmp(token, "orientation") == 0) {
                             // orientation order: south, west, north, east; then up_ then down_
+                            // dropper_facing (used by the jigsaw) is the 6-way facing: 2 north, 3 south, 4 west, 5 east
                             if (strcmp(value, "south_up") == 0) {
                                 dropper_facing = 3;
                                 orientation = 0;
                             }
                             else if (strcmp(value, "west_up") == 0) {
-                                dropper_facing = 2;
+                                dropper_facing = 4;
                                 orientation = 1;
                             }
                             else if (strcmp(value, "north_up") == 0) {
-                                dropper_facing = 4;
+                                dropper_facing = 2;
                                 orientation = 2;
                             }
                             else if (strcmp(value, "east_up") == 0) {
@@ -6769,7 +6770,7 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
             else if (strcmp(k, "orientation") == 0) {   // jigsaw, mirror of the writer
                 static const char* names[12] = { "down_west", "down_south", "down_north", "down_east",
                     "up_west", "up_south", "up_north", "up_east", "west_up", "south_up", "north_up", "east_up" };
-                static const int bits[12] = { 0, 0x8, 0x10, 0x18, 1, 1 | 0x8, 1 | 0x10, 1 | 0x18, 2, 3, 4, 5 };
+                static const int bits[12] = { 0, 0x8, 0x10, 0x18, 1, 1 | 0x8, 1 | 0x10, 1 | 0x18, 4, 3, 2, 5 };
                 for (int j = 0; j < 12; j++) {
                     if (strcmp(v, names[j]) == 0) { dataVal = (dataVal & ~0x1F) | bits[j]; break; }
                 }
@@ -8411,9 +8412,9 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         }
         if (fullType == BLOCK_JIGSAW) {
             // jigsaw has "orientation", not "facing". The world reader's orientation parse puts the first direction
-            // in bits 0x7 (0 down, 1 up, 2 west_up, 3 south_up, 4 north_up, 5 east_up - note west/north) and,
+            // in bits 0x7, the usual 6-way facing (0 down, 1 up, 2 north_up, 3 south_up, 4 west_up, 5 east_up) and,
             // for up/down, the second direction in bits 0x18 (0 west, 0x8 south, 0x10 north, 0x18 east).
-            static const char* horizontal[6] = { "down_west", "up_west", "west_up", "south_up", "north_up", "east_up" };
+            static const char* horizontal[6] = { "down_west", "up_west", "north_up", "south_up", "west_up", "east_up" };
             static const char* second[4] = { "west", "south", "north", "east" };
             char orientation[16];
             int first = dataVal & 0x7;
