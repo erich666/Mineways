@@ -58,7 +58,7 @@ static bool gAlwaysFail = false;
 #define MY_ASSERT(val) if ((val) == 0) { \
     wchar_t assertbuf[1024]; \
     swprintf_s(assertbuf, _countof(assertbuf), L"Serious error in file %S on line %d. Please write me at erich@acm.org and, as best you can, tell me the steps that caused it.", __FILENAME__, __LINE__); \
-    FilterMessageBox(NULL, assertbuf, L"Error", MB_OK | MB_TOPMOST); \
+    FilterMessageBox(NULL, assertbuf, L"Error", MB_OK | MB_ICONERROR | MB_TOPMOST); \
 } \
 
 // zoomed all the way in. We could allow this to be larger...
@@ -5394,7 +5394,12 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         // Export separate types?
         if (gpEFD->chkSeparateTypes)
         {
-            MY_ASSERT(gpEFD->chkIndividualBlocks[gpEFD->fileType] == 0);
+            // The export dialog and the script commands keep these two exclusive, but a script can still get both on,
+            // e.g., by setting them under different file types. Warn, as the user is doing something odd.
+            if (gpEFD->chkIndividualBlocks[gpEFD->fileType]) {
+                FilterMessageBox(NULL, _T("Warning: both 'Export separate types' and 'Individual blocks' are set for this OBJ export, which can't be done together. Separate types was used. Check the order of these settings in your script."),
+                    _T("Warning"), MB_OK | MB_ICONWARNING);
+            }
             gOptions.exportFlags |= EXPT_OUTPUT_OBJ_SEPARATE_TYPES;
 
             // Material per block?
@@ -7799,8 +7804,12 @@ static int interpretImportLine(char* line, ImportedSet& is)
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
-        if (is.processData)
+        if (is.processData) {
             is.pEFD->chkSeparateTypes = interpretBoolean(string1);
+            // as in the export dialog, separate types and individual blocks can't both be on for OBJ: the last one set wins
+            if (is.pEFD->chkSeparateTypes && (is.pEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || is.pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ))
+                is.pEFD->chkIndividualBlocks[is.pEFD->fileType] = 0;
+        }
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 
@@ -7816,8 +7825,12 @@ static int interpretImportLine(char* line, ImportedSet& is)
         }
         if (!validBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
 
-        if (is.processData)
+        if (is.processData) {
             is.pEFD->chkIndividualBlocks[is.pEFD->fileType] = interpretBoolean(string1);
+            // as in the export dialog, turning on individual blocks turns off separate types for OBJ
+            if (is.pEFD->chkIndividualBlocks[is.pEFD->fileType] && (is.pEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || is.pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ))
+                is.pEFD->chkSeparateTypes = 0;
+        }
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 
@@ -10632,28 +10645,41 @@ static bool saveMapFile(int xmin, int zmin, int xmax, int ymax, int zmax, wchar_
     return (retCode == 0);
 }
 
+// Form the status line for a suppressed message: prefix it with its kind, e.g. "Warning: ", unless the text already
+// starts that way (in any case, e.g. "Error:" for "ERROR: ").
+static void formSuppressedStatus(wchar_t* statusbuf, size_t bufSize, const wchar_t* prefix, LPCTSTR lpText)
+{
+    // compare without the prefix's trailing space
+    if (_wcsnicmp(lpText, prefix, wcslen(prefix) - 1) == 0)
+        swprintf_s(statusbuf, bufSize, L"%s", lpText);
+    else
+        swprintf_s(statusbuf, bufSize, L"%s%s", prefix, lpText);
+}
+
 static int FilterMessageBox(HWND hWnd, LPCTSTR lpText, LPCTSTR lpCaption, UINT uType)
 {
     wchar_t statusbuf[1024];
     // if turned off, the message is still sent to the status line and to the log file, if any.
-    if (!gShowInformational && (uType & MB_ICONINFORMATION)) {
-        swprintf_s(statusbuf, 1024, L"Informational: %s", lpText);
+    // The icon values overlap as bits (MB_ICONWARNING 0x30 contains MB_ICONERROR 0x10), so compare the whole icon field.
+    UINT icon = uType & MB_ICONMASK;
+    if (!gShowInformational && (icon == MB_ICONINFORMATION)) {
+        formSuppressedStatus(statusbuf, 1024, L"Informational: ", lpText);
         sendStatusMessage(gWS.hwndStatus, statusbuf);
         if (gpIS && gpIS->logging && gpIS->logfile) {
             saveSuppressedMessage(*gpIS, 0, lpText);
         }
         return 1;
     }
-    if (!gShowWarning && (uType & MB_ICONWARNING)) {
-        swprintf_s(statusbuf, 1024, L"Warning: %s", lpText);
+    if (!gShowWarning && (icon == MB_ICONWARNING || icon == MB_ICONQUESTION)) {
+        formSuppressedStatus(statusbuf, 1024, L"Warning: ", lpText);
         sendStatusMessage(gWS.hwndStatus, statusbuf);
         if (gpIS && gpIS->logging && gpIS->logfile) {
             saveSuppressedMessage(*gpIS, 1, lpText);
         }
         return 1;
     }
-    if (!gShowError && (uType & MB_ICONERROR)) {
-        swprintf_s(statusbuf, 1024, L"ERROR: %s", lpText);
+    if (!gShowError && (icon == MB_ICONERROR)) {
+        formSuppressedStatus(statusbuf, 1024, L"ERROR: ", lpText);
         sendStatusMessage(gWS.hwndStatus, statusbuf);
         if (gpIS && gpIS->logging && gpIS->logfile) {
             saveSuppressedMessage(*gpIS, 2, lpText);
