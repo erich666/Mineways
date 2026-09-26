@@ -20976,6 +20976,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
     int swatchLoc;
     int angle = 0;  // cppcheck-suppress 398
     int localIndices[4] = { 0, 1, 2, 3 };
+    // A face can instead use a rectangle of a multi-tile image (e.g. straw_bed.png) anchored at swatchLoc, as if that
+    // rectangle were a whole tile: u1,v1 is its upper left and u2,v2 its lower right, in the 0-16 units of a block model
+    // JSON "uv" over the whole image (v going down). Mirrored when u1 > u2 or v1 > v2.
+    bool useSpanRect = false;
+    float spanRect[4] = { 0.0f, 0.0f, 16.0f, 16.0f };
 
     // outputting swatches
     if (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES)
@@ -26120,6 +26125,55 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         }
         break;
 
+        case BLOCK_STRAW_BED:						// getSwatch
+        {
+            // Used when the straw bed is a full block, i.e., 3D printing without "Export lesser blocks". Like a regular
+            // bed there, each face shows the matching face of the bed model (see saveBillboardOrGeometry), with the
+            // sides stretched vertically to fill the block; the frills are ignored. Each face uses that face's
+            // rectangle of the 64x64 straw_bed.png image, a 4x4 span of tiles anchored at 28,0 (right half of the
+            // atlas, so TILE_TO_SWATCH, not SWATCH_INDEX). The model is for facing=south, head toward +Z; the head's top
+            // runs from its base's top to its pillow's top.
+            // Rectangles are the model JSON's "uv" values: indexed [part: 0 foot, 1 head][face: 0 top, 1 bottom,
+            // 2 -Z end, 3 +Z end, 4 -X side, 5 +X side].
+            static const float strawBedUV[2][6][4] = {
+                {   // foot: its +Z end is against the head, so reuse the -Z end's texture there
+                    { 8.0f, 10.25f, 4.0f, 6.25f }, { 12.0f, 6.25f, 8.0f, 10.25f }, { 4.0f, 10.25f, 8.0f, 11.25f },
+                    { 4.0f, 10.25f, 8.0f, 11.25f }, { 8.0f, 10.25f, 12.0f, 11.25f }, { 0.0f, 10.25f, 4.0f, 11.25f } },
+                {   // head: base top through pillow top; the +Z end is the pillow's; the sides are the base's
+                    { 6.0f, 5.25f, 2.0f, 0.0f }, { 10.0f, 3.25f, 6.0f, 5.25f }, { 2.0f, 5.25f, 6.0f, 6.25f },
+                    { 8.0f, 2.0f, 12.0f, 3.25f }, { 6.0f, 5.25f, 8.0f, 6.25f }, { 0.0f, 5.25f, 2.0f, 6.25f } }
+            };
+            int facing = dataVal & 0x3;     // SWNE, 0 = south, as for BED_PROP
+            int part = (dataVal & 0x8) ? 1 : 0;
+            int modelFace = 0;
+            if (faceDirection == DIRECTION_BLOCK_TOP) {
+                modelFace = 0;
+            }
+            else if (faceDirection == DIRECTION_BLOCK_BOTTOM) {
+                modelFace = 1;
+            }
+            else {
+                // Undo the bed's facing to find the model's face: the model is rotated from south by 90 degrees per
+                // facing step (south, west, north, east), taking its +Z to the facing direction. Sides in rotation
+                // order, each the next one clockwise seen from above: +Z, -X, -Z, +X.
+                static const int sideOrder[4] = { DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_X };
+                static const int sideModelFace[4] = { 3, 4, 2, 5 };
+                int s = 0;
+                while (s < 4 && sideOrder[s] != faceDirection)
+                    s++;
+                modelFace = sideModelFace[(s - facing + 4) % 4];
+            }
+            swatchLoc = TILE_TO_SWATCH(28, 0);
+            useSpanRect = true;
+            for (int k = 0; k < 4; k++)
+                spanRect[k] = strawBedUV[part][modelFace][k];
+            // the top and bottom turn with the bed, as for the dried ghast, which uses the same facing order
+            if ((faceDirection == DIRECTION_BLOCK_TOP || faceDirection == DIRECTION_BLOCK_BOTTOM) && uvIndices) {
+                rotateIndices(localIndices, 90 * facing);
+            }
+        }
+        break;
+
 
         //================================================================================================
         default:
@@ -26151,8 +26205,20 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
     if (swatchLoc >= 0 && uvIndices && gModel.exportTexture)
     {
         int standardCorners[4];
+        if (useSpanRect) {
+            // a rectangle of the multi-tile image anchored at swatchLoc stands in for the tile; same corner order as
+            // saveRectangleTextureUVs: lower left, lower right, upper right, upper left, with the span's v going up
+            float su1 = spanRect[0] / 16.0f, su2 = spanRect[2] / 16.0f;
+            float svTop = 1.0f - spanRect[1] / 16.0f, svBottom = 1.0f - spanRect[3] / 16.0f;
+            standardCorners[0] = saveSpanTextureUV(swatchLoc, type, su1, svBottom);
+            standardCorners[1] = saveSpanTextureUV(swatchLoc, type, su2, svBottom);
+            standardCorners[2] = saveSpanTextureUV(swatchLoc, type, su2, svTop);
+            standardCorners[3] = saveSpanTextureUV(swatchLoc, type, su1, svTop);
+            if (standardCorners[0] < 0 || standardCorners[1] < 0 || standardCorners[2] < 0 || standardCorners[3] < 0)
+                return -1;
+        }
         // get four UV texture vertices, based on type of block
-        if (!saveTextureCorners(swatchLoc, type, standardCorners))
+        else if (!saveTextureCorners(swatchLoc, type, standardCorners))
             return -1;
 
         // let the adjustments begin!
