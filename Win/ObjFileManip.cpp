@@ -27358,7 +27358,10 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                     // New material definitely found, so make a new one to be output.
                     prevType = gModel.faceList[i]->materialType;
                     prevDataVal = gModel.faceList[i]->materialDataVal;
-                    prevSwatchLoc = gModel.uvIndexList[gModel.faceList[i]->uvIndex[0]].swatchLoc;
+                    // only tile export uses the swatch; without textures (e.g. "solid material colors"), a face's
+                    // uvIndex[] is never set, so it must not be used to index uvIndexList
+                    if (gModel.exportTiles)
+                        prevSwatchLoc = gModel.uvIndexList[gModel.faceList[i]->uvIndex[0]].swatchLoc;
                     // New ID encountered, so output it: material name, and group.
                     // Group isn't really required, but can be useful.
                     // Output group only if we're not already using it for individual blocks.
