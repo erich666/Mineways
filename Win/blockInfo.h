@@ -429,7 +429,7 @@ typedef struct Options {
 } Options;
 
 // number of blocks with entries in block info table (max number at bottom + 1) - now that 255 is used, we need this
-#define NUM_BLOCKS_DEFINED 559
+#define NUM_BLOCKS_DEFINED 560
 // number of official Minecraft blocks (no longer needed - we used to have the block after everything be special)
 #define NUM_BLOCKS_STANDARD NUM_BLOCKS_DEFINED
 // number of blocks we want to show on the map (no longer needed - includes the unknown one)
@@ -936,7 +936,7 @@ enum block_types {
     BLOCK_WEATHERED_CUT_COPPER_STAIRS = 393,
     BLOCK_OXIDIZED_CUT_COPPER_STAIRS = 394,
     BLOCK_LIGHTNING_ROD = 395,
-    BLOCK_RED_SHRUB = 396,
+    // 396 is unused: it was red shrub, now 559
     BLOCK_CUT_COPPER_DOUBLE_SLAB = 397,
     BLOCK_CUT_COPPER_SLAB = 398,
     BLOCK_WAXED_CUT_COPPER_STAIRS = 399,
@@ -1101,4 +1101,5 @@ enum block_types {
     BLOCK_WOOL_SLAB = 556,
     BLOCK_SHELF_MUSHROOM = 557,   // bits 0x3 are facing (door_facing: 0=east,1=south,2=west,3=north), bit 0x4 is age (0=small,1=large)
     BLOCK_STRAW_BED = 558,   // bits 0x3 are SWNE facing (south=0,west=1,north=2,east=3), bit 0x8 is part (0=foot,1=head)
+    BLOCK_RED_SHRUB = 559,   // was 396 (140 + TYPE_HIGH_BIT1), which the translation table couldn't tell from potted cactus (140, CACTUS_FIELD)
 };

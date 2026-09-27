@@ -1404,7 +1404,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 142,	TYPE_HIGH_BIT1 | 6, "waxed_weathered_cut_copper_slab", SLAB_PROP },
     { 0, 142,	TYPE_HIGH_BIT1 | 7, "waxed_oxidized_cut_copper_slab", SLAB_PROP },
     { 0, 139,	TYPE_HIGH_BIT1, "lightning_rod", EXTENDED_FACING_PROP },
-    { 0, 140,	TYPE_HIGH_BIT1, "red_shrub", NO_PROP },
+    { 0, 559,                    0, "red_shrub", NO_PROP },
     { 0, 148,	TYPE_HIGH_BIT1, "cave_vines", BERRIES_PROP },
     { 0, 148,	TYPE_HIGH_BIT1 | 1, "cave_vines_plant", BERRIES_PROP },    // ignore the age
     { 0, 150,	TYPE_HIGH_BIT1, "spore_blossom", NO_PROP },

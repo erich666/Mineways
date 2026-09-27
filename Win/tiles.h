@@ -2637,7 +2637,7 @@ static struct {
     {  4, 79, 390, 0, L"sulfur_spike_down_frustum", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
     {  5, 79, 390, 0, L"sulfur_spike_down_middle", L"", SBIT_CLAMP_TOP | SBIT_DECAL },
     {  6, 79, 390, 0, L"sulfur_spike_down_base", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
-    {  7, 79, 396, 0, L"red_shrub", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  7, 79, 559, 0, L"red_shrub", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  8, 79, 437, 3, L"yellow_poplar_leaves", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES },
     {  9, 79, 437, 4, L"orange_poplar_leaves", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES },
     { 10, 79, 437, 5, L"red_poplar_leaves", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES },
