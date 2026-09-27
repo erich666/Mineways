@@ -77,6 +77,28 @@ static int translatorDataVal(const BlockTranslator* bt)
     return bt->dataVal & ~translatorTypeHighBit(bt);
 }
 
+// The wood of a standing or wall sign, from its name, e.g. "minecraft:dark_oak_wall_sign" gives the index of "dark_oak" in gSignWoods[].
+// Returns -1 for a name with no wood, i.e., 1.13's "sign" and "wall_sign", which are oak. There are too many woods to fit in
+// BlockTranslations[]' 8-bit dataVal, so the readers set the wood's bits, SIGN_WOOD_MASK, from the name instead.
+static int signWoodFromName(const char* name)
+{
+    if (strncmp(name, "minecraft:", 10) == 0)
+        name += 10;
+    for (int i = 0; i < NUM_SIGN_WOODS; i++) {
+        size_t len = strlen(gSignWoods[i].name);
+        if (strncmp(name, gSignWoods[i].name, len) == 0 && name[len] == '_')
+            return i;
+    }
+    return -1;
+}
+
+// the dataVal bits for a sign's wood, from its name
+static int signWoodBitsFromName(const char* name)
+{
+    int wood = signWoodFromName(name);
+    return ((wood < 0) ? 0 : wood) << SIGN_WOOD_SHIFT;
+}
+
 typedef struct BiomeTranslator {
     int hashSum;
     unsigned char biomeID;
@@ -1151,18 +1173,18 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  69,  TYPE_HIGH_BIT1 | 2, "dead_bubble_coral", NO_PROP },
     { 0,  69,  TYPE_HIGH_BIT1 | 3, "dead_fire_coral", NO_PROP },
     { 0,  69,  TYPE_HIGH_BIT1 | 4, "dead_horn_coral", NO_PROP },
-    { 0,  63,           0, "oak_sign", STANDING_SIGN_PROP }, // in 1.14 it's no longer just "sign", it's oak_sign, acacia_sign, etc. - use bits 16, 32, 64 for the 6 types
-    { 0,  63,      BIT_16, "spruce_sign", STANDING_SIGN_PROP },
-    { 0,  63,      BIT_32, "birch_sign", STANDING_SIGN_PROP },
-    { 0,  63,BIT_32 | BIT_16, "jungle_sign", STANDING_SIGN_PROP },
-    { 0,  70,      TYPE_HIGH_BIT1, "acacia_sign", STANDING_SIGN_PROP },
-    { 0,  70,TYPE_HIGH_BIT1 | BIT_16, "dark_oak_sign", STANDING_SIGN_PROP },
+    { 0,  63,           0, "oak_sign", STANDING_SIGN_PROP }, // in 1.14 it's no longer just "sign", it's oak_sign, acacia_sign, etc. The wood is set from the name, in bits SIGN_WOOD_MASK - see signWoodFromName()
+    { 0,  63,           0, "spruce_sign", STANDING_SIGN_PROP },
+    { 0,  63,           0, "birch_sign", STANDING_SIGN_PROP },
+    { 0,  63,           0, "jungle_sign", STANDING_SIGN_PROP },
+    { 0,  63,           0, "acacia_sign", STANDING_SIGN_PROP },
+    { 0,  63,           0, "dark_oak_sign", STANDING_SIGN_PROP },
     { 0,  68,           0, "oak_wall_sign", WALL_SIGN_PROP }, // in 1.14 it's oak_wall_sign, acacia_wall_sign, etc.
-    { 0,  68,       BIT_8, "spruce_wall_sign", WALL_SIGN_PROP },
-    { 0,  68,      BIT_16, "birch_wall_sign", WALL_SIGN_PROP },
-    { 0,  68,BIT_16 | BIT_8, "jungle_wall_sign", WALL_SIGN_PROP },
-    { 0,  68,      BIT_32, "acacia_wall_sign", WALL_SIGN_PROP },
-    { 0,  68,BIT_32 | BIT_8, "dark_oak_wall_sign", WALL_SIGN_PROP },
+    { 0,  68,           0, "spruce_wall_sign", WALL_SIGN_PROP },
+    { 0,  68,           0, "birch_wall_sign", WALL_SIGN_PROP },
+    { 0,  68,           0, "jungle_wall_sign", WALL_SIGN_PROP },
+    { 0,  68,           0, "acacia_wall_sign", WALL_SIGN_PROP },
+    { 0,  68,           0, "dark_oak_wall_sign", WALL_SIGN_PROP },
     { 0,  38,           9, "cornflower", NO_PROP },
     { 0,  38,          10, "lily_of_the_valley", NO_PROP },
     { 0,  38,          11, "wither_rose", NO_PROP },
@@ -1307,10 +1329,10 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 105,   TYPE_HIGH_BIT1 | 2, "blackstone_slab", SLAB_PROP },
     { 0, 105,   TYPE_HIGH_BIT1 | 3, "polished_blackstone_slab", SLAB_PROP },
     { 0, 105,   TYPE_HIGH_BIT1 | 4, "polished_blackstone_brick_slab", SLAB_PROP },
-    { 0,  70, TYPE_HIGH_BIT1 | BIT_32, "crimson_sign", STANDING_SIGN_PROP },
-    { 0,  70, TYPE_HIGH_BIT1 | BIT_32 | BIT_16, "warped_sign", STANDING_SIGN_PROP },
-    { 0,  68, BIT_32 | BIT_16, "crimson_wall_sign", WALL_SIGN_PROP },
-    { 0,  68, BIT_32 | BIT_16 | BIT_8, "warped_wall_sign", WALL_SIGN_PROP },
+    { 0,  63,           0, "crimson_sign", STANDING_SIGN_PROP },
+    { 0,  63,           0, "warped_sign", STANDING_SIGN_PROP },
+    { 0,  68,           0, "crimson_wall_sign", WALL_SIGN_PROP },
+    { 0,  68,           0, "warped_wall_sign", WALL_SIGN_PROP },
     { 0, BLOCK_FIRE,  BIT_16, "soul_fire", AGE_PROP },
     { 0, 106,       TYPE_HIGH_BIT1, "soul_torch", TORCH_PROP },	// was soul_fire_torch in an earlier 1.16 beta, like 16
     { 0, 106,       TYPE_HIGH_BIT1, "soul_wall_torch", TORCH_PROP },	// was soul_fire_torch in an earlier 1.16 beta, like 16
@@ -1479,8 +1501,8 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  74,	TYPE_HIGH_BIT1 | 7, "mud_brick_slab", SLAB_PROP },
     { 0, 169,	TYPE_HIGH_BIT1, "mangrove_stairs", STAIRS_PROP },
     { 0, 170,	TYPE_HIGH_BIT1, "mud_brick_stairs", STAIRS_PROP },
-    { 0, 171,       TYPE_HIGH_BIT1, "mangrove_sign", STANDING_SIGN_PROP },
-    { 0, 172,       TYPE_HIGH_BIT1, "mangrove_wall_sign", WALL_SIGN_PROP },
+    { 0,  63,           0, "mangrove_sign", STANDING_SIGN_PROP },
+    { 0,  68,           0, "mangrove_wall_sign", WALL_SIGN_PROP },
     { 0,  70,          18, "mangrove_pressure_plate", PRESSURE_PROP },
     { 0, 174,       TYPE_HIGH_BIT1, "mangrove_button", BUTTON_PROP },
     { 0, 175,       TYPE_HIGH_BIT1, "mangrove_fence", FENCE_PROP },
@@ -1514,11 +1536,11 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,   5,              9, "cherry_planks", NO_PROP },
     { 0,  70,          20, "cherry_pressure_plate", PRESSURE_PROP },
     { 0,   6,	           7, "cherry_sapling", SAPLING_PROP },	// put with the other saplings
-    { 0, 171, TYPE_HIGH_BIT1 | BIT_16, "cherry_sign", STANDING_SIGN_PROP },
+    { 0,  63,           0, "cherry_sign", STANDING_SIGN_PROP },
     { 0, 126,              6, "cherry_slab", SLAB_PROP },
     { 0, 187,	TYPE_HIGH_BIT1, "cherry_stairs", STAIRS_PROP },
     { 0, 188,       TYPE_HIGH_BIT1, "cherry_trapdoor", TRAPDOOR_PROP },
-    { 0, 172, TYPE_HIGH_BIT1 | BIT_8, "cherry_wall_sign", WALL_SIGN_PROP },
+    { 0,  68,           0, "cherry_wall_sign", WALL_SIGN_PROP },
     { 0, 160, TYPE_HIGH_BIT1 | BIT_16 | 1, "cherry_wood", AXIS_PROP },
     { 0, 167,   TYPE_HIGH_BIT1 | 1, "stripped_cherry_log", AXIS_PROP },
     { 0, 168,   TYPE_HIGH_BIT1 | 1, "stripped_cherry_wood", AXIS_PROP },
@@ -1530,11 +1552,11 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 192,       TYPE_HIGH_BIT1, "bamboo_fence_gate", FENCE_GATE_PROP },
     { 0,   5,             10, "bamboo_planks", NO_PROP },
     { 0,  70,          22, "bamboo_pressure_plate", PRESSURE_PROP },
-    { 0, 171, TYPE_HIGH_BIT1 | BIT_32, "bamboo_sign", STANDING_SIGN_PROP },
+    { 0,  63,           0, "bamboo_sign", STANDING_SIGN_PROP },
     { 0, 126,              7, "bamboo_slab", SLAB_PROP },
     { 0, 194,	TYPE_HIGH_BIT1, "bamboo_stairs", STAIRS_PROP },
     { 0, 195,       TYPE_HIGH_BIT1, "bamboo_trapdoor", TRAPDOOR_PROP },
-    { 0, 172, TYPE_HIGH_BIT1 | BIT_16, "bamboo_wall_sign", WALL_SIGN_PROP },
+    { 0,  68,           0, "bamboo_wall_sign", WALL_SIGN_PROP },
     { 0,   5,             11, "bamboo_mosaic", NO_PROP },
     { 0, 105,   TYPE_HIGH_BIT1 | 5, "bamboo_mosaic_slab", SLAB_PROP },
     { 0, 196,	TYPE_HIGH_BIT1, "bamboo_mosaic_stairs", STAIRS_PROP },
@@ -1655,12 +1677,12 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,   5,             12, "pale_oak_planks", NO_PROP },
     { 0,  70,             24, "pale_oak_pressure_plate", PRESSURE_PROP },
     { 0,  37,              4, "pale_oak_sapling", NO_PROP },
-    { 0, 171, TYPE_HIGH_BIT1 | BIT_32 | BIT_16, "pale_oak_sign", STANDING_SIGN_PROP },
+    { 0,  63,           0, "pale_oak_sign", STANDING_SIGN_PROP },
     { 0, 105,   TYPE_HIGH_BIT1 | 6, "pale_oak_slab", SLAB_PROP },
     { 0,  18,       TYPE_HIGH_BIT1, "pale_oak_stairs", STAIRS_PROP },
     { 0, 101,       TYPE_HIGH_BIT1, "pale_oak_trapdoor", TRAPDOOR_PROP },
     { 0, 202, TYPE_HIGH_BIT1 | (11 << 2), "pale_oak_wall_hanging_sign", SWNE_FACING_PROP },
-    { 0, 172, TYPE_HIGH_BIT1 | BIT_16 | BIT_8, "pale_oak_wall_sign", WALL_SIGN_PROP },
+    { 0,  68,           0, "pale_oak_wall_sign", WALL_SIGN_PROP },
     { 0, 160, TYPE_HIGH_BIT1 | BIT_16 | 2, "pale_oak_wood", AXIS_PROP },
     { 0, BLOCK_FLOWER_POT,  YELLOW_FLOWER_FIELD | 2, "potted_closed_eyeblossom", NO_PROP },
     { 0, BLOCK_FLOWER_POT,  YELLOW_FLOWER_FIELD | 3, "potted_open_eyeblossom", NO_PROP },
@@ -1782,8 +1804,8 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 515,                    0, "poplar_fence", FENCE_PROP },
     { 0, 516,                    0, "poplar_fence_gate", FENCE_GATE_PROP },
     { 0, 517,                    0, "poplar_trapdoor", TRAPDOOR_PROP },
-    { 0, 518,                    0, "poplar_sign", STANDING_SIGN_PROP },
-    { 0, 519,                    0, "poplar_wall_sign", WALL_SIGN_PROP },
+    { 0,  63,           0, "poplar_sign", STANDING_SIGN_PROP },
+    { 0,  68,           0, "poplar_wall_sign", WALL_SIGN_PROP },
     { 0, 520,                    0, "poplar_hanging_sign", ATTACHED_HANGING_SIGN },
     { 0, 202, TYPE_HIGH_BIT1 | (12 << 2), "poplar_wall_hanging_sign", SWNE_FACING_PROP },
     { 0,  70,                   26, "poplar_pressure_plate", PRESSURE_PROP },
@@ -1926,7 +1948,7 @@ void makeHashTable()
     if (determineMasks)
     {
         determineMasks = false;
-        unsigned char mask_array[NUM_BLOCKS_DEFINED];
+        unsigned short mask_array[NUM_BLOCKS_DEFINED];
         for (i = 0; i < NUM_BLOCKS_DEFINED; i++) {
             mask_array[i] = 0x0;
         }
@@ -1978,6 +2000,9 @@ void makeHashTable()
         mask_array[BLOCK_CAVE_VINES_LIT] |= mask_array[BLOCK_CAVE_VINES];
         // bulbs also should have "lit" be a part of the material
         mask_array[BLOCK_COPPER_BULB] |= 0x8;
+        // signs' woods are set from their names, not from BlockTranslations[] (see signWoodFromName())
+        mask_array[BLOCK_SIGN_POST] |= SIGN_WOOD_MASK;
+        mask_array[BLOCK_WALL_SIGN] |= SIGN_WOOD_MASK;
         // really, these should all be set properly already, but might as well make sure...
         for (i = 0; i < NUM_BLOCKS_DEFINED; i++) {
             // if you hit this assert, set the proper subtype_mask to be equal to mask_array's value here.
@@ -5846,6 +5871,9 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 else if (fullType == BLOCK_TRIAL_SPAWNER) {
                     dataVal |= (ominous ? 0x4 : 0x0);
                 }
+                else if (fullType == BLOCK_SIGN_POST || fullType == BLOCK_WALL_SIGN) {
+                    dataVal |= signWoodBitsFromName(entryName);
+                }
             }
 
             // make sure upper bits are not set - they should not be! Well, except for heads. So, comment out this test
@@ -7524,6 +7552,13 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
         blockId -= 1;
     }
 
+    // standing and wall signs: the wood comes from the name, as the world reader does (readPalette)
+    {
+        int fullType = (blockId > 511) ? blockId : (blockId | (typeHighBit << 1));
+        if (fullType == BLOCK_SIGN_POST || fullType == BLOCK_WALL_SIGN)
+            dataVal |= signWoodBitsFromName(buf);
+    }
+
     // Done. The full type is blockId plus 256 if the table entry had TYPE_HIGH_BIT1 (a blockId over 511 is
     // already the whole type), the same conversion the world reader uses (see readPalette).
     *outType = (blockId > 511) ? blockId : (blockId | (typeHighBit << 1));
@@ -7954,6 +7989,17 @@ static const BlockTranslator* findSpongeTranslator(int type, int dataVal)
     int n = gSpongeReverseCount[fullType];
     if (n == 0) return NULL;
     if (n == 1) return gSpongeReverse[fullType][0];
+
+    if (fullType == BLOCK_SIGN_POST || fullType == BLOCK_WALL_SIGN) {
+        // a sign's wood is in SIGN_WOOD_MASK, beyond BlockTranslations[]' dataVal, so pick the entry by the wood in its name.
+        // 1.13's "sign" and "wall_sign" have no wood, so oak gets "oak_sign" and "oak_wall_sign".
+        int wood = SIGN_WOOD(dataVal);
+        for (int i = 0; i < n; i++) {
+            if (signWoodFromName(gSpongeReverse[fullType][i]->name) == wood)
+                return gSpongeReverse[fullType][i];
+        }
+        return gSpongeReverse[fullType][0];
+    }
 
     unsigned int mask = (unsigned int)gBlockDefinitions[fullType].subtype_mask & 0x7Fu;
     unsigned int entryMask = 0x7Fu;

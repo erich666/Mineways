@@ -4240,8 +4240,6 @@ static int computeFlatFlags(int boxIndex)
 
     case BLOCK_LADDER:						// computeFlatFlags
     case BLOCK_WALL_SIGN:
-    case BLOCK_MANGROVE_WALL_SIGN:
-    case BLOCK_POPLAR_WALL_SIGN:
     case BLOCK_WALL_BANNER:
     case BLOCK_ORANGE_WALL_BANNER:
     case BLOCK_MAGENTA_WALL_BANNER:
@@ -7347,70 +7345,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break; // saveBillboardOrGeometry
 
     case BLOCK_WALL_SIGN:						// saveBillboardOrGeometry
-    case BLOCK_MANGROVE_WALL_SIGN:
-    case BLOCK_POPLAR_WALL_SIGN:
-        if (type == BLOCK_WALL_SIGN) {
-            switch (dataVal & (BIT_32 | BIT_16 | BIT_8)) {
-            default:
-            case 0:
-                // oak
-                swatchLoc = SWATCH_INDEX(4, 0);
-                break;
-            case BIT_8:
-                // spruce
-                swatchLoc = SWATCH_INDEX(6, 12);
-                break;
-            case BIT_16:
-                // birch
-                swatchLoc = SWATCH_INDEX(6, 13);
-                break;
-            case (BIT_16 | BIT_8):
-                // jungle
-                swatchLoc = SWATCH_INDEX(7, 12);
-                break;
-            case BIT_32:
-                // acacia
-                swatchLoc = SWATCH_INDEX(0, 22);
-                break;
-            case (BIT_32 | BIT_8):
-                // dark oak
-                swatchLoc = SWATCH_INDEX(1, 22);
-                break;
-            case BIT_32 | BIT_16:
-                // crimson
-                swatchLoc = SWATCH_INDEX(8, 43);
-                break;
-            case BIT_32 | BIT_16 | BIT_8:
-                // warped
-                swatchLoc = SWATCH_INDEX(8, 44);
-                break;
-            }
-        }
-        else if (type == BLOCK_POPLAR_WALL_SIGN) {
-            // poplar sign: just the one kind
-            swatchLoc = SWATCH_INDEX(15, 79);   // planks
-        }
-        else {
-            // mangrove sign
-            switch (dataVal & (BIT_32 | BIT_16 | BIT_8)) {
-            default:
-            case 0:
-                // mangrove
-                swatchLoc = SWATCH_INDEX(0, 55);
-                break;
-            case BIT_8:
-                // cherry
-                swatchLoc = SWATCH_INDEX(8, 57);
-                break;
-            case BIT_16:
-                // bamboo
-                swatchLoc = SWATCH_INDEX(14, 60);
-                break;
-            case (BIT_16 | BIT_8):
-                // pale oak
-                swatchLoc = SWATCH_INDEX(8, 67);
-                break;
-            }
+        // the wood is in SIGN_WOOD_MASK; the board is made of its planks
+        {
+            int wood = SIGN_WOOD(dataVal);
+            if (wood >= NUM_SIGN_WOODS)
+                wood = 0;
+            swatchLoc = SWATCH_INDEX(gSignWoods[wood].planksX, gSignWoods[wood].planksY);
         }
         switch (dataVal & 0x7)
         {
@@ -8174,107 +8114,14 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break; // saveBillboardOrGeometry
 
     case BLOCK_SIGN_POST:						// saveBillboardOrGeometry
-    case BLOCK_ACACIA_SIGN_POST:						// saveBillboardOrGeometry
-    case BLOCK_MANGROVE_SIGN_POST:						// saveBillboardOrGeometry
-    case BLOCK_POPLAR_SIGN_POST:						// saveBillboardOrGeometry
-        // set top to plank, bottom to log end
-        if (type == BLOCK_SIGN_POST) {
-            switch (dataVal & (BIT_32 | BIT_16)) {
-            default:
-            case 0:
-                // oak
-                topSwatchLoc = SWATCH_INDEX(4, 0);   // planks
-                bottomSwatchLoc = SWATCH_INDEX(5, 1);   // end of log, for the post
-                sideSwatchLoc = SWATCH_INDEX(4, 1);    // log bark, for the post
-                break;
-
-            case BIT_16:
-                // spruce
-                topSwatchLoc = SWATCH_INDEX(6, 12);   // planks
-                bottomSwatchLoc = SWATCH_INDEX(11, 11);   // end of log, for the post
-                sideSwatchLoc = SWATCH_INDEX(4, 7);    // log bark, for the post
-                break;
-
-            case BIT_32:
-                // birch
-                topSwatchLoc = SWATCH_INDEX(6, 13);   // planks
-                bottomSwatchLoc = SWATCH_INDEX(12, 11);   // end of log, for the post
-                sideSwatchLoc = SWATCH_INDEX(5, 7);    // log bark, for the post
-                break;
-
-            case (BIT_32 | BIT_16):
-                // jungle
-                topSwatchLoc = SWATCH_INDEX(7, 12);   // planks
-                bottomSwatchLoc = SWATCH_INDEX(13, 11);   // end of log, for the post
-                sideSwatchLoc = SWATCH_INDEX(9, 9);    // log bark, for the post
-                break;
-            }
-        }
-        else if (type == BLOCK_ACACIA_SIGN_POST) {
-            // acacia, dark oak
-            switch (dataVal & (BIT_32 | BIT_16)) {
-            default:
-            case 0:
-                // acacia
-                topSwatchLoc = SWATCH_INDEX(0, 22);   // planks
-                bottomSwatchLoc = SWATCH_INDEX(13, 19);   // end of log, for the post
-                sideSwatchLoc = SWATCH_INDEX(5, 11);    // log bark, for the post
-                break;
-            case BIT_16:
-                // dark oak
-                topSwatchLoc = SWATCH_INDEX(1, 22);   // planks
-                bottomSwatchLoc = SWATCH_INDEX(15, 19);   // end of log, for the post
-                sideSwatchLoc = SWATCH_INDEX(14, 19);    // log bark, for the post
-                break;
-            case BIT_32:
-                // crimson
-                topSwatchLoc = sideSwatchLoc = SWATCH_INDEX(8, 43);   // planks
-                bottomSwatchLoc = SWATCH_INDEX(0, 43);   // end of log, for the post
-                sideSwatchLoc = SWATCH_INDEX(1, 43);    // log bark, for the post
-                break;
-            case BIT_32 | BIT_16:
-                // warped
-                topSwatchLoc = sideSwatchLoc = SWATCH_INDEX(8, 44);   // planks
-                bottomSwatchLoc = SWATCH_INDEX(0, 44);   // end of log, for the post
-                sideSwatchLoc = SWATCH_INDEX(1, 44);    // log bark, for the post
-                break;
-            }
-        }
-        else if (type == BLOCK_POPLAR_SIGN_POST) {
-            // poplar: just the one kind
-            topSwatchLoc = sideSwatchLoc = SWATCH_INDEX(15, 79);   // planks
-            bottomSwatchLoc = SWATCH_INDEX(11, 79);   // end of log, for the post
-            sideSwatchLoc = SWATCH_INDEX(12, 79);    // log bark, for the post
-        }
-        else {
-            // Mangrove, cherry, bamboo, pale oak
-            switch (dataVal & (BIT_32 | BIT_16)) {
-            default:
-            case 0:
-                // mangrove
-                topSwatchLoc = SWATCH_INDEX(0, 55);   // planks
-                bottomSwatchLoc = SWATCH_INDEX(12, 54);   // end of log, for the post
-                sideSwatchLoc = SWATCH_INDEX(13, 54);    // log bark, for the post
-                break;
-            case BIT_16:
-                // cherry
-                topSwatchLoc = SWATCH_INDEX(8, 57);   // planks
-                bottomSwatchLoc = SWATCH_INDEX(7, 57);   // end of log, for the post
-                sideSwatchLoc = SWATCH_INDEX(6, 57);    // log bark, for the post
-                break;
-            case BIT_32:
-                // bamboo
-                topSwatchLoc = sideSwatchLoc = SWATCH_INDEX(14, 60);   // planks
-                bottomSwatchLoc = SWATCH_INDEX(6, 60);   // end of log, for the post
-                sideSwatchLoc = SWATCH_INDEX(5, 60);    // log bark, for the post
-                break;
-            case BIT_32 | BIT_16:
-                // pale oak
-                topSwatchLoc = sideSwatchLoc = SWATCH_INDEX(8, 67);   // planks
-                bottomSwatchLoc = SWATCH_INDEX(6, 67);   // end of log, for the post
-                sideSwatchLoc = SWATCH_INDEX(7, 67);    // log bark, for the post
-                break;
-            }
+        // the wood is in SIGN_WOOD_MASK; the board is made of its planks, the post of its log
+        {
+            int wood = SIGN_WOOD(dataVal);
+            if (wood >= NUM_SIGN_WOODS)
+                wood = 0;
+            topSwatchLoc = SWATCH_INDEX(gSignWoods[wood].planksX, gSignWoods[wood].planksY);        // planks
+            bottomSwatchLoc = SWATCH_INDEX(gSignWoods[wood].logEndX, gSignWoods[wood].logEndY);     // end of log, for the post
+            sideSwatchLoc = SWATCH_INDEX(gSignWoods[wood].barkX, gSignWoods[wood].barkY);           // log bark, for the post
         }
         // sign is two parts:
         // bottom post is output first, which saves one translation
@@ -38151,11 +37998,6 @@ static bool faceCanTile(int faceId)
     case BLOCK_POPLAR_FENCE_GATE:
     case BLOCK_SIGN_POST:
     case BLOCK_WALL_SIGN:
-    case BLOCK_ACACIA_SIGN_POST:
-    case BLOCK_MANGROVE_SIGN_POST:
-    case BLOCK_POPLAR_SIGN_POST:
-    case BLOCK_MANGROVE_WALL_SIGN:
-    case BLOCK_POPLAR_WALL_SIGN:
     case BLOCK_TORCH:
     case BLOCK_COPPER_TORCH:
     case BLOCK_REDSTONE_TORCH_OFF:

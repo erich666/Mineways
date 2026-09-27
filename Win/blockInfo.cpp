@@ -66,6 +66,24 @@ UnitType gUnitTypeTable[MODELS_UNITS_TABLE_SIZE] = {
 // Other interesting pages: https://minecraft.wiki/w/Solid_block maximum block height, https://minecraft.wiki/w/Materials material attributes (not all that useful to me, but still)
 // The "subtype_mask" (shown as "mtl") field shows which bits are used to determine which type of block it is (vs. orientation or other sub-data about the block). This field gets recalculated by the
 // software itself, but putting it here gives a sense of what blocks can be added to with new content.
+// The woods of standing signs (BLOCK_SIGN_POST) and wall signs (BLOCK_WALL_SIGN), indexed by SIGN_WOOD(dataVal). See blockInfo.h.
+const SignWood gSignWoods[NUM_SIGN_WOODS] = {
+    // name        sign name          wall sign name           map color  planks   log end  bark
+    { "oak",      "Oak Sign",        "Oak Wall Sign",         0xA58551,  4,  0,   5,  1,   4,  1 },
+    { "spruce",   "Spruce Sign",     "Spruce Wall Sign",      0x745632,  6, 12,  11, 11,   4,  7 },
+    { "birch",    "Birch Sign",      "Birch Wall Sign",       0xC2B17A,  6, 13,  12, 11,   5,  7 },
+    { "jungle",   "Jungle Sign",     "Jungle Wall Sign",      0xA37654,  7, 12,  13, 11,   9,  9 },
+    { "acacia",   "Acacia Sign",     "Acacia Wall Sign",      0xA95B33,  0, 22,  13, 19,   5, 11 },
+    { "dark_oak", "Dark Oak Sign",   "Dark Oak Wall Sign",    0x442C15,  1, 22,  15, 19,  14, 19 },
+    { "crimson",  "Crimson Sign",    "Crimson Wall Sign",     0x7B3953,  8, 43,   0, 43,   1, 43 },
+    { "warped",   "Warped Sign",     "Warped Wall Sign",      0x35837F,  8, 44,   0, 44,   1, 44 },
+    { "mangrove", "Mangrove Sign",   "Mangrove Wall Sign",    0x773932,  0, 55,  12, 54,  13, 54 },
+    { "cherry",   "Cherry Sign",     "Cherry Wall Sign",      0xE3B4AE,  8, 57,   7, 57,   6, 57 },
+    { "bamboo",   "Bamboo Sign",     "Bamboo Wall Sign",      0xC4AF52, 14, 60,   6, 60,   5, 60 },
+    { "pale_oak", "Pale Oak Sign",   "Pale Oak Wall Sign",    0xE5DBDA,  8, 67,   6, 67,   7, 67 },
+    { "poplar",   "Poplar Sign",     "Poplar Wall Sign",      0x978B80, 15, 79,  11, 79,  12, 79 },
+};
+
 BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     // Ignore the premultiplied colors and alphas - these really are just placeholders, it's color * alpha that sets them when the program starts up.
     // name                               		read_color ralpha color     prem-clr  alpha,     txX,Y   mtl, flags
@@ -134,12 +152,12 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /*  60 */ "Farmland",               		0x552F14, 1.000f, 0xff7711, 0xff7711, 0.12345f,   7, 5, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE},	//3c - 7,5 dry
     { /*  61 */ "Furnace",                		0x767677, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14, 3, 0x30, BLF_WHOLE | BLF_FENCE_NEIGHBOR},	//3d 13,2 side, 12,2 front
     { /*  62 */ "Burning Furnace",        		0x777676, 1.000f, 0xff7711, 0xff7711, 0.12345f,  14, 3, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_EMITTER},	//3e 13,2 side, 13,3 front
-    { /*  63 */ "Oak Sign",             		0xA58551, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 0, 0x30, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG},	//3f (63)
+    { /*  63 */ "Oak Sign",             		0xA58551, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 0, 0x780, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG},	//3f (63)
     { /*  64 */ "Oak Door",               		0x7e5d2d, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 5, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT}, // 40 1,6 bottom	//40 TODO: BLF_FLATSIDE?
     { /*  65 */ "Ladder",                 		0xaa8651, 1.000f, 0xff7711, 0xff7711, 0.12345f,   3, 5, 0x00, BLF_FLATTEN_SMALL | BLF_ENTRANCE | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_OFFSET | BLF_MAYWATERLOG},	//41
     { /*  66 */ "Rail",                   		0x686868, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 8, 0x00, BLF_FLATTEN | BLF_BILLBOARD | BLF_3D_BIT | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_OFFSET | BLF_MAYWATERLOG},	//42 - TODO: doesn't do angled pieces, top to bottom edge
     { /*  67 */ "Cobblestone Stairs",     		0x818181, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 1, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//43 (67)
-    { /*  68 */ "Wall Sign",              		0xA58551, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 0, 0x38, BLF_FLATTEN_SMALL | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG},	//44
+    { /*  68 */ "Wall Sign",              		0xA58551, 1.000f, 0xff7711, 0xff7711, 0.12345f,   4, 0, 0x780, BLF_FLATTEN_SMALL | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG},	//44
     { /*  69 */ "Lever",                  		0x8a6a3d, 1.000f, 0xff7711, 0xff7711, 0.12345f,   0, 6, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_FLATTEN_SMALL | BLF_FLATTEN_SMALL | BLF_DNE_FLUID | BLF_CONNECTS_REDSTONE},	//45
     { /*  70 */ "Stone Pressure Plate",   		0xa4a4a4, 1.000f, 0xff7711, 0xff7711, 0.12345f,   1, 0, 0x7e, BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_CONNECTS_REDSTONE},	//46 (70)
     { /*  71 */ "Iron Door",              		0xb2b2b2, 1.000f, 0xff7711, 0xff7711, 0.12345f,   2, 5, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT},	//47 (71) 2,6 bottom TODO BLF_FLATSIDE?
@@ -406,7 +424,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 324 */ "Turtle Egg",             		0xEAE4C2, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 36, 0x00, BLF_SMALL_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_DNE_FLUID | BLF_3D_BIT },
     // 1.14
     { /* 325 */ "Dead Coral",             		0x857E79, 1.000f, 0xff7711, 0xff7711, 0.12345f, 14, 36, 0x07, BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID | BLF_MAYWATERLOG },
-    { /* 326 */ "Standing Sign",          		0xA95B33, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 22, 0x30, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },	// acacia and dark oak, sigh
+    { /* 326 */ "(unused)" /* "Standing Sign" - all standing signs are now BLOCK_SIGN_POST */, 0x000000, 0.000f, 0xff7711, 0xff7711, 0.12345f, 13, 14, 0x00, BLF_NONE },
     { /* 327 */ "Sweet Berry Bush",       		0x32613c, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 37, 0x00, BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID }, // does not stop fluid
     { /* 328 */ "Bamboo",                 		0x619324, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 37, 0x00, BLF_SMALL_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY },
     { /* 329 */ "Double Andesite Slab",   		0x7F7F83, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 22, 0x07, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_LAME_WATERLOG | BLF_MAYWATERLOG }, // bizarrely, may waterlog, though pretty pointless; important for instancing
@@ -510,8 +528,8 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 424 */ "Stripped Mangrove Wood",   	0x783730, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 54, 0x03, BLF_WHOLE | BLF_TRUNK_PART | BLF_FENCE_NEIGHBOR },
     { /* 425 */ "Mangrove Stairs",              0x773932, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 55, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 426 */ "Mud Brick Stairs",             0x8B6950, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 55, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
-    { /* 427 */ "Mangrove Sign",          		0x773932, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 55, 0x30, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
-    { /* 428 */ "Mangrove Wall Sign",           0x773932, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 55, 0x38, BLF_FLATTEN_SMALL | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG },
+    { /* 427 */ "(unused)" /* "Mangrove Sign" - now BLOCK_SIGN_POST */, 0x000000, 0.000f, 0xff7711, 0xff7711, 0.12345f, 13, 14, 0x00, BLF_NONE },
+    { /* 428 */ "(unused)" /* "Mangrove Wall Sign" - now BLOCK_WALL_SIGN */, 0x000000, 0.000f, 0xff7711, 0xff7711, 0.12345f, 13, 14, 0x00, BLF_NONE },
     { /* 429 */ "Resin Brick Stairs",           0xD05F1D, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 67, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 430 */ "Mangrove Button",        		0x773932, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 55, 0x00, BLF_FLATTEN_SMALL | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },
     { /* 431 */ "Mangrove Fence",           	0x773932, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 55, 0x00, BLF_MIDDLER | BLF_FENCE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
@@ -609,8 +627,8 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 515 */ "Poplar Fence",         		0x978B80, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 79, 0x00, BLF_MIDDLER | BLF_FENCE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 516 */ "Poplar Fence Gate",  		    0x978B80, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 79, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_FENCE_GATE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE },
     { /* 517 */ "Poplar Trapdoor",     		    0x968B80, 1.000f, 0xff7711, 0xff7711, 0.12345f, 18,  0, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_FLATTEN | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
-    { /* 518 */ "Poplar Sign",                  0x978B80, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 79, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
-    { /* 519 */ "Poplar Wall Sign",             0x978B80, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 79, 0x00, BLF_FLATTEN_SMALL | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG },
+    { /* 518 */ "(unused)" /* "Poplar Sign" - now BLOCK_SIGN_POST */, 0x000000, 0.000f, 0xff7711, 0xff7711, 0.12345f, 13, 14, 0x00, BLF_NONE },
+    { /* 519 */ "(unused)" /* "Poplar Wall Sign" - now BLOCK_WALL_SIGN */, 0x000000, 0.000f, 0xff7711, 0xff7711, 0.12345f, 13, 14, 0x00, BLF_NONE },
     { /* 520 */ "Poplar Hanging Sign",          0xA5998C, 1.000f, 0xff7711, 0xff7711, 0.12345f, 14, 79, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG },
     { /* 521 */ "White Concrete Stairs",        0xCFD5D6, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 29, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 522 */ "Orange Concrete Stairs",       0xE06101, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 29, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },

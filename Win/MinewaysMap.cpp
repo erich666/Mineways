@@ -1463,100 +1463,15 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         break;
 
     case BLOCK_SIGN_POST:
-        switch (dataVal & (BIT_16 | BIT_32))
-        {
-        default:
-            assert(0);
-            break;
-        case 0:
-            //return "Oak Sign";
-            break;
-        case BIT_16:	// spruce
-            return "Spruce Sign";
-        case BIT_32:	// birch
-            return "Birch Sign";
-        case BIT_32 | BIT_16:	// jungle
-            return "Jungle Sign";
-        }
-        break;
-
-    case BLOCK_ACACIA_SIGN_POST:
-        switch (dataVal & (BIT_16 | BIT_32))
-        {
-        default:
-            assert(0);
-            break;
-        case 0:
-            //return "Acacia Sign";
-            break;
-        case BIT_16:	// dark oak
-            return "Dark Oak Sign";
-        case BIT_32:	// dark oak
-            return "Crimson Sign";
-        case BIT_32 | BIT_16:	// dark oak
-            return "Warped Sign";
-        }
-        break;
-
-    case BLOCK_MANGROVE_SIGN_POST:
-    case BLOCK_POPLAR_SIGN_POST:
-        switch (dataVal & (BIT_16 | BIT_32))
-        {
-        default:
-            assert(0);
-            break;
-        case 0:
-            //return "Mangrove Sign";
-            break;
-        case BIT_16:
-            return "Cherry Sign";
-        case BIT_32:
-            return "Bamboo Sign";
-        case BIT_32 | BIT_16:
-            return "Pale Oak Sign";
-        }
+        // the wood is in SIGN_WOOD_MASK; oak keeps the default name, "Oak Sign"
+        if (SIGN_WOOD(dataVal) > 0 && SIGN_WOOD(dataVal) < NUM_SIGN_WOODS)
+            return gSignWoods[SIGN_WOOD(dataVal)].signName;
         break;
 
     case BLOCK_WALL_SIGN:
-        switch (dataVal & (BIT_8 | BIT_16 | BIT_32))
-        {
-        default:
-            assert(0);
-            break;
-        case 0:
-            return "Oak Wall Sign";
-        case BIT_8:	// spruce
-            return "Spruce Wall Sign";
-        case BIT_16:	// birch
-            return "Birch Wall Sign";
-        case BIT_16 | BIT_8:	// jungle
-            return "Jungle Wall Sign";
-        case BIT_32:	// acacia
-            return "Acacia Wall Sign";
-        case BIT_32 | BIT_8:	// dark oak
-            return "Dark Oak Wall Sign";
-        case BIT_32 | BIT_16:
-            return "Crimson Wall Sign";
-        case BIT_32 | BIT_16 | BIT_8:
-            return "Warped Wall Sign";
-        }
-        break;
-
-    case BLOCK_MANGROVE_WALL_SIGN:
-        switch (dataVal & (BIT_8 | BIT_16 | BIT_32))
-        {
-        default:
-            assert(0);
-            break;
-        case 0:
-            return "Mangrove Wall Sign";
-        case BIT_8:
-            return "Cherry Wall Sign";
-        case BIT_16:	// bamboo
-            return "Bamboo Wall Sign";
-        case BIT_16 | BIT_8:	// pale oak
-            return "Pale Oak Wall Sign";
-        }
+        // the wood is in SIGN_WOOD_MASK; the default name, "Wall Sign", is not specific enough, so always name the wood
+        if (SIGN_WOOD(dataVal) < NUM_SIGN_WOODS)
+            return gSignWoods[SIGN_WOOD(dataVal)].wallSignName;
         break;
 
     case BLOCK_SMOOTH_STONE:
@@ -3963,84 +3878,11 @@ unsigned int GetBlockDataColor(int type, int dataVal)
         }
 
     case BLOCK_SIGN_POST:
-        switch (dataVal & (BIT_16 | BIT_32))
-        {
-        default:
-        case 0:
-            return gBlockDefinitions[type].color;
-        case BIT_16:	// spruce
-            return 0x745632;
-        case BIT_32:	// birch
-            return 0xC2B17A;
-        case BIT_32 | BIT_16:	// jungle
-            return 0xA37654;
-        }
-
-    case BLOCK_ACACIA_SIGN_POST:
-        switch (dataVal & (BIT_16 | BIT_32))
-        {
-        default:
-        case 0:
-            return gBlockDefinitions[type].color;
-        case BIT_16:	// dark oak
-            return 0x442C15;
-        case BIT_32:	// crimson
-            return 0x7B3953;
-        case BIT_32 | BIT_16:	// warped
-            return 0x35837F;
-        }
-
-    case BLOCK_MANGROVE_SIGN_POST:
-    case BLOCK_POPLAR_SIGN_POST:
-        switch (dataVal & (BIT_16 | BIT_32))
-        {
-        default:
-        case 0:
-            return gBlockDefinitions[type].color;
-        case BIT_16:	// cherry
-            return gBlockDefinitions[BLOCK_CHERRY_STAIRS].pcolor;
-        case BIT_32:	// bamboo
-            return gBlockDefinitions[BLOCK_BAMBOO_STAIRS].pcolor;
-        case BIT_32 | BIT_16:	// pale oak
-            return gBlockDefinitions[BLOCK_PALE_OAK_STAIRS].pcolor;
-        }
-
     case BLOCK_WALL_SIGN:
-        switch (dataVal & (BIT_8 | BIT_16 | BIT_32))
-        {
-        default:
-        case 0:
-            return gBlockDefinitions[type].color;
-        case BIT_8:	// spruce
-            return 0x745632;
-        case BIT_16:	// birch
-            return 0xC2B17A;
-        case BIT_16 | BIT_8:	// jungle
-            return 0xA37654;
-        case BIT_32:	// acacia
-            return 0xA95B33;
-        case BIT_32 | BIT_8:	// dark oak
-            return 0x442C15;
-        case BIT_32 | BIT_16:   // crimson
-            return 0x7B3953;
-        case BIT_32 | BIT_16 | BIT_8:   // warped
-            return 0x35837F;
-        }
-
-    case BLOCK_MANGROVE_WALL_SIGN:
-    case BLOCK_POPLAR_WALL_SIGN:
-        switch (dataVal & (BIT_8 | BIT_16 | BIT_32))
-        {
-        default:
-        case 0:
-            return gBlockDefinitions[type].color;
-        case BIT_8:	// cherry
-            return 0xE3B4AE;
-        case BIT_16:	// bamboo
-            return 0xC4AF52;
-        case BIT_16 | BIT_8:	// pale oak
-            return 0xE5DBDA;
-        }
+        // the wood is in SIGN_WOOD_MASK; oak uses the block's own (color scheme) color
+        if (SIGN_WOOD(dataVal) > 0 && SIGN_WOOD(dataVal) < NUM_SIGN_WOODS)
+            return gSignWoods[SIGN_WOOD(dataVal)].color;
+        return gBlockDefinitions[type].color;
 
     case BLOCK_SMOOTH_STONE:
         switch (dataVal & 0x3)
@@ -6587,14 +6429,12 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
 
-    case BLOCK_POPLAR_SIGN_POST:
-        // a single kind of sign: rotation is all there is
+    case BLOCK_SIGN_POST:
+        // the 16 rotations, cycling through the woods
         addBlock = 1;
+        finalDataVal = dataVal | ((dataVal % NUM_SIGN_WOODS) << SIGN_WOOD_SHIFT);
         break;
 
-    case BLOCK_SIGN_POST:
-    case BLOCK_ACACIA_SIGN_POST:
-    case BLOCK_MANGROVE_SIGN_POST:
     case BLOCK_COLORED_CANDLE:
     case BLOCK_LIT_COLORED_CANDLE:
     case BLOCK_VAULT:
@@ -6902,30 +6742,14 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
 
     case BLOCK_WALL_SIGN:
-    case BLOCK_MANGROVE_WALL_SIGN:
-    case BLOCK_POPLAR_WALL_SIGN:
-        // there are now 8 materials for wall signs and 4 for mangrove wall signs. Rather than going absolutely nuts, we change the dataVal for each.
-        // directions are 2-5, so allow those and 10-13
-        if ((dataVal & 0x7) >= 2 && (dataVal & 0x7) <= 5)
+        // the four facings, 2-5, each four times, cycling through the woods
         {
+            int facing = 2 + (dataVal & 0x3);
             addBlock = 1;
-            // set higher bits BIT_8 and BIT_16
-            if (origType == BLOCK_WALL_SIGN) {
-                // cycle 8 materials
-                finalDataVal = ((dataVal % 8) << 3) | (dataVal & 0x7);
-            }
-            else if (origType == BLOCK_POPLAR_WALL_SIGN) {
-                // only one material, so just the direction
-                finalDataVal = dataVal & 0x7;
-            }
-            else {
-                // cycle 4 materials
-                finalDataVal = ((dataVal % 4) << 3) | (dataVal & 0x7);
-            }
+            finalDataVal = facing | ((dataVal % NUM_SIGN_WOODS) << SIGN_WOOD_SHIFT);
 
-            switch (dataVal & 0x7)
+            switch (facing)
             {
-                // do all the wood types
             default:
                 assert(0);
             case 2:
