@@ -126,7 +126,11 @@ static IPoint gWorld2BoxOffset;
 
 Model gModel;
 
+// materials to output, each a type and (material) dataVal; dataVal can use all 12 bits, e.g. a sign's wood (SIGN_WOOD_MASK)
 static std::vector<unsigned int> gMtlList;
+#define MTL_LIST_ENTRY(type, dataVal)   (((unsigned int)(type) << 16) | (unsigned int)(dataVal))
+#define MTL_LIST_TYPE(entry)            ((int)((entry) >> 16))
+#define MTL_LIST_DATAVAL(entry)         ((int)((entry) & 0xFFFF))
 
 
 typedef struct FillAlpha {
@@ -354,7 +358,7 @@ static int tileSpan(int swatchLoc)
 // separate 16x16 tiles: when exporting individual tiles the image is written out as one file with UVs over the whole image, so it
 // can be swapped out after export. When exporting a mosaic, each span image gets its own contiguous block of span x span swatch slots
 // in the mosaic, with a border span texels wide (SWATCH_BORDER scaled up by the span) filled by clamping the image's edges.
-#define MAX_SPAN_IMAGES 16
+#define MAX_SPAN_IMAGES 64
 typedef struct SpanImage {
     int anchorLoc;  // tiles.h swatch location of the image's upper left tile
     int span;       // image is span x span tiles
@@ -402,19 +406,30 @@ static SpanImage* findSpanImage(int anchorLoc)
 }
 
 // Mosaic export: reserve the span images' blocks in the bottom right corner of the mosaic's swatch slots, largest first, side by side
-// from right to left, all sitting on the bottom row. Composite swatches (see getCompositeSwatch) are allocated upwards from TOTAL_TILES
-// and skip over these slots. Returns false if the blocks don't fit without overlapping the tiles themselves.
+// from right to left, in shelves: the first sits on the bottom row, and when a shelf is full, the next sits on top of it. Composite
+// swatches (see getCompositeSwatch) are allocated upwards from TOTAL_TILES and skip over these slots. Returns false if the blocks don't
+// fit without overlapping the tiles themselves.
 static bool reserveSpanBlocks()
 {
     int rightCol = gModel.swatchesPerRow;
+    int shelfBottom = gModel.swatchesPerRow;    // the row below the current shelf
+    int shelfHeight = 0;                        // the current shelf's height, that of its first (largest) block
     for (int size = 64; size > 1; size--) {
         for (int i = 0; i < gSpanImageCount; i++) {
             if (gSpanImages[i].span == size) {
+                if (rightCol - size < 0) {
+                    // this shelf is full, so start another on top of it
+                    shelfBottom -= shelfHeight;
+                    rightCol = gModel.swatchesPerRow;
+                    shelfHeight = 0;
+                }
+                if (shelfHeight == 0)
+                    shelfHeight = size;
                 gSpanImages[i].blockCol = rightCol - size;
-                gSpanImages[i].blockRow = gModel.swatchesPerRow - size;
+                gSpanImages[i].blockRow = shelfBottom - size;
                 rightCol -= size;
                 // first slot of the block's top row is its lowest numbered slot, which must be past the tiles
-                if (rightCol < 0 || gSpanImages[i].blockRow * gModel.swatchesPerRow + gSpanImages[i].blockCol < TOTAL_TILES)
+                if (gSpanImages[i].blockCol < 0 || gSpanImages[i].blockRow * gModel.swatchesPerRow + gSpanImages[i].blockCol < TOTAL_TILES)
                     return false;
             }
         }
@@ -847,14 +862,21 @@ typedef struct ModelFace {
     int rotation;
     int billboardBack;
 } ModelFace;
-// One Minecraft block model JSON element: "from", "to" (in 0-16 pixel units) and its faces
+// One Minecraft block model JSON element: "from", "to" (in 0-16 pixel units) and its faces. An element may also have a "rotation"
+// about Y: rotAngle degrees, as in the JSON (so negative turns clockwise, seen from above), about rotOrigin, in pixel units.
 typedef struct ModelElement {
     float from[3];
     float to[3];
     int faceCount;
     ModelFace face[6];
+    float rotAngle;
+    float rotOrigin[3];
 } ModelElement;
-static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, int yAngle);
+static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, float yAngle);
+// The terrain tile anchor of a sign's 32x32 texture (see tiles.h): standing and wall signs in rows 4-7, hanging and wall hanging signs in
+// rows 8-11, eight woods (SIGN_WOOD(), the order of gSignWoods[]) to each pair of rows, from column 16.
+#define SIGN_TEXTURE_ANCHOR(wood, hanging) TILE_TO_SWATCH(16 + 2 * ((wood) % 8), ((hanging) ? 8 : 4) + 2 * ((wood) / 8))
+static int saveSignModel(int boxIndex, int type, int dataVal, bool hanging, const ModelElement* elements, int elementCount, float yAngle);
 static int saveBoxModelFace(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int anchorLoc, const float uv[4], int rotation);
 static int saveSpanTextureUV(int anchorLoc, int type, float su, float sv);
 static int findFaceDimensions(float rect[4], int faceDirection, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
@@ -7345,6 +7367,23 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break; // saveBillboardOrGeometry
 
     case BLOCK_WALL_SIGN:						// saveBillboardOrGeometry
+        // Minecraft 26.3's block/template_wall_sign.json, with the sign's own 32x32 texture. For 3D printing, the thicker plank geometry below is used instead.
+        if (!gModel.print3D) {
+            static const ModelElement wallSignElements[] = {
+                { { 0.0f, 13.0f / 3.0f, 1.0f / 3.0f }, { 16.0f, 37.0f / 3.0f, 5.0f / 3.0f }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 8.0f, 12.0f, 14.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12.0f, 1.0f, 13.0f, 7.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0.0f, 1.0f, 12.0f, 7.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 12.0f, 8.0f, 13.0f, 14.0f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 0.0f, 0.0f, 12.0f, 1.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 0.0f, 14.0f, 12.0f, 15.0f }, 0 }
+                } },
+            };
+            // the model is on the north wall, facing south; facing is 2-5: north, south, west, east
+            static const float wallSignAngle[4] = { 180.0f, 0.0f, 90.0f, 270.0f };
+            saveSignModel(boxIndex, type, dataVal, false, wallSignElements, sizeof(wallSignElements) / sizeof(ModelElement), wallSignAngle[((dataVal & 0x7) - 2) & 0x3]);
+            break;
+        }
         // the wood is in SIGN_WOOD_MASK; the board is made of its planks
         {
             int wood = SIGN_WOOD(dataVal);
@@ -7521,10 +7560,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         totalVertexCount = gModel.vertexCount;
         gUsingTransform = 1;
         if (stage == 0) {
-            saveModelElements(boxIndex, type, dataVal, TILE_TO_SWATCH(24, 0), stage0Elements, sizeof(stage0Elements) / sizeof(ModelElement), yAngle);
+            saveModelElements(boxIndex, type, dataVal, TILE_TO_SWATCH(24, 0), stage0Elements, sizeof(stage0Elements) / sizeof(ModelElement), (float)yAngle);
         }
         else {
-            saveModelElements(boxIndex, type, dataVal, TILE_TO_SWATCH(26, 0), stage1Elements, sizeof(stage1Elements) / sizeof(ModelElement), yAngle);
+            saveModelElements(boxIndex, type, dataVal, TILE_TO_SWATCH(26, 0), stage1Elements, sizeof(stage1Elements) / sizeof(ModelElement), (float)yAngle);
         }
         totalVertexCount = gModel.vertexCount - totalVertexCount;
 
@@ -7662,10 +7701,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         totalVertexCount = gModel.vertexCount;
         gUsingTransform = 1;
         if (dataVal & 0x8) {
-            saveModelElements(boxIndex, type, dataVal, TILE_TO_SWATCH(28, 0), headElements, sizeof(headElements) / sizeof(ModelElement), yAngle);
+            saveModelElements(boxIndex, type, dataVal, TILE_TO_SWATCH(28, 0), headElements, sizeof(headElements) / sizeof(ModelElement), (float)yAngle);
         }
         else {
-            saveModelElements(boxIndex, type, dataVal, TILE_TO_SWATCH(28, 0), footElements, sizeof(footElements) / sizeof(ModelElement), yAngle);
+            saveModelElements(boxIndex, type, dataVal, TILE_TO_SWATCH(28, 0), footElements, sizeof(footElements) / sizeof(ModelElement), (float)yAngle);
         }
         totalVertexCount = gModel.vertexCount - totalVertexCount;
 
@@ -8114,6 +8153,30 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break; // saveBillboardOrGeometry
 
     case BLOCK_SIGN_POST:						// saveBillboardOrGeometry
+        // Minecraft 26.3's block/template_sign_rot_0.json, with the sign's own 32x32 texture; the other rotations are this turned by 22.5 degree steps.
+        // For 3D printing, the thicker plank geometry below is used instead.
+        if (!gModel.print3D) {
+            static const ModelElement signElements[] = {
+                { { 22.0f / 3.0f, 0.0f, 22.0f / 3.0f }, { 26.0f / 3.0f, 28.0f / 3.0f, 26.0f / 3.0f }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 14.0f, 8.0f, 15.0f, 15.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 15.0f, 0.0f, 16.0f, 7.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 14.0f, 0.0f, 15.0f, 7.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 15.0f, 8.0f, 16.0f, 15.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 14.0f, 15.0f, 15.0f, 16.0f }, 0 }
+                } },
+                { { 0.0f, 28.0f / 3.0f, 22.0f / 3.0f }, { 16.0f, 52.0f / 3.0f, 26.0f / 3.0f }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 8.0f, 12.0f, 14.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12.0f, 1.0f, 13.0f, 7.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0.0f, 1.0f, 12.0f, 7.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 12.0f, 8.0f, 13.0f, 14.0f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 0.0f, 0.0f, 12.0f, 1.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 0.0f, 14.0f, 12.0f, 15.0f }, 0 }
+                } },
+            };
+            // rotation 0-15 turns clockwise, seen from above, from facing south
+            saveSignModel(boxIndex, type, dataVal, false, signElements, sizeof(signElements) / sizeof(ModelElement), 22.5f * (float)(dataVal & 0xF));
+            break;
+        }
         // the wood is in SIGN_WOOD_MASK; the board is made of its planks, the post of its log
         {
             int wood = SIGN_WOOD(dataVal);
@@ -12588,6 +12651,46 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break; // saveBillboardOrGeometry
 
     case BLOCK_WALL_HANGING_SIGN:						// saveBillboardOrGeometry
+        // Minecraft 26.3's block/template_wall_hanging_sign.json, with the sign's own 32x32 texture. For 3D printing, the thicker geometry below is used instead.
+        if (!gModel.print3D) {
+            static const ModelElement wallHangingSignElements[] = {
+                { { 1.0f, 0.0f, 7.0f }, { 15.0f, 10.0f, 9.0f }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 9.0f, 8.0f, 16.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 8.0f, 8.0f, 9.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 1.0f, 8.0f, 8.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0.0f, 8.0f, 1.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 1.0f, 7.0f, 8.0f, 8.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 1.0f, 13.0f, 8.0f, 14.0f }, 0 }
+                } },
+                { { 0.0f, 14.0f, 6.0f }, { 16.0f, 16.0f, 10.0f }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 3.5f, 8.0f, 4.5f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 8.0f, 2.0f, 10.0f, 3.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0.0f, 2.0f, 8.0f, 3.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8.0f, 3.5f, 10.0f, 4.5f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 0.0f, 0.0f, 8.0f, 2.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 8.0f, 4.5f, 0.0f, 6.5f }, 0 }
+                } },
+                { { 1.5f, 10.0f, 8.0f }, { 4.5f, 12.0f, 8.0f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 12.5f, 5.5f, 11.0f, 6.5f }, 0, 1 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 11.0f, 5.5f, 12.5f, 6.5f }, 0 }
+                }, 45.0f, { 3.0f, 11.0f, 8.0f } },
+                { { 1.5f, 11.0f, 8.0f }, { 4.5f, 14.0f, 8.0f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 15.5f, 4.5f, 14.0f, 6.0f }, 0, 1 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 14.0f, 4.5f, 15.5f, 6.0f }, 0 }
+                }, -45.0f, { 3.0f, 12.0f, 8.0f } },
+                { { 11.5f, 10.0f, 8.0f }, { 14.5f, 12.0f, 8.0f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 12.5f, 5.5f, 11.0f, 6.5f }, 0, 1 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 11.0f, 5.5f, 12.5f, 6.5f }, 0 }
+                }, 45.0f, { 13.0f, 11.0f, 8.0f } },
+                { { 11.5f, 11.0f, 8.0f }, { 14.5f, 14.0f, 8.0f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 15.5f, 4.5f, 14.0f, 6.0f }, 0, 1 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 14.0f, 4.5f, 15.5f, 6.0f }, 0 }
+                }, -45.0f, { 13.0f, 12.0f, 8.0f } },
+            };
+            // facing is 0-3: south, west, north, east
+            saveSignModel(boxIndex, type, dataVal, true, wallHangingSignElements, sizeof(wallHangingSignElements) / sizeof(ModelElement), 90.0f * (float)(dataVal & 0x3));
+            break;
+        }
         // three main elements:
         // sign itself - stripped logs are used
         // chains - always vertical
@@ -12674,6 +12777,56 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break;
 
     case BLOCK_HANGING_SIGN: // saveBillboardOrGeometry
+        // Minecraft 26.3's block/template_hanging_sign_rot_0.json and template_attached_hanging_sign_rot_0.json, with the sign's own 32x32 texture;
+        // the other rotations are these turned by 22.5 degree steps. For 3D printing, the thicker geometry below is used instead.
+        if (!gModel.print3D) {
+            static const ModelElement hangingSignElements[] = {
+                { { 1.0f, 0.0f, 7.0f }, { 15.0f, 10.0f, 9.0f }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 9.0f, 8.0f, 16.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 8.0f, 8.0f, 9.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 1.0f, 8.0f, 8.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0.0f, 8.0f, 1.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 1.0f, 7.0f, 8.0f, 8.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 1.0f, 13.0f, 8.0f, 14.0f }, 0 }
+                } },
+                { { 2.96447f, 10.0f, 4.46447f }, { 5.96447f, 16.0f, 4.46447f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 12.5f, 3.5f, 11.0f, 6.5f }, 0, 1 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 11.0f, 3.5f, 12.5f, 6.5f }, 0 }
+                }, 45.0f, { 8.0f, 0.0f, 8.0f } },
+                { { 2.96447f, 11.0f, 11.53553f }, { 5.96447f, 15.0f, 11.53553f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 15.5f, 4.0f, 14.0f, 6.0f }, 0, 1 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 14.0f, 4.0f, 15.5f, 6.0f }, 0 }
+                }, -45.0f, { 8.0f, 0.0f, 8.0f } },
+                { { 10.03553f, 10.0f, 11.53553f }, { 13.03553f, 16.0f, 11.53553f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 12.5f, 3.5f, 11.0f, 6.5f }, 0, 1 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 11.0f, 3.5f, 12.5f, 6.5f }, 0 }
+                }, 45.0f, { 8.0f, 0.0f, 8.0f } },
+                { { 10.03553f, 11.0f, 4.46447f }, { 13.03553f, 15.0f, 4.46447f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 15.5f, 4.0f, 14.0f, 6.0f }, 0, 1 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 14.0f, 4.0f, 15.5f, 6.0f }, 0 }
+                }, -45.0f, { 8.0f, 0.0f, 8.0f } },
+            };
+            static const ModelElement attachedHangingSignElements[] = {
+                { { 1.0f, 0.0f, 7.0f }, { 15.0f, 10.0f, 9.0f }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 9.0f, 8.0f, 16.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 8.0f, 8.0f, 9.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 1.0f, 8.0f, 8.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0.0f, 8.0f, 1.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 1.0f, 7.0f, 8.0f, 8.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 1.0f, 13.0f, 8.0f, 14.0f }, 0 }
+                } },
+                { { 2.0f, 10.0f, 8.0f }, { 14.0f, 16.0f, 8.0f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 16.0f, 0.0f, 10.0f, 3.0f }, 0, 1 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 10.0f, 0.0f, 16.0f, 3.0f }, 0 }
+                } },
+            };
+            // rotation 0-15 turns clockwise, seen from above, from facing south; bit 0x10 is "attached"
+            if (dataVal & BIT_16)
+                saveSignModel(boxIndex, type, dataVal, true, attachedHangingSignElements, sizeof(attachedHangingSignElements) / sizeof(ModelElement), 22.5f * (float)(dataVal & 0xF));
+            else
+                saveSignModel(boxIndex, type, dataVal, true, hangingSignElements, sizeof(hangingSignElements) / sizeof(ModelElement), 22.5f * (float)(dataVal & 0xF));
+            break;
+        }
         // two main elements:
         // sign itself - stripped logs are used
         // chains - vertical or angled, depending on attached (which gives diagonal)
@@ -14200,14 +14353,43 @@ static int saveBoxModelFace(int startVertexIndex, int type, int dataVal, int fac
     return saveBoxFaceUVs(type, dataVal, faceDirection, markFirstFace, startVertexIndex, vindex, uvIndices);
 }
 
-// Is this model face on the side of its block, and hidden by the neighbor there (e.g. a full opaque block)?
-// The model is turned yAngle degrees about Y after it is saved (0, 90, 180, or 270; as rotateMtx and Minecraft's
-// blockstate "y" turn it, 90 taking north to east), so turn the element's box and face into the block's orientation first.
-static int modelFaceIsCovered(int boxIndex, const ModelElement* pElem, int faceDirection, int yAngle)
+// Save a sign's model, as given in Minecraft's JSON, textured by its wood's 32x32 sign or hanging sign texture, then turn it yAngle degrees
+// about Y (as rotateMtx turns it, clockwise seen from above) into place.
+static int saveSignModel(int boxIndex, int type, int dataVal, bool hanging, const ModelElement* elements, int elementCount, float yAngle)
 {
+    int wood = SIGN_WOOD(dataVal);
+    if (wood >= NUM_SIGN_WOODS)
+        wood = 0;
+    float mtx[4][4];
+    int vertexCount = gModel.vertexCount;
+    gUsingTransform = 1;
+    int retCode = saveModelElements(boxIndex, type, dataVal, SIGN_TEXTURE_ANCHOR(wood, hanging), elements, elementCount, yAngle);
+    vertexCount = gModel.vertexCount - vertexCount;
+    identityMtx(mtx);
+    translateToOriginMtx(mtx, boxIndex);
+    rotateMtx(mtx, 0.0f, yAngle, 0.0f);
+    translateFromOriginMtx(mtx, boxIndex);
+    transformVertices(vertexCount, mtx);
+    gUsingTransform = 0;
+    return retCode;
+}
+
+// Is this model face on the side of its block, and hidden by the neighbor there (e.g. a full opaque block)?
+// The model is turned yAngle degrees about Y after it is saved (as rotateMtx and Minecraft's blockstate "y" turn it, 90 taking
+// north to east), so turn the element's box and face into the block's orientation first. For an angle that is not a multiple of
+// 90 (e.g. a sign's 22.5 degree steps), or an element with its own rotation, the side faces are not against the block's sides,
+// and only a top or bottom face can be hidden, by a neighbor covering the whole face.
+static int modelFaceIsCovered(int boxIndex, const ModelElement* pElem, int faceDirection, float yAngle)
+{
+    if (pElem->rotAngle != 0.0f)
+        return 0;
+    int quarterTurns = (int)(yAngle / 90.0f);
+    bool alignedToBlock = ((float)quarterTurns * 90.0f == yAngle);
+    if (!alignedToBlock && faceDirection != DIRECTION_BLOCK_TOP && faceDirection != DIRECTION_BLOCK_BOTTOM)
+        return 0;
     float minX = pElem->from[X], maxX = pElem->to[X];
     float minZ = pElem->from[Z], maxZ = pElem->to[Z];
-    for (int turn = 0; turn < ((yAngle / 90) & 0x3); turn++) {
+    for (int turn = 0; alignedToBlock && turn < (((quarterTurns % 4) + 4) % 4); turn++) {
         // a quarter turn takes (x,z) to (16-z,x), and each side to the next one clockwise, seen from above
         float newMinX = 16.0f - maxZ;
         float newMaxX = 16.0f - minZ;
@@ -14246,13 +14428,19 @@ static int modelFaceIsCovered(int boxIndex, const ModelElement* pElem, int faceD
         (lo == 0.0f) : (hi == 16.0f);
     if (!onSide || rect[0] < 0.0f || rect[1] > 16.0f || rect[2] < 0.0f || rect[3] > 16.0f)
         return 0;
+    if (!alignedToBlock) {
+        // turned by an odd angle, the face could be anywhere within the block's top or bottom
+        rect[0] = rect[2] = 0.0f;
+        rect[1] = rect[3] = 16.0f;
+    }
     return lesserNeighborCoversRectangle(faceDirection, boxIndex, rect);
 }
 
 // Save the elements of a Minecraft block model, as given in its JSON file, all textured by the (possibly multi-tile) image at anchorLoc.
 // yAngle is the rotation about Y the caller gives the model afterwards, used to find which faces are hidden by neighbors.
+// Elements with their own rotation are turned into place here, so the caller must have set gUsingTransform.
 // The first face saved is marked as the first face of the block.
-static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, int yAngle)
+static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, float yAngle)
 {
     int retCode = MW_NO_ERROR;
     int markFirstFace = 1;
@@ -14278,6 +14466,19 @@ static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc,
             if (retCode >= MW_BEGIN_ERRORS)
                 return retCode;
             markFirstFace = 0;
+        }
+        if (pElem->rotAngle != 0.0f) {
+            // turn the element about its origin. translateToOriginMtx puts the block's center, pixel (8,8,8), at the origin, so
+            // the element's origin is then (origin-8)/16 from it. Minecraft's angle is counterclockwise, seen from above; rotateMtx's is clockwise.
+            float mtx[4][4];
+            assert(gUsingTransform);
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            translateMtx(mtx, (8.0f - pElem->rotOrigin[X]) / 16.0f, (8.0f - pElem->rotOrigin[Y]) / 16.0f, (8.0f - pElem->rotOrigin[Z]) / 16.0f);
+            rotateMtx(mtx, 0.0f, -pElem->rotAngle, 0.0f);
+            translateMtx(mtx, (pElem->rotOrigin[X] - 8.0f) / 16.0f, (pElem->rotOrigin[Y] - 8.0f) / 16.0f, (pElem->rotOrigin[Z] - 8.0f) / 16.0f);
+            translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(gModel.vertexCount - startVertexIndex, mtx);
         }
     }
     return retCode;
@@ -27367,7 +27568,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                                 // there are materials with different typeData's but that actually have the same name,
                                 // such as Purpur Block, but these show up only in the test world, so don't bother.
                                 int curCount = (int)gMtlList.size() - 1;
-                                unsigned int typeData = prevType << 8 | prevDataVal;
+                                unsigned int typeData = MTL_LIST_ENTRY(prevType, prevDataVal);
                                 while (curCount >= 0) {
                                     if (gMtlList[curCount--] == typeData) {
                                         // found it; exit loop
@@ -27384,7 +27585,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                                 // note which material is to be output, if not output already
                                 if (outputMaterial[prevType] == 0)
                                 {
-                                    gMtlList.push_back((prevType << 8) | prevDataVal);
+                                    gMtlList.push_back(MTL_LIST_ENTRY(prevType, prevDataVal));
                                     outputMaterial[prevType] = 1;
                                 }
                             }
@@ -27425,7 +27626,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                             // new material per family
                             sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
                             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                            gMtlList.push_back((prevType << 8) | prevDataVal);
+                            gMtlList.push_back(MTL_LIST_ENTRY(prevType, prevDataVal));
                         }
                         // else don't output material, there's only one for the whole scene
                     }
@@ -27917,9 +28118,9 @@ static int writeOBJMtlFile()
 
                 bool subtypeMaterial = ((gModel.options->exportFlags & EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE) != 0x0);
 
-                type = gMtlList[i] >> 8;
+                type = MTL_LIST_TYPE(gMtlList[i]);
                 if (subtypeMaterial)
-                    dataVal = gMtlList[i] & 0xff;
+                    dataVal = MTL_LIST_DATAVAL(gMtlList[i]);
 
                 // print header: material name
                 strcpy_s(mtlName, 256, gBlockDefinitions[type].name);
@@ -33890,7 +34091,7 @@ static boolean findEndOfGroup(int startRun, int endCount, char* mtlName, int& ne
     else if (gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK)
     {
         // new material per family
-        gMtlList.push_back((prevType << 8) | prevDataVal);
+        gMtlList.push_back(MTL_LIST_ENTRY(prevType, prevDataVal));
     }
     // else don't output material, there's only one for the whole scene - TODOUSD
 

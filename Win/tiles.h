@@ -246,22 +246,22 @@ static struct {
     { 13,  4, 110, 0, L"mycelium_side", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
     { 14,  4, 110, 0, L"mycelium_top", L"", SWATCH_REPEAT_ALL },
     { 15,  4,   6, 0, L"birch_sapling", L"sapling_birch", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    { 16,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 26,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 27,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 30,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 31,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16,  4,  63, 0, L"oak_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 16-17,4-5
+    { 17,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of oak_sign at 16,4
+    { 18,  4,  63, 0, L"spruce_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 18-19,4-5
+    { 19,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of spruce_sign at 18,4
+    { 20,  4,  63, 0, L"birch_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 20-21,4-5
+    { 21,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of birch_sign at 20,4
+    { 22,  4,  63, 0, L"jungle_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 22-23,4-5
+    { 23,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of jungle_sign at 22,4
+    { 24,  4,  63, 0, L"acacia_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 24-25,4-5
+    { 25,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of acacia_sign at 24,4
+    { 26,  4,  63, 0, L"dark_oak_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 26-27,4-5
+    { 27,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of dark_oak_sign at 26,4
+    { 28,  4,  63, 0, L"crimson_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 28-29,4-5
+    { 29,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of crimson_sign at 28,4
+    { 30,  4,  63, 0, L"warped_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 30-31,4-5
+    { 31,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of warped_sign at 30,4
     {  0,  5,  50, 0, L"torch", L"torch_on", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  1,  5,  64, 0, L"oak_door_top", L"door_wood_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     {  2,  5,  71, 0, L"iron_door_top", L"door_iron_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
@@ -278,22 +278,22 @@ static struct {
     { 13,  5,  59, 0, L"wheat_stage5", L"wheat_stage_5", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 14,  5,  59, 0, L"wheat_stage6", L"wheat_stage_6", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 15,  5,  59, 0, L"wheat_stage7", L"wheat_stage_7", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    { 16,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 26,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 27,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 30,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 31,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of oak_sign at 16,4
+    { 17,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of oak_sign at 16,4
+    { 18,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of spruce_sign at 18,4
+    { 19,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of spruce_sign at 18,4
+    { 20,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of birch_sign at 20,4
+    { 21,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of birch_sign at 20,4
+    { 22,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of jungle_sign at 22,4
+    { 23,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of jungle_sign at 22,4
+    { 24,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of acacia_sign at 24,4
+    { 25,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of acacia_sign at 24,4
+    { 26,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of dark_oak_sign at 26,4
+    { 27,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of dark_oak_sign at 26,4
+    { 28,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of crimson_sign at 28,4
+    { 29,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of crimson_sign at 28,4
+    { 30,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of warped_sign at 30,4
+    { 31,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of warped_sign at 30,4
     {  0,  6,  69, 0, L"lever", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  1,  6,  64, 0, L"oak_door_bottom", L"door_wood_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL }, // note: normally not a decal, but done for resource packs
     {  2,  6,  71, 0, L"iron_door_bottom", L"door_iron_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL }, // note: normally not a decal, but done for resource packs
@@ -310,16 +310,16 @@ static struct {
     { 13,  6,  34, 0, L"piston_bottom", L"", SWATCH_REPEAT_ALL },
     { 14,  6,  34, 0, L"piston_inner", L"", SWATCH_REPEAT_ALL },
     { 15,  6, 105, 0, L"melon_stem", L"melon_stem_disconnected", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYNTHESIZED },
-    { 16,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16,  6,  63, 0, L"mangrove_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 16-17,6-7
+    { 17,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of mangrove_sign at 16,6
+    { 18,  6,  63, 0, L"cherry_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 18-19,6-7
+    { 19,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of cherry_sign at 18,6
+    { 20,  6,  63, 0, L"bamboo_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 20-21,6-7
+    { 21,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of bamboo_sign at 20,6
+    { 22,  6,  63, 0, L"pale_oak_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 22-23,6-7
+    { 23,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of pale_oak_sign at 22,6
+    { 24,  6,  63, 0, L"poplar_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 24-25,6-7
+    { 25,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of poplar_sign at 24,6
     { 26,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 27,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 28,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
@@ -342,16 +342,16 @@ static struct {
     { 13,  7, 100, 0, L"red_mushroom_block", L"mushroom_block_skin_red", SWATCH_REPEAT_ALL },
     { 14,  7,  99, 0, L"brown_mushroom_block", L"mushroom_block_skin_brown", SWATCH_REPEAT_ALL },
     { 15,  7, 105, 0, L"attached_melon_stem", L"melon_stem_connected", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYNTHESIZED },
-    { 16,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of mangrove_sign at 16,6
+    { 17,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of mangrove_sign at 16,6
+    { 18,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of cherry_sign at 18,6
+    { 19,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of cherry_sign at 18,6
+    { 20,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of bamboo_sign at 20,6
+    { 21,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of bamboo_sign at 20,6
+    { 22,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of pale_oak_sign at 22,6
+    { 23,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of pale_oak_sign at 22,6
+    { 24,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of poplar_sign at 24,6
+    { 25,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of poplar_sign at 24,6
     { 26,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 27,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 28,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
@@ -374,22 +374,22 @@ static struct {
     { 13,  8, 100, 0, L"mushroom_stem", L"mushroom_block_skin_stem", SWATCH_REPEAT_ALL },
     { 14,  8, 100, 0, L"mushroom_block_inside", L"", SWATCH_REPEAT_ALL },
     { 15,  8, 106, 0, L"vine", L"", SWATCH_TILE_BOTTOM_AND_TOP | SBIT_DECAL | SBIT_SYNTHESIZED },	// grayscale; just tops and bottoms match up
-    { 16,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 26,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 27,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 30,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 31,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16,  8, 459, 0, L"oak_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 16-17,8-9
+    { 17,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of oak_hanging_sign at 16,8
+    { 18,  8, 459, 0, L"spruce_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 18-19,8-9
+    { 19,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of spruce_hanging_sign at 18,8
+    { 20,  8, 459, 0, L"birch_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 20-21,8-9
+    { 21,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of birch_hanging_sign at 20,8
+    { 22,  8, 459, 0, L"jungle_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 22-23,8-9
+    { 23,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of jungle_hanging_sign at 22,8
+    { 24,  8, 459, 0, L"acacia_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 24-25,8-9
+    { 25,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of acacia_hanging_sign at 24,8
+    { 26,  8, 459, 0, L"dark_oak_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 26-27,8-9
+    { 27,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of dark_oak_hanging_sign at 26,8
+    { 28,  8, 459, 0, L"crimson_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 28-29,8-9
+    { 29,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of crimson_hanging_sign at 28,8
+    { 30,  8, 459, 0, L"warped_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 30-31,8-9
+    { 31,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of warped_hanging_sign at 30,8
     {  0,  9,  22, 0, L"lapis_block", L"", SWATCH_REPEAT_ALL },
     {  1,  9,  35, 0, L"green_wool", L"wool_colored_green", SWATCH_REPEAT_ALL },
     {  2,  9,  35, 0, L"lime_wool", L"wool_colored_lime", SWATCH_REPEAT_ALL },
@@ -406,22 +406,22 @@ static struct {
     { 13,  9, 117, 0, L"brewing_stand", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 14,  9, 120, 0, L"end_portal_frame_top", L"endframe_top", SWATCH_REPEAT_ALL },
     { 15,  9, 120, 0, L"end_portal_frame_side", L"endframe_side", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
-    { 16,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 26,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 27,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 30,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 31,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of oak_hanging_sign at 16,8
+    { 17,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of oak_hanging_sign at 16,8
+    { 18,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of spruce_hanging_sign at 18,8
+    { 19,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of spruce_hanging_sign at 18,8
+    { 20,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of birch_hanging_sign at 20,8
+    { 21,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of birch_hanging_sign at 20,8
+    { 22,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of jungle_hanging_sign at 22,8
+    { 23,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of jungle_hanging_sign at 22,8
+    { 24,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of acacia_hanging_sign at 24,8
+    { 25,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of acacia_hanging_sign at 24,8
+    { 26,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of dark_oak_hanging_sign at 26,8
+    { 27,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of dark_oak_hanging_sign at 26,8
+    { 28,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of crimson_hanging_sign at 28,8
+    { 29,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of crimson_hanging_sign at 28,8
+    { 30,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of warped_hanging_sign at 30,8
+    { 31,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of warped_hanging_sign at 30,8
     {  0, 10,  21, 0, L"lapis_ore", L"", SWATCH_REPEAT_ALL },
     {  1, 10,  35, 0, L"brown_wool", L"wool_colored_brown", SWATCH_REPEAT_ALL },
     {  2, 10,  35, 0, L"yellow_wool", L"wool_colored_yellow", SWATCH_REPEAT_ALL },
@@ -438,16 +438,16 @@ static struct {
     { 13, 10, 132, 0, L"tripwire", L"trip_wire", SWATCH_CLAMP_ALL | SBIT_DECAL },
     { 14, 10, 120, 0, L"end_portal_frame_eye", L"endframe_eye", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
     { 15, 10, 121, 0, L"end_stone", L"", SWATCH_REPEAT_ALL },
-    { 16, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 10, 459, 0, L"mangrove_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 16-17,10-11
+    { 17, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of mangrove_hanging_sign at 16,10
+    { 18, 10, 459, 0, L"cherry_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 18-19,10-11
+    { 19, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of cherry_hanging_sign at 18,10
+    { 20, 10, 459, 0, L"bamboo_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 20-21,10-11
+    { 21, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of bamboo_hanging_sign at 20,10
+    { 22, 10, 459, 0, L"pale_oak_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 22-23,10-11
+    { 23, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of pale_oak_hanging_sign at 22,10
+    { 24, 10, 459, 0, L"poplar_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 24-25,10-11
+    { 25, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of poplar_hanging_sign at 24,10
     { 26, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 27, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 28, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
@@ -470,16 +470,16 @@ static struct {
     { 13, 11,  17, 0, L"jungle_log_top", L"log_jungle_top", SWATCH_REPEAT_ALL },	// ADD-IN
     { 14, 11, 104, 0, L"pumpkin_stem", L"pumpkin_stem_disconnected", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYNTHESIZED },	// ADD-IN
     { 15, 11, 104, 0, L"attached_pumpkin_stem", L"pumpkin_stem_connected", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYNTHESIZED },	// ADD-IN
-    { 16, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of mangrove_hanging_sign at 16,10
+    { 17, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of mangrove_hanging_sign at 16,10
+    { 18, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of cherry_hanging_sign at 18,10
+    { 19, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of cherry_hanging_sign at 18,10
+    { 20, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of bamboo_hanging_sign at 20,10
+    { 21, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of bamboo_hanging_sign at 20,10
+    { 22, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of pale_oak_hanging_sign at 22,10
+    { 23, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of pale_oak_hanging_sign at 22,10
+    { 24, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of poplar_hanging_sign at 24,10
+    { 25, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of poplar_hanging_sign at 24,10
     { 26, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 27, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 28, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
