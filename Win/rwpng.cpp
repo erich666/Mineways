@@ -145,7 +145,7 @@ int writepng(progimage_info *im, int channels, wchar_t *filename)
 
     //Encode the image, depending on type
     if (channels != 1 && channels != 3 && channels != 4)
-        return 106; // IMAGE_ERROR_UNSUPPORTED_FORMAT
+        return IMAGE_ERROR_UNSUPPORTED_FORMAT;
 
     if (im == NULL || im->width <= 0 || im->height <= 0)
         return 93;
@@ -158,6 +158,7 @@ int writepng(progimage_info *im, int channels, wchar_t *filename)
     if (pixelCount > (std::numeric_limits<size_t>::max)() / (size_t)channels ||
         im->image_data.size() < pixelCount * (size_t)channels)
         return 93;
+
     unsigned int error = 1;	// 1 means didn't reach lodepng
     if ( channels == 4 )
     {
@@ -173,10 +174,6 @@ int writepng(progimage_info *im, int channels, wchar_t *filename)
     {
         // 8 bit grayscale
         error = lodepng::encode(filename, im->image_data, (unsigned int)im->width, (unsigned int)im->height, LCT_GREY);
-    }
-    else
-    {
-        assert(0);
     }
 
     //if there's an error, display it

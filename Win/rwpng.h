@@ -35,6 +35,8 @@ typedef struct _progimage_info {
     int height = 0;
 } progimage_info;
 
+#define IMAGE_ERROR_UNSUPPORTED_FORMAT 106
+
 int readpng(progimage_info *mainprog_ptr, wchar_t *filename, LodePNGColorType colortype /*= LCT_RGBA*/);
 void readpng_cleanup(int free_image_data, progimage_info *mainprog_ptr);
 int readpngheader(progimage_info* im, wchar_t* filename, LodePNGColorType& colortype);
