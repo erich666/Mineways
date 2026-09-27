@@ -35,6 +35,8 @@ static bool gDecoratedPotDirectoryExists = false;
 static bool gDecoratedPotDirectoryFailed = false;
 static bool gShelfDirectoryExists = false;
 static bool gShelfDirectoryFailed = false;
+static bool gCushionDirectoryExists = false;
+static bool gCushionDirectoryFailed = false;
 
 //                                                L"", L"_n", L"_normal", L"_m", L"_e", L"_r", L"_s", L"_mer", L"_y", L"_heightmap"
 static bool gUseCategory[TOTAL_CATEGORIES] = { true, true, true, true, true, true, true, true, true, true };
@@ -61,6 +63,8 @@ static int processMERFiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid * ppg
 static bool setChestDirectory(const wchar_t* outputDirectory, wchar_t* outputChestDirectory);
 static bool setPotDirectory(const wchar_t* outputDirectory, wchar_t* outputPotDirectory);
 static bool setShelfDirectory(const wchar_t* outputDirectory, wchar_t* outputShelfDirectory);
+static bool setCushionDirectory(const wchar_t* outputDirectory, wchar_t* outputCushionDirectory);
+static int copyCushionFiles(ChestGrid* pcushg, const wchar_t* outputDirectory, bool verbose);
 
 static int isNearlyGrayscale(progimage_info* src, int channels);
 static bool isAlphaSemitransparent(progimage_info * src);
@@ -85,6 +89,7 @@ int wmain(int argc, wchar_t* argv[])
 	initializeChestGrid(&gChestGrid);
 	initializeDecoratedPotGrid(&gPotGrid);
 	initializeChestGrid(&gShelfGrid);
+	initializeChestGrid(&gCushionGrid);
 
 	bool inputCalled = false;
 
@@ -197,7 +202,7 @@ int wmain(int argc, wchar_t* argv[])
 
 	// look through tiles in tiles directories, see which exist.
 	int filesFound = 0;
-	int fileCount = searchDirectoryForTiles(&gFG, &gChestGrid, &gPotGrid, &gShelfGrid, inputDirectory, wcslen(inputDirectory), verbose, alternate, true, warnUnused, true);
+	int fileCount = searchDirectoryForTiles(&gFG, &gChestGrid, &gPotGrid, &gShelfGrid, &gCushionGrid, inputDirectory, wcslen(inputDirectory), verbose, alternate, true, warnUnused, true);
 	if (fileCount < 0) {
 		swprintf_s(gErrorString, 1000, L"***** ERROR: cannot access the directory '%s' (Windows error code # %d). Ignoring directory.\n", inputDirectory, GetLastError());
 		saveErrorForEnd();
@@ -222,6 +227,7 @@ int wmain(int argc, wchar_t* argv[])
 	// _s files might be grayscale (roughness only) or SME.
 	if (!sameDir) {
 		filesProcessed += copyFiles(&gFG, &gChestGrid, &gPotGrid, &gShelfGrid, outputDirectory, verbose);
+		filesProcessed += copyCushionFiles(&gCushionGrid, outputDirectory, verbose);
 	}
 
 	if (gFG.categories[CATEGORY_SPECULAR] > 0 || gChestGrid.categories[CATEGORY_SPECULAR] > 0 || gPotGrid.categories[CATEGORY_SPECULAR] > 0) {
@@ -1623,6 +1629,62 @@ static bool setPotDirectory(const wchar_t* outputDirectory, wchar_t* outputPotDi
 }
 
 // true for success, false for there was a serious error
+// Copy the cushion textures found, of all categories, to the output directory's "cushion" subdirectory, where TileMaker looks for them.
+// (Unlike the shelves, they are not also converted from specular and MER files.)
+static int copyCushionFiles(ChestGrid* pcushg, const wchar_t* outputDirectory, bool verbose)
+{
+	int filesRead = 0;
+	wchar_t outputCushionDirectory[MAX_PATH];
+	for (int i = 0; i < pcushg->totalCategories * pcushg->totalTiles; i++) {
+		if (!pcushg->cr[i].exists)
+			continue;
+		if (!setCushionDirectory(outputDirectory, outputCushionDirectory))
+			break;
+
+		wchar_t inputFile[MAX_PATH_AND_FILE];
+		wcscpy_s(inputFile, MAX_PATH_AND_FILE, pcushg->cr[i].path);
+		wcscat_s(inputFile, MAX_PATH_AND_FILE, pcushg->cr[i].fullFilename);
+
+		wchar_t outputFile[MAX_PATH_AND_FILE];
+		wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputCushionDirectory);
+		wcscat_s(outputFile, MAX_PATH_AND_FILE, pcushg->cr[i].fullFilename);
+
+		// overwrite previous file
+		if (CopyFile(inputFile, outputFile, false) == 0) {
+			swprintf_s(gErrorString, 1000, L"***** ERROR: file '%s' could not be copied to '%s'.\n", inputFile, outputFile);
+			saveErrorForEnd();
+			gErrorCount++;
+		}
+		else {
+			filesRead++;
+			if (verbose) {
+				wprintf(L"Cushion texture '%s' copied to '%s'.\n", inputFile, outputFile);
+			}
+		}
+	}
+	return filesRead;
+}
+
+static bool setCushionDirectory(const wchar_t* outputDirectory, wchar_t* outputCushionDirectory)
+{
+	// copy directory over and add "\cushion", as setShelfDirectory does
+	wcscpy_s(outputCushionDirectory, MAX_PATH, outputDirectory);
+	wcscat_s(outputCushionDirectory, MAX_PATH, L"cushion\\");
+
+	// lazy global - check if we've done this operation before
+	if (!gCushionDirectoryExists && !gCushionDirectoryFailed) {
+		gCushionDirectoryExists = true;
+		if (!createDir(outputCushionDirectory)) {
+			// does not exist and could not create it
+			swprintf_s(gErrorString, 1000, L"***** ERROR: Output cushion directory %s cannot be accessed. No cushion tiles will be saved.\n", outputCushionDirectory);
+			saveErrorForEnd();
+			gErrorCount++;
+			gCushionDirectoryFailed = true;
+		}
+	}
+	return !gCushionDirectoryFailed;
+}
+
 static bool setShelfDirectory(const wchar_t* outputDirectory, wchar_t* outputShelfDirectory)
 {
 	// copy directory over and add "\shelf" - repetitive, and should really just test another way, but

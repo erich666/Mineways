@@ -201,6 +201,44 @@ static Chest gShelf1219[TOTAL_SHELF_TILES] = {
 	{ L"poplar_shelf", 3, 32, 32, NULL },	// tiles are in the new right half, see below
 };
 
+// Cushions: each 64x64 entity\cushion\*_cushion.png holds a 16x4x16 box in the usual entity layout, using only its top 20 rows. Each is
+// repacked into a 32x32 image, a 2x2 tile span in the terrain image (see MWO_*_cushion in tiles.h): the top and the bottom side by side,
+// and below the top, the four 16x4 sides, one above the other. This template is for the first cushion, white, at 16,12; each color's
+// span is at 16 + 2*(color % 8), 12 + 2*(color / 8).
+static ChestData gCushionData[] = {
+	//  from,    size, to tile,  starting at corner
+	{ 16,  0,  16, 16,  16, 12,   0,  0,  0x0 },	// top
+	{ 32,  0,  16, 16,  17, 12,   0,  0,  0x0 },	// bottom
+	{  0, 16,  16,  4,  16, 13,   0,  0,  0x0 },	// side, texture u 0-16
+	{ 16, 16,  16,  4,  16, 13,   0,  4,  0x0 },	// side, texture u 16-32
+	{ 32, 16,  16,  4,  16, 13,   0,  8,  0x0 },	// side, texture u 32-48
+	{ 48, 16,  16,  4,  16, 13,   0, 12,  0x0 },	// side, texture u 48-64
+};
+#define CUSHION_COPIES	((int)(sizeof(gCushionData) / sizeof(ChestData)))
+
+// the template, moved to each color's location
+ChestData gCushions[TOTAL_CUSHION_TILES][CUSHION_COPIES];
+
+// the data pointers are set to gCushions
+static Chest gCushion[TOTAL_CUSHION_TILES] = {
+	{ L"white_cushion", 6, 64, 64, NULL },
+	{ L"orange_cushion", 6, 64, 64, NULL },
+	{ L"magenta_cushion", 6, 64, 64, NULL },
+	{ L"light_blue_cushion", 6, 64, 64, NULL },
+	{ L"yellow_cushion", 6, 64, 64, NULL },
+	{ L"lime_cushion", 6, 64, 64, NULL },
+	{ L"pink_cushion", 6, 64, 64, NULL },
+	{ L"gray_cushion", 6, 64, 64, NULL },
+	{ L"light_gray_cushion", 6, 64, 64, NULL },
+	{ L"cyan_cushion", 6, 64, 64, NULL },
+	{ L"purple_cushion", 6, 64, 64, NULL },
+	{ L"blue_cushion", 6, 64, 64, NULL },
+	{ L"brown_cushion", 6, 64, 64, NULL },
+	{ L"green_cushion", 6, 64, 64, NULL },
+	{ L"red_cushion", 6, 64, 64, NULL },
+	{ L"black_cushion", 6, 64, 64, NULL }
+};
+
 static int gErrorCount = 0;
 static int gWarningCount = 0;
 
@@ -295,6 +333,7 @@ int wmain(int argc, wchar_t* argv[])
 	int overlayChestSize = 0;
 	int overlayDecoratedPotSize = 0;
 	int overlayShelfSize = 0;
+	int overlayCushionSize = 0;
 	int forcedTileSize = 0;
 	int chosenTile = 0;
 
@@ -321,6 +360,9 @@ int wmain(int argc, wchar_t* argv[])
 	bool allShelfs = true;	// yeah, I know, "shelves", but going for consistency here so it's easier to edit
 	bool anyShelfs = false;
 
+	bool allCushions = true;
+	bool anyCushions = false;
+
 	bool terrainBaseSet = false;
 	bool warnUnused = false;
 
@@ -328,6 +370,7 @@ int wmain(int argc, wchar_t* argv[])
 	initializeChestGrid(&gChestGrid);
 	initializeDecoratedPotGrid(&gPotGrid);
 	initializeChestGrid(&gShelfGrid);
+	initializeChestGrid(&gCushionGrid);
 
 	wcscpy_s(terrainBase, MAX_PATH_AND_FILE, BASE_INPUT_FILENAME);
 	wcscpy_s(terrainExtOutputTemplate, MAX_PATH_AND_FILE, OUTPUT_FILENAME);
@@ -594,9 +637,10 @@ int wmain(int argc, wchar_t* argv[])
 		//  "chest" or "chests" - look for chest names and fill in
 		//  "decorated_pot" or "decorated_pots" - look for decorated pot names and fill in
 		//  "shelf" - look for shelf names and fill in
+		//  "cushion" - look for cushion names and fill in
 		//  "item" or "items" - look for barrier.png, only
 		// If it's none of these, then look through it for directories. Ignore '.' and '..'. Recursively search directories for more directories.
-		int fileCount = searchDirectoryForTiles(&gFG, &gChestGrid, &gPotGrid, &gShelfGrid, *inputDirectoryPtr, wcslen(*inputDirectoryPtr), verbose, alternate, true, warnUnused, warnDups);
+		int fileCount = searchDirectoryForTiles(&gFG, &gChestGrid, &gPotGrid, &gShelfGrid, &gCushionGrid, *inputDirectoryPtr, wcslen(*inputDirectoryPtr), verbose, alternate, true, warnUnused, warnDups);
 		warnDups = false;
 		if (fileCount < 0) {
 			swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR: cannot access the directory '%s' (Windows error code # %d). Ignoring directory.\n", *inputDirectoryPtr, GetLastError());
@@ -610,7 +654,7 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
 	// any data found? Not needed if forcing a tile size (resizing the base texture).
-	if ((forcedTileSize == 0) && (gFG.fileCount <= 0 && gChestGrid.chestCount <= 0 && gPotGrid.decoratedPotCount <= 0 && gShelfGrid.chestCount <= 0)) {
+	if ((forcedTileSize == 0) && (gFG.fileCount <= 0 && gChestGrid.chestCount <= 0 && gPotGrid.decoratedPotCount <= 0 && gShelfGrid.chestCount <= 0 && gCushionGrid.chestCount <= 0)) {
 		wprintf(L"***** ERROR: no textures were read in for replacing. Nothing to do!\n  Put your new textures in the 'blocks' directory, or use\n  the '-d directory' command line option to say where your new textures are.\n");
 		return 1;
 	}
@@ -679,6 +723,22 @@ int wmain(int argc, wchar_t* argv[])
 				}
 				else {
 					overlayShelfSize = size;
+				}
+			}
+		}
+	}
+
+	// check over cushion tiles' power of twos, to see if any are in error
+	for (catIndex = 0; catIndex < gCushionGrid.totalCategories; catIndex++) {
+		for (index = 0; index < gCushionGrid.totalTiles; index++) {
+			fullIndex = catIndex * gCushionGrid.totalTiles + index;
+			if (gCushionGrid.cr[fullIndex].exists) {
+				size = checkFileWidth(&gCushionGrid.cr[fullIndex], overlayCushionSize, false, false, -1, 0, 0, 0);
+				if (size == 0) {
+					deleteChestFromGrid(&gCushionGrid, fullIndex / gCushionGrid.totalTiles, fullIndex);
+				}
+				else {
+					overlayCushionSize = size;
 				}
 			}
 		}
@@ -1460,6 +1520,27 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 				transferChestData(catIndex, numShelfs, allShelfs, anyShelfs, shelf, gShelfGrid, gShelfNames, destination_ptr, filesProcessed, channels, normalsZoom, verbose, rc);
 			}
 
+			// Cushions, like chests: repack each color's entity texture into its span of tiles
+			bool cushion_exists = false;
+			for (ic = 0; ic < TOTAL_CUSHION_TILES; ic++) {
+				if (gCushionGrid.cr[ic + catIndex * gCushionGrid.totalTiles].exists) {
+					cushion_exists = true;
+					break;
+				}
+			}
+			if (cushion_exists && (gCushionGrid.chestCount > 0))
+			{
+				for (int icu = 0; icu < TOTAL_CUSHION_TILES; icu++) {
+					for (int ip = 0; ip < CUSHION_COPIES; ip++) {
+						gCushions[icu][ip] = gCushionData[ip];
+						gCushions[icu][ip].txrX += 2 * (icu % 8);
+						gCushions[icu][ip].txrY += 2 * (icu / 8);
+					}
+					gCushion[icu].data = gCushions[icu];
+				}
+				transferChestData(catIndex, TOTAL_CUSHION_TILES, allCushions, anyCushions, gCushion, gCushionGrid, gCushionNames, destination_ptr, filesProcessed, channels, normalsZoom, verbose, rc);
+			}
+
 			// Note: done for all categories
 			// Test if any decorated pot exists for this category.
 			// Really, there's just one tile which makes four textures, MW_decorated_pot_base[1-4], so do things manually
@@ -1704,7 +1785,7 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 
 	// warn user that nothing was done
 	// 3 is the number of MW_*.png files that are sometimes used with TileMaker
-	if (gFG.fileCount <= 3 && !anyChests && !anyPots && !anyShelfs) {
+	if (gFG.fileCount <= 3 && !anyChests && !anyPots && !anyShelfs && !anyCushions) {
 		wprintf(L"SERIOUS WARNING: It's likely no real work was done. To use TileMaker, you need to put\n  all the images from your resource pack's 'assets\\minecraft\\textures'\n  block and entity\\chest directories into TileMaker's 'blocks' and\n  'blocks\\chest' directories. See http://mineways.com for more about TileMaker.\n");
 		gWarningCount++;
 	}
@@ -1714,6 +1795,10 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 	}
 	else if (!allShelfs) {
 		wprintf(L"WARNING: Not all relevant shelf images were found in the 'blocks\\shelf' directory.\n  TileMaker worked, but you can add shelf images if you like.\n  Copy these texture resources from Minecraft's jar-file\n  'assets\\minecraft\\textures' directory to\n  Mineways' subdirectory blocks\\shelf.\n");
+		gWarningCount++;
+	}
+	else if (!allCushions) {
+		wprintf(L"WARNING: Not all relevant cushion images were found in the 'blocks\\cushion' directory.\n  TileMaker worked, but you can add cushion images if you like.\n  Copy these texture resources from Minecraft's jar-file\n  'assets\\minecraft\\textures\\entity\\cushion' directory to\n  Mineways' subdirectory blocks\\cushion.\n");
 		gWarningCount++;
 	}
 

@@ -2005,6 +2005,8 @@ void makeHashTable()
         mask_array[BLOCK_WALL_SIGN] |= SIGN_WOOD_MASK;
         mask_array[BLOCK_HANGING_SIGN] |= SIGN_WOOD_MASK;
         mask_array[BLOCK_WALL_HANGING_SIGN] |= SIGN_WOOD_MASK;
+        // cushions are entities, not in BlockTranslations[]: their color is in bits 0xF
+        mask_array[BLOCK_CUSHION] |= 0xF;
         // really, these should all be set properly already, but might as well make sure...
         for (i = 0; i < NUM_BLOCKS_DEFINED; i++) {
             // if you hit this assert, set the proper subtype_mask to be equal to mask_array's value here.
@@ -3791,6 +3793,107 @@ SectionsCode:
         }
     }
     return returnCode;
+}
+
+// Read the cushions in an entity chunk (from an "entities" region file): each entity of the chunk's "Entities" list with the id
+// "minecraft:cushion" gives its "block_pos", its "color", and its "Rotation" yaw, turned into a facing, a multiple of 90 degrees.
+// Returns the number of cushions found.
+int nbtGetCushions(bfFile* pbf, CushionEntity* cushions, int maxCushions)
+{
+    static const char* colorNames[16] = { "white", "orange", "magenta", "light_blue", "yellow", "lime", "pink", "gray",
+        "light_gray", "cyan", "purple", "blue", "brown", "green", "red", "black" };
+    int numCushions = 0;
+
+    // skip the root compound's type and name
+    if (bfseek(pbf, 1, SEEK_CUR) < 0)
+        return 0;
+    int len = readWord(pbf);
+    if (bfseek(pbf, len, SEEK_CUR) < 0)
+        return 0;
+    if (nbtFindElement(pbf, (char*)"Entities") != 9)
+        return 0;
+    unsigned char elementType = 0;
+    if (bfread(pbf, &elementType, 1) < 0)
+        return 0;
+    int count = readInt(pbf);
+    // an empty list may have the element type TAG_End
+    if (elementType != 10)
+        return 0;
+
+    for (int i = 0; i < count; i++) {
+        bool isCushion = false;
+        bool havePos = false;
+        int color = 0;
+        float yaw = 0.0f;
+        int pos[3] = { 0, 0, 0 };
+        // read the entity's fields, in whatever order they come
+        for (;;) {
+            unsigned char type = 0;
+            if (bfread(pbf, &type, 1) < 0)
+                return numCushions;
+            if (type == 0)
+                break;
+            char name[MAX_NAME_LENGTH];
+            len = readWord(pbf);
+            if (len >= MAX_NAME_LENGTH || bfread(pbf, name, len) < 0)
+                return numCushions;
+            name[len] = 0;
+            if (type == 8 && (strcmp(name, "id") == 0 || strcmp(name, "color") == 0)) {
+                char value[MAX_NAME_LENGTH];
+                len = readWord(pbf);
+                if (len >= MAX_NAME_LENGTH || bfread(pbf, value, len) < 0)
+                    return numCushions;
+                value[len] = 0;
+                if (name[0] == 'i') {
+                    isCushion = (strcmp(value, "minecraft:cushion") == 0);
+                }
+                else {
+                    for (int c = 0; c < 16; c++) {
+                        if (strcmp(value, colorNames[c]) == 0)
+                            color = c;
+                    }
+                }
+            }
+            else if (type == 11 && strcmp(name, "block_pos") == 0) {
+                int n = readInt(pbf);
+                for (int k = 0; k < n; k++) {
+                    int v = readInt(pbf);
+                    if (k < 3)
+                        pos[k] = v;
+                }
+                havePos = (n == 3);
+            }
+            else if (type == 9 && strcmp(name, "Rotation") == 0) {
+                // a list of floats: yaw, then pitch
+                unsigned char listType = 0;
+                if (bfread(pbf, &listType, 1) < 0)
+                    return numCushions;
+                int n = readInt(pbf);
+                for (int k = 0; k < n; k++) {
+                    if (listType == 5) {
+                        unsigned int bits = readDword(pbf);
+                        if (k == 0)
+                            memcpy(&yaw, &bits, sizeof(float));
+                    }
+                    else if (skipType(pbf, listType) < 0) {
+                        return numCushions;
+                    }
+                }
+            }
+            else if (skipType(pbf, type) < 0) {
+                return numCushions;
+            }
+        }
+        if (isCushion && havePos && numCushions < maxCushions) {
+            int facing = ((int)floor(yaw / 90.0f + 0.5f)) & 0x3;
+            cushions[numCushions].x = pos[0];
+            cushions[numCushions].y = pos[1];
+            cushions[numCushions].z = pos[2];
+            cushions[numCushions].dataVal = color | (facing << 4);
+            numCushions++;
+        }
+    }
+    return numCushions;
 }
 
 static int readBlockData(bfFile* pbf, int& bigbufflen, unsigned char *bigbuff)

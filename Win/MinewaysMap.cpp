@@ -43,6 +43,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int topy, in
     ProgressCallback callback, float percent, float & pctprogress, int* hitsFound, int mcVersion, int versionID, int& retCode);
 static void blit(unsigned char* block, unsigned char* bits, int px, int py, double zoom, int w, int h);
 static WorldBlock* determineMaxFilledHeight(WorldBlock* block);
+static void addCushions(wchar_t* directory, int cx, int cz, WorldBlock* block);
 static int createBlockFromSchematic(WorldGuide* pWorldGuide, int cx, int cz, WorldBlock* block);
 static void initColors();
 static void saveBadChunkLocation(int bx, int bz);
@@ -1708,6 +1709,12 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         strcpy_s(gConcatString, 100, (type == BLOCK_WOOL_DOUBLE_SLAB) ? "Double " : "");
         strcat_s(gConcatString, 100, gConcreteWoolColorNames[CONCRETE_WOOL_SLAB_COLOR_INDEX(dataVal)]);
         strcat_s(gConcatString, 100, " Wool Slab");
+        return gConcatString;
+
+    case BLOCK_CUSHION:
+        // the color is in bits 0xF, as for wool
+        strcpy_s(gConcatString, 100, gConcreteWoolColorNames[dataVal & 0xF]);
+        strcat_s(gConcatString, 100, " Cushion");
         return gConcatString;
 
     case BLOCK_SHELF_MUSHROOM:
@@ -3568,6 +3575,9 @@ unsigned int GetBlockDataColor(int type, int dataVal)
     case BLOCK_WOOL_DOUBLE_SLAB:
     case BLOCK_WOOL_SLAB:
         return gWoolColors[CONCRETE_WOOL_SLAB_COLOR_INDEX(dataVal)];
+
+    case BLOCK_CUSHION:
+        return gWoolColors[dataVal & 0xF];
 
     case BLOCK_CUT_COPPER_DOUBLE_SLAB:
     case BLOCK_CUT_COPPER_SLAB:
@@ -6635,6 +6645,12 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
 
+    case BLOCK_CUSHION:
+        // the 16 colors, cycling through the four facings
+        addBlock = 1;
+        finalDataVal = dataVal | ((dataVal & 0x3) << 4);
+        break;
+
     case BLOCK_WALL_SIGN:
         // the four facings, 2-5, each four times, cycling through the woods
         {
@@ -8210,6 +8226,11 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
             if (retCode >= NBT_VALID_BUT_EMPTY) {
                 block->blockType = retCode & 0x3;
 
+                // cushions are entities, kept in the "entities" region files: put each into its place in the block
+                if (block->blockType == NBT_VALID_BLOCK) {
+                    addCushions(pWorldGuide->directory, cx, cz, block);
+                }
+
                 // for old-style chunks, there may be tile entities, such as flower and head types, which need to get transferred and used later
                 if ((retCode == NBT_VALID_BLOCK) && (block->numEntities > 0)) {
                     // transfer the relevant part of the BlockEntity array to permanent block storage
@@ -8264,6 +8285,31 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
 
     block_free(block);
     return NULL;
+}
+
+// Cushions are entities, not blocks, stored in the "entities" region files. Mineways treats each as a block, BLOCK_CUSHION, at its
+// "block_pos", if that location is empty. A cushion resting on a partial block, such as a slab or carpet, shares that block's
+// location, so it is not added.
+static void addCushions(wchar_t* directory, int cx, int cz, WorldBlock* block)
+{
+    static CushionEntity cushions[MAX_CUSHIONS_PER_CHUNK];
+    int count = regionGetCushions(directory, cx, cz, cushions, MAX_CUSHIONS_PER_CHUNK);
+    for (int i = 0; i < count; i++) {
+        int x = cushions[i].x - cx * 16;
+        int z = cushions[i].z - cz * 16;
+        int y = cushions[i].y - block->minHeight;
+        if (x < 0 || x > 15 || z < 0 || z > 15 || y < 0 || y >= block->heightAlloc)
+            continue;
+        int index = BLOCK_INDEX(x, y, z);
+        if (BLOCK_TYPE_FROM_GRID_DATA(block->grid[index], block->data[index]) != BLOCK_AIR)
+            continue;
+        block->grid[index] = (unsigned char)(BLOCK_CUSHION & 0xFF);
+        block->data[index] = PACK_TYPE_EXT_AND_DATAVAL(BLOCK_CUSHION, cushions[i].dataVal);
+        // the section holding the cushion may otherwise be empty
+        if (y > block->maxFilledSectionHeight) {
+            block->maxFilledSectionHeight = min(block->heightAlloc - 1, y | 0xF);
+        }
+    }
 }
 
 static WorldBlock* determineMaxFilledHeight(WorldBlock* block)

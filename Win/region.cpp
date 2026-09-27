@@ -71,7 +71,8 @@ deflated data is the chunk length - 1.
 static z_stream strm;
 static int strm_initialized = 0;
 
-static int regionPrepareBuffer(bfFile & bf, wchar_t* directory, int cx, int cz)
+// subdirectory is "region" for the blocks, "entities" for the entities (1.17 on)
+static int regionPrepareBuffer(bfFile & bf, wchar_t* directory, const wchar_t* subdirectory, int cx, int cz)
 {
     wchar_t filename[256];
     PORTAFILE regionFile;
@@ -86,7 +87,7 @@ static int regionPrepareBuffer(bfFile & bf, wchar_t* directory, int cx, int cz)
     int status;
 
     // open the region file - note we get the new mca 1.2 file type here!
-    swprintf_s(filename, 256, L"%sregion/r.%d.%d.mca", directory, cx >> 5, cz >> 5);
+    swprintf_s(filename, 256, L"%s%s/r.%d.%d.mca", directory, subdirectory, cx >> 5, cz >> 5);
 
     regionFile = PortaOpen(filename);
     // this error means that we're trying to open an .mca that doesn't actually exist;
@@ -169,7 +170,7 @@ int regionGetBlocks(wchar_t* directory, int cx, int cz, unsigned char* block, un
 {
     bfFile bf;
 
-    int errCode = regionPrepareBuffer(bf, directory, cx, cz);
+    int errCode = regionPrepareBuffer(bf, directory, L"region", cx, cz);
     if (errCode <= 0) {
         // failed
         return errCode < 0 ? ERROR_INFLATE : 0;
@@ -182,13 +183,26 @@ int regionTestHeights(wchar_t* directory, int& minHeight, int& maxHeight, int mc
 {
     bfFile bf;
 
-    int errCode = regionPrepareBuffer(bf, directory, cx, cz);
+    int errCode = regionPrepareBuffer(bf, directory, L"region", cx, cz);
     if (errCode <= 0) {
         // failed
         return errCode < 0 ? ERROR_INFLATE : 0;
     }
 
     return nbtGetHeights(&bf, minHeight, maxHeight, mcVersion);
+}
+
+int regionGetCushions(wchar_t* directory, int cx, int cz, CushionEntity* cushions, int maxCushions)
+{
+    bfFile bf;
+
+    int errCode = regionPrepareBuffer(bf, directory, L"entities", cx, cz);
+    if (errCode <= 0) {
+        // no entities for this chunk, or an error
+        return 0;
+    }
+
+    return nbtGetCushions(&bf, cushions, maxCushions);
 }
 
 void regionCleanup()

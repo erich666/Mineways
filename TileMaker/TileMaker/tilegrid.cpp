@@ -71,7 +71,7 @@ void addBackslashIfNeeded(wchar_t* dir, size_t dirSize)
 // return negative number for error type;
 // otherwise returns number of files that we care about, i.e., ones that we'll want to read in later. Note: this number includes duplicates,
 // but does not include tiles that we simply don't care about (on the gUnneeded list).
-int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, ChestGrid* psg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, bool topmost, bool warnUnused, bool warnDups)
+int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, ChestGrid* psg, ChestGrid* pcushg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, bool topmost, bool warnUnused, bool warnDups)
 {
 	int filesProcessed = 0;
 	int filesSubProcessed = 0;
@@ -104,6 +104,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg
 		bool chestFound = false;
 		bool decoratedPotFound = false;
 		bool shelfFound = false;
+		bool cushionFound = false;
 		do {
 			if (verbose) {
 				wprintf(L"File %s in directory %s being examined.\n", ffd.cFileName, tilePath);
@@ -125,7 +126,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg
 				wcscat_s(subdir, MAX_PATH_AND_FILE, ffd.cFileName);
 				addBackslashIfNeeded(subdir, MAX_PATH_AND_FILE);
 
-				int fileCount = searchDirectoryForTiles(pfg, pcg, ppg, psg, subdir, origTPLen, verbose, alternate, false, warnUnused, warnDups);
+				int fileCount = searchDirectoryForTiles(pfg, pcg, ppg, psg, pcushg, subdir, origTPLen, verbose, alternate, false, warnUnused, warnDups);
 				if (fileCount < 0) {
 					// error, cannot read subdirectory for some reason - we just ignore it for now; main test is the top directory test, above.
 					//return -2;
@@ -200,12 +201,23 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg
 					}
 				}
 
+				// cushion - check cushion subdirectory (textures\entity\cushion), if any
+				if (used == 0) {
+					if (topmost || wcsstr(tilePathAppended + origTPLen, L"cushion") != NULL) {
+						used = testIfChestFile(pcushg, TOTAL_CUSHION_TILES, L"cushion", gCushionNames, gCushionNamesAlt, tilePathAppended, ffd.cFileName, verbose) ? 1 : 0;
+						if (used) {
+							filesProcessed++;
+							cushionFound = true;
+						}
+					}
+				}
+
 				// squirrelly: have we already found some useful PNG in this directory, and is this not a chest or decorated pot directory?
 				// 
 				if (!used) {
 					int flag = 0x0;
 					int imageFileType = isImageFile(ffd.cFileName);
-					if (filesProcessed > 0 && !chestFound && !decoratedPotFound && !shelfFound && (imageFileType == PNG_EXTENSION_FOUND || imageFileType == TGA_EXTENSION_FOUND)) {
+					if (filesProcessed > 0 && !chestFound && !decoratedPotFound && !shelfFound && !cushionFound && (imageFileType == PNG_EXTENSION_FOUND || imageFileType == TGA_EXTENSION_FOUND)) {
 						// we already found some good files in this directory, so don't use this unused one.
 						//wprintf(L"WARNING: The file '%s' in directory '%s' is not recognized and so is not used.\n", ffd.cFileName, tilePath);
 					}

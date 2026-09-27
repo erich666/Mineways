@@ -76,6 +76,11 @@ static const wchar_t* gShelfNames[] = { L"acacia_shelf", L"birch_shelf", L"cherr
 	L"jungle_shelf", L"mangrove_shelf", L"oak_shelf", L"pale_oak_shelf", L"warped_shelf", L"bamboo_shelf", L"spruce_shelf", L"poplar_shelf" };
 static const wchar_t* gShelfNamesAlt[] = { L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"" };
 
+// cushions, from textures\entity\cushion, in the order of the dye colors
+#define TOTAL_CUSHION_TILES	16
+static const wchar_t* gCushionNames[] = { L"white_cushion", L"orange_cushion", L"magenta_cushion", L"light_blue_cushion", L"yellow_cushion", L"lime_cushion", L"pink_cushion", L"gray_cushion", L"light_gray_cushion", L"cyan_cushion", L"purple_cushion", L"blue_cushion", L"brown_cushion", L"green_cushion", L"red_cushion", L"black_cushion" };
+static const wchar_t* gCushionNamesAlt[] = { L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"" };
+
 typedef struct ChestGrid {
 	int chestCount;
 	int totalCategories;
@@ -87,6 +92,8 @@ typedef struct ChestGrid {
 static ChestGrid gChestGrid;
 // very stupid code! Shares ChestGrid, but "cr" is not properly allocated for shelfs (but there are more chests than shelves, so it works). UGH.
 static ChestGrid gShelfGrid;
+// cushions, too, share ChestGrid (there are fewer cushions than chests)
+static ChestGrid gCushionGrid;
 
 typedef struct DecoratedPotGrid {
 	int decoratedPotCount;
@@ -102,7 +109,7 @@ void initializeFileGrid(FileGrid* pfg);
 void initializeChestGrid(ChestGrid* pcg);
 void initializeDecoratedPotGrid(DecoratedPotGrid* ppg);
 void addBackslashIfNeeded(wchar_t* dir, size_t dirSize);
-int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, ChestGrid *psg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, bool topmost, bool warnUnused, bool warnDups);
+int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, ChestGrid *psg, ChestGrid* pcushg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, bool topmost, bool warnUnused, bool warnDups);
 bool dirExists(const wchar_t* path);
 bool createDir(const wchar_t* path);
 int checkTilesInDirectory(FileGrid* pfg, const wchar_t* tilePath, int verbose, int alternate);

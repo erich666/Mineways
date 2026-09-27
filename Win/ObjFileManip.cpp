@@ -877,6 +877,9 @@ static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc,
 // rows 8-11, eight woods (SIGN_WOOD(), the order of gSignWoods[]) to each pair of rows, from column 16.
 #define SIGN_TEXTURE_ANCHOR(wood, hanging) TILE_TO_SWATCH(16 + 2 * ((wood) % 8), ((hanging) ? 8 : 4) + 2 * ((wood) / 8))
 static int saveSignModel(int boxIndex, int type, int dataVal, bool hanging, const ModelElement* elements, int elementCount, float yAngle);
+static int saveTurnedModel(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, float yAngle);
+// The terrain tile anchor of a cushion's 32x32 texture (see tiles.h), for its color: eight colors to each pair of rows, from column 16, row 12.
+#define CUSHION_TEXTURE_ANCHOR(color) TILE_TO_SWATCH(16 + 2 * ((color) % 8), 12 + 2 * ((color) / 8))
 static int saveBoxModelFace(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int anchorLoc, const float uv[4], int rotation);
 static int saveSpanTextureUV(int anchorLoc, int type, float su, float sv);
 static int findFaceDimensions(float rect[4], int faceDirection, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
@@ -3526,6 +3529,9 @@ static int filterBox(ChangeBlockCommand* pCBC)
                                 retVal = saveBillboardOrGeometry(boxIndex, type);
                                 if (retVal == 1)
                                 {
+                                    // successfully saved a billboard or flattenable geometry, e.g. a flower, carpet, or cushion - count it just once
+                                    gModel.billboardCount++;
+
                                     // this block is then cleared out, since it's been processed.
                                     if (IS_WATERLOGGED(type, boxIndex)) {
                                         // clears to water if waterlogged, e.g., seagrass.
@@ -4129,6 +4135,7 @@ static int computeFlatFlags(int boxIndex)
     case BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY:
     case BLOCK_SNOW:
     case BLOCK_CARPET:
+    case BLOCK_CUSHION:
     case BLOCK_REDSTONE_REPEATER_OFF:
     case BLOCK_REDSTONE_REPEATER_ON:
     case BLOCK_REDSTONE_COMPARATOR:
@@ -5847,6 +5854,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                     // Almost all blocks with a "full bottom" cover but do not create a post.
                     else if ((gBlockDefinitions[neighborType].flags & (BLF_WHOLE| BLF_STAIRS| BLF_HALF)) ||
                         (neighborType == BLOCK_CARPET) ||
+                        (neighborType == BLOCK_CUSHION) ||
                         (neighborType == BLOCK_SCULK_SHRIEKER) ||
                         (neighborType == BLOCK_SCULK_SENSOR) ||
                         (neighborType == BLOCK_FROGLIGHT)
@@ -6554,6 +6562,27 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             transformVertices(8, mtx);
         }
         break; // saveBillboardOrGeometry
+
+    case BLOCK_CUSHION:						// saveBillboardOrGeometry
+    {
+        // A cushion is an entity (see addCushions() in MinewaysMap.cpp), a 16x4x16 box, textured by its color's 32x32 image, which TileMaker
+        // repacks from entity\cushion\*_cushion.png's box layout: the top, then the bottom, then, below the top, the four 16x4 sides,
+        // from the entity texture's u 0-16, 16-32, 32-48, 48-64. Entity models are drawn flipped in X and Y, so these are the world's
+        // east, north, west, and south sides, and the top and bottom are each turned 180 degrees.
+        static const ModelElement cushionElements[] = {
+            { { 0.0f, 0.0f, 0.0f }, { 16.0f, 4.0f, 16.0f }, 6, {
+                { DIRECTION_BLOCK_TOP, { 8.0f, 8.0f, 0.0f, 0.0f }, 0 },
+                { DIRECTION_BLOCK_BOTTOM, { 16.0f, 0.0f, 8.0f, 8.0f }, 0 },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0.0f, 8.0f, 8.0f, 10.0f }, 0 },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 10.0f, 8.0f, 12.0f }, 0 },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0.0f, 12.0f, 8.0f, 14.0f }, 0 },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0.0f, 14.0f, 8.0f, 16.0f }, 0 }
+            } },
+        };
+        // bits 0x30 are the facing, yaw / 90, which turns clockwise, seen from above
+        saveTurnedModel(boxIndex, type, dataVal, CUSHION_TEXTURE_ANCHOR(dataVal & 0xF), cushionElements, sizeof(cushionElements) / sizeof(ModelElement), 90.0f * (float)((dataVal >> 4) & 0x3));
+    }
+    break; // saveBillboardOrGeometry
 
     case BLOCK_CARPET:						// saveBillboardOrGeometry
         // if printing and the location below the carpet is empty, then don't make carpet (it'll be too thin)
@@ -14353,17 +14382,23 @@ static int saveBoxModelFace(int startVertexIndex, int type, int dataVal, int fac
     return saveBoxFaceUVs(type, dataVal, faceDirection, markFirstFace, startVertexIndex, vindex, uvIndices);
 }
 
-// Save a sign's model, as given in Minecraft's JSON, textured by its wood's 32x32 sign or hanging sign texture, then turn it yAngle degrees
-// about Y (as rotateMtx turns it, clockwise seen from above) into place.
+// Save a sign's model, as given in Minecraft's JSON, textured by its wood's 32x32 sign or hanging sign texture, turned yAngle degrees about Y.
 static int saveSignModel(int boxIndex, int type, int dataVal, bool hanging, const ModelElement* elements, int elementCount, float yAngle)
 {
     int wood = SIGN_WOOD(dataVal);
     if (wood >= NUM_SIGN_WOODS)
         wood = 0;
+    return saveTurnedModel(boxIndex, type, dataVal, SIGN_TEXTURE_ANCHOR(wood, hanging), elements, elementCount, yAngle);
+}
+
+// Save a model, as given in Minecraft's JSON, textured by the (possibly multi-tile) image at anchorLoc, then turn it yAngle degrees
+// about Y (as rotateMtx turns it, clockwise seen from above) into place.
+static int saveTurnedModel(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, float yAngle)
+{
     float mtx[4][4];
     int vertexCount = gModel.vertexCount;
     gUsingTransform = 1;
-    int retCode = saveModelElements(boxIndex, type, dataVal, SIGN_TEXTURE_ANCHOR(wood, hanging), elements, elementCount, yAngle);
+    int retCode = saveModelElements(boxIndex, type, dataVal, anchorLoc, elements, elementCount, yAngle);
     vertexCount = gModel.vertexCount - vertexCount;
     identityMtx(mtx);
     translateToOriginMtx(mtx, boxIndex);
@@ -14927,6 +14962,10 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
 
             case BLOCK_CARPET:
                 setTop = 1;
+                break;
+
+            case BLOCK_CUSHION:
+                setTop = 4;
                 break;
 
             case BLOCK_END_PORTAL_FRAME:
@@ -20180,6 +20219,7 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_STATIONARY_LAVA:			        // lesserBlockCoversWholeFace
         case BLOCK_SNOW:
         case BLOCK_CARPET:
+        case BLOCK_CUSHION:
         case BLOCK_END_PORTAL_FRAME:
         case BLOCK_FARMLAND:
         case BLOCK_REDSTONE_REPEATER_OFF:
@@ -24472,6 +24512,15 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             }
             break;
+        case BLOCK_CUSHION:						// getSwatch
+            // the color's 32x32 image: the top is at its upper left tile, the bottom to its right, the sides below the top
+            swatchLoc = CUSHION_TEXTURE_ANCHOR(dataVal & 0xF);
+            if (faceDirection == DIRECTION_BLOCK_BOTTOM)
+                swatchLoc++;
+            else if (faceDirection != DIRECTION_BLOCK_TOP)
+                swatchLoc += 16;
+            break;
+
         case BLOCK_CARPET:						// getSwatch
             if (dataVal & 0x10) {
                 swatchLoc = SWATCH_INDEX(2, 52);
