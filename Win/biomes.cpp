@@ -96,7 +96,7 @@ Biome gBiomes[256] = {	// IMPORTANT: do not change 256 size here.
     { /*  53 */ "Mangrove Swamp",			0.8f, 0.9f, 0x92BD59, 0x8DB127 },  // not actually this number, added in 1.19, have to put it somewhere; foliage color changed via JSON file, but really, change happens in ComputeBiomeColor()
     { /*  54 */ "Deep Dark",    			0.8f, 0.4f, 0x92BD59, 0x77AB2F },  // not actually this number, added in 1.19, have to put it somewhere
     { /*  55 */ "Cherry Grove",				0.5f, 0.8f, 0xB6DB61, 0xB6DB61 },  // not actually this number, added in 1.19, have to put it somewhere; color for plants from https://minecraft.wiki/w/Biome#Temperature, confirmed with JSON file. but really, change happens in ComputeBiomeColor()
-    { /*  56 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
+    { /*  56 */ "Dappled Forest",			0.6f, 0.6f, 0xDF6827, 0xE68E30 },  // not actually this number, added in 26.3, have to put it somewhere; colors from its worldgen/biome JSON file, but really, change happens in ComputeBiomeColor()
     { /*  57 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /*  58 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
     { /*  59 */ "Unknown Biome",				0.8f, 0.4f, 0x92BD59, 0x77AB2F },
@@ -454,6 +454,10 @@ int ComputeBiomeColor(int biome, int elevation, int foliageType)
         // yes, it's hard-wired, same for both, brighter green, see https://minecraft.wiki/w/Biome
         // sadly, no foliageType 2 is shown on the page, so I guess
         return (foliageType == 2) ? 0xC59E61 : (foliageType ? 0xb6db61 : 0xb6db61);
+
+    case DAPPLED_FOREST_BIOME:
+        // hard-wired autumn colors, from 26.3's data/minecraft/worldgen/biome/dappled_forest.json "effects"
+        return (foliageType == 2) ? 0x8c3a04 : (foliageType ? 0xdf6827 : 0xe68e30);
 
     default:
         return (foliageType == 2) ? BiomeDryFoliageColor(gBiomes[biome].temperature, gBiomes[biome].rainfall, elevation) :

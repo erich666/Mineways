@@ -53,6 +53,8 @@ int BiomeSwampRiverColor(int color);
 
 #define CHERRY_GROVE_BIOME          55
 
+#define DAPPLED_FOREST_BIOME        56
+
 // higher values theoretically possible if Bedrock conversion went bad, but this is the realistic value
 #define MAX_VALID_BIOME_ID          182
 
