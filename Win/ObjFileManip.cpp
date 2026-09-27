@@ -12587,45 +12587,18 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         }
         break; // saveBillboardOrGeometry
 
-    case BLOCK_OAK_WALL_HANGING_SIGN:						// saveBillboardOrGeometry
+    case BLOCK_WALL_HANGING_SIGN:						// saveBillboardOrGeometry
         // three main elements:
         // sign itself - stripped logs are used
         // chains - always vertical
         // bar above sign - uses both stripped and iron bits from some tile...
         // Sorry, we don't use the sign textures in textures\entity\signs
-        switch (dataVal & (0xC | BIT_16 | BIT_32))
+        // The wood is in SIGN_WOOD_MASK.
         {
-        default:
-            assert(0);
-        case 0:
-        case 1 << 2:	// spruce
-        case 2 << 2:	// birch
-        case 3 << 2:	// jungle
-        case 4 << 2:	// acacia
-        case 5 << 2:	// dark oak
-            swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + ((dataVal & (0xC | BIT_8 | BIT_16)) >> 2);
-            break;
-        case 6 << 2:   // crimson
-            swatchLoc = SWATCH_INDEX(13, 43);
-            break;
-        case 7 << 2:   // warped
-            swatchLoc = SWATCH_INDEX(13, 44);
-            break;
-        case 8 << 2:    // mangrove
-            swatchLoc = SWATCH_INDEX(15, 54);
-            break;
-        case 9 << 2:	// cherry
-            swatchLoc = SWATCH_INDEX(8, 59);
-            break;
-        case 10 << 2:	// bamboo - pick mosaic so it's less obviously wrong
-            swatchLoc = SWATCH_INDEX(11, 60);
-            break;
-        case 11 << 2:	// pale oak
-            swatchLoc = SWATCH_INDEX(8, 67);
-            break;
-        case 12 << 2:	// poplar - stripped log
-            swatchLoc = SWATCH_INDEX(14, 79);
-            break;
+            int wood = SIGN_WOOD(dataVal);
+            if (wood >= NUM_SIGN_WOODS)
+                wood = 0;
+            swatchLoc = SWATCH_INDEX(gSignWoods[wood].strippedX, gSignWoods[wood].strippedY);
         }
 
         gUsingTransform = 1;
@@ -12700,54 +12673,17 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
         break;
 
-    case BLOCK_OAK_HANGING_SIGN: // saveBillboardOrGeometry
-    case BLOCK_BIRCH_HANGING_SIGN: // saveBillboardOrGeometry
-    case BLOCK_ACACIA_HANGING_SIGN: // saveBillboardOrGeometry
-    case BLOCK_CRIMSON_HANGING_SIGN: // saveBillboardOrGeometry
-    case BLOCK_MANGROVE_HANGING_SIGN: // saveBillboardOrGeometry
-    case BLOCK_BAMBOO_HANGING_SIGN: // saveBillboardOrGeometry
-    case BLOCK_POPLAR_HANGING_SIGN: // saveBillboardOrGeometry
+    case BLOCK_HANGING_SIGN: // saveBillboardOrGeometry
         // two main elements:
         // sign itself - stripped logs are used
         // chains - vertical or angled, depending on attached (which gives diagonal)
         // Sorry, we don't use the sign textures in textures\entity\signs
-        swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-        switch (type) {
-        default:
-            assert(0);
-        case BLOCK_OAK_HANGING_SIGN:
-            if (dataVal & BIT_32) {
-                swatchLoc++;    // spruce
-            }
-            break;
-        case BLOCK_BIRCH_HANGING_SIGN:
-            if (dataVal & BIT_32) {
-                swatchLoc++;    // jungle
-            }
-            break;
-        case BLOCK_ACACIA_HANGING_SIGN:
-            if (dataVal & BIT_32) {
-                swatchLoc++;    // dark oak
-            }
-            break;
-        case BLOCK_CRIMSON_HANGING_SIGN:
-            if (dataVal & BIT_32) {
-                swatchLoc += 16;    // warped is next row down
-            }
-            break;
-        case BLOCK_MANGROVE_HANGING_SIGN:
-            if (dataVal & BIT_32) {
-                swatchLoc = SWATCH_INDEX(8, 59);    // cherry
-            }
-            break;
-        case BLOCK_POPLAR_HANGING_SIGN:
-            // just the one kind, so the tile from the block definition is right
-            break;
-        case BLOCK_BAMBOO_HANGING_SIGN:
-            if (dataVal & BIT_32) {
-                swatchLoc = SWATCH_INDEX(8, 67);    // pale oak
-            }
-            break;
+        // The wood is in SIGN_WOOD_MASK.
+        {
+            int wood = SIGN_WOOD(dataVal);
+            if (wood >= NUM_SIGN_WOODS)
+                wood = 0;
+            swatchLoc = SWATCH_INDEX(gSignWoods[wood].strippedX, gSignWoods[wood].strippedY);
         }
 
         gUsingTransform = 1;
@@ -38073,14 +38009,8 @@ static bool faceCanTile(int faceId)
     case BLOCK_SPORE_BLOSSOM:
     case BLOCK_FROGSPAWN:
     case BLOCK_SNIFFER_EGG:
-    case BLOCK_OAK_WALL_HANGING_SIGN:
-    case BLOCK_OAK_HANGING_SIGN:
-    case BLOCK_BIRCH_HANGING_SIGN:
-    case BLOCK_ACACIA_HANGING_SIGN:
-    case BLOCK_CRIMSON_HANGING_SIGN:
-    case BLOCK_MANGROVE_HANGING_SIGN:
-    case BLOCK_BAMBOO_HANGING_SIGN:
-    case BLOCK_POPLAR_HANGING_SIGN:
+    case BLOCK_WALL_HANGING_SIGN:
+    case BLOCK_HANGING_SIGN:
     case BLOCK_HEAVY_CORE:
     case BLOCK_PINK_PETALS:
     case BLOCK_DRIED_GHAST:

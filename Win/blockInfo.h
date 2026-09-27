@@ -544,19 +544,26 @@ typedef struct BlockDefinition {
 extern BlockDefinition gBlockDefinitions[];
 
 // Standing signs of every wood are BLOCK_SIGN_POST, with the 16-way rotation in bits 0xF; wall signs of every wood are BLOCK_WALL_SIGN,
-// with the facing (2-5: north, south, west, east) in bits 0x7. For both, the wood is in bits 0x780 of dataVal, an index into gSignWoods[].
+// with the facing (2-5: north, south, west, east) in bits 0x7. Hanging signs of every wood are BLOCK_HANGING_SIGN, with the 16-way
+// rotation in bits 0xF and "attached" in bit 0x10; wall hanging signs of every wood are BLOCK_WALL_HANGING_SIGN, with the facing
+// (0-3: south, west, north, east) in bits 0x3. For all four, the wood is in bits 0x780 of dataVal, an index into gSignWoods[].
 #define SIGN_WOOD_SHIFT 7
 #define SIGN_WOOD_MASK (0xF << SIGN_WOOD_SHIFT)
 #define SIGN_WOOD(dataVal) (((dataVal) & SIGN_WOOD_MASK) >> SIGN_WOOD_SHIFT)
 #define NUM_SIGN_WOODS 13
+#define IS_SIGN_TYPE(type) ((type) == BLOCK_SIGN_POST || (type) == BLOCK_WALL_SIGN || (type) == BLOCK_HANGING_SIGN || (type) == BLOCK_WALL_HANGING_SIGN)
 typedef struct SignWood {
     const char* name;           // Minecraft's name prefix, e.g. "dark_oak" for dark_oak_sign and dark_oak_wall_sign
     const char* signName;       // e.g. "Dark Oak Sign"
     const char* wallSignName;   // e.g. "Dark Oak Wall Sign"
-    unsigned int color;         // map color
+    const char* hangingSignName;        // e.g. "Dark Oak Hanging Sign"
+    const char* wallHangingSignName;    // e.g. "Dark Oak Wall Hanging Sign"
+    unsigned int color;         // map color, standing and wall signs
+    unsigned int hangingColor;  // map color, hanging and wall hanging signs
     int planksX, planksY;       // tiles: planks, for the sign's board
     int logEndX, logEndY;       // end of log, for the post
     int barkX, barkY;           // log bark, for the post
+    int strippedX, strippedY;   // stripped log, for hanging signs
 } SignWood;
 extern const SignWood gSignWoods[NUM_SIGN_WOODS];
 
@@ -1016,13 +1023,9 @@ enum block_types {
     BLOCK_SNIFFER_EGG = 455,
     BLOCK_SUSPICIOUS_GRAVEL = 456,
     BLOCK_TORCHFLOWER_CROP = 457,
-    BLOCK_OAK_WALL_HANGING_SIGN = 458,
-    BLOCK_OAK_HANGING_SIGN = 459,
-    BLOCK_BIRCH_HANGING_SIGN = 460,
-    BLOCK_ACACIA_HANGING_SIGN = 461,
-    BLOCK_CRIMSON_HANGING_SIGN = 462,
-    BLOCK_MANGROVE_HANGING_SIGN = 463,
-    BLOCK_BAMBOO_HANGING_SIGN = 464,
+    BLOCK_WALL_HANGING_SIGN = 458,  // all woods, see SIGN_WOOD()
+    BLOCK_HANGING_SIGN = 459,       // all woods, see SIGN_WOOD()
+    // 460-464 are unused: they were birch/jungle, acacia/dark oak, crimson/warped, mangrove/cherry, and bamboo/pale oak hanging signs, now in BLOCK_HANGING_SIGN
     BLOCK_TRIAL_SPAWNER = 465,
     BLOCK_VAULT = 466,
     BLOCK_CRAFTER = 467,
@@ -1077,7 +1080,7 @@ enum block_types {
     BLOCK_POPLAR_FENCE_GATE = 516,
     BLOCK_POPLAR_TRAPDOOR = 517,
     // 518 and 519 are unused: they were poplar signs and wall signs, now in BLOCK_SIGN_POST and BLOCK_WALL_SIGN
-    BLOCK_POPLAR_HANGING_SIGN = 520,
+    // 520 is unused: it was poplar hanging signs, now in BLOCK_HANGING_SIGN
     BLOCK_WHITE_CONCRETE_STAIRS = 521,
     BLOCK_ORANGE_CONCRETE_STAIRS = 522,
     BLOCK_MAGENTA_CONCRETE_STAIRS = 523,

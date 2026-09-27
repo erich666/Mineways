@@ -2557,67 +2557,16 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         }
         break;
 
-    case BLOCK_OAK_WALL_HANGING_SIGN:
-        switch (dataVal & (0xC | BIT_16 | BIT_32))
-        {
-        default:
-            assert(0);
-        case 0:
-            break;
-            // return "Oak Wall Hanging Sign";
-        case 1 << 2:	// spruce
-            return "Spruce Wall Hanging Sign";
-        case 2 << 2:	// birch
-            return "Birch Wall Hanging Sign";
-        case 3 << 2:	// jungle
-            return "Jungle Wall Hanging Sign";
-        case 4 << 2:	// acacia
-            return "Acacia Wall Hanging Sign";
-        case 5 << 2:	// dark oak
-            return "Dark Oak Wall Hanging Sign";
-        case 6 << 2:
-            return "Crimson Wall Hanging Sign";
-        case 7 << 2:
-            return "Warped Wall Hanging Sign";
-        case 8 << 2:
-            return "Mangrove Wall Hanging Sign";
-        case 9 << 2:
-            return "Cherry Wall Hanging Sign";
-        case 10 << 2:
-            return "Bamboo Wall Hanging Sign";
-        case 11 << 2:
-            return "Pale Oak Wall Hanging Sign";
-        case 12 << 2:
-            return "Poplar Wall Hanging Sign";
-        }
+    case BLOCK_WALL_HANGING_SIGN:
+        // the wood is in SIGN_WOOD_MASK; oak keeps the default name, "Oak Wall Hanging Sign"
+        if (SIGN_WOOD(dataVal) > 0 && SIGN_WOOD(dataVal) < NUM_SIGN_WOODS)
+            return gSignWoods[SIGN_WOOD(dataVal)].wallHangingSignName;
         break;
 
-    case BLOCK_OAK_HANGING_SIGN:
-        if (dataVal & BIT_16)
-        {
-            return "Spruce Hanging Sign";
-        }
-        break;
-
-    case BLOCK_ACACIA_HANGING_SIGN:
-        if (dataVal & BIT_16)
-        {
-            return "Dark Oak Hanging Sign";
-        }
-        break;
-
-    case BLOCK_CRIMSON_HANGING_SIGN:
-        if (dataVal & BIT_16)
-        {
-            return "Warped Hanging Sign";
-        }
-        break;
-
-    case BLOCK_MANGROVE_HANGING_SIGN:
-        if (dataVal & BIT_16)
-        {
-            return "Cherry Hanging Sign";
-        }
+    case BLOCK_HANGING_SIGN:
+        // the wood is in SIGN_WOOD_MASK; oak keeps the default name, "Oak Hanging Sign"
+        if (SIGN_WOOD(dataVal) > 0 && SIGN_WOOD(dataVal) < NUM_SIGN_WOODS)
+            return gSignWoods[SIGN_WOOD(dataVal)].hangingSignName;
         break;
 
     case BLOCK_COPPER_BULB:
@@ -4279,66 +4228,11 @@ unsigned int GetBlockDataColor(int type, int dataVal)
             return 0xDACDA1;
         }
 
-    case BLOCK_OAK_WALL_HANGING_SIGN:
-        switch (dataVal & (0xC | BIT_16 | BIT_32))
-        {
-        default:
-        case 0:
-            return gBlockDefinitions[type].color;
-        case 1 << 2:	// spruce
-            return 0x745A35;
-        case 2 << 2:	// birch
-            return 0xC5B077;
-        case 3 << 2:	// jungle
-            return 0xAC8555;
-        case 4 << 2:	// acacia
-            return 0xAF5D3C;
-        case 5 << 2:	// dark oak
-            return 0x493924;
-        case 6 << 2:   // crimson
-            return 0x8A3A5A;
-        case 7 << 2:   // warped
-            return 0x3A9794;
-        case 8 << 2:    // mangrove
-            return 0x783730;
-        case 9 << 2:	// cherry
-            return 0xDDA7A0;
-        case 10 << 2:	// bamboo
-            return 0xC4AF52;
-        case 11 << 2:	// pale oak
-            return 0xE5DBDA;
-        case 12 << 2:	// poplar
-            return 0xA5998C;
-        }
-
-    case BLOCK_OAK_HANGING_SIGN:
-        if (dataVal & BIT_32) {
-            return 0x745632;   // spruce
-        }
-        return gBlockDefinitions[type].color;
-
-    case BLOCK_BIRCH_HANGING_SIGN:
-        if (dataVal & BIT_32) {
-            return 0xAC8555;   // jungle
-        }
-        return gBlockDefinitions[type].color;
-
-    case BLOCK_ACACIA_HANGING_SIGN:
-        if (dataVal & BIT_32) {
-            return 0x745632;   // dark oak
-        }
-        return gBlockDefinitions[type].color;
-
-    case BLOCK_CRIMSON_HANGING_SIGN:
-        if (dataVal & BIT_32) {
-            return 0x745632;   // warped
-        }
-        return gBlockDefinitions[type].color;
-
-    case BLOCK_MANGROVE_HANGING_SIGN:
-        if (dataVal & BIT_32) {
-            return 0x745632;   // mangrove
-        }
+    case BLOCK_WALL_HANGING_SIGN:
+    case BLOCK_HANGING_SIGN:
+        // the wood is in SIGN_WOOD_MASK; oak uses the block's own (color scheme) color
+        if (SIGN_WOOD(dataVal) > 0 && SIGN_WOOD(dataVal) < NUM_SIGN_WOODS)
+            return gSignWoods[SIGN_WOOD(dataVal)].hangingColor;
         return gBlockDefinitions[type].color;
 
     case BLOCK_TRIAL_SPAWNER:
@@ -7764,26 +7658,19 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
 
-    case BLOCK_OAK_WALL_HANGING_SIGN:
-        // 0-11 x 4 + 0-3 => 0-43
-    {
+    case BLOCK_WALL_HANGING_SIGN:
+        // the four facings, 0-3, each four times, cycling through the woods
         addBlock = 1;
-        addDiagonalBlocksToMap(48, y, type, dataVal, finalDataVal, typeHighBit, block);
-    }
-    break;
-    case BLOCK_OAK_HANGING_SIGN:
-    case BLOCK_BIRCH_HANGING_SIGN:
-    case BLOCK_ACACIA_HANGING_SIGN:
-    case BLOCK_CRIMSON_HANGING_SIGN:
-    case BLOCK_MANGROVE_HANGING_SIGN:
-    case BLOCK_BAMBOO_HANGING_SIGN:
-    case BLOCK_POPLAR_HANGING_SIGN:
-        // 0-64,
-        // add new style diagonally SE of original
-        {
-            addBlock = 1;
-            addDiagonalBlocksToMap(64, y, type, dataVal, finalDataVal, typeHighBit, block);
-        }
+        finalDataVal = (dataVal & 0x3) | ((dataVal % NUM_SIGN_WOODS) << SIGN_WOOD_SHIFT);
+        break;
+
+    case BLOCK_HANGING_SIGN:
+        // the 16 rotations, cycling through the woods, and an attached one diagonally SE of each
+        addBlock = 1;
+        finalDataVal = dataVal | ((dataVal % NUM_SIGN_WOODS) << SIGN_WOOD_SHIFT);
+        neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
+        block->grid[neighborIndex] = (unsigned char)type;
+        block->data[neighborIndex] = (unsigned short)(finalDataVal | BIT_16 | typeHighBit);
         break;
     case BLOCK_CRAFTER:
         // uses bits 0-11, with variations to show other styles

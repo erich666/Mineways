@@ -68,20 +68,20 @@ UnitType gUnitTypeTable[MODELS_UNITS_TABLE_SIZE] = {
 // software itself, but putting it here gives a sense of what blocks can be added to with new content.
 // The woods of standing signs (BLOCK_SIGN_POST) and wall signs (BLOCK_WALL_SIGN), indexed by SIGN_WOOD(dataVal). See blockInfo.h.
 const SignWood gSignWoods[NUM_SIGN_WOODS] = {
-    // name        sign name          wall sign name           map color  planks   log end  bark
-    { "oak",      "Oak Sign",        "Oak Wall Sign",         0xA58551,  4,  0,   5,  1,   4,  1 },
-    { "spruce",   "Spruce Sign",     "Spruce Wall Sign",      0x745632,  6, 12,  11, 11,   4,  7 },
-    { "birch",    "Birch Sign",      "Birch Wall Sign",       0xC2B17A,  6, 13,  12, 11,   5,  7 },
-    { "jungle",   "Jungle Sign",     "Jungle Wall Sign",      0xA37654,  7, 12,  13, 11,   9,  9 },
-    { "acacia",   "Acacia Sign",     "Acacia Wall Sign",      0xA95B33,  0, 22,  13, 19,   5, 11 },
-    { "dark_oak", "Dark Oak Sign",   "Dark Oak Wall Sign",    0x442C15,  1, 22,  15, 19,  14, 19 },
-    { "crimson",  "Crimson Sign",    "Crimson Wall Sign",     0x7B3953,  8, 43,   0, 43,   1, 43 },
-    { "warped",   "Warped Sign",     "Warped Wall Sign",      0x35837F,  8, 44,   0, 44,   1, 44 },
-    { "mangrove", "Mangrove Sign",   "Mangrove Wall Sign",    0x773932,  0, 55,  12, 54,  13, 54 },
-    { "cherry",   "Cherry Sign",     "Cherry Wall Sign",      0xE3B4AE,  8, 57,   7, 57,   6, 57 },
-    { "bamboo",   "Bamboo Sign",     "Bamboo Wall Sign",      0xC4AF52, 14, 60,   6, 60,   5, 60 },
-    { "pale_oak", "Pale Oak Sign",   "Pale Oak Wall Sign",    0xE5DBDA,  8, 67,   6, 67,   7, 67 },
-    { "poplar",   "Poplar Sign",     "Poplar Wall Sign",      0x978B80, 15, 79,  11, 79,  12, 79 },
+    // name, sign name, wall sign name, hanging sign name, wall hanging sign name, map colors (sign, hanging sign), planks, log end, bark, stripped log
+    { "oak", "Oak Sign", "Oak Wall Sign", "Oak Hanging Sign", "Oak Wall Hanging Sign", 0xA58551, 0xB29157, 4,  0,   5,  1,   4,  1,  0, 34 },
+    { "spruce", "Spruce Sign", "Spruce Wall Sign", "Spruce Hanging Sign", "Spruce Wall Hanging Sign", 0x745632, 0x745A35, 6, 12,  11, 11,   4,  7,  1, 34 },
+    { "birch", "Birch Sign", "Birch Wall Sign", "Birch Hanging Sign", "Birch Wall Hanging Sign", 0xC2B17A, 0xC5B077, 6, 13,  12, 11,   5,  7,  2, 34 },
+    { "jungle", "Jungle Sign", "Jungle Wall Sign", "Jungle Hanging Sign", "Jungle Wall Hanging Sign", 0xA37654, 0xAC8555, 7, 12,  13, 11,   9,  9,  3, 34 },
+    { "acacia", "Acacia Sign", "Acacia Wall Sign", "Acacia Hanging Sign", "Acacia Wall Hanging Sign", 0xA95B33, 0xAF5D3C, 0, 22,  13, 19,   5, 11,  4, 34 },
+    { "dark_oak", "Dark Oak Sign", "Dark Oak Wall Sign", "Dark Oak Hanging Sign", "Dark Oak Wall Hanging Sign", 0x442C15, 0x493924, 1, 22,  15, 19,  14, 19,  5, 34 },
+    { "crimson", "Crimson Sign", "Crimson Wall Sign", "Crimson Hanging Sign", "Crimson Wall Hanging Sign", 0x7B3953, 0x8A3A5A, 8, 43,   0, 43,   1, 43, 13, 43 },
+    { "warped", "Warped Sign", "Warped Wall Sign", "Warped Hanging Sign", "Warped Wall Hanging Sign", 0x35837F, 0x3A9794, 8, 44,   0, 44,   1, 44, 13, 44 },
+    { "mangrove", "Mangrove Sign", "Mangrove Wall Sign", "Mangrove Hanging Sign", "Mangrove Wall Hanging Sign", 0x773932, 0x783730, 0, 55,  12, 54,  13, 54, 15, 54 },
+    { "cherry", "Cherry Sign", "Cherry Wall Sign", "Cherry Hanging Sign", "Cherry Wall Hanging Sign", 0xE3B4AE, 0xDDA7A0, 8, 57,   7, 57,   6, 57,  8, 59 },
+    { "bamboo", "Bamboo Sign", "Bamboo Wall Sign", "Bamboo Hanging Sign", "Bamboo Wall Hanging Sign", 0xC4AF52, 0xC4AF52, 14, 60,   6, 60,   5, 60, 11, 60 },
+    { "pale_oak", "Pale Oak Sign", "Pale Oak Wall Sign", "Pale Oak Hanging Sign", "Pale Oak Wall Hanging Sign", 0xE5DBDA, 0xE5DBDA, 8, 67,   6, 67,   7, 67,  8, 67 },
+    { "poplar", "Poplar Sign", "Poplar Wall Sign", "Poplar Hanging Sign", "Poplar Wall Hanging Sign", 0x978B80, 0xA5998C, 15, 79,  11, 79,  12, 79, 14, 79 },
 };
 
 BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
@@ -497,11 +497,11 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 393 */ "Weathered Cut Copper Stairs",  0x6F936E, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 394 */ "Oxidized Cut Copper Stairs",   0x529D81, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 395 */ "Lightning Rod",                0xC67155, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13, 50, 0x30, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_DNE_FLUID | BLF_CONNECTS_REDSTONE | BLF_MAYWATERLOG },
-    { /* 396 */ "(unused)" /* "Red Shrub", moved to 559 */, 0x000000, 0.000f, 0xff7711, 0xff7711, 0.12345f, 13, 14, 0x00, BLF_NONE },	// 140 (flower pot) + 256, which the translation table can't tell from a potted cactus
+    { /* 396 */ "(unused)" /* don't use! Conflicts with 140, which steals a "type" bit, something that I should fix someday. TODOTODO */, 0x000000, 0.000f, 0xff7711, 0xff7711, 0.12345f, 13, 14, 0x00, BLF_NONE },	// 140 (flower pot) + 256, which the translation table can't tell from a potted cactus
     { /* 397 */ "Double Cut Copper Slab",   	0xC16D53, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 50, 0x17, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_LAME_WATERLOG | BLF_MAYWATERLOG }, // bizarrely, may waterlog, though pretty pointless; important for instancing
     { /* 398 */ "Cut Copper Slab",              0xC16D53, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 50, 0x17, BLF_HALF | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },	//2c/44 - was 6,0, and 5,0 side
     { /* 399 */ "Waxed Cut Copper Stairs",      0xC16D53, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
-    { /* 400 */ "(unused)" /* "Mob Head" */,    0xcacaca, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6, 6, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },	//90/144 - TODO; we use a pumpkin for now...
+    { /* 400 */ "(unused)" /* "Mob Head" - bit stolen from type for block 144, might be reusable now */,    0xcacaca, 1.000f, 0xff7711, 0xff7711, 0.12345f,   6, 6, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },	//90/144 - TODO; we use a pumpkin for now...
     { /* 401 */ "Waxed Exposed Cut Copper Stairs",    0x9E7B67, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 402 */ "Waxed Weathered Cut Copper Stairs",  0x6F936E, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 403 */ "Waxed Oxidized Cut Copper Stairs",   0x529D81, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 50, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
@@ -560,13 +560,13 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 455 */ "Sniffer Egg",            		0xBC4E3A, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 58, 0x00, BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
     { /* 456 */ "Suspicious Gravel",            0x837F7E, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 59, 0x04, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
     { /* 457 */ "Torchflower",			    	0xDE8B25, 1.000f, 0xff7711, 0xff7711, 0.12345f,  3, 60, 0x00, BLF_FLATTEN | BLF_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID },
-    { /* 458 */ "Oak Wall Hanging Sign",        0xB29157, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 34, 0x3c, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG },
-    { /* 459 */ "Oak Hanging Sign",             0xB29157, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 34, 0x20, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG },
-    { /* 460 */ "Birch Hanging Sign",           0xC5B077, 1.000f, 0xff7711, 0xff7711, 0.12345f,  2, 34, 0x20, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG },
-    { /* 461 */ "Acacia Hanging Sign",          0xAF5D3C, 1.000f, 0xff7711, 0xff7711, 0.12345f,  4, 34, 0x20, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG },
-    { /* 462 */ "Crimson Hanging Sign",         0x8A3A5A, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13, 43, 0x20, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG },
-    { /* 463 */ "Mangrove Hanging Sign",        0x783730, 1.000f, 0xff7711, 0xff7711, 0.12345f, 15, 54, 0x20, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG },
-    { /* 464 */ "Bamboo Hanging Sign",          0xC4AF52, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 60, 0x20, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG },
+    { /* 458 */ "Oak Wall Hanging Sign",        0xB29157, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 34, 0x780, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG },
+    { /* 459 */ "Oak Hanging Sign",             0xB29157, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 34, 0x780, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG },
+    { /* 460 */ "(unused)" /* "Birch Hanging Sign" - now BLOCK_HANGING_SIGN */, 0x000000, 0.000f, 0xff7711, 0xff7711, 0.12345f, 13, 14, 0x00, BLF_NONE },
+    { /* 461 */ "(unused)" /* "Acacia Hanging Sign" - now BLOCK_HANGING_SIGN */, 0x000000, 0.000f, 0xff7711, 0xff7711, 0.12345f, 13, 14, 0x00, BLF_NONE },
+    { /* 462 */ "(unused)" /* "Crimson Hanging Sign" - now BLOCK_HANGING_SIGN */, 0x000000, 0.000f, 0xff7711, 0xff7711, 0.12345f, 13, 14, 0x00, BLF_NONE },
+    { /* 463 */ "(unused)" /* "Mangrove Hanging Sign" - now BLOCK_HANGING_SIGN */, 0x000000, 0.000f, 0xff7711, 0xff7711, 0.12345f, 13, 14, 0x00, BLF_NONE },
+    { /* 464 */ "(unused)" /* "Bamboo Hanging Sign" - now BLOCK_HANGING_SIGN */, 0x000000, 0.000f, 0xff7711, 0xff7711, 0.12345f, 13, 14, 0x00, BLF_NONE },
     { /* 465 */ "Trial Spawner",           		0x767677, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13, 64, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_EMITTER },
     { /* 466 */ "Vault",           		        0x404E56, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 65, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR | BLF_EMITTER },
     { /* 467 */ "Crafter",           		    0x777272, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 62, 0x00, BLF_WHOLE | BLF_FENCE_NEIGHBOR },
@@ -629,7 +629,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 517 */ "Poplar Trapdoor",     		    0x968B80, 1.000f, 0xff7711, 0xff7711, 0.12345f, 18,  0, 0x00, BLF_MIDDLER | BLF_ENTRANCE | BLF_FLATTEN | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_MAYWATERLOG },
     { /* 518 */ "(unused)" /* "Poplar Sign" - now BLOCK_SIGN_POST */, 0x000000, 0.000f, 0xff7711, 0xff7711, 0.12345f, 13, 14, 0x00, BLF_NONE },
     { /* 519 */ "(unused)" /* "Poplar Wall Sign" - now BLOCK_WALL_SIGN */, 0x000000, 0.000f, 0xff7711, 0xff7711, 0.12345f, 13, 14, 0x00, BLF_NONE },
-    { /* 520 */ "Poplar Hanging Sign",          0xA5998C, 1.000f, 0xff7711, 0xff7711, 0.12345f, 14, 79, 0x00, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID | BLF_MAYWATERLOG },
+    { /* 520 */ "(unused)" /* "Poplar Hanging Sign" - now BLOCK_HANGING_SIGN */, 0x000000, 0.000f, 0xff7711, 0xff7711, 0.12345f, 13, 14, 0x00, BLF_NONE },
     { /* 521 */ "White Concrete Stairs",        0xCFD5D6, 1.000f, 0xff7711, 0xff7711, 0.12345f,  0, 29, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 522 */ "Orange Concrete Stairs",       0xE06101, 1.000f, 0xff7711, 0xff7711, 0.12345f,  1, 29, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
     { /* 523 */ "Magenta Concrete Stairs",      0xA9309F, 1.000f, 0xff7711, 0xff7711, 0.12345f,  2, 29, 0x00, BLF_STAIRS | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_3D_BIT_GLUE | BLF_MAYWATERLOG },
