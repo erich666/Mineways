@@ -669,5 +669,5 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 557 */ "Shelf Mushroom",               0xB06F40, 1.000f, 0xff7711, 0xff7711, 0.12345f, 24,  0, 0x04, BLF_SMALL_MIDDLER | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },
     { /* 558 */ "Straw Bed",                    0xC2A542, 1.000f, 0xff7711, 0xff7711, 0.12345f, 28,  0, 0x00, BLF_MIDDLER | BLF_CUTOUTS | BLF_TRUE_GEOMETRY | BLF_3D_BIT },
     { /* 559 */ "Red Shrub",                    0x7A2316, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 79, 0x00, BLF_FLATTEN | BLF_SMALL_BILLBOARD | BLF_CUTOUTS | BLF_DNE_FLUID },	// like dead bush, or bush, but cannot be put in a flower pot
-    { /* 560 */ "White Cushion",                0xEEEEEE, 1.000f, 0xff7711, 0xff7711, 0.12345f, 16, 12, 0x0F, BLF_MIDDLER | BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },	// entity; color in bits 0xF, as for wool
+    { /* 560 */ "White Cushion",                0xEEEEEE, 1.000f, 0xff7711, 0xff7711, 0.12345f, 16, 12, 0x0F, BLF_MIDDLER | BLF_FLATTEN | BLF_TRUE_GEOMETRY | BLF_3D_BIT | BLF_DNE_FLUID },	// entity; color in bits 0xF, as for wool. Not very large, but can be 3d printed, so calling it a BLF_MIDDLER
 };
