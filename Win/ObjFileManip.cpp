@@ -861,6 +861,7 @@ typedef struct ModelFace {
     float uv[4];
     int rotation;
     int billboardBack;
+    int swatchLoc;  // the face's own 16x16 tile, e.g. a bed's, or 0 to use the model's whole (possibly multi-tile) image
 } ModelFace;
 // One Minecraft block model JSON element: "from", "to" (in 0-16 pixel units) and its faces. An element may also have a "rotation"
 // about Y: rotAngle degrees, as in the JSON (so negative turns clockwise, seen from above), about rotOrigin, in pixel units.
@@ -880,6 +881,18 @@ static int saveSignModel(int boxIndex, int type, int dataVal, bool hanging, cons
 static int saveTurnedModel(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, float yAngle);
 // The terrain tile anchor of a cushion's 32x32 texture (see tiles.h), for its color: eight colors to each pair of rows, from column 16, row 12.
 #define CUSHION_TEXTURE_ANCHOR(color) TILE_TO_SWATCH(16 + 2 * ((color) % 8), 12 + 2 * ((color) / 8))
+// A bed's 16x16 textures (see tiles.h): each color (BED_COLOR()) has a column, from column 16, and each of its seven textures a row,
+// from row 16, in this order. All colors share bed_down.png and bed_head_north.png.
+#define BED_FOOT_EAST 0
+#define BED_FOOT_SOUTH 1
+#define BED_FOOT_UP 2
+#define BED_FOOT_WEST 3
+#define BED_HEAD_EAST 4
+#define BED_HEAD_UP 5
+#define BED_HEAD_WEST 6
+#define BED_TILE(color, texture) TILE_TO_SWATCH(16 + (color), 16 + (texture))
+#define BED_DOWN_TILE TILE_TO_SWATCH(16, 23)
+#define BED_HEAD_NORTH_TILE TILE_TO_SWATCH(17, 23)
 static int saveBoxModelFace(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int anchorLoc, const float uv[4], int rotation);
 static int saveSpanTextureUV(int anchorLoc, int type, float su, float sv);
 static int findFaceDimensions(float rect[4], int faceDirection, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
@@ -1839,9 +1852,9 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
             // For 3D printing detailed blocks, we specify the textures where we want to composite over something special, like black or stone.
             // Otherwise, all alphas are set to the average color of the tile, to avoid bleeding black along the edges.
             // if we're rendering all blocks, don't fill in cauldrons, beds, etc. as we want these cutouts for rendering; else use offset:
-#define FA_TABLE__RENDER_BLOCK_START 7
+#define FA_TABLE__RENDER_BLOCK_START 3
 #define FA_TABLE__VIEW_SIZE (1+FA_TABLE__RENDER_BLOCK_START)
-#define FA_TABLE_SIZE 61
+#define FA_TABLE_SIZE 57
             static FillAlpha faTable[FA_TABLE_SIZE] =
             {
                 // Stuff filled only if lesser (i.e. all blocks) is off for rendering, so that the cauldron is rendered as a solid block.
@@ -1850,11 +1863,6 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
                 // value as SWATCH_INDEX(0,0), which is grass.
                 { SWATCH_INDEX(10, 9), -BLOCK_TRIPWIRE }, // cauldron side
                 { SWATCH_INDEX(11, 9), -BLOCK_TRIPWIRE }, // cauldron bottom
-
-                { SWATCH_INDEX(5, 9), -BLOCK_TRIPWIRE }, // bed
-                { SWATCH_INDEX(6, 9), -BLOCK_TRIPWIRE }, // bed
-                { SWATCH_INDEX(7, 9), -BLOCK_TRIPWIRE }, // bed
-                { SWATCH_INDEX(8, 9), -BLOCK_TRIPWIRE }, // bed
 
                 { SWATCH_INDEX(6, 4), -BLOCK_CACTUS }, // cactus
 
@@ -9282,44 +9290,91 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break; // saveBillboardOrGeometry
 
     case BLOCK_BED:						// saveBillboardOrGeometry
-        // side of bed - head or foot?
-        gUsingTransform = 1;
+    {
+        // Minecraft's block/template_bed_foot.json and template_bed_head.json, used verbatim: a 16x6x16 box on two 3x3x3 legs, at the
+        // corners of the half's end, each face with its own 16x16 texture (see BED_TILE). The models face north, the way the head is
+        // from the foot; bits 0x3 are the facing, 0 = south, 1 = west, 2 = north, 3 = east, turned into Minecraft's blockstate "y".
+        // Neither half's box has a face where it meets the other half. If the other half is missing, or each block is exported by itself,
+        // a cap closes the box, textured as the half's end.
+        int color = BED_COLOR(dataVal);
+        int bedFacing = dataVal & 0x3;
+        float yAngle = 90.0f * (float)((bedFacing + 2) % 4);
+        // the direction of the head from the foot, for each facing
+        static const int headDirection[4] = { DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_X };
+        int down = BED_DOWN_TILE;
+        int north = BED_HEAD_NORTH_TILE;
+        bool individualBed = (gModel.options->exportFlags & EXPT_INDIVIDUAL_BLOCKS) != 0;
         if (dataVal & 0x8)
         {
-            // head of bed.
-            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = SWATCH_INDEX(7, 9);
-            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX(7, 9);
-            swatchLocSet[DIRECTION_BLOCK_TOP] = SWATCH_INDEX(7, 8);
-            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = SWATCH_INDEX(5, 9);  // should normally get removed by neighbor tester code
-            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = SWATCH_INDEX(8, 9);
-            // Note: for rendering we might print an open-ended bed - could test neighbor to see if other half of bed is there.
-            // For 3D printing we can't risk it, so cap the middle of the bed.
-            saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_BOTTOM_BIT | (gModel.print3D ? 0x0 : DIR_LO_X_BIT), FLIP_LO_Z_FACE_VERTICALLY, 0,
-                0, 16, 0, 9, 0, 16);
+            // the head: is the foot behind it?
+            int footIndex = boxIndex - gFaceOffset[headDirection[bedFacing]];
+            bool capped = individualBed || !((gBoxData[footIndex].origType == BLOCK_BED) && ((gBoxData[footIndex].data & 0xB) == bedFacing));
+            int east = BED_TILE(color, BED_HEAD_EAST);
+            int west = BED_TILE(color, BED_HEAD_WEST);
+            ModelElement headElements[] = {
+                { { 0.0f, 3.0f, 0.0f }, { 16.0f, 9.0f, 16.0f }, capped ? 6 : 5, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0.0f, 0.0f, 16.0f, 16.0f }, 0, 0, down },
+                    { DIRECTION_BLOCK_TOP, { 0.0f, 0.0f, 16.0f, 16.0f }, 0, 0, BED_TILE(color, BED_HEAD_UP) },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 7.0f, 16.0f, 13.0f }, 0, 0, north },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0.0f, 7.0f, 16.0f, 13.0f }, 0, 0, west },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0.0f, 7.0f, 16.0f, 13.0f }, 0, 0, east },
+                    // the cap, where the foot would be
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0.0f, 7.0f, 16.0f, 13.0f }, 0, 0, north }
+                } },
+                { { 0.0f, 0.0f, 0.0f }, { 3.0f, 3.0f, 3.0f }, 5, {
+                    { DIRECTION_BLOCK_BOTTOM, { 6.0f, 13.0f, 9.0f, 16.0f }, 0, 0, west },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 13.0f, 13.0f, 16.0f, 16.0f }, 0, 0, north },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3.0f, 13.0f, 6.0f, 16.0f }, 0, 0, west },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0.0f, 13.0f, 3.0f, 16.0f }, 0, 0, west },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 10.0f, 13.0f, 13.0f, 16.0f }, 0, 0, north }
+                } },
+                { { 13.0f, 0.0f, 0.0f }, { 16.0f, 3.0f, 3.0f }, 5, {
+                    { DIRECTION_BLOCK_BOTTOM, { 7.0f, 13.0f, 10.0f, 16.0f }, 0, 0, east },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 13.0f, 3.0f, 16.0f }, 0, 0, north },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 10.0f, 13.0f, 13.0f, 16.0f }, 0, 0, east },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 3.0f, 13.0f, 6.0f, 16.0f }, 0, 0, north },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 13.0f, 13.0f, 16.0f, 16.0f }, 0, 0, east }
+                } },
+            };
+            saveTurnedModel(boxIndex, type, dataVal, BED_TILE(color, BED_HEAD_UP), headElements, sizeof(headElements) / sizeof(ModelElement), yAngle);
         }
         else
         {
-            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = SWATCH_INDEX(6, 9);
-            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX(6, 9);
-            swatchLocSet[DIRECTION_BLOCK_TOP] = SWATCH_INDEX(6, 8);
-            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = SWATCH_INDEX(5, 9);
-            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = SWATCH_INDEX(8, 9);  // should normally get removed by neighbor tester code
-            saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_BOTTOM_BIT | (gModel.print3D ? 0x0 : DIR_HI_X_BIT), FLIP_LO_Z_FACE_VERTICALLY, 0,
-                0, 16, 0, 9, 0, 16);
+            // the foot: is the head ahead of it?
+            int headIndex = boxIndex + gFaceOffset[headDirection[bedFacing]];
+            bool capped = individualBed || !((gBoxData[headIndex].origType == BLOCK_BED) && ((gBoxData[headIndex].data & 0xB) == (bedFacing | 0x8)));
+            int east = BED_TILE(color, BED_FOOT_EAST);
+            int west = BED_TILE(color, BED_FOOT_WEST);
+            int south = BED_TILE(color, BED_FOOT_SOUTH);
+            ModelElement footElements[] = {
+                { { 0.0f, 3.0f, 0.0f }, { 16.0f, 9.0f, 16.0f }, capped ? 6 : 5, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0.0f, 0.0f, 16.0f, 16.0f }, 0, 0, down },
+                    { DIRECTION_BLOCK_TOP, { 0.0f, 0.0f, 16.0f, 16.0f }, 0, 0, BED_TILE(color, BED_FOOT_UP) },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0.0f, 7.0f, 16.0f, 13.0f }, 0, 0, south },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0.0f, 7.0f, 16.0f, 13.0f }, 0, 0, west },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0.0f, 7.0f, 16.0f, 13.0f }, 0, 0, east },
+                    // the cap, where the head would be
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 7.0f, 16.0f, 13.0f }, 0, 0, south }
+                } },
+                { { 0.0f, 0.0f, 13.0f }, { 3.0f, 3.0f, 16.0f }, 5, {
+                    { DIRECTION_BLOCK_BOTTOM, { 7.0f, 13.0f, 10.0f, 16.0f }, 0, 0, west },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 10.0f, 13.0f, 13.0f, 16.0f }, 0, 0, west },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0.0f, 13.0f, 3.0f, 16.0f }, 0, 0, south },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 13.0f, 13.0f, 16.0f, 16.0f }, 0, 0, west },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 3.0f, 13.0f, 6.0f, 16.0f }, 0, 0, south }
+                } },
+                { { 13.0f, 0.0f, 13.0f }, { 16.0f, 3.0f, 16.0f }, 5, {
+                    { DIRECTION_BLOCK_BOTTOM, { 6.0f, 13.0f, 9.0f, 16.0f }, 0, 0, east },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3.0f, 13.0f, 6.0f, 16.0f }, 0, 0, east },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 13.0f, 13.0f, 16.0f, 16.0f }, 0, 0, south },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 10.0f, 13.0f, 13.0f, 16.0f }, 0, 0, south },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0.0f, 13.0f, 3.0f, 16.0f }, 0, 0, east }
+                } },
+            };
+            saveTurnedModel(boxIndex, type, dataVal, BED_TILE(color, BED_FOOT_UP), footElements, sizeof(footElements) / sizeof(ModelElement), yAngle);
         }
-        gUsingTransform = 0;
-        identityMtx(mtx);
-        translateToOriginMtx(mtx, boxIndex);
-        rotateMtx(mtx, 0.0f, 90.0f * (((dataVal & 0x3) + 1) % 4), 0.0f);
-        // undo translation
-        translateFromOriginMtx(mtx, boxIndex);
-        transformVertices(8, mtx);
-
-        // add bottom at bottom, just in case bed is open to world
-        swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_OAK_PLANKS].txrX, gBlockDefinitions[BLOCK_OAK_PLANKS].txrY);
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT, 0, 0, 16,
-            (gModel.print3D ? 0.0f : 3.0f), (gModel.print3D ? 0.0f : 3.0f), 0, 16);
-        break; // saveBillboardOrGeometry
+    }
+    break; // saveBillboardOrGeometry
 
     case BLOCK_CACTUS:						// saveBillboardOrGeometry
         // are top and bottom needed?
@@ -14353,7 +14408,7 @@ static int saveBoxCustomUVVertices(int boxIndex, float minPixX, float maxPixX, f
 // Save one face of a box created by saveBoxCustomUVVertices(), textured exactly as Minecraft does for a block model JSON element's face:
 // uv is the face's "uv" [u1,v1,u2,v2] (0-16 units over the whole texture, v going down, and u1 > u2 or v1 > v2 to mirror), rotation is
 // the face's "rotation" (0, 90, 180, 270). The texture is the whole image anchored at anchorLoc, which may span multiple tiles (e.g.
-// straw_bed.png); see saveSpanTextureUV.
+// straw_bed.png; see saveSpanTextureUV), or is a single 16x16 tile (e.g. a bed's).
 static int saveBoxModelFace(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int anchorLoc, const float uv[4], int rotation)
 {
     // Minecraft's vertex order for each face direction (FaceInfo), as box corner bits: 0x4 X max, 0x2 Y max, 0x1 Z max. Counterclockwise
@@ -14369,6 +14424,7 @@ static int saveBoxModelFace(int startVertexIndex, int type, int dataVal, int fac
     assert(faceDirection >= 0 && faceDirection < 6);
     int vindex[4];
     int uvIndices[4] = { 0, 0, 0, 0 };
+    bool span = (findSpanImage(anchorLoc) != NULL);
     for (int i = 0; i < 4; i++) {
         vindex[i] = faceVindex[faceDirection][i];
         if (gModel.exportTexture) {
@@ -14376,7 +14432,11 @@ static int saveBoxModelFace(int startVertexIndex, int type, int dataVal, int fac
             int shifted = (i + rotation / 90) % 4;
             float u = (shifted == 0 || shifted == 1) ? uv[0] : uv[2];
             float v = (shifted == 0 || shifted == 3) ? uv[1] : uv[3];
-            uvIndices[i] = saveSpanTextureUV(anchorLoc, type, u / 16.0f, 1.0f - v / 16.0f);
+            if (span)
+                uvIndices[i] = saveSpanTextureUV(anchorLoc, type, u / 16.0f, 1.0f - v / 16.0f);
+            else
+                // a single tile; for solid colors, the swatch is the block type (see getSwatch)
+                uvIndices[i] = saveTextureUV((gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) ? anchorLoc : type, type, u / 16.0f, 1.0f - v / 16.0f);
             if (uvIndices[i] < 0)
                 return MW_WORLD_EXPORT_TOO_LARGE;
         }
@@ -14473,7 +14533,8 @@ static int modelFaceIsCovered(int boxIndex, const ModelElement* pElem, int faceD
     return lesserNeighborCoversRectangle(faceDirection, boxIndex, rect);
 }
 
-// Save the elements of a Minecraft block model, as given in its JSON file, all textured by the (possibly multi-tile) image at anchorLoc.
+// Save the elements of a Minecraft block model, as given in its JSON file, all textured by the (possibly multi-tile) image at anchorLoc,
+// except for faces with their own tiles.
 // yAngle is the rotation about Y the caller gives the model afterwards, used to find which faces are hidden by neighbors.
 // Elements with their own rotation are turned into place here, so the caller must have set gUsingTransform.
 // The first face saved is marked as the first face of the block.
@@ -14499,7 +14560,7 @@ static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc,
             // block, or a shelf mushroom's back against its log
             if (modelFaceIsCovered(boxIndex, pElem, pFace->faceDirection, yAngle))
                 continue;
-            retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, pFace->faceDirection, markFirstFace, anchorLoc, pFace->uv, pFace->rotation);
+            retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, pFace->faceDirection, markFirstFace, pFace->swatchLoc ? pFace->swatchLoc : anchorLoc, pFace->uv, pFace->rotation);
             if (retCode >= MW_BEGIN_ERRORS)
                 return retCode;
             markFirstFace = 0;
@@ -14943,12 +15004,9 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
                 break;
 
             case BLOCK_BED:
+                // the box, on its legs
                 setTop = 9;
-                if (view3D)
-                {
-                    // when rendering, we can see under the bed
-                    setBottom = 3;
-                }
+                setBottom = 3;
                 break;
 
             case BLOCK_PALE_MOSS_CARPET:
@@ -20208,12 +20266,7 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
             }
 
         case BLOCK_BED:						// lesserBlockCoversWholeFace
-            // top
-            if (!view3D)
-            {
-                // only the print version actually covers the top of the neighboring block
-                return (faceDirection == DIRECTION_BLOCK_TOP);
-            }
+            // on its legs, it doesn't cover the top of the block below
             break;
 
         case BLOCK_STRAW_BED:				// lesserBlockCoversWholeFace
@@ -21146,9 +21199,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         // Outputting textured face
 
         int head, bottom, inside, outside, newFaceDirection, neighborType;  // cppcheck-suppress 398
-        int xoff, xstart, dir, dirBit, frontLoc, trimVal, xloc, yloc;  // cppcheck-suppress 398
-        // north is 0, east is 1, south is 2, west is 3
-        int faceRot[6] = { 0, 0, 1, 2, 0, 3 };  // cppcheck-suppress 398
+        int xoff, dir, dirBit, frontLoc, trimVal, xloc, yloc;  // cppcheck-suppress 398
 
         // use the textures:
         // use the txrX and txrY to find which to go to.
@@ -22670,79 +22721,50 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             SWATCH_SWITCH_SIDE(faceDirection, 12, 8);	// was 10, 4 jukebox side, now is separate at 
             break;
         case BLOCK_BED:						// getSwatch
-            if ((faceDirection != DIRECTION_BLOCK_TOP) && (faceDirection != DIRECTION_BLOCK_BOTTOM))
+        {
+            // a full block (lesser blocks are off; the geometry is the true model): the model's textures, with the sides' 16x6 strips
+            // stretched to fill their tiles (see stretchSwatchToFill). The model faces north; bits 0x3 are the facing, 0 = south,
+            // 1 = west, 2 = north, 3 = east, each a quarter turn more, clockwise seen from above.
+            int bedColor = BED_COLOR(dataVal);
+            bool bedHead = (dataVal & 0x8) != 0;
+            int quarterTurns = ((dataVal & 0x3) + 2) % 4;
+            if (faceDirection == DIRECTION_BLOCK_TOP)
             {
-                // side of bed - head or foot?
-                if (dataVal & 0x8)
-                {
-                    // head of bed.
-                    xoff = 1;
-                    xstart = 7;
-                }
-                else
-                {
-                    xoff = -1;
-                    xstart = 6;
-                }
-
-                // dataVal gives which way it points 7,9 and 8,9 vs. 5,9, 6,9
-                switch (((dataVal & 0x3) - faceRot[faceDirection] + 4) % 4)
-                {
-                default:
-                    assert(0);
-                case 0: // south
-                    swatchLoc = SWATCH_INDEX(xstart, 9);
-                    break;
-                case 1:
-                    swatchLoc = SWATCH_INDEX(xoff + xstart, 9);
-                    if (uvIndices)
-                        flipIndicesLeftRight(localIndices); // actually needed - mirror bed side
-                    break;
-                case 2:
-                    swatchLoc = SWATCH_INDEX(xstart, 9);
-                    if (uvIndices)
-                        flipIndicesLeftRight(localIndices); // actually needed - mirror bed side
-                    break;
-                case 3:
-                    swatchLoc = SWATCH_INDEX(xoff + xstart, 9);
-                    break;
-                }
-            }
-            else if (faceDirection == DIRECTION_BLOCK_TOP)
-            {
-                // top surface of bed
-                // head or foot?
-                if (dataVal & 0x8)
-                {
-                    // head
-                    swatchLoc = SWATCH_INDEX(7, 8);
-                }
+                swatchLoc = BED_TILE(bedColor, bedHead ? BED_HEAD_UP : BED_FOOT_UP);
                 if (uvIndices)
-                {
-                    // rotate as needed (head and foot rotate the same)
-                    switch (dataVal & 0x3)
-                    {
-                    case 0: // south
-                        rotateIndices(localIndices, 90);
-                        break;
-                    case 1: // west
-                        rotateIndices(localIndices, 180);
-                        break;
-                    case 2: // north
-                        rotateIndices(localIndices, 270);
-                        break;
-                    case 3: // east
-                        rotateIndices(localIndices, 0);
-                        break;
-                    }
-                }
+                    rotateIndices(localIndices, 90 * quarterTurns);
+            }
+            else if (faceDirection == DIRECTION_BLOCK_BOTTOM)
+            {
+                swatchLoc = BED_DOWN_TILE;
             }
             else
             {
-                // bottom of bed is always wood
-                swatchLoc = SWATCH_INDEX(4, 0);
+                // the side in the model: north, east, south, west, 0-3, clockwise seen from above
+                int side;
+                switch (faceDirection)
+                {
+                case DIRECTION_BLOCK_SIDE_LO_Z: side = 0; break;
+                case DIRECTION_BLOCK_SIDE_HI_X: side = 1; break;
+                case DIRECTION_BLOCK_SIDE_HI_Z: side = 2; break;
+                default: side = 3; break;
+                }
+                switch ((side - quarterTurns + 4) % 4)
+                {
+                case 1:
+                    swatchLoc = BED_TILE(bedColor, bedHead ? BED_HEAD_EAST : BED_FOOT_EAST);
+                    break;
+                case 3:
+                    swatchLoc = BED_TILE(bedColor, bedHead ? BED_HEAD_WEST : BED_FOOT_WEST);
+                    break;
+                default:
+                    // the half's end, or where it meets the other half (normally hidden by it)
+                    swatchLoc = bedHead ? BED_HEAD_NORTH_TILE : BED_TILE(bedColor, BED_FOOT_SOUTH);
+                    break;
+                }
             }
-            break;
+        }
+        break;
         case BLOCK_STICKY_PISTON:						// getSwatch
         case BLOCK_PISTON:
             // TODO: should use the R texture pack to get these exactly right someday. They're fine for now.
@@ -26382,7 +26404,8 @@ static int getCompositeSwatch(int swatchLoc, int backgroundIndex, int faceDirect
     if (!CHECK_COMPOSITE_OVERLAY) {
         // something has gone very wrong - likely it's some illegal data, such as redstone wire hanging in midair.
         // Recover by returning -1 as an abort signal. See issue #150: https://github.com/erich666/Mineways/issues/150
-        assert(CHECK_COMPOSITE_OVERLAY);
+        fprintf(stderr, "TEMPDBG composite: swatch %d bgIndex %d bgType %d bgData %d face %d\n", swatchLoc, backgroundIndex, gBoxData[backgroundIndex].type, gBoxData[backgroundIndex].data, faceDirection); // TEMPDBG
+        //assert(CHECK_COMPOSITE_OVERLAY); // TEMPDBG
         return -1;
     }
     // does library have type/backgroundType desired?
@@ -26968,6 +26991,7 @@ bool IsASubblock(int type, int dataVal)
     case BLOCK_STAINED_GLASS_PANE:
     case BLOCK_CARPET:
     case BLOCK_CUSHION:
+    case BLOCK_BED:
     case BLOCK_CONCRETE:
     case BLOCK_CONCRETE_POWDER:
         // Wool wants to be White Wool when it's a subblock, so the default block name is not OK
@@ -29392,11 +29416,13 @@ static int createBaseMaterialTexture()
         // stretch only if we're exporting full blocks
         if (!gModel.options->pEFD->chkExportAll)
         {
-            // bed
-            stretchSwatchToFill(mainprog, SWATCH_INDEX(5, 9), 0, 7, 15, 15);
-            stretchSwatchToFill(mainprog, SWATCH_INDEX(6, 9), 0, 7, 15, 15);
-            stretchSwatchToFill(mainprog, SWATCH_INDEX(7, 9), 0, 7, 15, 15);
-            stretchSwatchToFill(mainprog, SWATCH_INDEX(8, 9), 0, 7, 15, 15);
+            // bed: each side's 16x6 strip, above the legs' textures, fills the side of the full block
+            static const int bedSides[5] = { BED_FOOT_EAST, BED_FOOT_SOUTH, BED_FOOT_WEST, BED_HEAD_EAST, BED_HEAD_WEST };
+            for (int bedColor = 0; bedColor < 16; bedColor++) {
+                for (int bedSide = 0; bedSide < 5; bedSide++)
+                    stretchSwatchToFill(mainprog, BED_TILE(bedColor, bedSides[bedSide]), 0, 7, 15, 12);
+            }
+            stretchSwatchToFill(mainprog, BED_HEAD_NORTH_TILE, 0, 7, 15, 12);
 
             // cake
             stretchSwatchToFill(mainprog, SWATCH_INDEX(9, 7), 1, 1, 14, 14);

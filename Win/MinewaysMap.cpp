@@ -795,7 +795,6 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
     case BLOCK_STAINED_GLASS_PANE:
     case BLOCK_CONCRETE:
     case BLOCK_CONCRETE_POWDER:
-        // someday, when I add beds with colors: case BLOCK_BED - and we'll probably need to shift the data value, since the lower bits are used for top/bottom etc.
         sprintf_s(gConcatString, 100, "%s %s", gColorNames[dataVal & 0xf].name, gBlockDefinitions[type].name);
         return gConcatString;
 
@@ -1725,11 +1724,10 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         break;
 
     case BLOCK_BED:
-        // dataVal bit 0x8 is part (0=foot,1=head); default name "Bed" covers the foot half.
-        if (dataVal & 0x8) {
-            return "Bed (Head)";
-        }
-        break;
+        // the color is in BED_COLOR_MASK; dataVal bit 0x8 is part (0=foot,1=head)
+        strcpy_s(gConcatString, 100, gConcreteWoolColorNames[BED_COLOR(dataVal)]);
+        strcat_s(gConcatString, 100, (dataVal & 0x8) ? " Bed (Head)" : " Bed");
+        return gConcatString;
     case BLOCK_STRAW_BED:
         // dataVal bit 0x8 is part (0=foot,1=head); default name "Straw Bed" covers the foot half.
         if (dataVal & 0x8) {
@@ -2326,12 +2324,10 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         break;
 
     case BLOCK_COLORED_CANDLE:
-        // someday, when I add beds with colors: case BLOCK_BED - and we'll probably need to shift the data value, since the lower bits are used for top/bottom etc.
         sprintf_s(gConcatString, 100, "%s %s", gColorNames[dataVal & 0xf].name, gBlockDefinitions[BLOCK_CANDLE].name);
         return gConcatString;
 
     case BLOCK_LIT_COLORED_CANDLE:
-        // someday, when I add beds with colors: case BLOCK_BED - and we'll probably need to shift the data value, since the lower bits are used for top/bottom etc.
         sprintf_s(gConcatString, 100, "Lit %s %s", gColorNames[dataVal & 0xf].name, gBlockDefinitions[BLOCK_CANDLE].name);
         return gConcatString;
 
@@ -3578,6 +3574,9 @@ unsigned int GetBlockDataColor(int type, int dataVal)
 
     case BLOCK_CUSHION:
         return gWoolColors[dataVal & 0xF];
+
+    case BLOCK_BED:
+        return gWoolColors[BED_COLOR(dataVal)];
 
     case BLOCK_CUT_COPPER_DOUBLE_SLAB:
     case BLOCK_CUT_COPPER_SLAB:
@@ -6797,8 +6796,13 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
     case BLOCK_BED:
     case BLOCK_STRAW_BED:
-        if (dataVal < 4)
+        // the straw bed has the four facings; the bed has each of its 16 colors, cycling through the facings
+        if (dataVal < 4 || origType == BLOCK_BED)
         {
+            int bedVal = dataVal & 0x3;
+            if (origType == BLOCK_BED)
+                bedVal |= BED_COLOR_BITS(dataVal);
+            finalDataVal = bedVal;
             addBlock = 1;
             switch (dataVal & 0x3)
             {
@@ -6806,25 +6810,25 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 // put head to south
                 bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
                 block->grid[bi] = (unsigned char)type;
-                block->data[bi] |= (unsigned short)(dataVal | typeHighBit | 0x8);
+                block->data[bi] |= (unsigned short)(bedVal | typeHighBit | 0x8);
                 break;
             case 1:
                 // put head to west
                 bi = BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
                 block->grid[bi] = (unsigned char)type;
-                block->data[bi] |= (unsigned short)(dataVal | typeHighBit | 0x8);
+                block->data[bi] |= (unsigned short)(bedVal | typeHighBit | 0x8);
                 break;
             case 2:
                 // put head to north
                 bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8);
                 block->grid[bi] = (unsigned char)type;
-                block->data[bi] |= (unsigned short)(dataVal | typeHighBit | 0x8);
+                block->data[bi] |= (unsigned short)(bedVal | typeHighBit | 0x8);
                 break;
             case 3:
                 // put head to east
                 bi = BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
                 block->grid[bi] = (unsigned char)type;
-                block->data[bi] |= (unsigned short)(dataVal | typeHighBit | 0x8);
+                block->data[bi] |= (unsigned short)(bedVal | typeHighBit | 0x8);
                 break;
             }
         }

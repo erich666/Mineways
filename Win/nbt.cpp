@@ -99,6 +99,25 @@ static int signWoodBitsFromName(const char* name)
     return ((wood < 0) ? 0 : wood) << SIGN_WOOD_SHIFT;
 }
 
+// The 16 dye colors as they appear in names, e.g. "light_blue" in "minecraft:light_blue_bed", in the order of wool's dataVal
+static const char* gDyeColorIds[16] = { "white", "orange", "magenta", "light_blue", "yellow", "lime", "pink", "gray",
+    "light_gray", "cyan", "purple", "blue", "brown", "green", "red", "black" };
+
+// A bed's color, from its name, e.g. "minecraft:light_blue_bed" gives 3, as for wool. The pre-1.13 name, "bed", is red.
+// The colors are set from the names, in bits BED_COLOR_MASK, as there are too many to fit beside a bed's other bits
+// in BlockTranslations[]' 8-bit dataVal.
+static int bedColorFromName(const char* name)
+{
+    if (strncmp(name, "minecraft:", 10) == 0)
+        name += 10;
+    for (int i = 0; i < 16; i++) {
+        size_t len = strlen(gDyeColorIds[i]);
+        if (strncmp(name, gDyeColorIds[i], len) == 0 && strcmp(name + len, "_bed") == 0)
+            return i;
+    }
+    return BED_COLOR_RED;
+}
+
 typedef struct BiomeTranslator {
     int hashSum;
     unsigned char biomeID;
@@ -1150,7 +1169,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  66,    TYPE_HIGH_BIT1, "conduit", NO_PROP },
     { 0,  67,    TYPE_HIGH_BIT1, "sea_pickle", PICKLE_PROP },
     { 0,  68,    TYPE_HIGH_BIT1, "turtle_egg", EGG_PROP },
-    { 0,  26,           0, "black_bed", BED_PROP }, // TODO+ bed colors should have separate blocks or whatever
+    { 0,  26,           0, "black_bed", BED_PROP }, // the color is set from the name, in bits BED_COLOR_MASK - see bedColorFromName()
     { 0,  26,           0, "red_bed", BED_PROP },
     { 0,  26,           0, "green_bed", BED_PROP },
     { 0,  26,           0, "brown_bed", BED_PROP },
@@ -2005,6 +2024,8 @@ void makeHashTable()
         mask_array[BLOCK_WALL_SIGN] |= SIGN_WOOD_MASK;
         mask_array[BLOCK_HANGING_SIGN] |= SIGN_WOOD_MASK;
         mask_array[BLOCK_WALL_HANGING_SIGN] |= SIGN_WOOD_MASK;
+        // beds' colors are set from their names, not from BlockTranslations[] (see bedColorFromName())
+        mask_array[BLOCK_BED] |= BED_COLOR_MASK;
         // cushions are entities, not in BlockTranslations[]: their color is in bits 0xF
         mask_array[BLOCK_CUSHION] |= 0xF;
         // really, these should all be set properly already, but might as well make sure...
@@ -3800,8 +3821,6 @@ SectionsCode:
 // Returns the number of cushions found.
 int nbtGetCushions(bfFile* pbf, CushionEntity* cushions, int maxCushions)
 {
-    static const char* colorNames[16] = { "white", "orange", "magenta", "light_blue", "yellow", "lime", "pink", "gray",
-        "light_gray", "cyan", "purple", "blue", "brown", "green", "red", "black" };
     int numCushions = 0;
 
     // skip the root compound's type and name
@@ -3851,7 +3870,7 @@ int nbtGetCushions(bfFile* pbf, CushionEntity* cushions, int maxCushions)
                 }
                 else {
                     for (int c = 0; c < 16; c++) {
-                        if (strcmp(value, colorNames[c]) == 0)
+                        if (strcmp(value, gDyeColorIds[c]) == 0)
                             color = c;
                     }
                 }
@@ -6001,6 +6020,9 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 else if (IS_SIGN_TYPE(fullType)) {
                     dataVal |= signWoodBitsFromName(entryName);
                 }
+                else if (fullType == BLOCK_BED) {
+                    dataVal |= BED_COLOR_BITS(bedColorFromName(entryName));
+                }
             }
 
             // make sure upper bits are not set - they should not be! Well, except for heads. So, comment out this test
@@ -7679,11 +7701,13 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
         blockId -= 1;
     }
 
-    // signs of all kinds: the wood comes from the name, as the world reader does (readPalette)
+    // signs of all kinds: the wood comes from the name, as does a bed's color, as the world reader does (readPalette)
     {
         int fullType = (blockId > 511) ? blockId : (blockId | (typeHighBit << 1));
         if (IS_SIGN_TYPE(fullType))
             dataVal |= signWoodBitsFromName(buf);
+        else if (fullType == BLOCK_BED)
+            dataVal |= BED_COLOR_BITS(bedColorFromName(buf));
     }
 
     // Done. The full type is blockId plus 256 if the table entry had TYPE_HIGH_BIT1 (a blockId over 511 is
@@ -8123,6 +8147,18 @@ static const BlockTranslator* findSpongeTranslator(int type, int dataVal)
         int wood = SIGN_WOOD(dataVal);
         for (int i = 0; i < n; i++) {
             if (signWoodFromName(gSpongeReverse[fullType][i]->name) == wood)
+                return gSpongeReverse[fullType][i];
+        }
+        return gSpongeReverse[fullType][0];
+    }
+
+    if (fullType == BLOCK_BED) {
+        // a bed's color is in BED_COLOR_MASK, beyond BlockTranslations[]' dataVal, so pick the entry by the color in its name.
+        // The pre-1.13 "bed" is skipped: red gets "red_bed".
+        int color = BED_COLOR(dataVal);
+        for (int i = 0; i < n; i++) {
+            const char* name = gSpongeReverse[fullType][i]->name;
+            if (strcmp(name, "bed") != 0 && bedColorFromName(name) == color)
                 return gSpongeReverse[fullType][i];
         }
         return gSpongeReverse[fullType][0];
@@ -9807,7 +9843,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     // canonical modern equivalent so consumer tools (WorldEdit, FAWE, Litematica) don't silently
     // drop the block to air. Only applied if no earlier arm already overrode `name`.
     if (name == e->name && strcmp(name, "bed") == 0) {
-        // Mineways stores only one bed kind (BLOCK_BED, no per-color tracking). Export as red_bed.
+        // not normally reached: findSpongeTranslator() picks a bed's entry by its color, skipping "bed"
         name = "red_bed";
     }
     else if (name == e->name && strcmp(name, "grass") == 0) {

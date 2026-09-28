@@ -554,6 +554,13 @@ extern BlockDefinition gBlockDefinitions[];
 // A cushion resting on a partial block, such as a slab, carpet, or snow layers, is in the block above it, lowered by this many sixteenths
 #define CUSHION_DROP_SHIFT 7
 #define CUSHION_DROP(dataVal) (((dataVal) >> CUSHION_DROP_SHIFT) & 0xF)
+// A bed's color, as for wool (0 = white ... 14 = red, 15 = black), is in bits 0x780. It's stored exclusive-or'ed with red, so that
+// 0, the bed of worlds before 1.13 and of "bed", is red.
+#define BED_COLOR_SHIFT 7
+#define BED_COLOR_MASK (0xF << BED_COLOR_SHIFT)
+#define BED_COLOR_RED 14
+#define BED_COLOR(dataVal) ((((dataVal) & BED_COLOR_MASK) >> BED_COLOR_SHIFT) ^ BED_COLOR_RED)
+#define BED_COLOR_BITS(color) ((((color) ^ BED_COLOR_RED) & 0xF) << BED_COLOR_SHIFT)
 #define IS_SIGN_TYPE(type) ((type) == BLOCK_SIGN_POST || (type) == BLOCK_WALL_SIGN || (type) == BLOCK_HANGING_SIGN || (type) == BLOCK_WALL_HANGING_SIGN)
 typedef struct SignWood {
     const char* name;           // Minecraft's name prefix, e.g. "dark_oak" for dark_oak_sign and dark_oak_wall_sign
@@ -612,7 +619,7 @@ enum block_types {
     BLOCK_DISPENSER = 23,
     BLOCK_SANDSTONE = 24,
     BLOCK_NOTEBLOCK = 25,
-    BLOCK_BED = 26,
+    BLOCK_BED = 26,    // bits 0x3 the facing (0 = south, 1 = west, 2 = north, 3 = east), 0x4 occupied, 0x8 the head, 0x780 the color (see BED_COLOR)
     BLOCK_POWERED_RAIL = 27,
     BLOCK_DETECTOR_RAIL = 28,
     BLOCK_STICKY_PISTON = 29,
