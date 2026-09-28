@@ -551,6 +551,9 @@ extern BlockDefinition gBlockDefinitions[];
 #define SIGN_WOOD_MASK (0xF << SIGN_WOOD_SHIFT)
 #define SIGN_WOOD(dataVal) (((dataVal) & SIGN_WOOD_MASK) >> SIGN_WOOD_SHIFT)
 #define NUM_SIGN_WOODS 13
+// A cushion resting on a partial block, such as a slab, carpet, or snow layers, is in the block above it, lowered by this many sixteenths
+#define CUSHION_DROP_SHIFT 7
+#define CUSHION_DROP(dataVal) (((dataVal) >> CUSHION_DROP_SHIFT) & 0xF)
 #define IS_SIGN_TYPE(type) ((type) == BLOCK_SIGN_POST || (type) == BLOCK_WALL_SIGN || (type) == BLOCK_HANGING_SIGN || (type) == BLOCK_WALL_HANGING_SIGN)
 typedef struct SignWood {
     const char* name;           // Minecraft's name prefix, e.g. "dark_oak" for dark_oak_sign and dark_oak_wall_sign
@@ -1120,5 +1123,6 @@ enum block_types {
     BLOCK_SHELF_MUSHROOM = 557,   // bits 0x3 are facing (door_facing: 0=east,1=south,2=west,3=north), bit 0x4 is age (0=small,1=large)
     BLOCK_STRAW_BED = 558,   // bits 0x3 are SWNE facing (south=0,west=1,north=2,east=3), bit 0x8 is part (0=foot,1=head)
     BLOCK_RED_SHRUB = 559,   // was 396 (140 + TYPE_HIGH_BIT1), which the translation table couldn't tell from potted cactus (140, CACTUS_FIELD)
-    BLOCK_CUSHION = 560,   // an entity, not a block (see addCushions() in MinewaysMap.cpp): bits 0xF are the color, as for wool, bits 0x30 the facing, yaw / 90 (0 = south, 1 = west, 2 = north, 3 = east)
+    BLOCK_CUSHION = 560,   // an entity, not a block (see addCushions() in MinewaysMap.cpp): bits 0xF are the color, as for wool, bits 0x30 the facing, yaw / 90 (0 = south, 1 = west, 2 = north, 3 = east),
+                           // bits 0x780 how far below its block it sits, in sixteenths (see CUSHION_DROP)
 };

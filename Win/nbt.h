@@ -174,6 +174,7 @@ void nbtClose(bfFile* pbf);
 #define MAX_CUSHIONS_PER_CHUNK 1024
 typedef struct CushionEntity {
     int x, y, z;    // world block position, "block_pos"
+    double posY;    // the cushion's bottom, "Pos" Y; above y when it rests on a partial block, such as a slab
     int dataVal;    // BLOCK_CUSHION's dataVal: color in bits 0xF, facing in bits 0x30
 } CushionEntity;
 int nbtGetCushions(bfFile* pbf, CushionEntity* cushions, int maxCushions);

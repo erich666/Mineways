@@ -3796,7 +3796,7 @@ SectionsCode:
 }
 
 // Read the cushions in an entity chunk (from an "entities" region file): each entity of the chunk's "Entities" list with the id
-// "minecraft:cushion" gives its "block_pos", its "color", and its "Rotation" yaw, turned into a facing, a multiple of 90 degrees.
+// "minecraft:cushion" gives its "block_pos", its "Pos" Y (its bottom), its "color", and its "Rotation" yaw, turned into a facing, a multiple of 90 degrees.
 // Returns the number of cushions found.
 int nbtGetCushions(bfFile* pbf, CushionEntity* cushions, int maxCushions)
 {
@@ -3826,6 +3826,8 @@ int nbtGetCushions(bfFile* pbf, CushionEntity* cushions, int maxCushions)
         int color = 0;
         float yaw = 0.0f;
         int pos[3] = { 0, 0, 0 };
+        double posY = 0.0;
+        bool havePosY = false;
         // read the entity's fields, in whatever order they come
         for (;;) {
             unsigned char type = 0;
@@ -3863,6 +3865,25 @@ int nbtGetCushions(bfFile* pbf, CushionEntity* cushions, int maxCushions)
                 }
                 havePos = (n == 3);
             }
+            else if (type == 9 && strcmp(name, "Pos") == 0) {
+                // a list of doubles: x, y, z
+                unsigned char listType = 0;
+                if (bfread(pbf, &listType, 1) < 0)
+                    return numCushions;
+                int n = readInt(pbf);
+                for (int k = 0; k < n; k++) {
+                    if (listType == 6) {
+                        double v = readDouble(pbf);
+                        if (k == 1) {
+                            posY = v;
+                            havePosY = true;
+                        }
+                    }
+                    else if (skipType(pbf, listType) < 0) {
+                        return numCushions;
+                    }
+                }
+            }
             else if (type == 9 && strcmp(name, "Rotation") == 0) {
                 // a list of floats: yaw, then pitch
                 unsigned char listType = 0;
@@ -3889,6 +3910,7 @@ int nbtGetCushions(bfFile* pbf, CushionEntity* cushions, int maxCushions)
             cushions[numCushions].x = pos[0];
             cushions[numCushions].y = pos[1];
             cushions[numCushions].z = pos[2];
+            cushions[numCushions].posY = havePosY ? posY : (double)pos[1];
             cushions[numCushions].dataVal = color | (facing << 4);
             numCushions++;
         }

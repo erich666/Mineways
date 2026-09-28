@@ -6569,8 +6569,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // repacks from entity\cushion\*_cushion.png's box layout: the top, then the bottom, then, below the top, the four 16x4 sides,
         // from the entity texture's u 0-16, 16-32, 32-48, 48-64. Entity models are drawn flipped in X and Y, so these are the world's
         // east, north, west, and south sides, and the top and bottom are each turned 180 degrees.
-        static const ModelElement cushionElements[] = {
-            { { 0.0f, 0.0f, 0.0f }, { 16.0f, 4.0f, 16.0f }, 6, {
+        // A cushion resting on a partial block, such as a slab, is lowered into it (see CUSHION_DROP), so its box starts below this block.
+        float drop = (float)CUSHION_DROP(dataVal);
+        ModelElement cushionElements[] = {
+            { { 0.0f, -drop, 0.0f }, { 16.0f, 4.0f - drop, 16.0f }, 6, {
                 { DIRECTION_BLOCK_TOP, { 8.0f, 8.0f, 0.0f, 0.0f }, 0 },
                 { DIRECTION_BLOCK_BOTTOM, { 16.0f, 0.0f, 8.0f, 8.0f }, 0 },
                 { DIRECTION_BLOCK_SIDE_HI_X, { 0.0f, 8.0f, 8.0f, 10.0f }, 0 },
@@ -14965,7 +14967,10 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
                 break;
 
             case BLOCK_CUSHION:
-                setTop = 4;
+                // lowered, the cushion may not reach up into this block at all
+                setTop = (float)(4 - CUSHION_DROP(dataVal));
+                if (setTop < 0.0f)
+                    setTop = 0.0f;
                 break;
 
             case BLOCK_END_PORTAL_FRAME:
@@ -20037,10 +20042,11 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
 {
     // we have partial blocks possible. Check if neighbor's type exists at all
     int type = gBoxData[neighborBoxIndex].type;
-    // A straw bed's geometry is output, and its voxel cleared to air, before full blocks' faces are made; it still
-    // covers the top of the block below, so look at what was there.
-    if (type == BLOCK_AIR && gBoxData[neighborBoxIndex].origType == BLOCK_STRAW_BED)
-        type = BLOCK_STRAW_BED;
+    // A straw bed's or cushion's geometry is output, and its voxel cleared to air, before full blocks' faces are made; it still
+    // covers the top of the block below, so look at what was there. Without this, a 3D print would have the cushion's bottom removed
+    // (the block below covers it) but not the block's top, leaving the model not watertight.
+    if (type == BLOCK_AIR && (gBoxData[neighborBoxIndex].origType == BLOCK_STRAW_BED || gBoxData[neighborBoxIndex].origType == BLOCK_CUSHION))
+        type = gBoxData[neighborBoxIndex].origType;
     // not air?
     if (type > BLOCK_AIR)
     {
@@ -20219,7 +20225,6 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_STATIONARY_LAVA:			        // lesserBlockCoversWholeFace
         case BLOCK_SNOW:
         case BLOCK_CARPET:
-        case BLOCK_CUSHION:
         case BLOCK_END_PORTAL_FRAME:
         case BLOCK_FARMLAND:
         case BLOCK_REDSTONE_REPEATER_OFF:
@@ -20234,6 +20239,10 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_SCULK_SHRIEKER:
             // blocks top of block below
             return (faceDirection == DIRECTION_BLOCK_TOP);
+
+        case BLOCK_CUSHION:						// lesserBlockCoversWholeFace
+            // blocks top of block below, unless it's lowered, when its bottom is in the block below, not on this block's floor
+            return (faceDirection == DIRECTION_BLOCK_TOP) && (CUSHION_DROP(neighborDataVal) == 0);
 
         case BLOCK_TRAPDOOR:						// lesserBlockCoversWholeFace
         case BLOCK_IRON_TRAPDOOR:
@@ -26958,6 +26967,7 @@ bool IsASubblock(int type, int dataVal)
     case BLOCK_STAINED_GLASS:
     case BLOCK_STAINED_GLASS_PANE:
     case BLOCK_CARPET:
+    case BLOCK_CUSHION:
     case BLOCK_CONCRETE:
     case BLOCK_CONCRETE_POWDER:
         // Wool wants to be White Wool when it's a subblock, so the default block name is not OK

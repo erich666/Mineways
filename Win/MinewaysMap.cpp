@@ -6646,9 +6646,9 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
 
     case BLOCK_CUSHION:
-        // the 16 colors, cycling through the four facings
+        // the 16 colors, cycling through the four facings; the second eight are lowered, as if on a bottom slab
         addBlock = 1;
-        finalDataVal = dataVal | ((dataVal & 0x3) << 4);
+        finalDataVal = dataVal | ((dataVal & 0x3) << 4) | ((dataVal & 0x8) ? (8 << CUSHION_DROP_SHIFT) : 0);
         break;
 
     case BLOCK_WALL_SIGN:
@@ -8288,8 +8288,9 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
 }
 
 // Cushions are entities, not blocks, stored in the "entities" region files. Mineways treats each as a block, BLOCK_CUSHION, at its
-// "block_pos", if that location is empty. A cushion resting on a partial block, such as a slab or carpet, shares that block's
-// location, so it is not added.
+// "block_pos", if that location is empty. A cushion resting on a partial block, such as a bottom slab, carpet, or snow layers, has
+// that block's location, a bit above its bottom; it's put in the (normally empty) location above instead, lowered by the rest of the
+// block, in sixteenths, CUSHION_DROP.
 static void addCushions(wchar_t* directory, int cx, int cz, WorldBlock* block)
 {
     static CushionEntity cushions[MAX_CUSHIONS_PER_CHUNK];
@@ -8298,13 +8299,21 @@ static void addCushions(wchar_t* directory, int cx, int cz, WorldBlock* block)
         int x = cushions[i].x - cx * 16;
         int z = cushions[i].z - cz * 16;
         int y = cushions[i].y - block->minHeight;
+        int dataVal = cushions[i].dataVal;
+        // how far above its block_pos the cushion's bottom is, in sixteenths
+        int height = (int)floor((cushions[i].posY - (double)cushions[i].y) * 16.0 + 0.5);
+        if (height > 0 && height < 16) {
+            // resting on a partial block: put it in the block above, lowered
+            y++;
+            dataVal |= (16 - height) << CUSHION_DROP_SHIFT;
+        }
         if (x < 0 || x > 15 || z < 0 || z > 15 || y < 0 || y >= block->heightAlloc)
             continue;
         int index = BLOCK_INDEX(x, y, z);
         if (BLOCK_TYPE_FROM_GRID_DATA(block->grid[index], block->data[index]) != BLOCK_AIR)
             continue;
         block->grid[index] = (unsigned char)(BLOCK_CUSHION & 0xFF);
-        block->data[index] = PACK_TYPE_EXT_AND_DATAVAL(BLOCK_CUSHION, cushions[i].dataVal);
+        block->data[index] = PACK_TYPE_EXT_AND_DATAVAL(BLOCK_CUSHION, dataVal);
         // the section holding the cushion may otherwise be empty
         if (y > block->maxFilledSectionHeight) {
             block->maxFilledSectionHeight = min(block->heightAlloc - 1, y | 0xF);
