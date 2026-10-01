@@ -16179,8 +16179,9 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     {
         float texelWidth, texelLow, texelHigh;
 
-        // approximate width of billboard across block, eyeballing it.
-        texelWidth = 14.5f / 16.0f;
+        // Minecraft's cross model: each plane runs diagonally from pixel 0.8 to 15.2 in X and Z (an element from 0.8 to 15.2,
+        // turned 45 degrees and stretched by "rescale" to reach that far along the diagonal)
+        texelWidth = 14.4f / 16.0f;
         if (fullHeight) {
             texelLow = 0.0f;
             texelHigh = 1.0f;
@@ -21580,7 +21581,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case 2: // podzol
                 swatchLoc = SWATCH_INDEX(15, 17);
-                SWATCH_SWITCH_SIDE(faceDirection, 14, 17);
+                SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 14, 17, 2, 0);    // dirt bottom
                 // same as grass block: switch to snow covered look
                 // check if block above is snow (or flagged as "snowy"); if so, use snow side tile; note we
                 // check against the original type, since the snow block is likely to be flattened
@@ -21611,7 +21612,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 14, 56, 15, 56);
                 break;
             }
-            randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
+            // as in Minecraft, only dirt and (unless snowy) podzol are turned randomly
+            if (((dataVal & 0x7) == 0) || (((dataVal & 0x7) == 2) && !(gIs13orNewer ? (dataVal & SNOWY_BIT) : (gBoxData[backgroundIndex + 1].origType == BLOCK_SNOW)))) {
+                randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
+            }
             break;
 
         case BLOCK_CRYING_OBSIDIAN:
