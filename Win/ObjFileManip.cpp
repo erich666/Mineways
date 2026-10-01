@@ -5457,9 +5457,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 modDataVal &= 0x7;
                 break;
             case BLOCK_ACTIVATOR_RAIL:
-                if (modDataVal & 0x8)
+                // by default, activated
+                if (!(modDataVal & 0x8))
                 {
-                    // activated rail
+                    // unactivated rail
                     swatchLoc = SWATCH_INDEX(9, 17);
                 }
                 // if not a normal rail, there are no curve bits, so mask off upper bit, which is
@@ -22624,10 +22625,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 }
                 break;
             case BLOCK_ACTIVATOR_RAIL:
-                // by default, unactivated
-                if (dataVal & 0x8)
+                // by default, activated
+                if (!(dataVal & 0x8))
                 {
-                    // activated rail
+                    // unactivated rail
                     swatchLoc = SWATCH_INDEX(9, 17);
                 }
                 break;
@@ -24005,7 +24006,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             break;
         case BLOCK_DANDELION:						// getSwatch
-            switch (dataVal & 0xf) {
+            // bit 0x8 is the sapling "stage" (pale oak and poplar saplings live here), which is non-graphical
+            switch (dataVal & 0x7) {
             default:
                 assert(0);
             case 0:
@@ -24128,6 +24130,14 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             break;
         case BLOCK_TALL_SEAGRASS:				// getSwatch
             swatchLoc = SWATCH_INDEX(14, 33);
+            swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
+            break;
+        case BLOCK_KELP:				// getSwatch
+            if (dataVal > 0)
+            {
+                // subtract 1 if needed to get to "kelp", the top of the plant (as in saveBillboardFacesExtraData)
+                swatchLoc = SWATCH_INDEX(11 - (dataVal & 0x1), 33);
+            }
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             break;
         case BLOCK_WEEPING_VINES:				// getSwatch
@@ -24429,7 +24439,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 }
                 break;
             default:
-                assert(0);
+                // sides are reached only when lesser blocks are off and the frame is output as a full block; no rotation needed
                 break;
             }
 
@@ -25831,12 +25841,16 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             {
                 int age = (dataVal & 0x7);
 
+                if ((dataVal & 0x8) && (age < 3)) {
+                    // upper block with age 0-2: only the Debug World has these. Not legal, so, as in saveBillboardOrGeometry,
+                    // don't output anything - -1 drops the face. Reached only when lesser blocks are off (output as a full block).
+                    swatchLoc = -1;
+                }
                 // if age > 1, there's a flower. Get the swatch to use, then output it
-                if (age > 0) {
+                else if (age > 0) {
                     // is this the upper or lower block?
                     if (dataVal & 0x8) {
-                        // upper. Check that the age is 3 or 4
-                        assert(age >= 3);
+                        // upper, age 3 or 4
                         swatchLoc = SWATCH_INDEX(1, 58) + age;
                     }
                     else {
@@ -26205,14 +26219,12 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 swatchLoc += (dataVal & 0x2) ? 2 : 1;
                 break;
             case DIRECTION_BLOCK_BOTTOM:
-                // should never get used
-                assert(0);
-                break;
+                // used only when lesser blocks are off and the carpet is output as a full block; same as top
             case DIRECTION_BLOCK_TOP:
                 // no change, use default
                 break;
             }
-            if (faceDirection != DIRECTION_BLOCK_TOP) {
+            if (faceDirection != DIRECTION_BLOCK_TOP && faceDirection != DIRECTION_BLOCK_BOTTOM) {
                 // sides are semitransparent, so need a composite swatch
                 swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             }
@@ -26401,11 +26413,16 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
 // Note that currently we don't rotate the background texture properly compared to the swatch itself - tough.
 static int getCompositeSwatch(int swatchLoc, int backgroundIndex, int faceDirection, int angle)
 {
+    if (gModel.exportTiles) {
+        // Individual textures are never composited: each face uses its own tile, cutouts and all, so that the tiles
+        // can be swapped later. With lesser blocks off, billboards and flattenables are output as full blocks, which
+        // then simply use their own (cutout) tile.
+        return swatchLoc;
+    }
     if (!CHECK_COMPOSITE_OVERLAY) {
         // something has gone very wrong - likely it's some illegal data, such as redstone wire hanging in midair.
         // Recover by returning -1 as an abort signal. See issue #150: https://github.com/erich666/Mineways/issues/150
-        fprintf(stderr, "TEMPDBG composite: swatch %d bgIndex %d bgType %d bgData %d face %d\n", swatchLoc, backgroundIndex, gBoxData[backgroundIndex].type, gBoxData[backgroundIndex].data, faceDirection); // TEMPDBG
-        //assert(CHECK_COMPOSITE_OVERLAY); // TEMPDBG
+        assert(CHECK_COMPOSITE_OVERLAY);
         return -1;
     }
     // does library have type/backgroundType desired?

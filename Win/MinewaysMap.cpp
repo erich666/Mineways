@@ -5685,7 +5685,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
     case BLOCK_DANDELION:
         // uses 0-6
-        if (dataVal < 6)
+        if (dataVal < 7)
         {
             addBlock = 1;
         }
