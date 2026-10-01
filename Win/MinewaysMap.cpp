@@ -6648,6 +6648,11 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         // the 16 colors, cycling through the four facings; the second eight are lowered, as if on a bottom slab
         addBlock = 1;
         finalDataVal = dataVal | ((dataVal & 0x3) << 4) | ((dataVal & 0x8) ? (8 << CUSHION_DROP_SHIFT) : 0);
+        if (dataVal & 0x8) {
+            // put the bottom slab underneath, else the lowered cushion is hidden inside the grass block
+            block->grid[BLOCK_INDEX(4 + (origType % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE_SLAB;
+            block->data[BLOCK_INDEX(4 + (origType % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = 0;   // smooth stone, bottom half
+        }
         break;
 
     case BLOCK_WALL_SIGN:
