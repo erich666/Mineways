@@ -4278,7 +4278,10 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                     // No properties found for this block: it's in its default state (26.3 and on don't store those). Most blocks' defaults are what we get with no
                     // properties set, but some are not, so for those make up the properties in memory and read them.
                     const char* defaults = defaultStateProperties(entryName);
-                    if (defaults == NULL && useData && entryName[0] != 0 && typeIndex > -1 && familyFacesNorthByDefault((int)BlockTranslations[typeIndex].translateFlags)) {
+                    // Standing torches (torch, soul_torch, copper_torch) share TORCH_PROP with the wall torches but have no "facing";
+                    // giving them facing=north would turn them into wall torches.
+                    if (defaults == NULL && useData && entryName[0] != 0 && typeIndex > -1 && familyFacesNorthByDefault((int)BlockTranslations[typeIndex].translateFlags) &&
+                        (BlockTranslations[typeIndex].translateFlags != TORCH_PROP || strstr(entryName, "wall_torch") != NULL)) {
                         defaults = "facing=north";
                     }
                     if (defaults) {

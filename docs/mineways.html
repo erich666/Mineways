@@ -2961,12 +2961,12 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 <LI>Version 14.01, */*/2026 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1401.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
     <UL>
+	<LI>Fix <a href="https://www.reddit.com/r/mineways/comments/1wugiw0/torches_rotated_when_not_placed_on_wall/">standing torch export bug</a>. The problem was that the new 26.3 format has implied default states, and that standing torches were getting a default of "facing=north". Fixed. <I>(Thanks to lunana_bread for the bug report.)</I>
 	<LI>Add the cushion entities in 26.3. I missed these previously as they're not blocks per se. Cushions have a minor limitation, the exception being if the location above the cushion is not empty, the cushion is not exported. Basically, I'm cheating by putting cushions "just above" whatever they're on, which is likely fine for 99% of users.
 	<LI>Add the new 26.3 Dappled Forest biome, with its orange grass and leaves colors.
 	<LI>Add the 16 colors of beds.
 	<LI>Add and use correct textures for signs and hanging signs.
-	<LI>Proper export for 3D printing with individual textures (rare that anyone would use this) and "lesser" blocks; turn off compositing of swatches. Also fix activator rail tile output for this special case.
-	<LI>Potted pale oak sapling fix.
+	<LI>Proper export for 3D printing with individual textures (rare that anyone would use this) and "lesser" blocks; turn off compositing of swatches. Also fix activator rail tile output for this special case. Potted pale oak sapling fix. Other fixes for this 3D print mode.
 	<LI>New texture set and TileMaker updated to 3.31, ChannelMixer to 1.24.
 	</UL>
 
