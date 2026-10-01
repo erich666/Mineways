@@ -81,6 +81,14 @@ static const wchar_t* gShelfNamesAlt[] = { L"", L"", L"", L"", L"", L"", L"", L"
 static const wchar_t* gCushionNames[] = { L"white_cushion", L"orange_cushion", L"magenta_cushion", L"light_blue_cushion", L"yellow_cushion", L"lime_cushion", L"pink_cushion", L"gray_cushion", L"light_gray_cushion", L"cyan_cushion", L"purple_cushion", L"blue_cushion", L"brown_cushion", L"green_cushion", L"red_cushion", L"black_cushion" };
 static const wchar_t* gCushionNamesAlt[] = { L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"" };
 
+// mob heads: skeleton, wither skeleton, zombie, player, creeper, piglin, and dragon. The player head uses the default "steve" skin.
+#define TOTAL_HEAD_TILES	7
+static const wchar_t* gHeadNames[] = { L"skeleton", L"wither_skeleton", L"zombie", L"steve", L"creeper", L"piglin", L"dragon" };
+static const wchar_t* gHeadNamesAlt[] = { L"", L"", L"", L"", L"", L"", L"" };
+// The directory under textures\entity each is in. Another directory will not do: creeper.png and piglin.png are also in entity\banner and
+// entity\shield, and steve.png is also in entity\player\slim. They are also read from a "head" directory, where ChannelMixer copies them.
+static const wchar_t* gHeadDirs[] = { L"skeleton\\", L"skeleton\\", L"zombie\\", L"player\\wide\\", L"creeper\\", L"piglin\\", L"enderdragon\\" };
+
 typedef struct ChestGrid {
 	int chestCount;
 	int totalCategories;
@@ -94,6 +102,8 @@ static ChestGrid gChestGrid;
 static ChestGrid gShelfGrid;
 // cushions, too, share ChestGrid (there are fewer cushions than chests)
 static ChestGrid gCushionGrid;
+// mob heads, too (there are fewer heads than chests)
+static ChestGrid gHeadGrid;
 
 typedef struct DecoratedPotGrid {
 	int decoratedPotCount;
@@ -109,7 +119,7 @@ void initializeFileGrid(FileGrid* pfg);
 void initializeChestGrid(ChestGrid* pcg);
 void initializeDecoratedPotGrid(DecoratedPotGrid* ppg);
 void addBackslashIfNeeded(wchar_t* dir, size_t dirSize);
-int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, ChestGrid *psg, ChestGrid* pcushg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, bool topmost, bool warnUnused, bool warnDups);
+int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, ChestGrid *psg, ChestGrid* pcushg, ChestGrid* pheadg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, bool topmost, bool warnUnused, bool warnDups);
 bool dirExists(const wchar_t* path);
 bool createDir(const wchar_t* path);
 int checkTilesInDirectory(FileGrid* pfg, const wchar_t* tilePath, int verbose, int alternate);

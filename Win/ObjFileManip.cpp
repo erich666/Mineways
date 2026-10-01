@@ -881,6 +881,19 @@ static int saveSignModel(int boxIndex, int type, int dataVal, bool hanging, cons
 static int saveTurnedModel(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, float yAngle);
 // The terrain tile anchor of a cushion's 32x32 texture (see tiles.h), for its color: eight colors to each pair of rows, from column 16, row 12.
 #define CUSHION_TEXTURE_ANCHOR(color) TILE_TO_SWATCH(16 + 2 * ((color) % 8), 12 + 2 * ((color) / 8))
+// The terrain tile anchor of a mob head's 32x32 texture (see tiles.h), for its head type (bits 0x70 of the data value), from column 16, row 24.
+// Every head type has one except the dragon's, which has a 96x96 texture.
+#define HEAD_TEXTURE_ANCHOR(headType) TILE_TO_SWATCH(16 + 2 * (headType), 24)
+#define DRAGON_HEAD_TEXTURE_ANCHOR TILE_TO_SWATCH(16, 26)
+// a uv coordinate on the dragon head's 96x96 texture, from a pixel location on it
+#define DRAGON_UV(px) ((float)(px) / 6.0f)
+#define HEAD_TYPE_DRAGON 5
+#define HEAD_TYPE_PIGLIN 6
+// a dragon head's jaw is open 0.2 radians, as DragonHeadModel.setupAnim() sets it when the head is not animated
+#define DRAGON_JAW_ANGLE 11.459f
+static float getHeadYAngle(int dataVal);
+// a piglin head's ears hang tilted out from its head by 0.7 radians, as PiglinHeadModel.setupAnim() sets them when the head is not animated
+#define PIGLIN_EAR_ANGLE 40.107f
 // A bed's 16x16 textures (see tiles.h): each color (BED_COLOR()) has a column, from column 16, and each of its seven textures a row,
 // from row 16, in this order. All colors share bed_down.png and bed_head_north.png.
 #define BED_FOOT_EAST 0
@@ -9230,8 +9243,236 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // bit 7 - is bottom four bits 3210 the rotation on floor? If off, put on wall.
         // bits 654 - the head. Hopefully Minecraft won't add more than 8 heads...
         // bits 3210 - depends on bit 7; rotation if on floor, or on which wall (2-5)
+        if (((dataVal >> 4) & 0x7) <= HEAD_TYPE_PIGLIN)
+        {
+            // Minecraft's SkullModel: an 8x8x8 head box and, for the zombie and the player, a hat box around it, 0.25 pixel bigger on each
+            // side, textured by the head type's 32x32 image, which TileMaker repacks from the entity texture: the head box's layout above,
+            // the hat box's below. As for the cushion, entity models are drawn flipped in X and Y, so the layout's sides are the world's
+            // east, north (the face), west, and south sides, and the top and bottom are turned. The dragon's and piglin's heads are
+            // different; see below.
+            // On the floor, the head is centered and faces north for rotation 0, each step of rotation turning it 22.5 degrees clockwise,
+            // seen from above. On a wall, it is raised 4 pixels, with its back against the wall, and faces away from the wall.
+            int headType = (dataVal >> 4) & 0x7;
+            float yAngle = getHeadYAngle(dataVal);
+            // the head box's lowest y and z: on the floor; or on a wall, made facing north, against the wall to the south
+            float headY = (dataVal & 0x80) ? 0.0f : 4.0f;
+            float headZ = (dataVal & 0x80) ? 4.0f : 8.0f;
+            if (headType == HEAD_TYPE_DRAGON) {
+                // Minecraft's DragonHeadModel, the ender dragon's head: a 16x16x16 head box, an upper lip (the snout) with a nostril on
+                // each side of its top, a jaw hinged under the upper lip, and a scale (a horn) on each side of the head's top. The east
+                // scale and nostril are mirror images. It's drawn at 0.75 size and raised 6 pixels, so the head box is 12 pixels on a
+                // side and sits on the floor, and the snout sticks out of the block. The jaw is open DRAGON_JAW_ANGLE, so its front
+                // dips below the head's bottom. Faces inside the head box or against another part are left out. The texture is the
+                // 96x96 image TileMaker repacks from dragon.png (see gDragonHeadData in TileMaker), addressed by DRAGON_UV().
+                ModelElement dragonElements[] = {
+                    // upper head
+                    { { 2.0f, headY, headZ - 3.5f }, { 14.0f, headY + 12.0f, headZ + 8.5f }, 6, {
+                        { DIRECTION_BLOCK_TOP, { DRAGON_UV(32), DRAGON_UV(16), DRAGON_UV(16), DRAGON_UV(0) }, 0 },
+                        { DIRECTION_BLOCK_BOTTOM, { DRAGON_UV(48), DRAGON_UV(0), DRAGON_UV(32), DRAGON_UV(16) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { DRAGON_UV(0), DRAGON_UV(16), DRAGON_UV(16), DRAGON_UV(32) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { DRAGON_UV(16), DRAGON_UV(16), DRAGON_UV(32), DRAGON_UV(32) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { DRAGON_UV(32), DRAGON_UV(16), DRAGON_UV(48), DRAGON_UV(32) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { DRAGON_UV(48), DRAGON_UV(16), DRAGON_UV(64), DRAGON_UV(32) }, 0 }
+                    } },
+                    // upper lip
+                    { { 3.5f, headY + 3.0f, headZ - 14.0f }, { 12.5f, headY + 6.75f, headZ - 2.0f }, 5, {
+                        { DIRECTION_BLOCK_TOP, { DRAGON_UV(28), DRAGON_UV(48), DRAGON_UV(16), DRAGON_UV(32) }, 0 },
+                        { DIRECTION_BLOCK_BOTTOM, { DRAGON_UV(40), DRAGON_UV(32), DRAGON_UV(28), DRAGON_UV(48) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { DRAGON_UV(0), DRAGON_UV(48), DRAGON_UV(16), DRAGON_UV(53) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { DRAGON_UV(16), DRAGON_UV(48), DRAGON_UV(28), DRAGON_UV(53) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { DRAGON_UV(28), DRAGON_UV(48), DRAGON_UV(44), DRAGON_UV(53) }, 0 }
+                    } },
+                    // scale, mirrored
+                    { { 10.25f, headY + 12.0f, headZ + 1.0f }, { 11.75f, headY + 15.0f, headZ + 5.5f }, 5, {
+                        { DIRECTION_BLOCK_TOP, { DRAGON_UV(70), DRAGON_UV(6), DRAGON_UV(72), DRAGON_UV(0) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { DRAGON_UV(78), DRAGON_UV(6), DRAGON_UV(72), DRAGON_UV(10) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { DRAGON_UV(72), DRAGON_UV(6), DRAGON_UV(70), DRAGON_UV(10) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { DRAGON_UV(70), DRAGON_UV(6), DRAGON_UV(64), DRAGON_UV(10) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { DRAGON_UV(80), DRAGON_UV(6), DRAGON_UV(78), DRAGON_UV(10) }, 0 }
+                    } },
+                    // scale
+                    { { 4.25f, headY + 12.0f, headZ + 1.0f }, { 5.75f, headY + 15.0f, headZ + 5.5f }, 5, {
+                        { DIRECTION_BLOCK_TOP, { DRAGON_UV(72), DRAGON_UV(6), DRAGON_UV(70), DRAGON_UV(0) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { DRAGON_UV(64), DRAGON_UV(6), DRAGON_UV(70), DRAGON_UV(10) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { DRAGON_UV(70), DRAGON_UV(6), DRAGON_UV(72), DRAGON_UV(10) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { DRAGON_UV(72), DRAGON_UV(6), DRAGON_UV(78), DRAGON_UV(10) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { DRAGON_UV(78), DRAGON_UV(6), DRAGON_UV(80), DRAGON_UV(10) }, 0 }
+                    } },
+                    // nostril, mirrored
+                    { { 10.25f, headY + 6.75f, headZ - 12.5f }, { 11.75f, headY + 8.25f, headZ - 9.5f }, 5, {
+                        { DIRECTION_BLOCK_TOP, { DRAGON_UV(84), DRAGON_UV(4), DRAGON_UV(86), DRAGON_UV(0) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { DRAGON_UV(90), DRAGON_UV(4), DRAGON_UV(86), DRAGON_UV(6) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { DRAGON_UV(86), DRAGON_UV(4), DRAGON_UV(84), DRAGON_UV(6) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { DRAGON_UV(84), DRAGON_UV(4), DRAGON_UV(80), DRAGON_UV(6) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { DRAGON_UV(92), DRAGON_UV(4), DRAGON_UV(90), DRAGON_UV(6) }, 0 }
+                    } },
+                    // nostril
+                    { { 4.25f, headY + 6.75f, headZ - 12.5f }, { 5.75f, headY + 8.25f, headZ - 9.5f }, 5, {
+                        { DIRECTION_BLOCK_TOP, { DRAGON_UV(86), DRAGON_UV(4), DRAGON_UV(84), DRAGON_UV(0) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { DRAGON_UV(80), DRAGON_UV(4), DRAGON_UV(84), DRAGON_UV(6) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { DRAGON_UV(84), DRAGON_UV(4), DRAGON_UV(86), DRAGON_UV(6) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { DRAGON_UV(86), DRAGON_UV(4), DRAGON_UV(90), DRAGON_UV(6) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { DRAGON_UV(90), DRAGON_UV(4), DRAGON_UV(92), DRAGON_UV(6) }, 0 }
+                    } },
+                };
+                ModelElement jawElement[] = {
+                    // jaw
+                    { { 3.5f, headY, headZ - 14.0f }, { 12.5f, headY + 3.0f, headZ - 2.0f }, 5, {
+                        { DIRECTION_BLOCK_TOP, { DRAGON_UV(28), DRAGON_UV(80), DRAGON_UV(16), DRAGON_UV(64) }, 0 },
+                        { DIRECTION_BLOCK_BOTTOM, { DRAGON_UV(40), DRAGON_UV(64), DRAGON_UV(28), DRAGON_UV(80) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { DRAGON_UV(0), DRAGON_UV(80), DRAGON_UV(16), DRAGON_UV(84) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { DRAGON_UV(16), DRAGON_UV(80), DRAGON_UV(28), DRAGON_UV(84) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { DRAGON_UV(28), DRAGON_UV(80), DRAGON_UV(44), DRAGON_UV(84) }, 0 }
+                    } },
+                };
+                int vertexCount = gModel.vertexCount;
+                gUsingTransform = 1;
+                saveModelElements(boxIndex, type, dataVal, DRAGON_HEAD_TEXTURE_ANCHOR, dragonElements, sizeof(dragonElements) / sizeof(ModelElement), yAngle);
+                // open the jaw: turn it about its hinge, along the top of its back. translateToOriginMtx puts the block's center, pixel
+                // (8,8,8), at the origin. A positive X angle in rotateMtx turns a piece's front (-Z) down.
+                float hingeY = headY + 3.0f;
+                float hingeZ = headZ - 2.0f;
+                int jawVertexCount = gModel.vertexCount;
+                saveModelElements(boxIndex, type, dataVal, DRAGON_HEAD_TEXTURE_ANCHOR, jawElement, 1, yAngle);
+                identityMtx(mtx);
+                translateToOriginMtx(mtx, boxIndex);
+                translateMtx(mtx, 0.0f, (8.0f - hingeY) / 16.0f, (8.0f - hingeZ) / 16.0f);
+                rotateMtx(mtx, DRAGON_JAW_ANGLE, 0.0f, 0.0f);
+                translateMtx(mtx, 0.0f, (hingeY - 8.0f) / 16.0f, (hingeZ - 8.0f) / 16.0f);
+                translateFromOriginMtx(mtx, boxIndex);
+                transformVertices(gModel.vertexCount - jawVertexCount, mtx);
+                // turn the whole head into place
+                identityMtx(mtx);
+                translateToOriginMtx(mtx, boxIndex);
+                rotateMtx(mtx, 0.0f, yAngle, 0.0f);
+                translateFromOriginMtx(mtx, boxIndex);
+                transformVertices(gModel.vertexCount - vertexCount, mtx);
+                gUsingTransform = 0;
+                break; // saveBillboardOrGeometry
+            }
 
-        // make pumpkin, scale it down, and prepare to translate and rotate it, etc.
+            if (headType == HEAD_TYPE_PIGLIN) {
+                // Minecraft's PiglinHeadModel: a 10x8x8 head box with a snout and two tusks on its face, and an ear hanging from each side,
+                // each tilted out by PIGLIN_EAR_ANGLE about its hinge, 2 pixels below the top of the head. The faces of the snout and tusks
+                // against the head and each other are left out. The head box's back is two pieces: in the texture it crosses from the image's
+                // top half to its bottom half (see gHeadData in TileMaker). A flat piece can't be 3D printed, so a print's back is one face,
+                // showing just the part from the top half.
+                ModelElement piglinElements[] = {
+                    // head
+                    { { 3.0f, headY, headZ }, { 13.0f, headY + 8.0f, headZ + 8.0f }, gModel.print3D ? 6 : 5, {
+                        { DIRECTION_BLOCK_TOP, { 9.0f, 4.0f, 4.0f, 0.0f }, 0 },
+                        { DIRECTION_BLOCK_BOTTOM, { 14.0f, 0.0f, 9.0f, 4.0f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { 0.0f, 4.0f, 4.0f, 8.0f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 4.0f, 4.0f, 9.0f, 8.0f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { 9.0f, 4.0f, 13.0f, 8.0f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 13.0f, 4.0f, 16.0f, 8.0f }, 0 }
+                    } },
+                    // head's back, in two pieces
+                    { { 3.0f, headY, headZ + 8.0f }, { 9.0f, headY + 8.0f, headZ + 8.0f }, 1, {
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 13.0f, 4.0f, 16.0f, 8.0f }, 0 }
+                    } },
+                    { { 9.0f, headY, headZ + 8.0f }, { 13.0f, headY + 8.0f, headZ + 8.0f }, 1, {
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 0.0f, 12.0f, 2.0f, 16.0f }, 0 }
+                    } },
+                    // snout
+                    { { 6.0f, headY, headZ - 1.0f }, { 10.0f, headY + 4.0f, headZ }, 5, {
+                        { DIRECTION_BLOCK_TOP, { 2.0f, 9.0f, 0.0f, 8.5f }, 0 },
+                        { DIRECTION_BLOCK_BOTTOM, { 4.0f, 8.5f, 2.0f, 9.0f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { 15.5f, 1.0f, 16.0f, 3.0f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 9.0f, 2.0f, 11.0f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { 2.0f, 9.0f, 2.5f, 11.0f }, 0 }
+                    } },
+                    // tusks
+                    { { 5.0f, headY, headZ - 1.0f }, { 6.0f, headY + 2.0f, headZ }, 4, {
+                        { DIRECTION_BLOCK_TOP, { 2.0f, 2.5f, 1.5f, 2.0f }, 0 },
+                        { DIRECTION_BLOCK_BOTTOM, { 2.5f, 2.0f, 2.0f, 2.5f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 1.5f, 2.5f, 2.0f, 3.5f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { 2.0f, 2.5f, 2.5f, 3.5f }, 0 }
+                    } },
+                    { { 10.0f, headY, headZ - 1.0f }, { 11.0f, headY + 2.0f, headZ }, 4, {
+                        { DIRECTION_BLOCK_TOP, { 2.0f, 0.5f, 1.5f, 0.0f }, 0 },
+                        { DIRECTION_BLOCK_BOTTOM, { 2.5f, 0.0f, 2.0f, 0.5f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { 1.0f, 0.5f, 1.5f, 1.5f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 1.5f, 0.5f, 2.0f, 1.5f }, 0 }
+                    } },
+                };
+                // the ears, west then east, each hinged at its top
+                ModelElement earElements[] = {
+                    { { 2.5f, headY + 1.0f, headZ + 2.0f }, { 3.5f, headY + 6.0f, headZ + 6.0f }, 6, {
+                        { DIRECTION_BLOCK_TOP, { 12.0f, 13.0f, 11.5f, 11.0f }, 0 },
+                        { DIRECTION_BLOCK_BOTTOM, { 12.5f, 11.0f, 12.0f, 13.0f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { 9.5f, 13.0f, 11.5f, 15.5f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 11.5f, 13.0f, 12.0f, 15.5f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { 12.0f, 13.0f, 14.0f, 15.5f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 14.0f, 13.0f, 14.5f, 15.5f }, 0 }
+                    } },
+                    { { 12.5f, headY + 1.0f, headZ + 2.0f }, { 13.5f, headY + 6.0f, headZ + 6.0f }, 6, {
+                        { DIRECTION_BLOCK_TOP, { 6.0f, 13.0f, 5.5f, 11.0f }, 0 },
+                        { DIRECTION_BLOCK_BOTTOM, { 6.5f, 11.0f, 6.0f, 13.0f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { 3.5f, 13.0f, 5.5f, 15.5f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 5.5f, 13.0f, 6.0f, 15.5f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { 6.0f, 13.0f, 8.0f, 15.5f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 8.0f, 13.0f, 8.5f, 15.5f }, 0 }
+                    } },
+                };
+                int anchorLoc = HEAD_TEXTURE_ANCHOR(headType);
+                int vertexCount = gModel.vertexCount;
+                gUsingTransform = 1;
+                saveModelElements(boxIndex, type, dataVal, anchorLoc, piglinElements, sizeof(piglinElements) / sizeof(ModelElement), yAngle);
+                for (int ear = 0; ear < 2; ear++) {
+                    // tilt the ear out about its hinge, at its top, in the middle of the head's side. translateToOriginMtx puts the block's
+                    // center, pixel (8,8,8), at the origin. A positive Z angle in rotateMtx turns the top of an upright piece toward +X, so
+                    // the west ear's angle is positive, swinging its bottom out to the west, and the east ear's negative.
+                    float hingeX = ear ? 12.5f : 3.5f;
+                    float hingeY = headY + 6.0f;
+                    float hingeZ = headZ + 4.0f;
+                    int earVertexCount = gModel.vertexCount;
+                    saveModelElements(boxIndex, type, dataVal, anchorLoc, &earElements[ear], 1, yAngle);
+                    identityMtx(mtx);
+                    translateToOriginMtx(mtx, boxIndex);
+                    translateMtx(mtx, (8.0f - hingeX) / 16.0f, (8.0f - hingeY) / 16.0f, (8.0f - hingeZ) / 16.0f);
+                    rotateMtx(mtx, 0.0f, 0.0f, ear ? -PIGLIN_EAR_ANGLE : PIGLIN_EAR_ANGLE);
+                    translateMtx(mtx, (hingeX - 8.0f) / 16.0f, (hingeY - 8.0f) / 16.0f, (hingeZ - 8.0f) / 16.0f);
+                    translateFromOriginMtx(mtx, boxIndex);
+                    transformVertices(gModel.vertexCount - earVertexCount, mtx);
+                }
+                // turn the whole head into place
+                identityMtx(mtx);
+                translateToOriginMtx(mtx, boxIndex);
+                rotateMtx(mtx, 0.0f, yAngle, 0.0f);
+                translateFromOriginMtx(mtx, boxIndex);
+                transformVertices(gModel.vertexCount - vertexCount, mtx);
+                gUsingTransform = 0;
+                break; // saveBillboardOrGeometry
+            }
+
+            // the hat sticks out from the head, so it's not made for 3D printing
+            bool hat = ((headType == 2) || (headType == 3)) && !gModel.print3D;
+            float hy = headY - 0.25f;
+            float hz = headZ - 0.25f;
+            ModelElement headElements[] = {
+                { { 4.0f, headY, headZ }, { 12.0f, headY + 8.0f, headZ + 8.0f }, 6, {
+                    { DIRECTION_BLOCK_TOP, { 8.0f, 4.0f, 4.0f, 0.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 12.0f, 0.0f, 8.0f, 4.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0.0f, 4.0f, 4.0f, 8.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4.0f, 4.0f, 8.0f, 8.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8.0f, 4.0f, 12.0f, 8.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 12.0f, 4.0f, 16.0f, 8.0f }, 0 }
+                } },
+                { { 3.75f, hy, hz }, { 12.25f, hy + 8.5f, hz + 8.5f }, 6, {
+                    { DIRECTION_BLOCK_TOP, { 8.0f, 12.0f, 4.0f, 8.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 12.0f, 8.0f, 8.0f, 12.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0.0f, 12.0f, 4.0f, 16.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4.0f, 12.0f, 8.0f, 16.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8.0f, 12.0f, 12.0f, 16.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 12.0f, 12.0f, 16.0f, 16.0f }, 0 }
+                } },
+            };
+            saveTurnedModel(boxIndex, type, dataVal, HEAD_TEXTURE_ANCHOR(headType), headElements, hat ? 2 : 1, yAngle);
+            break; // saveBillboardOrGeometry
+        }
+
+        // an unknown head type: make pumpkin, scale it down, and prepare to translate and rotate it, etc.
         gUsingTransform = 1;
         swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = SWATCH_INDEX(7, 7);	// front face, as a start
         swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX(6, 7);
@@ -21122,6 +21363,29 @@ else													  \
 
 // Get the face of the full block in a given direction and rotate and flip it as needed.
 // note that, for flattops and sides, the dataVal passed in is indeed the data value of the neighboring flattop being merged
+// The angle a mob head is turned from facing north, clockwise seen from above: on the floor, 22.5 degrees per step of its rotation;
+// on a wall, so that it faces away from the wall.
+static float getHeadYAngle(int dataVal)
+{
+    if (dataVal & 0x80)
+        return 22.5f * (float)(dataVal & 0xf);
+    switch (dataVal & 0x7) {
+    default:
+        assert(0);
+    case 1:
+        // unused, but it's in some worlds, so this case ignores it instead of asserting.
+    case 2: // north
+        return 0.0f;
+    case 3: // south
+        return 180.0f;
+    case 4: // west
+        return 270.0f;
+    case 0:	// also seen
+    case 5: // east
+        return 90.0f;
+    }
+}
+
 static int getSwatch(int type, int dataVal, int faceDirection, int backgroundIndex, int uvIndices[4])
 {
     int swatchLoc;
@@ -23717,40 +23981,66 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             break;
         case BLOCK_PUMPKIN:						// getSwatch
         case BLOCK_JACK_O_LANTERN:
-        case BLOCK_HEAD:	// definitely wrong for heads, TODO - have tile entity, but now need all the dratted head textures...
-            SWATCH_SWITCH_SIDE(faceDirection, 6, 7);
-            xoff = (type == BLOCK_PUMPKIN) ? 7 : 8;
-            // if it's a head, we round the rotation found into a dataVal
-            if (type == BLOCK_HEAD) {
-                // TODO head type
-                // is head on floor or wall?
-                float yrot = 0.0f;
-                if (dataVal & 0x80) {
-                    // on floor
-                    yrot = 22.5f * (dataVal & 0xf);
+        case BLOCK_HEAD:
+            if (type == BLOCK_HEAD && ((dataVal >> 4) & 0x7) <= HEAD_TYPE_PIGLIN) {
+                // Used when the head is a full block, i.e., 3D printing without "Export lesser blocks". As for the straw bed, each face
+                // shows the matching face of the head model's head box (see saveBillboardOrGeometry) - for the piglin and the dragon,
+                // their biggest box - stretched to fill the block, with the head turned to the nearest 90 degrees. Rectangles are the
+                // model's "uv" values, indexed [face: 0 top, 1 bottom, 2 -Z (the face), 3 +Z, 4 -X, 5 +X]. The piglin's back is
+                // just its part in the top half of the image, as for a 3D printed piglin head model.
+                static const float skullUV[6][4] = {
+                    { 8.0f, 4.0f, 4.0f, 0.0f }, { 12.0f, 0.0f, 8.0f, 4.0f }, { 4.0f, 4.0f, 8.0f, 8.0f },
+                    { 12.0f, 4.0f, 16.0f, 8.0f }, { 8.0f, 4.0f, 12.0f, 8.0f }, { 0.0f, 4.0f, 4.0f, 8.0f } };
+                static const float piglinUV[6][4] = {
+                    { 9.0f, 4.0f, 4.0f, 0.0f }, { 14.0f, 0.0f, 9.0f, 4.0f }, { 4.0f, 4.0f, 9.0f, 8.0f },
+                    { 13.0f, 4.0f, 16.0f, 8.0f }, { 9.0f, 4.0f, 13.0f, 8.0f }, { 0.0f, 4.0f, 4.0f, 8.0f } };
+                static const float dragonUV[6][4] = {
+                    { DRAGON_UV(32), DRAGON_UV(16), DRAGON_UV(16), DRAGON_UV(0) }, { DRAGON_UV(48), DRAGON_UV(0), DRAGON_UV(32), DRAGON_UV(16) },
+                    { DRAGON_UV(16), DRAGON_UV(16), DRAGON_UV(32), DRAGON_UV(32) }, { DRAGON_UV(48), DRAGON_UV(16), DRAGON_UV(64), DRAGON_UV(32) },
+                    { DRAGON_UV(32), DRAGON_UV(16), DRAGON_UV(48), DRAGON_UV(32) }, { DRAGON_UV(0), DRAGON_UV(16), DRAGON_UV(16), DRAGON_UV(32) } };
+                int headType = (dataVal >> 4) & 0x7;
+                // quarter turns clockwise, seen from above, from facing north
+                int quarterTurns = ((int)((getHeadYAngle(dataVal) + 45.0f) / 90.0f)) % 4;
+                int modelFace = 0;
+                if (faceDirection == DIRECTION_BLOCK_TOP) {
+                    modelFace = 0;
+                }
+                else if (faceDirection == DIRECTION_BLOCK_BOTTOM) {
+                    modelFace = 1;
                 }
                 else {
-                    // on wall
-                    switch (dataVal & 0xf) {
-                    default:
-                        assert(0);
-                    case 1:
-                        // unused, but it's in some worlds, so this case ignores it instead of asserting.
-                    case 2: // north
-                        yrot = 0.0f;
-                        break;
-                    case 3: // south
-                        yrot = 180.0f;
-                        break;
-                    case 4: // east
-                        yrot = 270.0f;
-                        break;
-                    case 0:
-                    case 5: // west
-                        yrot = 90.0f;
-                        break;
-                    }
+                    // Undo the head's turn to find the model's face. Sides in turning order, each the next one clockwise seen from above.
+                    static const int sideOrder[4] = { DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_X, DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X };
+                    static const int sideModelFace[4] = { 2, 5, 3, 4 };
+                    int side = 0;
+                    while (side < 4 && sideOrder[side] != faceDirection)
+                        side++;
+                    modelFace = sideModelFace[(side - quarterTurns + 4) % 4];
                 }
+                const float* uv;
+                if (headType == HEAD_TYPE_DRAGON) {
+                    swatchLoc = DRAGON_HEAD_TEXTURE_ANCHOR;
+                    uv = dragonUV[modelFace];
+                }
+                else {
+                    swatchLoc = HEAD_TEXTURE_ANCHOR(headType);
+                    uv = (headType == HEAD_TYPE_PIGLIN) ? piglinUV[modelFace] : skullUV[modelFace];
+                }
+                useSpanRect = true;
+                for (int k = 0; k < 4; k++)
+                    spanRect[k] = uv[k];
+                // the top and bottom turn with the head, as for the straw bed
+                if ((faceDirection == DIRECTION_BLOCK_TOP || faceDirection == DIRECTION_BLOCK_BOTTOM) && uvIndices) {
+                    rotateIndices(localIndices, 90 * quarterTurns);
+                }
+                break;
+            }
+            // otherwise, a pumpkin
+            SWATCH_SWITCH_SIDE(faceDirection, 6, 7);
+            xoff = (type == BLOCK_PUMPKIN) ? 7 : 8;
+            // if it's an unknown head type, we round the rotation found into a dataVal
+            if (type == BLOCK_HEAD) {
+                float yrot = getHeadYAngle(dataVal);
                 if (yrot >= 45.0f && yrot < 135.0f)
                     dataVal = 3;
                 else if (yrot >= 135.0f && yrot < 225.0f)

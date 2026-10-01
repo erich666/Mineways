@@ -5743,7 +5743,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_ANDESITE_DOUBLE_SLAB:
     case BLOCK_BAMBOO:
     case BLOCK_JIGSAW:
-    case BLOCK_HEAD:
         // uses 0-5 - could use more for 1.16 orientations, TODO
         if (dataVal < 6)
         {
@@ -6652,6 +6651,44 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             // put the bottom slab underneath, else the lowered cushion is hidden inside the grass block
             block->grid[BLOCK_INDEX(4 + (origType % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE_SLAB;
             block->data[BLOCK_INDEX(4 + (origType % 2) * 8, y - 1, 4 + (dataVal % 2) * 8)] = 0;   // smooth stone, bottom half
+        }
+        break;
+
+    case BLOCK_HEAD:
+        // each of the seven head types, on the floor (even dataVal), turned a different amount for each type, and on a wall (odd dataVal),
+        // cycling through the four facings, with the wall behind it
+        if (dataVal < 14)
+        {
+            int headType = dataVal >> 1;
+            addBlock = 1;
+            if ((dataVal & 0x1) == 0) {
+                finalDataVal = 0x80 | (headType << 4) | ((3 * headType) & 0xf);
+            }
+            else {
+                int facing = 2 + (headType & 0x3);
+                finalDataVal = (headType << 4) | facing;
+                switch (facing)
+                {
+                default:
+                    assert(0);
+                case 2:
+                    // put block to south
+                    block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_GLASS;
+                    break;
+                case 3:
+                    // put block to north
+                    block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_GLASS;
+                    break;
+                case 4:
+                    // put block to east
+                    block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
+                    break;
+                case 5:
+                    // put block to west
+                    block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
+                    break;
+                }
+            }
         }
         break;
 

@@ -71,7 +71,7 @@ void addBackslashIfNeeded(wchar_t* dir, size_t dirSize)
 // return negative number for error type;
 // otherwise returns number of files that we care about, i.e., ones that we'll want to read in later. Note: this number includes duplicates,
 // but does not include tiles that we simply don't care about (on the gUnneeded list).
-int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, ChestGrid* psg, ChestGrid* pcushg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, bool topmost, bool warnUnused, bool warnDups)
+int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, ChestGrid* psg, ChestGrid* pcushg, ChestGrid* pheadg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, bool topmost, bool warnUnused, bool warnDups)
 {
 	int filesProcessed = 0;
 	int filesSubProcessed = 0;
@@ -105,6 +105,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg
 		bool decoratedPotFound = false;
 		bool shelfFound = false;
 		bool cushionFound = false;
+		bool headFound = false;
 		do {
 			if (verbose) {
 				wprintf(L"File %s in directory %s being examined.\n", ffd.cFileName, tilePath);
@@ -126,7 +127,7 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg
 				wcscat_s(subdir, MAX_PATH_AND_FILE, ffd.cFileName);
 				addBackslashIfNeeded(subdir, MAX_PATH_AND_FILE);
 
-				int fileCount = searchDirectoryForTiles(pfg, pcg, ppg, psg, pcushg, subdir, origTPLen, verbose, alternate, false, warnUnused, warnDups);
+				int fileCount = searchDirectoryForTiles(pfg, pcg, ppg, psg, pcushg, pheadg, subdir, origTPLen, verbose, alternate, false, warnUnused, warnDups);
 				if (fileCount < 0) {
 					// error, cannot read subdirectory for some reason - we just ignore it for now; main test is the top directory test, above.
 					//return -2;
@@ -212,12 +213,33 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg
 					}
 				}
 
+				// mob head - check the head subdirectory, or each head's own directory, e.g. textures\entity\creeper (see gHeadDirs)
+				if (used == 0) {
+					const wchar_t* relativePath = tilePathAppended + origTPLen;
+					bool headDirectory = topmost || (wcsstr(relativePath, L"head\\") != NULL);
+					// a name that is not allowed in this directory is replaced by one that cannot match a file name
+					const wchar_t* headNames[TOTAL_HEAD_TILES];
+					bool anyHead = false;
+					for (int ih = 0; ih < TOTAL_HEAD_TILES; ih++) {
+						bool allowed = headDirectory || (wcsstr(relativePath, gHeadDirs[ih]) != NULL);
+						headNames[ih] = allowed ? gHeadNames[ih] : L"*";
+						anyHead = anyHead || allowed;
+					}
+					if (anyHead) {
+						used = testIfChestFile(pheadg, TOTAL_HEAD_TILES, L"head", headNames, gHeadNamesAlt, tilePathAppended, ffd.cFileName, verbose) ? 1 : 0;
+						if (used) {
+							filesProcessed++;
+							headFound = true;
+						}
+					}
+				}
+
 				// squirrelly: have we already found some useful PNG in this directory, and is this not a chest or decorated pot directory?
 				// 
 				if (!used) {
 					int flag = 0x0;
 					int imageFileType = isImageFile(ffd.cFileName);
-					if (filesProcessed > 0 && !chestFound && !decoratedPotFound && !shelfFound && !cushionFound && (imageFileType == PNG_EXTENSION_FOUND || imageFileType == TGA_EXTENSION_FOUND)) {
+					if (filesProcessed > 0 && !chestFound && !decoratedPotFound && !shelfFound && !cushionFound && !headFound && (imageFileType == PNG_EXTENSION_FOUND || imageFileType == TGA_EXTENSION_FOUND)) {
 						// we already found some good files in this directory, so don't use this unused one.
 						//wprintf(L"WARNING: The file '%s' in directory '%s' is not recognized and so is not used.\n", ffd.cFileName, tilePath);
 					}

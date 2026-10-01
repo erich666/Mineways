@@ -886,20 +886,20 @@ static struct {
     { 13, 24, 210, 0, L"command_block_conditional", L"", SWATCH_REPEAT_ALL },
     { 14, 24, 210, 0, L"repeating_command_block_front", L"", SWATCH_REPEAT_ALL },
     { 15, 24, 210, 0, L"repeating_command_block_back", L"", SWATCH_REPEAT_ALL },
-    { 16, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 24, 144, 0, L"MWO_skeleton_skull", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/skeleton/skeleton.png: head box above, hat box below
+    { 17, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_skeleton_skull at 16,24
+    { 18, 24, 144, 0, L"MWO_wither_skeleton_skull", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/skeleton/wither_skeleton.png: head box above, hat box below
+    { 19, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_wither_skeleton_skull at 18,24
+    { 20, 24, 144, 0, L"MWO_zombie_head", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/zombie/zombie.png: head box above, hat box below
+    { 21, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_zombie_head at 20,24
+    { 22, 24, 144, 0, L"MWO_player_head", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/player/wide/steve.png: head box above, hat box below
+    { 23, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_player_head at 22,24
+    { 24, 24, 144, 0, L"MWO_creeper_head", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/creeper/creeper.png: head box above, hat box below
+    { 25, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_creeper_head at 24,24
     { 26, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 27, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 28, 24, 144, 0, L"MWO_piglin_head", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/piglin/piglin.png: head box, snout, tusks, and ears
+    { 29, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_piglin_head at 28,24
     { 30, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 31, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     {  0, 25, 210, 0, L"repeating_command_block_side", L"", SWATCH_REPEAT_ALL },
@@ -918,20 +918,20 @@ static struct {
     { 13, 25, 255, 0, L"structure_block_save", L"", SWATCH_REPEAT_ALL },
     { 14, 25, 166, 0, L"barrier", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// TODO: extract more directly from .jar, as this is currently in assets\minecraft\textures\item
     { 15, 25,   9, 0, L"water_overlay", L"", SWATCH_REPEAT_ALL | SBIT_SYNTHESIZED },    // 1.9 - water looks like this through glass.
-    { 16, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_skeleton_skull at 16,24
+    { 17, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_skeleton_skull at 16,24
+    { 18, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_wither_skeleton_skull at 18,24
+    { 19, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_wither_skeleton_skull at 18,24
+    { 20, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_zombie_head at 20,24
+    { 21, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_zombie_head at 20,24
+    { 22, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_player_head at 22,24
+    { 23, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_player_head at 22,24
+    { 24, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_creeper_head at 24,24
+    { 25, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_creeper_head at 24,24
     { 26, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 27, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 28, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_piglin_head at 28,24
+    { 29, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_piglin_head at 28,24
     { 30, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 31, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     {  0, 26, 213, 0, L"magma", L"", SWATCH_REPEAT_ALL },
@@ -950,12 +950,12 @@ static struct {
     { 13, 26,  55, 0, L"MWO_redstone_dust_angled_off", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_ANGLED_2_OFF
     { 14, 26,  55, 0, L"MWO_redstone_dust_three_way_off", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_3_OFF
     { 15, 26,  55, 0, L"MWO_redstone_dust_four_way_off", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_4_OFF
-    { 16, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 26, 144, 0, L"MWO_dragon_head", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 6, 6 },	// made by TileMaker from entity/enderdragon/dragon.png: head box, upper lip, jaw, scale, nostril
+    { 17, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_dragon_head at 16,26
+    { 18, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -2, 0 },	// member of MWO_dragon_head at 16,26
+    { 19, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -3, 0 },	// member of MWO_dragon_head at 16,26
+    { 20, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -4, 0 },	// member of MWO_dragon_head at 16,26
+    { 21, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -5, 0 },	// member of MWO_dragon_head at 16,26
     { 22, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 23, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 24, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
@@ -982,12 +982,12 @@ static struct {
     { 13, 27, 232, 0, L"green_shulker_box", L"shulker_top_green", SWATCH_REPEAT_ALL },
     { 14, 27, 233, 0, L"red_shulker_box", L"shulker_top_red", SWATCH_REPEAT_ALL },
     { 15, 27, 234, 0, L"black_shulker_box", L"shulker_top_black", SWATCH_REPEAT_ALL },
-    { 16, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_dragon_head at 16,26
+    { 17, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_dragon_head at 16,26
+    { 18, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -2, -1 },	// member of MWO_dragon_head at 16,26
+    { 19, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -3, -1 },	// member of MWO_dragon_head at 16,26
+    { 20, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -4, -1 },	// member of MWO_dragon_head at 16,26
+    { 21, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -5, -1 },	// member of MWO_dragon_head at 16,26
     { 22, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 23, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 24, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
@@ -1014,12 +1014,12 @@ static struct {
     { 13, 28, 248, 0, L"green_glazed_terracotta", L"glazed_terracotta_green", SWATCH_REPEAT_ALL },
     { 14, 28, 249, 0, L"red_glazed_terracotta", L"glazed_terracotta_red", SWATCH_REPEAT_ALL },
     { 15, 28, 250, 0, L"black_glazed_terracotta", L"glazed_terracotta_black", SWATCH_REPEAT_ALL },
-    { 16, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -2 },	// member of MWO_dragon_head at 16,26
+    { 17, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -2 },	// member of MWO_dragon_head at 16,26
+    { 18, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -2, -2 },	// member of MWO_dragon_head at 16,26
+    { 19, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -3, -2 },	// member of MWO_dragon_head at 16,26
+    { 20, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -4, -2 },	// member of MWO_dragon_head at 16,26
+    { 21, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -5, -2 },	// member of MWO_dragon_head at 16,26
     { 22, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 23, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 24, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
@@ -1046,12 +1046,12 @@ static struct {
     { 13, 29, 291, 0, L"green_concrete", L"concrete_green", SWATCH_REPEAT_ALL },
     { 14, 29, 292, 0, L"red_concrete", L"concrete_red", SWATCH_REPEAT_ALL },
     { 15, 29, 293, 0, L"black_concrete", L"concrete_black", SWATCH_REPEAT_ALL },
-    { 16, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -3 },	// member of MWO_dragon_head at 16,26
+    { 17, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -3 },	// member of MWO_dragon_head at 16,26
+    { 18, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -2, -3 },	// member of MWO_dragon_head at 16,26
+    { 19, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -3, -3 },	// member of MWO_dragon_head at 16,26
+    { 20, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -4, -3 },	// member of MWO_dragon_head at 16,26
+    { 21, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -5, -3 },	// member of MWO_dragon_head at 16,26
     { 22, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 23, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 24, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
@@ -1078,12 +1078,12 @@ static struct {
     { 13, 30, 252, 0, L"green_concrete_powder", L"concrete_powder_green", SWATCH_REPEAT_ALL },
     { 14, 30, 252, 0, L"red_concrete_powder", L"concrete_powder_red", SWATCH_REPEAT_ALL },
     { 15, 30, 252, 0, L"black_concrete_powder", L"concrete_powder_black", SWATCH_REPEAT_ALL },
-    { 16, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -4 },	// member of MWO_dragon_head at 16,26
+    { 17, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -4 },	// member of MWO_dragon_head at 16,26
+    { 18, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -2, -4 },	// member of MWO_dragon_head at 16,26
+    { 19, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -3, -4 },	// member of MWO_dragon_head at 16,26
+    { 20, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -4, -4 },	// member of MWO_dragon_head at 16,26
+    { 21, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -5, -4 },	// member of MWO_dragon_head at 16,26
     { 22, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 23, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 24, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
@@ -1110,12 +1110,12 @@ static struct {
     { 13, 31, 232, 0, L"shulker_side_green", L"", SWATCH_REPEAT_ALL },
     { 14, 31, 233, 0, L"shulker_side_red", L"", SWATCH_REPEAT_ALL },
     { 15, 31, 234, 0, L"shulker_side_black", L"", SWATCH_REPEAT_ALL },
-    { 16, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -5 },	// member of MWO_dragon_head at 16,26
+    { 17, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -5 },	// member of MWO_dragon_head at 16,26
+    { 18, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -2, -5 },	// member of MWO_dragon_head at 16,26
+    { 19, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -3, -5 },	// member of MWO_dragon_head at 16,26
+    { 20, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -4, -5 },	// member of MWO_dragon_head at 16,26
+    { 21, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -5, -5 },	// member of MWO_dragon_head at 16,26
     { 22, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 23, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 24, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL },

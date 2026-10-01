@@ -2339,16 +2339,16 @@ In Minecraft flower pot flowers are dimmer than the originals. Mineways does not
 Head (#144)
 </td>
 <td>
-<center>Half-wide pumpkin</center>
+<center>Proper geometry made</center>
 </td>
 <td>
-<center>Full-size pumpkin, rotated to nearest 90 degree angle</center>
+<center>Use textures as possible, rotated to nearest 90 degree angle</center>
 </td>
 <td>
-<center>Half-wide pumpkin</center>
+<center>Proper geometry made; dragons might be iffy to print</center>
 </td>
 <td>
-Mineways reads <a href="https://minecraft.wiki/w/Block_entity">block entity data</a> to get the rotation and type of head, but currently does not use the head type to put something other than a pumpkin. There is <a href="https://github.com/DavidBootle/Minecraft-Player-Head-Tools">an add-on for Blender</a> that fixes this limitation. See <a href="https://github.com/erich666/Mineways/issues/13">this issue</a> for more solutions.
+Mob heads are exported with their own models and textures, on the floor or on a wall. A player head always uses the default "Steve" skin, not the player's own. There is <a href="https://github.com/DavidBootle/Minecraft-Player-Head-Tools">an add-on for Blender</a> that puts the right skins on player heads. See <a href="https://github.com/erich666/Mineways/issues/13">this issue</a> for more solutions.
 </td>
 </tr>
 
@@ -2966,6 +2966,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 	<LI>Add the new 26.3 Dappled Forest biome, with its orange grass and leaves colors.
 	<LI>Add the 16 colors of beds.
 	<LI>Add and use correct textures for signs and hanging signs.
+	<LI>Implement mob heads and not just substitute jack o' lanterns. <I>(Thanks to <a href="https://github.com/erich666/Mineways/issues/13">JMY1000 for requesting this feature</a>.)</I>
 	<LI>Proper export for 3D printing with individual textures (rare that anyone would use this) and "lesser" blocks; turn off compositing of swatches. Also fix activator rail tile output for this special case. Potted pale oak sapling fix. Other fixes for this 3D print mode.
 	<LI>New texture set and TileMaker updated to 3.31, ChannelMixer to 1.24.
 	</UL>

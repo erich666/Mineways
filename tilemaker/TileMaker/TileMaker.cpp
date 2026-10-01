@@ -239,6 +239,72 @@ static Chest gCushion[TOTAL_CUSHION_TILES] = {
 	{ L"black_cushion", 6, 64, 64, NULL }
 };
 
+// Mob heads: each head's entity texture (64x32 or 64x64) has the 8x8x8 head box in the usual entity layout at 0,0, in its top 16 rows,
+// and, for the zombie and player, the hat box beside it, at 32,0. These top 16 rows are repacked into a 32x32 image, a 2x2 tile span
+// in the terrain image (see MWO_*_head and MWO_*_skull in tiles.h): the head's half above, the hat's half below. The piglin's 64x64
+// texture has no hat, but its top 16 rows also hold its snout, tusks, and ears. This template is for the first head, the skeleton's,
+// at 16,24; each head type's span is at 16 + 2*type, 24 (see gHeadType).
+static ChestData gHeadData[] = {
+	//  from,    size, to tile,  starting at corner
+	{  0,  0,  16, 16,  16, 24,   0,  0,  0x0 },	// head, texture u 0-16
+	{ 16,  0,  16, 16,  17, 24,   0,  0,  0x0 },	// head, texture u 16-32
+	{ 32,  0,  16, 16,  16, 25,   0,  0,  0x0 },	// hat, texture u 32-48
+	{ 48,  0,  16, 16,  17, 25,   0,  0,  0x0 },	// hat, texture u 48-64
+};
+#define HEAD_COPIES	((int)(sizeof(gHeadData) / sizeof(ChestData)))
+
+// The dragon head's parts are scattered over its 256x256 entity texture, dragon.png: the head box, the upper lip (snout), the jaw, the
+// scales (horns), and the nostrils. They are repacked into a 96x96 image, a 6x6 tile span at 16,26 (see MWO_dragon_head in tiles.h):
+// the head box's layout at its upper left, below it the upper lip's, below that the jaw's, and to the head box's right, the scale's
+// and then the nostril's. Each part is copied a tile at a time.
+static ChestData gDragonHeadData[] = {
+	//  from,    size, to tile,  starting at corner
+	{ 112,  30,  16, 16,  16, 26,   0,  0,  0x0 },	// upper head
+	{ 128,  30,  16, 16,  17, 26,   0,  0,  0x0 },	// upper head
+	{ 144,  30,  16, 16,  18, 26,   0,  0,  0x0 },	// upper head
+	{ 160,  30,  16, 16,  19, 26,   0,  0,  0x0 },	// upper head
+	{ 112,  46,  16, 16,  16, 27,   0,  0,  0x0 },	// upper head
+	{ 128,  46,  16, 16,  17, 27,   0,  0,  0x0 },	// upper head
+	{ 144,  46,  16, 16,  18, 27,   0,  0,  0x0 },	// upper head
+	{ 160,  46,  16, 16,  19, 27,   0,  0,  0x0 },	// upper head
+	{ 176,  44,  16, 16,  16, 28,   0,  0,  0x0 },	// upper lip
+	{ 192,  44,  16, 16,  17, 28,   0,  0,  0x0 },	// upper lip
+	{ 208,  44,  16, 16,  18, 28,   0,  0,  0x0 },	// upper lip
+	{ 224,  44,   8, 16,  19, 28,   0,  0,  0x0 },	// upper lip
+	{ 176,  60,  16,  5,  16, 29,   0,  0,  0x0 },	// upper lip
+	{ 192,  60,  16,  5,  17, 29,   0,  0,  0x0 },	// upper lip
+	{ 208,  60,  16,  5,  18, 29,   0,  0,  0x0 },	// upper lip
+	{ 224,  60,   8,  5,  19, 29,   0,  0,  0x0 },	// upper lip
+	{ 176,  65,  16, 16,  16, 30,   0,  0,  0x0 },	// jaw
+	{ 192,  65,  16, 16,  17, 30,   0,  0,  0x0 },	// jaw
+	{ 208,  65,  16, 16,  18, 30,   0,  0,  0x0 },	// jaw
+	{ 224,  65,   8, 16,  19, 30,   0,  0,  0x0 },	// jaw
+	{ 176,  81,  16,  4,  16, 31,   0,  0,  0x0 },	// jaw
+	{ 192,  81,  16,  4,  17, 31,   0,  0,  0x0 },	// jaw
+	{ 208,  81,  16,  4,  18, 31,   0,  0,  0x0 },	// jaw
+	{ 224,  81,   8,  4,  19, 31,   0,  0,  0x0 },	// jaw
+	{   0,   0,  16, 10,  20, 26,   0,  0,  0x0 },	// scale
+	{ 112,   0,  12,  6,  21, 26,   0,  0,  0x0 },	// nostril
+};
+#define DRAGON_HEAD_COPIES	((int)(sizeof(gDragonHeadData) / sizeof(ChestData)))
+
+// the template, moved to each head's location
+ChestData gHeads[TOTAL_HEAD_TILES][HEAD_COPIES];
+
+// the data pointers are set to gHeads
+static Chest gHead[TOTAL_HEAD_TILES] = {
+	{ L"skeleton", 4, 64, 32, NULL },
+	{ L"wither_skeleton", 4, 64, 32, NULL },
+	{ L"zombie", 4, 64, 64, NULL },
+	{ L"steve", 4, 64, 64, NULL },
+	{ L"creeper", 4, 64, 32, NULL },
+	{ L"piglin", 4, 64, 64, NULL },
+	{ L"dragon", DRAGON_HEAD_COPIES, 256, 256, gDragonHeadData }
+};
+// the Mineways head type of each, which places its span; the dragon head, type 5, has its own data, gDragonHeadData
+#define HEAD_TYPE_DRAGON	5
+static const int gHeadType[TOTAL_HEAD_TILES] = { 0, 1, 2, 3, 4, 6, HEAD_TYPE_DRAGON };
+
 static int gErrorCount = 0;
 static int gWarningCount = 0;
 
@@ -334,6 +400,7 @@ int wmain(int argc, wchar_t* argv[])
 	int overlayDecoratedPotSize = 0;
 	int overlayShelfSize = 0;
 	int overlayCushionSize = 0;
+	int overlayHeadSize = 0;
 	int forcedTileSize = 0;
 	int chosenTile = 0;
 
@@ -363,6 +430,9 @@ int wmain(int argc, wchar_t* argv[])
 	bool allCushions = true;
 	bool anyCushions = false;
 
+	bool allHeads = true;
+	bool anyHeads = false;
+
 	bool terrainBaseSet = false;
 	bool warnUnused = false;
 
@@ -371,6 +441,7 @@ int wmain(int argc, wchar_t* argv[])
 	initializeDecoratedPotGrid(&gPotGrid);
 	initializeChestGrid(&gShelfGrid);
 	initializeChestGrid(&gCushionGrid);
+	initializeChestGrid(&gHeadGrid);
 
 	wcscpy_s(terrainBase, MAX_PATH_AND_FILE, BASE_INPUT_FILENAME);
 	wcscpy_s(terrainExtOutputTemplate, MAX_PATH_AND_FILE, OUTPUT_FILENAME);
@@ -638,9 +709,10 @@ int wmain(int argc, wchar_t* argv[])
 		//  "decorated_pot" or "decorated_pots" - look for decorated pot names and fill in
 		//  "shelf" - look for shelf names and fill in
 		//  "cushion" - look for cushion names and fill in
+		//  "head", or each mob head's own entity directory - look for mob head names and fill in
 		//  "item" or "items" - look for barrier.png, only
 		// If it's none of these, then look through it for directories. Ignore '.' and '..'. Recursively search directories for more directories.
-		int fileCount = searchDirectoryForTiles(&gFG, &gChestGrid, &gPotGrid, &gShelfGrid, &gCushionGrid, *inputDirectoryPtr, wcslen(*inputDirectoryPtr), verbose, alternate, true, warnUnused, warnDups);
+		int fileCount = searchDirectoryForTiles(&gFG, &gChestGrid, &gPotGrid, &gShelfGrid, &gCushionGrid, &gHeadGrid, *inputDirectoryPtr, wcslen(*inputDirectoryPtr), verbose, alternate, true, warnUnused, warnDups);
 		warnDups = false;
 		if (fileCount < 0) {
 			swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR: cannot access the directory '%s' (Windows error code # %d). Ignoring directory.\n", *inputDirectoryPtr, GetLastError());
@@ -654,7 +726,7 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
 	// any data found? Not needed if forcing a tile size (resizing the base texture).
-	if ((forcedTileSize == 0) && (gFG.fileCount <= 0 && gChestGrid.chestCount <= 0 && gPotGrid.decoratedPotCount <= 0 && gShelfGrid.chestCount <= 0 && gCushionGrid.chestCount <= 0)) {
+	if ((forcedTileSize == 0) && (gFG.fileCount <= 0 && gChestGrid.chestCount <= 0 && gPotGrid.decoratedPotCount <= 0 && gShelfGrid.chestCount <= 0 && gCushionGrid.chestCount <= 0 && gHeadGrid.chestCount <= 0)) {
 		wprintf(L"***** ERROR: no textures were read in for replacing. Nothing to do!\n  Put your new textures in the 'blocks' directory, or use\n  the '-d directory' command line option to say where your new textures are.\n");
 		return 1;
 	}
@@ -739,6 +811,22 @@ int wmain(int argc, wchar_t* argv[])
 				}
 				else {
 					overlayCushionSize = size;
+				}
+			}
+		}
+	}
+
+	// check over mob head tiles' power of twos, to see if any are in error
+	for (catIndex = 0; catIndex < gHeadGrid.totalCategories; catIndex++) {
+		for (index = 0; index < gHeadGrid.totalTiles; index++) {
+			fullIndex = catIndex * gHeadGrid.totalTiles + index;
+			if (gHeadGrid.cr[fullIndex].exists) {
+				size = checkFileWidth(&gHeadGrid.cr[fullIndex], overlayHeadSize, false, false, -1, 0, 0, 0);
+				if (size == 0) {
+					deleteChestFromGrid(&gHeadGrid, fullIndex / gHeadGrid.totalTiles, fullIndex);
+				}
+				else {
+					overlayHeadSize = size;
 				}
 			}
 		}
@@ -1541,6 +1629,28 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 				transferChestData(catIndex, TOTAL_CUSHION_TILES, allCushions, anyCushions, gCushion, gCushionGrid, gCushionNames, destination_ptr, filesProcessed, channels, normalsZoom, verbose, rc);
 			}
 
+			// Mob heads, like chests: repack each head's entity texture into its span of tiles
+			bool head_exists = false;
+			for (ic = 0; ic < TOTAL_HEAD_TILES; ic++) {
+				if (gHeadGrid.cr[ic + catIndex * gHeadGrid.totalTiles].exists) {
+					head_exists = true;
+					break;
+				}
+			}
+			if (head_exists && (gHeadGrid.chestCount > 0))
+			{
+				for (int ih = 0; ih < TOTAL_HEAD_TILES; ih++) {
+					if (gHeadType[ih] == HEAD_TYPE_DRAGON)
+						continue;
+					for (int ip = 0; ip < HEAD_COPIES; ip++) {
+						gHeads[ih][ip] = gHeadData[ip];
+						gHeads[ih][ip].txrX += 2 * gHeadType[ih];
+					}
+					gHead[ih].data = gHeads[ih];
+				}
+				transferChestData(catIndex, TOTAL_HEAD_TILES, allHeads, anyHeads, gHead, gHeadGrid, gHeadNames, destination_ptr, filesProcessed, channels, normalsZoom, verbose, rc);
+			}
+
 			// Note: done for all categories
 			// Test if any decorated pot exists for this category.
 			// Really, there's just one tile which makes four textures, MW_decorated_pot_base[1-4], so do things manually
@@ -1785,7 +1895,7 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 
 	// warn user that nothing was done
 	// 3 is the number of MW_*.png files that are sometimes used with TileMaker
-	if (gFG.fileCount <= 3 && !anyChests && !anyPots && !anyShelfs && !anyCushions) {
+	if (gFG.fileCount <= 3 && !anyChests && !anyPots && !anyShelfs && !anyCushions && !anyHeads) {
 		wprintf(L"SERIOUS WARNING: It's likely no real work was done. To use TileMaker, you need to put\n  all the images from your resource pack's 'assets\\minecraft\\textures'\n  block and entity\\chest directories into TileMaker's 'blocks' and\n  'blocks\\chest' directories. See http://mineways.com for more about TileMaker.\n");
 		gWarningCount++;
 	}
@@ -1799,6 +1909,10 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 	}
 	else if (!allCushions) {
 		wprintf(L"WARNING: Not all relevant cushion images were found in the 'blocks\\cushion' directory.\n  TileMaker worked, but you can add cushion images if you like.\n  Copy these texture resources from Minecraft's jar-file\n  'assets\\minecraft\\textures\\entity\\cushion' directory to\n  Mineways' subdirectory blocks\\cushion.\n");
+		gWarningCount++;
+	}
+	else if (!allHeads) {
+		wprintf(L"WARNING: Not all relevant mob head images were found in the 'blocks\\head' directory.\n  TileMaker worked, but you can add mob head images if you like.\n  Copy skeleton.png, wither_skeleton.png, zombie.png, creeper.png, piglin.png, enderdragon\\dragon.png,\n  and player\\wide\\steve.png\n  from Minecraft's jar-file 'assets\\minecraft\\textures\\entity' directories to\n  Mineways' subdirectory blocks\\head.\n");
 		gWarningCount++;
 	}
 
