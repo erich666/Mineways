@@ -5724,10 +5724,9 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 open = 0x0;
                 break;
             case TALL_FLOWER_PROP:
-                // Top half of sunflowers, etc., have just the 0x8 bit set, not the flower itself.
-                // Doesn't matter to Mineways per se, but if we export a schematic, we should make
-                // this data the same as Minecraft's. TODO - need to test flowers more
-                dataVal = half ? 0x8 : 0;
+                // The upper half (0x8) keeps which plant it is, from its name, in the low bits, as the lower half does, so that
+                // the upper half can be exported correctly without the lower half (e.g., at the bottom of the export area).
+                dataVal = (dataVal & 0x7) | (half ? 0x8 : 0);
                 break;
             case REDSTONE_ORE_PROP:
                 if (lit) {

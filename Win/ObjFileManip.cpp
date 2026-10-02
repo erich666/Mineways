@@ -10915,6 +10915,44 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     {
             bool endRod = (type == BLOCK_END_ROD);
             swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            if (endRod && !gModel.print3D) {
+                // Minecraft's end_rod model, pointing up, turned by the blockstate's "x" and then "y"; dataVal 0x7 points down, up,
+                // north, south, west, east. The elements are made from the model's JSON.
+                ModelElement rodElements[] = {
+                { { 6, 0, 6 }, { 10, 1, 10 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 6, 2, 2 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 2, 2, 6, 6 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 6, 6, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 6, 6, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 2, 6, 6, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 2, 6, 6, 7 }, 0, 0, swatchLoc }
+                } },
+                { { 7, 1, 7 }, { 9, 16, 9 }, 5, {
+                    { DIRECTION_BLOCK_TOP, { 2, 0, 4, 2 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 2, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 2, 15 }, 0, 0, swatchLoc }
+                } },
+                };
+                // "x" and "y" for each direction
+                static const float rodAngle[6][2] = { { 180.0f, 0.0f }, { 0.0f, 0.0f }, { 90.0f, 0.0f }, { 90.0f, 180.0f }, { 90.0f, 270.0f }, { 90.0f, 90.0f } };
+                int rodFacing = dataVal & 0x7;
+                if (rodFacing > 5)
+                    rodFacing = 1;
+                gUsingTransform = 1;
+                totalVertexCount = gModel.vertexCount;
+                retCode |= saveModelElements(boxIndex, type, dataVal, swatchLoc, rodElements, 2, 0.0f);
+                totalVertexCount = gModel.vertexCount - totalVertexCount;
+                identityMtx(mtx);
+                translateToOriginMtx(mtx, boxIndex);
+                rotateMtx(mtx, rodAngle[rodFacing][0], 0.0f, 0.0f);
+                rotateMtx(mtx, 0.0f, rodAngle[rodFacing][1], 0.0f);
+                translateFromOriginMtx(mtx, boxIndex);
+                transformVertices(totalVertexCount, mtx);
+                gUsingTransform = 0;
+                break;
+            }
             if (!endRod) {
                 // lightning rod - determine lit or unlit version
                 if (dataVal & 0x8) {
@@ -11061,6 +11099,60 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         if (dataVal == 5) {
             // fully mature
             swatchLoc++;
+        }
+        if (!gModel.print3D) {
+            // Minecraft's chorus_flower (and chorus_flower_dead) model: the flower's texture on the cap of each of five arms, the
+            // chorus plant's on the rest. The elements are made from the model's JSON.
+            int plantLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_CHORUS_PLANT].txrX, gBlockDefinitions[BLOCK_CHORUS_PLANT].txrY);
+            ModelElement flowerElements[] = {
+            { { 2, 14, 2 }, { 14, 16, 14 }, 5, {
+                { DIRECTION_BLOCK_TOP, { 2, 2, 14, 14 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 0, 14, 2 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 0, 14, 2 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 2, 0, 14, 2 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 2, 0, 14, 2 }, 0, 0, plantLoc }
+            } },
+            { { 0, 2, 2 }, { 2, 14, 14 }, 5, {
+                { DIRECTION_BLOCK_BOTTOM, { 16, 14, 14, 2 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 2, 2, 14 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 2, 16, 14 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 2, 2, 14 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 2, 2, 14, 14 }, 0, 0, swatchLoc }
+            } },
+            { { 2, 2, 0 }, { 14, 14, 2 }, 5, {
+                { DIRECTION_BLOCK_BOTTOM, { 14, 2, 2, 0 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_TOP, { 2, 0, 14, 2 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 2, 14, 14 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 2, 2, 14 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 14, 2, 16, 14 }, 0, 0, plantLoc }
+            } },
+            { { 2, 2, 14 }, { 14, 14, 16 }, 5, {
+                { DIRECTION_BLOCK_BOTTOM, { 14, 16, 2, 14 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_TOP, { 2, 14, 14, 16 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 2, 14, 14 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 14, 2, 16, 14 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 2, 2, 14 }, 0, 0, plantLoc }
+            } },
+            { { 14, 2, 2 }, { 16, 14, 14 }, 5, {
+                { DIRECTION_BLOCK_BOTTOM, { 2, 14, 0, 2 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_TOP, { 14, 2, 16, 14 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 2, 2, 14 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 14, 2, 16, 14 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 2, 2, 14, 14 }, 0, 0, swatchLoc }
+            } },
+            { { 2, 0, 2 }, { 14, 14, 14 }, 6, {
+                { DIRECTION_BLOCK_TOP, { 2, 2, 14, 14 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 14, 14, 2, 2 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 2, 14, 16 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 2, 14, 16 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 2, 2, 14, 16 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 2, 2, 14, 16 }, 0, 0, plantLoc }
+            } },
+            };
+            gUsingTransform = 1;
+            retCode |= saveModelElements(boxIndex, type, dataVal, swatchLoc, flowerElements, 6, 0.0f);
+            gUsingTransform = 0;
+            break;
         }
         saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1, DIR_BOTTOM_BIT, 2, 14, 14, 16, 2, 14);
         saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_TOP_BIT, 2, 14, 0, 2, 2, 14);
@@ -16468,16 +16560,13 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         else {
             if (dataVal & 0x8)
             {
-                // top half of plant, so need data value of block below
-                // to know which sort of plant
-                // (could be zero if block is missing, in which case it'll be a sunflower, which is fine)
+                // top half of plant: which sort of plant is in the low bits, from its name (1.13 on), or shoved in from the bottom
+                // half (1.12 and earlier, see extractChunk; if the bottom half is missing, it'll be a sunflower, which is fine).
                 // row 19 (#18) has these
-                // old code, before we shoved the dataVal from the bottom half (if available) into the top half (around line 2812), in extractChunk.
-                // But, should work the same, so don't mess with it.
-                swatchLoc = SWATCH_INDEX(gBoxData[boxIndex - 1].data * 2 + 3, 18);
-                // for material differentiation set the dataVal to the bottom half
-                origDataVal = gBoxData[boxIndex - 1].data;
-                if (gBoxData[boxIndex - 1].data == 0)
+                swatchLoc = SWATCH_INDEX((dataVal & 0x7) * 2 + 3, 18);
+                // for material differentiation set the dataVal to the bottom half's
+                origDataVal = dataVal & 0x7;
+                if ((dataVal & 0x7) == 0)
                 {
                     foundSunflowerTop = 1;
                 }
@@ -16686,6 +16775,11 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         // Minecraft's cross model: each plane runs diagonally from pixel 0.8 to 15.2 in X and Z (an element from 0.8 to 15.2,
         // turned 45 degrees and stretched by "rescale" to reach that far along the diagonal)
         texelWidth = 14.4f / 16.0f;
+        if (type == BLOCK_DOUBLE_FLOWER && (dataVal & 0x7) == 6) {
+            // the pitcher plant's pitcher_plant_bottom and _top models turn 16-pixel planes 45 degrees without "rescale", so they
+            // stop short of the corners: 16 / sqrt(2) pixels across in X and Z
+            texelWidth = 0.70710678f;
+        }
         texelLow = (1.0f - texelWidth) / 2.0f;
         texelHigh = (1.0f + texelWidth) / 2.0f;
         // the sunflower top's crossed planes are half height (see the sunflower head, below)
@@ -21963,6 +22057,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
     // rectangle were a whole tile: u1,v1 is its upper left and u2,v2 its lower right, in the 0-16 units of a block model
     // JSON "uv" over the whole image (v going down). Mirrored when u1 > u2 or v1 > v2.
     bool useSpanRect = false;
+    bool rotatedEnd = false;
     float spanRect[4] = { 0.0f, 0.0f, 16.0f, 16.0f };
 
     // outputting swatches
@@ -22776,8 +22871,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
 
             // A wood block (bark on all sides, e.g. oak wood or crimson hyphae) uses Minecraft's cube_column model, which, unlike a log's
             // cube_column_horizontal, doesn't turn the face from the model's top by 180 degrees. So on its side, that face (east for
-            // east-west, north for north-south) is turned 180 degrees from a log's.
+            // east-west, north for north-south) is turned 180 degrees from a log's. Crimson and warped stems (subtypes 2 and 3 of
+            // these log types), stripped or not, also use cube_column.
             if ((((dataVal & BIT_16) && ((type == BLOCK_LOG) || (type == BLOCK_AD_LOG) || (type == BLOCK_MANGROVE_LOG))) ||
+                (((type == BLOCK_AD_LOG) || (type == BLOCK_STRIPPED_ACACIA)) && ((dataVal & 0x3) >= 2)) ||
                 (type == BLOCK_STRIPPED_OAK_WOOD) || (type == BLOCK_STRIPPED_ACACIA_WOOD) || (type == BLOCK_STRIPPED_MANGROVE_WOOD)) &&
                 ((((dataVal & 0xC) == 0x4) && (faceDirection == DIRECTION_BLOCK_SIDE_HI_X)) ||
                  (((dataVal & 0xC) == 0x8) && (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z))))
@@ -25634,6 +25731,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 yloc = 24;
                 break;
             }
+            // Hay's and purpur's hay_block_horizontal and purpur_pillar_horizontal models turn their "up" end 180 degrees (the
+            // bamboo blocks' models don't). Turned by "x" 90 (and, east-west, "y" 90), as with the quartz pillar, a side and,
+            // north-south, the bottom are upside down.
+            rotatedEnd = (type == BLOCK_PURPUR_PILLAR) || ((dataVal & 0x3) == 0);
             // use data to figure out direction of pillar
             switch (dataVal & 0xc)  // bottom two bits are for different types of hay (bamboo)
             {
@@ -25655,7 +25756,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 case DIRECTION_BLOCK_SIDE_HI_Z:
                     swatchLoc = SWATCH_INDEX(xloc - 1, yloc);
                     if (uvIndices)
-                        rotateIndices(localIndices, 90);
+                        rotateIndices(localIndices, (rotatedEnd && faceDirection == DIRECTION_BLOCK_SIDE_LO_Z) ? 270 : 90);
                     break;
                 case DIRECTION_BLOCK_SIDE_LO_X:
                 case DIRECTION_BLOCK_SIDE_HI_X:
@@ -25669,12 +25770,14 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 case DIRECTION_BLOCK_BOTTOM:
                 case DIRECTION_BLOCK_TOP:
                     swatchLoc = SWATCH_INDEX(xloc - 1, yloc);
+                    if (uvIndices && rotatedEnd && faceDirection == DIRECTION_BLOCK_BOTTOM)
+                        rotateIndices(localIndices, 180);
                     break;
                 case DIRECTION_BLOCK_SIDE_LO_X:
                 case DIRECTION_BLOCK_SIDE_HI_X:
                     swatchLoc = SWATCH_INDEX(xloc - 1, yloc);
                     if (uvIndices)
-                        rotateIndices(localIndices, 90);
+                        rotateIndices(localIndices, (rotatedEnd && faceDirection == DIRECTION_BLOCK_SIDE_LO_X) ? 270 : 90);
                     break;
                 case DIRECTION_BLOCK_SIDE_LO_Z:
                 case DIRECTION_BLOCK_SIDE_HI_Z:
