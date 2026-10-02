@@ -439,7 +439,11 @@ static TranslationTuple* modTranslations = NULL;
 // up: false|true
 // waterlogged
 // which adds up to 9 bits, which is too many
-#define WALL_PROP           TRULY_NO_PROP
+// walls: the low 5 bits are the wall's type (from the table). Whether each side connects (low or tall) and whether there's a post
+// are kept above them; which sides are tall is not kept (not enough bits), and is found from the block above when exporting.
+//   bit 0x80: up (a post)
+//   bit 0x100: south, 0x200: west, 0x400: north, 0x800: east connects
+#define WALL_PROP           81
 // axis: 1 EW, 2 NS
 #define NETHER_PORTAL_AXIS_PROP	52
 // pumpkin and melon stems
@@ -570,6 +574,11 @@ static TranslationTuple* modTranslations = NULL;
 //   bit  0x08: part (0=foot,1=head)
 #define STRAW_BED_PROP 79
 
+// BLOCK_STAINED_GLASS_PANE (160). The low 4 bits are the color (from the table), so the four connections, as FENCE_PROP has them in
+// its low bits, go in bits 8-11:
+//   bit 0x100: south, 0x200: west, 0x400: north, 0x800: east
+#define STAINED_PANE_PROP 80
+
 BlockTranslator BlockTranslations[NUM_TRANS] = {
     //hash ID data name flags
     // hash is computed once when 1.13 data is first read in.
@@ -670,22 +679,22 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0,  95,          13, "green_stained_glass", NO_PROP },
     { 0,  95,          14, "red_stained_glass", NO_PROP },
     { 0,  95,          15, "black_stained_glass", NO_PROP },
-    { 0, 160,           0, "white_stained_glass_pane", NO_PROP },   // sadly, these all share a type so there are not 4 bits for directions, especially since it may waterlog
-    { 0, 160,           1, "orange_stained_glass_pane", NO_PROP },
-    { 0, 160,           2, "magenta_stained_glass_pane", NO_PROP },
-    { 0, 160,           3, "light_blue_stained_glass_pane", NO_PROP },
-    { 0, 160,           4, "yellow_stained_glass_pane", NO_PROP },
-    { 0, 160,           5, "lime_stained_glass_pane", NO_PROP },
-    { 0, 160,           6, "pink_stained_glass_pane", NO_PROP },
-    { 0, 160,           7, "gray_stained_glass_pane", NO_PROP },
-    { 0, 160,           8, "light_gray_stained_glass_pane", NO_PROP },
-    { 0, 160,           9, "cyan_stained_glass_pane", NO_PROP },
-    { 0, 160,          10, "purple_stained_glass_pane", NO_PROP },
-    { 0, 160,          11, "blue_stained_glass_pane", NO_PROP },
-    { 0, 160,          12, "brown_stained_glass_pane", NO_PROP },
-    { 0, 160,          13, "green_stained_glass_pane", NO_PROP },
-    { 0, 160,          14, "red_stained_glass_pane", NO_PROP },
-    { 0, 160,          15, "black_stained_glass_pane", NO_PROP },
+    { 0, 160,           0, "white_stained_glass_pane", STAINED_PANE_PROP },   // these all share a type, so the color is in the low 4 bits and the directions above them
+    { 0, 160,           1, "orange_stained_glass_pane", STAINED_PANE_PROP },
+    { 0, 160,           2, "magenta_stained_glass_pane", STAINED_PANE_PROP },
+    { 0, 160,           3, "light_blue_stained_glass_pane", STAINED_PANE_PROP },
+    { 0, 160,           4, "yellow_stained_glass_pane", STAINED_PANE_PROP },
+    { 0, 160,           5, "lime_stained_glass_pane", STAINED_PANE_PROP },
+    { 0, 160,           6, "pink_stained_glass_pane", STAINED_PANE_PROP },
+    { 0, 160,           7, "gray_stained_glass_pane", STAINED_PANE_PROP },
+    { 0, 160,           8, "light_gray_stained_glass_pane", STAINED_PANE_PROP },
+    { 0, 160,           9, "cyan_stained_glass_pane", STAINED_PANE_PROP },
+    { 0, 160,          10, "purple_stained_glass_pane", STAINED_PANE_PROP },
+    { 0, 160,          11, "blue_stained_glass_pane", STAINED_PANE_PROP },
+    { 0, 160,          12, "brown_stained_glass_pane", STAINED_PANE_PROP },
+    { 0, 160,          13, "green_stained_glass_pane", STAINED_PANE_PROP },
+    { 0, 160,          14, "red_stained_glass_pane", STAINED_PANE_PROP },
+    { 0, 160,          15, "black_stained_glass_pane", STAINED_PANE_PROP },
     { 0, 102,           0, "glass_pane", FENCE_PROP },
     { 0,  37,           0, "dandelion", NO_PROP },
     { 0,  38,           0, "poppy", NO_PROP },
@@ -5756,6 +5765,18 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             case FENCE_PROP:
                 dataVal = (south ? 1 : 0) | (west ? 2 : 0) | (north ? 4 : 0) | (east ? 8 : 0);
                 break;
+            case WALL_PROP:
+                // the wall's type is already in the low bits; "pmc" has each side's low and tall flags (see the "north" etc. tokens)
+                dataVal |= (up ? 0x80 : 0) |
+                    ((pmc & (0x200 | 0x8)) ? 0x100 : 0) |       // south low or tall
+                    ((pmc & (0x400 | BIT_16)) ? 0x200 : 0) |    // west
+                    ((pmc & (0x80 | 0x2)) ? 0x400 : 0) |        // north
+                    ((pmc & (0x100 | 0x4)) ? 0x800 : 0);        // east
+                break;
+            case STAINED_PANE_PROP:
+                // the color is already in the low 4 bits
+                dataVal |= (south ? 0x100 : 0) | (west ? 0x200 : 0) | (north ? 0x400 : 0) | (east ? 0x800 : 0);
+                break;
             case VINE_PROP:
                 // Note that for vines, 0 means there's one "above" (really, underneath).
                 // When there's one above, there (happily) cannot be east/west/n/s, so
@@ -7488,6 +7509,23 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
             else if (strcmp(k, "up") == 0)    { if (strcmp(v, "true") == 0) dataVal |= 0x20; }
             break;
 
+        case WALL_PROP:
+            // the type is in the low bits; the post and connections go above them (see WALL_PROP)
+            if (strcmp(k, "up") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x80; }
+            else if (strcmp(k, "south") == 0) { if (strcmp(v, "none") != 0) dataVal |= 0x100; }
+            else if (strcmp(k, "west") == 0)  { if (strcmp(v, "none") != 0) dataVal |= 0x200; }
+            else if (strcmp(k, "north") == 0) { if (strcmp(v, "none") != 0) dataVal |= 0x400; }
+            else if (strcmp(k, "east") == 0)  { if (strcmp(v, "none") != 0) dataVal |= 0x800; }
+            break;
+
+        case STAINED_PANE_PROP:
+            // the color is in the low 4 bits; the connections go above them (see STAINED_PANE_PROP)
+            if (strcmp(k, "south") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x100; }
+            else if (strcmp(k, "west") == 0)  { if (strcmp(v, "true") == 0) dataVal |= 0x200; }
+            else if (strcmp(k, "north") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x400; }
+            else if (strcmp(k, "east") == 0)  { if (strcmp(v, "true") == 0) dataVal |= 0x800; }
+            break;
+
         case FENCE_PROP:
             // wood/nether-brick fences, iron_bars, glass_pane. Same bit layout as VINE_PROP for
             // the four cardinal directions (mirror of FENCE_PROP packing in the world reader at
@@ -9191,6 +9229,26 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "north", (dataVal & 0x04) ? "true" : "false");
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "south", (dataVal & 0x01) ? "true" : "false");
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "west",  (dataVal & 0x02) ? "true" : "false");
+        break;
+    }
+
+    case WALL_PROP: {
+        // the type is the block's name; the post and connections are in bits 7-11 (see WALL_PROP). Tall sides aren't kept, so
+        // connected sides are written as low.
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "east",  (dataVal & 0x800) ? "low" : "none");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "north", (dataVal & 0x400) ? "low" : "none");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "south", (dataVal & 0x100) ? "low" : "none");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "up",    (dataVal & 0x80) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "west",  (dataVal & 0x200) ? "low" : "none");
+        break;
+    }
+
+    case STAINED_PANE_PROP: {
+        // the color is the block's name; the connections are in bits 8-11 (see STAINED_PANE_PROP)
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "east",  (dataVal & 0x800) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "north", (dataVal & 0x400) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "south", (dataVal & 0x100) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "west",  (dataVal & 0x200) ? "true" : "false");
         break;
     }
 

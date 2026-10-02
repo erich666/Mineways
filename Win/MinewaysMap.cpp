@@ -7174,47 +7174,25 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
     case BLOCK_STAINED_GLASS_PANE:	// color AND neighbors!
         // this one is specialized: incoming dataVal chooses where to put neighbors, NSEW
-        // *and* what color to use. Unlike the "clear" glass pane, above, the 4 bits
-        // in the final dataVal are the color, not the neighbors. :( - need more bits
-        bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-        block->grid[bi] = (unsigned char)type;
-        block->data[bi] = (unsigned short)(dataVal | typeHighBit);
-
-        if (dataVal & 0x1)
-        {
-            // alternate between wall and mossy wall - we set mossy wall if odd
-            block->data[bi] |= (unsigned short)0x1;
-
-            // put block to north
-            bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
-            // alternate between wall and mossy wall
-            block->data[bi] = (unsigned short)(dataVal | typeHighBit);
+        // *and* what color to use. Unlike the "clear" glass pane, above, the low 4 bits
+        // in the final dataVal are the color; the connections go in bits 8-11: 0x100 south,
+        // 0x200 west, 0x400 north, 0x800 east (see STAINED_PANE_PROP in nbt.cpp).
+    {
+        int centerIndex = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
+        block->grid[centerIndex] = (unsigned char)type;
+        block->data[centerIndex] = (unsigned short)(dataVal | typeHighBit);
+        // neighbors north, east, south, west: dataVal bit, X and Z offsets, the center's connection bit and the neighbor's back to it
+        static const int paneNeighbor[4][5] = {
+            { 0x1, 0, -1, 0x400, 0x100 }, { 0x2, 1, 0, 0x800, 0x200 }, { 0x4, 0, 1, 0x100, 0x400 }, { 0x8, -1, 0, 0x200, 0x800 } };
+        for (int n = 0; n < 4; n++) {
+            if (dataVal & paneNeighbor[n][0]) {
+                bi = BLOCK_INDEX(4 + paneNeighbor[n][1] + (type % 2) * 8, y, 4 + paneNeighbor[n][2] + (dataVal % 2) * 8);
+                block->grid[bi] = (unsigned char)type;
+                block->data[bi] = (unsigned short)(dataVal | paneNeighbor[n][4] | typeHighBit);
+                block->data[centerIndex] |= (unsigned short)paneNeighbor[n][3];
+            }
         }
-        if (dataVal & 0x2)
-        {
-            // put block to east
-            bi = BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
-            // alternate between wall and mossy wall
-            block->data[bi] = (unsigned short)(dataVal | typeHighBit);
-        }
-        if (dataVal & 0x4)
-        {
-            // put block to south
-            bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
-            // alternate between wall and mossy wall
-            block->data[bi] = (unsigned short)(dataVal | typeHighBit);
-        }
-        if (dataVal & 0x8)
-        {
-            // put block to west
-            bi = BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
-            // alternate between wall and mossy wall
-            block->data[bi] = (unsigned short)(dataVal | typeHighBit);
-        }
+    }
         break;
     case BLOCK_COBBLESTONE_WALL:
         // this one is specialized: dataVal just says where to put neighbors, NSEW

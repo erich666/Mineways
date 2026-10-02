@@ -863,8 +863,9 @@ typedef struct ModelFace {
     int billboardBack;
     int swatchLoc;  // the face's own 16x16 tile, e.g. a bed's, or 0 to use the model's whole (possibly multi-tile) image
 } ModelFace;
-// One Minecraft block model JSON element: "from", "to" (in 0-16 pixel units) and its faces. An element may also have a "rotation"
-// about Y: rotAngle degrees, as in the JSON (so negative turns clockwise, seen from above), about rotOrigin, in pixel units.
+// One Minecraft block model JSON element: "from", "to" (in 0-16 pixel units) and its faces. An element may also have a "rotation":
+// rotAngle degrees, as in the JSON (so, about Y, negative turns clockwise, seen from above), about rotOrigin, in pixel units, about
+// the axis rotAxis, 0 for Y (the default), 1 for X, 2 for Z, with "rescale" if rescale is 1.
 typedef struct ModelElement {
     float from[3];
     float to[3];
@@ -872,6 +873,8 @@ typedef struct ModelElement {
     ModelFace face[6];
     float rotAngle;
     float rotOrigin[3];
+    int rotAxis;
+    int rescale;
 } ModelElement;
 static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, float yAngle);
 // The terrain tile anchor of a sign's 32x32 texture (see tiles.h): standing and wall signs in rows 4-7, hanging and wall hanging signs in
@@ -882,6 +885,7 @@ static int saveTurnedModel(int boxIndex, int type, int dataVal, int anchorLoc, c
 static int paneConnects(int neighborType);
 static int saveFenceRails(int boxIndex, int type, int dataVal, int yAngle);
 static int savePaneModel(int boxIndex, int type, int dataVal, int paneLoc, int edgeLoc, int filled);
+static int modelFaceIsCovered(int boxIndex, const ModelElement* pElem, int faceDirection, float yAngle);
 // The terrain tile anchor of a cushion's 32x32 texture (see tiles.h), for its color: eight colors to each pair of rows, from column 16, row 12.
 #define CUSHION_TEXTURE_ANCHOR(color) TILE_TO_SWATCH(16 + 2 * ((color) % 8), 12 + 2 * ((color) / 8))
 // The terrain tile anchor of a mob head's 32x32 texture (see tiles.h), for its head type (bits 0x70 of the data value), from column 16, row 24.
@@ -5754,6 +5758,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break; // saveBillboardOrGeometry
 
     case BLOCK_COBBLESTONE_WALL:						// saveBillboardOrGeometry
+    {
+        int wallProps;
         individualBlocks = (gModel.options->exportFlags & EXPT_INDIVIDUAL_BLOCKS);
         // which posts are needed: NSEW. Brute-force it.
 
@@ -5868,6 +5874,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // since we erase "billboard" objects as we go, we need to test against origType.
 
         hasPost = 0;
+        // 1.13 and on: the blockstate's post ("up") and which sides connect, kept in bits 7-11 (see WALL_PROP in nbt.cpp); dataVal
+        // gets reused below
+        wallProps = dataVal;
         // "covered" means the walls themselves should go all the way up. This is the "up" characteristic.
         // Each wall can have this separately, just to make things exciting. But, a few items force
         // "up" for all wall extensions, which is what "covered" is about here.
@@ -6074,9 +6083,11 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                     }
                 }
                 else if ((neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) || (neighborType == BLOCK_IRON_BARS)) {
-                    if (gIs13orNewer && neighborType != BLOCK_STAINED_GLASS_PANE) {
-                        // easy and dependable - neighbors marked by bits 0-3
+                    if (gIs13orNewer) {
+                        // easy and dependable - neighbors marked by bits 0-3, or for stained glass panes, 8-11 (see STAINED_PANE_PROP)
                         dataVal = gBoxData[boxIndex + 1].data;
+                        if (neighborType == BLOCK_STAINED_GLASS_PANE)
+                            dataVal >>= 8;
                         if (dataVal & 0x2)
                         {
                             if (xLowWall) {
@@ -6326,8 +6337,17 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 }
             }
 
+            if (gIs13orNewer) {
+                // The blockstate says which sides connect and whether there's a post; the neighbors above, found above, still say
+                // which sides are tall ("covered").
+                if (!(wallProps & 0x200)) xLowWall = 0.0f; else if (xLowWall == 0.0f) xLowWall = 1.0f + (float)covered;
+                if (!(wallProps & 0x800)) xHighWall = 0.0f; else if (xHighWall == 0.0f) xHighWall = 1.0f + (float)covered;
+                if (!(wallProps & 0x400)) zLowWall = 0.0f; else if (zLowWall == 0.0f) zLowWall = 1.0f + (float)covered;
+                if (!(wallProps & 0x100)) zHighWall = 0.0f; else if (zHighWall == 0.0f) zHighWall = 1.0f + (float)covered;
+                hasPost = (wallProps & 0x80) ? 1.0f : 0.0f;
+            }
             // for walls, if the count is anything but 2 and both along an axis, put the post
-            if (!((((xLowWall > 0.0f) + (xHighWall > 0.0f) == 2) && ((zLowWall > 0.0f) + (zHighWall > 0.0f) == 0)) ||
+            else if (!((((xLowWall > 0.0f) + (xHighWall > 0.0f) == 2) && ((zLowWall > 0.0f) + (zHighWall > 0.0f) == 0)) ||
                 (((xLowWall > 0.0f) + (xHighWall > 0.0f) == 0) && ((zLowWall > 0.0f) + (zHighWall > 0.0f) == 2))))
             {
                 // special case for 1.16 and newer: if it's a four way, no post; else, post at corner or end of wall
@@ -6347,38 +6367,41 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 firstFace = 1;
             }
 
-            // which walls to output?
+            // which walls to output? As in Minecraft's template_wall_side, each reaches the center, into the post, except for 3D
+            // printing, where it stops at the post
+            float armShorten = (gModel.print3D && hasPost) ? 4.0f : 0.0f;
             if (xLowWall > 0.0f) {
                 // this wall connects to the neighboring block, so output the wall piece
                 // if the neighbor is transparent, or a different type, or individual blocks are made, we'll output the face facing the neighbor (important if we connect to a fence, for example)
                 neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
                 transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType) || (xLowWall == 2.0f);
-                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_HI_X_BIT) | (transNeighbor ? 0x0 : DIR_LO_X_BIT), 0, 8 - hasPost * 4, 0, 12 + xLowWall * 2, 5, 11);
+                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_HI_X_BIT) | (transNeighbor ? 0x0 : DIR_LO_X_BIT), 0, 8 - armShorten, 0, 12 + xLowWall * 2, 5, 11);
                 firstFace = 0;
             }
             if (xHighWall > 0.0f) {
                 // this wall connects to the neighboring block, so output the wall piece
                 neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
                 transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType) || (xHighWall == 2.0f);
-                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_LO_X_BIT) | (transNeighbor ? 0x0 : DIR_HI_X_BIT), 8 + hasPost * 4, 16, 0, 12 + xHighWall * 2, 5, 11);
+                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_LO_X_BIT) | (transNeighbor ? 0x0 : DIR_HI_X_BIT), 8 + armShorten, 16, 0, 12 + xHighWall * 2, 5, 11);
                 firstFace = 0;
             }
             if (zLowWall > 0.0f) {
                 // this wall connects to the neighboring block, so output the wall piece
                 neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
                 transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType) || (zLowWall == 2.0f);
-                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_HI_Z_BIT) | (transNeighbor ? 0x0 : DIR_LO_Z_BIT), 5, 11, 0, 12 + zLowWall * 2, 0, 8 - hasPost * 4);
+                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_HI_Z_BIT) | (transNeighbor ? 0x0 : DIR_LO_Z_BIT), 5, 11, 0, 12 + zLowWall * 2, 0, 8 - armShorten);
                 firstFace = 0;
             }
             if (zHighWall > 0.0f) {
                 // this wall connects to the neighboring block, so output the wall piece
                 neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
                 transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType) || (zHighWall == 2.0f);
-                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_LO_Z_BIT) | (transNeighbor ? 0x0 : DIR_HI_Z_BIT), 5, 11, 0, 12 + zHighWall * 2, 8 + hasPost * 4, 16);
+                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_LO_Z_BIT) | (transNeighbor ? 0x0 : DIR_HI_Z_BIT), 5, 11, 0, 12 + zHighWall * 2, 8 + armShorten, 16);
                 firstFace = 0;	// not necessary, but for safety in case new code is added below  // cppcheck-suppress 563
             }
         }
-        break; // saveBillboardOrGeometry
+    }
+    break; // saveBillboardOrGeometry
 
     case BLOCK_CHORUS_PLANT:						// saveBillboardOrGeometry
     {
@@ -6630,12 +6653,16 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // note we don't use gUsingTransform here, because if bottom of plate can match, remove it
         // pressed, it's half a pixel high, with its sides' texture from the top half of where an unpressed plate's is, as in
         // Minecraft's pressure_plate_down model: so, make the top half of the plate and kick it down half a pixel
-        saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 1, 15, (dataVal & 0x1) ? 0.5f : 0.0f, 1 + fatten, 1, 15);
-        if (dataVal & 0x1)
+        // A weighted plate's dataVal is its power, 0-15; it's pressed when powered.
         {
-            identityMtx(mtx);
-            translateMtx(mtx, 0.0f, -0.5f / 16.0f, 0.0f);
-            transformVertices(8, mtx);
+            bool platePressed = (type == BLOCK_WOODEN_PRESSURE_PLATE) ? ((dataVal & 0x1) != 0) : ((dataVal & 0xf) != 0);
+            saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 1, 15, platePressed ? 0.5f : 0.0f, 1 + fatten, 1, 15);
+            if (platePressed)
+            {
+                identityMtx(mtx);
+                translateMtx(mtx, 0.0f, -0.5f / 16.0f, 0.0f);
+                transformVertices(8, mtx);
+            }
         }
         break; // saveBillboardOrGeometry
 
@@ -9150,6 +9177,43 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             // damaged 2
             topSwatchLoc = swatchLoc + 17;
         }
+        if (!gModel.print3D) {
+            // Minecraft's anvil model, turned by "y"; dataVal 0x3 faces south, west, north, east. The elements are made from the
+            // model's JSON.
+            ModelElement anvilElements[] = {
+            { { 2, 0, 2 }, { 14, 4, 14 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 2, 2, 14, 14 }, 180, 0, swatchLoc },
+                { DIRECTION_BLOCK_TOP, { 2, 2, 14, 14 }, 180, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 12, 14, 16 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 12, 14, 16 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 2, 4, 14 }, 90, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 4, 2, 0, 14 }, 270, 0, swatchLoc }
+            } },
+            { { 4, 4, 3 }, { 12, 5, 13 }, 5, {
+                { DIRECTION_BLOCK_TOP, { 4, 3, 12, 13 }, 180, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 11, 12, 12 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 11, 12, 12 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 4, 3, 5, 13 }, 90, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 5, 3, 4, 13 }, 270, 0, swatchLoc }
+            } },
+            { { 6, 5, 4 }, { 10, 10, 12 }, 4, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 6, 10, 11 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 6, 10, 11 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 5, 4, 10, 12 }, 90, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 10, 4, 5, 12 }, 270, 0, swatchLoc }
+            } },
+            { { 3, 10, 0 }, { 13, 16, 16 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 3, 0, 13, 16 }, 180, 0, swatchLoc },
+                { DIRECTION_BLOCK_TOP, { 3, 0, 13, 16 }, 180, 0, topSwatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 13, 6 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 13, 6 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 10, 0, 16, 16 }, 90, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 16, 0, 10, 16 }, 270, 0, swatchLoc }
+            } },
+            };
+            retCode |= saveTurnedModel(boxIndex, type, dataVal, swatchLoc, anvilElements, 4, 90.0f * (float)(dataVal & 0x3));
+            break;
+        }
         gUsingTransform = 1;
         totalVertexCount = gModel.vertexCount;
         saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0,
@@ -10370,9 +10434,27 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         saveBoxGeometry(boxIndex, BLOCK_GLASS, 0, 1, 0x0, 0, 16, 0, 16, 0, 16);
         if (!gModel.print3D)
         {
-            // chewy interior
-            saveBoxGeometry(boxIndex, BLOCK_BEACON, dataVal, 0, DIR_BOTTOM_BIT, 3, 13, 3, 13, 3, 13);
-            saveBoxGeometry(boxIndex, BLOCK_OBSIDIAN, 0, 0, 0x0, 2, 14, 0, 3, 2, 14);
+            // Minecraft's beacon model: inside the glass, the obsidian base (0.1 pixel up in Minecraft, Z_FIGHTING_BIAS here) and
+            // the beacon itself, each with its own material
+            static const int beaconFace[6] = { DIRECTION_BLOCK_BOTTOM, DIRECTION_BLOCK_TOP, DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
+            static const float obsidianUV[6][4] = { { 2, 2, 14, 14 }, { 2, 2, 14, 14 }, { 2, 13, 14, 16 }, { 2, 13, 14, 16 }, { 2, 13, 14, 16 }, { 2, 13, 14, 16 } };
+            static const float coreUV[6][4] = { { 3, 3, 13, 13 }, { 3, 3, 13, 13 }, { 3, 2, 13, 13 }, { 3, 2, 13, 13 }, { 3, 2, 13, 13 }, { 3, 2, 13, 13 } };
+            int obsidianLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_OBSIDIAN].txrX, gBlockDefinitions[BLOCK_OBSIDIAN].txrY);
+            int coreLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_BEACON].txrX, gBlockDefinitions[BLOCK_BEACON].txrY);
+            gUsingTransform = 1;
+            int startVertexIndex = saveBoxCustomUVVertices(boxIndex, 2.0f, 14.0f, Z_FIGHTING_BIAS, 3.0f, 2.0f, 14.0f);
+            if (startVertexIndex < 0)
+                return MW_WORLD_EXPORT_TOO_LARGE;
+            for (int f = 0; f < 6; f++)
+                retCode |= saveBoxModelFace(startVertexIndex, BLOCK_OBSIDIAN, 0, beaconFace[f], 0, obsidianLoc, obsidianUV[f], 0);
+            startVertexIndex = saveBoxCustomUVVertices(boxIndex, 3.0f, 13.0f, 3.0f, 14.0f, 3.0f, 13.0f);
+            if (startVertexIndex < 0)
+                return MW_WORLD_EXPORT_TOO_LARGE;
+            for (int f = 0; f < 6; f++)
+                retCode |= saveBoxModelFace(startVertexIndex, BLOCK_BEACON, dataVal, beaconFace[f], 0, coreLoc, coreUV[f], 0);
+            gUsingTransform = 0;
+            if (retCode >= MW_BEGIN_ERRORS)
+                return retCode;
         }
         break; // saveBillboardOrGeometry
 
@@ -10646,6 +10728,118 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
     case BLOCK_HOPPER:						// saveBillboardOrGeometry
         swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+        if (!gModel.print3D) {
+            // Minecraft's hopper and hopper_side models, the latter turned by "y"; dataVal 0x7 is 0 (or 1) down, 2-5 north, south,
+            // west, east. The elements are made from the models' JSON.
+            int topLoc = swatchLoc;
+            int sideLoc = swatchLoc - 1;
+            int insideLoc = swatchLoc - 2;
+            ModelElement hopperDownElements[] = {
+            { { 0, 10, 0 }, { 16, 11, 16 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 16 }, 0, 0, insideLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, insideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 5, 16, 6 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 16, 6 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 5, 16, 6 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 5, 16, 6 }, 0, 0, sideLoc }
+            } },
+            { { 0, 11, 0 }, { 2, 16, 16 }, 5, {
+                { DIRECTION_BLOCK_TOP, { 0, 0, 2, 16 }, 0, 0, topLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 0, 16, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 5 }, 0, 0, sideLoc }
+            } },
+            { { 14, 11, 0 }, { 16, 16, 16 }, 5, {
+                { DIRECTION_BLOCK_TOP, { 14, 0, 16, 16 }, 0, 0, topLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 14, 0, 16, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 5 }, 0, 0, sideLoc }
+            } },
+            { { 2, 11, 0 }, { 14, 16, 2 }, 3, {
+                { DIRECTION_BLOCK_TOP, { 2, 0, 14, 2 }, 0, 0, topLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 0, 14, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 0, 14, 5 }, 0, 0, sideLoc }
+            } },
+            { { 2, 11, 14 }, { 14, 16, 16 }, 3, {
+                { DIRECTION_BLOCK_TOP, { 2, 14, 14, 16 }, 0, 0, topLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 0, 14, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 0, 14, 5 }, 0, 0, sideLoc }
+            } },
+            { { 4, 4, 4 }, { 12, 10, 12 }, 5, {
+                { DIRECTION_BLOCK_BOTTOM, { 4, 4, 12, 12 }, 0, 0, insideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 6, 12, 12 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 6, 12, 12 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 4, 6, 12, 12 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 4, 6, 12, 12 }, 0, 0, sideLoc }
+            } },
+            { { 6, 0, 6 }, { 10, 4, 10 }, 5, {
+                { DIRECTION_BLOCK_BOTTOM, { 6, 6, 10, 10 }, 0, 0, insideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 12, 10, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 12, 10, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 6, 12, 10, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 6, 12, 10, 16 }, 0, 0, sideLoc }
+            } },
+            };
+            ModelElement hopperSideElements[] = {
+            { { 0, 10, 0 }, { 16, 11, 16 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 16 }, 0, 0, insideLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, insideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 5, 16, 6 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 16, 6 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 5, 16, 6 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 5, 16, 6 }, 0, 0, sideLoc }
+            } },
+            { { 0, 11, 0 }, { 2, 16, 16 }, 5, {
+                { DIRECTION_BLOCK_TOP, { 0, 0, 2, 16 }, 0, 0, topLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 0, 16, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 5 }, 0, 0, sideLoc }
+            } },
+            { { 14, 11, 0 }, { 16, 16, 16 }, 5, {
+                { DIRECTION_BLOCK_TOP, { 14, 0, 16, 16 }, 0, 0, topLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 14, 0, 16, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 5 }, 0, 0, sideLoc }
+            } },
+            { { 2, 11, 0 }, { 14, 16, 2 }, 3, {
+                { DIRECTION_BLOCK_TOP, { 2, 0, 14, 2 }, 0, 0, topLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 0, 14, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 0, 14, 5 }, 0, 0, sideLoc }
+            } },
+            { { 2, 11, 14 }, { 14, 16, 16 }, 3, {
+                { DIRECTION_BLOCK_TOP, { 2, 14, 14, 16 }, 0, 0, topLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 0, 14, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 0, 14, 5 }, 0, 0, sideLoc }
+            } },
+            { { 4, 4, 4 }, { 12, 10, 12 }, 5, {
+                { DIRECTION_BLOCK_BOTTOM, { 4, 4, 12, 12 }, 0, 0, insideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 6, 12, 12 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 6, 12, 12 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 4, 6, 12, 12 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 4, 6, 12, 12 }, 0, 0, sideLoc }
+            } },
+            { { 6, 4, 0 }, { 10, 8, 4 }, 5, {
+                { DIRECTION_BLOCK_BOTTOM, { 6, 12, 10, 16 }, 0, 0, insideLoc },
+                { DIRECTION_BLOCK_TOP, { 6, 0, 10, 4 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 8, 10, 12 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 8, 4, 12 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 12, 8, 16, 12 }, 0, 0, sideLoc }
+            } },
+            };
+            static const float hopperYAngle[6] = { 0.0f, 0.0f, 0.0f, 180.0f, 270.0f, 90.0f };
+            int hopperFacing = dataVal & 0x7;
+            if (hopperFacing > 5)
+                hopperFacing = 0;
+            if (hopperFacing <= 1)
+                retCode |= saveTurnedModel(boxIndex, type, dataVal, topLoc, hopperDownElements, 7, 0.0f);
+            else
+                retCode |= saveTurnedModel(boxIndex, type, dataVal, topLoc, hopperSideElements, 7, hopperYAngle[hopperFacing]);
+            break;
+        }
         // outsides and bottom
         saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc - 1, swatchLoc - 1, swatchLoc - 1, 1, DIR_TOP_BIT, 0, 0, 16, 10, 16, 0, 16);
         // next level down outsides and bottom
@@ -10910,13 +11104,14 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         filled = 0x0;
         faceMask = 0x0;
 
-        // sadly, the bits in the stained glass pane are used for colors
-        if (gIs13orNewer && type != BLOCK_STAINED_GLASS_PANE) {
+        // the stained glass pane's color is in its low bits, so its connections are above them, in bits 8-11 (see STAINED_PANE_PROP)
+        if (gIs13orNewer) {
+            int connections = (type == BLOCK_STAINED_GLASS_PANE) ? (dataVal >> 8) : dataVal;
             filled =
-                ((dataVal & 0x8) ? 0x2 : 0) |   // dataVal east 0x8 translated to fill 0x4
-                ((dataVal & 0x2) ? 0x8 : 0) |   // dataVal west 0x2 translated to fill 0x4
-                ((dataVal & 0x1) ? 0x4 : 0) |   // dataVal south 0x1 translated to fill 0x4
-                ((dataVal & 0x4) ? 0x1 : 0);    // dataVal north 0x4 translated to fill 0x1
+                ((connections & 0x8) ? 0x2 : 0) |   // dataVal east 0x8 translated to fill 0x4
+                ((connections & 0x2) ? 0x8 : 0) |   // dataVal west 0x2 translated to fill 0x4
+                ((connections & 0x1) ? 0x4 : 0) |   // dataVal south 0x1 translated to fill 0x4
+                ((connections & 0x4) ? 0x1 : 0);    // dataVal north 0x4 translated to fill 0x1
         }
         else {
             // which neighboring blocks have something that attaches to a glass pane? Things that attach:
@@ -11189,6 +11384,182 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
     case BLOCK_TRIPWIRE_HOOK:						// saveBillboardOrGeometry
     {
+        if (!gModel.print3D) {
+            // Minecraft's tripwire_hook, _on, _attached, and _attached_on models, turned by "y". dataVal 0x3 faces south, west, north,
+            // east; 0x4 means attached to a tripwire, 0x8 powered (tripped). The elements are made from the models' JSON.
+            int hookLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            int woodLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_OAK_PLANKS].txrX, gBlockDefinitions[BLOCK_OAK_PLANKS].txrY);
+            int wireLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_TRIPWIRE].txrX, gBlockDefinitions[BLOCK_TRIPWIRE].txrY);
+        // tripwire_hook
+        ModelElement hookElements[] = {
+            { { 6.2f, 3.8f, 7.9f }, { 9.8f, 4.6f, 11.5f }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 5, 3, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_TOP, { 5, 3, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 5, 3, 11, 4 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 5, 8, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 5, 8, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 5, 3, 11, 4 }, 0, 0, hookLoc }
+            }, -45, { 8, 6, 5.2f }, 1, 0 },
+            { { 7.4f, 3.8f, 10.3f }, { 8.6f, 4.6f, 10.3f }, 1, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 7, 8, 9, 9 }, 0, 0, hookLoc }
+            }, -45, { 8, 6, 5.2f }, 1, 0 },
+            { { 7.4f, 3.8f, 9.1f }, { 8.6f, 4.6f, 9.1f }, 1, {
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 7, 3, 9, 4 }, 0, 0, hookLoc }
+            }, -45, { 8, 6, 5.2f }, 1, 0 },
+            { { 7.4f, 3.8f, 9.1f }, { 7.4f, 4.6f, 10.3f }, 1, {
+                { DIRECTION_BLOCK_SIDE_HI_X, { 7, 8, 9, 9 }, 0, 0, hookLoc }
+            }, -45, { 8, 6, 5.2f }, 1, 0 },
+            { { 8.6f, 3.8f, 9.1f }, { 8.6f, 4.6f, 10.3f }, 1, {
+                { DIRECTION_BLOCK_SIDE_LO_X, { 7, 3, 9, 4 }, 0, 0, hookLoc }
+            }, -45, { 8, 6, 5.2f }, 1, 0 },
+            { { 7.4f, 5.2f, 10 }, { 8.8f, 6.8f, 14 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 7, 9, 9, 14 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_TOP, { 7, 2, 9, 7 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 7, 9, 9, 11 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 7, 9, 9, 11 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 2, 9, 7, 11 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 9, 9, 14, 11 }, 0, 0, woodLoc }
+            }, 45, { 8, 6, 14 }, 1, 0 },
+            { { 6, 1, 14 }, { 10, 9, 16 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 6, 14, 10, 16 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_TOP, { 6, 0, 10, 2 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 7, 10, 15 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 7, 10, 15 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 7, 2, 15 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 14, 7, 16, 15 }, 0, 0, woodLoc }
+            } },
+        };
+        // tripwire_hook_on
+        ModelElement hookOnElements[] = {
+            { { 6.2f, 4.2f, 6.7f }, { 9.8f, 5, 10.3f }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 5, 3, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_TOP, { 5, 3, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 5, 3, 11, 4 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 5, 8, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 5, 8, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 5, 3, 11, 4 }, 0, 0, hookLoc }
+            } },
+            { { 7.4f, 4.2f, 9.1f }, { 8.6f, 5, 9.1f }, 1, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 7, 8, 9, 9 }, 0, 0, hookLoc }
+            } },
+            { { 7.4f, 4.2f, 7.9f }, { 8.6f, 5, 7.9f }, 1, {
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 7, 3, 9, 4 }, 0, 0, hookLoc }
+            } },
+            { { 7.4f, 4.2f, 7.9f }, { 7.4f, 5, 9.1f }, 1, {
+                { DIRECTION_BLOCK_SIDE_HI_X, { 7, 8, 9, 9 }, 0, 0, hookLoc }
+            } },
+            { { 8.6f, 4.2f, 7.9f }, { 8.6f, 5, 9.1f }, 1, {
+                { DIRECTION_BLOCK_SIDE_LO_X, { 7, 3, 9, 4 }, 0, 0, hookLoc }
+            } },
+            { { 7.4f, 5.2f, 10 }, { 8.8f, 6.8f, 14 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 7, 9, 9, 14 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_TOP, { 7, 2, 9, 7 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 7, 9, 9, 11 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 7, 9, 9, 11 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 2, 9, 7, 11 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 9, 9, 14, 11 }, 0, 0, woodLoc }
+            }, -22.5f, { 8, 6, 14 }, 1, 0 },
+            { { 6, 1, 14 }, { 10, 9, 16 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 6, 14, 10, 16 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_TOP, { 6, 0, 10, 2 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 7, 10, 15 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 7, 10, 15 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 7, 2, 15 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 14, 7, 16, 15 }, 0, 0, woodLoc }
+            } },
+        };
+        // tripwire_hook_attached
+        ModelElement hookAttachedElements[] = {
+            { { 7.75f, 1.5f, 0 }, { 8.25f, 1.5f, 6.7f }, 2, {
+                { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+            }, -22.5f, { 8, 0, 0 }, 1, 1 },
+            { { 6.2f, 4.2f, 6.7f }, { 9.8f, 5, 10.3f }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 5, 3, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_TOP, { 5, 3, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 5, 3, 11, 4 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 5, 8, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 5, 8, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 5, 3, 11, 4 }, 0, 0, hookLoc }
+            }, -22.5f, { 8, 4.2f, 6.7f }, 1, 0 },
+            { { 7.4f, 4.2f, 9.1f }, { 8.6f, 5, 9.1f }, 1, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 7, 8, 9, 9 }, 0, 0, hookLoc }
+            }, -22.5f, { 8, 4.2f, 6.7f }, 1, 0 },
+            { { 7.4f, 4.2f, 7.9f }, { 8.6f, 5, 7.9f }, 1, {
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 7, 3, 9, 4 }, 0, 0, hookLoc }
+            }, -22.5f, { 8, 4.2f, 6.7f }, 1, 0 },
+            { { 7.4f, 4.2f, 7.9f }, { 7.4f, 5, 9.1f }, 1, {
+                { DIRECTION_BLOCK_SIDE_HI_X, { 7, 8, 9, 9 }, 0, 0, hookLoc }
+            }, -22.5f, { 8, 4.2f, 6.7f }, 1, 0 },
+            { { 8.6f, 4.2f, 7.9f }, { 8.6f, 5, 9.1f }, 1, {
+                { DIRECTION_BLOCK_SIDE_LO_X, { 7, 3, 9, 4 }, 0, 0, hookLoc }
+            }, -22.5f, { 8, 4.2f, 6.7f }, 1, 0 },
+            { { 7.4f, 5.2f, 10 }, { 8.8f, 6.8f, 14 }, 5, {
+                { DIRECTION_BLOCK_BOTTOM, { 7, 9, 9, 14 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_TOP, { 7, 2, 9, 7 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 7, 9, 9, 11 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 2, 9, 7, 11 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 9, 9, 14, 11 }, 0, 0, woodLoc }
+            } },
+            { { 6, 1, 14 }, { 10, 9, 16 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 6, 14, 10, 16 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_TOP, { 6, 0, 10, 2 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 7, 10, 15 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 7, 10, 15 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 7, 2, 15 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 14, 7, 16, 15 }, 0, 0, woodLoc }
+            } },
+        };
+        // tripwire_hook_attached_on
+        ModelElement hookAttachedOnElements[] = {
+            { { 7.75f, 0.5f, 0 }, { 8.25f, 0.5f, 6.7f }, 2, {
+                { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+            }, -22.5f, { 8, 0, 0 }, 1, 1 },
+            { { 6.2f, 3.4f, 6.7f }, { 9.8f, 4.2f, 10.3f }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 5, 3, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_TOP, { 5, 3, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 5, 3, 11, 4 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 5, 8, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 5, 8, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 5, 3, 11, 4 }, 0, 0, hookLoc }
+            } },
+            { { 7.4f, 3.4f, 9.1f }, { 8.6f, 4.2f, 9.1f }, 1, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 7, 8, 9, 9 }, 0, 0, hookLoc }
+            } },
+            { { 7.4f, 3.4f, 7.9f }, { 8.6f, 4.2f, 7.9f }, 1, {
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 7, 3, 9, 4 }, 0, 0, hookLoc }
+            } },
+            { { 7.4f, 3.4f, 7.9f }, { 7.4f, 4.2f, 9.1f }, 1, {
+                { DIRECTION_BLOCK_SIDE_HI_X, { 7, 8, 9, 9 }, 0, 0, hookLoc }
+            } },
+            { { 8.6f, 3.4f, 7.9f }, { 8.6f, 4.2f, 9.1f }, 1, {
+                { DIRECTION_BLOCK_SIDE_LO_X, { 7, 3, 9, 4 }, 0, 0, hookLoc }
+            } },
+            { { 7.4f, 5.2f, 10 }, { 8.8f, 6.8f, 14 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 7, 9, 9, 14 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_TOP, { 7, 2, 9, 7 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 7, 9, 9, 11 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 7, 9, 9, 11 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 2, 9, 7, 11 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 9, 9, 14, 11 }, 0, 0, woodLoc }
+            }, -22.5f, { 8, 6, 14 }, 1, 0 },
+            { { 6, 1, 14 }, { 10, 9, 16 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 6, 14, 10, 16 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_TOP, { 6, 0, 10, 2 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 7, 10, 15 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 7, 10, 15 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 7, 2, 15 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 14, 7, 16, 15 }, 0, 0, woodLoc }
+            } },
+        };
+            static const float hookYAngle[4] = { 180.0f, 270.0f, 0.0f, 90.0f };
+            const ModelElement* hookModel[4] = { hookElements, hookOnElements, hookAttachedElements, hookAttachedOnElements };
+            static const int hookCount[4] = { 7, 7, 8, 8 };
+            int hookVariant = ((dataVal & 0x4) ? 2 : 0) + ((dataVal & 0x8) ? 1 : 0);
+            retCode |= saveTurnedModel(boxIndex, type, dataVal, hookLoc, hookModel[hookVariant], hookCount[hookVariant], hookYAngle[dataVal & 0x3]);
+            break;
+        }
         // 0x4 means "tripwire connected"
         // 0x8 means "tripwire tripped"
         bool tripwireConnected = (dataVal & 0x4) ? true : false;
@@ -14815,12 +15186,16 @@ static int savePaneModel(int boxIndex, int type, int dataVal, int paneLoc, int e
         int partVertexCount = gModel.vertexCount;
         for (int e = 0; e < parts[p].elementCount; e++) {
             const PaneElement* pElem = &parts[p].elements[e];
+            // the element's box, to test whether a face against the block's side is hidden by the neighbor there, e.g. a pane's
+            // bottom on an opaque block below, which would otherwise z-fight with it
+            ModelElement elemBox = { { pElem->from[X], pElem->from[Y], pElem->from[Z] }, { pElem->to[X], pElem->to[Y], pElem->to[Z] }, 0 };
             int startVertexIndex = saveBoxCustomUVVertices(boxIndex, pElem->from[X], pElem->to[X], pElem->from[Y], pElem->to[Y], pElem->from[Z], pElem->to[Z]);
             if (startVertexIndex < 0)
                 return retCode | MW_WORLD_EXPORT_TOO_LARGE;
             for (int f = 0; f < pElem->faceCount; f++) {
                 const PaneFace* pFace = &pElem->face[f];
-                if ((pFace->back && !gModel.singleSided) || (pFace->cap && capHidden))
+                if ((pFace->back && !gModel.singleSided) || (pFace->cap && capHidden) ||
+                    modelFaceIsCovered(boxIndex, &elemBox, pFace->faceDirection, parts[p].yAngle))
                     continue;
                 retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, pFace->faceDirection, markFirstFace, pFace->edge ? edgeLoc : paneLoc, pFace->uv, 0);
                 if (retCode >= MW_BEGIN_ERRORS)
@@ -14936,13 +15311,19 @@ static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc,
         }
         if (pElem->rotAngle != 0.0f) {
             // turn the element about its origin. translateToOriginMtx puts the block's center, pixel (8,8,8), at the origin, so
-            // the element's origin is then (origin-8)/16 from it. Minecraft's angle is counterclockwise, seen from above; rotateMtx's is clockwise.
+            // the element's origin is then (origin-8)/16 from it. Minecraft's element rotation turns the other way from rotateMtx's,
+            // about each axis (about Y, Minecraft's is counterclockwise, seen from above; rotateMtx's is clockwise). With "rescale",
+            // the two other axes are stretched by 1/cos(angle), so a plane at 45 degrees reaches the block's corners.
             float mtx[4][4];
             assert(gUsingTransform);
             identityMtx(mtx);
             translateToOriginMtx(mtx, boxIndex);
             translateMtx(mtx, (8.0f - pElem->rotOrigin[X]) / 16.0f, (8.0f - pElem->rotOrigin[Y]) / 16.0f, (8.0f - pElem->rotOrigin[Z]) / 16.0f);
-            rotateMtx(mtx, 0.0f, -pElem->rotAngle, 0.0f);
+            rotateMtx(mtx, (pElem->rotAxis == 1) ? -pElem->rotAngle : 0.0f, (pElem->rotAxis == 0) ? -pElem->rotAngle : 0.0f, (pElem->rotAxis == 2) ? -pElem->rotAngle : 0.0f);
+            if (pElem->rescale) {
+                float stretch = 1.0f / (float)cos(DEGREES_TO_RADIANS * pElem->rotAngle);
+                scaleMtx(mtx, (pElem->rotAxis == 1) ? 1.0f : stretch, (pElem->rotAxis == 0) ? 1.0f : stretch, (pElem->rotAxis == 2) ? 1.0f : stretch);
+            }
             translateMtx(mtx, (pElem->rotOrigin[X] - 8.0f) / 16.0f, (pElem->rotOrigin[Y] - 8.0f) / 16.0f, (pElem->rotOrigin[Z] - 8.0f) / 16.0f);
             translateFromOriginMtx(mtx, boxIndex);
             transformVertices(gModel.vertexCount - startVertexIndex, mtx);
@@ -25127,6 +25508,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 SWATCH_SWITCH_SIDE_VERTICAL(faceDirection, 5, 17, 4, 17);
                 break;
             case 3: // pillar quartz block (east-west)
+                // as Minecraft's quartz_pillar_horizontal turned by "x" 90 and "y" 90: its west side, now facing north, is upside down
                 switch (faceDirection)
                 {
                 case DIRECTION_BLOCK_BOTTOM:
@@ -25139,7 +25521,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 case DIRECTION_BLOCK_SIDE_HI_Z:
                     swatchLoc = SWATCH_INDEX(5, 17);
                     if (uvIndices)
-                        rotateIndices(localIndices, 90);
+                        rotateIndices(localIndices, (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z) ? 270 : 90);
                     break;
                 case DIRECTION_BLOCK_SIDE_LO_X:
                 case DIRECTION_BLOCK_SIDE_HI_X:
@@ -25148,17 +25530,21 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 }
                 break;
             case 4: // pillar quartz block (north-south)
+                // as Minecraft's quartz_pillar_horizontal turned by "x" 90: its west side and its north side, now facing down, are
+                // upside down
                 switch (faceDirection)
                 {
                 case DIRECTION_BLOCK_BOTTOM:
                 case DIRECTION_BLOCK_TOP:
                     swatchLoc = SWATCH_INDEX(5, 17);
+                    if (uvIndices && faceDirection == DIRECTION_BLOCK_BOTTOM)
+                        rotateIndices(localIndices, 180);
                     break;
                 case DIRECTION_BLOCK_SIDE_LO_X:
                 case DIRECTION_BLOCK_SIDE_HI_X:
                     swatchLoc = SWATCH_INDEX(5, 17);
                     if (uvIndices)
-                        rotateIndices(localIndices, 90);
+                        rotateIndices(localIndices, (faceDirection == DIRECTION_BLOCK_SIDE_LO_X) ? 270 : 90);
                     break;
                 case DIRECTION_BLOCK_SIDE_LO_Z:
                 case DIRECTION_BLOCK_SIDE_HI_Z:
@@ -25349,6 +25735,13 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                         rotateIndices(localIndices, iangle);
                     }
                 }
+            }
+
+            // A command block facing up is Minecraft's command_block model turned by "x" 270, which leaves its front (on top) and
+            // back (on the bottom) upside down from facing down's
+            if ((type != BLOCK_JIGSAW) && ((dataVal & 0x7) == 1) && uvIndices &&
+                (faceDirection == DIRECTION_BLOCK_TOP || faceDirection == DIRECTION_BLOCK_BOTTOM)) {
+                rotateIndices(localIndices, 180);
             }
 
             // A jigsaw pointing up or down has a second direction, where its lock is (bits 0x18: 0 west, 0x8 south,
