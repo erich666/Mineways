@@ -5068,9 +5068,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     int topDataVal, bottomDataVal, shiftVal, neighborType, neighborIndex;
     // lots of these could be moved into individual cases, but let's not bother
     int i, firstFace, totalVertexCount, littleTotalVertexCount, uberTotalVertexCount, typeBelow, dataValBelow, useInsidesAndBottom, filled;  // cppcheck-suppress 398
-    float xrot, yrot, zrot;
+    float yrot, zrot;
     float hasPost, covered, newHeight;  // cppcheck-suppress 398
-    float mtx[4][4], angle, hingeAngle, signMult;
+    float mtx[4][4], angle;
     int swatchLocSet[6];
     // how much to add to dimension when fattening
     float fatten = (gModel.options->pEFD->chkFatten) ? 2.0f : 0.0f;
@@ -6557,12 +6557,13 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         }
         // the only reason I fatten here is because plates get used for table tops sometimes...
         // note we don't use gUsingTransform here, because if bottom of plate can match, remove it
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, 0, 0x0, 1, 15, 0, 1 + fatten, 1, 15);
+        // pressed, it's half a pixel high, with its sides' texture from the top half of where an unpressed plate's is, as in
+        // Minecraft's pressure_plate_down model: so, make the top half of the plate and kick it down half a pixel
+        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, 0, 0x0, 1, 15, (dataVal & 0x1) ? 0.5f : 0.0f, 1 + fatten, 1, 15);
         if (dataVal & 0x1)
         {
-            // pressed, kick it down half a pixel
             identityMtx(mtx);
-            translateMtx(mtx, 0.0f, -0.5f / 16.0f, 0.5 / 16.0f);
+            translateMtx(mtx, 0.0f, -0.5f / 16.0f, 0.0f);
             transformVertices(8, mtx);
         }
         break;
@@ -6579,12 +6580,13 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         }
         // the only reason I fatten here is because plates get used for table tops sometimes...
         // note we don't use gUsingTransform here, because if bottom of plate can match, remove it
-        saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 1, 15, 0, 1 + fatten, 1, 15);
+        // pressed, it's half a pixel high, with its sides' texture from the top half of where an unpressed plate's is, as in
+        // Minecraft's pressure_plate_down model: so, make the top half of the plate and kick it down half a pixel
+        saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 1, 15, (dataVal & 0x1) ? 0.5f : 0.0f, 1 + fatten, 1, 15);
         if (dataVal & 0x1)
         {
-            // pressed, kick it down half a pixel
             identityMtx(mtx);
-            translateMtx(mtx, 0.0f, -0.5f / 16.0f, 0.5 / 16.0f);
+            translateMtx(mtx, 0.0f, -0.5f / 16.0f, 0.0f);
             transformVertices(8, mtx);
         }
         break; // saveBillboardOrGeometry
@@ -7073,10 +7075,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_NETHER_BRICKS].txrX, gBlockDefinitions[BLOCK_NETHER_BRICKS].txrY);
                 break;
             case 7:
-                // quartz with distinctive sides and bottom
-                topSwatchLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_QUARTZ_BLOCK].txrX, gBlockDefinitions[BLOCK_QUARTZ_BLOCK].txrY);
+                // quartz with distinctive sides; as in Minecraft's quartz_slab model, the bottom is the top's texture
+                topSwatchLoc = bottomSwatchLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_QUARTZ_BLOCK].txrX, gBlockDefinitions[BLOCK_QUARTZ_BLOCK].txrY);
                 sideSwatchLoc = SWATCH_INDEX(6, 17);
-                bottomSwatchLoc = SWATCH_INDEX(1, 17);
                 break;
             }
             break;
@@ -8414,74 +8415,62 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             bottomDataVal = dataVal;
         }
 
-        // door facing direction
-        switch (bottomDataVal & 0x3)
+        // Minecraft's door models, door_bottom_* and door_top_*: a slab 3 pixels thick against the west side, with faces chosen by
+        // the hinge (left or right) and whether the door is open, turned by the blockstate's "y". The bottom half has no top face,
+        // and the top half no bottom face, except when the other half isn't there, or for 3D printing; then the face is given
+        // the other half's texture coordinates, a strip along the door's edge.
         {
-        default:    // make compiler happy
-        case 0: // west
-            angle = 90.0f;
-            break;
-        case 1: // north
-            angle = 180.0f;
-            break;
-        case 2: // east
-            angle = 270.0f;
-            break;
-        case 3: // south
-            angle = 0.0f;
-            break;
-        }
+            // left, left_open, right, right_open; faces down, up, north, south, west, east
+            static const float doorUV[4][6][4] = {
+                { { 16.0f, 13.0f, 0.0f, 16.0f }, { 0.0f, 3.0f, 16.0f, 0.0f }, { 3.0f, 0.0f, 0.0f, 16.0f }, { 0.0f, 0.0f, 3.0f, 16.0f }, { 0.0f, 0.0f, 16.0f, 16.0f }, { 16.0f, 0.0f, 0.0f, 16.0f } },
+                { { 0.0f, 16.0f, 16.0f, 13.0f }, { 0.0f, 3.0f, 16.0f, 0.0f }, { 0.0f, 0.0f, 3.0f, 16.0f }, { 0.0f, 0.0f, 3.0f, 16.0f }, { 16.0f, 0.0f, 0.0f, 16.0f }, { 0.0f, 0.0f, 16.0f, 16.0f } },
+                { { 0.0f, 13.0f, 16.0f, 16.0f }, { 0.0f, 0.0f, 16.0f, 3.0f }, { 3.0f, 0.0f, 0.0f, 16.0f }, { 0.0f, 0.0f, 3.0f, 16.0f }, { 16.0f, 0.0f, 0.0f, 16.0f }, { 0.0f, 0.0f, 16.0f, 16.0f } },
+                { { 16.0f, 16.0f, 0.0f, 13.0f }, { 0.0f, 0.0f, 16.0f, 3.0f }, { 3.0f, 0.0f, 0.0f, 16.0f }, { 3.0f, 0.0f, 0.0f, 16.0f }, { 0.0f, 0.0f, 16.0f, 16.0f }, { 16.0f, 0.0f, 0.0f, 16.0f } }
+            };
+            static const int doorUVRotation[4][2] = { { 90, 90 }, { 90, 270 }, { 90, 270 }, { 90, 90 } };
+            static const int doorFace[6] = { DIRECTION_BLOCK_BOTTOM, DIRECTION_BLOCK_TOP, DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
+            // "y" for a closed door, by facing: east, south, west, north
+            static const float doorRotation[4] = { 0.0f, 90.0f, 180.0f, 270.0f };
+            bool upperHalf = (dataVal & 0x8) ? true : false;
+            int hingeRight = topDataVal & 0x1;
+            int doorOpen = (bottomDataVal & 0x4) ? 1 : 0;
+            int variant = hingeRight * 2 + doorOpen;
+            float thickness = 3.0f + fatten;
+            angle = doorRotation[bottomDataVal & 0x3] + (doorOpen ? (hingeRight ? 270.0f : 90.0f) : 0.0f);
+            bool otherHalfMissing = (gBoxData[boxIndex + (upperHalf ? -1 : 1)].type != type);
 
-        // hinge move
-        // is hinge on right or left?
-        if (topDataVal & 0x1)
-        {
-            // reverse hinge - hinge is on the left
-            angle += (topDataVal & 0x1) ? 180.0f : 0.0f;
-            hingeAngle = (bottomDataVal & 0x4) ? 90.f : 0.0f;
+            gUsingTransform = 1;
+            totalVertexCount = gModel.vertexCount;
+            int startVertexIndex = saveBoxCustomUVVertices(boxIndex, 0.0f, thickness, 0.0f, 16.0f, 0.0f, 16.0f);
+            if (startVertexIndex < 0)
+                return MW_WORLD_EXPORT_TOO_LARGE;
+            firstFace = 1;
+            for (int f = 0; f < 6; f++) {
+                if (f < 2 && (f == (upperHalf ? 0 : 1)) && !gModel.print3D && !otherHalfMissing)
+                    continue;
+                // a fattened door is thicker, so its strips are, too
+                float uv[4];
+                for (int c = 0; c < 4; c++) {
+                    uv[c] = doorUV[variant][f][c];
+                    if (uv[c] == 3.0f)
+                        uv[c] = thickness;
+                    else if (uv[c] == 13.0f)
+                        uv[c] = 16.0f - thickness;
+                }
+                retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, doorFace[f], firstFace, upperHalf ? topSwatchLoc : bottomSwatchLoc,
+                    uv, (f < 2) ? doorUVRotation[variant][f] : 0);
+                if (retCode >= MW_BEGIN_ERRORS)
+                    return retCode;
+                firstFace = 0;
+            }
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            rotateMtx(mtx, 0.0f, angle, 0.0f);
+            translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(totalVertexCount, mtx);
+            gUsingTransform = 0;
         }
-        else
-        {
-            hingeAngle = (bottomDataVal & 0x4) ? 360.0f - 90.f : 0.0f;
-        }
-
-        // one of the only uses of rotUVs other than beds - rotate the UV coordinates by 2, i.e. 180 degrees, for the LO Z face
-        // TODO: note that Minecraft does not generate its doors like this. The difference is in the top (and bottom) of the door.
-        // Their doors are oriented and so use different pieces of the texture for the tops and bottoms, depending on which direction
-        // the door faces (and maybe open/closed). Minecraft appears to grab a strip from the left edge of the bottom tile, or something.
-        // We always use the bottomSwatchLoc for the door's top *and* bottom, as the top piece can look bad.
-        gUsingTransform = 1;
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, swatchLoc, bottomSwatchLoc, 1, 0x0,
-            FLIP_LO_Z_FACE_VERTICALLY | FLIP_TOP_V_VALUES,
-            0, 16, 0, 16, 13 - fatten, 16);
-        gUsingTransform = 0;
-
-        identityMtx(mtx);
-        translateToOriginMtx(mtx, boxIndex);
-        // is hinge on left or right?
-        if (topDataVal & 0x1)
-        {
-            // hinge is on left, so give it a different translation
-            static float offx = 0.0f;
-            translateMtx(mtx, 0.0f + offx / 16.0f, 0.0f, ((float)(13 - fatten) / 16.0f) * ((bottomDataVal & 0x4) ? 1.0f : -1.0f));
-            signMult = -1.0f;
-        }
-        else
-        {
-            signMult = 1.0f;
-        }
-        if (hingeAngle > 0.0f)
-        {
-            // turn door on hinge location: translate hinge to origin, rotate, translate back
-            float halfDepth = (float)(13 - fatten) / 2.0f;
-            translateMtx(mtx, halfDepth / 16.0f * signMult, 0.0f, -halfDepth / 16.0f);
-            rotateMtx(mtx, 0.0f, hingeAngle, 0.0f);
-            translateMtx(mtx, -halfDepth / 16.0f * signMult, 0.0f, halfDepth / 16.0f);
-        }
-        rotateMtx(mtx, 0.0f, angle, 0.0f);
-        // undo translation
-        translateFromOriginMtx(mtx, boxIndex);
-        transformVertices(8, mtx);
         break; // saveBillboardOrGeometry
 
     case BLOCK_SNOW:						// saveBillboardOrGeometry
@@ -9840,6 +9829,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLoc + 1;
             swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc + 1;
             swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc + 2;	// front
+            if (type == BLOCK_CHEST || type == BLOCK_TRAPPED_CHEST) {
+                // there's no bottom tile (swatchLoc + 4 is the brown mushroom), so use the top, as double chests do
+                swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc;
+            }
             faceMask = 0x0;
             break;
         case 1:	// left
@@ -10177,78 +10170,74 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break; // saveBillboardOrGeometry
 
     case BLOCK_LEVER:						// saveBillboardOrGeometry
-        // make the lever on the ground, facing east, then move it into position
-        uberTotalVertexCount = gModel.vertexCount;
-        totalVertexCount = gModel.vertexCount;
-        littleTotalVertexCount = gModel.vertexCount;
-        // tip - move over by 1
-        gUsingTransform = 1;
-        saveBoxGeometry(boxIndex, BLOCK_LEVER, dataVal, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT, 7, 9, 10, 10, 6, 8);
-        littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-        identityMtx(mtx);
-        translateMtx(mtx, 0.0f, 0.0f, 1.0f / 16.0f);
-        transformVertices(littleTotalVertexCount, mtx);
+    {
+        // Minecraft's lever (powered) and lever_on models, on the floor facing north, turned as the blockstate says, by "x" and then
+        // "y". The base's -0.02 nudge in Y is rounded to 0. The handle is turned about X: by -45 degrees in lever, toward the north,
+        // and by 45 in lever_on, toward the south. Floor and ceiling levers keep just an axis and whether the handle points one way
+        // or the other along it (see nbt.cpp), so these are given as unpowered levers, using lever_on.
+        // down, up, north, south, west, east
+        static const int boxFace[6] = { DIRECTION_BLOCK_BOTTOM, DIRECTION_BLOCK_TOP, DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
+        static const float baseUV[6][4] = { { 5.0f, 4.0f, 11.0f, 12.0f }, { 5.0f, 4.0f, 11.0f, 12.0f }, { 5.0f, 0.0f, 11.0f, 3.0f },
+            { 5.0f, 0.0f, 11.0f, 3.0f }, { 4.0f, 0.0f, 12.0f, 3.0f }, { 4.0f, 0.0f, 12.0f, 3.0f } };
+        static const float handleUV[6][4] = { { 0.0f, 0.0f, 0.0f, 0.0f }, { 7.0f, 6.0f, 9.0f, 8.0f }, { 7.0f, 6.0f, 9.0f, 16.0f },
+            { 7.0f, 6.0f, 9.0f, 16.0f }, { 7.0f, 6.0f, 9.0f, 16.0f }, { 7.0f, 6.0f, 9.0f, 16.0f } };
+        // blockstate x and y rotations, and whether the lever_on model is used, for each dataVal & 0x7, and for dataVal & 0x8 off or on
+        static const int leverState[8][2][3] = {
+            { { 180, 90, 1 }, { 180, 270, 1 } },    // 0: ceiling, east-west: west, east
+            { { 90, 90, 1 }, { 90, 90, 0 } },       // 1: wall, east
+            { { 90, 270, 1 }, { 90, 270, 0 } },     // 2: wall, west
+            { { 90, 180, 1 }, { 90, 180, 0 } },     // 3: wall, south
+            { { 90, 0, 1 }, { 90, 0, 0 } },         // 4: wall, north
+            { { 0, 0, 1 }, { 0, 180, 1 } },         // 5: floor, north-south: north, south
+            { { 0, 270, 1 }, { 0, 90, 1 } },        // 6: floor, east-west: west, east
+            { { 180, 180, 1 }, { 180, 0, 1 } },     // 7: ceiling, north-south: north, south
+        };
+        const int* state = leverState[dataVal & 0x7][(dataVal & 0x8) ? 1 : 0];
+        int leverLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_LEVER].txrX, gBlockDefinitions[BLOCK_LEVER].txrY);
+        int baseLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_COBBLESTONE].txrX, gBlockDefinitions[BLOCK_COBBLESTONE].txrY);
 
-        // add lever - always mask top face, which is output above. Use bottom face if 3D printing, to make object watertight.
-        // That said, levers are not currently exported when 3D printing, but just in case we ever do...
-        saveBoxGeometry(boxIndex, BLOCK_LEVER, dataVal, 0, (gModel.print3D ? 0x0 : DIR_BOTTOM_BIT) | DIR_TOP_BIT, 7, 9, 0, 10, 7, 9);
-        totalVertexCount = gModel.vertexCount - totalVertexCount;
+        gUsingTransform = 1;
+        uberTotalVertexCount = gModel.vertexCount;
+        // the handle, which has no bottom face
+        int startVertexIndex = saveBoxCustomUVVertices(boxIndex, 7.0f, 9.0f, 1.0f, 11.0f, 7.0f, 9.0f);
+        if (startVertexIndex < 0)
+            return MW_WORLD_EXPORT_TOO_LARGE;
+        for (int f = 1; f < 6; f++) {
+            retCode |= saveBoxModelFace(startVertexIndex, BLOCK_LEVER, dataVal, boxFace[f], (f == 1), leverLoc, handleUV[f], 0);
+            if (retCode >= MW_BEGIN_ERRORS)
+                return retCode;
+        }
+        // turn it about its bottom's center, (8, 1, 8); a positive X angle in rotateMtx turns the top toward -Z, the opposite of
+        // Minecraft's element rotation
+        totalVertexCount = gModel.vertexCount - uberTotalVertexCount;
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
-        translateMtx(mtx, 0.0f, 9.5f / 16.0f, 0.0f);
-        // tips of levers almost touch
-        rotateMtx(mtx, 0.0f, 0.0f, 38.8f);
-        translateMtx(mtx, 0.0f, -8.0f / 16.0f, 0.0f);
+        translateMtx(mtx, 0.0f, 7.0f / 16.0f, 0.0f);
+        rotateMtx(mtx, state[2] ? -45.0f : 45.0f, 0.0f, 0.0f);
+        translateMtx(mtx, 0.0f, -7.0f / 16.0f, 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(totalVertexCount, mtx);
 
-        saveBoxGeometry(boxIndex, BLOCK_COBBLESTONE, 0, 0, 0x0, 4, 12, 0, 3, 5, 11);
+        // the base
+        startVertexIndex = saveBoxCustomUVVertices(boxIndex, 5.0f, 11.0f, 0.0f, 3.0f, 4.0f, 12.0f);
+        if (startVertexIndex < 0)
+            return MW_WORLD_EXPORT_TOO_LARGE;
+        for (int f = 0; f < 6; f++) {
+            retCode |= saveBoxModelFace(startVertexIndex, BLOCK_COBBLESTONE, 0, boxFace[f], 0, baseLoc, baseUV[f], 0);
+            if (retCode >= MW_BEGIN_ERRORS)
+                return retCode;
+        }
 
         uberTotalVertexCount = gModel.vertexCount - uberTotalVertexCount;
-        // transform lever as a whole
-        yrot = (dataVal & 0x8) ? 180.0f : 0.0f;
-        xrot = zrot = 0.0f;
-        switch (dataVal & 0x7)
-        {
-        case 1:	// facing east
-            yrot += 180.0f;
-            zrot = 90.0f;
-            break;
-        case 2:	// facing west
-            yrot += 0.0f;
-            zrot = -90.0f;
-            break;
-        case 3:	// facing south
-            yrot += 270.0f;
-            xrot = -90.0f;
-            break;
-        case 4:	// facing north
-            yrot += 90.0f;
-            xrot = 90.0f;
-            break;
-        case 5:	// ground south off
-            yrot += 90.0f;
-            break;
-        case 6:	// ground east off
-            // no change
-            break;
-        case 7:	// ceiling south off
-            yrot += 90.0f;
-            zrot = 180.0f;
-            break;
-        case 0:	// ceiling east off
-            yrot += 180.0f;
-            zrot = 180.0f;
-            break;
-        }
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
-        rotateMtx(mtx, 0.0f, yrot, 0.0f);
-        rotateMtx(mtx, xrot, 0.0f, zrot);
+        rotateMtx(mtx, (float)state[0], 0.0f, 0.0f);
+        rotateMtx(mtx, 0.0f, (float)state[1], 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(uberTotalVertexCount, mtx);
         gUsingTransform = 0;
-        break; // saveBillboardOrGeometry
+    }
+    break; // saveBillboardOrGeometry
 
     case BLOCK_DAYLIGHT_SENSOR:						// saveBillboardOrGeometry
     case BLOCK_DAYLIGHT_DETECTOR:
@@ -14388,13 +14377,23 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
                         minv = (float)minPixX / 16.0f;
                         maxv = (float)maxPixX / 16.0f;
                     }
-                    else
+                    else if (reuseVerts)
                     {
-                        // normal case
+                        // reusing a box's vertices just to choose a texture region (see saveBoxReuseGeometry), where callers
+                        // give the region as before: z's 16 - z2 to 16 - z1 with v going up, i.e., rows z1 to z2
                         minu = (float)minPixX / 16.0f;
                         maxu = (float)maxPixX / 16.0f;
                         minv = (float)(16.0f - maxPixZ) / 16.0f;
                         maxv = (float)(16.0f - minPixZ) / 16.0f;
+                    }
+                    else
+                    {
+                        // normal case: as Minecraft's default "uv" for a down face, [x1, 16-z2, x2, 16-z1], with v going down,
+                        // i.e., with v going up, from z1 to z2
+                        minu = (float)minPixX / 16.0f;
+                        maxu = (float)maxPixX / 16.0f;
+                        minv = (float)minPixZ / 16.0f;
+                        maxv = (float)maxPixZ / 16.0f;
                     }
                     // we used to have to reverse bottom faces, but in 1.20.1 (and likely earlier)
                     // they fixed this to make the norm to be not reversed.
@@ -16188,6 +16187,24 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         Vec3Scalar(vertexOffsets[3][1], =, 1, minY, texelHigh);
         Vec3Scalar(vertexOffsets[3][2], =, 1, maxY, texelHigh);
         Vec3Scalar(vertexOffsets[3][3], =, 0, maxY, texelHigh);
+
+        if (vertShift != 0.0f) {
+            // Minecraft's crop model mirrors the texture on the X = 12 and Z = 4 planes, so that the outside faces of all four
+            // read the same way (and the inside faces, too)
+            Vec3Scalar(vertexOffsets[1][0], =, texelHigh, minY, 1);
+            Vec3Scalar(vertexOffsets[1][1], =, texelHigh, minY, 0);
+            Vec3Scalar(vertexOffsets[1][2], =, texelHigh, maxY, 0);
+            Vec3Scalar(vertexOffsets[1][3], =, texelHigh, maxY, 1);
+            faceDir[2] = DIRECTION_BLOCK_SIDE_HI_X;
+            faceDir[3] = DIRECTION_BLOCK_SIDE_LO_X;
+
+            Vec3Scalar(vertexOffsets[2][0], =, 1, minY, texelLow);
+            Vec3Scalar(vertexOffsets[2][1], =, 0, minY, texelLow);
+            Vec3Scalar(vertexOffsets[2][2], =, 0, maxY, texelLow);
+            Vec3Scalar(vertexOffsets[2][3], =, 1, maxY, texelLow);
+            faceDir[4] = DIRECTION_BLOCK_SIDE_LO_Z;
+            faceDir[5] = DIRECTION_BLOCK_SIDE_HI_Z;
+        }
     }
     break;
     case BB_TORCH:
@@ -16706,24 +16723,24 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         saveBoxGeometry(boxIndex, type, dataVal & 0xf, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, 6, 10, stubShift, 11, 7, 9);
         saveBoxGeometry(boxIndex, type, dataVal & 0xf, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, 7, 9, stubShift, 11, 6, 10);
 
-        // add a tip to the torch, shift it one texel in X
-        //saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 0, 7,9, 10,10, 6,8);
-        int torchVertexCount = gModel.vertexCount;
-        saveBoxGeometry(boxIndex, type, dataVal & 0xf, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT, 7, 9, stubShift, 10, 6, 8);
-        identityMtx(mtx);
-        translateToOriginMtx(mtx, boxIndex);
-        rotateMtx(mtx, 0.0f, 270.0f, 0.0f);
-        translateFromOriginMtx(mtx, boxIndex);
-        translateMtx(mtx, 1.0f / 16.0f, 0.0f, -1.0f / 16.0f);
-        transformVertices(gModel.vertexCount - torchVertexCount, mtx);
-        // torch bottom
-        saveBoxReuseGeometry(boxIndex, type, dataVal & 0xf, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT, 0x0, 7, 9, stubShift, 10, 11, 13);
+        // the torch's tip and bottom, as Minecraft's template_torch has them
+        {
+            static const float tipUV[4] = { 7.0f, 6.0f, 9.0f, 8.0f };
+            static const float bottomUV[4] = { 7.0f, 13.0f, 9.0f, 15.0f };
+            // a wall torch is made leaning toward +Z and then turned, while Minecraft's template_torch_wall leans toward +X, so turn
+            // the texture to match
+            bool wallTorch = ((dataVal & 0xf) != 5);
+            int startVertexIndex = saveBoxCustomUVVertices(boxIndex, 7.0f, 9.0f, stubShift, 10.0f, 7.0f, 9.0f);
+            if (startVertexIndex < 0)
+                return MW_WORLD_EXPORT_TOO_LARGE;
+            retCode |= saveBoxModelFace(startVertexIndex, type, dataVal & 0xf, DIRECTION_BLOCK_TOP, 0, swatchLoc, tipUV, wallTorch ? 270 : 0);
+            if (retCode >= MW_BEGIN_ERRORS)
+                return retCode;
+            retCode |= saveBoxModelFace(startVertexIndex, type, dataVal & 0xf, DIRECTION_BLOCK_BOTTOM, 0, swatchLoc, bottomUV, wallTorch ? 90 : 0);
+            if (retCode >= MW_BEGIN_ERRORS)
+                return retCode;
+        }
         gUsingTransform = 0;
-
-        torchVertexCount = gModel.vertexCount - torchVertexCount;
-        identityMtx(mtx);
-        translateMtx(mtx, 0.0f, 0.0f, 1.0f / 16.0f);
-        transformVertices(torchVertexCount, mtx);
 
         if ((dataVal & 0xf) != 5)
         {
@@ -21635,9 +21652,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_NETHER_BRICKS].txrX, gBlockDefinitions[BLOCK_NETHER_BRICKS].txrY);
                 break;
             case 7:
-                // quartz with distinctive sides and bottom
+                // quartz with distinctive sides; as in Minecraft's quartz_slab and quartz_block (the double slab) models, the bottom
+                // is the top's texture
                 swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_QUARTZ_BLOCK].txrX, gBlockDefinitions[BLOCK_QUARTZ_BLOCK].txrY);
-                SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 6, 17, 1, 17);
+                SWATCH_SWITCH_SIDE(faceDirection, 6, 17);
                 break;
             case 8:
                 // smooth stone slab (double slab only)
@@ -23542,6 +23560,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLoc + 1;
                     swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc + 1;
                     swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc + 2;	// front
+                    if (type == BLOCK_CHEST || type == BLOCK_TRAPPED_CHEST) {
+                        // there's no bottom tile (swatchLoc + 4 is the brown mushroom), so use the top, as double chests do
+                        swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc;
+                    }
                     break;
                 case 1:	// left
                     switch (type) {
