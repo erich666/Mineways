@@ -982,8 +982,12 @@ static int neighborMayCoverFace(int neighborType, int view3D, int testPartial, i
 static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, int view3D);
 static int isFluidBlockFull(int boxIndex);
 static int cornerHeights(int boxIndex, float heights[4]);
-static float computeUpperCornerHeight(int boxIndex, int x, int z);
-static float getFluidHeightPercent(int dataVal);
+static int fluidNeighborIndex(int boxIndex, int dx, int dy, int dz);
+static float fluidOwnHeight(int boxIndex);
+static float fluidHeightAt(int fluidBoxIndex, int boxIndex);
+static float fluidCornerHeight(int boxIndex, float height, float height1, float height2, int diagonalIndex);
+static bool fluidFlow(int boxIndex, float* flowX, float* flowZ);
+static int saveFluidFaceUVs(int boxIndex, int faceDirection, float heights[4], int uvIndices[4]);
 static int sameFluid(int fluidBI, int typeBI);
 static int saveSpecialVertices(int boxIndex, int faceDirection, IPoint loc, float heights[4], int heightIndices[4]);
 static int saveVertices(int boxIndex, int faceDirection, IPoint loc);
@@ -20643,7 +20647,8 @@ static int isFluidBlockFull(int boxIndex)
     return cornerHeights(boxIndex, heights);
 }
 
-// find heights at the four corners, x lo/z lo, x lo/z hi, etc.
+// Find the fluid's heights at the four corners of its top: x lo/z lo, x lo/z hi, x hi/z lo, x hi/z hi (i.e., NW, SW, NE, SE), as
+// Minecraft's LiquidBlockRenderer does. Returns true if all are 1.0, i.e., a full block.
 static int cornerHeights(int boxIndex, float heights[4])
 {
     // if block above is same fluid, all heights are 1.0 - quick out.
@@ -20651,106 +20656,218 @@ static int cornerHeights(int boxIndex, float heights[4])
     {
         return 1;
     }
-    else
-    {
-        // OK, compute heights.
-        int i;
-        // hmmmm, not sure what this was for, but dataHeight is no longer accessed...
-        //int dataHeight = gBoxData[boxIndex].data;
-        //if ( dataHeight >= 8 )
-        //{
-        //    dataHeight = 0;
-        //}
-        for (i = 0; i < 4; i++)
-        {
-            heights[i] = computeUpperCornerHeight(boxIndex, i >> 1, i % 2);
-        }
+    float height = fluidOwnHeight(boxIndex);
+    float heightN = fluidHeightAt(boxIndex, fluidNeighborIndex(boxIndex, 0, 0, -1));
+    float heightS = fluidHeightAt(boxIndex, fluidNeighborIndex(boxIndex, 0, 0, 1));
+    float heightW = fluidHeightAt(boxIndex, fluidNeighborIndex(boxIndex, -1, 0, 0));
+    float heightE = fluidHeightAt(boxIndex, fluidNeighborIndex(boxIndex, 1, 0, 0));
+    heights[0] = fluidCornerHeight(boxIndex, height, heightN, heightW, fluidNeighborIndex(boxIndex, -1, 0, -1));
+    heights[1] = fluidCornerHeight(boxIndex, height, heightS, heightW, fluidNeighborIndex(boxIndex, -1, 0, 1));
+    heights[2] = fluidCornerHeight(boxIndex, height, heightN, heightE, fluidNeighborIndex(boxIndex, 1, 0, -1));
+    heights[3] = fluidCornerHeight(boxIndex, height, heightS, heightE, fluidNeighborIndex(boxIndex, 1, 0, 1));
 
-        return ((heights[0] >= 1.0f) && (heights[1] >= 1.0f) && (heights[2] >= 1.0f) && (heights[3] >= 1.0f));
-    }
+    return ((heights[0] >= 1.0f) && (heights[1] >= 1.0f) && (heights[2] >= 1.0f) && (heights[3] >= 1.0f));
 }
 
-static float computeUpperCornerHeight(int boxIndex, int x, int z)
+// The neighbor dx, dy, dz away. Because we look at the corners of "border" blocks, we might look off the edge of the border.
+// Don't allow that! Clamp, instead. Doesn't matter along the borders if the "on border" neighbor height is wrong.
+static int fluidNeighborIndex(int boxIndex, int dx, int dy, int dz)
 {
-    // if any location above this corner is same fluid, height is 1.0
-    int i;
-    int neighbor[4];
-    float heightSum = 0.0f;
-    int weight = 0;
-
     IPoint loc;
     boxIndexToLoc(loc, boxIndex);
-
-    for (i = 0; i < 4; i++)
-    {
-        // Because we can now look at the corners of "border" blocks, we might access a block
-        // off the edge of the border. Don't allow that! Clamp, instead. Doesn't matter along the
-        // borders if the "on border" neighbor height is wrong.
-        int offx = x - 1 + (i >> 1);
-        int newx = clamp(loc[X] + offx, gAirBox.min[X], gAirBox.max[X]);
-        int offz = z - 1 + (i % 2);
-        int newz = clamp(loc[Z] + offz, gAirBox.min[Z], gAirBox.max[Z]);
-        neighbor[i] = BOX_INDEX(newx, loc[Y], newz);
-        // walk through neighbor above this corner
-        if (sameFluid(boxIndex,neighbor[i] + 1))
-            return 1.0f;
-    }
-
-    // look at neighbors and blend them in.
-    for (i = 0; i < 4; i++)
-    {
-        // is neighbor same fluid?
-        if (sameFluid(boxIndex, neighbor[i]))
-        {
-            // matches, so get neighbor's stored height
-            int neighborDataVal = gBoxData[neighbor[i]].data;
-
-            // if height is "full", add it times 10
-            if (neighborDataVal >= 8 || neighborDataVal == 0)
-            {
-                // full height: by adding it in 10 times, you get a more rounded look.
-                heightSum += getFluidHeightPercent(neighborDataVal) * 10.0f;
-                // i is normalizer. Basically, if you get here, this value is 10x more important in average
-                weight += 10;
-            }
-
-            // (par0 + 1) / 9F is fluid height percent formula.
-            // so 0 means 1/9, 7 means 8/9 - 0 is the highest level, 7 is the lowest!
-
-            // always just add it in, whatever height the water is
-            heightSum += getFluidHeightPercent(neighborDataVal);
-            weight++;
-        }
-        // if neighbor is not considered solid, add one more
-        else if ((gBoxData[neighbor[i]].origType == BLOCK_AIR) || (gBlockDefinitions[gBoxData[neighbor[i]].origType].flags & BLF_DNE_FLUID))
-        {
-            heightSum += 1.0f;
-            weight++;
-        }
-    }
-
-    if (weight == 0)
-    {
-        // should NEVER reach here - if we do, it means the type of this block being tested (at boxIndex in the calling routine) is somehow
-        // not water or lava. In other words, of the four neighbors, one must always be the water or lava itself.
-        assert(weight);
-        return 1.0f;
-    }
-
-    // now get the weighted average of the height for this corner
-    return 1.0F - heightSum / (float)weight;
+    return BOX_INDEX(clamp(loc[X] + dx, gAirBox.min[X], gAirBox.max[X]),
+        clamp(loc[Y] + dy, gAirBox.min[Y], gAirBox.max[Y]),
+        clamp(loc[Z] + dz, gAirBox.min[Z], gAirBox.max[Z]));
 }
 
-// name is misleading. More like "depth", as the value returned is essentially how far to move *down* from the corner.
-// 0 means full height water, 1/9th returned; 7 means shallow as possible, return 8/9ths
-static float getFluidHeightPercent(int dataVal)
+// Minecraft's FluidState.getOwnHeight(): a source or falling fluid (level 0, or 8 and up) is 8/9 of a block high, a flowing one
+// (8 - level)/9. A waterlogged block is a source.
+static float fluidOwnHeight(int boxIndex)
 {
-    if (dataVal >= 8)
-    {
-        dataVal = 0;
+    int type = gBoxData[boxIndex].origType;
+    if ((type >= BLOCK_WATER) && (type <= BLOCK_STATIONARY_LAVA)) {
+        int level = gBoxData[boxIndex].data & 0xf;
+        if ((level > 0) && (level < 8))
+            return (float)(8 - level) / 9.0f;
     }
+    return 8.0f / 9.0f;
+}
 
-    return (float)(dataVal + 1) / 9.0f;
+// Minecraft's LiquidBlockRenderer.getHeight(): the height of the fluid at boxIndex, which is 1.0 if the same fluid is above it; or,
+// if there's no fluid there, 0.0 if it's open (air, or something that doesn't block fluid) and -1.0 (not counted) if it's solid.
+static float fluidHeightAt(int fluidBoxIndex, int boxIndex)
+{
+    if (sameFluid(fluidBoxIndex, boxIndex))
+        return sameFluid(fluidBoxIndex, boxIndex + 1) ? 1.0f : fluidOwnHeight(boxIndex);
+    int type = gBoxData[boxIndex].origType;
+    return ((type == BLOCK_AIR) || (gBlockDefinitions[type].flags & BLF_DNE_FLUID)) ? 0.0f : -1.0f;
+}
+
+// Minecraft's LiquidBlockRenderer.addWeightedHeight(): heights near full count ten times as much
+static void addWeightedFluidHeight(float height, float& heightSum, float& weight)
+{
+    if (height >= 0.8f) {
+        heightSum += height * 10.0f;
+        weight += 10.0f;
+    }
+    else if (height >= 0.0f) {
+        heightSum += height;
+        weight += 1.0f;
+    }
+}
+
+// Minecraft's LiquidBlockRenderer.calculateAverageHeight(): the height of a corner of the fluid's top, from the fluid's own height,
+// the heights of the two neighbors on the corner's sides, and, if either of those has fluid, the diagonal neighbor's.
+static float fluidCornerHeight(int boxIndex, float height, float height1, float height2, int diagonalIndex)
+{
+    if ((height1 >= 1.0f) || (height2 >= 1.0f))
+        return 1.0f;
+    float heightSum = 0.0f;
+    float weight = 0.0f;
+    if ((height1 > 0.0f) || (height2 > 0.0f)) {
+        float heightDiagonal = fluidHeightAt(boxIndex, diagonalIndex);
+        if (heightDiagonal >= 1.0f)
+            return 1.0f;
+        addWeightedFluidHeight(heightDiagonal, heightSum, weight);
+    }
+    addWeightedFluidHeight(height, heightSum, weight);
+    addWeightedFluidHeight(height2, heightSum, weight);
+    addWeightedFluidHeight(height1, heightSum, weight);
+    return heightSum / weight;
+}
+
+// Minecraft's FlowingFluid.getFlow(), in X and Z: which way the fluid flows, toward lower neighbors of the same fluid, or over an
+// edge to the same fluid below. Returns false if it doesn't flow, e.g., a source with no lower fluid around it.
+static bool fluidFlow(int boxIndex, float* flowX, float* flowZ)
+{
+    static const int sideStep[4][2] = { { 0, -1 }, { 0, 1 }, { -1, 0 }, { 1, 0 } };
+    float height = fluidOwnHeight(boxIndex);
+    float dx = 0.0f;
+    float dz = 0.0f;
+    for (int side = 0; side < 4; side++) {
+        int neighborIndex = fluidNeighborIndex(boxIndex, sideStep[side][0], 0, sideStep[side][1]);
+        int neighborType = gBoxData[neighborIndex].origType;
+        bool same = sameFluid(boxIndex, neighborIndex) != 0;
+        // only a neighbor with no fluid, or the same fluid, affects the flow
+        if (!same && IS_FLUID(neighborType, neighborIndex))
+            continue;
+        float neighborHeight = same ? fluidOwnHeight(neighborIndex) : 0.0f;
+        float difference = 0.0f;
+        if (neighborHeight == 0.0f) {
+            // an open neighbor, with the same fluid below it: the fluid flows over the edge
+            if ((neighborType == BLOCK_AIR) || (gBlockDefinitions[neighborType].flags & BLF_DNE_FLUID)) {
+                int belowIndex = fluidNeighborIndex(boxIndex, sideStep[side][0], -1, sideStep[side][1]);
+                if (sameFluid(boxIndex, belowIndex))
+                    difference = height - (fluidOwnHeight(belowIndex) - 8.0f / 9.0f);
+            }
+        }
+        else {
+            difference = height - neighborHeight;
+        }
+        dx += (float)sideStep[side][0] * difference;
+        dz += (float)sideStep[side][1] * difference;
+    }
+    *flowX = dx;
+    *flowZ = dz;
+    return (dx != 0.0f) || (dz != 0.0f);
+}
+
+// The texture coordinates of a water or lava face's four corners, in the order of gFaceToVertexOffset, as Minecraft's
+// LiquidBlockRenderer makes them. heights are the top's corner heights (see cornerHeights()), or NULL if all are 1.0.
+// The top shows the still texture or, if the fluid flows (see fluidFlow()), the middle of the flowing texture, turned to the flow.
+// The bottom shows the still texture. A side shows the flowing texture's upper left quarter (Minecraft's flowing textures are twice
+// a block's size), with its bottom at the block's bottom, mirrored compared to other blocks' sides; next to glass, water's side
+// shows the water overlay instead. Returns -1 if out of room for texture coordinates.
+static int saveFluidFaceUVs(int boxIndex, int faceDirection, float heights[4], int uvIndices[4])
+{
+    int type = gBoxData[boxIndex].type;
+    bool isWater = IS_WATER(type, boxIndex);
+    int stillLoc = isWater ? TILE_TO_SWATCH(gBlockDefinitions[BLOCK_STATIONARY_WATER].txrX, gBlockDefinitions[BLOCK_STATIONARY_WATER].txrY) :
+        TILE_TO_SWATCH(gBlockDefinitions[BLOCK_STATIONARY_LAVA].txrX, gBlockDefinitions[BLOCK_STATIONARY_LAVA].txrY);
+    int flowLoc = isWater ? SWATCH_INDEX(8, 26) : SWATCH_INDEX(9, 26);
+    int swatchLoc = stillLoc;
+    // Minecraft's texture coordinates for each corner, 0 to 1 across the texture, with v going down
+    float u[4], v[4];
+    int i;
+
+    if (faceDirection == DIRECTION_BLOCK_TOP) {
+        // corners NW, SW, SE, NE, which are x lo/z lo, x lo/z hi, x hi/z hi, x hi/z lo
+        float cornerU[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
+        float cornerV[4] = { 0.0f, 1.0f, 1.0f, 0.0f };
+        float flowX, flowZ;
+        if (fluidFlow(boxIndex, &flowX, &flowZ)) {
+            float angle = (float)atan2((double)flowZ, (double)flowX) - (float)(90.0 * DEGREES_TO_RADIANS);
+            float s = (float)sin((double)angle) * 0.25f;
+            float c = (float)cos((double)angle) * 0.25f;
+            swatchLoc = flowLoc;
+            cornerU[0] = 0.5f - c - s;  cornerV[0] = 0.5f - c + s;
+            cornerU[1] = 0.5f - c + s;  cornerV[1] = 0.5f + c + s;
+            cornerU[2] = 0.5f + c + s;  cornerV[2] = 0.5f + c - s;
+            cornerU[3] = 0.5f + c - s;  cornerV[3] = 0.5f - c - s;
+        }
+        for (i = 0; i < 4; i++) {
+            int corner;
+            if (gFaceToVertexOffset[faceDirection][i][X] == 0)
+                corner = gFaceToVertexOffset[faceDirection][i][Z] ? 1 : 0;
+            else
+                corner = gFaceToVertexOffset[faceDirection][i][Z] ? 2 : 3;
+            u[i] = cornerU[corner];
+            v[i] = cornerV[corner];
+        }
+    }
+    else if (faceDirection == DIRECTION_BLOCK_BOTTOM) {
+        for (i = 0; i < 4; i++) {
+            u[i] = (float)gFaceToVertexOffset[faceDirection][i][X];
+            v[i] = (float)gFaceToVertexOffset[faceDirection][i][Z];
+        }
+    }
+    else {
+        swatchLoc = flowLoc;
+        if (isWater) {
+            int neighborType = gBoxData[boxIndex + gFaceOffset[faceDirection]].origType;
+            if ((neighborType == BLOCK_GLASS) || (neighborType == BLOCK_STAINED_GLASS))
+                swatchLoc = SWATCH_INDEX(15, 25);
+        }
+        for (i = 0; i < 4; i++) {
+            int ox = gFaceToVertexOffset[faceDirection][i][X];
+            int oz = gFaceToVertexOffset[faceDirection][i][Z];
+            // the texture's left edge is at the face's west end on the north side, east end on the south, south end on the west,
+            // north end on the east
+            bool leftEdge;
+            switch (faceDirection) {
+            default:
+                assert(0);
+            case DIRECTION_BLOCK_SIDE_LO_Z:
+                leftEdge = (ox == 0);
+                break;
+            case DIRECTION_BLOCK_SIDE_HI_Z:
+                leftEdge = (ox == 1);
+                break;
+            case DIRECTION_BLOCK_SIDE_LO_X:
+                leftEdge = (oz == 1);
+                break;
+            case DIRECTION_BLOCK_SIDE_HI_X:
+                leftEdge = (oz == 0);
+                break;
+            }
+            u[i] = leftEdge ? 0.0f : 0.5f;
+            if (gFaceToVertexOffset[faceDirection][i][Y]) {
+                float height = heights ? heights[2 * ox + oz] : 1.0f;
+                if (height > 1.0f)
+                    height = 1.0f;
+                v[i] = (1.0f - height) * 0.5f;
+            }
+            else {
+                v[i] = 0.5f;
+            }
+        }
+    }
+    for (i = 0; i < 4; i++) {
+        uvIndices[i] = saveTextureUV(swatchLoc, type, u[i], 1.0f - v[i]);
+        if (uvIndices[i] < 0)
+            return -1;
+    }
+    return 0;
 }
 
 // note: fluidType must be known to be either lava or water type
@@ -20949,78 +21066,6 @@ static int saveFaceLoop(int boxIndex, int faceDirection, float heights[4], int h
                 assert(heightIndices[heightLoc] != NO_INDEX_SET);
                 face->vertexIndex[i] = heightIndices[heightLoc];
 
-                // Since we're saving a special location, we also need a special UV index
-                // to go along with it and use later.
-                // Check the direction - top and bottom don't need these, sides do.
-                if (gModel.exportTexture && !computedSpecialUVs && (faceDirection != DIRECTION_BLOCK_BOTTOM) && (faceDirection != DIRECTION_BLOCK_TOP))
-                {
-                    int j;
-                    computedSpecialUVs = 1;
-
-                    // Add the new UV here, and save its index in an array that is then used
-                    // to replace the regular UV index array location.
-                    for (j = 0; j < 4; j++)
-                    {
-                        int type, swatchLoc;
-                        float u = ((j == 1) || (j == 2)) ? 1.0f : 0.0f;
-                        float v;
-                        if ((j == 2) || (j == 3))
-                        {
-                            switch (faceDirection)
-                            {
-                            case DIRECTION_BLOCK_SIDE_LO_X:
-                                v = (u == 0.0f) ? heights[0] : heights[1];
-                                break;
-                            case DIRECTION_BLOCK_SIDE_HI_X:
-                                v = (u == 0.0f) ? heights[3] : heights[2];
-                                break;
-                            case DIRECTION_BLOCK_SIDE_LO_Z:
-                                v = (u == 0.0f) ? heights[2] : heights[0];
-                                break;
-                            case DIRECTION_BLOCK_SIDE_HI_Z:
-                                v = (u == 0.0f) ? heights[1] : heights[3];
-                                break;
-                            default:
-                                v = 0.0f;
-                                assert(0);
-                            }
-                        }
-                        else
-                        {
-                            // bottom of fluid is always 0.0
-                            v = 0.0f;
-                        }
-
-                        type = gBoxData[boxIndex].type;
-                        if (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES)
-                            // we used to check if the block had no textures, but now all blocks have textures, or are invisible
-                            //    !( gBlockDefinitions[type].flags & BLF_IMAGE_TEXTURE) )
-                        {
-                            // use a solid color
-                            swatchLoc = type;
-                        }
-                        else
-                        {
-                            swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-                            // special: if type is lava, use flowing lava; if water, use flowing water or overlay water
-                            if (IS_WATER(type, boxIndex)) {
-                                if ((faceDirection != DIRECTION_BLOCK_BOTTOM) && (faceDirection != DIRECTION_BLOCK_TOP))
-                                {
-                                    int neighborType = gBoxData[boxIndex + gFaceOffset[faceDirection]].origType;
-                                    swatchLoc = ((neighborType == BLOCK_GLASS) || (neighborType == BLOCK_STAINED_GLASS)) ? SWATCH_INDEX(15, 25) : SWATCH_INDEX(8, 26);
-                                }
-                            }
-                            else if ((type == BLOCK_LAVA) || (type == BLOCK_STATIONARY_LAVA)) {
-                                swatchLoc = SWATCH_INDEX(9, 26);
-                            }
-                        }
-                        specialUVindices[j] = saveTextureUV(swatchLoc, type, u, v);
-                        if (specialUVindices[j] < 0) {
-                            freeFaceRecordToPool(face);
-                            return retCode | MW_WORLD_EXPORT_TOO_LARGE;
-                        }
-                    }
-                }
             }
         }
         else
@@ -21142,6 +21187,16 @@ static int saveFaceLoop(int boxIndex, int faceDirection, float heights[4], int h
 
     if (gModel.exportTexture)
     {
+        // a water or lava face (not one flattened onto it) has its own texture coordinates, as Minecraft makes them
+        if ((originalType >= BLOCK_WATER) && (originalType <= BLOCK_STATIONARY_LAVA) && (face->materialType == originalType) &&
+            !(gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES))
+        {
+            if (saveFluidFaceUVs(boxIndex, faceDirection, heights, specialUVindices) < 0) {
+                freeFaceRecordToPool(face);
+                return retCode | MW_WORLD_EXPORT_TOO_LARGE;
+            }
+            computedSpecialUVs = 1;
+        }
         // I guess we really don't need the swatch location returned; its
         // main effect is to set the proper indices in the texture map itself
         // and note that the swatch is being used
@@ -26920,6 +26975,17 @@ static int saveTextureUV(int swatchLoc, int type, float u, float v)
     gModel.uvIndexList[gModel.uvIndexCount].vc = 1.0f - ((float)row * gModel.textureUVPerSwatch + (1.0f - v) * gModel.textureUVPerTile + gModel.invTextureResolution);
     gModel.uvIndexList[gModel.uvIndexCount].swatchLoc = swatchLoc;
     gModel.uvIndexList[gModel.uvIndexCount].spanAnchor = -1;
+    // Individual tile export puts each UV on the tile's 17x17 grid of texel corners (see mosaicUVtoSeparateUV), which is all that
+    // most faces need. A UV between texel corners, e.g. on a water or lava face, is output exactly instead, as a multi-tile image's
+    // UV is: as if on an image of one tile, anchored at this swatch.
+    if (gModel.exportTiles && (swatchLoc < TOTAL_TILES) &&
+        ((fabs(u * 16.0f - floor(u * 16.0f + 0.5f)) > 0.001f) || (fabs(v * 16.0f - floor(v * 16.0f + 0.5f)) > 0.001f)))
+    {
+        gModel.uvIndexList[gModel.uvIndexCount].spanAnchor = swatchLoc;
+        gModel.uvIndexList[gModel.uvIndexCount].su = u;
+        gModel.uvIndexList[gModel.uvIndexCount].sv = v;
+        gModel.uvIndexList[gModel.uvIndexCount].outIndex = 0;
+    }
     gModel.uvIndexCount++;
 
     // also save what type is associated with this swatchLoc, to allow output of name in comments.
