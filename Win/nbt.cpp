@@ -5693,13 +5693,14 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 // dataVal is set from "facing" already (1234), just need face & powered
                 // check for top or bottom facing
                 // if button is on top or bottom, "facing" affects angle, bit 16
+                // BIT_32 then tells which way along that axis: west (2) or south (3) set it.
                 if (face == 0) {
-                    dataVal = 5 | ((dataVal <= 2) ? BIT_16 : 0x0);
+                    dataVal = 5 | ((dataVal <= 2) ? BIT_16 : 0x0) | (((dataVal == 2) || (dataVal == 3)) ? BIT_32 : 0x0);
                 }
                 else if (face == 2) {
                     // same axis rule as the floor: east (1) and west (2) set BIT_16. This was "<= 3", which put
                     // south-facing ceiling buttons on the east/west axis, unlike north-facing ones.
-                    dataVal = 0 | ((dataVal <= 2) ? BIT_16 : 0x0);
+                    dataVal = 0 | ((dataVal <= 2) ? BIT_16 : 0x0) | (((dataVal == 2) || (dataVal == 3)) ? BIT_32 : 0x0);
                 }
                 //else if (face == 1) {
                 // not needed, as dataVal should be set just right at this point for walls
@@ -9638,18 +9639,14 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         //     5  -> face=floor
         //     1-4 -> face=wall, facing=east/west/south/north
         //   BIT_16 (0x10): for floor/ceiling, the original "facing" was east/west (set) vs south/north (cleared)
+        //   BIT_32 (0x20): for floor/ceiling, the original "facing" was west or south (set) vs east or north (cleared)
         //   bit 0x8: powered
-        // For floor/ceiling buttons the on-disk distinction between east-vs-west and
-        // south-vs-north is collapsed by Mineways; pick the east or south representative.
         int lo = dataVal & 0x7;
         const char* face;
         const char* facing;
-        if (lo == 5) {
-            face = "floor";
-            facing = (dataVal & BIT_16) ? "east" : "south";
-        } else if (lo == 0) {
-            face = "ceiling";
-            facing = (dataVal & BIT_16) ? "east" : "south";
+        if (lo == 5 || lo == 0) {
+            face = (lo == 5) ? "floor" : "ceiling";
+            facing = (dataVal & BIT_16) ? ((dataVal & BIT_32) ? "west" : "east") : ((dataVal & BIT_32) ? "south" : "north");
         } else {
             face = "wall";
             switch (lo) {

@@ -5668,6 +5668,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
             // post, always output
             saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 6 - fatten, 10 + fatten, 0, 16, 6 - fatten, 10 + fatten);
+            // the rails' ends against the post are hidden in it, as in Minecraft's fence_side model, except for 3D printing
             // which side fence rails are needed: WENS is order
 
             // since we erase "billboard" objects as we go, we need to test against origType.
@@ -5678,29 +5679,37 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 //transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gModel.print3D && (type != neighborType));
                 //saveBoxGeometry(boxIndex, type, dataVal, 0, (gModel.print3D ? 0x0 : DIR_HI_X_BIT) | (transNeighbor ? 0x0 : DIR_LO_X_BIT), 0, 6 - fatten, 6, 9, 7 - fatten, 9 + fatten);
                 //saveBoxGeometry(boxIndex, type, dataVal, 0, (gModel.print3D ? 0x0 : DIR_HI_X_BIT) | (transNeighbor ? 0x0 : DIR_LO_X_BIT), 0, 6 - fatten, 12, 15, 7 - fatten, 9 + fatten);
-                saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 0, 6 - fatten, 6, 9, 7 - fatten, 9 + fatten);
-                saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 0, 6 - fatten, 12, 15, 7 - fatten, 9 + fatten);
+                saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : DIR_HI_X_BIT, 0, 6 - fatten, 6, 9, 7 - fatten, 9 + fatten);
+                saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : DIR_HI_X_BIT, 0, 6 - fatten, 12, 15, 7 - fatten, 9 + fatten);
             }
             if ((dataVal & 0x8) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_HI_X))
             {
                 // this fence connects to the neighboring block, so output the fence pieces
                 //transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gModel.print3D && (type != neighborType));
-                saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 10 + fatten, 16, 6, 9, 7 - fatten, 9 + fatten);
-                saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 10 + fatten, 16, 12, 15, 7 - fatten, 9 + fatten);
+                saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : DIR_LO_X_BIT, 10 + fatten, 16, 6, 9, 7 - fatten, 9 + fatten);
+                saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : DIR_LO_X_BIT, 10 + fatten, 16, 12, 15, 7 - fatten, 9 + fatten);
             }
             if ((dataVal & 0x4) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_LO_Z))
             {
                 // this fence connects to the neighboring block, so output the fence pieces
                 //transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gModel.print3D && (type != neighborType));
-                saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7 - fatten, 9 + fatten, 6, 9, 0, 6 - fatten);
-                saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7 - fatten, 9 + fatten, 12, 15, 0, 6 - fatten);
+                // Minecraft's fence_side model, for this north rail (the only one not turned, with uvlock), gives the east and bottom
+                // faces' textures over Z 0 to 9 as "uv" [0, 1, 9, 4] and [7, 0, 9, 9], each shifted from the usual by 7 pixels, so
+                // they're made separately
+                swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+                saveBoxGeometry(boxIndex, type, dataVal, 0, (gModel.print3D ? 0x0 : DIR_HI_Z_BIT) | DIR_HI_X_BIT | DIR_BOTTOM_BIT, 7 - fatten, 9 + fatten, 6, 9, 0, 6 - fatten);
+                saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_ALL_BITS & ~DIR_HI_X_BIT, 0x0, 7 - fatten, 9 + fatten, 6, 9, 7, 13 - fatten);
+                saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_ALL_BITS & ~DIR_BOTTOM_BIT, 0x0, 7 - fatten, 9 + fatten, 6, 9, 3 + fatten, 9);
+                saveBoxGeometry(boxIndex, type, dataVal, 0, (gModel.print3D ? 0x0 : DIR_HI_Z_BIT) | DIR_HI_X_BIT | DIR_BOTTOM_BIT, 7 - fatten, 9 + fatten, 12, 15, 0, 6 - fatten);
+                saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_ALL_BITS & ~DIR_HI_X_BIT, 0x0, 7 - fatten, 9 + fatten, 12, 15, 7, 13 - fatten);
+                saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_ALL_BITS & ~DIR_BOTTOM_BIT, 0x0, 7 - fatten, 9 + fatten, 12, 15, 3 + fatten, 9);
             }
             if ((dataVal & 0x1) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_HI_Z))
             {
                 // this fence connects to the neighboring block, so output the fence pieces
                 //transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gModel.print3D && (type != neighborType));
-                saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7 - fatten, 9 + fatten, 6, 9, 10 + fatten, 16);
-                saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7 - fatten, 9 + fatten, 12, 15, 10 + fatten, 16);
+                saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : DIR_LO_Z_BIT, 7 - fatten, 9 + fatten, 6, 9, 10 + fatten, 16);
+                saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : DIR_LO_Z_BIT, 7 - fatten, 9 + fatten, 12, 15, 10 + fatten, 16);
             }
         }
         break; // saveBillboardOrGeometry
@@ -7353,6 +7362,42 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_CHERRY_BUTTON:
     case BLOCK_BAMBOO_BUTTON:
         // The bottom 3 bits is direction of button. Top bit is whether it's pressed.
+        if ((dataVal & 0x7) == 0 || (dataVal & 0x7) == 5) {
+            // On the ceiling or floor, Minecraft's button and button_pressed models (its 1.02 high pressed button made 1 high),
+            // turned by the blockstate's "x" and "y"; the texture turns with it. BIT_16 means facing east or west, else north or
+            // south, and BIT_32 means the second of these.
+            static const int buttonFace[6] = { DIRECTION_BLOCK_BOTTOM, DIRECTION_BLOCK_TOP, DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
+            static const float buttonUV[6][4] = { { 5.0f, 6.0f, 11.0f, 10.0f }, { 5.0f, 6.0f, 11.0f, 10.0f }, { 5.0f, 14.0f, 11.0f, 16.0f },
+                { 5.0f, 14.0f, 11.0f, 16.0f }, { 6.0f, 14.0f, 10.0f, 16.0f }, { 6.0f, 14.0f, 10.0f, 16.0f } };
+            // "y" for facing north, east, south, west, on the floor and on the ceiling
+            static const float buttonYAngle[2][4] = { { 0.0f, 90.0f, 180.0f, 270.0f }, { 180.0f, 270.0f, 0.0f, 90.0f } };
+            bool ceiling = ((dataVal & 0x7) == 0);
+            bool pressed = (dataVal & 0x8) ? true : false;
+            int buttonFacing = (dataVal & BIT_16) ? ((dataVal & BIT_32) ? 3 : 1) : ((dataVal & BIT_32) ? 2 : 0);
+            swatchLoc = getSwatch(type, dataVal, DIRECTION_BLOCK_TOP, 0, NULL);
+            gUsingTransform = 1;
+            totalVertexCount = gModel.vertexCount;
+            int startVertexIndex = saveBoxCustomUVVertices(boxIndex, 5.0f, 11.0f, 0.0f, pressed ? 1.0f : 2.0f, 6.0f, 10.0f);
+            if (startVertexIndex < 0)
+                return MW_WORLD_EXPORT_TOO_LARGE;
+            for (int f = 0; f < 6; f++) {
+                float uv[4] = { buttonUV[f][0], buttonUV[f][1], buttonUV[f][2], buttonUV[f][3] };
+                if (pressed && f >= 2)
+                    uv[3] = 15.0f;
+                retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, buttonFace[f], (f == 0), swatchLoc, uv, 0);
+                if (retCode >= MW_BEGIN_ERRORS)
+                    return retCode;
+            }
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            rotateMtx(mtx, ceiling ? 180.0f : 0.0f, 0.0f, 0.0f);
+            rotateMtx(mtx, 0.0f, buttonYAngle[ceiling ? 1 : 0][buttonFacing], 0.0f);
+            translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(totalVertexCount, mtx);
+            gUsingTransform = 0;
+            break;
+        }
         bitAdd = (dataVal & 0x8) ? 1.0f : 0.0f;
         miny = 6;
         maxy = 10;
@@ -8161,53 +8206,80 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         //	if ( gBoxData[boxIndex-1].type == BLOCK_AIR)
         //		return 0;
         //}
-        gUsingTransform = 1;
-        swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, FLIP_TOP_V_VALUES, 0, 16, 13, 16, 0, 16);
-        identityMtx(mtx);
-        translateToOriginMtx(mtx, boxIndex);
-		// lower from 13-16 height to 0-3 height
-        translateMtx(mtx, 0.0f, -13.0f / 16.0f, 0.0f);
-        // undo translation to origin
-
-        // 0x4 means rotated up or down
-        if (dataVal & 0x4)
+        // Minecraft's trapdoor models: template_trapdoor_bottom, _top, and _open, or, for woods whose texture has a direction,
+        // template_orientable_trapdoor_*, which turn with the trapdoor's facing (and turn over when open at the top).
+        // dataVal: 0x3 facing north, south, west, east; 0x4 open; 0x8 top half
         {
-            translateMtx(mtx, 0.0f, 0.5f - 1.5f / 16.0f, -6.5f / 16.0f);
-            rotateMtx(mtx, (dataVal & 0x8) ? 90.0f : -90.0f, 0.0f, 0.0f);
-            translateMtx(mtx, 0.0f, -0.5f + 1.5f / 16.0f,6.5f / 16.0f);
+            // faces down, up, north, south, west, east; for closed (bottom and top) and open; plain and orientable
+            static const int trapdoorFace[6] = { DIRECTION_BLOCK_BOTTOM, DIRECTION_BLOCK_TOP, DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
+            static const float trapdoorUV[2][2][6][4] = {
+                {   // plain
+                    { { 0.0f, 0.0f, 16.0f, 16.0f }, { 0.0f, 0.0f, 16.0f, 16.0f }, { 0.0f, 16.0f, 16.0f, 13.0f }, { 0.0f, 16.0f, 16.0f, 13.0f }, { 0.0f, 16.0f, 16.0f, 13.0f }, { 0.0f, 16.0f, 16.0f, 13.0f } },
+                    { { 0.0f, 13.0f, 16.0f, 16.0f }, { 0.0f, 16.0f, 16.0f, 13.0f }, { 0.0f, 0.0f, 16.0f, 16.0f }, { 0.0f, 0.0f, 16.0f, 16.0f }, { 16.0f, 0.0f, 13.0f, 16.0f }, { 13.0f, 0.0f, 16.0f, 16.0f } }
+                },
+                {   // orientable
+                    { { 0.0f, 0.0f, 16.0f, 16.0f }, { 0.0f, 16.0f, 16.0f, 0.0f }, { 0.0f, 0.0f, 16.0f, 3.0f }, { 0.0f, 0.0f, 16.0f, 3.0f }, { 0.0f, 0.0f, 16.0f, 3.0f }, { 0.0f, 0.0f, 16.0f, 3.0f } },
+                    { { 0.0f, 0.0f, 16.0f, 3.0f }, { 0.0f, 3.0f, 16.0f, 0.0f }, { 0.0f, 16.0f, 16.0f, 0.0f }, { 0.0f, 16.0f, 16.0f, 0.0f }, { 0.0f, 0.0f, 16.0f, 3.0f }, { 0.0f, 3.0f, 16.0f, 0.0f } }
+                }
+            };
+            static const int openOrientableUVRotation[6] = { 0, 0, 0, 0, 90, 90 };
+            // "y" for facing north, south, west, east
+            static const float trapdoorYAngle[4] = { 0.0f, 180.0f, 270.0f, 90.0f };
+            bool orientable;
+            switch (type) {
+            case BLOCK_SPRUCE_TRAPDOOR:
+            case BLOCK_BIRCH_TRAPDOOR:
+            case BLOCK_JUNGLE_TRAPDOOR:
+            case BLOCK_ACACIA_TRAPDOOR:
+            case BLOCK_CRIMSON_TRAPDOOR:
+            case BLOCK_WARPED_TRAPDOOR:
+            case BLOCK_MANGROVE_TRAPDOOR:
+            case BLOCK_CHERRY_TRAPDOOR:
+            case BLOCK_BAMBOO_TRAPDOOR:
+            case BLOCK_PALE_OAK_TRAPDOOR:
+            case BLOCK_POPLAR_TRAPDOOR:
+                orientable = true;
+                break;
+            default:
+                orientable = false;
+                break;
+            }
+            bool open = (dataVal & 0x4) ? true : false;
+            bool top = (dataVal & 0x8) ? true : false;
+            float xAngle = 0.0f;
+            float yAngle = 0.0f;
+            if (open) {
+                yAngle = trapdoorYAngle[dataVal & 0x3];
+                if (orientable && top) {
+                    xAngle = 180.0f;
+                    yAngle = (float)(((int)yAngle + 180) % 360);
+                }
+            }
+            else if (orientable) {
+                yAngle = trapdoorYAngle[dataVal & 0x3];
+            }
+            swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            gUsingTransform = 1;
+            totalVertexCount = gModel.vertexCount;
+            int startVertexIndex = open ? saveBoxCustomUVVertices(boxIndex, 0.0f, 16.0f, 0.0f, 16.0f, 13.0f, 16.0f) :
+                saveBoxCustomUVVertices(boxIndex, 0.0f, 16.0f, top ? 13.0f : 0.0f, top ? 16.0f : 3.0f, 0.0f, 16.0f);
+            if (startVertexIndex < 0)
+                return MW_WORLD_EXPORT_TOO_LARGE;
+            for (int f = 0; f < 6; f++) {
+                retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, trapdoorFace[f], (f == 0), swatchLoc,
+                    trapdoorUV[orientable ? 1 : 0][open ? 1 : 0][f], (orientable && open) ? openOrientableUVRotation[f] : 0);
+                if (retCode >= MW_BEGIN_ERRORS)
+                    return retCode;
+            }
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            rotateMtx(mtx, xAngle, 0.0f, 0.0f);
+            rotateMtx(mtx, 0.0f, yAngle, 0.0f);
+            translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(totalVertexCount, mtx);
+            gUsingTransform = 0;
         }
-
-        // 0x3 is which edge hinge is at
-        switch (dataVal & 0x3)
-        {
-        default:    // make compiler happy
-        case 0: // south
-            angle = 0.0f;
-            break;
-        case 1: // north
-            angle = 180.0f;
-            break;
-        case 2: // east
-            angle = 270.0f;
-            break;
-        case 3: // west
-            angle = 90.0f;
-            break;
-        }
-        // rotate into position
-        rotateMtx(mtx, 0.0f, angle, 0.0f);
-
-        // attached at top vs. bottom
-        if (dataVal & 0x8)
-        {
-            translateMtx(mtx, 0.0f, 13.0f / 16.0f, 0.0f);
-        }
-
-        // undo translation to origin and perform transform
-        translateFromOriginMtx(mtx, boxIndex);
-        transformVertices(8, mtx);
-        gUsingTransform = 0;
         break; // saveBillboardOrGeometry
 
     case BLOCK_SIGN_POST:						// saveBillboardOrGeometry
@@ -8522,15 +8594,15 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             // 0x20 bit is whether the candle is lit or not, for all 17 candles.
             int candle = 0;
             int bites = dataVal & 0x7;
-            // mask out the candle, if any
-            if (bites == 7) {
-                bites = 0;
-                candle = 16;
-            }
-            else if (dataVal & BIT_16) {
-                // colored candle
+            // mask out the candle, if any; check for a colored candle first, as its color can be 7 or more, e.g., gray or black
+            if (dataVal & BIT_16) {
+                // colored candle, 0-15
                 bites = 0;
                 candle = dataVal & 0xf;
+            }
+            else if (bites == 7) {
+                bites = 0;
+                candle = 16;
             }
             swatchLocSet[DIRECTION_BLOCK_TOP] = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
             swatchLocSet[DIRECTION_BLOCK_BOTTOM] = SWATCH_INDEX(12, 7);
@@ -8540,7 +8612,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX(10, 7);
             saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, 0x0, 0, 0, 1 + (float)bites * 2, 15, 0, 8, 1, 15);
 
-            if (!gModel.print3D && candle > 0) {
+            if (!gModel.print3D && ((dataVal & BIT_16) || candle == 16)) {
                 int ctype = ((dataVal & BIT_32) ? 1 : 0) + ((candle == 16) ? BLOCK_CANDLE : BLOCK_COLORED_CANDLE);
                 // four lowest bits is color of candle, if any (candle 16 is the "normal candle")
                 int cdataval = candle & 0xf;
@@ -9998,10 +10070,11 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         swatchLoc = SWATCH_INDEX(3, 8 + (type == BLOCK_REDSTONE_REPEATER_ON));
         angle = 90.0f * (float)(dataVal & 0x3);
         gUsingTransform = 1;
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0, 0, 16, 14, 16, 0, 16);
+        // as in Minecraft's repeater models, the slab's sides and bottom are smooth stone
+        sideSwatchLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_SMOOTH_STONE].txrX, gBlockDefinitions[BLOCK_SMOOTH_STONE].txrY);
+        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, sideSwatchLoc, sideSwatchLoc, 1, 0x0, 0, 0, 16, 0, 2, 0, 16);
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
-        translateMtx(mtx, 0.0f, -14.0f / 16.0f, 0.0f);
         rotateMtx(mtx, 0.0f, angle, 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(8, mtx);
@@ -10011,16 +10084,20 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             totalVertexCount = gModel.vertexCount;
             // locked?
             if (dataVal & 0x10) {
-                // locked block, I think it's made of bedrock?
+                // the lock, a bedrock bar, as in Minecraft's repeater_*_locked models; it's moved down and into place with the
+                // slideable torch, next
+                static const int lockFace[5] = { DIRECTION_BLOCK_TOP, DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
+                static const float lockUV[5][4] = { { 7.0f, 2.0f, 9.0f, 14.0f }, { 2.0f, 7.0f, 14.0f, 9.0f }, { 2.0f, 7.0f, 14.0f, 9.0f },
+                    { 6.0f, 7.0f, 8.0f, 9.0f }, { 6.0f, 7.0f, 8.0f, 9.0f } };
                 swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_BEDROCK].txrX, gBlockDefinitions[BLOCK_BEDROCK].txrY);
-                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_BOTTOM_BIT, 7, 9, 5, 7, 2, 14);
-                // unrotated looks bad: saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_BOTTOM_BIT, 2, 14, 5, 7, 7, 9);
-                int blockVertexCount = gModel.vertexCount - totalVertexCount;
-                identityMtx(mtx);
-                translateToOriginMtx(mtx, boxIndex);
-                rotateMtx(mtx, 0.0f, 90.0f, 0.0f);
-                translateFromOriginMtx(mtx, boxIndex);
-                transformVertices(blockVertexCount, mtx);
+                int startVertexIndex = saveBoxCustomUVVertices(boxIndex, 2.0f, 14.0f, 5.0f, 7.0f, 7.0f, 9.0f);
+                if (startVertexIndex < 0)
+                    return MW_WORLD_EXPORT_TOO_LARGE;
+                for (int f = 0; f < 5; f++) {
+                    retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, lockFace[f], 0, swatchLoc, lockUV[f], (f == 0) ? 90 : 0);
+                    if (retCode >= MW_BEGIN_ERRORS)
+                        return retCode;
+                }
             }
             else {
                 // second stubby torch
@@ -10059,10 +10136,11 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         swatchLoc = SWATCH_INDEX(14 + in_powered, 14);
         angle = 90.0f * (float)(dataVal & 0x3);
         gUsingTransform = 1;
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0, 0, 16, 14, 16, 0, 16);
+        // as in Minecraft's comparator models, the slab's sides and bottom are smooth stone
+        sideSwatchLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_SMOOTH_STONE].txrX, gBlockDefinitions[BLOCK_SMOOTH_STONE].txrY);
+        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, sideSwatchLoc, sideSwatchLoc, 1, 0x0, 0, 0, 16, 0, 2, 0, 16);
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
-        translateMtx(mtx, 0.0f, -14.0f / 16.0f, 0.0f);
         rotateMtx(mtx, 0.0f, angle, 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(8, mtx);
@@ -10093,13 +10171,13 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             translateFromOriginMtx(mtx, boxIndex);
             transformVertices(totalVertexCount, mtx);
 
-            // the inner one moved 1 more down if not powered
+            // the front one, 3 pixels high, lit in subtract mode, as in Minecraft's comparator models
             totalVertexCount = gModel.vertexCount;
-            saveBillboardFacesExtraData(boxIndex, out_powered ? BLOCK_REDSTONE_TORCH_ON : BLOCK_REDSTONE_TORCH_OFF, BB_TORCH, 0x5 | (out_powered ? 0x20 : 0x30), 0);
+            saveBillboardFacesExtraData(boxIndex, out_powered ? BLOCK_REDSTONE_TORCH_ON : BLOCK_REDSTONE_TORCH_OFF, BB_TORCH, 0x5 | 0x20, 0);
             totalVertexCount = gModel.vertexCount - totalVertexCount;
             identityMtx(mtx);
             translateToOriginMtx(mtx, boxIndex);
-            translateMtx(mtx, 0.0f, out_powered ? -5.0f / 16.0f : -6.0f / 16.0f, -5.0f / 16.0f);
+            translateMtx(mtx, 0.0f, -5.0f / 16.0f, -5.0f / 16.0f);
             rotateMtx(mtx, 0.0f, angle, 0.0f);
             translateFromOriginMtx(mtx, boxIndex);
             transformVertices(totalVertexCount, mtx);
@@ -12231,9 +12309,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 // north-south
                 saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 6 - fatten, 10 + fatten, 0, 16, 0, 16);
             }
+            break;
         }
-        // 4 is east-west, 8 is north-south
-        if (dataVal < 4)
+        // 1 is east-west (axis x), 2 is north-south (axis z); 0 is an old portal with no axis
+        if (dataVal == 0)
         {
             // pre 1.13, so figure out axis if we can
             // infer direction from surrounding neighbors
@@ -14028,9 +14107,9 @@ static int saveCandle(int type, int dataVal, int boxIndex, float height, float x
     saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 0, 2, 8-height, 8, 0, 2);
     // for the high X and Z, we need to use (1-u) for x and z
     saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 14, 16, 8-height, 8, 14, 16);
-    // the ends; we need to use (1-v) for z here
-    saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 2, 2, 2, 0, 2);
-    saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 2, height+2, height+2, 8, 10);
+    // the ends, as in Minecraft's template_candle: the bottom from rows 14-16, the top from rows 6-8
+    saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 2, 2, 2, 14, 16);
+    saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 2, height+2, height+2, 6, 8);
 
     int littleTotalVertexCount = gModel.vertexCount - totalVertexCount;
 
@@ -14040,15 +14119,25 @@ static int saveCandle(int type, int dataVal, int boxIndex, float height, float x
     //translateFromOriginMtx(mtx, boxIndex);
     transformVertices(littleTotalVertexCount, mtx);
 
-    // wick
+    // the wick: two crossed flat elements, a texel square, turned 45 and -45 degrees about Y, as in Minecraft's template_candle; the
+    // back is output only when billboards are doubled
+    int retCode = MW_NO_ERROR;
+    static const float wickUV[4] = { 0.0f, 5.0f, 1.0f, 6.0f };
     for (int i = 0; i < 2; i++) {
         totalVertexCount = gModel.vertexCount;
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 0, 1, 10, 11, 0, 0);
+        int startVertexIndex = saveBoxCustomUVVertices(boxIndex, 7.5f, 8.5f, 10.0f, 11.0f, 8.0f, 8.0f);
+        if (startVertexIndex < 0)
+            return MW_WORLD_EXPORT_TOO_LARGE;
+        retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, swatchLoc, wickUV, 0);
+        if (gModel.singleSided)
+            retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, swatchLoc, wickUV, 0);
+        if (retCode >= MW_BEGIN_ERRORS)
+            return retCode;
         totalVertexCount = gModel.vertexCount - totalVertexCount;
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
-        translateMtx(mtx, 7.5f / 16.0f, 0.0f, 8.0f / 16.0f);
-        rotateMtx(mtx, 0.0f, 45.0f + (float)i * 90.0f, 0.0f);
+        // Minecraft's element rotation about Y turns the other way from rotateMtx's
+        rotateMtx(mtx, 0.0f, (i == 0) ? -45.0f : 45.0f, 0.0f);
         translateMtx(mtx, xLoc / 16.0f, (yLoc - 4.0f) / 16.0f, zLoc / 16.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(totalVertexCount, mtx);
@@ -14056,7 +14145,7 @@ static int saveCandle(int type, int dataVal, int boxIndex, float height, float x
 
     gUsingTransform = 0;
 
-    return MW_NO_ERROR;
+    return retCode;
 }
 
 
@@ -16716,29 +16805,43 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     if (billboardType == BB_TORCH)
     {
         gUsingTransform = 1;
-        // sides of torches
-        // 11 high, 2x2 but extending out by 1 on each side
+        // Minecraft's template_torch (and template_torch_unlit and template_redstone_torch): a 2x2 stick, 10 pixels high. A stubby
+        // torch, on a repeater or comparator, is the stick's top part, with no bottom face.
         // dataVal of 0x10 means stubby torch (5.0), 0x20 means more stubby (7.0), 0x30 means one more stubby than that (8.0)
         float stubShift = (dataVal & 0x30) ? ((dataVal & 0x20) ? 5.0f + (float)((dataVal & 0x30) >> 4) : 5.0f) : 0.0f;
-        saveBoxGeometry(boxIndex, type, dataVal & 0xf, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, 6, 10, stubShift, 11, 7, 9);
-        saveBoxGeometry(boxIndex, type, dataVal & 0xf, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, 7, 9, stubShift, 11, 6, 10);
-
-        // the torch's tip and bottom, as Minecraft's template_torch has them
         {
             static const float tipUV[4] = { 7.0f, 6.0f, 9.0f, 8.0f };
             static const float bottomUV[4] = { 7.0f, 13.0f, 9.0f, 15.0f };
+            float sideUV[4] = { 7.0f, 6.0f, 9.0f, 16.0f - stubShift };
+            static const int sideFace[4] = { DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
             // a wall torch is made leaning toward +Z and then turned, while Minecraft's template_torch_wall leans toward +X, so turn
-            // the texture to match
+            // the texture of the tip and bottom to match
             bool wallTorch = ((dataVal & 0xf) != 5);
             int startVertexIndex = saveBoxCustomUVVertices(boxIndex, 7.0f, 9.0f, stubShift, 10.0f, 7.0f, 9.0f);
             if (startVertexIndex < 0)
                 return MW_WORLD_EXPORT_TOO_LARGE;
+            if (type == BLOCK_REDSTONE_TORCH_ON) {
+                // Minecraft's lit redstone torch adds a glow, six faces looking inward around the tip, which it sees only from inside
+                // (it culls back faces). Most renderers draw both sides, making a solid red cube, so instead the sides are wider and
+                // a pixel taller, showing the glow's texels around the stick as a flame.
+                saveBoxGeometry(boxIndex, type, dataVal & 0xf, (firstFace > 0), DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, 6, 10, stubShift, 11, 7, 9);
+                saveBoxGeometry(boxIndex, type, dataVal & 0xf, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, 7, 9, stubShift, 11, 6, 10);
+            }
+            else {
+                for (int f = 0; f < 4; f++) {
+                    retCode |= saveBoxModelFace(startVertexIndex, type, dataVal & 0xf, sideFace[f], (f == 0) && (firstFace > 0), swatchLoc, sideUV, 0);
+                    if (retCode >= MW_BEGIN_ERRORS)
+                        return retCode;
+                }
+            }
             retCode |= saveBoxModelFace(startVertexIndex, type, dataVal & 0xf, DIRECTION_BLOCK_TOP, 0, swatchLoc, tipUV, wallTorch ? 270 : 0);
             if (retCode >= MW_BEGIN_ERRORS)
                 return retCode;
-            retCode |= saveBoxModelFace(startVertexIndex, type, dataVal & 0xf, DIRECTION_BLOCK_BOTTOM, 0, swatchLoc, bottomUV, wallTorch ? 90 : 0);
-            if (retCode >= MW_BEGIN_ERRORS)
-                return retCode;
+            if (stubShift == 0.0f) {
+                retCode |= saveBoxModelFace(startVertexIndex, type, dataVal & 0xf, DIRECTION_BLOCK_BOTTOM, 0, swatchLoc, bottomUV, wallTorch ? 90 : 0);
+                if (retCode >= MW_BEGIN_ERRORS)
+                    return retCode;
+            }
         }
         gUsingTransform = 0;
 
@@ -24082,17 +24185,20 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             else
             {
-                if (uvIndices)
+                // as in Minecraft's carved_pumpkin model, the top and bottom turn with the front, the bottom the other way, seen
+                // from below; an uncarved pumpkin (cube_column) doesn't turn
+                if (uvIndices && ((dataVal & 0x7) != 4))
                 {
                     int iangle = (2 + (dataVal & 03)) * 90;
                     if (faceDirection == DIRECTION_BLOCK_BOTTOM)
-                        iangle += 270;
+                        iangle = 720 - iangle;
                     rotateIndices(localIndices, iangle % 360);
                 }
             }
             break;
         case BLOCK_JUKEBOX:						// getSwatch
-            SWATCH_SWITCH_SIDE(faceDirection, 10, 4);
+            // the bottom is the side texture, as in Minecraft's jukebox model
+            SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 10, 4, 10, 4);
             break;
         case BLOCK_CAKE:						// getSwatch
             SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 10, 7, 12, 7);
@@ -24670,6 +24776,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     break;
                 }
             }
+            // Minecraft's mushroom_block_inside model is a north face turned up or down by "x", without uvlock, so the pores on the
+            // top and bottom are upside down from the usual orientation
+            if ((swatchLoc == inside) && uvIndices && ((faceDirection == DIRECTION_BLOCK_TOP) || (faceDirection == DIRECTION_BLOCK_BOTTOM)))
+                rotateIndices(localIndices, 180);
             break;
         case BLOCK_MELON:						// getSwatch
             SWATCH_SWITCH_SIDE(faceDirection, 8, 8);
