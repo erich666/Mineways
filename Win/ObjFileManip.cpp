@@ -20052,9 +20052,10 @@ static int checkAndCreateFaces(int boxIndex, IPoint loc)
             // First write out any vertices that are needed (this may do nothing, if they're
             // already written out by previous faces doing output of the same vertices).
 
-            // check if we're rendering (always), or 3D printing & lesser, and exporting a fluid block.
+            // check if we're rendering (always), or 3D printing & lesser, and exporting a fluid block. Only water and lava themselves
+            // are lowered: a waterlogged full block, such as leaves, keeps its full faces.
             if ((!gModel.print3D || testPartial) &&
-                IS_FLUID(type, boxIndex) &&
+                (type >= BLOCK_WATER) && (type <= BLOCK_STATIONARY_LAVA) &&
                 (faceDirection != DIRECTION_BLOCK_BOTTOM))
             {
                 if (computeHeights)
@@ -22193,6 +22194,16 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             }
 
+            // A wood block (bark on all sides, e.g. oak wood or crimson hyphae) uses Minecraft's cube_column model, which, unlike a log's
+            // cube_column_horizontal, doesn't turn the face from the model's top by 180 degrees. So on its side, that face (east for
+            // east-west, north for north-south) is turned 180 degrees from a log's.
+            if ((((dataVal & BIT_16) && ((type == BLOCK_LOG) || (type == BLOCK_AD_LOG) || (type == BLOCK_MANGROVE_LOG))) ||
+                (type == BLOCK_STRIPPED_OAK_WOOD) || (type == BLOCK_STRIPPED_ACACIA_WOOD) || (type == BLOCK_STRIPPED_MANGROVE_WOOD)) &&
+                ((((dataVal & 0xC) == 0x4) && (faceDirection == DIRECTION_BLOCK_SIDE_HI_X)) ||
+                 (((dataVal & 0xC) == 0x8) && (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z))))
+            {
+                angle = (angle + 180) % 360;
+            }
             if (angle != 0 && uvIndices)
                 rotateIndices(localIndices, angle);
             // flip no longer needed
