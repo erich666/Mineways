@@ -12411,70 +12411,45 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break; // saveBillboardOrGeometry
 
     case BLOCK_AMETHYST_BUD:						// saveBillboardOrGeometry
-        bottomDataVal = (dataVal & 0x1c)>>2;
-        // compute two rotations, and piston nubbin visibility.
-        // Piston nubbin visibility:
-        // the bottom face of the piston is output only in the rare case that the neighboring piston voxel is empty;
-        // normally the piston body is in the next voxel. If we see *anything* else, assert, as
-        // something's probably wrong with the code.
-        yrot = zrot = 0.0f;
-        //dir = DIRECTION_BLOCK_TOP;
-        switch (bottomDataVal)
-        {
-        case 0: // pointing down
-            //dir = DIRECTION_BLOCK_TOP;
-            zrot = 180.0f;
-            yrot = 270.0f;
-            break;
-        case 1: // pointing up
-            //dir = DIRECTION_BLOCK_BOTTOM;
-            yrot = 270.0f;
-            break;
-        case 2: // pointing north
-            //dir = DIRECTION_BLOCK_SIDE_HI_Z;
-            zrot = 90.0f;
-            yrot = 270.0f;
-            break;
-        case 3: // pointing south
-            //dir = DIRECTION_BLOCK_SIDE_LO_Z;
-            zrot = 90.0f;
-            yrot = 90.0f;
-            break;
-        case 4: // pointing west
-            //dir = DIRECTION_BLOCK_SIDE_HI_X;
-            zrot = 90.0f;
-            yrot = 180.0f;
-            break;
-        case 5: // pointing east
-            //dir = DIRECTION_BLOCK_SIDE_LO_X;
-            zrot = 90.0f;
-            break;
-        default:
+    {
+        // Minecraft's cross model, two planes crossing on the block's diagonals, each an element from pixel 0.8 to 15.2 turned
+        // 45 degrees about Y and stretched by "rescale" to reach that far along the diagonal; then turned to point the way the bud
+        // faces, as its blockstate does it: by "x" (90 takes the top to the north), then by "y" (90 takes north to east).
+        // Bits 0x1c are the facing: down, up, north, south, west, east. Bits 0x3 are the bud's size.
+        static const float facingRotation[6][2] = { { 180.0f, 0.0f }, { 0.0f, 0.0f }, { 90.0f, 0.0f }, { 90.0f, 180.0f }, { 90.0f, 270.0f }, { 90.0f, 90.0f } };
+        int budFacing = (dataVal & 0x1c) >> 2;
+        if (budFacing > 5) {
             assert(0);
+            budFacing = 1;
         }
-
-        // we definitely do move the piston shaft into place, always
-        gUsingTransform = 1;
-        // grab bud
         swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + (dataVal & 0x3);
-
-        // form the bud
-        for (i = 0; i < 2; i++) {
-            totalVertexCount = gModel.vertexCount;
-            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1-i, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 0, 16, 0, 16, 0, 0);
-            totalVertexCount = gModel.vertexCount - totalVertexCount;
-            identityMtx(mtx);
-            translateToOriginMtx(mtx, boxIndex);
-            translateMtx(mtx, 0.0f, 0.0f, 8.0f / 16.0f);
-            rotateMtx(mtx, 0.0f, 45.0f + (float)i * 90.0f, 0.0f);
-            rotateMtx(mtx, 0.0, 0.0f, zrot);
-            rotateMtx(mtx, 0.0f, yrot, 0.0f);
-            translateFromOriginMtx(mtx, boxIndex);
-            transformVertices(totalVertexCount, mtx);
-        }
-
+        // each plane's other face is output only if billboards are doubled, as for other crossed planes
+        ModelElement crossElements[] = {
+            { { 0.8f, 0.0f, 8.0f }, { 15.2f, 16.0f, 8.0f }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 0.0f, 16.0f, 16.0f }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0.0f, 0.0f, 16.0f, 16.0f }, 0, 1, swatchLoc }
+            } },
+            { { 8.0f, 0.0f, 0.8f }, { 8.0f, 16.0f, 15.2f }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0.0f, 0.0f, 16.0f, 16.0f }, 0, 1, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0.0f, 0.0f, 16.0f, 16.0f }, 0, 0, swatchLoc }
+            } },
+        };
+        gUsingTransform = 1;
+        totalVertexCount = gModel.vertexCount;
+        saveModelElements(boxIndex, type, dataVal, swatchLoc, crossElements, sizeof(crossElements) / sizeof(ModelElement), 0.0f);
+        totalVertexCount = gModel.vertexCount - totalVertexCount;
+        identityMtx(mtx);
+        translateToOriginMtx(mtx, boxIndex);
+        // Minecraft's element angle is counterclockwise, seen from above; rotateMtx's is clockwise
+        rotateMtx(mtx, 0.0f, -45.0f, 0.0f);
+        scaleMtx(mtx, 1.0f / OSQRT2, 1.0f, 1.0f / OSQRT2);
+        rotateMtx(mtx, facingRotation[budFacing][0], 0.0f, 0.0f);
+        rotateMtx(mtx, 0.0f, facingRotation[budFacing][1], 0.0f);
+        translateFromOriginMtx(mtx, boxIndex);
+        transformVertices(totalVertexCount, mtx);
         gUsingTransform = 0;
-        break; // saveBillboardOrGeometry
+    }
+    break; // saveBillboardOrGeometry
 
     case BLOCK_SPORE_BLOSSOM:						// saveBillboardOrGeometry
         // make base and blossom, which is like fan coral but upside down
@@ -15482,7 +15457,6 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     int uvIndices[4];  // cppcheck-suppress 398
     int foundSunflowerTop = 0;
     int yShift = 0;
-    int swatchLocSet[6];
     int retCode = MW_NO_ERROR;
     int matchType;  // cppcheck-suppress 398
     bool vineUnderBlock = false;
@@ -15502,7 +15476,6 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     bool wobbleIt = false;
     int origDataVal = dataVal;
     int origUsingTransform = gUsingTransform;
-    bool fullHeight = false;
     bool singleSided = (gBlockDefinitions[type].flags & BLF_EMITTER) ? gModel.emitterSingleSided : gModel.singleSided;
     int rotateIndex;
 
@@ -15998,8 +15971,6 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         //}
         break;
     case BLOCK_WEEPING_VINES:				// saveBillboardFacesExtraData
-        // the cross object should go the whole height
-        fullHeight = true;
         if (dataVal & BIT_32)
         {
             // use short half of plant - twisting vines?
@@ -16182,14 +16153,10 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         // Minecraft's cross model: each plane runs diagonally from pixel 0.8 to 15.2 in X and Z (an element from 0.8 to 15.2,
         // turned 45 degrees and stretched by "rescale" to reach that far along the diagonal)
         texelWidth = 14.4f / 16.0f;
-        if (fullHeight) {
-            texelLow = 0.0f;
-            texelHigh = 1.0f;
-        }
-        else {
-            texelLow = (1.0f - texelWidth) / 2.0f;
-            texelHigh = (1.0f + texelWidth) / 2.0f;
-        }
+        texelLow = (1.0f - texelWidth) / 2.0f;
+        texelHigh = (1.0f + texelWidth) / 2.0f;
+        // the sunflower top's crossed planes are half height (see the sunflower head, below)
+        float crossTop = foundSunflowerTop ? 0.5f : 1.0f;
         faceCount = 4;
         // two paired billboards
         faceDir[0] = DIRECTION_LO_X_HI_Z;
@@ -16199,13 +16166,13 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 
         Vec3Scalar(vertexOffsets[0][0], =, texelLow, height, texelLow);
         Vec3Scalar(vertexOffsets[0][1], =, texelHigh, height, texelHigh);
-        Vec3Scalar(vertexOffsets[0][2], =, texelHigh, 1 + height, texelHigh);
-        Vec3Scalar(vertexOffsets[0][3], =, texelLow, 1 + height, texelLow);
+        Vec3Scalar(vertexOffsets[0][2], =, texelHigh, crossTop + height, texelHigh);
+        Vec3Scalar(vertexOffsets[0][3], =, texelLow, crossTop + height, texelLow);
 
         Vec3Scalar(vertexOffsets[1][0], =, texelLow, height, texelHigh);
         Vec3Scalar(vertexOffsets[1][1], =, texelHigh, height, texelLow);
-        Vec3Scalar(vertexOffsets[1][2], =, texelHigh, 1 + height, texelLow);
-        Vec3Scalar(vertexOffsets[1][3], =, texelLow, 1 + height, texelHigh);
+        Vec3Scalar(vertexOffsets[1][2], =, texelHigh, crossTop + height, texelLow);
+        Vec3Scalar(vertexOffsets[1][3], =, texelLow, crossTop + height, texelHigh);
     }
     break;
     case BB_GRID:
@@ -16694,8 +16661,9 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 
     // now output, if anything found (redstone wire may not actually have any sides)
     if (faceCount > 0) {
-        // get the four UV texture vertices, based on type of block
-        if (!saveTextureCorners(swatchLoc, type, uvIndices))
+        // get the four UV texture vertices, based on type of block; the sunflower top's half-height crossed planes show the bottom
+        // half of its texture
+        if (!(foundSunflowerTop ? saveRectangleTextureUVs(swatchLoc, type, 0.0f, 1.0f, 0.0f, 0.5f, uvIndices) : saveTextureCorners(swatchLoc, type, uvIndices)))
             return retCode | MW_WORLD_EXPORT_TOO_LARGE;
 
         bool normalUnknown = ((billboardType == BB_TORCH) || (billboardType == BB_FIRE) || foundSunflowerTop);
@@ -16888,51 +16856,32 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     // check for sunflower
     else if (foundSunflowerTop)
     {
-        // add sunflower head
+        // Add the sunflower head, as Minecraft's sunflower_top model has it: a flat element at X = 9.6 pixels, from -1 to 15 in Y and
+        // 1 to 15 in Z, with the back on its west face and the front on its east, turned 22.5 degrees about Z (tilting the front up
+        // toward the east), about the block's center, and then stretched in X and Y by "rescale". The two faces are 0.1 pixel apart,
+        // to avoid z-fighting. For the back, resource packs differ (Coterie Craft mirrors it to match the front, Doku doesn't); this
+        // is Minecraft's mapping. Some packs' front is see-through where the back doesn't cover it, so both faces are always output.
+        int backLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+        ModelElement headElement[] = {
+            { { 9.55f, -1.0f, 1.0f }, { 9.65f, 15.0f, 15.0f }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0.0f, 0.0f, 16.0f, 16.0f }, 0, 0, backLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0.0f, 0.0f, 16.0f, 16.0f }, 0, 0, backLoc + 1 }
+            } },
+        };
         totalVertexCount = gModel.vertexCount;
-
-        // front of sunflower
-        swatchLocSet[DIRECTION_BLOCK_TOP] =
-            swatchLocSet[DIRECTION_BLOCK_BOTTOM] =
-            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] =
-            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] =
-            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] =
-            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = (TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + 1);
-        // back of sunflower is before front
-        swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X]--;
-
         gUsingTransform = 1;
-        // displace faces a bit so that they don't z-fight. To be honest, I don't know why G3D makes
-        // these two primitives double-sided - perhaps because they are cutouts? G3D normally makes
-        // blocks single sided. Anyway, there's z-fighting, which looks bad and is confusing.
-        // For the back of the sunflower, Coterie Craft and Doku have differing opinions. Coterie's
-        // backface is mirrored so that it properly matches the front. Doku's is not mirrored. I think
-        // the right answer Coterie's, where you see it from the back. Happily doesn't matter for JG-RTX,
-        // which puts some leaves instead. Also doesn't matter for most other packs, as the front's outline
-        // is symmetrical. Anyway, whew, I've decided to not reverse the back, since it should be rendered
-        // as is.
-        // A USD subtlety is whether the front should be double-sided or not. For JG-RTX it should be, since
-        // the sunflower back does not cover the flower and so the flower would disappear from the rear view.
-        // But, the sunflower back itself could be made single-sided - I don't bother.
-        retCode |= saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0,
-            // DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (singleSided ? 0x0 : DIR_LO_X_BIT),
-            DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, // always include back side, esp. now that it's separated from the front (avoiding z-fighting)
-            0 /*FLIP_LO_X_FACE_VERTICALLY*/, 0, 7.95f, 8.05f, 0, 16, 0, 16);
+        retCode |= saveModelElements(boxIndex, type, dataVal, backLoc, headElement, 1, 0.0f);
         if (retCode > MW_BEGIN_ERRORS) return retCode;
-
         gUsingTransform = 0;
         totalVertexCount = gModel.vertexCount - totalVertexCount;
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
-        rotateMtx(mtx, 0.0f, 0.0f, -20.0f);
-        // maybe needs to get pushed out farther still - Doku's leaves poke through it.
-        translateMtx(mtx, 1.8f / 16.0f, 0.4f / 16.0f, 0.2f / 16.0f);
+        // a positive Z angle in rotateMtx turns the top of an upright piece toward +X, the opposite of Minecraft's element rotation
+        rotateMtx(mtx, 0.0f, 0.0f, -22.5f);
+        // Minecraft's "rescale" for 22.5 degrees: 1/cos(22.5 degrees)
+        scaleMtx(mtx, 1.0823922f, 1.0823922f, 1.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(totalVertexCount, mtx);
-        // A strange thing: only the bottom eight rows of the sunflower's top texture (not generated here, but further
-        // down as the FULL_CROSS) get used in the game.
-        // We use all 10 rows, as using less might confuse things for mods. But, it's a mismatch.
-        // And, sunflower stems do not extend into the ground, like grass does with yShift. So they will hover over hoe'd land.
     }
     else if (redstoneWireOnBottom) {
         switch (redstoneDirFlags)
