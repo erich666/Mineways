@@ -10344,9 +10344,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(littleTotalVertexCount, mtx);
 
-        // piston body
-        gUsingTransform = (bottomDataVal != 1);
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc + 2, swatchLoc, swatchLoc + 1, 0, 0x0, 0, 0, 16, 0, 12, 0, 16);
+        // turn the arm's end to face the way the piston does
         if ((zrot != 0.0) || (yrot != 0.0))
         {
             totalVertexCount = gModel.vertexCount - totalVertexCount;
@@ -10354,6 +10352,35 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             translateToOriginMtx(mtx, boxIndex);
             rotateMtx(mtx, 0.0, 0.0f, zrot);
             rotateMtx(mtx, 0.0f, yrot, 0.0f);
+            translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(totalVertexCount, mtx);
+        }
+
+        // piston body: Minecraft's piston_extended model, 12 pixels deep, facing north (the inside, against the head, at Z = 4), then
+        // turned to face as the blockstate says, by "x" and then "y"
+        {
+            // down, up, north, south, west, east
+            static const float pistonRotation[6][2] = { { 90.0f, 0.0f }, { 270.0f, 0.0f }, { 0.0f, 0.0f }, { 0.0f, 180.0f }, { 0.0f, 270.0f }, { 0.0f, 90.0f } };
+            static const int bodyFace[6] = { DIRECTION_BLOCK_BOTTOM, DIRECTION_BLOCK_TOP, DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
+            static const float bodyUV[6][4] = { { 0.0f, 4.0f, 16.0f, 16.0f }, { 0.0f, 4.0f, 16.0f, 16.0f }, { 0.0f, 0.0f, 16.0f, 16.0f },
+                { 0.0f, 0.0f, 16.0f, 16.0f }, { 0.0f, 4.0f, 16.0f, 16.0f }, { 0.0f, 4.0f, 16.0f, 16.0f } };
+            static const int bodyUVRotation[6] = { 180, 0, 0, 0, 270, 90 };
+            // piston_side, piston_inner (the front), piston_bottom (the back)
+            int bodyLoc[6] = { swatchLoc, swatchLoc, swatchLoc + 2, swatchLoc + 1, swatchLoc, swatchLoc };
+            totalVertexCount = gModel.vertexCount;
+            int startVertexIndex = saveBoxCustomUVVertices(boxIndex, 0.0f, 16.0f, 0.0f, 16.0f, 4.0f, 16.0f);
+            if (startVertexIndex < 0)
+                return MW_WORLD_EXPORT_TOO_LARGE;
+            for (int f = 0; f < 6; f++) {
+                retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, bodyFace[f], 0, bodyLoc[f], bodyUV[f], bodyUVRotation[f]);
+                if (retCode >= MW_BEGIN_ERRORS)
+                    return retCode;
+            }
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            rotateMtx(mtx, pistonRotation[bottomDataVal][0], 0.0f, 0.0f);
+            rotateMtx(mtx, 0.0f, pistonRotation[bottomDataVal][1], 0.0f);
             translateFromOriginMtx(mtx, boxIndex);
             transformVertices(totalVertexCount, mtx);
         }
@@ -16261,14 +16288,15 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         switch (dataVal & 0xf)
         {
         case 2: // ascend east +x
-            // two paired billboards
+            // two paired billboards. As in Minecraft (whose model for this is the ascend-north one, turned), the texture's
+            // bottom is at the low end, the same as for the other slopes
             faceDir[0] = DIRECTION_LO_X_HI_Y;
             faceDir[1] = DIRECTION_HI_X_LO_Y;
 
-            Vec3Scalar(vertexOffsets[0][0], =, 1.0f, 1.0f + texelUp, 1.0f);
-            Vec3Scalar(vertexOffsets[0][1], =, 1.0f, 1.0f + texelUp, 0.0f);
-            Vec3Scalar(vertexOffsets[0][2], =, 0.0f, 0.0f + texelUp, 0.0f);
-            Vec3Scalar(vertexOffsets[0][3], =, 0.0f, 0.0f + texelUp, 1.0f);
+            Vec3Scalar(vertexOffsets[0][0], =, 0.0f, 0.0f + texelUp, 0.0f);
+            Vec3Scalar(vertexOffsets[0][1], =, 0.0f, 0.0f + texelUp, 1.0f);
+            Vec3Scalar(vertexOffsets[0][2], =, 1.0f, 1.0f + texelUp, 1.0f);
+            Vec3Scalar(vertexOffsets[0][3], =, 1.0f, 1.0f + texelUp, 0.0f);
             break;
         case 3: // ascend west -x
             faceDir[0] = DIRECTION_HI_X_HI_Y;
@@ -22582,6 +22610,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 {
                 case 0:	// dispenser/dropper facing down, can't be anything else
                     swatchLoc = SWATCH_INDEX(14, 3);
+                    // Minecraft turns the vertical model over, so the sides are upside down
+                    if (uvIndices) {
+                        rotateIndices(localIndices, 180);
+                    }
                     break;
                 case 1: // dispenser/dropper facing up, can't be anything else
                     swatchLoc = SWATCH_INDEX(14, 3);
@@ -22639,16 +22671,17 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                         rotateIndices(localIndices, 180);
                     }
                     break;
+                // the bottom turns the other way from the top, as Minecraft's blockstate "y" turns it
                 case 4: // West
                     if (uvIndices) {
-                        rotateIndices(localIndices, 270);
+                        rotateIndices(localIndices, (faceDirection == DIRECTION_BLOCK_BOTTOM) ? 90 : 270);
                     }
                     break;
                 default:
                     assert(0);
                 case 5: // East
                     if (uvIndices) {
-                        rotateIndices(localIndices, 90);
+                        rotateIndices(localIndices, (faceDirection == DIRECTION_BLOCK_BOTTOM) ? 270 : 90);
                     }
                     break;
                 }
@@ -23064,7 +23097,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 {
                     head = 1 - dir;
                     bottom = dir;
-                    angle = 180 * dir;
+                    angle = 180 * (1 - dir);
                 }
                 else if (faceDirection == DIRECTION_BLOCK_TOP)
                 {
@@ -23092,10 +23125,14 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     bottom = 1 - dirBit;
                 }
                 // else it's a side
-                else if ((faceDirection == DIRECTION_BLOCK_BOTTOM) ||
-                    (faceDirection == DIRECTION_BLOCK_TOP))
+                else if (faceDirection == DIRECTION_BLOCK_TOP)
                 {
                     angle = dirBit * 180;
+                }
+                else if (faceDirection == DIRECTION_BLOCK_BOTTOM)
+                {
+                    // Minecraft's piston model turns its bottom face 180 degrees
+                    angle = 180 - dirBit * 180;
                 }
                 else if (faceDirection == DIRECTION_BLOCK_SIDE_HI_X)
                 {
