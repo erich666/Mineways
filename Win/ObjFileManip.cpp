@@ -5062,7 +5062,7 @@ static bool fenceNeighbor(int type, int boxIndex, int blockSide)
 // return 1 if block processed as a billboard or true geometry
 static int saveBillboardOrGeometry(int boxIndex, int type)
 {
-    int dataVal, faceMask, tbFaceMask, dir;
+    int dataVal, faceMask, tbFaceMask;
     float minx, maxx, miny, maxy, minz, maxz, bitAdd;
     int swatchLoc, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc;
     int topDataVal, bottomDataVal, shiftVal, neighborType, neighborIndex;
@@ -10283,81 +10283,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
         // We know at this point that the piston is extended.
         // 10,6 sticky head, 11,6 head, 12,6 side, 13,6 bottom, 14,6 extended top
-        // we form the head pointing up, so the up direction needs no transform
-        bottomDataVal = dataVal & 0x7;
-        // compute two rotations, and piston nubbin visibility.
-        // Piston nubbin visibility:
-        // the top face of the piston is output only in the rare case that the neighboring voxel is empty;
-        // normally the extended piston head is in the next voxel. If we see *anything* else, assert, as
-        // something's probably wrong with the code.
-        yrot = zrot = 0.0f;
-        dir = DIRECTION_BLOCK_TOP;
-        switch (bottomDataVal)
-        {
-        case 0: // pointing down
-            dir = DIRECTION_BLOCK_BOTTOM;
-            zrot = 180.0f;
-            break;
-        case 1: // pointing up
-            dir = DIRECTION_BLOCK_TOP;
-            break;
-        case 2: // pointing north
-            dir = DIRECTION_BLOCK_SIDE_LO_Z;
-            zrot = 90.0f;
-            yrot = 270.0f;
-            break;
-        case 3: // pointing south
-            dir = DIRECTION_BLOCK_SIDE_HI_Z;
-            zrot = 90.0f;
-            yrot = 90.0f;
-            break;
-        case 4: // pointing west
-            dir = DIRECTION_BLOCK_SIDE_LO_X;
-            zrot = 90.0f;
-            yrot = 180.0f;
-            break;
-        case 5: // pointing east
-            dir = DIRECTION_BLOCK_SIDE_HI_X;
-            zrot = 90.0f;
-            break;
-        default:
-            assert(0);
-        }
-        neighborType = gBoxData[boxIndex + gFaceOffset[dir]].origType;
-        assert((neighborType == BLOCK_PISTON_HEAD) || (neighborType == BLOCK_AIR));
-
-        totalVertexCount = gModel.vertexCount;
-        littleTotalVertexCount = gModel.vertexCount;
-
-        // we definitely do move the piston shaft into place, always
-        gUsingTransform = 1;
-        // side of piston body:
-        swatchLoc = SWATCH_INDEX(12, 6);
-        // form the piston itself sideways, just the small connecting bit, then we rotate upwards
-        saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1, ((neighborType == BLOCK_PISTON_HEAD) ? DIR_HI_X_BIT : 0x0) | (gModel.print3D ? 0x0 : DIR_LO_X_BIT), 0, 4, 12, 16, 0, 4);
-        littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-
-        identityMtx(mtx);
-        translateToOriginMtx(mtx, boxIndex);
-        rotateMtx(mtx, 0.0f, 0.0f, -90.0f);
-        translateMtx(mtx, 6.0f / 16.0f, 12.0f / 16.0f, 6.0f / 16.0f);
-        translateFromOriginMtx(mtx, boxIndex);
-        transformVertices(littleTotalVertexCount, mtx);
-
-        // turn the arm's end to face the way the piston does
-        if ((zrot != 0.0) || (yrot != 0.0))
-        {
-            totalVertexCount = gModel.vertexCount - totalVertexCount;
-            identityMtx(mtx);
-            translateToOriginMtx(mtx, boxIndex);
-            rotateMtx(mtx, 0.0, 0.0f, zrot);
-            rotateMtx(mtx, 0.0f, yrot, 0.0f);
-            translateFromOriginMtx(mtx, boxIndex);
-            transformVertices(totalVertexCount, mtx);
-        }
-
-        // piston body: Minecraft's piston_extended model, 12 pixels deep, facing north (the inside, against the head, at Z = 4), then
-        // turned to face as the blockstate says, by "x" and then "y"
+        // The piston body is Minecraft's piston_extended model, 12 pixels deep, facing north (the inside, against the head, at
+        // Z = 4). With it is the end of the head's arm, the last 4 pixels of template_piston_head's arm, which reaches into this
+        // block (see BLOCK_PISTON_HEAD). Both are turned to face as the blockstate says, by "x" and then "y".
         {
             // down, up, north, south, west, east
             static const float pistonRotation[6][2] = { { 90.0f, 0.0f }, { 270.0f, 0.0f }, { 0.0f, 0.0f }, { 0.0f, 180.0f }, { 0.0f, 270.0f }, { 0.0f, 90.0f } };
@@ -10365,14 +10293,33 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             static const float bodyUV[6][4] = { { 0.0f, 4.0f, 16.0f, 16.0f }, { 0.0f, 4.0f, 16.0f, 16.0f }, { 0.0f, 0.0f, 16.0f, 16.0f },
                 { 0.0f, 0.0f, 16.0f, 16.0f }, { 0.0f, 4.0f, 16.0f, 16.0f }, { 0.0f, 4.0f, 16.0f, 16.0f } };
             static const int bodyUVRotation[6] = { 180, 0, 0, 0, 270, 90 };
+            // the arm's end has no faces on its ends
+            static const int armFace[4] = { DIRECTION_BLOCK_BOTTOM, DIRECTION_BLOCK_TOP, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
+            static const float armUV[4][4] = { { 0.0f, 0.0f, 4.0f, 4.0f }, { 4.0f, 4.0f, 0.0f, 0.0f }, { 4.0f, 4.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 4.0f, 4.0f } };
+            static const int armUVRotation[4] = { 90, 90, 0, 0 };
+            int sideLoc = SWATCH_INDEX(12, 6);
             // piston_side, piston_inner (the front), piston_bottom (the back)
-            int bodyLoc[6] = { swatchLoc, swatchLoc, swatchLoc + 2, swatchLoc + 1, swatchLoc, swatchLoc };
+            int bodyLoc[6] = { sideLoc, sideLoc, sideLoc + 2, sideLoc + 1, sideLoc, sideLoc };
+            bottomDataVal = dataVal & 0x7;
+            if (bottomDataVal > 5) {
+                assert(0);
+                bottomDataVal = 1;
+            }
+            gUsingTransform = 1;
             totalVertexCount = gModel.vertexCount;
             int startVertexIndex = saveBoxCustomUVVertices(boxIndex, 0.0f, 16.0f, 0.0f, 16.0f, 4.0f, 16.0f);
             if (startVertexIndex < 0)
                 return MW_WORLD_EXPORT_TOO_LARGE;
             for (int f = 0; f < 6; f++) {
-                retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, bodyFace[f], 0, bodyLoc[f], bodyUV[f], bodyUVRotation[f]);
+                retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, bodyFace[f], (f == 0), bodyLoc[f], bodyUV[f], bodyUVRotation[f]);
+                if (retCode >= MW_BEGIN_ERRORS)
+                    return retCode;
+            }
+            startVertexIndex = saveBoxCustomUVVertices(boxIndex, 6.0f, 10.0f, 6.0f, 10.0f, 0.0f, 4.0f);
+            if (startVertexIndex < 0)
+                return MW_WORLD_EXPORT_TOO_LARGE;
+            for (int f = 0; f < 4; f++) {
+                retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, armFace[f], 0, sideLoc, armUV[f], armUVRotation[f]);
                 if (retCode >= MW_BEGIN_ERRORS)
                     return retCode;
             }
@@ -10389,88 +10336,60 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
     // The part of the piston that moves.
     case BLOCK_PISTON_HEAD:						// saveBillboardOrGeometry
-        // 10,6 sticky head, 11,6 head, 12,6 side, 13,6 bottom, 14,6 extended top
-        // we form the head pointing up, so the up direction needs no transform
+    {
+        // Minecraft's template_piston_head_short model, facing north: the head's plate, 4 pixels thick, and the part of the arm
+        // in this block, to Z = 16 (the rest of the arm is drawn with the piston's body, in the next block; see BLOCK_PISTON).
+        // That part's faces are the same as the full arm's. It's turned to face as the blockstate says, by "x" and then "y".
+        // 10,6 sticky head, 11,6 head, 12,6 side
+        // down, up, north, south, west, east
+        static const float headRotation[6][2] = { { 90.0f, 0.0f }, { 270.0f, 0.0f }, { 0.0f, 0.0f }, { 0.0f, 180.0f }, { 0.0f, 270.0f }, { 0.0f, 90.0f } };
+        static const int headFace[6] = { DIRECTION_BLOCK_BOTTOM, DIRECTION_BLOCK_TOP, DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
+        static const float plateUV[6][4] = { { 0.0f, 0.0f, 16.0f, 4.0f }, { 0.0f, 0.0f, 16.0f, 4.0f }, { 0.0f, 0.0f, 16.0f, 16.0f },
+            { 0.0f, 0.0f, 16.0f, 16.0f }, { 0.0f, 0.0f, 16.0f, 4.0f }, { 0.0f, 0.0f, 16.0f, 4.0f } };
+        static const int plateUVRotation[6] = { 180, 0, 0, 0, 270, 90 };
+        // the arm has no faces on its ends
+        static const int armFace[4] = { DIRECTION_BLOCK_BOTTOM, DIRECTION_BLOCK_TOP, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
+        static const float armUV[4][4] = { { 4.0f, 0.0f, 16.0f, 4.0f }, { 4.0f, 0.0f, 16.0f, 4.0f }, { 16.0f, 4.0f, 4.0f, 0.0f }, { 4.0f, 0.0f, 16.0f, 4.0f } };
+        static const int armUVRotation[4] = { 90, 270, 0, 0 };
+        int sideLoc = SWATCH_INDEX(12, 6);
+        int unstickyLoc = SWATCH_INDEX(11, 6);
+        // dataVal & 0x8 means it's a sticky piston head
+        int platformLoc = (dataVal & 0x8) ? SWATCH_INDEX(10, 6) : unstickyLoc;
+        int plateLoc[6] = { sideLoc, sideLoc, platformLoc, unstickyLoc, sideLoc, sideLoc };
         bottomDataVal = dataVal & 0x7;
-        // compute two rotations, and piston nubbin visibility.
-        // Piston nubbin visibility:
-        // the bottom face of the piston is output only in the rare case that the neighboring piston voxel is empty;
-        // normally the piston body is in the next voxel. If we see *anything* else, assert, as
-        // something's probably wrong with the code.
-        yrot = zrot = 0.0f;
-        dir = DIRECTION_BLOCK_TOP;
-        switch (bottomDataVal)
-        {
-        case 0: // pointing down
-            dir = DIRECTION_BLOCK_TOP;
-            zrot = 180.0f;
-            yrot = 270.0f;
-            break;
-        case 1: // pointing up
-            dir = DIRECTION_BLOCK_BOTTOM;
-            yrot = 270.0f;
-            break;
-        case 2: // pointing north
-            dir = DIRECTION_BLOCK_SIDE_HI_Z;
-            zrot = 90.0f;
-            yrot = 270.0f;
-            break;
-        case 3: // pointing south
-            dir = DIRECTION_BLOCK_SIDE_LO_Z;
-            zrot = 90.0f;
-            yrot = 90.0f;
-            break;
-        case 4: // pointing west
-            dir = DIRECTION_BLOCK_SIDE_HI_X;
-            zrot = 90.0f;
-            yrot = 180.0f;
-            break;
-        case 5: // pointing east
-            dir = DIRECTION_BLOCK_SIDE_LO_X;
-            zrot = 90.0f;
-            break;
-        default:
+        if (bottomDataVal > 5) {
             assert(0);
+            bottomDataVal = 1;
         }
-        // look at neighboring piston block to know what kind of piston head we are.
-        neighborType = gBoxData[boxIndex + gFaceOffset[dir]].origType;
-        assert((neighborType == BLOCK_PISTON) || (neighborType == BLOCK_STICKY_PISTON) || (neighborType == BLOCK_AIR));
 
-        totalVertexCount = gModel.vertexCount;
-        littleTotalVertexCount = gModel.vertexCount;
-
-        // we definitely do move the piston shaft into place, always
         gUsingTransform = 1;
-        // side of piston body:
-        swatchLoc = SWATCH_INDEX(12, 6);
-        // form the piston shaft sideways, just the small bit, then we rotate upwards
-        saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1,
-            (((neighborType == BLOCK_PISTON) || (neighborType == BLOCK_STICKY_PISTON)) ? DIR_LO_X_BIT : 0x0)
-            | (gModel.print3D ? 0x0 : DIR_HI_X_BIT),
-            4, 16, 12, 16, 0, 4);
-        littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-
-        identityMtx(mtx);
-        translateToOriginMtx(mtx, boxIndex);
-        rotateMtx(mtx, 0.0f, 0.0f, -90.0f);
-        translateMtx(mtx, 6.0f / 16.0f, -4.0f / 16.0f, 6.0f / 16.0f);
-        translateFromOriginMtx(mtx, boxIndex);
-        transformVertices(littleTotalVertexCount, mtx);
-
-        // piston head, formed pointing up; dataVal & 0x8 means it's a sticky piston head
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, (dataVal & 0x8) ? (swatchLoc - 2) : (swatchLoc - 1), swatchLoc, swatchLoc - 1, 0, 0x0, 0, 0, 16, 12, 16, 0, 16);
+        totalVertexCount = gModel.vertexCount;
+        int startVertexIndex = saveBoxCustomUVVertices(boxIndex, 0.0f, 16.0f, 0.0f, 16.0f, 0.0f, 4.0f);
+        if (startVertexIndex < 0)
+            return MW_WORLD_EXPORT_TOO_LARGE;
+        for (int f = 0; f < 6; f++) {
+            retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, headFace[f], (f == 0), plateLoc[f], plateUV[f], plateUVRotation[f]);
+            if (retCode >= MW_BEGIN_ERRORS)
+                return retCode;
+        }
+        startVertexIndex = saveBoxCustomUVVertices(boxIndex, 6.0f, 10.0f, 6.0f, 10.0f, 4.0f, 16.0f);
+        if (startVertexIndex < 0)
+            return MW_WORLD_EXPORT_TOO_LARGE;
+        for (int f = 0; f < 4; f++) {
+            retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, armFace[f], 0, sideLoc, armUV[f], armUVRotation[f]);
+            if (retCode >= MW_BEGIN_ERRORS)
+                return retCode;
+        }
         totalVertexCount = gModel.vertexCount - totalVertexCount;
-
-        // now rotate the whole thing into place:
-        // this is a little confused... I think it's Y (always 90), Z, Y rotation
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
-        rotateMtx(mtx, 0.0, 270.0f, zrot);
-        rotateMtx(mtx, 0.0f, yrot, 0.0f);
+        rotateMtx(mtx, headRotation[bottomDataVal][0], 0.0f, 0.0f);
+        rotateMtx(mtx, 0.0f, headRotation[bottomDataVal][1], 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(totalVertexCount, mtx);
         gUsingTransform = 0;
-        break; // saveBillboardOrGeometry
+    }
+    break; // saveBillboardOrGeometry
 
     case BLOCK_HOPPER:						// saveBillboardOrGeometry
         swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
