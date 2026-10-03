@@ -1590,7 +1590,7 @@ If you want to test particular blocks to see what they look like, use the <a hre
 <P>
 In Minecraft itself you can also <a href="https://minecraft.wiki/w/Debug_mode">create a Debug block world</a> (short version: "Create New World", click "World" tab middle top, hold Alt and keep clicking on "World Type:" until "Debug Mode" comes up) - note Mineways doesn't support everything, as noted below. If you are using <a href="https://minecraft.wiki/w/Debug_Stick">the debug stick</a> or commands to set a state for a block that is not valid in a normal world, don't expect it to work. Desperate? Try <a href="https://www.jmc2obj.net/">jmc2obj</a> - they do some fancy stuff, like create banner textures.
 <P>
-Here's what Mineways exports as of version 5.01:
+Here's what Mineways exported as of version 5.01 (many blocks now look more like Minecraft's than in this sampler):
 <div>
 <iframe width="1280" height="960" src="https://sketchfab.com/models/53f7adafaca44a5b8ef1692a47fa03ac/embed"></iframe><p style="font-size: 13px; font-weight: normal; margin: 5px; color: #4A4A4A;">
     <a href="https://sketchfab.com/3d-models/sampler-mineways-v501-53f7adafaca44a5b8ef1692a47fa03ac?utm_medium=embed&utm_source=website&utm_campain=share-popup" target="_blank" style="font-weight: bold; color: #1CAAD9;">Material Sampler</a>
@@ -1682,7 +1682,7 @@ Note Block (#25)
 Bed (#26)
 </td>
 <td>
-<center>Always red, legs not solid</center>
+<center>Proper geometry, all 16 colors</center>
 </td>
 <td>
 <center>Stretched to full block</center>
@@ -1691,7 +1691,7 @@ Bed (#26)
 <center>Area under bed is solid</center>
 </td>
 <td>
-Only the red colored bed is supported (supporting all beds results in an excessive number of textures dedicated to beds).
+Beds use Minecraft's bed models, legs and all, with each color's own textures.
 </td>
 </tr>
 
@@ -1743,7 +1743,7 @@ Piston Extension (#34)
 <center>True piston head</center>
 </td>
 <td>
-Detailed piston heads not fattened for 3D printing, may break. The <a href="https://www.reddit.com/r/Minecraft/comments/6akuvr/what_is_a_short_piston/">"short" property for pistons</a> is ignored, the model is always exported full length.
+Detailed piston heads not fattened for 3D printing, may break. The <a href="https://www.reddit.com/r/Minecraft/comments/6akuvr/what_is_a_short_piston/">"short" property for pistons</a> is ignored, the model is always exported full length. As in Minecraft, the piston head's arm reaches into the piston's body; an extended piston without its head shows no arm.
 </td>
 </tr>
 
@@ -1921,7 +1921,7 @@ Hanging Sign<br>
 <center>Proper geometry, with objects enlarged and chains removed</center>
 </td>
 <td>
-Signs are cobbled together from block textures, not from assets/minecraft/textures/entity/signs. No lettering will appear.
+Signs use Minecraft's sign models and each wood's own sign texture. No lettering will appear.
 </td>
 </tr>
 
@@ -1939,7 +1939,7 @@ Doors (#64, #71)
 <center>Proper geometry</center>
 </td>
 <td>
-Door hinges and tops and bottoms on edges are not consistent with Minecraft.
+Doors use Minecraft's door models.
 </td>
 </tr>
 
@@ -1957,7 +1957,7 @@ Ladder (#65)<br>Lily Pad (#111)
 <center>Flattened; suspended lily pads shifted to water level</center>
 </td>
 <td>
-Orientation of lily pad is not available in basic data, so orientation is always the same.
+As in Minecraft, each lily pad is turned by a random amount, depending on its location, and is a quarter pixel above the water.
 </td>
 </tr>
 
@@ -1978,7 +1978,7 @@ Snow (#78)
 <center>Proper geometry</center>
 </td>
 <td>
-Wall signs are put next to wall for printing - no gap. Signs are cobbled together from block textures, not from assets/minecraft/textures/entity/signs. No lettering will appear.
+Wall signs are put next to wall for printing - no gap. Signs use Minecraft's sign models and each wood's own sign texture. No lettering will appear.
 </td>
 </tr>
 
@@ -2018,7 +2018,7 @@ Cactus (#81)
 
 <tr>
 <td>
-Fences (#85, #113)<br>Fence Gate (#81)<br>Cobblestone Wall (#139)
+Fences (#85, #113)<br>Fence Gate (#107)<br>Cobblestone Wall (#139)
 </td>
 <td>
 <center>Proper geometry</center>
@@ -2282,7 +2282,6 @@ Tripwire Hook (#131)
 <center>Flattened</center>
 </td>
 <td>
-Note that tripwire itself is currently not added.
 </td>
 </tr>
 
@@ -2290,11 +2289,17 @@ Note that tripwire itself is currently not added.
 <td>
 Tripwire (#132)
 </td>
-<td colspan="3">
+<td>
+<center>Proper geometry</center>
+</td>
+<td>
 <center>Removed</center>
 </td>
 <td>
-Hey, it's supposed to be hidden...
+<center>Removed, too thin</center>
+</td>
+<td>
+The string uses Minecraft's tripwire models, connecting to neighboring string and hooks, and is shown attached or not. Worlds before 1.13 do not store the connections, so the string connects to neighboring tripwire and tripwire hooks.
 </td>
 </tr>
 
@@ -2436,10 +2441,10 @@ End Rod (#198)
 
 <tr>
 <td>
-Chorus Plant (#198)
+Chorus Plant (#199)
 </td>
 <td>
-<center>Only one shape</center>
+<center>Proper geometry</center>
 </td>
 <td>
 <center>Full block</center>
@@ -2448,7 +2453,7 @@ Chorus Plant (#198)
 <center>Only one shape</center>
 </td>
 <td>
-In the game itself the shape used varies based on location, in some unknown way.
+Each side that does not connect to another part of the plant gets one of Minecraft's four end caps, picked at random for its location; Minecraft also picks these randomly, so the two will not match exactly.
 </td>
 </tr>
 
@@ -2558,7 +2563,7 @@ Sea Pickle
 <center>Proper geometry, no tendrils</center>
 </td>
 <td>
-Textures not applied exactly right. "Split by block type" will give <a href="https://minecraft.wiki/w/Light">separate emission levels</a> based on number of pickles.
+"Split by block type" will give <a href="https://minecraft.wiki/w/Light">separate emission levels</a> based on number of pickles.
 </td>
 </tr>
 
@@ -2576,7 +2581,7 @@ Turtle Egg
 <center>Proper geometry, neighbor eggs touch</center>
 </td>
 <td>
-1.14-style eggs; 1.13 mapped a 4x4 texture to a 3x3-size egg. Textures not applied exactly right.
+1.14-style eggs; 1.13 mapped a 4x4 texture to a 3x3-size egg.
 </td>
 </tr>
 
@@ -2735,7 +2740,7 @@ Bamboo Fence and Bamboo Gate
 <center>Proper geometry</center>
 </td>
 <td>
-Currently the bamboo_fence_particle.png and bamboo_fence_gate_particle.png textures are used for these, since the proper textures will take a lot of fussy texture mapping to use them properly.
+These use Minecraft's custom fence models, with the bamboo_fence.png and bamboo_fence_gate.png textures.
 </td>
 </tr>
 
@@ -2794,10 +2799,10 @@ Only the basic, uncracked pot is represented.
 
 <tr>
 <td>
-Pink Petals
+Pink Petals<br>Wildflowers<br>Leaf Litter
 </td>
 <td>
-<center>Billboards</center>
+<center>Proper geometry</center>
 </td>
 <td>
 <center>Flattened</center>
@@ -2878,18 +2883,73 @@ The 10x10 dried ghast images are stretched to fit 16x16 textures when full-block
 
 <tr>
 <td>
+Glow Lichen<br>Sculk Vein<br>Resin Clump
+</td>
+<td>
+<center>Proper geometry</center>
+</td>
+<td>
+<center>Flattened</center>
+</td>
+<td>
+<center>Flattened</center>
+</td>
+<td>
+A thin layer on each block face it covers, as in Minecraft.
+</td>
+</tr>
+
+<tr>
+<td>
+Vault
+</td>
+<td>
+<center>Proper geometry, including the cage's inside</center>
+</td>
+<td>
+<center>Full block</center>
+</td>
+<td>
+<center>Full block</center>
+</td>
+<td>
+The inside of the cage, the floor 3 pixels up and the inner walls, is exported, as Minecraft shows it. The walls' insides are output only when billboards are doubled, as they lie right on the cage's faces.
+</td>
+</tr>
+
+<tr>
+<td>
+Copper Golem Statue
+</td>
+<td>
+<center>Proper shape, copper block texture</center>
+</td>
+<td>
+<center>Full block</center>
+</td>
+<td>
+<center>Proper shape</center>
+</td>
+<td>
+In Minecraft the statue is an entity model with its own texture; Mineways builds its shape from that model, in each pose, but textures it with the copper block of its oxidation.
+</td>
+</tr>
+
+<tr>
+<td>
 Shelves
 </td>
 <td>
-<center>Proper geometry; for .schem the powered and side_chain properties are ignored</center>
+<center>Proper geometry, but stacks of items are not stored</center>
 </td>
 <td>
-<center>Proper geometry</center>
+<center>Proper geometry, but stacks of items are not stored</center>
 </td>
 <td>
-<center>Proper geometry</center>
+<center>Proper geometry, but stacks of items are not stored</center>
 </td>
 <td>
+Each shelf's full texture is chopped into three textures: front, back, and powered.
 </td>
 </tr>
 
@@ -2958,7 +3018,7 @@ The textures and rules used in Minecraft for how blocks appear and connect have 
 From newest to oldest. The very newest is sometimes unreleased work in progress, with "*" meaning "to do" and "**" meaning "stretch goal."
 
 <P>
-<LI>Version 14.01, */*/2026 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1401.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 14.01, 10/3/2026 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1401.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
     <UL>
 	<LI>Fix <a href="https://www.reddit.com/r/mineways/comments/1wugiw0/torches_rotated_when_not_placed_on_wall/">standing torch export bug</a>. The problem was that the new 26.3 format has implied default states; standing torches were getting a default of "facing=north". Fixed. <I>(Thanks to lunana_bread for the bug report.)</I>
@@ -2966,8 +3026,9 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 	<LI>Add the new 26.3 Dappled Forest biome, with its orange grass and leaves colors.
 	<LI>Add the 16 colors of beds.
 	<LI>Add and use correct textures for signs and hanging signs.
+	<LI>Add tripwire (you can just barely see it...).
 	<LI>Implement mob heads and not just substitute jack o' lanterns. <I>(Thanks to <a href="https://github.com/erich666/Mineways/issues/13">JMY1000 for requesting this feature</a>.)</I>
-	<LI>Use exact definitions for geometry and texture placement, making them more precisely match.
+	<LI>Use exact definitions for geometry and texture placement, making them more precisely match. Many small bug fixes and cleanups in this area.
 	<LI>Proper export for 3D printing with individual textures (rare that anyone would use this) and "lesser" blocks; turn off compositing of swatches. Also fix activator rail tile output for this special case. Potted pale oak sapling fix. Other fixes for this 3D print mode.
 	<LI>New texture set and TileMaker updated to 3.31, ChannelMixer to 1.24.
 	</UL>
@@ -4492,7 +4553,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 9/20/2026</p>
+		<br id="lastUpdate">Last updated 10/3/2026</p>
 	</div>
 </div>
 
