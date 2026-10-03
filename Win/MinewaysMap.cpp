@@ -7194,6 +7194,59 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
     }
         break;
+    case BLOCK_TRIPWIRE:
+        // this one is specialized, using its 8x8 area:
+        // 0, 1: a pair of tripwire hooks, each on a plank block, facing each other across 4 blocks of string, east-west; 1 is powered
+        // 2, 3: the same, north-south
+        // 4-7: loose string, not attached to hooks: a straight line, a corner, a T, and a cross
+        // String's dataVal: 0x1 powered, 0x4 attached, and its connections, 0x100 south, 0x200 west, 0x400 north, 0x800 east (see
+        // TRIPWIRE_PROP in nbt.cpp). A hook's: 0x3 the way it faces (0 south, 1 west, 2 north, 3 east), 0x4 attached, 0x8 powered.
+    {
+        int x0 = (type % 2) * 8;
+        int z0 = (dataVal % 2) * 8;
+        // put a block at x, z (within the 8x8 area) of the given type and data
+        auto putBlock = [&](int px, int pz, int putType, int putData) {
+            bi = BLOCK_INDEX(x0 + px, y, z0 + pz);
+            block->grid[bi] = (unsigned char)putType;
+            block->data[bi] = (unsigned short)(putData | typeHighBit);
+        };
+        if (dataVal < 4) {
+            bool powered = (dataVal & 0x1) ? true : false;
+            int wireData = 0x4 | (powered ? 0x1 : 0x0);
+            int hookData = 0x4 | (powered ? 0x8 : 0x0);
+            for (int i = 0; i < 8; i++) {
+                // along the line: plank, hook, 4 string, hook, plank
+                int px = (dataVal < 2) ? i : 4;
+                int pz = (dataVal < 2) ? 4 : i;
+                if (i == 0 || i == 7) {
+                    putBlock(px, pz, BLOCK_OAK_PLANKS, 0);
+                }
+                else if (i == 1) {
+                    // faces east, or south
+                    putBlock(px, pz, BLOCK_TRIPWIRE_HOOK, hookData | ((dataVal < 2) ? 3 : 0));
+                }
+                else if (i == 6) {
+                    // faces west, or north
+                    putBlock(px, pz, BLOCK_TRIPWIRE_HOOK, hookData | ((dataVal < 2) ? 1 : 2));
+                }
+                else {
+                    putBlock(px, pz, type, wireData | ((dataVal < 2) ? (0x800 | 0x200) : (0x400 | 0x100)));
+                }
+            }
+        }
+        else if (dataVal < 8) {
+            // loose string: the center, (4, 4), connects north for a corner, T, or cross, east always, south for a T or cross,
+            // and west for a straight line or cross; each neighbor connects back to it
+            static const int looseArms[4] = { 0x800 | 0x200, 0x400 | 0x800, 0x400 | 0x800 | 0x100, 0x400 | 0x800 | 0x100 | 0x200 };
+            int arms = looseArms[dataVal - 4];
+            putBlock(4, 4, type, arms);
+            if (arms & 0x400) putBlock(4, 3, type, 0x100);
+            if (arms & 0x800) putBlock(5, 4, type, 0x200);
+            if (arms & 0x100) putBlock(4, 5, type, 0x400);
+            if (arms & 0x200) putBlock(3, 4, type, 0x800);
+        }
+    }
+        break;
     case BLOCK_COBBLESTONE_WALL:
         // this one is specialized: dataVal just says where to put neighbors, NSEW
         bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
@@ -7370,7 +7423,9 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         if (dataVal == 0)
         {
             int wrow, wcol;
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned char)type;
+            bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
+            block->grid[bi] = (unsigned char)type;
+            block->data[bi] |= (unsigned short)typeHighBit;
             for (wrow = 3; wrow <= 5; wrow++)
                 for (wcol = 3; wcol <= 5; wcol++)
                     block->grid[BLOCK_INDEX(wrow + (type % 2) * 8, y - 1, wcol + (dataVal % 2) * 8)] = BLOCK_STATIONARY_WATER;

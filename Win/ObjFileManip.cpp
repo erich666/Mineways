@@ -832,7 +832,6 @@ static float getRand3to1(int boxIndex);
 
 static bool fenceNeighbor(int type, int boxIndex, int blockSide);
 static int saveBillboardOrGeometry(int boxIndex, int type);
-static void makePinkPetalFlowerStem(int boxIndex, int type, int dataVal, int swatchLoc, float x, float y, int height);
 static int saveTriangleGeometry(int type, int dataVal, int boxIndex, int typeBelow, int dataValBelow, int boxIndexBelow, int choppedSide);
 static bool badNeighborTest(int& neighborIndex, int boxIndex, int offset);
 static unsigned int getStairMask(int boxIndex, int dataVal);
@@ -876,7 +875,8 @@ typedef struct ModelElement {
     int rotAxis;
     int rescale;
 } ModelElement;
-static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, float yAngle);
+static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, float yAngle, int xAngle = 0, bool uvlock = false);
+static int saveRotatedModel(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, int xAngle, int yAngle, bool uvlock);
 // The terrain tile anchor of a sign's 32x32 texture (see tiles.h): standing and wall signs in rows 4-7, hanging and wall hanging signs in
 // rows 8-11, eight woods (SIGN_WOOD(), the order of gSignWoods[]) to each pair of rows, from column 16.
 #define SIGN_TEXTURE_ANCHOR(wood, hanging) TILE_TO_SWATCH(16 + 2 * ((wood) % 8), ((hanging) ? 8 : 4) + 2 * ((wood) / 8))
@@ -5171,6 +5171,274 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break;	// saveBillboardOrGeometry
 
     case BLOCK_MANGROVE_PROPAGULE:
+        if (!gModel.print3D) {
+            // Minecraft's mangrove_propagule model or, hanging (dataVal 0x8), mangrove_propagule_hanging_0-4 by the age, dataVal
+            // 0x7, offset randomly in X and Z as Minecraft does. The elements are made from the models' JSON.
+            int standingLoc = SWATCH_INDEX(1, 55);
+            int hangingLoc = SWATCH_INDEX(2, 55);
+            ModelElement hanging0Elements[] = {
+                { { 7, 13.611f, 10.0719f }, { 9, 13.611f, 12.0719f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 180, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 0, 1, hangingLoc }
+                }, 22.5f, { 8, 16, 8 }, 1, 0 },
+                { { 10.0719f, 13.611f, 7 }, { 12.0719f, 13.611f, 9 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 90, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 90, 1, hangingLoc }
+                }, -22.5f, { 8, 16, 8 }, 2, 0 },
+                { { 7, 13.611f, 3.92807f }, { 9, 13.611f, 5.92807f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 180, 1, hangingLoc }
+                }, -22.5f, { 8, 16, 8 }, 1, 0 },
+                { { 3.92807f, 13.611f, 7 }, { 5.92807f, 13.611f, 9 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 270, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 270, 1, hangingLoc }
+                }, 22.5f, { 8, 16, 8 }, 2, 0 },
+                { { 7, 13, 7 }, { 9, 14, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 2, 2 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 3, 2, 5 }, 0, 0, hangingLoc }
+                } },
+                { { 7, 14, 8 }, { 9, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 2 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 2 }, 0, 0, hangingLoc }
+                }, -45, { 8, 16, 8 }, 0, 0 },
+                { { 7, 14, 8 }, { 9, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 2 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 2 }, 0, 0, hangingLoc }
+                }, 45, { 8, 16, 8 }, 0, 0 },
+            };
+            ModelElement hanging1Elements[] = {
+                { { 7, 10, 7 }, { 9, 13, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 5, 2, 7 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 5, 2, 7 }, 0, 0, hangingLoc }
+                } },
+                { { 7, 13.611f, 10.0719f }, { 9, 13.611f, 12.0719f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 180, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 0, 1, hangingLoc }
+                }, 22.5f, { 8, 16, 8 }, 1, 0 },
+                { { 10.0719f, 13.611f, 7 }, { 12.0719f, 13.611f, 9 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 90, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 90, 1, hangingLoc }
+                }, -22.5f, { 8, 16, 8 }, 2, 0 },
+                { { 7, 13.611f, 3.92807f }, { 9, 13.611f, 5.92807f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 180, 1, hangingLoc }
+                }, -22.5f, { 8, 16, 8 }, 1, 0 },
+                { { 3.92807f, 13.611f, 7 }, { 5.92807f, 13.611f, 9 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 270, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 270, 1, hangingLoc }
+                }, 22.5f, { 8, 16, 8 }, 2, 0 },
+                { { 7, 13, 7 }, { 9, 14, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 2, 2 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 3, 2, 5 }, 0, 0, hangingLoc }
+                } },
+                { { 7, 14, 8 }, { 9, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 2 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 2 }, 0, 0, hangingLoc }
+                }, -45, { 8, 16, 8 }, 0, 0 },
+                { { 7, 14, 8 }, { 9, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 2 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 2 }, 0, 0, hangingLoc }
+                }, 45, { 8, 16, 8 }, 0, 0 },
+            };
+            ModelElement hanging2Elements[] = {
+                { { 7, 10, 7 }, { 9, 13, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 5, 2, 7 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 10, 2, 12 }, 0, 0, hangingLoc }
+                } },
+                { { 7, 13.611f, 10.0719f }, { 9, 13.611f, 12.0719f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 180, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 0, 1, hangingLoc }
+                }, 22.5f, { 8, 16, 8 }, 1, 0 },
+                { { 10.0719f, 13.611f, 7 }, { 12.0719f, 13.611f, 9 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 90, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 90, 1, hangingLoc }
+                }, -22.5f, { 8, 16, 8 }, 2, 0 },
+                { { 7, 13.611f, 3.92807f }, { 9, 13.611f, 5.92807f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 180, 1, hangingLoc }
+                }, -22.5f, { 8, 16, 8 }, 1, 0 },
+                { { 3.92807f, 13.611f, 7 }, { 5.92807f, 13.611f, 9 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 270, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 270, 1, hangingLoc }
+                }, 22.5f, { 8, 16, 8 }, 2, 0 },
+                { { 7, 13, 7 }, { 9, 14, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 2, 2 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 3, 2, 5 }, 0, 0, hangingLoc }
+                } },
+                { { 7, 14, 8 }, { 9, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 2 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 2 }, 0, 0, hangingLoc }
+                }, -45, { 8, 16, 8 }, 0, 0 },
+                { { 7, 14, 8 }, { 9, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 2 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 2 }, 0, 0, hangingLoc }
+                }, 45, { 8, 16, 8 }, 0, 0 },
+                { { 7, 7, 8 }, { 9, 10, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 7, 5, 10 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 7, 5, 10 }, 0, 0, hangingLoc }
+                }, 45, { 8, 16, 8 }, 0, 0 },
+                { { 7, 7, 8 }, { 9, 10, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 7, 5, 10 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 7, 5, 10 }, 0, 0, hangingLoc }
+                }, -45, { 8, 16, 8 }, 0, 0 },
+            };
+            ModelElement hanging3Elements[] = {
+                { { 7, 10, 7 }, { 9, 13, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 5, 2, 7 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 10, 2, 12 }, 0, 0, hangingLoc }
+                } },
+                { { 7, 13.611f, 10.0719f }, { 9, 13.611f, 12.0719f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 180, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 0, 1, hangingLoc }
+                }, 22.5f, { 8, 16, 8 }, 1, 0 },
+                { { 10.0719f, 13.611f, 7 }, { 12.0719f, 13.611f, 9 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 90, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 90, 1, hangingLoc }
+                }, -22.5f, { 8, 16, 8 }, 2, 0 },
+                { { 7, 13.611f, 3.92807f }, { 9, 13.611f, 5.92807f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 180, 1, hangingLoc }
+                }, -22.5f, { 8, 16, 8 }, 1, 0 },
+                { { 3.92807f, 13.611f, 7 }, { 5.92807f, 13.611f, 9 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 270, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 270, 1, hangingLoc }
+                }, 22.5f, { 8, 16, 8 }, 2, 0 },
+                { { 7, 13, 7 }, { 9, 14, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 2, 2 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 3, 2, 5 }, 0, 0, hangingLoc }
+                } },
+                { { 7, 14, 8 }, { 9, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 2 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 2 }, 0, 0, hangingLoc }
+                }, -45, { 8, 16, 8 }, 0, 0 },
+                { { 7, 14, 8 }, { 9, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 2 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 2 }, 0, 0, hangingLoc }
+                }, 45, { 8, 16, 8 }, 0, 0 },
+                { { 7, 3, 8 }, { 9, 10, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 3, 5, 10 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 3, 5, 10 }, 0, 0, hangingLoc }
+                }, 45, { 8, 16, 8 }, 0, 0 },
+                { { 7, 3, 8 }, { 9, 10, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 3, 5, 10 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 3, 5, 10 }, 0, 0, hangingLoc }
+                }, -45, { 8, 16, 8 }, 0, 0 },
+            };
+            ModelElement hanging4Elements[] = {
+                { { 7, 10, 7 }, { 9, 13, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 5, 2, 7 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 10, 2, 12 }, 0, 0, hangingLoc }
+                } },
+                { { 7, 13.611f, 10.0719f }, { 9, 13.611f, 12.0719f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 180, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 0, 1, hangingLoc }
+                }, 22.5f, { 8, 16, 8 }, 1, 0 },
+                { { 10.0719f, 13.611f, 7 }, { 12.0719f, 13.611f, 9 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 90, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 90, 1, hangingLoc }
+                }, -22.5f, { 8, 16, 8 }, 2, 0 },
+                { { 7, 13.611f, 3.92807f }, { 9, 13.611f, 5.92807f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 180, 1, hangingLoc }
+                }, -22.5f, { 8, 16, 8 }, 1, 0 },
+                { { 3.92807f, 13.611f, 7 }, { 5.92807f, 13.611f, 9 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 270, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 270, 1, hangingLoc }
+                }, 22.5f, { 8, 16, 8 }, 2, 0 },
+                { { 7, 13, 7 }, { 9, 14, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 2, 2 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 3, 2, 5 }, 0, 0, hangingLoc }
+                } },
+                { { 7, 14, 8 }, { 9, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 2 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 2 }, 0, 0, hangingLoc }
+                }, -45, { 8, 16, 8 }, 0, 0 },
+                { { 7, 14, 8 }, { 9, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 2 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 2 }, 0, 0, hangingLoc }
+                }, 45, { 8, 16, 8 }, 0, 0 },
+                { { 7, 0, 8 }, { 9, 10, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 5, 10 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 5, 10 }, 0, 0, hangingLoc }
+                }, 45, { 8, 16, 8 }, 0, 0 },
+                { { 7, 0, 8 }, { 9, 10, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 5, 10 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 5, 10 }, 0, 0, hangingLoc }
+                }, -45, { 8, 16, 8 }, 0, 0 },
+            };
+            ModelElement standingElements[] = {
+                { { 4.5f, 9, 8 }, { 11.5f, 15, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 1, 11, 7 }, 0, 1, standingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 1, 11, 7 }, 0, 0, standingLoc }
+                }, 45, { 8, 0, 8 }, 0, 1 },
+                { { 8, 9, 4.5f }, { 8, 15, 11.5f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 4, 1, 11, 7 }, 0, 0, standingLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 4, 1, 11, 7 }, 0, 1, standingLoc }
+                }, 45, { 8, 0, 8 }, 0, 1 },
+                { { 8, 0, 7 }, { 8, 9, 9 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 7, 7, 9, 16 }, 0, 0, standingLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 7, 7, 9, 16 }, 0, 1, standingLoc }
+                }, 45, { 8, 0, 8 }, 0, 1 },
+                { { 7, 0, 8 }, { 9, 9, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 7, 7, 9, 16 }, 0, 1, standingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 7, 7, 9, 16 }, 0, 0, standingLoc }
+                }, 45, { 8, 0, 8 }, 0, 1 },
+            };
+            const ModelElement* hangingModel[5] = { hanging0Elements, hanging1Elements, hanging2Elements, hanging3Elements, hanging4Elements };
+            static const int hangingCount[5] = { 7, 8, 10, 10, 10 };
+            totalVertexCount = gModel.vertexCount;
+            if (dataVal & 0x8) {
+                int propaguleAge = (dataVal & 0x7) > 4 ? 4 : (dataVal & 0x7);
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, hangingLoc, hangingModel[propaguleAge], hangingCount[propaguleAge], 0, 0, false);
+            }
+            else {
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, standingLoc, standingElements, 4, 0, 0, false);
+            }
+            wobbleObjectLocation(boxIndex, shiftX, shiftZ);
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            translateMtx(mtx, shiftX / 16.0f, 0.0f, shiftZ / 16.0f);
+            gUsingTransform = 1;
+            transformVertices(totalVertexCount, mtx);
+            gUsingTransform = 0;
+            break;
+        }
         if (!(dataVal & 0x8))
             return saveBillboardFaces(boxIndex, type, BB_FULL_CROSS);
         else {
@@ -5346,12 +5614,54 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
     case BLOCK_CORAL_FAN:
     case BLOCK_DEAD_CORAL_FAN:
-        return saveBillboardFaces(boxIndex, type, BB_FAN);
-        break;	// saveBillboardOrGeometry
-
     case BLOCK_CORAL_WALL_FAN:
     case BLOCK_DEAD_CORAL_WALL_FAN:
-        return saveBillboardFaces(boxIndex, type, BB_WALL_FAN);
+        if (gModel.print3D) {
+            return saveBillboardFaces(boxIndex, type, ((type == BLOCK_CORAL_FAN) || (type == BLOCK_DEAD_CORAL_FAN)) ? BB_FAN : BB_WALL_FAN);
+        }
+        else {
+            // Minecraft's coral_fan model (four flat leaves tilted 22.5 degrees, reaching past the block's sides) and coral_wall_fan
+            // model (two leaves, stretched by "rescale"), turned by "y" for a wall fan; its dataVal 0x30 faces south, west, north,
+            // east. The low bits are the coral's kind. The elements are made from the models' JSON.
+            bool dead = (type == BLOCK_DEAD_CORAL_FAN) || (type == BLOCK_DEAD_CORAL_WALL_FAN);
+            // the fans' tiles are in row 36 by kind (the block's own tile is a coral plant's)
+            swatchLoc = SWATCH_INDEX((dead ? 5 : 0) + (dataVal & 0x7), 36);
+            ModelElement fanElements[] = {
+            { { 8, 0, 0 }, { 24, 0, 16 }, 2, {
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 90, 0, swatchLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 270, 1, swatchLoc }
+            }, 22.5f, { 8, 0, 0 }, 2, 0 },
+            { { -8, 0, 0 }, { 8, 0, 16 }, 2, {
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 270, 0, swatchLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 90, 1, swatchLoc }
+            }, -22.5f, { 8, 0, 0 }, 2, 0 },
+            { { 0, 0, 8 }, { 16, 0, 24 }, 2, {
+                { DIRECTION_BLOCK_TOP, { 16, 16, 0, 0 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 16, 0, 0, 16 }, 0, 1, swatchLoc }
+            }, -22.5f, { 0, 0, 8 }, 1, 0 },
+            { { 0, 0, -8 }, { 16, 0, 8 }, 2, {
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 0, 1, swatchLoc }
+            }, 22.5f, { 0, 0, 8 }, 1, 0 },
+            };
+            ModelElement wallFanElements[] = {
+            { { 0, 8, 0 }, { 16, 8, 16 }, 2, {
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 16, 16, 0, 0 }, 0, 1, swatchLoc }
+            }, 22.5f, { 8, 8, 14 }, 1, 1 },
+            { { 0, 8, 0 }, { 16, 8, 16 }, 2, {
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 16, 16, 0, 0 }, 0, 1, swatchLoc }
+            }, -22.5f, { 8, 8, 14 }, 1, 1 },
+            };
+            if ((type == BLOCK_CORAL_FAN) || (type == BLOCK_DEAD_CORAL_FAN)) {
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, swatchLoc, fanElements, 4, 0, 0, false);
+            }
+            else {
+                static const int wallFanYAngle[4] = { 180, 270, 0, 90 };
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, swatchLoc, wallFanElements, 2, 0, wallFanYAngle[(dataVal >> 4) & 0x3], false);
+            }
+        }
         break;	// saveBillboardOrGeometry
 
     // special: billboard and possible an extra stem to the pumpkin or melon
@@ -5642,7 +5952,22 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         return saveBillboardFaces(boxIndex, type, BB_BOTTOM);
 
     case BLOCK_FROGSPAWN:					// saveBillboardOrGeometry
-        return saveBillboardFaces(boxIndex, type, BB_BOTTOM);
+        if (gModel.print3D) {
+            return saveBillboardFaces(boxIndex, type, BB_BOTTOM);
+        }
+        else {
+            // Minecraft's frogspawn model, a flat sheet a quarter pixel up, as for the lily pad. The elements are made from the
+            // model's JSON.
+            swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            ModelElement frogspawnElements[] = {
+            { { 0, 0.25f, 0 }, { 16, 0.25f, 16 }, 2, {
+                { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 0, 1, swatchLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, swatchLoc }
+            } },
+            };
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, swatchLoc, frogspawnElements, 1, 0, 0, false);
+        }
+        break;
 
         /////////////////////////////////////////////////////////////////////////////////////////
         // real-live solid output, baby
@@ -5707,6 +6032,95 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, 0x0, 5, 11, 0, 13, 8 + hasPost * 4, 16);
                 firstFace = 0;	// not necessary, but for consistency in case code is added below  // cppcheck-suppress 563
             }
+        }
+        else if (!gModel.print3D && (type == BLOCK_BAMBOO_FENCE)) {
+            // Minecraft's bamboo_fence_post model and, for each side the fence connects to, bamboo_fence_side_north, _east, _south,
+            // or _west, made from the custom_fence templates, which map parts of the bamboo_fence texture onto each face. The
+            // elements are made from the models' JSON.
+            int fenceLoc = SWATCH_INDEX(9, 60);
+            ModelElement postElements[] = {
+                { { 6, 0, 6 }, { 10, 16, 10 }, 6, {
+                    { DIRECTION_BLOCK_TOP, { 4, 0, 8, 4 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 4, 0, 8, 4 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 4, 16 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 4, 16 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 4, 16 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 4, 16 }, 0, 0, fenceLoc }
+                } },
+            };
+            ModelElement northElements[] = {
+                { { 7, 12, 0 }, { 9, 15, 9 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 13, 4, 15, 7 }, 180, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 7, 15, 16 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 7, 15, 16 }, 0, 0, fenceLoc }
+                } },
+                { { 7, 6, 0 }, { 9, 9, 9 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 13, 4, 15, 7 }, 180, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 7, 15, 16 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 7, 15, 16 }, 0, 0, fenceLoc }
+                } },
+            };
+            ModelElement eastElements[] = {
+                { { 7, 12, 7 }, { 16, 15, 9 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 13, 4, 15, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 7, 15, 16 }, 270, 0, fenceLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 7, 15, 16 }, 90, 0, fenceLoc }
+                } },
+                { { 7, 6, 7 }, { 16, 9, 9 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 13, 4, 15, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 7, 15, 16 }, 270, 0, fenceLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 7, 15, 16 }, 90, 0, fenceLoc }
+                } },
+            };
+            ModelElement southElements[] = {
+                { { 7, 12, 7 }, { 9, 15, 16 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 13, 4, 15, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 7, 15, 16 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 7, 15, 16 }, 0, 0, fenceLoc }
+                } },
+                { { 7, 6, 7 }, { 9, 9, 16 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 13, 4, 15, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 7, 15, 16 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 7, 15, 16 }, 0, 0, fenceLoc }
+                } },
+            };
+            ModelElement westElements[] = {
+                { { 0, 12, 7 }, { 9, 15, 9 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 15, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 7, 15, 16 }, 270, 0, fenceLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 7, 15, 16 }, 90, 0, fenceLoc }
+                } },
+                { { 0, 6, 7 }, { 9, 9, 9 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 15, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 7, 15, 16 }, 270, 0, fenceLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 7, 15, 16 }, 90, 0, fenceLoc }
+                } },
+            };
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, fenceLoc, postElements, 1, 0, 0, false);
+            if ((dataVal & 0x4) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_LO_Z))
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, fenceLoc, northElements, 2, 0, 0, false);
+            if ((dataVal & 0x8) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_HI_X))
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, fenceLoc, eastElements, 2, 0, 0, false);
+            if ((dataVal & 0x1) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_HI_Z))
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, fenceLoc, southElements, 2, 0, 0, false);
+            if ((dataVal & 0x2) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_LO_X))
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, fenceLoc, westElements, 2, 0, 0, false);
         }
         else
         {
@@ -6405,6 +6819,94 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
     case BLOCK_CHORUS_PLANT:						// saveBillboardOrGeometry
     {
+        if (!gModel.print3D) {
+            // Minecraft's chorus_plant multipart: for each direction the plant connects to (another chorus plant or a chorus flower,
+            // or end stone below), the chorus_plant_side model, and for each it doesn't, chorus_plant_noside (twice as likely),
+            // noside1, noside2, or noside3, picked at random, each turned to its direction by "x" or "y" with "uvlock". dataVal
+            // has the connections: south 0x1, west 0x2, north 0x4, east 0x8, down BIT_16, up BIT_32; older worlds don't store
+            // these, so then the neighbors decide. The elements are made from the models' JSON.
+            int plantLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            ModelElement sideElements[] = {
+                { { 4, 4, 0 }, { 12, 12, 4 }, 5, {
+                    { DIRECTION_BLOCK_BOTTOM, { 4, 12, 12, 16 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 0, 12, 4 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 4, 12, 12 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 4, 4, 12 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 4, 16, 12 }, 0, 0, plantLoc }
+                } },
+            };
+            ModelElement noside0Elements[] = {
+                { { 4, 4, 4 }, { 12, 12, 12 }, 1, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 4, 12, 12 }, 0, 0, plantLoc }
+                } },
+            };
+            ModelElement noside1Elements[] = {
+                { { 4, 4, 4 }, { 12, 12, 12 }, 1, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 4, 12, 12 }, 0, 0, plantLoc }
+                } },
+                { { 4, 4, 3 }, { 12, 12, 4 }, 5, {
+                    { DIRECTION_BLOCK_BOTTOM, { 4, 12, 12, 13 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 3, 12, 4 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 4, 12, 12 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 3, 4, 4, 12 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 4, 13, 12 }, 0, 0, plantLoc }
+                } },
+            };
+            ModelElement noside2Elements[] = {
+                { { 4, 4, 4 }, { 12, 12, 12 }, 1, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 4, 12, 12 }, 0, 0, plantLoc }
+                } },
+                { { 5, 5, 2 }, { 11, 11, 4 }, 5, {
+                    { DIRECTION_BLOCK_BOTTOM, { 5, 12, 11, 14 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_TOP, { 5, 2, 11, 4 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 5, 5, 11, 11 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 2, 5, 4, 11 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 14, 11 }, 0, 0, plantLoc }
+                } },
+            };
+            ModelElement noside3Elements[] = {
+                { { 4, 4, 4 }, { 12, 12, 12 }, 1, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 4, 12, 12 }, 0, 0, plantLoc }
+                } },
+                { { 4, 4, 3 }, { 12, 12, 4 }, 5, {
+                    { DIRECTION_BLOCK_BOTTOM, { 4, 12, 12, 13 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 3, 12, 4 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 4, 12, 12 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 3, 4, 4, 12 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 4, 13, 12 }, 0, 0, plantLoc }
+                } },
+            };
+            const ModelElement* nosideModel[5] = { noside0Elements, noside0Elements, noside1Elements, noside2Elements, noside3Elements };
+            static const int nosideCount[5] = { 1, 1, 2, 2, 2 };
+            // north, east, south, west, up, down: the connection bit, the neighbor, and the blockstate's "x" and "y"
+            static const int chorusBit[6] = { 0x4, 0x8, 0x1, 0x2, BIT_32, BIT_16 };
+            static const int chorusNeighbor[6] = { DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_X, DIRECTION_BLOCK_SIDE_HI_Z,
+                DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_TOP, DIRECTION_BLOCK_BOTTOM };
+            static const int chorusXAngle[6] = { 0, 0, 0, 0, 270, 90 };
+            static const int chorusYAngle[6] = { 0, 90, 180, 270, 0, 0 };
+            // one random number gives a base-5 digit for each direction's pick
+            int chorusPicks = (int)(getChorusRand3to1(boxIndex) * 15625.0f);
+            for (i = 0; i < 6; i++) {
+                bool connected;
+                if (gIs13orNewer) {
+                    connected = (dataVal & chorusBit[i]) ? true : false;
+                }
+                else {
+                    int chorusNeighborType = gBoxData[boxIndex + gFaceOffset[chorusNeighbor[i]]].origType;
+                    connected = (chorusNeighborType == BLOCK_CHORUS_PLANT) || (chorusNeighborType == BLOCK_CHORUS_FLOWER) ||
+                        ((i == 5) && (chorusNeighborType == BLOCK_END_STONE));
+                }
+                if (connected) {
+                    retCode |= saveRotatedModel(boxIndex, type, dataVal, plantLoc, sideElements, 1, chorusXAngle[i], chorusYAngle[i], true);
+                }
+                else {
+                    int pick = chorusPicks % 5;
+                    retCode |= saveRotatedModel(boxIndex, type, dataVal, plantLoc, nosideModel[pick], nosideCount[pick], chorusXAngle[i], chorusYAngle[i], true);
+                }
+                chorusPicks /= 5;
+            }
+            break;
+        }
         // 6 sides, no interior
         // for each neighbor, decide whether to extend the side (and so not put the face).
 
@@ -6715,6 +7217,39 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // bit 32 - are there any sides at all, for a quick out; optional
         firstFace = 1;
         swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+        if (!gModel.print3D) {
+            // Minecraft's pale_moss_carpet model if "bottom", and for each side that is "low" (bits 0x80, 0x100, 0x200, 0x400 for
+            // north, east, south, west) or "tall" (bits 0x2, 0x4, 0x8, 0x10), the pale_moss_carpet_side_small or _tall model, turned
+            // by "y". With no bottom and no sides, Minecraft draws the carpet and all four tall sides. The elements are made from the
+            // models' JSON.
+            int smallLoc = swatchLoc + 1;
+            int tallLoc = swatchLoc + 2;
+            ModelElement smallElements[] = {
+                { { 0, 0, 0.1f }, { 16, 16, 0.1f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 16, 0, 0, 16 }, 0, 1, smallLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, smallLoc }
+                } },
+            };
+            ModelElement tallElements[] = {
+                { { 0, 0, 0.1f }, { 16, 16, 0.1f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 16, 0, 0, 16 }, 0, 1, tallLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, tallLoc }
+                } },
+            };
+            int allTall = ((dataVal & (0x1 | 0x1e | 0x780)) == 0);
+            if ((dataVal & 0x1) || allTall) {
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0, 0, 16, 0, 1, 0, 16);
+            }
+            for (i = 0; i < 4; i++) {
+                if (allTall || (dataVal & (0x2 << i))) {
+                    retCode |= saveRotatedModel(boxIndex, type, dataVal, tallLoc, tallElements, 1, 0, 90 * i, true);
+                }
+                else if (dataVal & (0x80 << i)) {
+                    retCode |= saveRotatedModel(boxIndex, type, dataVal, smallLoc, smallElements, 1, 0, 90 * i, true);
+                }
+            }
+            break;
+        }
         if (dataVal & 0x1) {
             // process bottom
             if (gModel.print3D &&
@@ -8795,7 +9330,132 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_POPLAR_FENCE_GATE:
         gUsingTransform = 1;
         totalVertexCount = gModel.vertexCount;
-        if (!gModel.print3D) {
+        if (!gModel.print3D && (type == BLOCK_BAMBOO_FENCE_GATE)) {
+            // Minecraft's bamboo_fence_gate and bamboo_fence_gate_open models, made from the template_custom_fence_gate models, which
+            // map parts of the bamboo_fence_gate texture onto each face, turned by "y" (without "uvlock"); in a wall, the same, 3
+            // pixels lower, done below. dataVal 0x3 faces south, west, north, east. The elements are made from the models' JSON.
+            int gateLoc = SWATCH_INDEX(10, 60);
+            ModelElement closedElements[] = {
+                { { 0, 5, 7 }, { 2, 16, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 2, 16, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 14, 2, 16, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 14, 2, 16, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 2, 16, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 14, 0, 16, 2 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 13, 14, 15 }, 0, 0, gateLoc }
+                } },
+                { { 14, 5, 7 }, { 16, 16, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 2, 2, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 2, 2, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 2, 2, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 2, 2, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 2, 2 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 13, 0, 15 }, 0, 0, gateLoc }
+                } },
+                { { 6, 6, 7 }, { 8, 15, 9 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 8, 3, 10, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 3, 8, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 3, 10, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 10, 3 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 14, 10, 12 }, 0, 0, gateLoc }
+                } },
+                { { 8, 6, 7 }, { 10, 15, 9 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 3, 8, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 6, 3, 8, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 8, 3, 10, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 6, 1, 8, 3 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 14, 8, 12 }, 0, 0, gateLoc }
+                } },
+                { { 2, 6, 7 }, { 6, 9, 9 }, 4, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 10, 3, 14, 6 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 10, 9, 14, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 10, 1, 14, 3 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 10, 14, 14, 12 }, 0, 0, gateLoc }
+                } },
+                { { 2, 12, 7 }, { 6, 15, 9 }, 4, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 10, 3, 14, 6 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 10, 9, 14, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 10, 1, 14, 3 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 10, 14, 14, 12 }, 0, 0, gateLoc }
+                } },
+                { { 10, 6, 7 }, { 14, 9, 9 }, 4, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 3, 6, 6 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 9, 6, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 2, 1, 6, 3 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 14, 6, 12 }, 0, 0, gateLoc }
+                } },
+                { { 10, 12, 7 }, { 14, 15, 9 }, 4, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 3, 6, 6 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 9, 6, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 2, 1, 6, 3 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 14, 6, 12 }, 0, 0, gateLoc }
+                } },
+            };
+            ModelElement openElements[] = {
+                { { 0, 5, 7 }, { 2, 16, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 2, 16, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 14, 2, 16, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 14, 2, 16, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 2, 16, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 14, 0, 16, 2 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 13, 14, 15 }, 0, 0, gateLoc }
+                } },
+                { { 14, 5, 7 }, { 16, 16, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 2, 2, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 2, 2, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 2, 2, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 2, 2, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 2, 2 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 13, 0, 15 }, 0, 0, gateLoc }
+                } },
+                { { 0, 6, 13 }, { 2, 15, 15 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 8, 3, 10, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 8, 3, 10, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 8, 3, 10, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 3, 10, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 10, 3 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 14, 10, 12 }, 0, 0, gateLoc }
+                } },
+                { { 14, 6, 13 }, { 16, 15, 15 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 3, 8, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 6, 3, 8, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 3, 8, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 6, 3, 8, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 6, 1, 8, 3 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 14, 8, 12 }, 0, 0, gateLoc }
+                } },
+                { { 0, 6, 9 }, { 2, 9, 13 }, 4, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 2, 9, 6, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 2, 3, 6, 6 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 2, 1, 6, 3 }, 270, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 12, 6, 14 }, 270, 0, gateLoc }
+                } },
+                { { 0, 12, 9 }, { 2, 15, 13 }, 4, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 2, 9, 6, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 2, 3, 6, 6 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 2, 1, 6, 3 }, 270, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 12, 6, 14 }, 270, 0, gateLoc }
+                } },
+                { { 14, 6, 9 }, { 16, 9, 13 }, 4, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 10, 9, 14, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 10, 3, 14, 6 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 10, 1, 14, 3 }, 270, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 10, 12, 14, 14 }, 270, 0, gateLoc }
+                } },
+                { { 14, 12, 9 }, { 16, 15, 13 }, 4, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 10, 9, 14, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 3, 10, 6 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 10, 1, 14, 3 }, 270, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 10, 12, 14, 14 }, 270, 0, gateLoc }
+                } },
+            };
+            if (dataVal & 0x4)
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, gateLoc, openElements, 8, 0, 90 * (dataVal & 0x3), false);
+            else
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, gateLoc, closedElements, 8, 0, 90 * (dataVal & 0x3), false);
+            gUsingTransform = 1;
+        }
+        else if (!gModel.print3D) {
             // Minecraft's template_fence_gate and template_fence_gate_open models, turned by "y" with "uvlock"; in a wall
             // (template_fence_gate_wall*), it's the same, 3 pixels lower, done below. dataVal 0x3 faces south, west, north, east.
             static const ModelElement gateElements[2][8] = {
@@ -10555,7 +11215,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_LEVER:						// saveBillboardOrGeometry
     {
         // Minecraft's lever (powered) and lever_on models, on the floor facing north, turned as the blockstate says, by "x" and then
-        // "y". The base's -0.02 nudge in Y is rounded to 0. The handle is turned about X: by -45 degrees in lever, toward the north,
+        // "y". The base is nudged -0.02 in Y, as in Minecraft. The handle is turned about X: by -45 degrees in lever, toward the north,
         // and by 45 in lever_on, toward the south. Floor and ceiling levers keep just an axis and whether the handle points one way
         // or the other along it (see nbt.cpp), so these are given as unpowered levers, using lever_on.
         // down, up, north, south, west, east
@@ -10575,7 +11235,15 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             { { 0, 270, 1 }, { 0, 90, 1 } },        // 6: floor, east-west: west, east
             { { 180, 180, 1 }, { 180, 0, 1 } },     // 7: ceiling, north-south: north, south
         };
-        const int* state = leverState[dataVal & 0x7][(dataVal & 0x8) ? 1 : 0];
+        int leverState3[3];
+        memcpy(leverState3, leverState[dataVal & 0x7][(dataVal & 0x8) ? 1 : 0], sizeof(leverState3));
+        // a powered floor or ceiling lever (0x10, see nbt.cpp) is Minecraft's lever model turned half around, which points the
+        // handle the same way as the unpowered lever_on, but turns the base's and handle's texture
+        if ((dataVal & 0x10) && (leverState3[0] != 90)) {
+            leverState3[1] = (leverState3[1] + 180) % 360;
+            leverState3[2] = 0;
+        }
+        const int* state = leverState3;
         int leverLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_LEVER].txrX, gBlockDefinitions[BLOCK_LEVER].txrY);
         int baseLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_COBBLESTONE].txrX, gBlockDefinitions[BLOCK_COBBLESTONE].txrY);
 
@@ -10602,7 +11270,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         transformVertices(totalVertexCount, mtx);
 
         // the base
-        startVertexIndex = saveBoxCustomUVVertices(boxIndex, 5.0f, 11.0f, 0.0f, 3.0f, 4.0f, 12.0f);
+        startVertexIndex = saveBoxCustomUVVertices(boxIndex, 5.0f, 11.0f, -0.02f, 2.98f, 4.0f, 12.0f);
         if (startVertexIndex < 0)
             return MW_WORLD_EXPORT_TOO_LARGE;
         for (int f = 0; f < 6; f++) {
@@ -10665,10 +11333,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             static const float bodyUV[6][4] = { { 0.0f, 4.0f, 16.0f, 16.0f }, { 0.0f, 4.0f, 16.0f, 16.0f }, { 0.0f, 0.0f, 16.0f, 16.0f },
                 { 0.0f, 0.0f, 16.0f, 16.0f }, { 0.0f, 4.0f, 16.0f, 16.0f }, { 0.0f, 4.0f, 16.0f, 16.0f } };
             static const int bodyUVRotation[6] = { 180, 0, 0, 0, 270, 90 };
-            // the arm's end has no faces on its ends
-            static const int armFace[4] = { DIRECTION_BLOCK_BOTTOM, DIRECTION_BLOCK_TOP, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
-            static const float armUV[4][4] = { { 0.0f, 0.0f, 4.0f, 4.0f }, { 4.0f, 4.0f, 0.0f, 0.0f }, { 4.0f, 4.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 4.0f, 4.0f } };
-            static const int armUVRotation[4] = { 90, 90, 0, 0 };
+            // the arm reaching into this block is drawn with the piston head, as Minecraft does
             int sideLoc = SWATCH_INDEX(12, 6);
             // piston_side, piston_inner (the front), piston_bottom (the back)
             int bodyLoc[6] = { sideLoc, sideLoc, sideLoc + 2, sideLoc + 1, sideLoc, sideLoc };
@@ -10687,14 +11352,6 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 if (retCode >= MW_BEGIN_ERRORS)
                     return retCode;
             }
-            startVertexIndex = saveBoxCustomUVVertices(boxIndex, 6.0f, 10.0f, 6.0f, 10.0f, 0.0f, 4.0f);
-            if (startVertexIndex < 0)
-                return MW_WORLD_EXPORT_TOO_LARGE;
-            for (int f = 0; f < 4; f++) {
-                retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, armFace[f], 0, sideLoc, armUV[f], armUVRotation[f]);
-                if (retCode >= MW_BEGIN_ERRORS)
-                    return retCode;
-            }
             totalVertexCount = gModel.vertexCount - totalVertexCount;
             identityMtx(mtx);
             translateToOriginMtx(mtx, boxIndex);
@@ -10709,9 +11366,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     // The part of the piston that moves.
     case BLOCK_PISTON_HEAD:						// saveBillboardOrGeometry
     {
-        // Minecraft's template_piston_head_short model, facing north: the head's plate, 4 pixels thick, and the part of the arm
-        // in this block, to Z = 16 (the rest of the arm is drawn with the piston's body, in the next block; see BLOCK_PISTON).
-        // That part's faces are the same as the full arm's. It's turned to face as the blockstate says, by "x" and then "y".
+        // Minecraft's template_piston_head model (a resting head is not "short"), facing north: the head's plate, 4 pixels thick,
+        // and the arm, which reaches 4 pixels into the piston's body, in the next block, to Z = 20. It's turned to face as the
+        // blockstate says, by "x" and then "y".
         // 10,6 sticky head, 11,6 head, 12,6 side
         // down, up, north, south, west, east
         static const float headRotation[6][2] = { { 90.0f, 0.0f }, { 270.0f, 0.0f }, { 0.0f, 0.0f }, { 0.0f, 180.0f }, { 0.0f, 270.0f }, { 0.0f, 90.0f } };
@@ -10721,7 +11378,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         static const int plateUVRotation[6] = { 180, 0, 0, 0, 270, 90 };
         // the arm has no faces on its ends
         static const int armFace[4] = { DIRECTION_BLOCK_BOTTOM, DIRECTION_BLOCK_TOP, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
-        static const float armUV[4][4] = { { 4.0f, 0.0f, 16.0f, 4.0f }, { 4.0f, 0.0f, 16.0f, 4.0f }, { 16.0f, 4.0f, 4.0f, 0.0f }, { 4.0f, 0.0f, 16.0f, 4.0f } };
+        static const float armUV[4][4] = { { 0.0f, 0.0f, 16.0f, 4.0f }, { 0.0f, 0.0f, 16.0f, 4.0f }, { 16.0f, 4.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 16.0f, 4.0f } };
         static const int armUVRotation[4] = { 90, 270, 0, 0 };
         int sideLoc = SWATCH_INDEX(12, 6);
         int unstickyLoc = SWATCH_INDEX(11, 6);
@@ -10744,7 +11401,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             if (retCode >= MW_BEGIN_ERRORS)
                 return retCode;
         }
-        startVertexIndex = saveBoxCustomUVVertices(boxIndex, 6.0f, 10.0f, 6.0f, 10.0f, 4.0f, 16.0f);
+        startVertexIndex = saveBoxCustomUVVertices(boxIndex, 6.0f, 10.0f, 6.0f, 10.0f, 4.0f, 20.0f);
         if (startVertexIndex < 0)
             return MW_WORLD_EXPORT_TOO_LARGE;
         for (int f = 0; f < 4; f++) {
@@ -11009,15 +11666,43 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                         swatchLoc = SWATCH_INDEX(15, 71);
                         break;
                     case 0x20:
-                        // weathered version
-                        swatchLoc = SWATCH_INDEX(0, 72);
+                        // weathered version (the tile after oxidized)
+                        swatchLoc = SWATCH_INDEX(1, 72);
                         break;
                     case 0x30:
                         // oxidized version
-                        swatchLoc = SWATCH_INDEX(1, 72);
+                        swatchLoc = SWATCH_INDEX(0, 72);
                         break;
                     }
                 }
+            }
+            if (!endRod && !gModel.print3D) {
+                // Minecraft's lightning_rod (and lightning_rod_on, the same shape) model, pointing up, turned by "x" and then "y";
+                // dataVal 0x7 points down, up, north, south, west, east. The elements are made from the model's JSON.
+                ModelElement rodElements[] = {
+                { { 6, 12, 6 }, { 10, 16, 10 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 4, 0, 0 }, 0, 0, swatchLoc }
+                } },
+                { { 7, 0, 7 }, { 9, 12, 9 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 4, 2, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 4, 2, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 4, 2, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 4, 2, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 4, 2, 6 }, 0, 0, swatchLoc }
+                } },
+                };
+                // "x" and "y" for each direction
+                static const int rodAngle[6][2] = { { 180, 0 }, { 0, 0 }, { 90, 0 }, { 90, 180 }, { 90, 270 }, { 90, 90 } };
+                int rodFacing = dataVal & 0x7;
+                if (rodFacing > 5)
+                    rodFacing = 1;
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, swatchLoc, rodElements, 2, rodAngle[rodFacing][0], rodAngle[rodFacing][1], false);
+                break;
             }
             yrot = zrot = 0.0f;
             //dir = DIRECTION_BLOCK_TOP;
@@ -11223,8 +11908,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             break;
         case BLOCK_COPPER_BARS:
         case BLOCK_WAXED_COPPER_BARS:
-            // get colored swatch
-            swatchLoc += ((dataVal & 0x30) >> 4);
+            // get colored swatch: the tiles are copper, exposed, oxidized, weathered, while dataVal's 0x30 bits are copper,
+            // exposed, weathered, oxidized
+            {
+                static const int barsTile[4] = { 0, 1, 3, 2 };
+                swatchLoc += barsTile[(dataVal & 0x30) >> 4];
+            }
             topSwatchLoc = swatchLoc;	// same
             break;
         }
@@ -11508,6 +12197,307 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                     0, 16, 0, 16, 7 - fatten, 9 + fatten);
                 break;
             }
+        }
+        break; // saveBillboardOrGeometry
+
+    case BLOCK_VAULT:						// saveBillboardOrGeometry
+    {
+        // Minecraft's vault model: the cage, a whole block, then, inside, the faces of the "cage_inverted_faces" element, an element
+        // turned inside out so that its faces look inward: the floor, 3 pixels up, and the walls and ceiling, which lie on the cage's
+        // faces (0.002 pixels in, in Minecraft) and so are output only as backs, when faces are single-sided. The model is turned by
+        // "y"; dataVal 0x3 faces north, east, south, west, 0x4 is ominous, and 0x18 is the state: inactive, active, unlocking,
+        // ejecting. (For 3D printing, the vault is a whole block, with getSwatch's textures.)
+        int ominous = (dataVal & 0x4) ? 1 : 0;
+        int vaultState = (dataVal >> 3) & 0x3;
+        int bottomLoc = SWATCH_INDEX(0, 65) + ominous;
+        int topLoc = ((vaultState == 3) ? SWATCH_INDEX(14, 65) : SWATCH_INDEX(12, 65)) + ominous;
+        int frontLoc = ((vaultState == 0) ? SWATCH_INDEX(4, 65) : ((vaultState == 1) ? SWATCH_INDEX(6, 65) : SWATCH_INDEX(2, 65))) + ominous;
+        int sideLoc = ((vaultState == 0) ? SWATCH_INDEX(8, 65) : SWATCH_INDEX(10, 65)) + ominous;
+        ModelElement vaultElements[] = {
+            // the cage
+            { { 0, 0, 0 }, { 16, 16, 16 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 0, frontLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, topLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 16 }, 0, 0, bottomLoc }
+            } },
+            // inside: the floor
+            { { 0, 3, 0 }, { 16, 3, 16 }, 1, {
+                { DIRECTION_BLOCK_TOP, { 16, 16, 0, 0 }, 0, 0, bottomLoc }
+            } },
+            // ceiling
+            { { 0, 16, 0 }, { 16, 16, 16 }, 1, {
+                { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 0, 1, topLoc }
+            } },
+            // north (the front), south, west, east walls
+            { { 0, 3, 0 }, { 16, 16, 0 }, 1, {
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 16, 0, 0, 13 }, 0, 1, frontLoc }
+            } },
+            { { 0, 3, 16 }, { 16, 16, 16 }, 1, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 16, 0, 0, 13 }, 0, 1, sideLoc }
+            } },
+            { { 0, 3, 0 }, { 0, 16, 16 }, 1, {
+                { DIRECTION_BLOCK_SIDE_HI_X, { 16, 0, 0, 13 }, 0, 1, sideLoc }
+            } },
+            { { 16, 3, 0 }, { 16, 16, 16 }, 1, {
+                { DIRECTION_BLOCK_SIDE_LO_X, { 16, 0, 0, 13 }, 0, 1, sideLoc }
+            } },
+        };
+        retCode |= saveRotatedModel(boxIndex, type, dataVal, bottomLoc, vaultElements, 7, 0, 90 * (dataVal & 0x3), false);
+    }
+    break; // saveBillboardOrGeometry
+
+    case BLOCK_TRIPWIRE:						// saveBillboardOrGeometry
+        if (gModel.print3D) {
+            // far too thin to print
+            return 0;
+        }
+        else {
+            // Minecraft's tripwire_n, _ne, _ns, _nse, or _nsew model (or the tripwire_attached_ ones, dataVal 0x4, which use
+            // another part of the texture), by which sides the string connects to, turned by "y". dataVal 0x400, 0x800, 0x100,
+            // 0x200 are north, east, south, west; older worlds don't store these, so then the string connects to neighboring
+            // tripwire and tripwire hooks. The elements are made from the models' JSON.
+            int wireLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_TRIPWIRE].txrX, gBlockDefinitions[BLOCK_TRIPWIRE].txrY);
+            ModelElement looseNElements[] = {
+                { { 7.75f, 1.5f, 0 }, { 8.25f, 1.5f, 4 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 4 }, { 8.25f, 1.5f, 8 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 8 }, { 8.25f, 1.5f, 12 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+            };
+            ModelElement looseNEElements[] = {
+                { { 7.75f, 1.5f, 0 }, { 8.25f, 1.5f, 4 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 4 }, { 8.25f, 1.5f, 8 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 8, 1.5f, 7.75f }, { 12, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 6, 16, 4 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 0, 0, wireLoc }
+                } },
+                { { 12, 1.5f, 7.75f }, { 16, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 6, 16, 4 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 0, 0, wireLoc }
+                } },
+            };
+            ModelElement looseNSElements[] = {
+                { { 7.75f, 1.5f, 0 }, { 8.25f, 1.5f, 4 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 4 }, { 8.25f, 1.5f, 8 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 8 }, { 8.25f, 1.5f, 12 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 12 }, { 8.25f, 1.5f, 16 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+            };
+            ModelElement looseNSEElements[] = {
+                { { 7.75f, 1.5f, 0 }, { 8.25f, 1.5f, 4 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 4 }, { 8.25f, 1.5f, 8 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 8 }, { 8.25f, 1.5f, 12 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 12 }, { 8.25f, 1.5f, 16 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 8, 1.5f, 7.75f }, { 12, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 6, 16, 4 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 0, 0, wireLoc }
+                } },
+                { { 12, 1.5f, 7.75f }, { 16, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 6, 16, 4 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 0, 0, wireLoc }
+                } },
+            };
+            ModelElement looseNSEWElements[] = {
+                { { 7.75f, 1.5f, 0 }, { 8.25f, 1.5f, 4 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 4 }, { 8.25f, 1.5f, 8 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 8 }, { 8.25f, 1.5f, 12 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 12 }, { 8.25f, 1.5f, 16 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 0, 1.5f, 7.75f }, { 4, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 6, 16, 4 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 0, 0, wireLoc }
+                } },
+                { { 4, 1.5f, 7.75f }, { 8, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 6, 16, 4 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 0, 0, wireLoc }
+                } },
+                { { 8, 1.5f, 7.75f }, { 12, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 6, 16, 4 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 0, 0, wireLoc }
+                } },
+                { { 12, 1.5f, 7.75f }, { 16, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 6, 16, 4 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 0, 0, wireLoc }
+                } },
+            };
+            ModelElement attachedNElements[] = {
+                { { 7.75f, 1.5f, 0 }, { 8.25f, 1.5f, 4 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 4 }, { 8.25f, 1.5f, 8 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 8 }, { 8.25f, 1.5f, 12 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+            };
+            ModelElement attachedNEElements[] = {
+                { { 7.75f, 1.5f, 0 }, { 8.25f, 1.5f, 4 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 4 }, { 8.25f, 1.5f, 8 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 8, 1.5f, 7.75f }, { 12, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 8, 16, 6 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 0, 0, wireLoc }
+                } },
+                { { 12, 1.5f, 7.75f }, { 16, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 8, 16, 6 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 0, 0, wireLoc }
+                } },
+            };
+            ModelElement attachedNSElements[] = {
+                { { 7.75f, 1.5f, 0 }, { 8.25f, 1.5f, 4 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 4 }, { 8.25f, 1.5f, 8 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 8 }, { 8.25f, 1.5f, 12 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 12 }, { 8.25f, 1.5f, 16 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+            };
+            ModelElement attachedNSEElements[] = {
+                { { 7.75f, 1.5f, 0 }, { 8.25f, 1.5f, 4 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 4 }, { 8.25f, 1.5f, 8 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 8 }, { 8.25f, 1.5f, 12 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 12 }, { 8.25f, 1.5f, 16 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 8, 1.5f, 7.75f }, { 12, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 8, 16, 6 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 0, 0, wireLoc }
+                } },
+                { { 12, 1.5f, 7.75f }, { 16, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 8, 16, 6 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 0, 0, wireLoc }
+                } },
+            };
+            ModelElement attachedNSEWElements[] = {
+                { { 7.75f, 1.5f, 0 }, { 8.25f, 1.5f, 4 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 4 }, { 8.25f, 1.5f, 8 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 8 }, { 8.25f, 1.5f, 12 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 12 }, { 8.25f, 1.5f, 16 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 0, 1.5f, 7.75f }, { 4, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 8, 16, 6 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 0, 0, wireLoc }
+                } },
+                { { 4, 1.5f, 7.75f }, { 8, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 8, 16, 6 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 0, 0, wireLoc }
+                } },
+                { { 8, 1.5f, 7.75f }, { 12, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 8, 16, 6 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 0, 0, wireLoc }
+                } },
+                { { 12, 1.5f, 7.75f }, { 16, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 8, 16, 6 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 0, 0, wireLoc }
+                } },
+            };
+            const ModelElement* wireModel[2][5] = { { looseNElements, looseNEElements, looseNSElements, looseNSEElements, looseNSEWElements },
+                { attachedNElements, attachedNEElements, attachedNSElements, attachedNSEElements, attachedNSEWElements } };
+            static const int wireCount[2][5] = { { 3, 4, 4, 6, 8 }, { 3, 4, 4, 6, 8 } };
+            // for each set of connections, bits north 0x1, east 0x2, south 0x4, west 0x8: the model, n, ne, ns, nse, nsew, and "y"
+            static const int wireModelIndex[16] = { 2, 0, 0, 1, 0, 2, 1, 3, 0, 1, 2, 3, 1, 3, 3, 4 };
+            static const int wireYAngle[16] = { 0, 0, 90, 0, 180, 0, 90, 0, 270, 270, 90, 270, 180, 180, 90, 0 };
+            int connections = ((dataVal & 0x400) ? 0x1 : 0) | ((dataVal & 0x800) ? 0x2 : 0) | ((dataVal & 0x100) ? 0x4 : 0) | ((dataVal & 0x200) ? 0x8 : 0);
+            if (!gIs13orNewer) {
+                static const int wireNeighbor[4] = { DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_X, DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X };
+                for (i = 0; i < 4; i++) {
+                    int neighborWireType = gBoxData[boxIndex + gFaceOffset[wireNeighbor[i]]].origType;
+                    if ((neighborWireType == BLOCK_TRIPWIRE) || (neighborWireType == BLOCK_TRIPWIRE_HOOK))
+                        connections |= (1 << i);
+                }
+            }
+            int attachedWire = (dataVal & 0x4) ? 1 : 0;
+            int wireIndex = wireModelIndex[connections];
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, wireLoc, wireModel[attachedWire][wireIndex], wireCount[attachedWire][wireIndex], 0, wireYAngle[connections], false);
         }
         break; // saveBillboardOrGeometry
 
@@ -11826,6 +12816,333 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_SEA_PICKLE:						// saveBillboardOrGeometry
         swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
         itemCount = (dataVal & 0x3) + 1;
+        if (!gModel.print3D) {
+            // Minecraft's sea_pickle, two_, three_, and four_sea_pickles models, or the dead_ ones (not waterlogged, no glowing
+            // tops), turned a random quarter turn as Minecraft does. The elements are made from the models' JSON.
+            ModelElement live1[] = {
+                { { 6, 0, 6 }, { 10, 6, 10 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 6, 5.95f, 6 }, { 10, 5.95f, 10 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 7.5f, 5.2f, 8 }, { 8.5f, 8.7f, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 0, 3, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 1, 5 }, 0, 0, swatchLoc }
+                }, 45, { 8, 8, 8 }, 0, 1 },
+                { { 8, 5.2f, 7.5f }, { 8, 8.7f, 8.5f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 13, 0, 15, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 15, 0, 13, 5 }, 0, 0, swatchLoc }
+                }, 45, { 8, 8, 8 }, 0, 1 },
+            };
+            ModelElement live2[] = {
+                { { 3, 0, 3 }, { 7, 6, 7 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 3, 5.95f, 3 }, { 7, 5.95f, 7 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 8, 0, 8 }, { 12, 4, 12 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 9 }, 0, 0, swatchLoc }
+                } },
+                { { 8, 3.95f, 8 }, { 12, 3.95f, 12 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 4.5f, 5.2f, 5 }, { 5.5f, 8.7f, 5 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 0, 3, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 1, 5 }, 0, 0, swatchLoc }
+                }, 45, { 5, 5.6f, 5 }, 0, 1 },
+                { { 5, 5.2f, 4.5f }, { 5, 8.7f, 5.5f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 13, 0, 15, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 15, 0, 13, 5 }, 0, 0, swatchLoc }
+                }, 45, { 5, 5.6f, 5 }, 0, 1 },
+                { { 9.5f, 3.2f, 10 }, { 10.5f, 6.7f, 10 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 0, 3, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 1, 5 }, 0, 0, swatchLoc }
+                }, 45, { 10, 8, 10 }, 0, 1 },
+                { { 10, 3.2f, 9.5f }, { 10, 6.7f, 10.5f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 13, 0, 15, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 15, 0, 13, 5 }, 0, 0, swatchLoc }
+                }, 45, { 10, 8, 10 }, 0, 1 },
+            };
+            ModelElement live3[] = {
+                { { 6, 0, 9 }, { 10, 6, 13 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 6, 5.95f, 9 }, { 10, 5.95f, 13 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 2, 0, 2 }, { 6, 4, 6 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 9 }, 0, 0, swatchLoc }
+                } },
+                { { 2, 3.95f, 2 }, { 6, 3.95f, 6 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 8, 0, 4 }, { 12, 6, 8 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 8, 5.95f, 4 }, { 12, 5.95f, 8 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 7.5f, 5.2f, 11 }, { 8.5f, 8.7f, 11 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 0, 3, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 1, 5 }, 0, 0, swatchLoc }
+                }, 45, { 8, 8, 11 }, 0, 1 },
+                { { 8, 5.2f, 10.5f }, { 8, 8.7f, 11.5f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 13, 0, 15, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 15, 0, 13, 5 }, 0, 0, swatchLoc }
+                }, 45, { 8, 8, 11 }, 0, 1 },
+                { { 3.5f, 3.2f, 4 }, { 4.5f, 6.7f, 4 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 0, 3, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 1, 5 }, 0, 0, swatchLoc }
+                }, 45, { 4, 8, 4 }, 0, 1 },
+                { { 4, 3.2f, 3.5f }, { 4, 6.7f, 4.5f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 13, 0, 15, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 15, 0, 13, 5 }, 0, 0, swatchLoc }
+                }, 45, { 4, 8, 4 }, 0, 1 },
+                { { 9.5f, 5.2f, 6 }, { 10.5f, 8.7f, 6 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 0, 3, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 1, 5 }, 0, 0, swatchLoc }
+                }, 45, { 10, 8, 6 }, 0, 1 },
+                { { 10, 5.2f, 5.5f }, { 10, 8.7f, 6.5f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 13, 0, 15, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 15, 0, 13, 5 }, 0, 0, swatchLoc }
+                }, 45, { 10, 8, 6 }, 0, 1 },
+            };
+            ModelElement live4[] = {
+                { { 2, 0, 2 }, { 6, 6, 6 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 2, 5.95f, 2 }, { 6, 5.95f, 6 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 9, 0, 10 }, { 13, 4, 14 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 9 }, 0, 0, swatchLoc }
+                } },
+                { { 9, 3.95f, 10 }, { 13, 3.95f, 14 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 9, 0, 2 }, { 13, 6, 6 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 9, 5.95f, 2 }, { 13, 5.95f, 6 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 2, 0, 8 }, { 6, 7, 12 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 12 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 12 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 12 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 12 }, 0, 0, swatchLoc }
+                } },
+                { { 2, 6.95f, 8 }, { 6, 6.95f, 12 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 3.5f, 5.2f, 4 }, { 4.5f, 8.7f, 4 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 0, 3, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 1, 5 }, 0, 0, swatchLoc }
+                }, 45, { 4, 8, 4 }, 0, 1 },
+                { { 4, 5.2f, 3.5f }, { 4, 8.7f, 4.5f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 13, 0, 15, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 15, 0, 13, 5 }, 0, 0, swatchLoc }
+                }, 45, { 4, 8, 4 }, 0, 1 },
+                { { 10.5f, 3.2f, 12 }, { 11.5f, 6.7f, 12 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 0, 3, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 1, 5 }, 0, 0, swatchLoc }
+                }, 45, { 11, 8, 12 }, 0, 1 },
+                { { 11, 3.2f, 11.5f }, { 11, 6.7f, 12.5f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 13, 0, 15, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 15, 0, 13, 5 }, 0, 0, swatchLoc }
+                }, 45, { 11, 8, 12 }, 0, 1 },
+                { { 10.5f, 5.2f, 4 }, { 11.5f, 8.7f, 4 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 0, 3, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 1, 5 }, 0, 0, swatchLoc }
+                }, 45, { 11, 8, 4 }, 0, 1 },
+                { { 11, 5.2f, 3.5f }, { 11, 8.7f, 4.5f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 13, 0, 15, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 15, 0, 13, 5 }, 0, 0, swatchLoc }
+                }, 45, { 11, 8, 4 }, 0, 1 },
+                { { 3.5f, 6.2f, 10 }, { 4.5f, 9.7f, 10 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 0, 3, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 1, 5 }, 0, 0, swatchLoc }
+                }, 45, { 4, 8, 10 }, 0, 1 },
+                { { 4, 6.2f, 9.5f }, { 4, 9.7f, 10.5f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 13, 0, 15, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 15, 0, 13, 5 }, 0, 0, swatchLoc }
+                }, 45, { 4, 8, 10 }, 0, 1 },
+            };
+            ModelElement dead1[] = {
+                { { 6, 0, 6 }, { 10, 6, 10 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 6, 5.95f, 6 }, { 10, 5.95f, 10 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement dead2[] = {
+                { { 3, 0, 3 }, { 7, 6, 7 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 3, 5.95f, 3 }, { 7, 5.95f, 7 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 8, 0, 8 }, { 12, 4, 12 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 9 }, 0, 0, swatchLoc }
+                } },
+                { { 8, 3.95f, 8 }, { 12, 3.95f, 12 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement dead3[] = {
+                { { 6, 0, 9 }, { 10, 6, 13 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 6, 5.95f, 9 }, { 10, 5.95f, 13 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 2, 0, 2 }, { 6, 4, 6 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 9 }, 0, 0, swatchLoc }
+                } },
+                { { 2, 3.95f, 2 }, { 6, 3.95f, 6 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 8, 0, 4 }, { 12, 6, 8 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 8, 5.95f, 4 }, { 12, 5.95f, 8 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement dead4[] = {
+                { { 2, 0, 2 }, { 6, 6, 6 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 2, 5.95f, 2 }, { 6, 5.95f, 6 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 9, 0, 10 }, { 13, 4, 14 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 9 }, 0, 0, swatchLoc }
+                } },
+                { { 9, 3.95f, 10 }, { 13, 3.95f, 14 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 9, 0, 2 }, { 13, 6, 6 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 9, 5.95f, 2 }, { 13, 5.95f, 6 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 2, 0, 8 }, { 6, 7, 12 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 12 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 12 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 12 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 12 }, 0, 0, swatchLoc }
+                } },
+                { { 2, 6.95f, 8 }, { 6, 6.95f, 12 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+            };
+            const ModelElement* pickleModel[2][4] = { { dead1, dead2, dead3, dead4 }, { live1, live2, live3, live4 } };
+            static const int pickleCount[2][4] = { { 2, 4, 6, 8 }, { 4, 8, 12, 16 } };
+            int alive = (dataVal & WATERLOGGED_BIT) ? 1 : 0;
+            int pickleAngle;
+            randomRotation(boxIndex, pickleAngle);
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, swatchLoc, pickleModel[alive][itemCount - 1], pickleCount[alive][itemCount - 1], 0, pickleAngle, false);
+            break;
+        }
         {
 
             gUsingTransform = 1;
@@ -11918,6 +13235,104 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
         swatchLoc += ((dataVal >> 2) & 0x3);
         itemCount = (dataVal & 0x3) + 1;
+        if (!gModel.print3D) {
+            // Minecraft's turtle_egg, two_, three_, and four_turtle_eggs models (the cracked ones are the same with another
+            // texture), turned a random quarter turn as Minecraft does. The elements are made from the models' JSON.
+            ModelElement egg1[] = {
+                { { 5, 0, 4 }, { 9, 7, 8 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 4, 5, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 1, 4, 5, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 1, 4, 5, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 1, 4, 5, 11 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement egg2[] = {
+                { { 5, 0, 4 }, { 9, 7, 8 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 4, 5, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 1, 4, 5, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 1, 4, 5, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 1, 4, 5, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 1, 0, 7 }, { 5, 5, 11 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 7, 10, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 6, 7, 10, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 10, 10, 14, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 10, 10, 14, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 10, 10, 14, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 10, 10, 14, 15 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement egg3[] = {
+                { { 5, 0, 4 }, { 9, 7, 8 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 4, 5, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 1, 4, 5, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 1, 4, 5, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 1, 4, 5, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 1, 0, 7 }, { 5, 5, 11 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 7, 10, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 6, 7, 10, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 10, 10, 14, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 10, 10, 14, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 10, 10, 14, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 10, 10, 14, 15 }, 0, 0, swatchLoc }
+                } },
+                { { 11, 0, 7 }, { 14, 4, 10 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 5, 0, 8, 3 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 5, 0, 8, 3 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 8, 3, 11, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 8, 3, 11, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 3, 11, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 8, 3, 11, 7 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement egg4[] = {
+                { { 5, 0, 4 }, { 9, 7, 8 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 4, 5, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 1, 4, 5, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 1, 4, 5, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 1, 4, 5, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 1, 0, 7 }, { 5, 5, 11 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 7, 10, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 6, 7, 10, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 10, 10, 14, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 10, 10, 14, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 10, 10, 14, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 10, 10, 14, 15 }, 0, 0, swatchLoc }
+                } },
+                { { 11, 0, 7 }, { 14, 4, 10 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 5, 0, 8, 3 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 5, 0, 8, 3 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 8, 3, 11, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 8, 3, 11, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 3, 11, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 8, 3, 11, 7 }, 0, 0, swatchLoc }
+                } },
+                { { 6, 0, 9 }, { 10, 4, 13 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 11, 4, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 11, 4, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 11, 8, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 11, 8, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 4, 11, 8, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 4, 11, 8, 15 }, 0, 0, swatchLoc }
+                } },
+            };
+            const ModelElement* eggModel[4] = { egg1, egg2, egg3, egg4 };
+            static const int eggCount[4] = { 1, 2, 3, 4 };
+            int eggAngle;
+            randomRotation(boxIndex, eggAngle);
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, swatchLoc, eggModel[itemCount - 1], eggCount[itemCount - 1], 0, eggAngle, false);
+            break;
+        }
         {
             gUsingTransform = 1;
             // egg sizes, 1,2,3,4
@@ -11989,6 +13404,131 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
         age = (dataVal & 0x1);
         leafSize = (dataVal & 0x6) >> 1;
+
+        if (!gModel.print3D) {
+            // Minecraft's bamboo1-4_age0 or _age1 models, one picked at random (each uses a different part of the texture), and the
+            // bamboo_small_leaves or bamboo_large_leaves model, all offset randomly in X and Z as Minecraft does. The elements are
+            // made from the models' JSON.
+            ModelElement stalk1_0Elements[] = {
+                { { 7, 0, 7 }, { 9, 16, 9 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 4, 15, 6 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 0, 15, 2 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 2, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 2, 16 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement stalk2_0Elements[] = {
+                { { 7, 0, 7 }, { 9, 16, 9 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 4, 15, 6 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 0, 15, 2 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 5, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 5, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 3, 0, 5, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 3, 0, 5, 16 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement stalk3_0Elements[] = {
+                { { 7, 0, 7 }, { 9, 16, 9 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 4, 15, 6 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 0, 15, 2 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 0, 8, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 0, 8, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 6, 0, 8, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 6, 0, 8, 16 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement stalk4_0Elements[] = {
+                { { 7, 0, 7 }, { 9, 16, 9 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 4, 15, 6 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 0, 15, 2 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 9, 0, 11, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 9, 0, 11, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 9, 0, 11, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 9, 0, 11, 16 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement stalk1_1Elements[] = {
+                { { 6.5f, 0, 6.5f }, { 9.5f, 16, 9.5f }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 4, 16, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 0, 16, 3 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 3, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 3, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 3, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 3, 16 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement stalk2_1Elements[] = {
+                { { 6.5f, 0, 6.5f }, { 9.5f, 16, 9.5f }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 4, 16, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 0, 16, 3 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 6, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 6, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 3, 0, 6, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 3, 0, 6, 16 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement stalk3_1Elements[] = {
+                { { 6.5f, 0, 6.5f }, { 9.5f, 16, 9.5f }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 4, 16, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 0, 16, 3 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 0, 9, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 0, 9, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 6, 0, 9, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 6, 0, 9, 16 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement stalk4_1Elements[] = {
+                { { 6.5f, 0, 6.5f }, { 9.5f, 16, 9.5f }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 4, 16, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 0, 16, 3 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 9, 0, 12, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 9, 0, 12, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 9, 0, 12, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 9, 0, 12, 16 }, 0, 0, swatchLoc }
+                } },
+            };
+            const ModelElement* stalkModel[2][4] = { { stalk1_0Elements, stalk2_0Elements, stalk3_0Elements, stalk4_0Elements },
+                { stalk1_1Elements, stalk2_1Elements, stalk3_1Elements, stalk4_1Elements } };
+            static const int stalkCount[2][4] = { { 1, 1, 1, 1 }, { 1, 1, 1, 1 } };
+            int leafLoc = (leafSize == 2) ? SWATCH_INDEX(6, 37) : SWATCH_INDEX(8, 37);
+            ModelElement smallLeafElements[] = {
+                { { 0.8f, 0, 8 }, { 15.2f, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, leafLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, leafLoc }
+                } },
+                { { 8, 0, 0.8f }, { 8, 16, 15.2f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 16 }, 0, 1, leafLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 16 }, 0, 0, leafLoc }
+                } },
+            };
+            ModelElement largeLeafElements[] = {
+                { { 0.8f, 0, 8 }, { 15.2f, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, leafLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, leafLoc }
+                } },
+                { { 8, 0, 0.8f }, { 8, 16, 15.2f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 16 }, 0, 1, leafLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 16 }, 0, 0, leafLoc }
+                } },
+            };
+            wobbleObjectLocation(boxIndex, shiftX, shiftZ);
+            int variant = (int)(getRand3to1(boxIndex) * 4.0f) & 0x3;
+            gUsingTransform = 1;
+            totalVertexCount = gModel.vertexCount;
+            retCode |= saveModelElements(boxIndex, type, dataVal, swatchLoc, stalkModel[age][variant], stalkCount[age][variant], 0.0f);
+            if (leafSize == 1)
+                retCode |= saveModelElements(boxIndex, type, dataVal, leafLoc, smallLeafElements, 2, 0.0f);
+            else if (leafSize == 2)
+                retCode |= saveModelElements(boxIndex, type, dataVal, leafLoc, largeLeafElements, 2, 0.0f);
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            translateMtx(mtx, shiftX / 16.0f, 0.0f, shiftZ / 16.0f);
+            transformVertices(totalVertexCount, mtx);
+            gUsingTransform = 0;
+            break;
+        }
 
         gUsingTransform = 1;
         totalVertexCount = gModel.vertexCount;
@@ -12073,6 +13613,94 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_COMPOSTER:						// saveBillboardOrGeometry
     {
         swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+        if (!gModel.print3D) {
+            // Minecraft's composter model, plus for levels 1-7 composter_contents1-7, and for 8, composter_contents_ready. The
+            // elements are made from the models' JSON.
+            int sideLoc = swatchLoc + 1;
+            int bottomLoc = swatchLoc + 2;
+            int compostLoc = swatchLoc + 3;
+            int readyLoc = swatchLoc + 4;
+            ModelElement binElements[] = {
+                { { 0, 0, 0 }, { 16, 2, 16 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, bottomLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 16 }, 0, 0, bottomLoc }
+                } },
+                { { 0, 0, 0 }, { 2, 16, 16 }, 5, {
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 2, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 0, 16, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 16 }, 0, 0, sideLoc }
+                } },
+                { { 14, 0, 0 }, { 16, 16, 16 }, 5, {
+                    { DIRECTION_BLOCK_TOP, { 14, 0, 16, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 14, 0, 16, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 16 }, 0, 0, sideLoc }
+                } },
+                { { 2, 0, 0 }, { 14, 16, 2 }, 3, {
+                    { DIRECTION_BLOCK_TOP, { 2, 0, 14, 2 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 0, 14, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 0, 14, 16 }, 0, 0, sideLoc }
+                } },
+                { { 2, 0, 14 }, { 14, 16, 16 }, 3, {
+                    { DIRECTION_BLOCK_TOP, { 2, 14, 14, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 0, 14, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 0, 14, 16 }, 0, 0, sideLoc }
+                } },
+            };
+            ModelElement contents1Elements[] = {
+                { { 2, 0, 2 }, { 14, 3, 14 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 2, 2, 14, 14 }, 0, 0, compostLoc }
+                } },
+            };
+            ModelElement contents2Elements[] = {
+                { { 2, 0, 2 }, { 14, 5, 14 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 2, 2, 14, 14 }, 0, 0, compostLoc }
+                } },
+            };
+            ModelElement contents3Elements[] = {
+                { { 2, 0, 2 }, { 14, 7, 14 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 2, 2, 14, 14 }, 0, 0, compostLoc }
+                } },
+            };
+            ModelElement contents4Elements[] = {
+                { { 2, 0, 2 }, { 14, 9, 14 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 2, 2, 14, 14 }, 0, 0, compostLoc }
+                } },
+            };
+            ModelElement contents5Elements[] = {
+                { { 2, 0, 2 }, { 14, 11, 14 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 2, 2, 14, 14 }, 0, 0, compostLoc }
+                } },
+            };
+            ModelElement contents6Elements[] = {
+                { { 2, 0, 2 }, { 14, 13, 14 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 2, 2, 14, 14 }, 0, 0, compostLoc }
+                } },
+            };
+            ModelElement contents7Elements[] = {
+                { { 2, 0, 2 }, { 14, 15, 14 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 2, 2, 14, 14 }, 0, 0, compostLoc }
+                } },
+            };
+            ModelElement contents8Elements[] = {
+                { { 2, 0, 2 }, { 14, 15, 14 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 2, 2, 14, 14 }, 0, 0, readyLoc }
+                } },
+            };
+            const ModelElement* contentsModel[8] = { contents1Elements, contents2Elements, contents3Elements, contents4Elements,
+                contents5Elements, contents6Elements, contents7Elements, contents8Elements };
+            static const int contentsCount[8] = { 1, 1, 1, 1, 1, 1, 1, 1 };
+            gUsingTransform = 1;
+            retCode |= saveModelElements(boxIndex, type, dataVal, swatchLoc, binElements, 5, 0.0f);
+            int level = dataVal & 0xf;
+            if (level >= 1 && level <= 8)
+                retCode |= saveModelElements(boxIndex, type, dataVal, swatchLoc, contentsModel[level - 1], contentsCount[level - 1], 0.0f);
+            gUsingTransform = 0;
+            break;
+        }
         // we seal the composter against the compost height (possibly empty)
         int heightVal = (dataVal & 0xf);
         bool fullBin = (heightVal == 8);
@@ -12133,6 +13761,28 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         topSwatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
         sideSwatchLoc = topSwatchLoc + 1;
         bottomSwatchLoc = topSwatchLoc + 2;
+        if (!gModel.print3D) {
+            // Minecraft's stonecutter model, turned by "y"; dataVal 0x3 faces south, west, north, east. The elements are made from
+            // the model's JSON.
+            int sawLoc = SWATCH_INDEX(7, 41);
+            ModelElement cutterElements[] = {
+            { { 0, 0, 0 }, { 16, 9, 16 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 16 }, 0, 0, bottomSwatchLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, topSwatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 7, 16, 16 }, 0, 0, sideSwatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 7, 16, 16 }, 0, 0, sideSwatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 7, 16, 16 }, 0, 0, sideSwatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 7, 16, 16 }, 0, 0, sideSwatchLoc }
+            } },
+            { { 1, 9, 8 }, { 15, 16, 8 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 9, 15, 16 }, 0, 1, sawLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 15, 9, 1, 16 }, 0, 0, sawLoc }
+            } },
+            };
+            static const int cutterYAngle[4] = { 180, 270, 0, 90 };
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, topSwatchLoc, cutterElements, 2, 0, cutterYAngle[dataVal & 0x3], false);
+            break;
+        }
         saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0, 16, 0, 9, 0, 16);
 
         if (!gModel.print3D) {
@@ -12157,6 +13807,56 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     {
         int face = (dataVal & 0xc) >> 2;	// floor/wall/ceiling
         facing = dataVal & 0x3;
+        if (!gModel.print3D) {
+            // Minecraft's grindstone model, turned by "x" (0 floor, 90 wall, 180 ceiling) and "y"; dataVal 0x3 faces east, south,
+            // west, north. The elements are made from the model's JSON.
+            int sideLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            int pivotLoc = sideLoc + 1;
+            int roundLoc = sideLoc + 2;
+            int legLoc = SWATCH_INDEX(14, 19);
+            ModelElement grindElements[] = {
+            { { 12, 0, 6 }, { 14, 7, 10 }, 5, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 9, 4, 16 }, 0, 0, legLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 10, 16, 6, 9 }, 0, 0, legLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 12, 9, 14, 16 }, 0, 0, legLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 6, 9, 10, 16 }, 0, 0, legLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 12, 6, 14, 10 }, 0, 0, legLoc }
+            } },
+            { { 2, 0, 6 }, { 4, 7, 10 }, 5, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 12, 9, 14, 16 }, 0, 0, legLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 10, 16, 6, 9 }, 0, 0, legLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 9, 4, 16 }, 0, 0, legLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 6, 9, 10, 16 }, 0, 0, legLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 2, 6, 4, 10 }, 0, 0, legLoc }
+            } },
+            { { 12, 7, 5 }, { 14, 13, 11 }, 5, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 0, 8, 6 }, 0, 0, pivotLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 6, 6 }, 0, 0, pivotLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 0, 8, 6 }, 0, 0, pivotLoc },
+                { DIRECTION_BLOCK_TOP, { 8, 0, 10, 6 }, 0, 0, pivotLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 8, 0, 10, 6 }, 0, 0, pivotLoc }
+            } },
+            { { 2, 7, 5 }, { 4, 13, 11 }, 5, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 0, 8, 6 }, 0, 0, pivotLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 0, 8, 6 }, 0, 0, pivotLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 6, 6 }, 0, 0, pivotLoc },
+                { DIRECTION_BLOCK_TOP, { 8, 0, 10, 6 }, 0, 0, pivotLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 8, 0, 10, 6 }, 0, 0, pivotLoc }
+            } },
+            { { 4, 4, 2 }, { 12, 16, 14 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 8, 12 }, 0, 0, roundLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 12, 12 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 8, 12 }, 0, 0, roundLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 12, 12 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 8, 12 }, 0, 0, roundLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 8, 12 }, 0, 0, roundLoc }
+            } },
+            };
+            static const int grindYAngle[3][4] = { { 90, 180, 270, 0 }, { 90, 180, 270, 0 }, { 270, 0, 90, 180 } };
+            int grindFace = (face > 2) ? 0 : face;
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, sideLoc, grindElements, 5, 90 * grindFace, grindYAngle[grindFace][facing], false);
+            break;
+        }
 
         gUsingTransform = 1;
         totalVertexCount = littleTotalVertexCount = gModel.vertexCount;
@@ -12234,6 +13934,42 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_LECTERN: // saveBillboardOrGeometry
     {
         facing = dataVal & 0x3;
+        if (!gModel.print3D) {
+            // Minecraft's lectern model, turned by "y"; dataVal 0x3 faces east, south, west, north. The elements are made from the
+            // model's JSON.
+            int topLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            int sidesLoc = topLoc + 1;
+            int baseLoc = topLoc + 2;
+            int frontLoc = topLoc + 3;
+            int plankLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_OAK_PLANKS].txrX, gBlockDefinitions[BLOCK_OAK_PLANKS].txrY);
+            ModelElement lecternElements[] = {
+            { { 0, 0, 0 }, { 16, 2, 16 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 14, 16, 16 }, 0, 0, baseLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 6, 16, 8 }, 0, 0, baseLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 6, 16, 8 }, 0, 0, baseLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 6, 16, 8 }, 0, 0, baseLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 180, 0, baseLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 16 }, 0, 0, plankLoc }
+            } },
+            { { 4, 2, 4 }, { 12, 15, 12 }, 4, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 8, 13 }, 0, 0, frontLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 2, 16, 15, 8 }, 90, 0, sidesLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 8, 3, 16, 16 }, 0, 0, frontLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 2, 8, 15, 16 }, 90, 0, sidesLoc }
+            } },
+            { { 0.0125f, 12, 3 }, { 15.9875f, 16, 16 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 4 }, 0, 0, sidesLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 4, 13, 8 }, 0, 0, sidesLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 4, 16, 8 }, 0, 0, sidesLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 4, 13, 8 }, 0, 0, sidesLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 1, 16, 14 }, 180, 0, topLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 13 }, 0, 0, plankLoc }
+            }, -22.5f, { 8, 8, 8 }, 1, 0 },
+            };
+            static const int lecternYAngle[4] = { 90, 180, 270, 0 };
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, topLoc, lecternElements, 3, 0, lecternYAngle[facing], false);
+            break;
+        }
 
         gUsingTransform = 1;
         totalVertexCount = littleTotalVertexCount = gModel.vertexCount;
@@ -12337,6 +14073,80 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         translateMtx(mtx, 4.0f / 16.0f, -3.0f / 16.0f, -4.0f / 16.0f);
         transformVertices(littleTotalVertexCount, mtx);
 
+        if (!gModel.print3D) {
+            // turn the bell itself (drawn by Minecraft as a block entity) to its facing
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            rotateMtx(mtx, 0.0f, (float)facing * 90.0f, 0.0f);
+            translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(totalVertexCount, mtx);
+            gUsingTransform = 0;
+
+            // the support, Minecraft's bell_floor, bell_ceiling, bell_wall, or bell_between_walls model, by the attachment, turned by
+            // "y"; facing is east, south, west, north. The elements are made from the models' JSON.
+            int barLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_DARK_OAK_WOOD_STAIRS].txrX, gBlockDefinitions[BLOCK_DARK_OAK_WOOD_STAIRS].txrY);
+            int postLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_STONE].txrX, gBlockDefinitions[BLOCK_STONE].txrY);
+            ModelElement floorElements[] = {
+                { { 2, 13, 7 }, { 14, 15, 9 }, 4, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 2, 14, 4 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 3, 14, 5 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_TOP, { 2, 3, 14, 5 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 3, 14, 5 }, 0, 0, barLoc }
+                } },
+                { { 14, 0, 6 }, { 16, 16, 10 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 1, 2, 16 }, 0, 0, postLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 1, 4, 16 }, 0, 0, postLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 1, 2, 16 }, 0, 0, postLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 1, 4, 16 }, 0, 0, postLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 2, 4 }, 0, 0, postLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 0, 2, 4 }, 0, 0, postLoc }
+                } },
+                { { 0, 0, 6 }, { 2, 16, 10 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 1, 2, 16 }, 0, 0, postLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 1, 4, 16 }, 0, 0, postLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 1, 2, 16 }, 0, 0, postLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 1, 4, 16 }, 0, 0, postLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 2, 4 }, 0, 0, postLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 0, 2, 4 }, 0, 0, postLoc }
+                } },
+            };
+            ModelElement ceilingElements[] = {
+                { { 7, 13, 7 }, { 9, 16, 9 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 7, 2, 9, 5 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 1, 2, 3, 5 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 2, 8, 5 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 4, 2, 6, 5 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_TOP, { 1, 3, 3, 5 }, 0, 0, barLoc }
+                } },
+            };
+            ModelElement wallElements[] = {
+                { { 3, 13, 7 }, { 16, 15, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 2, 14, 4 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 5, 4, 7, 6 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 3, 14, 5 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 5, 4, 7, 6 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_TOP, { 2, 3, 14, 5 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 3, 14, 5 }, 0, 0, barLoc }
+                } },
+            };
+            ModelElement betweenElements[] = {
+                { { 0, 13, 7 }, { 16, 15, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 2, 14, 4 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 5, 4, 7, 6 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 3, 14, 5 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 5, 4, 7, 6 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_TOP, { 2, 3, 14, 5 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 3, 14, 5 }, 0, 0, barLoc }
+                } },
+            };
+            const ModelElement* supportModel[4] = { floorElements, ceilingElements, wallElements, betweenElements };
+            static const int supportCount[4] = { 3, 1, 1, 1 };
+            // "y" by attachment (floor, ceiling, single wall, double wall) and facing
+            static const int supportYAngle[4][4] = { { 90, 180, 270, 0 }, { 90, 180, 270, 0 }, { 0, 90, 180, 270 }, { 0, 90, 180, 270 } };
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, barLoc, supportModel[attachment], supportCount[attachment], 0, supportYAngle[attachment][facing], false);
+            break;
+        }
         swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_DARK_OAK_WOOD_STAIRS].txrX, gBlockDefinitions[BLOCK_DARK_OAK_WOOD_STAIRS].txrY);
         switch (attachment) {
         default:
@@ -12395,80 +14205,74 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             break;
         case 4 << 1:
         case 8 << 1:
-            // Weathered Copper Lantern
-            swatchLoc = SWATCH_INDEX(4, 72);
+            // Weathered Copper Lantern (the tile after oxidized)
+            swatchLoc = SWATCH_INDEX(5, 72);
             break;
         case 5 << 1:
         case 9 << 1:
             // Oxidized Copper Lantern
-            swatchLoc = SWATCH_INDEX(5, 72);
+            swatchLoc = SWATCH_INDEX(4, 72);
             break;
         }
 
-        gUsingTransform = 1;
-
-        // bottom of lantern
-        littleTotalVertexCount = gModel.vertexCount;
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, FLIP_LO_Z_FACE_VERTICALLY | FLIP_LO_X_FACE_VERTICALLY, 0, 6, 7, 14, 10, 16);
-        saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 0, 6, 1, 7);
-        littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-        identityMtx(mtx);
-        // put it on ground or hanging, 1 pixel higher
-        translateMtx(mtx, 5.0f / 16.0f, ((float)hanging - 7.0f) / 16.0f, -5.0f / 16.0f);
-        transformVertices(littleTotalVertexCount, mtx);
-
-        // top of lantern
-        littleTotalVertexCount = gModel.vertexCount;
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT, FLIP_LO_Z_FACE_VERTICALLY | FLIP_LO_X_FACE_VERTICALLY, 1, 5, 14, 16, 11, 15);
-        saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT, 1, 5, 2, 6);
-        littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-        identityMtx(mtx);
-        // put it on ground or hanging, 1 pixel higher
-        translateMtx(mtx, 5.0f / 16.0f, ((float)hanging - 7.0f) / 16.0f, -5.0f / 16.0f);
-        transformVertices(littleTotalVertexCount, mtx);
-
-        // chain & connector
-        if (!gModel.print3D) {
-            // TODO: maybe make the chains not have lit materials by playing games with the type passed in here?
-            // connector at top
-            for (i = 0; i < 2 - hanging; i++) {
-                littleTotalVertexCount = gModel.vertexCount;
-                saveBoxMultitileGeometry(boxIndex, BLOCK_LANTERN, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 11, 14, 4, 6, 8, 8);
-                littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-                identityMtx(mtx);
-                translateToOriginMtx(mtx, boxIndex);
-                translateMtx(mtx, -4.5f / 16.0f, ((float)hanging + 5.0f) / 16.0f, 0.0f);
-                rotateMtx(mtx, 0.0f, (float)i * 90.0f + 45.0f, 0.0f);
-                translateFromOriginMtx(mtx, boxIndex);
-                transformVertices(littleTotalVertexCount, mtx);
-            }
-            // chain, if any
-            if (hanging) {
-                // link
-                littleTotalVertexCount = gModel.vertexCount;
-                saveBoxMultitileGeometry(boxIndex, BLOCK_LANTERN, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 11, 14, 11, 15, 8, 8);
-                littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-                identityMtx(mtx);
-                translateToOriginMtx(mtx, boxIndex);
-                translateMtx(mtx, -4.5f / 16.0f, 0.0f / 16.0f, 0.0f);
-                rotateMtx(mtx, 0.0f, 135.0f, 0.0f);
-                translateFromOriginMtx(mtx, boxIndex);
-                transformVertices(littleTotalVertexCount, mtx);
-
-                // top link
-                littleTotalVertexCount = gModel.vertexCount;
-                saveBoxMultitileGeometry(boxIndex, BLOCK_LANTERN, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 11, 14, 8, 10, 8, 8);
-                littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-                identityMtx(mtx);
-                translateToOriginMtx(mtx, boxIndex);
-                translateMtx(mtx, -4.5f / 16.0f, 6.0f / 16.0f, 0.0f);
-                rotateMtx(mtx, 0.0f, 45.0f, 0.0f);
-                translateFromOriginMtx(mtx, boxIndex);
-                transformVertices(littleTotalVertexCount, mtx);
-            }
+        {
+            // Minecraft's lantern and lantern_hanging models. The elements are made from the models' JSON. The flat hanger pieces
+            // are left out for 3D printing.
+            ModelElement standingElements[] = {
+            { { 5, 0, 5 }, { 11, 7, 11 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 0, 9, 6, 15 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 9, 6, 15 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 2, 6, 9 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 2, 6, 9 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 2, 6, 9 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 2, 6, 9 }, 0, 0, swatchLoc }
+            } },
+            { { 6, 7, 6 }, { 10, 9, 10 }, 5, {
+                { DIRECTION_BLOCK_TOP, { 1, 10, 5, 14 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 0, 5, 2 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 1, 0, 5, 2 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 1, 0, 5, 2 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 1, 0, 5, 2 }, 0, 0, swatchLoc }
+            } },
+            { { 6.5f, 9, 8 }, { 9.5f, 11, 8 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 1, 11, 3 }, 0, 1, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 11, 1, 14, 3 }, 0, 0, swatchLoc }
+            }, 45, { 8, 8, 8 }, 0, 0 },
+            { { 8, 9, 6.5f }, { 8, 11, 9.5f }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_X, { 14, 10, 11, 12 }, 0, 1, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 11, 10, 14, 12 }, 0, 0, swatchLoc }
+            }, 45, { 8, 8, 8 }, 0, 0 },
+            };
+            ModelElement hangingElements[] = {
+            { { 5, 1, 5 }, { 11, 8, 11 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 0, 9, 6, 15 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 9, 6, 15 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 2, 6, 9 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 2, 6, 9 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 2, 6, 9 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 2, 6, 9 }, 0, 0, swatchLoc }
+            } },
+            { { 6, 8, 6 }, { 10, 10, 10 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 1, 10, 5, 14 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_TOP, { 1, 10, 5, 14 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 0, 5, 2 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 1, 0, 5, 2 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 1, 0, 5, 2 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 1, 0, 5, 2 }, 0, 0, swatchLoc }
+            } },
+            { { 6.5f, 11, 8 }, { 9.5f, 15, 8 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 1, 11, 5 }, 0, 1, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 11, 1, 14, 5 }, 0, 0, swatchLoc }
+            }, 45, { 8, 8, 8 }, 0, 0 },
+            { { 8, 10, 6.5f }, { 8, 16, 9.5f }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_X, { 14, 6, 11, 12 }, 0, 1, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 11, 6, 14, 12 }, 0, 0, swatchLoc }
+            }, 45, { 8, 8, 8 }, 0, 0 },
+            };
+            gUsingTransform = 1;
+            retCode |= saveModelElements(boxIndex, type, dataVal, swatchLoc, hanging ? hangingElements : standingElements, hanging ? 4 : 4, 0.0f);
+            gUsingTransform = 0;
         }
-
-        gUsingTransform = 0;
     }
     break; // saveBillboardOrGeometry
 
@@ -12494,50 +14298,30 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 break;
             case 3:
             case BIT_16 | 3:
-                // Weathered Copper Chain
-                swatchLoc = SWATCH_INDEX(12, 71);
+                // Weathered Copper Chain (the tile after oxidized)
+                swatchLoc = SWATCH_INDEX(13, 71);
                 break;
             case BIT_16:
             case BIT_32:
                 // Oxidized Copper Chain
-                swatchLoc = SWATCH_INDEX(13, 71);
+                swatchLoc = SWATCH_INDEX(12, 71);
                 break;
             }
 
-            gUsingTransform = 1;
-
-            // left half
+            // Minecraft's iron_chain model (all chains), along Y, turned by the blockstate for an X axis ("x" 90, "y" 90) or Z axis
+            // ("x" 90). The elements are made from the model's JSON.
+            ModelElement chainElements[] = {
+            { { 6.5f, 0, 8 }, { 9.5f, 16, 8 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 0, 16 }, 0, 1, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 3, 16 }, 0, 0, swatchLoc }
+            }, 45, { 8, 8, 8 }, 0, 0 },
+            { { 8, 0, 6.5f }, { 8, 16, 9.5f }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_X, { 6, 0, 3, 16 }, 0, 1, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 3, 0, 6, 16 }, 0, 0, swatchLoc }
+            }, 45, { 8, 8, 8 }, 0, 0 },
+            };
             int rotationDV = dataVal & 0xC; // x-axis == 4, z-axis == 8
-            littleTotalVertexCount = gModel.vertexCount;
-            saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, rotationDV, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 0, 3, 0, 16, 8, 8);
-            littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-            identityMtx(mtx);
-            translateToOriginMtx(mtx, boxIndex);
-            translateMtx(mtx, 6.5f / 16.0f, 0.0f, 0.0f);
-            rotateMtx(mtx, 0.0f, 135.0f, 0.0f);
-            // now rotate it if going along X or Z axis
-            if (rotationDV > 0) {
-                rotateMtx(mtx, (rotationDV == 4) ? 0.0f : 90.0f, 0.0f, (rotationDV == 4) ? 90.0f : 0.0f);
-            }
-            translateFromOriginMtx(mtx, boxIndex);
-            transformVertices(littleTotalVertexCount, mtx);
-
-            // right half
-            littleTotalVertexCount = gModel.vertexCount;
-            saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, rotationDV, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 3, 6, 0, 16, 8, 8);
-            littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-            identityMtx(mtx);
-            translateToOriginMtx(mtx, boxIndex);
-            translateMtx(mtx, 3.5f / 16.0f, 0.0f, 0.0f);
-            rotateMtx(mtx, 0.0f, 45.0f, 0.0f);
-            // now rotate it if going along X or Z axis
-            if (rotationDV > 0) {
-                rotateMtx(mtx, (rotationDV == 4) ? 0.0f : 90.0f, 0.0f, (rotationDV == 4) ? 90.0f : 0.0f);
-            }
-            translateFromOriginMtx(mtx, boxIndex);
-            transformVertices(littleTotalVertexCount, mtx);
-
-            gUsingTransform = 0;
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, swatchLoc, chainElements, 2, (rotationDV != 0) ? 90 : 0, (rotationDV == 4) ? 90 : 0, false);
         }
     }
     break; // saveBillboardOrGeometry
@@ -12554,6 +14338,102 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         swatchLoc = (lit ?
             (soul ? SWATCH_INDEX(15, 42) : unburntSwatchLoc + 1) :
             unburntSwatchLoc);
+        if (!gModel.print3D) {
+            // Minecraft's campfire and campfire_off models, turned by "y"; dataVal 0x3 faces east, south, west, north. The elements
+            // are made from the models' JSON.
+            int logLoc = unburntSwatchLoc;
+            ModelElement litElements[] = {
+            { { 1, 0, 0 }, { 5, 4, 16 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 1, 16, 5 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 16, 0, 0, 4 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 4 }, 90, 0, logLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 4 }, 90, 0, logLoc }
+            } },
+            { { 0, 3, 11 }, { 16, 7, 15 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 16, 0, 0, 4 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 4 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 4 }, 180, 0, logLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 4, 16, 8 }, 0, 0, swatchLoc }
+            } },
+            { { 11, 0, 0 }, { 15, 4, 16 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 4 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 16, 1, 0, 5 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 4 }, 90, 0, logLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 4 }, 90, 0, logLoc }
+            } },
+            { { 0, 3, 1 }, { 16, 7, 5 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 4 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 16, 0, 0, 4 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 4 }, 180, 0, logLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 4, 16, 8 }, 0, 0, swatchLoc }
+            } },
+            { { 5, 0, 0 }, { 11, 1, 16 }, 4, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 15, 6, 16 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 10, 15, 16, 16 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 8, 16, 14 }, 90, 0, swatchLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 8, 16, 14 }, 90, 0, logLoc }
+            } },
+            { { 0.8f, 1, 8 }, { 15.2f, 17, 8 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, fireSwatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, fireSwatchLoc }
+            }, 45, { 8, 8, 8 }, 0, 1 },
+            { { 8, 1, 0.8f }, { 8, 17, 15.2f }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 16 }, 0, 1, fireSwatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 16 }, 0, 0, fireSwatchLoc }
+            }, 45, { 8, 8, 8 }, 0, 1 },
+            };
+            ModelElement offElements[] = {
+            { { 1, 0, 0 }, { 5, 4, 16 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 1, 16, 5 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 16, 0, 0, 4 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 4 }, 90, 0, logLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 4 }, 90, 0, logLoc }
+            } },
+            { { 0, 3, 11 }, { 16, 7, 15 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 16, 0, 0, 4 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 4 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 4 }, 180, 0, logLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 4 }, 0, 0, logLoc }
+            } },
+            { { 11, 0, 0 }, { 15, 4, 16 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 4 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 16, 1, 0, 5 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 4 }, 90, 0, logLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 4 }, 90, 0, logLoc }
+            } },
+            { { 0, 3, 1 }, { 16, 7, 5 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 4 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 16, 0, 0, 4 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 4 }, 180, 0, logLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 4 }, 0, 0, logLoc }
+            } },
+            { { 5, 0, 0 }, { 11, 1, 16 }, 4, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 15, 6, 16 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 10, 15, 16, 16 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 8, 16, 14 }, 90, 0, logLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 8, 16, 14 }, 90, 0, logLoc }
+            } },
+            };
+            static const int campfireYAngle[4] = { 270, 0, 90, 180 };
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, logLoc, lit ? litElements : offElements, lit ? 7 : 5, 0, campfireYAngle[facing], false);
+            break;
+        }
 
         gUsingTransform = 1;
         totalVertexCount = gModel.vertexCount;
@@ -12627,6 +14507,146 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         topSwatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
         sideSwatchLoc = topSwatchLoc + 1;
         bottomSwatchLoc = topSwatchLoc + 2;
+        if (!gModel.print3D) {
+            // Minecraft's scaffolding_stable and scaffolding_unstable (dataVal 0x1, "bottom") models. The elements are made from
+            // the models' JSON; the top's and the unstable bottom rim's thin plates are 0.01 pixels thick, as in Minecraft.
+            ModelElement stableElements[] = {
+                { { 0, 15.99f, 0 }, { 16, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, topSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 0, 0, topSwatchLoc }
+                } },
+                { { 0, 0, 0 }, { 2, 16, 2 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 14, 2, 16 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 0, 0, 14 }, { 2, 16, 16 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 0, 2, 2 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 14, 0, 14 }, { 16, 16, 16 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 14, 0, 16, 2 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 14, 0, 0 }, { 16, 16, 2 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 14, 14, 16, 16 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 2, 14, 0 }, { 14, 16, 2 }, 3, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 0, 14, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 2, 14, 4 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 14, 14, 16 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 2, 14, 14 }, { 14, 16, 16 }, 3, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 0, 2, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 0, 14, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 0, 14, 2 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 14, 14, 2 }, { 16, 16, 14 }, 3, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 14, 0, 2, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 2, 2, 4 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 14, 2, 16, 14 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 0, 14, 2 }, { 2, 16, 14 }, 3, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 2, 0, 14, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 0, 2, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 2, 2, 14 }, 0, 0, bottomSwatchLoc }
+                } },
+            };
+            ModelElement unstableElements[] = {
+                { { 0, 15.99f, 0 }, { 16, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, topSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 0, 0, topSwatchLoc }
+                } },
+                { { 0, 0, 0 }, { 2, 16, 2 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 14, 2, 16 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 0, 0, 14 }, { 2, 16, 16 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 0, 2, 2 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 14, 0, 14 }, { 16, 16, 16 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 14, 0, 16, 2 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 14, 0, 0 }, { 16, 16, 2 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 14, 14, 16, 16 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 2, 14, 0 }, { 14, 16, 2 }, 3, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 0, 14, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 2, 14, 4 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 14, 14, 16 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 2, 14, 14 }, { 14, 16, 16 }, 3, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 0, 2, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 0, 14, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 0, 14, 2 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 14, 14, 2 }, { 16, 16, 14 }, 3, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 14, 0, 2, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 2, 2, 4 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 14, 2, 16, 14 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 0, 14, 2 }, { 2, 16, 14 }, 3, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 2, 0, 14, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 0, 2, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 2, 2, 14 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 0, 1.99f, 0 }, { 16, 2, 16 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, topSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 0, 0, topSwatchLoc }
+                } },
+                { { 2, 0, 0 }, { 14, 2, 2 }, 3, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 0, 14, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 2, 14, 4 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 14, 14, 16 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 2, 0, 14 }, { 14, 2, 16 }, 3, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 0, 2, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 0, 14, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 0, 14, 2 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 14, 0, 2 }, { 16, 2, 14 }, 3, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 14, 0, 2, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 2, 2, 4 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 14, 2, 16, 14 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 0, 0, 2 }, { 2, 2, 14 }, 3, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 2, 0, 14, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 0, 2, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 2, 2, 14 }, 0, 0, bottomSwatchLoc }
+                } },
+            };
+            gUsingTransform = 1;
+            retCode |= saveModelElements(boxIndex, type, dataVal, topSwatchLoc, bottom ? unstableElements : stableElements, bottom ? 14 : 9, 0.0f);
+            gUsingTransform = 0;
+            break;
+        }
 
         for (i = 0; i <= bottom; i++) {
             gUsingTransform = i;
@@ -12786,8 +14806,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             saveCandle(type, dataVal, boxIndex, 5, -2.0f, -1.0f, 0.0f);
             break;
         case 2:
-            // three candles
-            saveCandle(type, dataVal, boxIndex, 6, 2.0f, 0.0f, -1.0f);
+            // three candles, placed as in Minecraft's template_three_candles
+            saveCandle(type, dataVal, boxIndex, 6, 1.0f, 0.0f, -1.0f);
             saveCandle(type, dataVal, boxIndex, 5, -2.0f, -1.0f, 0.0f);
             saveCandle(type, dataVal, boxIndex, 3, 0.0f, -3.0f, 2.0f);
             break;
@@ -12844,9 +14864,40 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     break; // saveBillboardOrGeometry
 
     case BLOCK_SPORE_BLOSSOM:						// saveBillboardOrGeometry
-        // make base and blossom, which is like fan coral but upside down
-        saveBillboardFaces(boxIndex, type, BB_SIDE);
-        saveBillboardFaces(boxIndex, type, BB_FAN);
+        if (gModel.print3D) {
+            // make base and blossom, which is like fan coral but upside down
+            saveBillboardFaces(boxIndex, type, BB_SIDE);
+            saveBillboardFaces(boxIndex, type, BB_FAN);
+        }
+        else {
+            // Minecraft's spore_blossom model: the leafy base just under the ceiling (0.1 pixel down in Minecraft, Z_FIGHTING_BIAS
+            // here), and four flowers hinged at the ceiling's edges, tilted down 22.5 degrees. The elements are made from the model's JSON.
+            int flowerLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            int baseLoc = flowerLoc + 1;
+            ModelElement sporeBlossomElements[] = {
+            { { 1, 16.0f - Z_FIGHTING_BIAS, 1 }, { 15, 16.0f - Z_FIGHTING_BIAS, 15 }, 2, {
+                { DIRECTION_BLOCK_TOP, { 1, 1, 15, 15 }, 0, 0, baseLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 1, 1, 15, 15 }, 0, 1, baseLoc }
+            } },
+            { { 8, 15.7f, 0 }, { 24, 15.7f, 16 }, 2, {
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 90, 0, flowerLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 270, 1, flowerLoc }
+            }, -22.5f, { 8, 16, 0 }, 2, 0 },
+            { { -8, 15.7f, 0 }, { 8, 15.7f, 16 }, 2, {
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 270, 0, flowerLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 90, 1, flowerLoc }
+            }, 22.5f, { 8, 16, 0 }, 2, 0 },
+            { { 0, 15.7f, 8 }, { 16, 15.7f, 24 }, 2, {
+                { DIRECTION_BLOCK_TOP, { 16, 16, 0, 0 }, 0, 0, flowerLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 16, 0, 0, 16 }, 0, 1, flowerLoc }
+            }, 22.5f, { 0, 16, 8 }, 1, 0 },
+            { { 0, 15.7f, -8 }, { 16, 15.7f, 8 }, 2, {
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, flowerLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 0, 1, flowerLoc }
+            }, -22.5f, { 0, 16, 8 }, 1, 0 },
+            };
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, flowerLoc, sporeBlossomElements, 5, 0, 0, false);
+        }
         break;
 
     case BLOCK_AZALEA:						// saveBillboardOrGeometry
@@ -12857,14 +14908,158 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 2, swatchLoc, 1, 0x0, 1, 0, 16, 0, 16, 0, 16);
         }
         else {
-            // cross tree
-            saveBillboardFaces(boxIndex, type, BB_FULL_CROSS);
-            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 2, swatchLoc, 0, DIR_BOTTOM_BIT, 1, 0, 16, 0, 16, 0, 16);
+            // Minecraft's azalea or flowering_azalea (dataVal 0x1) model: a shell of leaves (top and the sides' upper 11
+            // pixels) around a cross of stems. The elements are made from the model's JSON; Minecraft's shell plates are 0.01 pixels
+            // thick, here flat, with the inward face output as the plate's back.
+            int topLoc = SWATCH_INDEX(5, 51) + (dataVal & 0x1);
+            int sideLoc = SWATCH_INDEX(7, 51) + (dataVal & 0x1);
+            int plantLoc = SWATCH_INDEX(9, 51);
+            ModelElement azaleaElements[] = {
+                { { 0, 16, 0 }, { 16, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 0, 1, topLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, topLoc }
+                } },
+                { { 0, 5, 0 }, { 16, 16, 0 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 11 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 16, 0, 0, 11 }, 0, 1, sideLoc }
+                } },
+                { { 0, 5, 16 }, { 16, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 16, 0, 0, 11 }, 0, 1, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 11 }, 0, 0, sideLoc }
+                } },
+                { { 0, 5, 0 }, { 0, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 11 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 16, 0, 0, 11 }, 0, 1, sideLoc }
+                } },
+                { { 16, 5, 0 }, { 16, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 16, 0, 0, 11 }, 0, 1, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 11 }, 0, 0, sideLoc }
+                } },
+                { { 0.1f, 0, 8 }, { 15.9f, 15.9f, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, plantLoc }
+                }, 45, { 8, 8, 8 }, 0, 1 },
+                { { 8, 0, 0.1f }, { 8, 15.9f, 15.9f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 16 }, 0, 1, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 16 }, 0, 0, plantLoc }
+                }, 45, { 8, 8, 8 }, 0, 1 },
+            };
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, topLoc, azaleaElements, 7, 0, 0, false);
         }
         break; // saveBillboardOrGeometry
 
     case BLOCK_BIG_DRIPLEAF:						// saveBillboardOrGeometry
         swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+        if (!gModel.print3D) {
+            // Minecraft's big_dripleaf model (tilt none or unstable), big_dripleaf_partial_tilt, or big_dripleaf_full_tilt, or for the
+            // stem (dataVal 0x1), big_dripleaf_stem, turned by "y"; dataVal 0x6 is the facing, east, south, west, north, and 0x18
+            // the tilt, none, unstable, partial, full. The elements are made from the models' JSON; Minecraft's leaf edges are 0.002
+            // pixels thick, here flat, with the inward face output as the edge's back.
+            int topLoc = swatchLoc;
+            int sideLoc = swatchLoc + 1;
+            int tipLoc = swatchLoc + 2;
+            int stemLoc = swatchLoc + 3;
+            ModelElement leafElements[] = {
+                { { 0, 15, 0 }, { 16, 15, 16 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 0, 1, topLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, topLoc }
+                } },
+                { { 0, 11, 0 }, { 16, 15, 0 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 4 }, 0, 0, tipLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 16, 0, 0, 4 }, 0, 1, tipLoc }
+                } },
+                { { 0, 11, 0 }, { 0, 15, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 16, 0, 0, 4 }, 0, 1, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 4 }, 0, 0, sideLoc }
+                } },
+                { { 16, 11, 0 }, { 16, 15, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 16, 0, 0, 4 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 4 }, 0, 1, sideLoc }
+                } },
+                { { 5, 0, 12 }, { 11, 15, 12 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 14, 16 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 14, 16 }, 0, 0, stemLoc }
+                }, 45, { 8, 8, 12 }, 0, 1 },
+                { { 5, 0, 12 }, { 11, 15, 12 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 14, 16 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 14, 16 }, 0, 0, stemLoc }
+                }, -45, { 8, 8, 12 }, 0, 1 },
+            };
+            ModelElement partialElements[] = {
+                { { 0, 15, 0 }, { 16, 15, 16 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 16, 0, 0 }, 0, 1, topLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, topLoc }
+                }, -22.5f, { 8, 15, 16 }, 1, 0 },
+                { { 0, 11, 0 }, { 16, 15, 0 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 4 }, 0, 1, tipLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 4 }, 0, 0, tipLoc }
+                }, -22.5f, { 8, 15, 16 }, 1, 0 },
+                { { 0, 11, 0 }, { 0, 15, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 16, 0, 0, 4 }, 0, 1, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 4 }, 0, 0, sideLoc }
+                }, -22.5f, { 8, 15, 16 }, 1, 0 },
+                { { 16, 11, 0 }, { 16, 15, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 16, 0, 0, 4 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 4 }, 0, 1, sideLoc }
+                }, -22.5f, { 8, 15, 16 }, 1, 0 },
+                { { 5, 0, 12 }, { 11, 15, 12 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 14, 16 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 14, 16 }, 0, 0, stemLoc }
+                }, 45, { 8, 8, 12 }, 0, 1 },
+                { { 5, 0, 12 }, { 11, 15, 12 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 14, 16 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 14, 16 }, 0, 0, stemLoc }
+                }, -45, { 8, 8, 12 }, 0, 1 },
+            };
+            ModelElement fullElements[] = {
+                { { 0, 15, 0 }, { 16, 15, 16 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 16, 0, 0 }, 0, 1, topLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, topLoc }
+                }, -45, { 8, 15, 16 }, 1, 0 },
+                { { 0, 11, 0 }, { 16, 15, 0 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 4 }, 0, 1, tipLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 4 }, 0, 0, tipLoc }
+                }, -45, { 8, 15, 16 }, 1, 0 },
+                { { 0, 11, 0 }, { 0, 15, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 16, 0, 0, 4 }, 0, 1, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 4 }, 0, 0, sideLoc }
+                }, -45, { 8, 15, 16 }, 1, 0 },
+                { { 16, 11, 0 }, { 16, 15, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 16, 0, 0, 4 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 4 }, 0, 1, sideLoc }
+                }, -45, { 8, 15, 16 }, 1, 0 },
+                { { 5, 0, 12 }, { 11, 15, 12 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 14, 16 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 14, 16 }, 0, 0, stemLoc }
+                }, 45, { 8, 8, 12 }, 0, 1 },
+                { { 5, 0, 12 }, { 11, 15, 12 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 14, 16 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 14, 16 }, 0, 0, stemLoc }
+                }, -45, { 8, 8, 12 }, 0, 1 },
+            };
+            ModelElement stemElements[] = {
+                { { 5, 0, 12 }, { 11, 16, 12 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 14, 16 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 14, 16 }, 0, 0, stemLoc }
+                }, 45, { 8, 8, 12 }, 0, 1 },
+                { { 5, 0, 12 }, { 11, 16, 12 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 14, 16 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 14, 16 }, 0, 0, stemLoc }
+                }, -45, { 8, 8, 12 }, 0, 1 },
+            };
+            const ModelElement* dripleafModel[4] = { leafElements, leafElements, partialElements, fullElements };
+            static const int dripleafCount[4] = { 6, 6, 6, 6 };
+            static const int dripleafYAngle[4] = { 90, 180, 270, 0 };
+            int yAngle = dripleafYAngle[(dataVal >> 1) & 0x3];
+            if (dataVal & 0x1) {
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, stemLoc, stemElements, 2, 0, yAngle, false);
+            }
+            else {
+                int tilt = (dataVal >> 3) & 0x3;
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, topLoc, dripleafModel[tilt], dripleafCount[tilt], 0, yAngle, false);
+            }
+            break;
+        }
         // save stem always
         gUsingTransform = 1;
         yrot = (float)((((dataVal & 0x6) >> 1) + 1 ) % 4);
@@ -12938,6 +15133,83 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_SMALL_DRIPLEAF:						// saveBillboardOrGeometry
         {
             swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            if (!gModel.print3D) {
+                // Minecraft's small_dripleaf_top or, for the lower half (dataVal 0x1), small_dripleaf_bottom model, turned by "y";
+                // dataVal 0x6 is the facing, east, south, west, north. The elements are made from the models' JSON; Minecraft's
+                // leaves are 0.02 pixels above their edges' boxes, here on the texel.
+                int topLoc = swatchLoc;
+                int sideLoc = swatchLoc + 1;
+                int stemLoc = swatchLoc + 2;
+                int stemBottomLoc = swatchLoc + 3;
+                ModelElement topElements[] = {
+                    { { 8, 3, 8 }, { 15, 3, 15 }, 2, {
+                        { DIRECTION_BLOCK_BOTTOM, { 8, 0, 0, 8 }, 0, 1, topLoc },
+                        { DIRECTION_BLOCK_TOP, { 8, 8, 0, 0 }, 0, 0, topLoc }
+                    } },
+                    { { 1, 8, 1 }, { 8, 8, 8 }, 2, {
+                        { DIRECTION_BLOCK_BOTTOM, { 0, 8, 8, 0 }, 0, 1, topLoc },
+                        { DIRECTION_BLOCK_TOP, { 0, 0, 8, 8 }, 0, 0, topLoc }
+                    } },
+                    { { 1, 12, 8 }, { 8, 12, 15 }, 2, {
+                        { DIRECTION_BLOCK_BOTTOM, { 8, 0, 0, 8 }, 270, 1, topLoc },
+                        { DIRECTION_BLOCK_TOP, { 0, 0, 8, 8 }, 270, 0, topLoc }
+                    } },
+                    { { 8, 2, 8 }, { 15, 3, 15 }, 4, {
+                        { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 8, 1 }, 0, 0, sideLoc },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 8, 1 }, 0, 0, sideLoc },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 8, 1 }, 0, 0, sideLoc },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 8, 1 }, 0, 0, sideLoc }
+                    } },
+                    { { 1, 7, 1 }, { 8, 8, 8 }, 4, {
+                        { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 8, 1 }, 0, 0, sideLoc },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 8, 1 }, 0, 0, sideLoc },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 8, 1 }, 0, 0, sideLoc },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 8, 1 }, 0, 0, sideLoc }
+                    } },
+                    { { 1, 11, 8 }, { 8, 12, 15 }, 4, {
+                        { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 8, 1 }, 0, 0, sideLoc },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 8, 1 }, 0, 0, sideLoc },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 8, 1 }, 0, 0, sideLoc },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 8, 1 }, 0, 0, sideLoc }
+                    } },
+                    { { 4.5f, 0, 8 }, { 11.5f, 14, 8 }, 2, {
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 0, 12, 14 }, 0, 1, stemLoc },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 0, 12, 14 }, 0, 0, stemLoc }
+                    }, 45, { 8, 8, 8 }, 0, 0 },
+                    { { 4.5f, 0, 8 }, { 11.5f, 14, 8 }, 2, {
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 0, 12, 14 }, 0, 1, stemLoc },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 0, 12, 14 }, 0, 0, stemLoc }
+                    }, -45, { 8, 8, 8 }, 0, 0 },
+                };
+                ModelElement bottomElements[] = {
+                    { { 4.5f, 0, 8 }, { 11.5f, 16, 8 }, 2, {
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 5, 0, 12, 16 }, 0, 1, stemBottomLoc },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 5, 0, 12, 16 }, 0, 0, stemBottomLoc }
+                    }, 45, { 8, 8, 8 }, 0, 0 },
+                    { { 4.5f, 0, 8 }, { 11.5f, 16, 8 }, 2, {
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 5, 0, 12, 16 }, 0, 1, stemBottomLoc },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 5, 0, 12, 16 }, 0, 0, stemBottomLoc }
+                    }, -45, { 8, 8, 8 }, 0, 0 },
+                };
+                static const int dripleafYAngle[4] = { 90, 180, 270, 0 };
+                int yAngle = dripleafYAngle[(dataVal >> 1) & 0x3];
+                totalVertexCount = gModel.vertexCount;
+                if (dataVal & 0x1) {
+                    retCode |= saveRotatedModel(boxIndex, type, dataVal, stemBottomLoc, bottomElements, 2, 0, yAngle, false);
+                }
+                else {
+                    retCode |= saveRotatedModel(boxIndex, type, dataVal, topLoc, topElements, 8, 0, yAngle, false);
+                }
+                // offset randomly in X and Z, as Minecraft does
+                wobbleObjectLocation(boxIndex, shiftX, shiftZ);
+                totalVertexCount = gModel.vertexCount - totalVertexCount;
+                identityMtx(mtx);
+                translateMtx(mtx, shiftX / 16.0f, 0.0f, shiftZ / 16.0f);
+                gUsingTransform = 1;
+                transformVertices(totalVertexCount, mtx);
+                gUsingTransform = 0;
+                break;
+            }
             // save stem always
             gUsingTransform = 1;
             yrot = (float)((((dataVal & 0x6) >> 1) + 1) % 4);
@@ -12997,6 +15269,86 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // BIT_16 is active or inactive
         // bits 0x3 is facing for the calibrated sculk sensor only
         // bit 0x4 is whether it's a calibrated sculk sensor
+        if (!gModel.print3D) {
+            // Minecraft's sculk_sensor_inactive or _active model (the active and cooldown phases differ only in the tendrils'
+            // texture), or for the calibrated sculk sensor, calibrated_sculk_sensor_inactive or _active, turned by "y"; dataVal 0x3
+            // faces south, west, north, east. The elements are made from the models' JSON.
+            bool calibrated = (dataVal & 0x4) ? true : false;
+            int topLoc = calibrated ? SWATCH_INDEX(2, 57) : SWATCH_INDEX(15, 52);
+            int sideLoc = SWATCH_INDEX(0, 53);
+            int bottomLoc = SWATCH_INDEX(1, 53);
+            int tendrilLoc = (dataVal & BIT_16) ? SWATCH_INDEX(2, 53) : SWATCH_INDEX(3, 53);
+            int amethystLoc = SWATCH_INDEX(0, 57);
+            int inputLoc = SWATCH_INDEX(1, 57);
+            ModelElement sensorElements[] = {
+            { { 0, 0, 0 }, { 16, 8, 16 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 8, 16, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 8, 16, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 8, 16, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 8, 16, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, topLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 16 }, 0, 0, bottomLoc }
+            } },
+            { { -1, 8, 3 }, { 7, 16, 3 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 8, 12, 16 }, 0, 1, tendrilLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 12, 8, 4, 16 }, 0, 0, tendrilLoc }
+            }, 45, { 3, 12, 3 }, 0, 0 },
+            { { 9, 8, 3 }, { 17, 16, 3 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 12, 8, 4, 16 }, 0, 1, tendrilLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 8, 12, 16 }, 0, 0, tendrilLoc }
+            }, -45, { 13, 12, 3 }, 0, 0 },
+            { { 9, 8, 13 }, { 17, 16, 13 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 12, 8, 4, 16 }, 0, 1, tendrilLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 8, 12, 16 }, 0, 0, tendrilLoc }
+            }, 45, { 13, 12, 13 }, 0, 0 },
+            { { -1, 8, 13 }, { 7, 16, 13 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 8, 12, 16 }, 0, 1, tendrilLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 12, 8, 4, 16 }, 0, 0, tendrilLoc }
+            }, -45, { 3, 12, 13 }, 0, 0 },
+            };
+            ModelElement calibratedElements[] = {
+            { { 0, 0, 0 }, { 16, 8, 16 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 8, 16, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 8, 16, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 8, 16, 16 }, 0, 0, inputLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 8, 16, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, topLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 16 }, 0, 0, bottomLoc }
+            } },
+            { { -1, 8, 3 }, { 7, 16, 3 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 8, 12, 16 }, 0, 1, tendrilLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 12, 8, 4, 16 }, 0, 0, tendrilLoc }
+            }, 45, { 3, 12, 3 }, 0, 0 },
+            { { 9, 8, 3 }, { 17, 16, 3 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 12, 8, 4, 16 }, 0, 1, tendrilLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 8, 12, 16 }, 0, 0, tendrilLoc }
+            }, -45, { 13, 12, 3 }, 0, 0 },
+            { { 9, 8, 13 }, { 17, 16, 13 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 12, 8, 4, 16 }, 0, 1, tendrilLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 8, 12, 16 }, 0, 0, tendrilLoc }
+            }, 45, { 13, 12, 13 }, 0, 0 },
+            { { -1, 8, 13 }, { 7, 16, 13 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 8, 12, 16 }, 0, 1, tendrilLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 12, 8, 4, 16 }, 0, 0, tendrilLoc }
+            }, -45, { 3, 12, 13 }, 0, 0 },
+            { { 8, 8, 0 }, { 8, 20, 16 }, 2, {
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 4, 16, 16 }, 0, 0, amethystLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 4, 16, 16 }, 0, 1, amethystLoc }
+            }, 45, { 8, 9, 8 }, 0, 1 },
+            { { 0, 8, 8 }, { 16, 20, 8 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 4, 16, 16 }, 0, 1, amethystLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 4, 16, 16 }, 0, 0, amethystLoc }
+            }, 45, { 8, 9, 8 }, 0, 1 },
+            };
+            if (calibrated) {
+                static const int calibratedYAngle[4] = { 180, 270, 0, 90 };
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, topLoc, calibratedElements, 7, 0, calibratedYAngle[dataVal & 0x3], false);
+            }
+            else {
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, topLoc, sensorElements, 5, 0, 0, false);
+            }
+            break;
+        }
         if (dataVal & 0x4) {
             // calibrated
             swatchLoc = SWATCH_INDEX(1, 57);    // calibrated_sculk_sensor_input_side
@@ -13097,25 +15449,46 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 1, 0x0, 0, 0, 16, 0, 16, 0, 16);
         }
         else {
-            // a top and bottom, then also a "+" shape of root textures in the middle
-            // if single-sided (culling is on), Minecraft actually does *not* cull backfaces, to get a dense mesh appearance of roots
-            if (gModel.singleSided) {
-                // 8 outputs: bottom, top, then 3 X, 3 Z. Have to do all 8 in order to make each one double-sided by outputting both faces for each.
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 1, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 0, 16, 0, 0, 0, 16);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 0, 16, 16, 16, 0, 16);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_LO_Z_FACE_VERTICALLY, 0, 16, 0, 16, 0, 0);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_LO_Z_FACE_VERTICALLY, 0, 16, 0, 16, 8, 8);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_LO_Z_FACE_VERTICALLY, 0, 16, 0, 16, 16, 16);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_LO_X_FACE_VERTICALLY, 0, 0, 0, 16, 0, 16);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_LO_X_FACE_VERTICALLY, 8, 8, 0, 16, 0, 16);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_LO_X_FACE_VERTICALLY, 16, 16, 0, 16, 0, 16);
-            }
-            else {
-                // double sided, so just 3 outputs: bottom & top and XZ outer, then X, then Z (and only single sided for those two)
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 1, 0x0, FLIP_LO_X_FACE_VERTICALLY | FLIP_LO_Z_FACE_VERTICALLY, 0, 16, 0, 16, 0, 16);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, FLIP_LO_Z_FACE_VERTICALLY, 0, 16, 0, 16, 8, 8);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_LO_X_BIT, FLIP_LO_X_FACE_VERTICALLY, 8, 8, 0, 16, 0, 16);
-            }                
+            // Minecraft's mangrove_roots model: a "+" of root textures in the middle, and a shell of two-sided plates around the
+            // block, so the roots look dense from any side. The elements are made from the model's JSON; Minecraft's plates are 0.002
+            // pixels thick, here flat, with the inward face output as the plate's back.
+            int topLoc = swatchLoc;
+            int sideLoc = swatchLoc + 1;
+            ModelElement rootsElements[] = {
+                { { 0, 0, 8 }, { 16, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, sideLoc }
+                } },
+                { { 8, 0, 0 }, { 8, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 16 }, 0, 1, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 16 }, 0, 0, sideLoc }
+                } },
+                { { 0, 16, 0 }, { 16, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 0, 1, topLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, topLoc }
+                } },
+                { { 0, 0, 0 }, { 16, 0, 16 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 16 }, 0, 0, topLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 16, 16, 0 }, 0, 1, topLoc }
+                } },
+                { { 0, 0, 0 }, { 16, 16, 0 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 16, 0, 0, 16 }, 0, 1, sideLoc }
+                } },
+                { { 0, 0, 16 }, { 16, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 16, 0, 0, 16 }, 0, 1, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, sideLoc }
+                } },
+                { { 0, 0, 0 }, { 0, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 16, 0, 0, 16 }, 0, 1, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 16 }, 0, 0, sideLoc }
+                } },
+                { { 16, 0, 0 }, { 16, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 16, 0, 0, 16 }, 0, 1, sideLoc }
+                } },
+            };
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, topLoc, rootsElements, 8, 0, 0, false);
         }
         break;
 
@@ -13177,53 +15550,126 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             break;
         }
 
-        // generate all, then rotate
+        if ((dataVal & 0x30) != 16) {
+            // pink petals or wildflowers: Minecraft's flowerbed_1 to flowerbed_4 models (pink_petals_1-4 and wildflowers_1-4 use these
+            // with their textures), as many as the flower amount, (dataVal >> 2) & 0x3, plus one, turned by "y"; dataVal 0x3 faces
+            // east, south, west, north. The elements are made from the models' JSON.
+            int stemLoc = swatchLoc + 1;
+            ModelElement flowerbed1Elements[] = {
+                { { 0, 2.99f, 0 }, { 8, 2.99f, 8 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 8, 8 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 8, 8, 0 }, 0, 1, swatchLoc }
+                } },
+                { { 4.25f, 0, -2.6f }, { 4.25f, 2.99f, -1.6f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 4, 1, 7 }, 0, 0, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 4, 1, 7 }, 0, 1, stemLoc }
+                }, -45, { 0, 0, 0 }, 0, 0 },
+                { { 3.75f, 0, -2.1f }, { 4.75f, 2.99f, -2.1f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 4, 1, 7 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 4, 1, 7 }, 0, 0, stemLoc }
+                }, -45, { 0, 0, 0 }, 0, 0 },
+                { { 4.9f, 0, 2.3f }, { 4.9f, 2.99f, 3.3f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 4, 1, 7 }, 0, 0, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 4, 1, 7 }, 0, 1, stemLoc }
+                }, -45, { 0, 0, 0 }, 0, 0 },
+                { { 4.4f, 0, 2.8f }, { 5.4f, 2.99f, 2.8f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 4, 1, 7 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 4, 1, 7 }, 0, 0, stemLoc }
+                }, -45, { 0, 0, 0 }, 0, 0 },
+                { { 9.15f, 0, -0.45f }, { 9.15f, 2.99f, 0.55f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 4, 1, 7 }, 0, 0, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 4, 1, 7 }, 0, 1, stemLoc }
+                }, -45, { 0, 0, 0 }, 0, 0 },
+                { { 8.65f, 0, 0.05f }, { 9.65f, 2.99f, 0.05f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 4, 1, 7 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 4, 1, 7 }, 0, 0, stemLoc }
+                }, -45, { 0, 0, 0 }, 0, 0 },
+            };
+            ModelElement flowerbed2Elements[] = {
+                { { 0, 1, 8 }, { 8, 1, 16 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 0, 8, 8, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 16, 8, 8 }, 0, 1, swatchLoc }
+                } },
+                { { 0, 1, 8 }, { 8, 1, 16 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 0, 8, 8, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 16, 8, 8 }, 0, 1, swatchLoc }
+                } },
+                { { 10.15f, 0, 5.25f }, { 11.15f, 1, 5.25f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 6, 1, 7 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 6, 1, 7 }, 0, 0, stemLoc }
+                }, -45, { 0, 0, 1 }, 0, 0 },
+                { { 10.65f, 0, 4.75f }, { 10.65f, 1, 5.75f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 6, 1, 7 }, 0, 0, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 6, 1, 7 }, 0, 1, stemLoc }
+                }, -45, { 0, 0, 1 }, 0, 0 },
+            };
+            ModelElement flowerbed3Elements[] = {
+                { { 8, 2, 8 }, { 16, 2, 16 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 8, 16, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 16, 16, 8 }, 0, 1, swatchLoc }
+                } },
+                { { 17.65f, 0, 1.9f }, { 18.65f, 2, 1.9f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 5, 1, 7 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 1, 7 }, 0, 0, stemLoc }
+                }, -45, { 0.5f, 0, 0.5f }, 0, 0 },
+                { { 18.15f, 0, 1.4f }, { 18.15f, 2, 2.4f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 5, 1, 7 }, 0, 0, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 5, 1, 7 }, 0, 1, stemLoc }
+                }, -45, { 0.5f, 0, 0.5f }, 0, 0 },
+                { { 17.65f, 0, -3.35f }, { 17.65f, 2, -2.35f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 5, 1, 7 }, 0, 0, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 5, 1, 7 }, 0, 1, stemLoc }
+                }, -45, { 0, 0, 0 }, 0, 0 },
+                { { 17.15f, 0, -2.85f }, { 18.15f, 2, -2.85f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 5, 1, 7 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 1, 7 }, 0, 0, stemLoc }
+                }, -45, { 0, 0, 0 }, 0, 0 },
+                { { 13.4f, 0, -0.5f }, { 13.4f, 2, 0.5f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 5, 1, 7 }, 0, 0, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 5, 1, 7 }, 0, 1, stemLoc }
+                }, -45, { 0, 0, 0 }, 0, 0 },
+                { { 12.9f, 0, 0 }, { 13.9f, 2, 0 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 5, 1, 7 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 1, 7 }, 0, 0, stemLoc }
+                }, -45, { 0, 0, 0 }, 0, 0 },
+            };
+            ModelElement flowerbed4Elements[] = {
+                { { 8, 2, 0 }, { 16, 2, 8 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 0, 16, 8 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 8, 16, 0 }, 0, 1, swatchLoc }
+                } },
+                { { 12.4f, 0, -7.7f }, { 12.4f, 2, -6.7f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 5, 1, 7 }, 0, 0, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 5, 1, 7 }, 0, 1, stemLoc }
+                }, -45, { -1, 0, -3 }, 0, 0 },
+                { { 11.9f, 0, -7.2f }, { 12.9f, 2, -7.2f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 5, 1, 7 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 1, 7 }, 0, 0, stemLoc }
+                }, -45, { -1, 0, -3 }, 0, 0 },
+            };
+            const ModelElement* flowerbedModel[4] = { flowerbed1Elements, flowerbed2Elements, flowerbed3Elements, flowerbed4Elements };
+            static const int flowerbedCount[4] = { 7, 4, 7, 3 };
+            static const int flowerbedYAngle[4] = { 90, 180, 270, 0 };
+            for (i = 0; i <= ((dataVal >> 2) & 0x3); i++) {
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, swatchLoc, flowerbedModel[i], flowerbedCount[i], 0, flowerbedYAngle[dataVal & 0x3], false);
+            }
+            break;
+        }
+
+        // leaf litter: generate all, then rotate
         gUsingTransform = 1;
         totalVertexCount = gModel.vertexCount;
         angle = 90.0f * (1.0f + (dataVal & 0x3));
         {
-            // go through the up to four amounts of flowers
+            // go through the up to four amounts of leaves
             int flower_amount = 1 + ((dataVal >> 2) & 0x3);
-            int fheights[] = { 3, 1, 2, 2 };
             for (i = 0; i < flower_amount; i++)
             {
-                // leaf litter?
-                if ((dataVal & 0x30) == 16) {
-                    // leaf litter tops - doesn't use heights, just a constant Z_FIGHTING_BIAS (should really be flush, but this is close enough and avoids z-fighting)
-                    saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, i == 0 ? 1 : 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | (gModel.singleSided ? 0x0 : DIR_BOTTOM_BIT),
-                        (i < 2) ? 0.0f : 8.0f, (i < 2) ? 8.0f : 16.0f,
-                        Z_FIGHTING_BIAS, Z_FIGHTING_BIAS,
-                        (((i + 3) % 4) >= 2) ? 0.0f : 8.0f, (((i + 3) % 4) >= 2) ? 8.0f : 16.0f);
-                } else {
-                    saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, i == 0 ? 1 : 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | (gModel.singleSided ? 0x0 : DIR_BOTTOM_BIT),
-                        (i < 2) ? 0.0f : 8.0f, (i < 2) ? 8.0f : 16.0f,
-                        (float)fheights[i], (float)fheights[i],
-                        (((i + 3) % 4) >= 2) ? 0.0f : 8.0f, (((i + 3) % 4) >= 2) ? 8.0f : 16.0f);
-
-                    // flower stems - not for leaf litter
-                    switch (i) {
-                    case 0:
-                        // 3 flower stems, left to right
-                        makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 1.5f, 10.5f, fheights[i]);
-                        makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 4.5f, 14.5f, fheights[i]);
-                        makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 6.5f, 9.5f, fheights[i]);
-                        break;
-                    case 1:
-                        // 1 flower stem
-                        makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 4.5f, 4.5f, fheights[i]);
-                        break;
-                    case 2:
-                        // 3 flower stems
-                        makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 9.5f, 6.5f, fheights[i]);
-                        makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 12.0f, 2.0f, fheights[i]);
-                        makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 14.5f, 5.5f, fheights[i]);
-                        break;
-                    case 3:
-                        // 1 flower stem
-                        makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 11.5f, 12.5f, fheights[i]);
-                        break;
-                    }
-                }
+                // leaf litter tops - Minecraft's leaf_litter models' constant 0.25 pixel up
+                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, i == 0 ? 1 : 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | (gModel.singleSided ? 0x0 : DIR_BOTTOM_BIT),
+                    (i < 2) ? 0.0f : 8.0f, (i < 2) ? 8.0f : 16.0f,
+                    0.25f, 0.25f,
+                    (((i + 3) % 4) >= 2) ? 0.0f : 8.0f, (((i + 3) % 4) >= 2) ? 8.0f : 16.0f);
             }
             totalVertexCount = gModel.vertexCount - totalVertexCount;
             identityMtx(mtx);
@@ -13237,6 +15683,125 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break;	// saveBillboardOrGeometry
 
     case BLOCK_PITCHER_CROP:						// saveBillboardOrGeometry
+        if (!gModel.print3D) {
+            // Minecraft's pitcher_crop_bottom_stage_0-4 or, for the upper half (dataVal 0x8), pitcher_crop_top_stage_0-4 model (the
+            // top for ages 0-2 is empty) by the age, dataVal 0x7. The pod is sunk a pixel into the farmland, and the lower half's
+            // plant reaches into the block above. The elements are made from the models' JSON.
+            age = dataVal & 0x7;
+            int topLoc = SWATCH_INDEX(3, 58);
+            int sideLoc = SWATCH_INDEX(2, 58);
+            int bottomLoc = SWATCH_INDEX(13, 57);
+            int stageLoc = (dataVal & 0x8) ? SWATCH_INDEX(1, 58) + age : SWATCH_INDEX(13, 57) + age;
+            ModelElement bottom0Elements[] = {
+                { { 5, -1, 5 }, { 11, 3, 11 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 10, 9, 14 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 3, 10, 9, 14 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 10, 9, 14 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 3, 10, 9, 14 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_TOP, { 5, 5, 11, 11 }, 0, 0, topLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 5, 5, 11, 11 }, 0, 0, bottomLoc }
+                } },
+            };
+            ModelElement bottom1Elements[] = {
+                { { 0, 5, 8 }, { 16, 21, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, stageLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, stageLoc }
+                }, 45, { 8, 5, 8 }, 0, 0 },
+                { { 0, 5, 8 }, { 16, 21, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, stageLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, stageLoc }
+                }, -45, { 8, 5, 8 }, 0, 0 },
+                { { 3, -1, 3 }, { 13, 5, 13 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_TOP, { 3, 3, 13, 13 }, 0, 0, topLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 3, 3, 13, 13 }, 0, 0, bottomLoc }
+                } },
+            };
+            ModelElement bottom2Elements[] = {
+                { { 0, 5, 8 }, { 16, 21, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, stageLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, stageLoc }
+                }, 45, { 8, 6, 8 }, 0, 0 },
+                { { 8, 5, 0 }, { 8, 21, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 16 }, 0, 0, stageLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 16 }, 0, 1, stageLoc }
+                }, 45, { 8, 6, 8 }, 0, 0 },
+                { { 3, -1, 3 }, { 13, 5, 13 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_TOP, { 3, 3, 13, 13 }, 0, 0, topLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 3, 3, 13, 13 }, 0, 0, bottomLoc }
+                } },
+            };
+            ModelElement bottom3Elements[] = {
+                { { 0, 0, 8 }, { 16, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, stageLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, stageLoc }
+                }, 45, { 8, 0, 8 }, 0, 0 },
+                { { 0, 0, 8 }, { 16, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, stageLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, stageLoc }
+                }, -45, { 8, 0, 8 }, 0, 0 },
+                { { 3, -1, 3 }, { 13, 5, 13 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_TOP, { 3, 3, 13, 13 }, 0, 0, topLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 3, 3, 13, 13 }, 0, 0, bottomLoc }
+                } },
+            };
+            ModelElement bottom4Elements[] = {
+                { { 8, 0, 0 }, { 8, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 16 }, 0, 0, stageLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 16 }, 0, 1, stageLoc }
+                }, 45, { 8, 0, 8 }, 0, 0 },
+                { { 0, 0, 8 }, { 16, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, stageLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, stageLoc }
+                }, 45, { 8, 0, 8 }, 0, 0 },
+                { { 3, -1, 3 }, { 13, 5, 13 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_TOP, { 3, 3, 13, 13 }, 0, 0, topLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 3, 3, 13, 13 }, 0, 0, bottomLoc }
+                } },
+            };
+            ModelElement top3Elements[] = {
+                { { 0, 0, 8 }, { 16, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, stageLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, stageLoc }
+                }, 45, { 8, 16, 8 }, 0, 0 },
+                { { 0, 0, 8 }, { 16, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, stageLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, stageLoc }
+                }, -45, { 8, 16, 8 }, 0, 0 },
+            };
+            ModelElement top4Elements[] = {
+                { { 8, 0, 0 }, { 8, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 16 }, 0, 0, stageLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 16 }, 0, 1, stageLoc }
+                }, 45, { 8, 0, 8 }, 0, 0 },
+                { { 0, 0, 8 }, { 16, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, stageLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, stageLoc }
+                }, 45, { 8, 0, 8 }, 0, 0 },
+            };
+            const ModelElement* pitcherModel[2][5] = { { bottom0Elements, bottom1Elements, bottom2Elements, bottom3Elements, bottom4Elements }, { NULL, NULL, NULL, top3Elements, top4Elements } };
+            static const int pitcherCount[2][5] = { { 1, 3, 3, 3, 3 }, { 0, 0, 0, 2, 2 } };
+            int upper = (dataVal & 0x8) ? 1 : 0;
+            if ((age <= 4) && (pitcherCount[upper][age] > 0)) {
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, topLoc, pitcherModel[upper][age], pitcherCount[upper][age], 0, 0, false);
+            }
+            break;
+        }
         gUsingTransform = 1;
         if (!(dataVal & 0x8)) {
             // bottom output base for bottom only
@@ -13314,34 +15879,19 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // hatch value:
         swatchLoc += ((dataVal >> 2) & 0x3) * 6;
         {
-            // not needed: we're not rotating, and we do want to have the bottom be deleted if there's a solid block below it
-            //gUsingTransform = 1;
-            totalVertexCount = gModel.vertexCount;
-
-            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLoc + 1;
-            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc - 3;
-            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc - 2;
-            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc - 1;
-            swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc;
-            swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc - 4;
-
-            // make an egg
-            saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 0, 14, 0, 16, 4, 16);
-            // top
-            saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 14, 0, 16, 0, 12);
-            // north
-            saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc - 2, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_HI_Z_BIT, 0x0, 2, 16, 0, 16, 0, 12);
-            // west
-            saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc + 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 14, 0, 16, 0, 12);
-            // bottom
-            saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc - 4, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 14, 0, 16, 0, 12);
-
-            totalVertexCount = gModel.vertexCount - totalVertexCount;
-            identityMtx(mtx);
-            translateMtx(mtx, 1.0f / 16.0f, 0.0f, -2.0f/16.0f );
-            transformVertices(totalVertexCount, mtx);
-
-            //gUsingTransform = 0;
+            // Minecraft's sniffer_egg model, with a texture for each side; the tiles are bottom, east, north, south, top, west. The
+            // elements are made from the model's JSON.
+            ModelElement eggElements[] = {
+                { { 1, 0, 2 }, { 15, 16, 14 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 14, 16 }, 0, 0, swatchLoc - 2 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 12, 16 }, 0, 0, swatchLoc - 3 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 14, 16 }, 0, 0, swatchLoc - 1 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 12, 16 }, 0, 0, swatchLoc + 1 },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 14, 12 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 0, 14, 12 }, 0, 0, swatchLoc - 4 }
+                } },
+            };
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, swatchLoc, eggElements, 1, 0, 0, false);
         }
         break; // saveBillboardOrGeometry
 
@@ -13635,6 +16185,72 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             int hydration = (dataVal >> 2) & 0x3;
             // the default texture is the top, so we need to offset based on hydration and subtract 5 to get to the bottom texture of the proper hydration level
             swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + 7 * hydration - 5;
+            if (!gModel.print3D) {
+                // Minecraft's dried_ghast_hydration_0-3 models, all the dried_ghast template with each level's seven textures
+                // (bottom, east, north, south, tentacles, top, west), turned by "y"; dataVal 0x3 faces south, west, north, east.
+                // The elements are made from the template's JSON.
+                ModelElement ghastElements[] = {
+                { { 3, 0, 3 }, { 13, 10, 13 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 10, 10 }, 0, 0, swatchLoc + 2 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 10, 10 }, 0, 0, swatchLoc + 1 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 10, 10 }, 0, 0, swatchLoc + 3 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 10, 10 }, 0, 0, swatchLoc + 6 },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 10, 10 }, 180, 0, swatchLoc + 5 },
+                    { DIRECTION_BLOCK_BOTTOM, { 10, 0, 0, 10 }, 0, 0, swatchLoc }
+                } },
+                { { 0, 0, 5 }, { 3, 1, 7 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 1.5f, 2.5f, 2 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 1.5f, 1, 2 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3.5f, 1.5f, 5, 2 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 2.5f, 1.5f, 3.5f, 2 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_TOP, { 2.5f, 1.5f, 1.5f, 0 }, 90, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_BOTTOM, { 2.5f, 1.5f, 3.5f, 0 }, 90, 0, swatchLoc + 4 }
+                } },
+                { { 0, 0, 9 }, { 3, 1, 11 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 3.5f, 2.5f, 4 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 3.5f, 1, 4 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3.5f, 3.5f, 5, 4 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 2.5f, 3.5f, 3.5f, 4 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_TOP, { 2.5f, 3.5f, 1.5f, 2 }, 90, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_BOTTOM, { 2.5f, 3.5f, 3.5f, 2 }, 90, 0, swatchLoc + 4 }
+                } },
+                { { 13, 0, 5 }, { 16, 1, 7 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2.5f, 7.5f, 1, 8 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 3.5f, 7.5f, 2.5f, 8 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 5, 7.5f, 3.5f, 8 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 1, 7.5f, 0, 8 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_TOP, { 2.5f, 6, 1.5f, 7.5f }, 90, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_BOTTOM, { 2.5f, 6, 3.5f, 7.5f }, 90, 0, swatchLoc + 4 }
+                } },
+                { { 13, 0, 9 }, { 16, 1, 11 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2.5f, 5.5f, 1, 6 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 3.5f, 5.5f, 2.5f, 6 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 5, 5.5f, 3.5f, 6 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 1, 5.5f, 0, 6 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_TOP, { 2.5f, 4, 1.5f, 5.5f }, 90, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_BOTTOM, { 2.5f, 4, 3.5f, 5.5f }, 90, 0, swatchLoc + 4 }
+                } },
+                { { 9, 0, 13 }, { 11, 1, 16 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 2.5f, 5, 3 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 7.5f, 2.5f, 6, 3 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 8.5f, 2.5f, 7.5f, 3 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 10, 2.5f, 8.5f, 3 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_TOP, { 6, 2.5f, 7.5f, 1.5f }, 90, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_BOTTOM, { 7.5f, 1.5f, 9, 2.5f }, 270, 0, swatchLoc + 4 }
+                } },
+                { { 5, 0, 13 }, { 7, 1, 16 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 1, 5, 1.5f }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 7.5f, 1, 6, 1.5f }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 8.5f, 1, 7.5f, 1.5f }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 10, 1, 8.5f, 1.5f }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_TOP, { 6, 1, 7.5f, 0 }, 90, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_BOTTOM, { 7.5f, 0, 9, 1 }, 270, 0, swatchLoc + 4 }
+                } },
+                };
+                static const int ghastYAngle[4] = { 180, 270, 0, 90 };
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, swatchLoc, ghastElements, 7, 0, ghastYAngle[facing], false);
+                break;
+            }
 
             gUsingTransform = 1;
             totalVertexCount = littleTotalVertexCount = gModel.vertexCount;
@@ -13707,37 +16323,6 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
     return 1;
 }   // endend
-
-static void makePinkPetalFlowerStem(int boxIndex, int type, int dataVal, int swatchLoc, float x, float y, int height)
-{
-    // assume gUsingTransform is set
-    assert(gUsingTransform);
-    float mtx[4][4];
-    int totalVertexCount = gModel.vertexCount;
-
-    // move to location
-    for (int i = 0; i < 2; i++) {
-        int singleVertexCount = gModel.vertexCount;
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY,
-            0, 1, 9, (float)(9 + height), 8, 8);
-
-        singleVertexCount = gModel.vertexCount - singleVertexCount;
-        identityMtx(mtx);
-        translateToOriginMtx(mtx, boxIndex);
-        translateMtx(mtx, (8.0f-0.5f) / 16.0f, 0.0f, 0.0f);
-        rotateMtx(mtx, 0.0f, 45.0f + ((float)i * 90.0f), 0.0f);
-        translateFromOriginMtx(mtx, boxIndex);
-        transformVertices(singleVertexCount, mtx);
-    }
-
-    // final thing, both "vanes"
-    totalVertexCount = gModel.vertexCount - totalVertexCount;
-    identityMtx(mtx);
-    //translateToOriginMtx(mtx, boxIndex);
-    translateMtx(mtx, (x - 8.0f) / 16.0f, -9.0f / 16.0f, (8.0f - y) / 16.0f);
-    //translateFromOriginMtx(mtx, boxIndex);
-    transformVertices(totalVertexCount, mtx);
-}
 
 
 /* ===========================
@@ -15196,6 +17781,25 @@ static int saveFenceRails(int boxIndex, int type, int dataVal, int yAngle)
     return retCode;
 }
 
+// Save a model, as given in Minecraft's JSON, textured by the (possibly multi-tile) image at anchorLoc, then turn it as a blockstate
+// does, by "x" and then "y" (multiples of 90 degrees), with "uvlock" if set.
+static int saveRotatedModel(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, int xAngle, int yAngle, bool uvlock)
+{
+    float mtx[4][4];
+    int vertexCount = gModel.vertexCount;
+    gUsingTransform = 1;
+    int retCode = saveModelElements(boxIndex, type, dataVal, anchorLoc, elements, elementCount, (float)yAngle, xAngle, uvlock);
+    vertexCount = gModel.vertexCount - vertexCount;
+    identityMtx(mtx);
+    translateToOriginMtx(mtx, boxIndex);
+    rotateMtx(mtx, (float)xAngle, 0.0f, 0.0f);
+    rotateMtx(mtx, 0.0f, (float)yAngle, 0.0f);
+    translateFromOriginMtx(mtx, boxIndex);
+    transformVertices(vertexCount, mtx);
+    gUsingTransform = 0;
+    return retCode;
+}
+
 // Does a glass pane or bars connect to this neighbor? Panes, bars, walls, and whole blocks.
 static int paneConnects(int neighborType)
 {
@@ -15411,7 +18015,7 @@ static int modelFaceIsCovered(int boxIndex, const ModelElement* pElem, int faceD
 // yAngle is the rotation about Y the caller gives the model afterwards, used to find which faces are hidden by neighbors.
 // Elements with their own rotation are turned into place here, so the caller must have set gUsingTransform.
 // The first face saved is marked as the first face of the block.
-static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, float yAngle)
+static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, float yAngle, int xAngle /*= 0*/, bool uvlock /*= false*/)
 {
     int retCode = MW_NO_ERROR;
     int markFirstFace = 1;
@@ -15430,10 +18034,11 @@ static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc,
             if (pFace->billboardBack && !gModel.singleSided)
                 continue;
             // a face on the block's side is hidden if the neighbor there covers it, e.g. a straw bed's bottom on a full opaque
-            // block, or a shelf mushroom's back against its log
-            if (modelFaceIsCovered(boxIndex, pElem, pFace->faceDirection, yAngle))
+            // block, or a shelf mushroom's back against its log (only tested for a model turned just about Y)
+            if ((xAngle == 0) && modelFaceIsCovered(boxIndex, pElem, pFace->faceDirection, yAngle))
                 continue;
-            retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, pFace->faceDirection, markFirstFace, pFace->swatchLoc ? pFace->swatchLoc : anchorLoc, pFace->uv, pFace->rotation);
+            retCode |= saveBoxModelFaceUVLock(startVertexIndex, type, dataVal, pFace->faceDirection, markFirstFace, pFace->swatchLoc ? pFace->swatchLoc : anchorLoc, pFace->uv, pFace->rotation,
+                uvlock ? xAngle : 0, uvlock ? (int)yAngle : 0);
             if (retCode >= MW_BEGIN_ERRORS)
                 return retCode;
             markFirstFace = 0;
@@ -16123,6 +18728,9 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     int matchType;  // cppcheck-suppress 398
     bool vineUnderBlock = false;
     bool lichenOverBlock = false;
+    // the billboards (if any) of a vine or lichen under a block and of lichen over a block, whose back faces need their own UVs
+    int underBlockBill = -1;
+    int overBlockBill = -1;
     bool redstoneWireOnBottom = false;
     int faceDirection;
     float distanceOffset = ONE_PIXEL;
@@ -16434,11 +19042,16 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
             }
         }
         else {
-            // full check: is dataVal == 0 (means only a vine above) or is there a solid block above?
+            // full check: is dataVal == 0 (means only a vine above) or is there a solid block above? For 1.13 on, "up" (BIT_32,
+            // see VINE_PROP in nbt.cpp) says so, as Minecraft draws it.
             // Note that the solid block must actually exist, vs. "origType"
-            if ((dataVal == 0) || (dataVal == BIT_16) || (dataVal == BIT_32) || (gBlockDefinitions[gBoxData[boxIndex + 1].type].flags & BLF_WHOLE)) {
+            if ((dataVal == 0) || (dataVal == BIT_16) || (dataVal == BIT_32) || (gIs13orNewer && (dataVal & BIT_32)) ||
+                (gBlockDefinitions[gBoxData[boxIndex + 1].type].flags & BLF_WHOLE)) {
                 vineUnderBlock = true;
             }
+            // Minecraft's vine model is 0.8 pixel from the block's face (the top is put 1 pixel in, less shiftY)
+            shiftY = 0.2f * ONE_PIXEL;
+            distanceOffset = 0.8f * ONE_PIXEL;
         }
         break;
     case BLOCK_GLOW_LICHEN:				// saveBillboardFacesExtraData
@@ -16449,12 +19062,13 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
                 lichenOverBlock = true;
             }
             if (dataVal & BIT_32) {
-                // note that, weirdly enough, bit 32, "up", means cover the top of the block here,
-                // but "up" for BLOCK_VINES is BIT_16
+                // bit 32, "up", means cover the top of the block, as for BLOCK_VINES
                 vineUnderBlock = true;
             }
-            shiftY = 0.75f * ONE_PIXEL;
-            distanceOffset = 0.25f * ONE_PIXEL;
+            // Minecraft's glow_lichen (and sculk_vein, resin_clump) model is 0.1 pixel from the block's face (the top and bottom
+            // are put 1 pixel in, less shiftY)
+            shiftY = 0.9f * ONE_PIXEL;
+            distanceOffset = 0.1f * ONE_PIXEL;
         }
         break;
     case BLOCK_SPORE_BLOSSOM:
@@ -16488,6 +19102,8 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
             assert(0);
             return 0;
         }
+        // Minecraft's ladder model is 0.8 pixel from the block's face
+        distanceOffset = 0.8f * ONE_PIXEL;
         break;
     case BLOCK_CACTUS:				// saveBillboardFacesExtraData
         // side faces are one higher
@@ -16616,7 +19232,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         }
         break;
     case BLOCK_TALL_SEAGRASS:				// saveBillboardFacesExtraData
-        wobbleIt = true;
+        // Minecraft doesn't offset seagrass randomly, as it does many plants
         if (dataVal >= 8)
         {
             // top half of plant
@@ -16673,19 +19289,13 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         break;
     case BLOCK_CORAL_FAN:				// saveBillboardFacesExtraData
     case BLOCK_CORAL_WALL_FAN:				// saveBillboardFacesExtraData
-        if (dataVal > 0)
-        {
-            // add 0-4 to get to tile
-            swatchLoc = SWATCH_INDEX((dataVal & 0x7), 36);
-        }
+        // add 0-4 to get to tile (even for tube coral, 0, as the block's own tile is a coral plant's)
+        swatchLoc = SWATCH_INDEX((dataVal & 0x7), 36);
         break;
     case BLOCK_DEAD_CORAL_FAN:				// saveBillboardFacesExtraData
     case BLOCK_DEAD_CORAL_WALL_FAN:				// saveBillboardFacesExtraData
-        if (dataVal > 0)
-        {
-            // add 0-4 to get to tile
-            swatchLoc = SWATCH_INDEX(5 + (dataVal & 0x7), 36);
-        }
+        // add 0-4 to get to tile
+        swatchLoc = SWATCH_INDEX(5 + (dataVal & 0x7), 36);
         break;
     case BLOCK_DEAD_CORAL:				// saveBillboardFacesExtraData
         if (dataVal > 0)
@@ -17133,6 +19743,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
                 faceDir[faceCount++] = DIRECTION_BLOCK_TOP;
                 faceDir[faceCount++] = DIRECTION_BLOCK_BOTTOM;
                 assert(faceCount <= 10);
+                underBlockBill = billCount;
 
                 Vec3Scalar(vertexOffsets[billCount][0], =, 1.0f, 1.0f - ONE_PIXEL + shiftY, 1.0f);
                 Vec3Scalar(vertexOffsets[billCount][1], =, 1.0f, 1.0f - ONE_PIXEL + shiftY, 0.0f);
@@ -17147,6 +19758,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
                 faceDir[faceCount++] = DIRECTION_BLOCK_BOTTOM;
                 faceDir[faceCount++] = DIRECTION_BLOCK_TOP;
                 assert(faceCount <= 12);
+                overBlockBill = billCount;
 
                 Vec3Scalar(vertexOffsets[billCount][0], =, 1.0f, ONE_PIXEL - shiftY, 1.0f);
                 Vec3Scalar(vertexOffsets[billCount][1], =, 0.0f, ONE_PIXEL - shiftY, 1.0f);
@@ -17168,7 +19780,8 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         // distanceOffset is used for silly case https://www.reddit.com/r/Minecraft/comments/c9r6qd/a_new_building_trick_that_might_come_in_handy
         // in which the lily pad is actually on top of a slab
         // Note that lily pads are officially 1.5/16 above still water: https://minecraft.wiki/w/Solid_block
-        distanceOffset *= 0.5f;
+        // Minecraft's lily_pad (and frogspawn) model is 0.25 pixel up.
+        distanceOffset *= 0.25f;
 
         // if it's a lily pad, we rotate the indices randomly
         rotateIndex = 0;
@@ -17380,6 +19993,21 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
                     // first half of billboard
                     startVertexCount = gModel.vertexCount;
 
+                    // A vine's or lichen's billboard under a block, or lichen's over a block, is a face turned by the blockstate's "x"
+                    // with "uvlock", so its UVs are not those of other billboards: seen from below (under a block), its front's are
+                    // flipped across one diagonal, and its back's across the other; seen from above (over a block), its front's are
+                    // flipped in U and its back's in V. This first face looks toward the block, so it is the back - but when it is the
+                    // only face output, its other side is the one seen, so it then gets the front's UVs.
+                    static const int sameUV[4] = { 0, 1, 2, 3 };
+                    static const int underBlockFrontUV[4] = { 2, 1, 0, 3 };
+                    static const int underBlockBackUV[4] = { 0, 3, 2, 1 };
+                    static const int overBlockFrontUV[4] = { 1, 0, 3, 2 };
+                    static const int overBlockBackUV[4] = { 3, 2, 1, 0 };
+                    const int* firstUV = sameUV;
+                    if (fc == underBlockBill)
+                        firstUV = singleSided ? underBlockBackUV : underBlockFrontUV;
+                    else if (fc == overBlockBill)
+                        firstUV = singleSided ? overBlockBackUV : overBlockFrontUV;
                     // get four face indices for the four corners of the billboard, and always create each
                     for (j = 0; j < 4; j++)
                     {
@@ -17396,7 +20024,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 
                         face->vertexIndex[j] = startVertexCount + j;
                         if (gModel.exportTexture)
-                            face->uvIndex[j] = (short)uvIndices[j];
+                            face->uvIndex[j] = (short)uvIndices[firstUV[j]];
 
                         gModel.vertexCount++;
                         assert(gModel.vertexCount <= gModel.vertexListSize);
@@ -17410,11 +20038,16 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 
                     // use startVertexCount for the locations of the four vertices;
                     // these are always the same
+                    // a vine's or lichen's billboard under or over a block: this second face is the front (see above)
+                    static const int sameSecondUV[4] = { 0, 1, 2, 3 };
+                    static const int underBlockSecondUV[4] = { 2, 1, 0, 3 };
+                    static const int overBlockSecondUV[4] = { 1, 0, 3, 2 };
+                    const int* secondUV = (fc == underBlockBill) ? underBlockSecondUV : ((fc == overBlockBill) ? overBlockSecondUV : sameSecondUV);
                     for (j = 0; j < 4; j++)
                     {
                         face->vertexIndex[3 - j] = startVertexCount + j;
                         if (gModel.exportTexture)
-                            face->uvIndex[3 - j] = (short)uvIndices[j];
+                            face->uvIndex[3 - j] = (short)uvIndices[secondUV[j]];
                     }
                 }
 
@@ -22233,6 +24866,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_CAVE_VINES_LIT:
         case BLOCK_COPPER_BARS:
         case BLOCK_WAXED_COPPER_BARS:
+        case BLOCK_TRIPWIRE:
             // where compositing against black for 3d printing of cutouts is fine, i.e., leave it alone.
             // Case is needed so that the "default:" case assertion doesn't go off, and so we know we've thought about the block
             break;
@@ -22318,7 +24952,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             break;
 
         case BLOCK_CRYING_OBSIDIAN:
-            // bit 0x2 is sculk catalyst's "bloom," which doesn't change its look
+            // bit 0x2 is sculk catalyst's "bloom," which has its own textures
             switch (dataVal & 0x1)
             {
             default:
@@ -22326,8 +24960,15 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             case 0:
                 break;
             case 1: // Sculk Catalyst
-                swatchLoc = SWATCH_INDEX(2, 56);
-                SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 3, 56, 4, 56);
+                if (dataVal & 0x2) {
+                    // blooming: its own top and sides (the bottom stays the same)
+                    swatchLoc = SWATCH_INDEX(5, 56);
+                    SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 6, 56, 4, 56);
+                }
+                else {
+                    swatchLoc = SWATCH_INDEX(2, 56);
+                    SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 3, 56, 4, 56);
+                }
                 break;
             }
             break;
@@ -22629,6 +25270,21 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 newFaceDirection = DIRECTION_BLOCK_SIDE_LO_Z;
                 break;
             }
+            // Minecraft's cherry_log_x and cherry_log_z models (also for the stripped log) are not the other logs' turned
+            // horizontal model: lying along X, the north face is turned half around; along Z, the west and bottom faces are
+            if (((type == BLOCK_MANGROVE_LOG) && !(dataVal & BIT_16) && ((dataVal & 0x3) == 1)) ||
+                ((type == BLOCK_STRIPPED_MANGROVE) && ((dataVal & 0x3) == 1))) {
+                if ((((dataVal & 0xC) == 0x4) && (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z)) ||
+                    (((dataVal & 0xC) == 0x8) && ((faceDirection == DIRECTION_BLOCK_SIDE_LO_X) || (faceDirection == DIRECTION_BLOCK_BOTTOM)))) {
+                    angle = (angle + 180) % 360;
+                }
+            }
+            // Minecraft's muddy_mangrove_roots lying along X or Z is its upright model turned by "x" (and "y"), which leaves the
+            // model's top face (now facing east or north) turned half around compared to the logs' horizontal model
+            if ((type == BLOCK_MUDDY_MANGROVE_ROOTS) &&
+                ((((dataVal & 0xC) == 0x4) && (faceDirection == DIRECTION_BLOCK_SIDE_HI_X)) || (((dataVal & 0xC) == 0x8) && (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z)))) {
+                angle = (angle + 180) % 360;
+            }
             // use data to figure out which side
             switch (type) {
             case BLOCK_LOG:
@@ -22881,10 +25537,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     SWATCH_SWITCH_SIDE(newFaceDirection, 12, 55);
                     break;
                 case 1: // Verdant - side, then top
-                    SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 14, 55, 13, 55);
+                    SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 0, 56, 15, 55);
                     break;
                 case 2: // Pearlescent - side, then top
-                    SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 0, 56, 15, 55);
+                    SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 14, 55, 13, 55);
                     break;
                 }
                 break;
@@ -26413,6 +29069,12 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 }
                 break;
             }
+            // Minecraft's barrel model (cube_bottom_top), turned by "x" 90 and "y" for a sideways barrel: its bottom ends up upside
+            // down from what's above, and, facing north or south, so does the side that's now underneath
+            if (type == BLOCK_BARREL && dir >= 2) {
+                if (bottom || (dir <= 3 && faceDirection == DIRECTION_BLOCK_BOTTOM))
+                    angle = (angle + 180) % 360;
+            }
             // ok, now we know head vs. bottom vs. side & angle
             if (head)
             {
@@ -26466,7 +29128,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_OF_GOLD].txrX, gBlockDefinitions[BLOCK_OF_GOLD].txrY);
             break;
         case BLOCK_SCAFFOLDING:						// getSwatch
-            SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 9, 40, 106, 40);
+            SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 9, 40, 10, 40);
             break;
         case BLOCK_BEE_NEST:						// getSwatch
             // establish top/side/bottom
@@ -26521,7 +29183,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             else
             {
-                // top or bottom face - rotation? Not really sure if top of bee_nests rotate, but do it anyway
+                // top or bottom face, turned with the facing, as Minecraft's orientable model is by "y"; seen from below, the bottom
+                // turns the other way, so facing west or east it's upside down from the top
+                if (uvIndices && (faceDirection == DIRECTION_BLOCK_BOTTOM) && (((dataVal & 0x3) == 0) || ((dataVal & 0x3) == 2)))
+                    rotateIndices(localIndices, 180);
                 switch (dataVal & 0x3)
                 {
                 case 3: // North -Z
@@ -26684,6 +29349,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case 45: // Mud Bricks
                 swatchLoc = SWATCH_INDEX(7, 55);
+                // Minecraft's mud_bricks_north_west_mirrored model mirrors the north and west faces
+                if (uvIndices && ((faceDirection == DIRECTION_BLOCK_SIDE_LO_Z) || (faceDirection == DIRECTION_BLOCK_SIDE_LO_X)))
+                    reflectIndices(localIndices);
                 break;
             case 46: // Packed Mud
                 swatchLoc = SWATCH_INDEX(10, 55);
@@ -27028,8 +29696,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 swatchLoc = SWATCH_INDEX(0, 65);
             }
             else if (faceDirection == DIRECTION_BLOCK_TOP) {
-                // top has ejecting
-                if (dataVal & (0x3 << 3))
+                // top has ejecting, used only when ejecting (Minecraft's vault_active and vault_unlocking models use vault_top)
+                if ((dataVal & (0x3 << 3)) == (0x3 << 3))
                 {
                     // ejecting
                     swatchLoc = SWATCH_INDEX(14, 65);
@@ -27082,6 +29750,13 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 // ominous
                 swatchLoc++;
             }
+            // Minecraft turns the vault model by "y" (without "uvlock"), so the top and bottom turn with the facing
+            if (uvIndices && ((faceDirection == DIRECTION_BLOCK_TOP) || (faceDirection == DIRECTION_BLOCK_BOTTOM))) {
+                int vaultAngle = (faceDirection == DIRECTION_BLOCK_TOP) ? 90 * (dataVal & 0x3) : (360 - 90 * (dataVal & 0x3)) % 360;
+                if (vaultAngle != 0) {
+                    rotateIndices(localIndices, vaultAngle);
+                }
+            }
             break;
 
         case BLOCK_CRAFTER:
@@ -27104,7 +29779,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 int crafterAngle[6 * 12] = {
                 //  s_u,w_u,n_u,e_u,u_s,u_w,u_n,u_e,d_s,d_w,d_n,d_e
                       0,  0,  0,  0, 90,180,270,180, 90,  0,270,  0,    // west
-                      0, 90,180,270,  0,270,180, 90,  0,270,180,270,    // bottom
+                    180, 90,  0,270,  0,270,180, 90,  0,270,180, 90,    // bottom
                       0,  0,  0,  0,180, 90,180,270,  0, 90,  0,270,    // north
                       0,  0,  0,  0,270,180, 90,180,270,  0, 90,  0,    // east
                       0, 90,180,270,180,270,  0, 90,180,270,  0, 90,    // top
@@ -27176,8 +29851,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     break;
                 case DIRECTION_BLOCK_SIDE_HI_Z:
                     // south
-                    if (dataVal & BIT_32) {
-                        // triggered
+                    if (dataVal & (BIT_16 | BIT_32)) {
+                        // triggered, or crafting (Minecraft's crafter_crafting model uses crafter_south_triggered)
                         swatchLoc = SWATCH_INDEX(9, 62);
                     }
                     else {
@@ -27256,11 +29931,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case 2: // weathered_copper_grate
             case 6:	// waxed_weathered_copper_grate
-                swatchLoc = SWATCH_INDEX(1, 64);
+                swatchLoc = SWATCH_INDEX(7, 66);
                 break;
             case 3: // oxidized_copper_grate
             case 7:	// waxed_oxidized_copper_grate
-                swatchLoc = SWATCH_INDEX(7, 66);
+                swatchLoc = SWATCH_INDEX(1, 64);
                 break;
             }
             break;
@@ -28603,7 +31278,9 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
             UPDATE_STATUS(gProgress.start.output + gProgress.absolute.output * 0.5f * ((float)i / (float)gModel.vertexCount), statusString);
         }
 
-        sprintf_s(outputString, 256, "v %g %g %g\n", gModel.vertices[i][X], gModel.vertices[i][Y], gModel.vertices[i][Z]);
+        // 8 significant digits, a float's full precision: with %g's 6, a vertex at a world coordinate in the hundreds can be off
+        // by 1/100th of a pixel, which distorts the texturing of thin parts, such as a tripwire's half-pixel string
+        sprintf_s(outputString, 256, "v %.8g %.8g %.8g\n", gModel.vertices[i][X], gModel.vertices[i][Y], gModel.vertices[i][Z]);
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     }
 

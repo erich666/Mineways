@@ -4874,7 +4874,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         }
                         // TRIPWIRE_PROP
                         else if (strcmp(token, "disarmed") == 0) {
-                            attached = (strcmp(value, "true") == 0);
+                            disarmed = (strcmp(value, "true") == 0);
                         }
                         // TRIPWIRE_PROP and TRIPWIRE_HOOK_PROP
                         else if (strcmp(token, "attached") == 0) {
@@ -5111,13 +5111,14 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         }
                         else if (strcmp(token, "sculk_sensor_phase") == 0) {
                             if (strcmp(value, "cooldown") == 0) {
-                                //dataVal |= 0;
+                                // Minecraft draws cooldown with the active model
+                                dataVal |= BIT_16;
                             }
                             else if (strcmp(value, "active") == 0) {
                                 dataVal |= BIT_16;
                             }
                             else if (strcmp(value, "inactive") == 0) {
-                                // inactive and cooldown are basically the same
+                                // inactive
                                 //dataVal |= 0;
                             }
                             else {
@@ -5678,6 +5679,11 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         break;
                     }
                 }
+                // floor and ceiling levers: 0x8 above is which way the handle points, so also keep whether it's powered, which
+                // picks Minecraft's model (lever or lever_on)
+                if ((face != 1) && powered) {
+                    dataVal |= 0x10;
+                }
                 // reset used value that is shared with other blocks (especially EXTENDED_FACING_PROP, which uses a bunch of properties but may not set them all)
                 powered = false;
                 face = 0;
@@ -5911,7 +5917,9 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 }
                 break;
             case TRIPWIRE_PROP:
-                dataVal = (powered ? 1 : 0) | (attached ? 4 : 0) | (disarmed ? 8 : 0);
+                // connections, as for STAINED_PANE_PROP: 0x100 south, 0x200 west, 0x400 north, 0x800 east
+                dataVal = (powered ? 1 : 0) | (attached ? 4 : 0) | (disarmed ? 8 : 0) |
+                    (south ? 0x100 : 0) | (west ? 0x200 : 0) | (north ? 0x400 : 0) | (east ? 0x800 : 0);
                 // reset used value that is shared with other blocks (especially EXTENDED_FACING_PROP, which uses a bunch of properties but may not set them all)
                 powered = false;
                 break;
@@ -7336,7 +7344,8 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
                 dataVal = (dataVal & ~0x3) | spongeSwneIdxFromName(v);
             }
             else if (strcmp(k, "sculk_sensor_phase") == 0) {
-                if (strcmp(v, "active") == 0) dataVal |= 0x10;
+                // Minecraft draws cooldown with the active model
+                if (strcmp(v, "active") == 0 || strcmp(v, "cooldown") == 0) dataVal |= 0x10;
             }
             break;
 
@@ -7400,6 +7409,11 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
             if (strcmp(k, "powered") == 0)       { if (strcmp(v, "true") == 0) dataVal |= 0x1; lit = false; }
             else if (strcmp(k, "attached") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x4; }
             else if (strcmp(k, "disarmed") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x8; }
+            // connections, as the world reader stores them
+            else if (strcmp(k, "south") == 0)    { if (strcmp(v, "true") == 0) dataVal |= 0x100; }
+            else if (strcmp(k, "west") == 0)     { if (strcmp(v, "true") == 0) dataVal |= 0x200; }
+            else if (strcmp(k, "north") == 0)    { if (strcmp(v, "true") == 0) dataVal |= 0x400; }
+            else if (strcmp(k, "east") == 0)     { if (strcmp(v, "true") == 0) dataVal |= 0x800; }
             break;
 
         case TRIPWIRE_HOOK_PROP:
@@ -9487,12 +9501,16 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case TRIPWIRE_PROP: {
-        // Tripwire string (block 132). Read-side packs `dataVal = powered | (attached<<2) | (disarmed<<3)`
-        // (nbt.cpp:4868). N/E/S/W connection booleans aren't tracked by Mineways — Minecraft
-        // re-derives those from neighboring tripwire on paste, so omitting them is safe.
+        // Tripwire string (block 132). Read-side packs `dataVal = powered | (attached<<2) | (disarmed<<3)`, with the
+        // connections in 0x100 south, 0x200 west, 0x400 north, 0x800 east.
+        // Alphabetical: attached < disarmed < east < north < powered < south < west.
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "attached", (dataVal & 0x4) ? "true" : "false");
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "disarmed", (dataVal & 0x8) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "east", (dataVal & 0x800) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "north", (dataVal & 0x400) ? "true" : "false");
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x1) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "south", (dataVal & 0x100) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "west", (dataVal & 0x200) ? "true" : "false");
         break;
     }
 
