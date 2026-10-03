@@ -6976,6 +6976,38 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 northSouth = true;
             }
 
+            // An inner corner has both the 2x1 step and a 1x1 box beside it, making an L. Where they touch, each box would have a
+            // face against the other, hidden inside, and the 2x1's face on that side would be half hidden. So, unless 3D printing
+            // (where each box must be watertight), leave off the 1x1's face toward the 2x1, and the 2x1's face toward the 1x1, and
+            // add just the exposed half of that 2x1 face. As Minecraft's stairs model has it, nothing is inside.
+            int stepHiddenFace = 0;         // the 2x1's face (bit) toward the 1x1
+            int cornerHiddenFace = 0;       // the 1x1's face (bit) toward the 2x1
+            float exposedMinX = 0, exposedMaxX = 0, exposedMinZ = 0, exposedMaxZ = 0;    // the quarter of the 2x1 whose face is exposed
+            if (outputStep && (stepMask != 0x0) && !gModel.print3D)
+            {
+                // the 1x1 is in the corner given by the one bit left: 0x1 northwest, 0x2 northeast, 0x4 southwest, 0x8 southeast
+                bool cornerWest = (stepMask == 0x1) || (stepMask == 0x4);
+                bool cornerNorth = (stepMask == 0x1) || (stepMask == 0x2);
+                if (northSouth) {
+                    // the 2x1 runs north-south, on the west or east half; the 1x1 is beside it in X
+                    stepHiddenFace = (maxx == 8) ? DIR_HI_X_BIT : DIR_LO_X_BIT;
+                    cornerHiddenFace = (maxx == 8) ? DIR_LO_X_BIT : DIR_HI_X_BIT;
+                    exposedMinX = minx;
+                    exposedMaxX = maxx;
+                    exposedMinZ = cornerNorth ? 8.0f : 0.0f;
+                    exposedMaxZ = cornerNorth ? 16.0f : 8.0f;
+                }
+                else {
+                    // the 2x1 runs east-west, on the north or south half; the 1x1 is beside it in Z
+                    stepHiddenFace = (maxz == 8) ? DIR_HI_Z_BIT : DIR_LO_Z_BIT;
+                    cornerHiddenFace = (maxz == 8) ? DIR_LO_Z_BIT : DIR_HI_Z_BIT;
+                    exposedMinX = cornerWest ? 8.0f : 0.0f;
+                    exposedMaxX = cornerWest ? 16.0f : 8.0f;
+                    exposedMinZ = minz;
+                    exposedMaxZ = maxz;
+                }
+            }
+
             if (outputStep)
             {
                 if (stepLevel)
@@ -7062,7 +7094,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                         }
                     }
                 }
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, faceMask, 0, minx, maxx, miny, maxy, minz, maxz);
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, faceMask | stepHiddenFace, 0, minx, maxx, miny, maxy, minz, maxz);
+                if (stepHiddenFace) {
+                    // the exposed half of the 2x1's face toward the 1x1
+                    saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, DIR_ALL_BITS & ~stepHiddenFace, 0,
+                        exposedMinX, exposedMaxX, miny, maxy, exposedMinZ, exposedMaxZ);
+                }
             }
 
             // anything left? output that little 1x1 box
@@ -7114,7 +7151,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                     // should never get here
                     assert(0);
                 }
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, faceMask, 0, minx, maxx, miny, maxy, minz, maxz);
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, faceMask | cornerHiddenFace, 0, minx, maxx, miny, maxy, minz, maxz);
             }
         }
 
