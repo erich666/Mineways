@@ -5675,10 +5675,16 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
     case BLOCK_PUMPKIN:
     case BLOCK_JACK_O_LANTERN:
-    case BLOCK_RESPAWN_ANCHOR:
     case BLOCK_MANGROVE_LEAVES:     // uses 0-5: mangrove, cherry, pale oak, and the yellow, orange, and red poplar leaves
         // uses 0-5
         if (dataVal < 6)
+        {
+            addBlock = 1;
+        }
+        break;
+    case BLOCK_RESPAWN_ANCHOR:
+        // charges 0-4
+        if (dataVal < 5)
         {
             addBlock = 1;
         }

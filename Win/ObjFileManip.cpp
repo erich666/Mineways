@@ -2605,19 +2605,39 @@ static int fillMissingTilesFromBuiltIn(progimage_info* pITI)
         pITI->height = builtInRows * tileSize;
     }
 
+    // which tiles have no content in the file, as read (before any filling)
+    std::vector<bool> fileEmpty((size_t)builtInRows * XTILES, true);
+    for (int row = 0; row < builtInRows; row++) {
+        for (int col = 0; col < XTILES; col++) {
+            bool empty = true;
+            for (int y = 0; y < tileSize && empty; y++) {
+                const unsigned char* p = &pITI->image_data[(((size_t)row * tileSize + y) * pITI->width + (size_t)col * tileSize) * 4];
+                for (int x = 0; x < tileSize; x++) {
+                    if (p[x * 4 + 3] != 0) { empty = false; break; }
+                }
+            }
+            fileEmpty[(size_t)row * XTILES + col] = empty;
+        }
+    }
+
     int filled = 0;
     for (int row = 0; row < builtInRows; row++) {
         for (int col = 0; col < XTILES; col++) {
             // skip tiles that have any content in the file, or that are empty in the built-in data, too
-            bool fileEmpty = true;
-            for (int y = 0; y < tileSize && fileEmpty; y++) {
-                const unsigned char* p = &pITI->image_data[(((size_t)row * tileSize + y) * pITI->width + (size_t)col * tileSize) * 4];
-                for (int x = 0; x < tileSize; x++) {
-                    if (p[x * 4 + 3] != 0) { fileEmpty = false; break; }
+            if (!fileEmpty[(size_t)row * XTILES + col])
+                continue;
+            // A member of an image spanning several tiles (see tiles.h) is part of that image: if the file has the image (its anchor
+            // tile has content), an empty member is just a transparent part of it, e.g. the bottom of the creeper head's image,
+            // which in the built-in data has a single, nearly transparent pixel.
+            if (row < VERTICAL_TILES) {
+                int tileIndex = col + XTILES * row;
+                if (gTilesTable[tileIndex].spanX < 0 || gTilesTable[tileIndex].spanY < 0) {
+                    int anchorCol = col + gTilesTable[tileIndex].spanX;
+                    int anchorRow = row + gTilesTable[tileIndex].spanY;
+                    if (!fileEmpty[(size_t)anchorRow * XTILES + anchorCol])
+                        continue;
                 }
             }
-            if (!fileEmpty)
-                continue;
             bool builtInEmpty = true;
             for (int y = 0; y < builtInTileSize && builtInEmpty; y++) {
                 const unsigned char* p = &gTerrainExt[(((size_t)row * builtInTileSize + y) * gTerrainExtWidth + (size_t)col * builtInTileSize) * 4];
@@ -5725,7 +5745,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         float stemHeight = attached ? 8.0f : 2.0f * (float)((dataVal & 0x7) + 1);
         float stemUV[4] = { 0.0f, 0.0f, 16.0f, stemHeight };
         float stemBackUV[4] = { 16.0f, 0.0f, 0.0f, stemHeight };
-        swatchLoc = getSwatch(type, dataVal, DIRECTION_BLOCK_SIDE_LO_X, boxIndex, NULL);
+        // the stem's own tile (getSwatch() would composite it with the block behind, which is only for composite overlay output)
+        swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
         gUsingTransform = 1;
         int stemVertexStart = gModel.vertexCount;
         totalVertexCount = gModel.vertexCount;
