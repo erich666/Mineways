@@ -23511,10 +23511,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 switch (faceDirection)
                 {
                 case DIRECTION_BLOCK_BOTTOM:
+                    // as Minecraft's template_glazed_terracotta turned by "y" (south 0, west 90, north 180, east 270)
                     switch (dataVal & 0x3) {
-                    case 0: rotateIndices(localIndices, 180); break;
+                    case 0: break;
                     case 1: rotateIndices(localIndices, 270); break;
-                    case 2: break;
+                    case 2: rotateIndices(localIndices, 180); break;
                     case 3: rotateIndices(localIndices, 90); break;
                     }
                     break;
@@ -26008,13 +26009,15 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             case BIT_16: // infested deepslate
                 SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 5, 53, 4, 53);
                 // reflect and rotate 180 degrees, randomly, based on location
-                // see 1.20.4\assets\minecraft\blockstates\deepslate.json
+                // see 1.20.4\assets\minecraft\blockstates\deepslate.json: the reflection is the deepslate_mirrored model, and the
+                // turn is "y" 180, which only vertical deepslate has, and which turns just its top and bottom (its sides stay upright)
                 if (uvIndices) {
                     int rotref = (int)(4.0f * getRand3to1(backgroundIndex));
                     if (rotref >= 2) {
                         reflectIndices(localIndices);
                     }
-                    if ((rotref % 2) == 1) {
+                    if (((rotref % 2) == 1) && ((dataVal & 0xC) == 0) &&
+                        ((faceDirection == DIRECTION_BLOCK_TOP) || (faceDirection == DIRECTION_BLOCK_BOTTOM))) {
                         angle += 180;
                     }
                 }
