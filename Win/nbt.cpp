@@ -7467,32 +7467,43 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
         }
 
         case LEVER_PROP: {
-            // bits 0-2 hold a composite face+facing in 0..7; bit 0x8 powered.
+            // As the world reader packs it (LEVER_PROP in readPalette): bits 0-2 hold a composite face+facing in 0..7:
             // 0=ceiling east/west, 1=wall east, 2=wall west, 3=wall south, 4=wall north,
             // 5=floor south/north, 6=floor east/west, 7=ceiling north/south.
+            // For a wall lever, bit 0x8 is powered. For a floor or ceiling lever, 0x8 is which way the handle points along the
+            // axis (set for facing east or south when off, west or north when on), and 0x10 is powered.
+            // All the properties are looked at each time, so the result is the same whichever comes last.
             const char* face = NULL;
             const char* facing = NULL;
+            bool leverPowered = false;
             for (int j = 0; j < numProps; j++) {
                 if (strcmp(keys[j], "face") == 0) face = values[j];
                 else if (strcmp(keys[j], "facing") == 0) facing = values[j];
+                else if (strcmp(keys[j], "powered") == 0) leverPowered = (strcmp(values[j], "true") == 0);
             }
+            if (strcmp(k, "powered") == 0) lit = false;
             if (face && facing) {
-                int b = 1;
+                int b;
                 if (strcmp(face, "wall") == 0) {
                     if (strcmp(facing, "east") == 0) b = 1;
                     else if (strcmp(facing, "west") == 0) b = 2;
                     else if (strcmp(facing, "south") == 0) b = 3;
                     else b = 4;
+                    b |= leverPowered ? 0x8 : 0x0;
                 }
-                else if (strcmp(face, "floor") == 0) {
-                    b = (strcmp(facing, "south") == 0 || strcmp(facing, "north") == 0) ? 5 : 6;
+                else {
+                    bool alongEW = (strcmp(facing, "east") == 0 || strcmp(facing, "west") == 0);
+                    bool eastOrSouth = (strcmp(facing, "east") == 0 || strcmp(facing, "south") == 0);
+                    if (strcmp(face, "floor") == 0) {
+                        b = alongEW ? 6 : 5;
+                    }
+                    else {   // ceiling
+                        b = alongEW ? 0 : 7;
+                    }
+                    b |= ((eastOrSouth != leverPowered) ? 0x8 : 0x0) | (leverPowered ? 0x10 : 0x0);
                 }
-                else {   // ceiling
-                    b = (strcmp(facing, "east") == 0 || strcmp(facing, "west") == 0) ? 0 : 7;
-                }
-                dataVal = (dataVal & ~0x7) | b;
+                dataVal = (dataVal & ~0x1F) | b;
             }
-            if (strcmp(k, "powered") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x8; lit = false; }
             break;
         }
 
@@ -7738,10 +7749,12 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
     // facing; for floor and ceiling, BIT_16 marks the east/west facing axis.
     if (tf == BUTTON_PROP) {
         int b;
-        if (buttonFace == 0)      b = 5 | ((buttonFacing <= 2) ? BIT_16 : 0x0);
-        else if (buttonFace == 2) b = 0 | ((buttonFacing <= 2) ? BIT_16 : 0x0);
+        // as the world reader does, BIT_32 tells which way along that axis: west (2) or south (3) set it
+        int alongAxis = ((buttonFacing == 2) || (buttonFacing == 3)) ? BIT_32 : 0x0;
+        if (buttonFace == 0)      b = 5 | ((buttonFacing <= 2) ? BIT_16 : 0x0) | alongAxis;
+        else if (buttonFace == 2) b = 0 | ((buttonFacing <= 2) ? BIT_16 : 0x0) | alongAxis;
         else                      b = buttonFacing;
-        dataVal = (dataVal & ~(0x7 | BIT_16)) | b;
+        dataVal = (dataVal & ~(0x7 | BIT_16 | BIT_32)) | b;
     }
     // DOOR_PROP: upper half = 0x8 | hinge (0x1) | powered (0x2); lower half = open (0x4) | door_facing (0x3)
     if (tf == DOOR_PROP) {
@@ -9746,25 +9759,28 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         //     5  -> floor south/north axis
         //     6  -> floor east/west axis
         //     7  -> ceiling north/south axis
-        //   bit 0x8: powered
-        // For floor/ceiling levers, the precise direction within the axis isn't preserved by
-        // Mineways; pick a representative.
+        //   bit 0x8: for a wall lever, powered; for a floor or ceiling lever, which way the handle points along the axis
+        //            (set for facing east or south when off, west or north when on)
+        //   bit 0x10: for a floor or ceiling lever, powered
         int lo = dataVal & 0x7;
         const char* face;
         const char* facing;
-        switch (lo) {
-        case 0: face = "ceiling"; facing = "east"; break;   // east/west axis
-        case 1: face = "wall";    facing = "east"; break;
-        case 2: face = "wall";    facing = "west"; break;
-        case 3: face = "wall";    facing = "south"; break;
-        case 4: face = "wall";    facing = "north"; break;
-        case 5: face = "floor";   facing = "south"; break;  // south/north axis
-        case 6: face = "floor";   facing = "east"; break;   // east/west axis
-        default: face = "ceiling"; facing = "north"; break; // 7: north/south axis
+        bool leverPowered;
+        if (lo >= 1 && lo <= 4) {
+            face = "wall";
+            facing = (lo == 1) ? "east" : (lo == 2) ? "west" : (lo == 3) ? "south" : "north";
+            leverPowered = (dataVal & 0x8) ? true : false;
+        }
+        else {
+            face = (lo == 5 || lo == 6) ? "floor" : "ceiling";
+            leverPowered = (dataVal & 0x10) ? true : false;
+            bool eastOrSouth = (((dataVal & 0x8) ? true : false) != leverPowered);
+            bool alongEW = (lo == 6 || lo == 0);
+            facing = alongEW ? (eastOrSouth ? "east" : "west") : (eastOrSouth ? "south" : "north");
         }
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "face", face);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
-        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x8) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", leverPowered ? "true" : "false");
         break;
     }
 
