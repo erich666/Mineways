@@ -340,7 +340,7 @@ By default, <a href="https://en.wikipedia.org/wiki/Wavefront_OBJ">Wavefront OBJ<
 <P>
 <B>ASCII text STL:</B> A variant for 3D printers, the file generated is considerably larger than the binary form and cannot include color. The main advantage is that this file type is a simple text file and so can be easily edited. The format is trivial and so can provide a raw set of triangles for a model.
 <P>
-<B>VRML97:</B> Also known as VRML2 or VRML 2.0. While this format has been superseded by <a href="https://en.wikipedia.org/wiki/X3d">X3D</a>, it is commonly supported by a wide range of packages. That said, its main reason for existence here is that it's the only file format that Shapeways used for colored models. Given that <a href="https://www.tctmagazine.com/additive-manufacturing-3d-printing-news/latest-additive-manufacturing-3d-printing-news/shapeways-ceases-operations-and-files-for-bankruptcy/">Shapeways went bankrupt in July 2024</a>, don't expect much further support for this format.
+<B>VRML97:</B> Also known as VRML2 or VRML 2.0. While this format has been superseded by <a href="https://en.wikipedia.org/wiki/X3d">X3D</a>, it is commonly supported by a wide range of packages. That said, its main reason for existence here is that it's the only file format that Shapeways used for colored models. Given that <a href="https://web.archive.org/web/20250825095052/https://www.tctmagazine.com/additive-manufacturing-3d-printing-news/latest-additive-manufacturing-3d-printing-news/shapeways-ceases-operations-and-files-for-bankruptcy/">Shapeways went bankrupt in July 2024</a>, don't expect much further support for this format.
 
 <HR>
 <H3 id="options">
@@ -753,13 +753,13 @@ What follows are how various options apply to USD export. Also, Mineways' "View 
 <B>Export individual blocks:</B> With USD export, two additional USD files are produced, "*_BlockLibrary.usda" and "*_MaterialLibrary.usda". USD structures its data in different forms. These additional files contain the individual blocks and materials, in case these are of use as-is.
 
 <P>
-<B>Export MDL:</B> Applies only to USD export. If turned on, <a href="https://www.nvidia.com/en-us/design-visualization/technologies/material-definition-language/">MDL material descriptions</a> are exported. These generally give higher-quality looks to glass objects, for example. <a href="https://www.nvidia.com/en-us/omniverse/apps/create/">Omniverse libraries</a> and some commercial packages use MDL. With this off (the default) Mineways will export only <a href="https://openusd.org/release/spec_usdpreviewsurface.html">UsdPreviewSurface material descriptions</a>, which are always exported.
+<B>Export MDL:</B> Applies only to USD export. If turned on, <a href="https://www.nvidia.com/en-us/design-visualization/technologies/material-definition-language/">MDL material descriptions</a> are exported. These generally give higher-quality looks to glass objects, for example. <a href="https://www.nvidia.com/en-us/omniverse/">Omniverse libraries</a> and some commercial packages use MDL. With this off (the default) Mineways will export only <a href="https://openusd.org/release/spec_usdpreviewsurface.html">UsdPreviewSurface material descriptions</a>, which are always exported.
 
 <P>
-<B>Custom material:</B> This option is ignored if Export MDL is off. For USDA export, the Custom material setting mainly has the effects of making the texture's texels appear blocky, in Minecraft fashion, and present stripped down materials in <a href="https://www.nvidia.com/en-us/omniverse/apps/create/">Omniverse libraries</a>. I uncheck this box for higher-resolution resource packs (basically 64x64 or larger tiles) so that the textures interpolate more smoothly. This option is also discussed in <a href="https://youtu.be/lpFpj84eFgw">this video</a>.
+<B>Custom material:</B> This option is ignored if Export MDL is off. For USDA export, the Custom material setting mainly has the effects of making the texture's texels appear blocky, in Minecraft fashion, and present stripped down materials in <a href="https://www.nvidia.com/en-us/omniverse/">Omniverse libraries</a>. I uncheck this box for higher-resolution resource packs (basically 64x64 or larger tiles) so that the textures interpolate more smoothly. This option is also discussed in <a href="https://youtu.be/lpFpj84eFgw">this video</a>.
 
 <P>
-<B><a name="opt_lighting">Light scale:</a></B> Used only by USD. This has a value of 15 by default. You can change the intensity of the lights exported to USD - the sun and dome light - by changing this value. A setting of 30 sets the sun strength to 3120 and the surrounding dome light to 1, which works well with Blender. Nighttime lighting (set in Mineways by selecting View | Lighting) gives a moon of strength 208 and dome of 0.5 respectively. If you set the light scale to 0, the two lights will not be exported to the USD file <I>and</I> the default camera will also not be exported.
+<B><a name="opt_lighting">Light scale:</a></B> Used only by USD. This has a value of 15 by default. You can change the intensity of the lights exported to USD - the sun and dome light - by changing this value. The default setting of 15 gives the sun an intensity of 780 and the surrounding dome light an intensity of 1; Blender imports this sun with a strength of 3120. Nighttime lighting (set in Mineways by selecting View | Lighting) gives a moon of intensity 52 (a strength of 208 in Blender) and a dome of 0.5. Both lights scale with this value. If you set the light scale to 0, the two lights will not be exported to the USD file <I>and</I> the default camera will also not be exported.
 <P>
 As of January 2026 lighting in the USD specification is still not well defined, meaning programs will be (sometimes radically) different in their interpretation of intensity values. Currently "15" means a value of 3120 for the sun and 1 for the dome light. For the UsdView viewer, I have found that 40,000 and 0.5, respectively, are better values.
 
@@ -880,7 +880,6 @@ The "Custom Printer" material is used for STL export. By default, it is set to s
 <LI><a href="https://sculpteo.com/">Sculpteo</a> - choose the "Wavefront OBJ, absolute and true" file type; by default, "Z is up" is on and the units are centimeters. Textured models are fully supported, including the truly worthwhile <a href="#lesser">"Export lesser blocks"</a> feature, though <a href="#lesser">read the warnings</a> to make sure you know what problems may occur.
 <LI><a href="https://i.materialise.com/">i.materialise</a> - for this 3D print service, millimeters are the default units. For STL export, choose the "Binary Materialise Magics" STL file type; by default "Z is up" is off and the units are millimeters. Textured models are not currently supported, but colored models are, by exporting color to STL and choosing the multicolor material in their 3D print lab. If you want to import VRML for some reason, "Z is up" should be on and you'll have to change the export scale to millimeters.
 <LI><a href="https://ponoko.com">Ponoko</a> - this 3D print service uses centimeters, millimeters, and inches. "Z is up" should be on, to show properly in Ponoko's thumbnail view. If your model is flagged as having a problem with normals, export again and check the "Weld all shared edges" checkbox. You can use the "Export solid material colors" or "no materials" options; textures are not supported. The preview itself will not show the colors, but I have been assured the model will print with color.
-<LI><a href="https://reprap.org/wiki/RepRap">RepRap</a> - this home 3D printer <a href="https://repraprip.blogspot.com/2012/01/tutorial-printing-from-minecraft-with.html">appears to need models in centimeters</a>. I'm not sure if this is more of a requirement of the related software.
 </UL>
 
 <H4 id="opt_fill">
@@ -1063,12 +1062,12 @@ Rendering Tips
   and <a href="#houdini">Houdini</a>.
   If you want better geometry for some blocks, you might also consider using <a href="https://www.jmc2obj.net/">jmc2obj</a>. Honestly, they have a lot of features Mineways doesn't, so you should give it a try. Also consider <a href="https://bramstout.nl/en/miex/">MiEx</a>, especially if you are using USD.
   <P>
-  While I have your ear (eye?), you should also check out the shader mods <a href="https://bitslablab.com/bslshaders/">BSL</a>, <a href="https://rre36.com/kappa-shader">Kappa</a>, <a href="https://www.minecraftforum.net/forums/mapping-and-modding-java-edition/minecraft-mods/1272953-optifine-hd-fps-boost-dynamic-lights-shaders-and">OptiFine</a>, and <a href="https://www.sonicether.com/seus/">Sonic Ether's Unbelievable Shaders</a> (<a href="https://www.minecraftforum.net/forums/mapping-and-modding-java-edition/minecraft-mods/1280299-sonic-ethers-unbelievable-shaders-compatible-with">SEUS forum</a>) for in-game play or viewing. They have lots of cool rendering options. What makes these systems shine (literally) is using a high-quality texture pack that support specular textures, bump maps, etc. Some nice texture packs: <a href="https://github.com/jasonjgardner/jg-rtx">JG-RTX</a>, <a href="https://www.texturepack.net/umsoea/">UMSOEA</a> and <a href="https://sildurs-shaders.github.io/downloads/">Sildur's Shaders</a>, among many others (<a href="https://www.planetminecraft.com/texture-packs/tag/bsl/">BSL search</a>).
+  While I have your ear (eye?), you should also check out the shader mods <a href="https://rre36.com/kappa-shader">Kappa</a>, <a href="https://www.minecraftforum.net/forums/mapping-and-modding-java-edition/minecraft-mods/1272953-optifine-hd-fps-boost-dynamic-lights-shaders-and">OptiFine</a>, and <a href="https://www.sonicether.com/seus/">Sonic Ether's Unbelievable Shaders</a> (<a href="https://www.minecraftforum.net/forums/mapping-and-modding-java-edition/minecraft-mods/1280299-sonic-ethers-unbelievable-shaders-compatible-with">SEUS forum</a>) for in-game play or viewing. They have lots of cool rendering options. What makes these systems shine (literally) is using a high-quality texture pack that support specular textures, bump maps, etc. Some nice texture packs: <a href="https://github.com/jasonjgardner/jg-rtx">JG-RTX</a>, <a href="https://www.texturepack.net/umsoea/">UMSOEA</a> and <a href="https://sildurs-shaders.github.io/downloads/">Sildur's Shaders</a>, among many others (<a href="https://www.planetminecraft.com/texture-packs/tag/bsl/">BSL search</a>).
   <P>
   Also worth a shout-out, the <a href="https://www.nvidia.com/en-us/geforce/news/minecraft-with-rtx-beta-out-now-download-play/">Minecraft RTX beta</a>. If you have an RTX card, this system accelerates ray tracing effects on the Bedrock Edition (sorry, no Java Edition version). However, conversion of a Java Edition world is fairly straightforward; they give <a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-world-conversion-guide/">a long guide</a>, but really, just follow the <a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-world-conversion-guide/#textcomponentenhance_16365283995c6722f5_46dd_4cdd_ba02_77ef3ae0242d">MCC Tool Chest Conversion</a> steps - it's all I needed (note that MCC Tool Chest has, sadly, disappeared, but can be found archived <a href="https://web.archive.org/web/20210513191001/https://www.mcctoolchest.com/Download">here</a>). If you're really feeling frisky, you can <a href="https://www.nvidia.com/en-us/geforce/guides/minecraft-rtx-texturing-guide/#resource-pack-setup">design a texture pack</a>.
   <P>
   <h4 id="previewing">Previewing:</h4>
-  <p>To quickly check results before printing or importing into a rendering program, consider using an interactive previewer. The <a href="#g3d">G3D viewer</a> is great for OBJ files, with shadows and screenshot capture built in. <a href="https://en.freedownloadmanager.org/Windows-PC/Open-3D-Model-Viewer-FREE.html">Open 3D Model Viewer</a> mostly works, though has transparency issues when you export individual textures. <a href="https://www.microsoft.com/en-us/p/3d-viewer/9nblggh42ths?activetab=pivot:overviewtab">Microsoft's 3D Viewer</a> also can work, though it does not treat semitransparent surfaces well. <a href="https://meshlab.sourceforge.net/">MeshLab</a> is a usable previewer for models in any format Mineways produces, though handles transparency and cutouts incorrectly.
+  <p>To quickly check results before printing or importing into a rendering program, consider using an interactive previewer. The <a href="#g3d">G3D viewer</a> is great for OBJ files, with shadows and screenshot capture built in. <a href="https://meshlab.sourceforge.net/">MeshLab</a> is a usable previewer for models in any format Mineways produces, though handles transparency and cutouts incorrectly.
   <P>
   Below are steps for using various popular rendering software packages. There are always more; for example, <a href="https://blog.yiningkarlli.com/2016/07/minecraft-in-renderman-ris.html">this article</a> talks in depth about using RenderMan for rendering.
 </div>
@@ -1097,7 +1096,7 @@ If you are <a href="#individual">exporting individual blocks</a> for animation, 
 <P>
 <b>3) Open Blender 3.5</b> (or newer) and click anywhere on the screen to make the splash screen disappear. Then press the "Delete" key to remove the default cube model. If you're importing a USD file, you will also want to select the default Light in list in the upper right and delete it, too.
 <P>
-<b>4) Import the model:</b> select "File | Import | Wavefront (.obj)" or "File | Import | Universal Scene Description (.usd*)" from the menu (Note there are two OBJ importers - pick the one closer to the top, not the one at the bottom that says "legacy" after it). Put the directory name of your Mineways export file (the .obj or .usda file) on the first line and hit "Enter". You can then double-click the .obj/.usda file name itself in the listing below. Alternately, you can type the file name itself on the line below the directory name and then click the blue "Import OBJ/USD" button to the lower right.
+<b>4) Import the model:</b> select "File | Import | Wavefront (.obj)" or "File | Import | Universal Scene Description (.usd*)" from the menu. Put the directory name of your Mineways export file (the .obj or .usda file) on the first line and hit "Enter". You can then double-click the .obj/.usda file name itself in the listing below. Alternately, you can type the file name itself on the line below the directory name and then click the blue "Import OBJ/USD" button to the lower right.
 <P>
 On the right side of the import dialog you will see import options. I never touch these, but they're worth knowing about, e.g., you might want to scale the model size down on import.
 <P>
@@ -1119,7 +1118,7 @@ Another way to move around the scene is to turn on Walk or Fly navigation. Hit F
 <p class="center">
 <img src="images/b28_sunlight.jpg">
 </p>
-For USD, the file comes with a sun light (and a dome light, which Blender currently ignores). This light <i>may</i> import with a strength of 50000. Or 2.284. As with the OBJ instructions above, change the strength to around 8.0 or whatever you like.
+For USD, the file comes with a sun light (and a dome light, which Blender currently ignores). With the default <a href="#opt_lighting">light scale</a> of 15, Blender imports the sun with a strength of 3120 (older versions of Blender gave other values). As with the OBJ instructions above, change the strength to around 8.0 or whatever you like.
 <P>
 To adjust the direction of any light, select it, press Shift-T, and move your mouse around in the viewport. Hey, the sun's moving. When you left click with the mouse, you lock down the direction of the sun. It's a bit non-intuitive, and you may need to rotate the view, Shift-T, rotate again, etc. to get the angle you want. Try F12 again to render the scene.
 <P>
@@ -1172,7 +1171,7 @@ If instead you want to do this conversion manually, it's a tedious process of se
 <img src="images/b28_blocky.jpg">
 </p>
 <P>
-All this said, setting the sampling to "Closest" can give noisy renders, as far away objects may twinkle or form Moir&eacute; patterns. You may want to consider using <a href="downloads">the high-resolution "1024" or "8192" textures</a> when exporting from Mineways, as these give a blocky appearance and also allow mipmapping to be used for filtering when blocks are distant.
+All this said, setting the sampling to "Closest" can give noisy renders, as far away objects may twinkle or form Moir&eacute; patterns. You may want to consider using <a href="#blurry">the high-resolution "1024" or "8192" textures</a> when exporting from Mineways, as these give a blocky appearance and also allow mipmapping to be used for filtering when blocks are distant.
 <P>
 With USD in Blender 4.2 and newer, you may see parts of blocks show through other parts: for example, a bed's side seems to be missing, so that you see its legs and the far side from behind, or leaves and flowers look jumbled. Blender's USD importer gives every material with an opacity input (cutouts such as leaves, flowers, and rails, and glass and water) the "Blended" render method, and in EEVEE blended surfaces are not sorted properly against each other. Mineways has nothing in the USD file to change this. To fix it, set these materials' Render Method (in the material's Settings, at the bottom of its properties) to "Dithered", or run the script below, which does this for every such material.
 <P>
@@ -1214,7 +1213,7 @@ I'll again note that you should probably be using <a href="https://theduckcow.co
 
 <HR>
 <H4 id="c4d">Cinema 4D</H4><p>
-<a href="https://www.maxon.net/en-us/products/cinema-4d/overview/"><img id="productLogo" src="images/cinema4d_icon.jpg" alt="Cinema 4D icon"></a>
+<a href="https://www.maxon.net/en/cinema-4d"><img id="productLogo" src="images/cinema4d_icon.jpg" alt="Cinema 4D icon"></a>
 <P>
 These instructions explain how to import a model and set the textures are mostly for Cinema 4D R25 or newer; the instructions are similar for older versions, though USD support is unlikely. Really, I should redo this section, but I hope you'll be able to figure things out. Most steps are mostly from <a href="https://www.youtube.com/watch?v=xx4WNvV6k4E&list=PL3AE7AB94E9114715&index=7&feature=plpp_video">this excellent (though now-dated) video</a> from <a href="https://www.minecraftforum.net/forums/show-your-creation/videos/1637913-making-amazing-minecraft-scenes-in-cinema-4d">this forum post</a>, which includes a number of other useful Cinema 4D animation tutorials and resource links. Here's <a href="https://www.minecraftforum.net/forums/show-your-creation/videos/1624794-minecraft-3d-essentials-cinema-4d">one more useful post</a>.
 <P>
@@ -1252,7 +1251,7 @@ To move around the scene, hold down Alt and use the three mouse buttons and scro
 <img src="images/c4d_texture.jpg" alt="Cinema 4D color material"></a>
 </P>
 <P>
-That said, setting the sampling to "None" can give noisy renders. You may want to consider using <a href="blurry">the high-resolution "1024" or "8192" textures</a> when exporting from Mineways, as these give a blocky appearance and also allow mipmapping to be used for filtering when blocks are distant.
+That said, setting the sampling to "None" can give noisy renders. You may want to consider using <a href="#blurry">the high-resolution "1024" or "8192" textures</a> when exporting from Mineways, as these give a blocky appearance and also allow mipmapping to be used for filtering when blocks are distant.
 <P>
 That's about it! I'll mention that you can also import Mineways' VRML files into C4D. This will work, but all blocks will share the same material, limiting what you can do to them.
 
@@ -1327,7 +1326,7 @@ A problem with jmc2obj is that each material must be adjusted by hand. One optio
 <p>
 <a href="https://sketchfab.com"><img id="productLogo" src="images/sketchfab_icon.jpg" alt="Sketchfab icon"></a>
 <P>
-<a href="https://sketchfab.com">Sketchfab</a> is a free service that lets you upload your models and share them with others; try an example <a href="https://skfb.ly/IQyA">here</a> or look at the end of these instructions. Mineways exports to it in a straightforward fashion, there are just a few steps to get your model up and running. It's always been possible to upload models to Sketchfab, see these <a href="https://help.sketchfab.com/hc/en-us/articles/206738956-Minecraft-Mineways">illustrated instructions</a>. With the 4.16 version of Mineways you can now publish directly from Mineways to Sketchfab. Note: you can always export a rendering as usual to an OBJ file and upload the ZIP of the files output to Sketchfab. This will give a somewhat different rendering style, sharp and less shadowed.
+<a href="https://sketchfab.com">Sketchfab</a> is a free service that lets you upload your models and share them with others; try an example <a href="https://skfb.ly/IQyA">here</a> or look at the end of these instructions. Mineways exports to it in a straightforward fashion, there are just a few steps to get your model up and running. It's always been possible to upload models to Sketchfab, see these <a href="https://web.archive.org/web/20240324122943/https://help.sketchfab.com/hc/en-us/articles/206738956-Minecraft-Mineways">illustrated instructions</a>. With the 4.16 version of Mineways you can now publish directly from Mineways to Sketchfab. Note: you can always export a rendering as usual to an OBJ file and upload the ZIP of the files output to Sketchfab. This will give a somewhat different rendering style, sharp and less shadowed.
 <P>
 <b>1) Sign up for an <a href="https://sketchfab.com/">account on Sketchfab</a></b>.
 </P>
@@ -1358,7 +1357,7 @@ One line says "API Token," as shown below. Copy the API token, a long string of 
 <b>7) In the upper right click "SAVE SETTINGS".</b>. Then click "EXIT" and you're done.
 </P>
 <a id="sketchfab_alternate">
-If for some reason you can't get the "Publish to Sketchfab" feature to work for you,</a> or you want to use anything but the default export options, there's another way to upload to Sketchfab that's only a little more work. Follow <a href="https://help.sketchfab.com/hc/en-us/articles/206738956-Minecraft-Mineways">these instructions</a> or go through the step-by-step below.
+If for some reason you can't get the "Publish to Sketchfab" feature to work for you,</a> or you want to use anything but the default export options, there's another way to upload to Sketchfab that's only a little more work. Follow <a href="https://web.archive.org/web/20240324122943/https://help.sketchfab.com/hc/en-us/articles/206738956-Minecraft-Mineways">these instructions</a> or go through the step-by-step below.
 <P>
 <b>1) Open your World in Mineways</b>, then, select the area for exporting (hold right mouse button and drag the rectangle), and choose "File | Export Model for Rendering" from the menu.
 </P>
@@ -1382,7 +1381,7 @@ I also mentioned that, for OBJ export, in Mineways for OBJ export you want to ch
 An irregularity: if you download your uploaded model from Sketchfab, it may not display correctly. The short version is that you probably have to comment out the "map_d" field in the .mtl file for the model. Some viewers incorrectly grab the red channel instead of the alpha channel from the four-channel map that Sketchfab uses for compactness.
 </P>
 <P>
-Physically based rendering support: Sketchfab does recognize addition material types, see <a href="https://help.sketchfab.com/hc/en-us/articles/202600873-Materials-and-Textures#textures-auto-pbr">their page</a> for details. Note that when you use individual textures and "custom material" for OBJ export, you get these extra files, if available (or derived, such as the emission textures). However, the naming doesn't quite match for normal and emission textures currently; it does match for specular ("_s") and metalness ("_m").
+Physically based rendering support: Sketchfab does recognize addition material types, see <a href="https://web.archive.org/web/20230927214538/https://help.sketchfab.com/hc/en-us/articles/202600873-Materials-and-Textures#textures-auto-pbr">their page</a> for details. Note that when you use individual textures and "custom material" for OBJ export, you get these extra files, if available (or derived, such as the emission textures). However, the naming doesn't quite match for normal and emission textures currently; it does match for specular ("_s") and metalness ("_m").
 <P>
 Here's an example of Sketchfab in action, a model I uploaded. Click on the window and you can interact with it. More models <a href="https://sketchfab.com/erich/folders/mineways">here</a> and <a href="https://sketchfab.com/tags/minecraft">here</a>.
 <P>
@@ -1442,7 +1441,7 @@ Here are some related (free) tools that are handy, collected in one spot:
 <LI><a href="https://www.autosaved.org/Spritecraft">Spritecraft</a> converts an image to a schematic file, allowing you to easily create pixel art.
 <LI><a href="https://www.patrickmin.com/minecraft/">Binvox</a> goes the other direction, letting you turn a model file into a voxelized representation, suitable for building or export to a schematic file. I have a <a href="https://erich.realtimerendering.com/minecraft/public/vox_package.zip">quick-start Binvox package</a> for Windows: binvox, viewvox, GLUT DLL, two sample 3D models, and batch files to run the programs. Documentation <a href="https://minecraft.wiki/w/Programs_and_editors/Binvox">here</a>. For more info, see the <a href="https://www.minecraftforum.net/forums/mapping-and-modding-java-edition/minecraft-tools/1260560-converting-a-3d-model-to-building-plans">forum thread</a> and <a href="https://www.minecraftforum.net/forums/archive/tutorials/928366-misc-build-any-3d-model-in-minecraft-easily-22-9">related forum thread</a>. I used it to make the <a href="https://www.minecraftforum.net/forums/mapping-and-modding-java-edition/minecraft-tools/1260560-converting-a-3d-model-to-building-plans#p893068">teapot</a>, <a href="https://photos.app.goo.gl/NsLiFXN2L42c8m849">guardian</a>, and <a href="https://photos.app.goo.gl/dWRU1qUmaJyoW5dm6">hopper</a>, among other models.
 <LI><a href="https://www.minddesk.com/">Qubicle</a> costs money, but has some nice functions. It is a set of voxel-based utilities, including an editor and a voxelizer that computes a good color for the voxel from the material.
-<LI><a href="https://www.tinkercad.com/">TinkerCAD</a> is an online CAD program. You can now <a href="https://www.tinkercad.com/minecraft">export <i>to</i> Minecraft from it</a>.
+<LI><a href="https://www.tinkercad.com/">TinkerCAD</a> is an online CAD program.
 <LI><a href="https://mblaine.github.io/BiomePainter/">Biome Painter</a> lets you modify the biomes of your world. If you get it, make sure to use the "Help" menu "Check for updates" feature.
 <LI>More Minecraft tools <a href="https://minecraft.wiki/w/Editors">here</a>.
 </UL>
@@ -1482,10 +1481,7 @@ Mineways is not the first to offer a Minecraft model exporter, nor necessarily t
 
 </li><li><a href="https://apps.apple.com/us/app/voxel/id333186489">Voxel</a> is an iPad app that lets you design in voxels and send your model directly to Sculpteo for printing.
 
-</li><li><a href="https://www.schematicstore.com/shop">Minecraft Schematic Store</a> - buy and sell Minecraft schematics (note that Mineways has an Export Schematic option).
-
-</li><li><a href="https://minetoys.com/">MineToys</a> offers 3D prints of your character. More on how MineToys works <a href="https://web.archive.org/web/20220601212016/https://www.shapeways.com/blog/archives/1105-Minetoys-3D-Print-Your-Own-Minecraft-Character-for-Your-Desktop.html">here</a>, though that's dated, since Shapeways is now bankrupt.
-
+</li>
 
 </UL>
 
@@ -1493,15 +1489,11 @@ Mineways is not the first to offer a Minecraft model exporter, nor necessarily t
 Mostly defunct, but FYI and because I like to keep track.
 
 <UL>
-</li><li>The <a href="https://minecraftanimation.fandom.com/wiki/Main_Page">Minecraft Animation Wiki</a> is mostly about animations made by others, but has a few pages of direct interest to creators, such as <a href="https://minecraftanimation.fandom.com/wiki/List_of_commonly_used_Minecraft_animation_programs_and_their_foremost_users">who uses what programs</a> for Minecraft animation.
+<li>The <a href="https://minecraftanimation.fandom.com/wiki/Main_Page">Minecraft Animation Wiki</a> is mostly about animations made by others, but has a few pages of direct interest to creators, such as <a href="https://minecraftanimation.fandom.com/wiki/List_of_commonly_used_Minecraft_animation_programs_and_their_foremost_users">who uses what programs</a> for Minecraft animation.
 
-</li><li><a href="https://www.printcraft.org/">Printcraft</a> is a cool idea: you go onto this server, build something with friends, then push the Print button and an STL file of your build is sent to you. No muss, no fuss. Meant for home and school 3D printers for the most part, since the STL comes without any colors.
-
-<li><a href="https://steamcommunity.com/sharedfiles/filedetails/?id=238087985">SourceCraft</a> creates maps for <a href="https://en.wikipedia.org/wiki/Source_(game_engine)">Valve's Source engine</a>, for games such as Team Fortress 2 and Garry's Mod, via Minecraft.
+</li><li><a href="https://steamcommunity.com/sharedfiles/filedetails/?id=238087985">SourceCraft</a> creates maps for <a href="https://en.wikipedia.org/wiki/Source_(game_engine)">Valve's Source engine</a>, for games such as Team Fortress 2 and Garry's Mod, via Minecraft.
 
 </li><li><a href="https://github.com/webbukkit/dynmap/wiki/Exporting-World-Data-in-Wavefront-OBJ-Format">dynmap</a> has an option to export blocks, even custom blocks, to the OBJ format. I haven't tried it; let me know how you find it.
-
-</li><li><a href="https://randomsamples.info/project/mineblend/">Mineblend</a> - an add-on that extracts data from a world directly into Blender. Defunct, no updates since 2015, but mentioned because I'm a completist.
 
 </li><li><a href="https://web.archive.org/web/20190725040830/http://minecraftprint.com/">MINECRAFT.print()</a> - the site's gone (the link is for what was stored on archive.org), but I'm lisitng them for historical reasons. These guys were first to print Minecraft models, all glory to them! You (used to) run some python scripts from a command line to take a volume and turn it into an STL file. There's a hollowing function (their Companion Cube is not solid, thank heavens). Cody pointed out <a href="https://www.youtube.com/watch?v=Sku5jOTwCP8">this nice little color export</a> someone did using their scripts. All that said, the python script is years out of date and won't work on Minecraft version 1.2 on (Anvil format).
 
@@ -2999,7 +2991,7 @@ Cushions are entities, not blocks, so Mineways reads them from the world's "enti
 
 <HR>
 <h2 id="versions">Version History</h2>
-You can also see release notes at <a href="https://github.com/erich666/Mineways/releases">the Github repository</a>, and <a href="https://github.com/erich666/Mineways/raw/refs/heads/master/mineways.zip">download the latest release from there</a>.
+You can also see release notes at <a href="https://github.com/erich666/Mineways/releases">the Github repository</a>, and <a href="https://github.com/erich666/Mineways/releases/latest">download the latest release from there</a>.
 <P>
 Find the latest Mac port on the <a href="downloads.html#mac">downloads/quick start page</a>.
 <P>
@@ -3027,6 +3019,12 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 <UL>
 
 
+<LI>Version 14.02, 10/*/2026 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1402.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+  <BR>
+    <UL>
+	<LI>Make bed textures not be considered cutouts, so that they render better in Eevee and elsewhere.
+	<LI>Documentation cleanup and link fixing.
+	</UL>
 
 <LI>Version 14.01, 10/3/2026 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1401.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
@@ -3309,7 +3307,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 	<LI>Read in piglin heads. I still don't convert these - they come out pumpkins - but at least they're properly read in and will show the correct name if the mouse is hovered over them. <I>(Thanks to Alexander for pointing out how <a href="#blocks">the Debug World</a> is now generated, which has the piglin heads)</I>
 	<LI>Deal with "upper" pitcher plants of age 0-2, which are not possible in-game but show up in <a href="#blocks">the Debug World</a>. And deal with upper pitcher crops with an age less than 3, which are illegal but appear in the Debug World.	
 	<LI>Added "inputs:" for USD variables, e.g., "float inputs:intensity" (was "float intensity"). Without the "inputs:" bit some USD readers would not read the intensity. Fixing this is a mixed blessing. Some programs that read USD assume high values (50k) for the Sun light, low values (like 1) for the Dome light. I have left the lights calibrated for reasonable viewing in NVIDIA's USD Composer and the upcoming Blender 4.0.0 version in development. See the <a href="#usd_export_options">USD lighting options</a> for advice on setting these values for other renderers.
-	<LI>Removed the transform for the Dome Light, due to <a href="https://github.com/usd-wg/assets/pull/44">this bug report and fix</a>. The original dome light worked in USD Composer, but that program has a bug. This means that, currently, this dome light incorrectly imports rotated 90 degrees along the X axis in USD Composer. See <a href="#ovcreate">step 3a for USD Composer</a> for how to work around this bug.
+	<LI>Removed the transform for the Dome Light, due to <a href="https://github.com/usd-wg/assets/pull/44">this bug report and fix</a>. The original dome light worked in USD Composer, but that program has a bug. This means that, currently, this dome light incorrectly imports rotated 90 degrees along the X axis in USD Composer. See step 3a for USD Composer (documentation since removed, as the product is no longer available) for how to work around this bug.
 	<LI>Changed some USD "float3" to "double3" to fit in with the norms. Changed tabs in USD output to spaces.
 	<LI>Doku Light and Doku High texture packs updated to 1.20, and emission textures now included for each. Sphax is "contributor only" downloads currently. JG-RTX hasn't been updated for 3 months. Coterie Craft and Smoolistic look dead, so I may drop them someday.
     </UL>
@@ -3818,7 +3816,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 <LI><B>Version 8.00</B>, 12/15/2020 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV800.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
-<LI><B>Support for USD into Omniverse USD Composer</B>. <a href="https://openusd.org/docs/index.html">USD</a> is a new file format used by the film industry. <a href="https://www.nvidia.com/en-us/omniverse/apps/create/">Omniverse USD Composer</a> is a free product out in beta that lets you see your scene path-traced at interactive rates. See <a href="#ovcreate">this documentation</a> for how to use Create with Mineways.
+<LI><B>Support for USD into Omniverse USD Composer</B>. <a href="https://openusd.org/release/index.html">USD</a> is a new file format used by the film industry. <a href="https://www.nvidia.com/en-us/omniverse/apps/create/">Omniverse USD Composer</a> is a free product out in beta that lets you see your scene path-traced at interactive rates. See this documentation (since removed, as the product is no longer available) for how to use Create with Mineways.
 <LI><B>Physically based material support.</B> USD supports exporting more elaborate material models. Mineways integrates with this, exporting USDA files and physically based textures from resource packs. To help the process of taking an arbitrary resource pack and converting it to the textures Mineways needs, a new easy-to-use (really!) command-line utility is available: <a href="textures.html">ChannelMixer</a>.
 <LI><B>TileMaker regrooved</B>. TileMaker takes block face textures and makes "terrain files" that Mineways uses to texture models. This utility program has gone through an overhaul, now supporting making physically based terrain files for Mineways, for use by Omniverse USD Composer and possibly OBJ files. See the <a href="textures.html">new documentation page</a> for a tutorial and details.
 <LI><B>JG RTX:</B> This <a href="https://github.com/jasonjgardner/jg-rtx">resource pack</a> is included with Mineways, in both 64x64 and 256x256 versions. That's why the download got so large... Download <a href="https://github.com/jasonjgardner/jg-rtx/releases">the original</a> for higher resolution versions of some textures.
@@ -3852,7 +3850,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 <LI>Version 7.19, 8/27/2020 - <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
-<LI>Fix problem of schematic export not exporting, and other gzip-related file close problems. <a href="https://github.com/OpenImageIO/oiio/issues/1817#issuecomment-439048464">This fix</a> introduced in 7.15 caused the problem.
+<LI>Fix problem of schematic export not exporting, and other gzip-related file close problems. <a href="https://github.com/AcademySoftwareFoundation/OpenImageIO/issues/1817">This fix</a> introduced in 7.15 caused the problem.
 <LI>Fix tile associations so that, when exporting separate textures, more materials will be properly flagged as emitters. Currently the pumpkin/jack o' lantern and the redstone block ore materials still are not separated into non-emitters and emitters.
 <LI>To ease substitution of separate textures, any synthesized textures (where the grayscale texture is tinted by Mineways, such as for leaves and water, or composited textures, i.e., grass_block_side) are now identified by a suffix of "_y.png" to differentiate them from their original textures.
 <LI>Fix output material name for grass_block_side to not include the word "overlay".
@@ -3869,7 +3867,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 <UL>
 <LI>Test all input images to make sure their height is a reasonable multiple of their width. If not, give an error and ignore.
 <LI>Test input chest images to ensure they are using powers of two. If not, give an error and ignore.
-<LI>Add option '-z pathname' that lets the user point directly at the directory location where the texture pack has been unzipped. <a href="#protile">Documentation and example added</a>.
+<LI>Add option '-z pathname' that lets the user point directly at the directory location where the texture pack has been unzipped. <a href="textures.html#tilemaker">Documentation and example added</a>.
 <LI>Show all errors at the end of the console output, so the user can easily see them.
 </UL>
 <LI>Update to the 1.16.1 final terrain tiles; only the "water_overlay.png" changed.
@@ -3899,7 +3897,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 <UL>
 <LI>Fix problem of reading empty (not yet created) chunks that have no Biomes array in them yet. <I>(thanks to Artiom Boyko for reporting this)</I>
 <LI>Improved warning messages for when there are no worlds in the Minecraft save directory.
-<LI>Fix <a href="https://github.com/OpenImageIO/oiio/issues/1817#issuecomment-439048464">conflict between zlib and MSVC for closing files</a>; use fclose instead of gzclose on gzipped files.
+<LI>Fix <a href="https://github.com/AcademySoftwareFoundation/OpenImageIO/issues/1817">conflict between zlib and MSVC for closing files</a>; use fclose instead of gzclose on gzipped files.
 </UL>
 
 <LI>Version 7.14, 5/20/2020 - <a href="https://github.com/erich666/Mineways/tags">source</a>.
@@ -4019,7 +4017,7 @@ Call this one the "Minutia Release," as <a href="https://www.reddit.com/r/Minecr
 <LI>If both the normal name and the alternate name are found for a tile, warn the user and save only the first tile found.
 <LI>Doku Light and Doku High terrainExt PNGs now properly formed and included.
 </UL>
-<LI>Added <a href="#new_blender">import instructions for Blender 2.80</a>.
+<LI>Added <a href="#blender">import instructions for Blender 2.80</a>.
 <LI>Changed tiled texture output and G3D full material options for Wavefront OBJ to not include an explicit "map_d" material. Most programs understand a diffuse RGBA texture to mean "use the alpha channel as a mask." Blender is an exception, and the instructions include how to use the Shader Editor to attach the alpha.
 <LI>Fixed bug where a stray mouse move was generating out of bounds biome numbers, causing a random crash during import of previous OBJ export (can't say I fully understand this one, but I now protect against it).
 <LI>Properly extend "set cutout pixels to background" to include the one-pixel "bleed" border, so that interpolation along cutout edges hitting the border is better.
@@ -4175,7 +4173,7 @@ On the TODO list: The Windows 32 version crashes on startup; need to fix that so
 
 
 <P>
-<LI>Version 5.10, 8/10/2017 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV510.zip">exe</a>, <a href="https://erich.realtimerendering.com/minecraft/public/mineways/MinewaysMac510.zip">Mac 32-bit only</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 5.10, 8/10/2017 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV510.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
 <BR>
 <UL>
 <LI>Limited world list to 50 entries, as there seems to be <a href="https://github.com/erich666/Mineways/issues/31">a problem checking files</a> if there are too many worlds in the "saves" directory.

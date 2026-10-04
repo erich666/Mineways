@@ -219,7 +219,7 @@ Sets terrain file to be used. Full path is recommended; if just a file name is g
 Color scheme: <i>No glass blocks</i>
 </td>
 <td>
-<B>DEPRECATED!</B> Selects the named <a href="mineways.html#schemes">color scheme</a>, if available. "Standard" is the default. No longer supported in version 13.00 on. Use culling schemes instead.
+<B>DEPRECATED!</B> Selects the named color scheme, if available. "Standard" is the default. No longer supported in version 13.00 on. Use <a href="mineways.html#cullschemes">culling schemes</a> instead.
 </td>
 </tr>
 
@@ -519,7 +519,7 @@ Export for Rendering: C:\Users\erich\Desktop\nether.obj<br>
 </div>
 <P>
 For the world that is currently loaded, this sets the render type and file format, switches to the Nether level of the world loaded, selects an area, zooms the map, and performs a rendering export to the file nether.obj
-<P>
+<P id="hunks">
 Note that you could use this type of command sequence to export a bunch of adjacent areas, which you could then load into Blender or any other application as you wished. This can help you avoid hitting memory limits in Mineways, etc. As an example, here are the commands in <B>hunk_output.mwscript</B>, a script that comes with Mineways (along with <B>hunk_maker.py</B>, a Python program you can modify to generate sets of hunks as you wish; open and read the top of <B>hunk_maker.py</B> for how to edit and run it):
 </P>
 <P>

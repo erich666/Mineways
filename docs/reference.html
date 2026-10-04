@@ -76,7 +76,7 @@
 <UL>
 <LI><a href="#mmi">Mouse and Keyboard</a>
 <LI><a href="#mmi">Mineways Menu Items</a>
-<LI><a href="#hotkeys">Hotkeys</a>
+<LI><a href="#shortcuts">Hotkeys</a>
 <LI><a href="#meo">Mineways Export Options</a>
 <LI><a href="#mf">Mineways Files</a>
 </UL>
@@ -136,7 +136,7 @@ Shortcut keys are shown in parentheses next to each command.
 <LI><a href="mineways.html#print">Export for 3D Printing</a> (Ctrl-P) - export for 3D printing, making solidity checks and simplications.
 <LI><a href="mineways.html#sketchfab">Publish to Sketchfab</a> (Ctrl-F) - put your model up for display at <a href="https://sketchfab.com/tags/minecraft">Sketchfab</a>, a free service.
 <LI><a href="mineways.html#export">Export Schematic (Ctrl-S)</a> - export the model for use in <a href="https://www.curseforge.com/minecraft/mc-mods/worldedit">WorldEdit</a> or
-<a href="https://www.mcedit-unified.net/">MCEdit</a>.
+<a href="https://github.com/Podshot/MCEdit-Unified">MCEdit</a>.
 <LI>Repeat Export (Ctrl-X)- do an export again with the same export options. Handy for exporting, looking at result, and modifying volume until it's what you want.
 <LI>Close (Ctrl-Q) - exit program.
 </UL>
@@ -158,7 +158,7 @@ Shortcut keys are shown in parentheses next to each command.
 <LI>Lighting (L) - an evening view of the world. Affects the USDA export's lighting.
 <LI>Cave mode (C) - shows the presence of underground caves.
 <LI>Hide obscured (H) - mostly useful for The Nether, it shows what's under the topmost level at Max height.
-<LI>Transparent water (T) - removes water from the map view, only. Water blocks will still be exported normally. If you truly want to remove water from export, use a <a href="mineways.html#schemes">culling scheme</a> and set the alphas of water and stationary water, #8 and #9, to 0.
+<LI>Transparent water (T) - removes water from the map view, only. Water blocks will still be exported normally. If you truly want to remove water from export, use a <a href="mineways.html#cullschemes">culling scheme</a> that culls water and stationary water, #8 and #9.
 <LI>Map grid (M) - overlay a chunk and Anvil file (.mca) grid on the map. These coordinates are also shown at the bottom in the status line.
 <LI>Zoom out further - Lets you zoom out to more than one block per pixel. Doing so may cause slowdowns or lockups. See the <a href="scripting.html#clo">scripting</a> command line option "-zl" for more information.
 </UL>
@@ -166,7 +166,7 @@ Shortcut keys are shown in parentheses next to each command.
 
 <h2 id="cm">Culling Menu</h2>
 <UL>
-<LI><a href="mineways.html#schemes">Culling Schemes...</a> - defining one of these lets you change which block types are output. See <a href="mineways.html#schemes">culling schemes</a>.
+<LI><a href="mineways.html#cullschemes">Culling Schemes...</a> - defining one of these lets you change which block types are output. See <a href="mineways.html#cullschemes">culling schemes</a>.
 </UL>
 
 
@@ -221,7 +221,7 @@ You can usually ignore this scary dialog box and just click "OK" or hit the Ente
 <LI>Superhollow: aggressively hollow, carving away into nooks and crannies.
 </UL>
 <LI>Melt snow blocks: obscure command, meant for making "weep holes" for 3D printing larger after all other processing.
-<LI><a href="#lesser">Export lesser, detailed blocks</a>: normally blocks are either printed as full blocks, or not at all. This allows many "partial" blocks to be printed.
+<LI><a href="mineways.html#lesser">Export lesser, detailed blocks</a>: normally blocks are either printed as full blocks, or not at all. This allows many "partial" blocks to be printed.
 <UL>
 <LI>Fatten lesser blocks: some detailed blocks can be too thin and will not print well. This makes them thicker.
 </UL>
