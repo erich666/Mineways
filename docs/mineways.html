@@ -1174,11 +1174,13 @@ If instead you want to do this conversion manually, it's a tedious process of se
 <P>
 All this said, setting the sampling to "Closest" can give noisy renders, as far away objects may twinkle or form Moir&eacute; patterns. You may want to consider using <a href="downloads">the high-resolution "1024" or "8192" textures</a> when exporting from Mineways, as these give a blocky appearance and also allow mipmapping to be used for filtering when blocks are distant.
 <P>
+With USD in Blender 4.2 and newer, you may see parts of blocks show through other parts: for example, a bed's side seems to be missing, so that you see its legs and the far side from behind, or leaves and flowers look jumbled. Blender's USD importer gives every material with an opacity input (cutouts such as leaves, flowers, and rails, and glass and water) the "Blended" render method, and in EEVEE blended surfaces are not sorted properly against each other. Mineways has nothing in the USD file to change this. To fix it, set these materials' Render Method (in the material's Settings, at the bottom of its properties) to "Dithered", or run the script below, which does this for every such material.
+<P>
 With OBJ you might also notice that objects underwater kind of pop out, like they're not in water. To fix this, in the properties page below, in Settings at the very bottom, change the water's Blend Mode and Shadow Mode both to Alpha Hashed. Here's an example of doing this for glass, which can have the same problem:
 <p class="center">
 <img src="images/b28_transparency.jpg">
 </p>
-Here is the automated script for this, called <a href="https://github.com/erich666/Mineways/blob/master/scripting/blender_alpha_hashed.txt">scripting/blender_alpha_hashed.txt</a>:
+Here is the automated script for this, for both of these problems, called <a href="https://github.com/erich666/Mineways/blob/master/scripting/blender_alpha_hashed.txt">scripting/blender_alpha_hashed.txt</a> (in Blender 4.2 and newer it sets the Render Method to "Dithered", which replaced Alpha Hashed):
 <P>
 <PRE>
 import bpy
@@ -1190,8 +1192,12 @@ for mat in bpy.data.materials:
             if node.type == 'BSDF_PRINCIPLED':
                 alphasocket = node.inputs["Alpha"]
                 if alphasocket.is_linked:
-                    mat.blend_method = 'HASHED'
-                    mat.shadow_method = 'HASHED'
+                    if hasattr(mat, "surface_render_method"):
+                        # Blender 4.2 and newer
+                        mat.surface_render_method = 'DITHERED'
+                    else:
+                        mat.blend_method = 'HASHED'
+                        mat.shadow_method = 'HASHED'
 </PRE>
 These two scripts above could be combined into one text file: just paste one after the other (removing the "import bpy" line, which is needed only once).
 <P>

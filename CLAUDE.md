@@ -17,11 +17,15 @@ Maintainer: Eric Haines. Repo lives at `~/Documents/Github/Mineways`.
 ## Build
 
 ```
-"/c/Program Files/Microsoft Visual Studio/2022/Professional/MSBuild/Current/Bin/MSBuild.exe" \
-  "C:/Users/ehaines/Documents/Github/Mineways/Mineways.sln" \
-  -t:Mineways -p:Configuration=Release -p:Platform=x64 -p:PlatformToolset=v143 \
-  -m -verbosity:minimal -nologo
+"<Visual Studio>/MSBuild/Current/Bin/MSBuild.exe" Win/Mineways.vcxproj \
+  -p:Configuration=Release -p:Platform=x64 -v:m -nologo
 ```
+
+(e.g. `C:/Program Files/Microsoft Visual Studio/18/Community/...`; older setups used the 2022
+Professional MSBuild on `Mineways.sln` with `-t:Mineways -p:PlatformToolset=v143`.) Build both
+`Release` and `Debug`: the Debug build runs the many `assert()`s, which is where most bugs show up.
+The Debug build uses AddressSanitizer, so to run it from a shell, the MSVC tools directory holding
+`clang_rt.asan_dynamic-x86_64.dll` must be on PATH (e.g. `.../VC/Tools/MSVC/<version>/bin/Hostx64/x64`).
 
 - Warnings are errors (e.g., C4244 narrowing fires the build). Be explicit with
   casts on int→short, especially writes to `block->grid[]` and similar.
@@ -32,8 +36,38 @@ Maintainer: Eric Haines. Repo lives at `~/Documents/Github/Mineways`.
   `Get-Process Mineways -ErrorAction SilentlyContinue | Stop-Process -Force`.
   Always kill it before rebuilding.
 
-Mineways is a GUI app — there is no headless test mode. "Smoke test" = build
-clean, launch by hand, exercise the feature you changed.
+### Headless scripting (the way to test)
+
+`Mineways.exe -headless script.mwscript` runs a Mineways script with no window and exits, so an export can be
+run, and its OBJ checked, from a shell. The script commands are the ones `interpretImportLine()` and friends parse
+in Mineways.cpp (grep `findLineDataNoCase(line, "`); the GUI's File > Export dialog also saves its settings as a
+script. A typical test script:
+
+```
+Minecraft world: C:\Users\<you>\AppData\Roaming\.minecraft\saves\<world>
+Terrain file name: <repo>\TileMaker\TileMaker\terrainExt.png
+Set render type: Wavefront OBJ absolute indices
+File type: Export individual textures to directory mytex
+Center model: NO
+Export separate types: YES
+Individual blocks: YES
+Export lesser blocks: YES
+Selection location min to max: 0, 70, 0 to 400, 70, 400
+Export for Rendering: C:\temp\out.obj
+Close
+```
+
+- `Minecraft world:` takes a world folder name in `saves`, a full path, a `.schem`/`.schematic` file, or
+  `[Block Test World]` (see below). `Export Schematic: x.schem` writes a Sponge schematic; `Export for 3D Printing:`
+  (with `Set 3D print type:`) a print model. Script status and warnings go to stdout/stderr.
+- In headless mode an `assert()` pops up a dialog and blocks. To get asserts on stderr instead while testing,
+  temporarily put this right after `if (gHeadless) {` in Mineways.cpp, and remove it after:
+  `_set_error_mode(_OUT_TO_STDERR); _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE); _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR); _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT); _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE); _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);`
+  An assert then ends the run with exit code 3 and the file and line on stderr.
+- Test the texture output modes separately: "Export individual textures" (`gModel.exportTiles`), "Export full
+  color texture patterns" (one mosaic image), and "Create composite overlay faces" take different code paths in
+  `getSwatch()`/`getCompositeSwatch()`; so do "Split by block type" (per-state materials and emission levels) and
+  3D printing with "Export lesser blocks" on and off.
 
 ## Resource files are UTF-16 LE with CRLF
 
@@ -51,6 +85,15 @@ $content = ($lines -join "`r`n") + "`r`n"
 The `UnicodeEncoding($false, $true)` constructor preserves the BOM and writes
 without an extra newline. Verify with `iconv -f UTF-16LE -t UTF-8 $path | grep …`.
 
+## Source files are CRLF
+
+The `Win/*.cpp` and `*.h` files (and `docs/mineways.html`, this file) have CRLF line endings
+(`core.autocrlf=true`). Keep them that way: `sed -i` in Git Bash strips the CRs. A reliable way to edit
+from a script is Python that reads bytes, works on `\n` text, and writes back `\r\n` (decode as latin-1,
+or utf-8 for the html, so non-ASCII bytes survive). Check afterwards that no bare LF crept in. Windows
+sometimes holds a file briefly (e.g. Visual Studio or an indexer), so a write can fail with Errno 22;
+retry after a moment.
+
 ---
 
 ## Block-state architecture (the heart of the project)
@@ -58,7 +101,7 @@ without an extra newline. Verify with `iconv -f UTF-16LE -t UTF-8 $path | grep �
 ### `gBlockDefinitions[NUM_BLOCKS_DEFINED]` (blockInfo.cpp / blockInfo.h)
 
 The static per-block-type table. Indexed by Mineways' internal block ID.
-`NUM_BLOCKS_DEFINED` is currently 504. Each row has color, alpha, swatch coords,
+`NUM_BLOCKS_DEFINED` is currently 561. Each row has color, alpha, swatch coords,
 class flags (`BLF_WHOLE`, `BLF_BILLBOARD`, `BLF_3D_BIT`, etc.). When adding a
 new block type:
 - Bump `NUM_BLOCKS_DEFINED` in `blockInfo.h`.
@@ -67,7 +110,7 @@ new block type:
 
 ### `BlockTranslations[NUM_TRANS]` (nbt.cpp)
 
-The (Minecraft-name → Mineways `(blockId, dataVal)`) table. `NUM_TRANS = 1178+`
+The (Minecraft-name → Mineways `(blockId, dataVal)`) table, `NUM_TRANS`
 rows. One row per distinct Minecraft block-state-name variant Mineways
 recognizes. Schema:
 
@@ -156,7 +199,10 @@ On master, removing HIGH_BIT promotion will break >255 block IDs silently.
 - `terrainExt.png` is `XTILES` (32) tiles wide and `VERTICAL_TILES` (80) rows tall. `Win/tiles.h` `gTilesTable` has one entry per cell, so
   its index is `col + XTILES*row`. The left 16 columns hold all the older tiles at their original positions; the right 16 are for new tiles.
 - A tile entry may set optional `spanX/spanY` (one image covering NxN tiles, e.g., 32x32 image = 2x2 tiles). The anchor cell holds the name; the cells it
-  covers are left blank and reserved. TileMaker copies the whole region (`tileSpan()`); Mineways does not yet use spans.
+  covers are blank "members" with negative spans pointing back to the anchor (`resolveTileAnchor()`). TileMaker copies the whole region (`tileSpan()`).
+  Mineways exports such an image whole (individual-texture export writes one file, e.g. `straw_bed.png`) and models address it with the JSON's own
+  `uv`s via `saveBoxModelFace()`. Code that looks at tiles one at a time (e.g. `fillMissingTilesFromBuiltIn()`) must treat a member as part of its
+  anchor's image, not as a tile of its own.
 - In ObjFileManip.cpp, swatch indices are **paged**, not the table index: page 0 is the left 16 columns row by row, page 1 the right 16 columns
   (`TILES_PER_PAGE`). Each page is 16 tiles wide, so all the `swatchLoc + 1`, `+ 16` and wrap-past-column-15 code works as it always has.
   - `SWATCH_INDEX(col,row)` is plain `col + row*16`: an overflowing col wraps to the next row (e.g., `SWATCH_INDEX(14 + (dataVal & 7), 36)`). Use it for literal
@@ -375,6 +421,103 @@ When writing the synthetic test-world geometry (`MinewaysMap.cpp testBlock`),
 casts on `block->grid[idx] = type` need to match the grid pointer type. On
 master: `(unsigned char)`. On `type_field_short`: `(unsigned short)`.
 
+## Matching Minecraft's block models
+
+The aim, block by block, has been to export each block state as Minecraft 26.3's own JSON model draws it:
+the same elements, the same texture coordinates (uv), the same turns. The models are in the Minecraft
+client jar (`.minecraft/versions/<version>/<version>.jar`): `assets/minecraft/blockstates/*.json` say which
+model(s) each state uses, turned by `x`/`y` (with `uvlock`), and `assets/minecraft/models/block/*.json` hold
+the elements (follow `parent` for templates).
+
+### The model machinery (ObjFileManip.cpp)
+
+- `ModelElement` / `ModelFace` hold a JSON element as is: `from`/`to` in pixels (may lie outside 0-16), and per face its
+  direction, `uv`, `rotation`, a `billboardBack` flag, and a swatch. An element may have a `rotation` (angle, origin, axis
+  X/Y/Z via `rotAxis`, `rescale`).
+- `saveModelElements(boxIndex, type, dataVal, anchorLoc, elements, count, yAngle, xAngle, uvlock)` saves the elements;
+  `saveRotatedModel(..., xAngle, yAngle, uvlock)` also turns the result as a blockstate does (x first, then y). Most blocks
+  converted to models use `saveRotatedModel`; many element tables were generated from the JSON (see "Tools" below), with a
+  comment saying so. `saveBoxCustomUVVertices` + `saveBoxModelFace(UVLock)` is the lower-level pair for one box.
+- Element rotation: Minecraft's positive angle turns the other way from `rotateMtx`, so pass `-angle`. `rescale` stretches by
+  `1/cos(angle)` on the two axes perpendicular to the rotation axis. The newer Euler form, `"rotation": {"x":..,"y":..,"z":..}`
+  (e.g. hanging signs), is JOML `rotationZYX`: applied x first, then y, then z.
+- `uvlock` follows Minecraft's `BlockMath.getUVLockTransform`: a uv point is taken to the point on the face's side of the block by
+  that side's default mapping, turned with the block, and mapped back by the default mapping of the side it lands on. Side faces
+  turned only about Y keep their uv.
+- A flat element (zero thickness) has two faces back to back; the one marked `billboardBack` is output only when
+  `gModel.singleSided` is set (the "Double all billboard faces" option, for renderers that cull back faces); otherwise the
+  front face alone is output and rendered double-sided. Flat elements are skipped for 3D printing. A face with no area (the
+  sides of a flat element, which some JSON lists) must not be output.
+- Faces with a `cullface` are dropped by `modelFaceIsCovered()` when a whole opaque neighbor hides them (only for models not turned by x).
+- Inverted elements (`from` > `to` on an axis, e.g. the vault's `cage_inverted_faces`) face inward; express them as inward-facing
+  flat elements.
+
+### Rules of thumb for coordinates
+
+- Use Minecraft's numbers. Earlier code rounded small nudges (e.g. 2.99, 0.002) to whole texels or lifted things by
+  `Z_FIGHTING_BIAS` (0.05 px); where that changed what is seen (lever base, flower beds, lily pad, frogspawn, leaf litter at 0.25 px,
+  glow lichen 0.1 px and vines/ladders 0.8 px from the wall), it was changed back to Minecraft's value.
+- Very thin two-sided plates (0.002 or 0.01 px thick, e.g. mangrove roots, azalea, big dripleaf edges) are made flat on the block's
+  edge, with the inward face as the billboard back, so the two sides don't z-fight.
+- `Z_FIGHTING_BIAS` is still used where a face would otherwise sit on another surface, e.g. the beacon's base, the spore blossom's base,
+  straw bed frills on the ground.
+- Minecraft offsets some plants randomly in X/Z (bamboo, small dripleaf, pointed dripstone/sulfur spike, mangrove propagule, double
+  plants...); Mineways does too, with `wobbleObjectLocation()`. Random choices (rotations, chorus plant end caps) are seeded by position
+  (`getRand3to1`), so they can't match Minecraft's own picks.
+- OBJ vertices are written with `%.8g`: with `%g`'s 6 digits, a vertex at a world coordinate in the hundreds is off by up to ~1/100 px,
+  which visibly distorts thin parts like a tripwire string.
+
+### Textures and getSwatch()
+
+- Model code should name its tiles directly (`TILE_TO_SWATCH(gBlockDefinitions[type].txrX, ...)`, `SWATCH_INDEX(col,row)`), **not**
+  call `getSwatch()`: for cutout blocks `getSwatch()` calls `getCompositeSwatch()`, which only works when "Create composite overlay
+  faces" is on; otherwise it asserts and returns -1, and the -1 crashes later (a pumpkin/melon stem did this).
+- A block with `BLF_CUTOUTS` needs a case in `getSwatch()` (even an empty one); the `default:` case asserts on cutout blocks in Debug.
+- Watch for swatch mix-ups between similar tiles: several weathered/oxidized copper tiles are stored oxidized-before-weathered in
+  tiles.h, and some code had them swapped.
+
+### Billboards (saveBillboardFaces)
+
+Older thin things (vines, lichen, ladders, rails, lily pads, flowers) are "billboards": pairs of faces sharing vertices. With
+`singleSided` both are output; otherwise only the first, rendered double-sided, so its *other* side is often the one seen.
+A face turned by a blockstate `x` with `uvlock` (vine or lichen under a block, lichen over one) has front and back uv that are not
+mirrors of each other; see `underBlockBill`/`overBlockBill` in `saveBillboardFaces`.
+
+## Block states: dataVal bits and the .schem round trip
+
+Each state Mineways keeps lives in `dataVal` bits, set in three places that must agree:
+1. the world reader, `readPalette()` in nbt.cpp (the big `switch (tf)` after the property loop);
+2. the Sponge `.schem` reader, the `XXX_PROP` arms keyed on property name (around `case BUTTON_PROP: {` in the second big switch),
+   plus fix-ups after the loop (e.g. buttons);
+3. the `.schem` writer, `spongeBuildBlockStateString()` (properties alphabetical).
+
+When adding a state bit, do all three, and check the geometry code that reads it. Examples added in the 26.3 work: stained glass pane,
+wall and tripwire connections in bits 0x100-0x800 (south, west, north, east); floor/ceiling button direction in BIT_32; floor/ceiling
+lever "powered" in 0x10 (its 0x8 is which way the handle points); sculk sensor "cooldown" read as active. Data values are 16 bits, with
+the type's bits 8-11 in the top nibble, so bits 0x100-0x800 are free for most blocks.
+
+Round-trip test: export a region (e.g. the Debug World row) with `Export Schematic: a.schem`, load `a.schem` as the world, export an OBJ
+and `b.schem`. `a.schem` and `b.schem` should be byte-identical, and the two OBJs should match except for position-random blocks (the
+loaded schematic sits one block over in X and Z).
+
+## Test worlds
+
+- **Minecraft's Debug World** (y = 70) has every block state, one per cell, which makes it the best check of model matching. It also
+  holds states that cannot occur in play (isolated door halves, walls with nothing above, an extended piston with no head, ...), so
+  differences there are not always bugs.
+- **[Block Test World]** is synthetic, made by `testBlock()` in MinewaysMap.cpp: each 16x16 chunk shows two block types (x 0-7 and 8-15)
+  and dataVals 0-15 down Z, two per chunk; in scripts use y -64 to 100. Each block type's case decides what goes in its 8x8 area: a
+  dataVal per variant, plus neighbors where they matter (panes, walls, tripwire with hooks, cushions on snow...). Debug builds also show
+  the special BLOCK_UNKNOWN/BLOCK_FAKE blocks at the end, so an "unknown block" warning there is expected. Keep each test within valid
+  states (e.g. respawn anchor charges 0-4), since Debug asserts on invalid ones.
+
+## Tools
+
+The 26.3 block-by-block matching used two Python scripts, not (yet) in this repo: a checker that, for each Debug World state, works
+out Minecraft's quads (elements, rotations, uvlock, offsets) from the jar and compares them with an OBJ exported with individual blocks
+and individual textures, reporting texture, uv-orientation and position differences; and a generator that turns a model's JSON into a
+C++ `ModelElement` table. If you need them, ask the maintainer.
+
 ---
 
 ## Working preferences (inferred from past sessions)
@@ -390,9 +533,11 @@ master: `(unsigned char)`. On `type_field_short`: `(unsigned short)`.
 - **Mass refactors via PowerShell regex** are acceptable and the user trusts
   them — but verify with grep afterward, and always build to catch silent
   truncation (especially narrowing warnings as errors).
-- **Diagnostic logging is welcome** when stuck. Pattern: write to
-  `C:\Users\ehaines\cull_debug.log` from inside the dialog/code, ask the user
-  to repro, read the log back via `Read`, then strip the logging after.
+- **Diagnostic logging is welcome** when stuck. Pattern: write to a log file
+  (or stderr, when running headless) from inside the dialog/code, repro, read the
+  log back, then strip the logging after.
+- **The maintainer checks results in-game and commits.** Don't commit; report
+  what changed, what was verified, and what to look at in Minecraft.
 - **Don't add `#endif` comments, don't reformat unrelated lines, don't add
   emoji** unless explicitly asked.
 - **Match existing column alignment in data tables.** The BlockTranslations
@@ -412,10 +557,9 @@ master: `(unsigned char)`. On `type_field_short`: `(unsigned short)`.
 - `saveBoxMultitileGeometry` pixel coords must be in `[0, 16]` (UV assert).
 - Editor dialogs must not call `SetDlgItemText` for fields that fire `EN_CHANGE`
   before the LV is fully set up — order matters in `WM_INITDIALOG`.
-- Memory `~/.claude/projects/.../memory/` directory: I'm supposed to populate
-  this with structured memory files. It is currently empty. If something seems
-  worth remembering across sessions and doesn't fit in this CLAUDE.md, write
-  it there.
+- Model code must not call `getSwatch()` for cutout blocks (composite-only path; see "Textures and getSwatch()").
+- A new `BLF_CUTOUTS` block needs a `getSwatch()` case, or Debug asserts.
+- A new state bit needs the world reader, the `.schem` reader and the `.schem` writer (see "Block states").
 
 ---
 
