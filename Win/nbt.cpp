@@ -252,7 +252,7 @@ static TranslationTuple* modTranslations = NULL;
 // level: 1-7|8 when falling true - note that level 0 is the "source block" and higher means further away
 #define FLUID_PROP			  4
 // saplings
-// stage: 0|1 - non-graphical, so ignored
+// stage: 0|1 - non-graphical, but kept in bit 0x8 so that it round-trips
 #define SAPLING_PROP		  5
 // persistent: true|false - non-graphical, so ignored
 // distance: 1-7 - non-graphical, so ignored
@@ -286,7 +286,7 @@ static TranslationTuple* modTranslations = NULL;
 // type: single|left|right
 #define CHEST_PROP			 15
 // wheat, frosted ice, cactus, sugar cane, etc.
-// leaves: leaf size prop (for bamboo) - none/small/large
+// leaves: leaf size prop (for bamboo) - none/small/large; age in 0x1, leaves in 0x6, stage in 0x8
 #define LEAF_SIZE_PROP		 16
 // moisture: 0-7
 #define FARMLAND_PROP		 17
@@ -468,11 +468,12 @@ static TranslationTuple* modTranslations = NULL;
 // half: lower/upper 0x0/0x4
 #define SMALL_DRIPLEAF_PROP 58
 // berries: 0x2 if berries
+// age: 0-25, cave_vines only, in GROWTH_AGE_MASK
 #define BERRIES_PROP        59
 // age: 0-7 or 0-15, (0-3 for frosted ice)
 // property is treated as NO_PROP; if something has just an age, it simply gets the value in dataVal - search on "age" (with quotes) to see code
 #define AGE_PROP			60
-// age and stage will eventually be ignored, hanging will not
+// age: 0-4 in bits 0x7, hanging: 0x8, stage: 0x10
 #define PROPAGULE_PROP      61
 // facing: SWNE 0x3
 // sculk_sensor_phase: 0x10 (16 bit)
@@ -950,7 +951,7 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, 215,           0, "red_nether_bricks", NO_PROP },
     { 0, 216,           0, "bone_block", AXIS_PROP },
     { 0, 218,           0, "observer", OBSERVER_PROP },
-    { 0, 229,           0, "shulker_box", EXTENDED_FACING_PROP },	// it's a pale purple one, but we just use the purple one TODO
+    { 0, 229,           8, "shulker_box", EXTENDED_FACING_PROP },	// the undyed one, bit 0x8; it's a pale purple, but we just draw the purple one
     { 0, 219,           0, "white_shulker_box", EXTENDED_FACING_PROP },
     { 0, 220,           0, "orange_shulker_box", EXTENDED_FACING_PROP },
     { 0, 221,           0, "magenta_shulker_box", EXTENDED_FACING_PROP },
@@ -1462,8 +1463,8 @@ BlockTranslator BlockTranslations[NUM_TRANS] = {
     { 0, BLOCK_FLOWER_POT,         AZALEA_FIELD | 0, "potted_azalea_bush", NO_PROP },
     { 0, BLOCK_FLOWER_POT,         AZALEA_FIELD | 1, "potted_flowering_azalea_bush", NO_PROP },
     { 0, 151,	TYPE_HIGH_BIT1 | 1, "flowering_azalea", NO_PROP },
-    { 0, 161,	           2, "azalea_leaves", NO_PROP },
-    { 0, 161,	           3, "flowering_azalea_leaves", NO_PROP },
+    { 0, 161,	           2, "azalea_leaves", LEAF_PROP },
+    { 0, 161,	           3, "flowering_azalea_leaves", LEAF_PROP },
     { 0, 171,             16, "moss_carpet", NO_PROP },
     { 0, 132,  TYPE_HIGH_BIT1 | 23, "moss_block", NO_PROP },
     { 0, 152,	TYPE_HIGH_BIT1, "big_dripleaf", BIG_DRIPLEAF_PROP },
@@ -4183,22 +4184,22 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
     // for doors
     bool half, north, south, east, west, down, lit, powered, triggered, extended, attached, disarmed,
         conditional, inverted, enabled, doubleSlab, mode, waterlogged, in_wall, signal_fire, has_book,
-        up, hanging, crafting, cracked, side_chain, pistonShort, ominous;
+        up, hanging, crafting, cracked, side_chain, pistonShort, ominous, unstable;
     int axis, door_facing, hinge, open, face, rails, occupied, part, dropper_facing, eye, age,
         delay, locked, sticky, hatch, leaves, single, attachment, honey_level, stairs, bites, tilt,
         thickness, vertical_direction, berries, flower_amount, orientation, hydration,
-        copper_golem_pose, note, distance, instrument;
-        // maybe someday - right now not enough bits: wire_n, wire_e, wire_s, wire_w;	// redstone_wire connection states (0=none, 1=side, 2=up)
+        copper_golem_pose, note, distance, instrument, stage, power, sideChainPart,
+        wire_n, wire_e, wire_s, wire_w;	// redstone_wire connection states (0=none, 1=side, 2=up)
     // to avoid Release build warning, but should always be set by code in practice
     int typeIndex = 0;
     half = north = south = east = west = down = lit = powered = triggered = extended = attached = disarmed
         = conditional = inverted = enabled = doubleSlab = mode = in_wall = signal_fire = has_book
-        = up = hanging = crafting = cracked = side_chain = pistonShort = ominous = false; // waterlogged is always set false in loop
+        = up = hanging = crafting = cracked = side_chain = pistonShort = ominous = unstable = false; // waterlogged is always set false in loop
     axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
         delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt =
         thickness = vertical_direction = berries = flower_amount = orientation = hydration =
-        copper_golem_pose = note = distance = instrument = 0;
-        // maybe someday - right now not enough bits: wire_n = wire_e = wire_s = wire_w = 0;
+        copper_golem_pose = note = distance = instrument = stage = power = sideChainPart =
+        wire_n = wire_e = wire_s = wire_w = 0;
     int pmc = 0;
 
     // IMPORTANT: if any PROP field uses any of these:
@@ -4238,11 +4239,12 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
         // depends on the order of the palette, which changed with 26.3.
         half = north = south = east = west = down = lit = powered = triggered = extended = attached = disarmed
             = conditional = inverted = enabled = doubleSlab = mode = in_wall = signal_fire = has_book
-            = up = hanging = crafting = cracked = side_chain = pistonShort = ominous = false;
+            = up = hanging = crafting = cracked = side_chain = pistonShort = ominous = unstable = false;
         axis = door_facing = hinge = open = face = rails = occupied = part = dropper_facing = eye = age =
             delay = locked = sticky = hatch = leaves = single = attachment = honey_level = stairs = bites = tilt =
             thickness = vertical_direction = berries = flower_amount = orientation = hydration =
-            copper_golem_pose = note = distance = instrument = 0;
+            copper_golem_pose = note = distance = instrument = stage = power = sideChainPart =
+            wire_n = wire_e = wire_s = wire_w = 0;
         pmc = 0;
         pbf = pbfList;
         bool sawProperties = false;
@@ -4516,12 +4518,13 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         else if (strcmp(token, "rotation") == 0) {
                             dataVal = atoi(value);
                         }
-                        // SAPLING_PROP
+                        // SAPLING_PROP, and bamboo and mangrove propagules, which put it in their own bits
                         else if (strcmp(token, "stage") == 0) {
                             // 0 or 1, 1 is about to grow into a tree.
                             // mask out, since this is non-graphical
 #ifndef GRAPHICAL_ONLY
-                            dataVal = 8 * atoi(value);
+                            stage = atoi(value);
+                            dataVal = 8 * stage;
 #endif
                         }
                         // leaves LEAF_PROP
@@ -4721,9 +4724,10 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         else if (strcmp(token, "powered") == 0) {
                             powered = (strcmp(value, "true") == 0);
                         }
-                        // WIRE_PROP
+                        // WIRE_PROP; also the target and sculk sensors, which put it in their own bits
                         else if (strcmp(token, "power") == 0) {
-                            dataVal |= atoi(value);
+                            power = atoi(value);
+                            dataVal |= power;
                         }
                         // CANDLE_CAKE_PROP
                         else if (strcmp(token, "bites") == 0) {
@@ -4772,9 +4776,9 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             {
                                 pmc |= 0x2 | BIT_32;
                             }
-                            // for redstone_wire: side/up. Packed by WIRE_PROP arm into dataVal bits 0x03.
-                            //else if (strcmp(value, "side") == 0) wire_n = 1;
-                            //else if (strcmp(value, "up") == 0)   wire_n = 2;
+                            // for redstone_wire: side/up. Packed by WIRE_PROP arm into dataVal bits 0x30.
+                            else if (strcmp(value, "side") == 0) wire_n = 1;
+                            else if (strcmp(value, "up") == 0)   wire_n = 2;
                         }
                         else if (strcmp(token, "east") == 0) {
                             east = (strcmp(value, "true") == 0);
@@ -4791,8 +4795,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                                 pmc |= 0x4 | BIT_32;
                             }
                             // for redstone_wire
-                            //else if (strcmp(value, "side") == 0) wire_e = 1;
-                            //else if (strcmp(value, "up") == 0)   wire_e = 2;
+                            else if (strcmp(value, "side") == 0) wire_e = 1;
+                            else if (strcmp(value, "up") == 0)   wire_e = 2;
                         }
                         else if (strcmp(token, "south") == 0) {
                             south = (strcmp(value, "true") == 0);
@@ -4808,8 +4812,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                                 pmc |= 0x8 | BIT_32;
                             }
                             // for redstone_wire
-                            //else if (strcmp(value, "side") == 0) wire_s = 1;
-                            //else if (strcmp(value, "up") == 0)   wire_s = 2;
+                            else if (strcmp(value, "side") == 0) wire_s = 1;
+                            else if (strcmp(value, "up") == 0)   wire_s = 2;
                         }
                         else if (strcmp(token, "west") == 0) {
                             west = (strcmp(value, "true") == 0);
@@ -4824,8 +4828,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                                 pmc |= BIT_16 | BIT_32;
                             }
                             // for redstone_wire
-                            //else if (strcmp(value, "side") == 0) wire_w = 1;
-                            //else if (strcmp(value, "up") == 0)   wire_w = 2;
+                            else if (strcmp(value, "side") == 0) wire_w = 1;
+                            else if (strcmp(value, "up") == 0)   wire_w = 2;
                         }
                         else if (strcmp(token, "up") == 0) {
                             up = (strcmp(value, "true") == 0);
@@ -5111,8 +5115,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         }
                         else if (strcmp(token, "sculk_sensor_phase") == 0) {
                             if (strcmp(value, "cooldown") == 0) {
-                                // Minecraft draws cooldown with the active model
-                                dataVal |= BIT_16;
+                                // Minecraft draws cooldown with the active model; bit 0x20 tells them apart
+                                dataVal |= BIT_16 | BIT_32;
                             }
                             else if (strcmp(value, "active") == 0) {
                                 dataVal |= BIT_16;
@@ -5148,7 +5152,10 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             strcmp(token, "slot_3_occupied") == 0 ||
                             strcmp(token, "slot_4_occupied") == 0 ||
                             strcmp(token, "slot_5_occupied") == 0 ) {
-                            dataVal |= (strcmp(value, "true") == 0) ? 8 : 0;
+                            // bit 0x8 is "any occupied", which picks the texture; each slot also has its own bit, 0x20 << slot,
+                            // so that the slots round-trip (0x10 is the chiseled bookshelf's subtype bit)
+                            if (strcmp(value, "true") == 0)
+                                dataVal |= 0x8 | (0x20 << (token[5] - '0'));
                         }
                         // for pink petals
                         else if (strcmp(token, "flower_amount") == 0) {
@@ -5177,7 +5184,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                                 dataVal |= 0x1;
                             }
                             else if (strcmp(value, "waiting_for_reward_ejection") == 0) {
-                                dataVal |= 0x1;
+                                // looks like active (Minecraft uses the same model); bit 0x8 tells them apart
+                                dataVal |= 0x1 | 0x8;
                             }
                             else if (strcmp(value, "waiting_for_players") == 0) {
                                 // different illumination level
@@ -5188,7 +5196,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                             }
                             // last two just to check validity - don't do anything
                             else if (strcmp(value, "cooldown") == 0) {
-                                //dataVal |= 0x0;
+                                // looks like inactive; bit 0x8 tells them apart
+                                dataVal |= 0x8;
                             }
                             else if (strcmp(value, "inactive") == 0) {
                                 //dataVal |= 0x0;
@@ -5322,7 +5331,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         // Non-graphical but preserved for .schem round-trip; the writer emits it via a
                         // type-keyed special case (tnt is TRULY_NO_PROP so there is no per-family arm).
                         else if (strcmp(token, "unstable") == 0) {
-                            if (strcmp(value, "true") == 0) dataVal |= 0x02;
+                            // folded into bit 0x02 by the TRULY_NO_PROP arm, which otherwise clears dataVal
+                            unstable = (strcmp(value, "true") == 0);
                         }
 
                         // decorated_pot: cracked, folded into dataVal by DECORATED_POT_PROP arm below.
@@ -5336,7 +5346,11 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         // every other previously-ignored property here) and round-tripped as-is for
                         // .schem import/export per user request.
                         else if (strcmp(token, "side_chain") == 0) {
-                            side_chain = (strcmp(value, "true") == 0);
+                            // unconnected, right, center, left: 0-3, in bits 0x300
+                            if (strcmp(value, "right") == 0) sideChainPart = 1;
+                            else if (strcmp(value, "center") == 0) sideChainPart = 2;
+                            else if (strcmp(value, "left") == 0) sideChainPart = 3;
+                            side_chain = (sideChainPart != 0);
                         }
 
                         else if (strcmp(token, "potent_sulfur_state") == 0) {
@@ -5462,8 +5476,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 break;
 
             case SHELF_PROP:
-                // bit 0x100: side_chain, meaning unknown - round-tripped as-is, see SHELF_PROP #define comment.
-                dataVal = door_facing | (powered ? 4 : 0) | (side_chain ? 0x100 : 0);
+                // bits 0x300: side_chain, 0-3 = unconnected, right, center, left - round-tripped, see SHELF_PROP #define comment.
+                dataVal = door_facing | (powered ? 4 : 0) | (sideChainPart << 8);
                 door_facing = face = 0; // don't need to do door_facing, and in fact the rest of the code doesn't reset this, as it should always be set by this prop anyway.
                 powered = false;
                 side_chain = false;
@@ -5491,7 +5505,6 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 break;
 
             case WIRE_PROP:
-                // Maybe someday, but right now don't do it (not enough bits).
                 // redstone_wire. Pack the four connection sides (each 0=none, 1=side, 2=up)
                 // into 2 bits per side. Assignment (not OR) so the generic `power` token
                 // parser's `dataVal |= atoi(value)` is discarded — per user direction, power
@@ -5501,8 +5514,10 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 // and the universal waterlogged write check at the .schem writer excludes
                 // WIRE_PROP. bit 0x80 conflicts with TYPE_HIGH_BIT1 — ObjFileManip:2796 excludes
                 // BLOCK_REDSTONE_WIRE from the type-promotion path.
-                //dataVal = wire_n | (wire_e << 2) | (wire_s << 4) | (wire_w << 6);
-                //wire_n = wire_e = wire_s = wire_w = 0;
+                // Now done: power stays in the low 4 bits, and each side (0=none, 1=side, 2=up) is two bits above it,
+                // north 0x30, east 0xC0, south 0x300, west 0xC00. They're for .schem round-trips only: when exporting a
+                // model, Mineways clears them and finds the connections from the neighbors (see computeRedstoneConnectivity).
+                dataVal = (power & 0xF) | (wire_n << 4) | (wire_e << 6) | (wire_s << 8) | (wire_w << 10);
                 break;
 
             case LEAF_PROP:
@@ -5528,8 +5543,10 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 break;
 
             case TRULY_NO_PROP:
-                // well, it can have waterlogged, further down
-                dataVal = 0x0;
+                // well, it can have waterlogged, further down. The growing tips of kelp and of weeping and twisting vines
+                // have an age, 0-25, kept in GROWTH_AGE_MASK; tnt's unstable is bit 0x2; and the target's power, 0-15, is
+                // in bits 0x780. Keep them, so that they round-trip.
+                dataVal = (age << GROWTH_AGE_SHIFT) | (unstable ? 0x2 : 0x0) | ((power & 0xF) << 7);
                 break;
 
             case SLAB_PROP:
@@ -5725,7 +5742,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 face = 0;
                 break;
             case TRAPDOOR_PROP:
-                dataVal = (half ? 8 : 0) | (open ? 4 : 0) | (4 - dataVal);
+                dataVal = (half ? 8 : 0) | (open ? 4 : 0) | (4 - dataVal) | (powered ? 0x10 : 0);
                 // reset used value that is shared with other blocks (especially EXTENDED_FACING_PROP, which uses a bunch of properties but may not set them all)
                 open = 0x0;
                 break;
@@ -5743,7 +5760,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 break;
             case FENCE_GATE_PROP:
                 // strange but true;
-                dataVal = (open ? 0x4 : 0x0) | ((door_facing + 3) % 4) | (in_wall ? 0x20 : 0);
+                dataVal = (open ? 0x4 : 0x0) | ((door_facing + 3) % 4) | (in_wall ? 0x20 : 0) | (powered ? 0x10 : 0);
                 // reset used value that is shared with other blocks (especially EXTENDED_FACING_PROP, which uses a bunch of properties but may not set them all)
                 open = 0x0;
                 break;
@@ -5756,7 +5773,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 // counts in the sculk_sensor_phase which has been put in BIT_16.
                 // We don't want power, but we do want to know if it's calibrated and if it's sculk_sensor_phase is active.
                 // Actually, we could leave off calibrated, 0x4 bit, as that should transmit at bottom
-                dataVal = ((door_facing + 3) % 4) | (dataVal & BIT_16); // (0x4 & BIT_16)
+                // BIT_32 marks cooldown (drawn as active), and the power, 0-15, is in bits 0x780
+                dataVal = ((door_facing + 3) % 4) | (dataVal & (BIT_16 | BIT_32)) | ((power & 0xF) << 7); // (0x4 & BIT_16)
                 break;
             case BED_PROP:
                 // south/west/north/east == 0/1/2/3
@@ -5764,8 +5782,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 dataVal = ((door_facing + 3) % 4) + part + occupied;
                 break;
             case STRAW_BED_PROP:
-                // south/west/north/east == 0/1/2/3; no "occupied" property exists for straw_bed
-                dataVal = ((door_facing + 3) % 4) + part;
+                // south/west/north/east == 0/1/2/3; occupied is 0x4, as for beds
+                dataVal = ((door_facing + 3) % 4) + part + occupied;
                 break;
             case FENCE_PROP:
                 dataVal = (south ? 1 : 0) | (west ? 2 : 0) | (north ? 4 : 0) | (east ? 8 : 0);
@@ -5803,7 +5821,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 dataVal = ((door_facing + 3) % 4) + (age << 2);
                 break;
             case LEAF_SIZE_PROP:
-                dataVal = (leaves << 1) | age;
+                dataVal = (leaves << 1) | age | (stage ? 0x8 : 0x0);
                 break;
             case HIGH_FACING_PROP:
                 dataVal = 0xf | (door_facing << 4);
@@ -5941,6 +5959,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             case HEAD_PROP:
                 // see BLOCK_HEAD in ObjFileManip.cpp for data layout, which is crazed
                 dataVal |= 0x80;	// it's a rotation, so flag it as such
+                dataVal |= (powered ? 0x100 : 0);
                 break;
             case HEAD_WALL_PROP:
                 // see BLOCK_HEAD in ObjFileManip.cpp for data layout, which is crazed
@@ -5959,6 +5978,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                     dataVal = 5;	// docs say 4, docs are wrong
                     break;
                 }
+                dataVal |= (powered ? 0x100 : 0);
                 break;
             case FAN_PROP:
                 // low 3 bits are the subtype
@@ -5990,7 +6010,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 dataVal = (door_facing << 1) | (half ? 0 : 1);
                 break;
             case BERRIES_PROP:
-                dataVal = 0x0;
+                // cave_vines, the growing tip, has an age, 0-25: keep it, so that it round-trips
+                dataVal = age << GROWTH_AGE_SHIFT;
                 // use the lit berries form if berries present, see https://minecraft.wiki/w/Glow_Berries
                 if (berries) {
                     paletteBlockEntry[entryIndex]++;
@@ -6000,8 +6021,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 dataVal = hanging ? 1 : 0;
                 break;
             case PROPAGULE_PROP:
-                // use the age only if hanging. Age otherwise appears irrelevant?
-                dataVal = (hanging ? (0x8 | age) : 0);
+                // the age matters to the model only if hanging, but is kept, as is the stage, so that both round-trip
+                dataVal = (hanging ? 0x8 : 0x0) | (age & 0x7) | (stage ? 0x10 : 0x0);
                 break;
             case PINK_PETALS_PROP:
                 // door_facing: east/south/west/north == 0/1/2/3
@@ -6054,6 +6075,14 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                 }
                 else if (fullType == BLOCK_BED) {
                     dataVal |= BED_COLOR_BITS(bedColorFromName(entryName));
+                }
+                else if (fullType == BLOCK_FIRE) {
+                    // the sides it burns on, for .schem round-trips: up 0x20, north 0x80, east 0x100, south 0x200, west 0x400
+                    dataVal |= (up ? 0x20 : 0) | (north ? 0x80 : 0) | (east ? 0x100 : 0) | (south ? 0x200 : 0) | (west ? 0x400 : 0);
+                }
+                else if (fullType == BLOCK_AMETHYST && lit) {
+                    // deepslate_redstone_ore, the only one of this family with "lit": bit 0x80
+                    dataVal |= 0x80;
                 }
             }
 
@@ -6840,14 +6869,15 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
             // BLOCK_TRIAL_SPAWNER (465): low 2 bits = state index.
             //   inactive (0), active (1), waiting_for_players (2), ejecting_reward (3).
             // Minecraft has two extra states that Mineways collapses to the closest neighbor.
+            // The two extra states look like another (Minecraft uses the same model), with bit 0x8 set.
             int s = 0;
             if      (strcmp(v, "active") == 0)                      s = 1;
             else if (strcmp(v, "waiting_for_players") == 0)         s = 2;
             else if (strcmp(v, "ejecting_reward") == 0)             s = 3;
-            else if (strcmp(v, "waiting_for_reward_ejection") == 0) s = 3;
-            else if (strcmp(v, "cooldown") == 0)                    s = 0;
+            else if (strcmp(v, "waiting_for_reward_ejection") == 0) s = 1 | 0x8;
+            else if (strcmp(v, "cooldown") == 0)                    s = 0 | 0x8;
             // "inactive" or unknown → 0
-            dataVal = (dataVal & ~0x3) | s;
+            dataVal = (dataVal & ~0xB) | s;
             continue;
         }
         if (strcmp(k, "facing") == 0 && (blockId | (typeHighBit << 1)) == BLOCK_VAULT) {
@@ -6872,6 +6902,34 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
             if (mask != 0) {
                 dataVal = (dataVal & ~mask) | (atoi(v) & mask);
                 continue;
+            }
+            // the age, 0-25, of the growing tip of kelp, weeping and twisting vines, and cave vines
+            if (strcmp(k, "age") == 0 && (fullType == BLOCK_KELP || fullType == BLOCK_WEEPING_VINES || fullType == BLOCK_CAVE_VINES)) {
+                dataVal = (dataVal & ~GROWTH_AGE_MASK) | ((atoi(v) & 0x1F) << GROWTH_AGE_SHIFT);
+                continue;
+            }
+            // pale oak and poplar saplings live in BLOCK_DANDELION; their stage is bit 0x8, as for SAPLING_PROP
+            if (strcmp(k, "stage") == 0 && fullType == BLOCK_DANDELION) {
+                if (atoi(v) != 0) dataVal |= 0x8;
+                continue;
+            }
+            // the target's power, 0-15, in bits 0x780
+            if (strcmp(k, "power") == 0 && fullType == BLOCK_TNT) {
+                dataVal = (dataVal & ~0x780) | ((atoi(v) & 0xF) << 7);
+                continue;
+            }
+            // the sides fire burns on (see the world reader)
+            if (fullType == BLOCK_FIRE) {
+                int bit = 0;
+                if (strcmp(k, "up") == 0) bit = 0x20;
+                else if (strcmp(k, "north") == 0) bit = 0x80;
+                else if (strcmp(k, "east") == 0) bit = 0x100;
+                else if (strcmp(k, "south") == 0) bit = 0x200;
+                else if (strcmp(k, "west") == 0) bit = 0x400;
+                if (bit != 0) {
+                    if (strcmp(v, "true") == 0) dataVal |= bit;
+                    continue;
+                }
             }
             if (strcmp(k, "mode") == 0 && fullType == BLOCK_TEST_BLOCK) {
                 int m = 0;  // start
@@ -7091,6 +7149,7 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
         case STRAW_BED_PROP:
             if (strcmp(k, "facing") == 0)      dataVal = (dataVal & ~0x3) | spongeSwneIdxFromName(v);
             else if (strcmp(k, "part") == 0)   { if (strcmp(v, "head") == 0) dataVal |= 0x8; }
+            else if (strcmp(k, "occupied") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x4; }
             break;
 
         case REPEATER_PROP:
@@ -7125,6 +7184,7 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
             }
             else if (strcmp(k, "half") == 0) { if (strcmp(v, "top") == 0) dataVal |= 0x8; }
             else if (strcmp(k, "open") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x4; }
+            else if (strcmp(k, "powered") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x10; }
             break;
 
         case DOOR_PROP:
@@ -7142,6 +7202,7 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
             if (strcmp(k, "facing") == 0)       dataVal = (dataVal & ~0x3) | spongeSwneIdxFromName(v);
             else if (strcmp(k, "open") == 0)    { if (strcmp(v, "true") == 0) dataVal |= 0x4; }
             else if (strcmp(k, "in_wall") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x20; }
+            else if (strcmp(k, "powered") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x10; }
             break;
 
         case LANTERN_PROP:
@@ -7157,6 +7218,7 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
                 else b = 5;  // east
                 dataVal = (dataVal & ~0x7) | b;
             }
+            else if (strcmp(k, "powered") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x100; }
             break;
 
         case HEAD_PROP:
@@ -7164,6 +7226,7 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
                 dataVal = (dataVal & ~0xF) | (atoi(v) & 0xF);
                 dataVal |= 0x80;    // marker per writer: "high bit (0x80) signals rotation mode"
             }
+            else if (strcmp(k, "powered") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x100; }
             break;
 
         case SNOWY_PROP:
@@ -7215,10 +7278,10 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
                 dataVal = (dataVal & ~0x7) | b;
             }
             else if (strncmp(k, "slot_", 5) == 0 && strstr(k, "_occupied") != NULL) {
-                // Any occupied slot → set the shared "books visible" bit. Mineways collapses
-                // all 6 slots into a single bit because the chiseled bookshelf texture only has
-                // an empty-front and a full-front variant.
-                if (strcmp(v, "true") == 0) dataVal |= 0x8;
+                // Any occupied slot → set the shared "books visible" bit, 0x8, which picks the texture (the chiseled
+                // bookshelf texture only has an empty-front and a full-front variant). Each slot also has its own bit,
+                // 0x20 << slot, so that they round-trip (0x10 is the chiseled bookshelf's subtype bit).
+                if (strcmp(v, "true") == 0 && k[5] >= '0' && k[5] <= '5') dataVal |= 0x8 | (0x20 << (k[5] - '0'));
             }
             break;
 
@@ -7337,6 +7400,7 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
         case PROPAGULE_PROP:
             if (strcmp(k, "age") == 0)        dataVal = (dataVal & ~0x7) | (atoi(v) & 0x7);
             else if (strcmp(k, "hanging") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x8; }
+            else if (strcmp(k, "stage") == 0) { if (atoi(v) != 0) dataVal |= 0x10; }
             break;
 
         case CALIBRATED_SCULK_SENSOR_PROP:
@@ -7344,14 +7408,19 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
                 dataVal = (dataVal & ~0x3) | spongeSwneIdxFromName(v);
             }
             else if (strcmp(k, "sculk_sensor_phase") == 0) {
-                // Minecraft draws cooldown with the active model
+                // Minecraft draws cooldown with the active model; bit 0x20 tells them apart
                 if (strcmp(v, "active") == 0 || strcmp(v, "cooldown") == 0) dataVal |= 0x10;
+                if (strcmp(v, "cooldown") == 0) dataVal |= 0x20;
+            }
+            else if (strcmp(k, "power") == 0) {
+                dataVal = (dataVal & ~0x780) | ((atoi(v) & 0xF) << 7);
             }
             break;
 
         case PINK_PETALS_PROP:
             if (strcmp(k, "facing") == 0) dataVal = (dataVal & ~0x3) | spongeDoorFacingIdxFromName(v);
-            else if (strcmp(k, "flower_amount") == 0) {
+            else if (strcmp(k, "flower_amount") == 0 || strcmp(k, "segment_amount") == 0) {
+                // leaf_litter's is "segment_amount"
                 int n = atoi(v) - 1;
                 if (n < 0) n = 0; if (n > 3) n = 3;
                 dataVal = (dataVal & ~0xC) | (n << 2);
@@ -7568,7 +7637,14 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
         case SHELF_PROP:
             if (strcmp(k, "facing") == 0)         dataVal = (dataVal & ~0x3) | spongeDoorFacingIdxFromName(v);
             else if (strcmp(k, "powered") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x4; lit = false; }
-            else if (strcmp(k, "side_chain") == 0) { if (strcmp(v, "true") == 0) dataVal |= 0x100; }
+            else if (strcmp(k, "side_chain") == 0) {
+                // unconnected, right, center, left: 0-3, in bits 0x300
+                int part = 0;
+                if (strcmp(v, "right") == 0) part = 1;
+                else if (strcmp(v, "center") == 0) part = 2;
+                else if (strcmp(v, "left") == 0) part = 3;
+                dataVal = (dataVal & ~0x300) | (part << 8);
+            }
             break;
 
         case SHELF_MUSHROOM_PROP:
@@ -7612,9 +7688,19 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
         case WIRE_PROP:
             // redstone_wire. Mineways stores `power` (0..15) in low 4 bits — mirror of the
             // world reader's generic `power` token parser at nbt.cpp:3943. Connection sides
-            // (north/east/south/west = none/side/up) aren't tracked (not enough bits);
-            // Mineways recomputes them from neighbors at render time.
+            // (north/east/south/west = none/side/up, 0-2) are two bits each above it, as in the world reader.
             if (strcmp(k, "power") == 0) dataVal = (dataVal & ~0xF) | (atoi(v) & 0xF);
+            else {
+                int shift = 0;
+                if (strcmp(k, "north") == 0) shift = 4;
+                else if (strcmp(k, "east") == 0) shift = 6;
+                else if (strcmp(k, "south") == 0) shift = 8;
+                else if (strcmp(k, "west") == 0) shift = 10;
+                if (shift != 0) {
+                    int side = (strcmp(v, "side") == 0) ? 1 : (strcmp(v, "up") == 0) ? 2 : 0;
+                    dataVal = (dataVal & ~(0x3 << shift)) | (side << shift);
+                }
+            }
             break;
 
         case FAN_PROP:
@@ -7665,6 +7751,7 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
                 else if (strcmp(v, "large") == 0) L = 2;
                 dataVal = (dataVal & ~0x6) | (L << 1);
             }
+            else if (strcmp(k, "stage") == 0) { if (atoi(v) != 0) dataVal |= 0x8; }
             break;
 
         default:
@@ -7689,6 +7776,11 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
             break;
         case REPEATER_PROP:
             if (blockId == 93) blockId = 94;           // BLOCK_REDSTONE_REPEATER_OFF → ON
+            break;
+        case NO_PROP:
+            // deepslate_redstone_ore, in BLOCK_AMETHYST's family: bit 0x80 (see the world reader)
+            if ((blockId | (typeHighBit << 1)) == BLOCK_AMETHYST)
+                dataVal |= 0x80;
             break;
         case BULB_PROP:
             // copper_bulb carries `lit` as a real dataVal bit (0x8), not a block-ID swap. The
@@ -8915,9 +9007,9 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case BOOKSHELF_PROP: {
-        // chiseled_bookshelf. bits 0..2 = facing 1..4, bit 0x08 = any slot occupied.
-        // Emit facing + all six slot_*_occupied flags (collapsed to the same boolean, since
-        // Mineways tracks only one "books visible" bit) + last_interacted_slot=0 as default.
+        // chiseled_bookshelf. bits 0..2 = facing 1..4, bit 0x08 = any slot occupied, bit 0x10 = the chiseled bookshelf subtype,
+        // bit 0x20 << slot = that slot is occupied.
+        // Emit facing + all six slot_*_occupied flags + last_interacted_slot=0 as default.
         // Alphabetical order: facing < last_interacted_slot < slot_0_occupied ... < slot_5_occupied.
         const char* facing;
         switch (dataVal & 0x7) {
@@ -8927,16 +9019,16 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         case 4:  facing = "north"; break;
         default: facing = "north"; break;	// shouldn't happen; the world reader / .schem read normalize
         }
-        // on read in, we only note if any slot is occupied (dataVal |= 0x8 if occupied), so we emit the same value for all six slots.
-        const char* occupied = (dataVal & 0x8) ? "true" : "false";
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "last_interacted_slot", "0");
-        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "slot_0_occupied", occupied);
-        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "slot_1_occupied", occupied);
-        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "slot_2_occupied", occupied);
-        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "slot_3_occupied", occupied);
-        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "slot_4_occupied", occupied);
-        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "slot_5_occupied", occupied);
+        // A bookshelf from a .schem written before the slots were kept has only the "any" bit: then all slots are full.
+        bool anySlotBits = (dataVal & 0x7E0) != 0;
+        for (int slot = 0; slot < 6; slot++) {
+            char slotName[20];
+            snprintf(slotName, sizeof(slotName), "slot_%d_occupied", slot);
+            bool occupied = anySlotBits ? ((dataVal & (0x20 << slot)) != 0) : ((dataVal & 0x8) != 0);
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, slotName, occupied ? "true" : "false");
+        }
         break;
     }
 
@@ -8961,6 +9053,14 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         char ageStr[3];
         snprintf(ageStr, sizeof(ageStr), "%d", dataVal & 0xF);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "age", ageStr);
+        if ((type & 0xFFF) == BLOCK_FIRE && !(dataVal & BIT_16)) {
+            // the sides fire burns on (soul fire has none): up 0x20, north 0x80, east 0x100, south 0x200, west 0x400
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "east", (dataVal & 0x100) ? "true" : "false");
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "north", (dataVal & 0x80) ? "true" : "false");
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "south", (dataVal & 0x200) ? "true" : "false");
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "up", (dataVal & 0x20) ? "true" : "false");
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "west", (dataVal & 0x400) ? "true" : "false");
+        }
         break;
     }
 
@@ -9074,9 +9174,13 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
 
     case BERRIES_PROP: {
         // cave_vines (BLOCK_CAVE_VINES=404) and cave_vines_plant (same block, dataVal subtype bit 0x1).
-        // BLOCK_CAVE_VINES_LIT (405) gets remapped above to 404 with isBerriesLit=true. The age
-        // property exists on cave_vines but Mineways doesn't track it (read-side `dataVal = 0`,
-        // nbt.cpp:4939), so we omit it and let it default to 0 in Minecraft.
+        // BLOCK_CAVE_VINES_LIT (405) gets remapped above to 404 with isBerriesLit=true. cave_vines, the growing
+        // tip (subtype bit 0x1 clear), also has an age, 0-25, in GROWTH_AGE_MASK. Alphabetical: age < berries.
+        if ((dataVal & 0x1) == 0) {
+            char ageStr[4];
+            snprintf(ageStr, sizeof(ageStr), "%d", GROWTH_AGE(dataVal));
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "age", ageStr);
+        }
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "berries", isBerriesLit ? "true" : "false");
         break;
     }
@@ -9098,15 +9202,17 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case WIRE_PROP: {
-        // redstone_wire. Mineways stores only `power` (0..15) in low 4 bits — see world reader's
-        // generic `power` token parser at nbt.cpp:3943. Connection sides (north/east/south/west)
-        // are computed at render time by neighbor inspection (ObjFileManip.cpp:3637+), so they're
-        // not stored here. Consumer tools loading the .schem typically recompute connections on
-        // placement; if they don't, the wire will visually appear as a free-standing dot but the
-        // power level survives.
+        // redstone_wire. `power` (0..15) is in the low 4 bits, and each side (0=none, 1=side, 2=up) two bits above it,
+        // north 0x30, east 0xC0, south 0x300, west 0xC00 (see the world reader's WIRE_PROP arm).
+        // Alphabetical: east < north < power < south < west.
+        static const char* wireSides[4] = { "none", "side", "up", "none" };
         char powerStr[3];
         snprintf(powerStr, sizeof(powerStr), "%d", dataVal & 0xF);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "east", wireSides[(dataVal >> 6) & 0x3]);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "north", wireSides[(dataVal >> 4) & 0x3]);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "power", powerStr);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "south", wireSides[(dataVal >> 8) & 0x3]);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "west", wireSides[(dataVal >> 10) & 0x3]);
         break;
     }
 
@@ -9211,7 +9317,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         // bamboo. Read-side packs `dataVal = (leaves << 1) | age` (nbt.cpp:4755):
         //   bit 0x01: age (0=juvenile, 1=adult)
         //   bits 0x06 (>>1): leaves (0=none, 1=small, 2=large)
-        // stage isn't tracked; let it default to 0.
+        //   bit 0x08: stage
         const char* leaves;
         switch ((dataVal >> 1) & 0x3) {
         case 0: leaves = "none"; break;
@@ -9221,9 +9327,10 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         }
         char ageStr[2];
         snprintf(ageStr, sizeof(ageStr), "%d", dataVal & 0x1);
-        // Alphabetical: age < leaves.
+        // Alphabetical: age < leaves < stage.
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "age", ageStr);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "leaves", leaves);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "stage", (dataVal & 0x8) ? "1" : "0");
         break;
     }
 
@@ -9305,10 +9412,13 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         case 2: facing = "west"; break;
         default: facing = "north"; break;  // 3
         }
-        // Alphabetical: facing < powered < side_chain.
+        // Alphabetical: facing < powered < side_chain. side_chain is 0-3 in bits 0x300: unconnected, right, center, left.
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x4) ? "true" : "false");
-        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "side_chain", (dataVal & 0x100) ? "true" : "false");
+        {
+            static const char* sideChainParts[4] = { "unconnected", "right", "center", "left" };
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "side_chain", sideChainParts[(dataVal >> 8) & 0x3]);
+        }
         break;
     }
 
@@ -9362,15 +9472,19 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         // Read-side packs `dataVal = ((door_facing+3)%4) | (dataVal & BIT_16)` (nbt.cpp:4724):
         //   bits 0x03: SWNE facing (only meaningful for the calibrated variant)
         //   bit  0x04: calibrated subtype flag (BlockTranslations: picks the name via subtype lookup)
-        //   bit  0x10 (BIT_16): sculk_sensor_phase, true=active / false=inactive
-        // power and cooldown phase aren't tracked.
+        //   bit  0x10 (BIT_16): sculk_sensor_phase, true=active (or cooldown) / false=inactive
+        //   bit  0x20 (BIT_32): sculk_sensor_phase is cooldown
+        //   bits 0x780: power, 0-15
         bool isCalibrated = (dataVal & 0x4) != 0;
         if (isCalibrated) {
             // facing < sculk_sensor_phase alphabetically
             spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeSwneFromDataVal(dataVal));
         }
+        char powerStr[3];
+        snprintf(powerStr, sizeof(powerStr), "%d", (dataVal >> 7) & 0xF);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "power", powerStr);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "sculk_sensor_phase",
-            (dataVal & 0x10) ? "active" : "inactive");
+            (dataVal & 0x20) ? "cooldown" : (dataVal & 0x10) ? "active" : "inactive");
         break;
     }
 
@@ -9382,7 +9496,8 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         char petalsStr[2];
         snprintf(petalsStr, sizeof(petalsStr), "%d", ((dataVal >> 2) & 0x3) + 1);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeDoorFacingFromDataVal(dataVal));
-        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "flower_amount", petalsStr);
+        // leaf_litter (subtype bit 0x10) calls it "segment_amount"
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, ((dataVal & 0x30) == 0x10) ? "segment_amount" : "flower_amount", petalsStr);
         break;
     }
 
@@ -9457,16 +9572,18 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case PROPAGULE_PROP: {
-        // mangrove_propagule (block 164 + TYPE_HIGH_BIT1). Read-side packs
-        // `dataVal = hanging ? (0x8 | age) : 0` (nbt.cpp:4950):
+        // mangrove_propagule (block 164 + TYPE_HIGH_BIT1). The world reader packs
+        // `dataVal = (hanging ? 0x8 : 0) | age | (stage ? 0x10 : 0)`:
+        //   bits 0-2: age (0-4), which matters to the model only when hanging
         //   bit 0x08: hanging
-        //   bits 0-2: age (0-4) — only meaningful when hanging
-        // The "stage" property (0-1) isn't tracked by Mineways. waterlogged falls through.
+        //   bit 0x10: stage
+        // waterlogged falls through.
         char ageStr[2];
         snprintf(ageStr, sizeof(ageStr), "%d", dataVal & 0x7);
-        // Alphabetical: age < hanging.
+        // Alphabetical: age < hanging < stage.
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "age", ageStr);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "hanging", (dataVal & 0x8) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "stage", (dataVal & 0x10) ? "1" : "0");
         break;
     }
 
@@ -9568,8 +9685,9 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     case STRAW_BED_PROP: {
-        // BLOCK_STRAW_BED (558). dataVal = swne_facing + part(0|8); no "occupied" property.
+        // BLOCK_STRAW_BED (558). dataVal = swne_facing + occupied(0|4) + part(0|8).
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeSwneFromDataVal(dataVal));
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "occupied", (dataVal & 0x4) ? "true" : "false");
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "part", (dataVal & 0x8) ? "head" : "foot");
         break;
     }
@@ -9615,6 +9733,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "half", (dataVal & 0x8) ? "top" : "bottom");
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "open", (dataVal & 0x4) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x10) ? "true" : "false");
         break;
     }
 
@@ -9648,6 +9767,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", spongeSwneFromDataVal(dataVal));
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "in_wall", (dataVal & 0x20) ? "true" : "false");
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "open", (dataVal & 0x4) ? "true" : "false");
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x10) ? "true" : "false");
         break;
     }
 
@@ -9666,13 +9786,15 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         default: facing = "north"; break;
         }
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "facing", facing);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x100) ? "true" : "false");
         break;
     }
 
     case HEAD_PROP: {
-        // High bit (0x80) signals "rotation" mode; lower 4 bits encode the 16 floor-rotation positions.
+        // High bit (0x80) signals "rotation" mode; lower 4 bits encode the 16 floor-rotation positions; 0x100 is powered.
         char rotStr[3];
         snprintf(rotStr, sizeof(rotStr), "%d", dataVal & 0xF);
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "powered", (dataVal & 0x100) ? "true" : "false");
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "rotation", rotStr);
         break;
     }
@@ -9798,12 +9920,13 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     // into dataVal — bit 0x4 is ominous, low 2 bits are state index (0=inactive, 1=active,
     // 2=waiting_for_players, 3=ejecting_reward). Emit them so the export round-trips.
     // Alphabetical: ominous < trial_spawner_state.
+    // Bit 0x8 marks the two states drawn like another: cooldown (as inactive) and waiting_for_reward_ejection (as active).
     if ((type & 0xFFF) == BLOCK_TRIAL_SPAWNER) {
         const char* state;
         switch (dataVal & 0x3) {
         default:
-        case 0: state = "inactive"; break;
-        case 1: state = "active"; break;
+        case 0: state = (dataVal & 0x8) ? "cooldown" : "inactive"; break;
+        case 1: state = (dataVal & 0x8) ? "waiting_for_reward_ejection" : "active"; break;
         case 2: state = "waiting_for_players"; break;
         case 3: state = "ejecting_reward"; break;
         }
@@ -9812,7 +9935,7 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     }
 
     // NO_PROP blocks whose one numeric property the world reader stores directly in the low dataVal bits
-    // (its "age", "level", "charges", "dusted" and "mode" parsers): emit it back under its name.
+    // (its "age", "level", "charges", "dusted" and "mode" parsers), and a few others' growth: emit it back under its name.
     {
         const char* key = NULL;
         int value = 0;
@@ -9827,6 +9950,13 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
             break;
         case BLOCK_RESPAWN_ANCHOR:    key = "charges"; value = dataVal & 0x7; break;
         case BLOCK_SUSPICIOUS_GRAVEL: key = "dusted"; value = dataVal & 0x3; break;   // and suspicious_sand, subtype 0x4
+        // TRULY_NO_PROP, but the growing tips, kelp (bit 0x1) and weeping and twisting vines (BIT_32), have an age, 0-25
+        case BLOCK_KELP:              if (dataVal & 0x1) { key = "age"; value = GROWTH_AGE(dataVal); } break;
+        case BLOCK_WEEPING_VINES:     if (dataVal & BIT_32) { key = "age"; value = GROWTH_AGE(dataVal); } break;
+        // pale oak and poplar saplings, subtypes 4 and 6, have a stage, in bit 0x8 as for SAPLING_PROP
+        case BLOCK_DANDELION:         if ((dataVal & 0x7) == 4 || (dataVal & 0x7) == 6) { key = "stage"; value = (dataVal >> 3) & 0x1; } break;
+        // the target (bit 0x1; tnt's unstable is emitted below) has a power, 0-15, in bits 0x780
+        case BLOCK_TNT:               if (dataVal & 0x1) { key = "power"; value = (dataVal >> 7) & 0xF; } break;
         case BLOCK_TEST_BLOCK: {
             static const char* modes[4] = { "start", "log", "fail", "accept" };
             spongeAppendProp(props, (int)sizeof(props), &plen, &started, "mode", modes[dataVal & 0x3]);
@@ -9881,6 +10011,17 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "unstable", (dataVal & 0x2) ? "true" : "false");
     }
 
+    // BLOCK_POTENT_SULFUR is NO_PROP; the world reader stores potent_sulfur_state, 0-4, in the low 3 bits.
+    if ((type & 0xFFF) == BLOCK_POTENT_SULFUR) {
+        static const char* sulfurStates[8] = { "dry", "wet", "dormant", "erupting", "continuous", "dry", "dry", "dry" };
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "potent_sulfur_state", sulfurStates[dataVal & 0x7]);
+    }
+
+    // BLOCK_AMETHYST's family holds deepslate_redstone_ore (subtype 40), whose "lit" is bit 0x80.
+    if ((type & 0xFFF) == BLOCK_AMETHYST && (dataVal & 0x3F) == 40) {
+        spongeAppendProp(props, (int)sizeof(props), &plen, &started, "lit", (dataVal & 0x80) ? "true" : "false");
+    }
+
     // BLOCK_CRYING_OBSIDIAN (344) is NO_PROP; shares its blockId with "sculk_catalyst" via bit
     // 0x01 (0=crying_obsidian, 1=sculk_catalyst - see BlockTranslations). "bloom" only exists on
     // sculk_catalyst, so only emit it for that subtype; bit 0x02 holds it (mirror of world reader).
@@ -9910,15 +10051,23 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
 
     // Waterlogged is additive across many block families — but a few props steal bit 0x40 for
     // their own purposes (MUSHROOM_PROP/MUSHROOM_STEM_PROP use it as the stem flag, NOTE_BLOCK_PROP
-    // as instrument bit 0, DOOR_PROP for a paired upper half's open bit; none of these blocks can be
+    // as instrument bit 0, DOOR_PROP for a paired upper half's open bit, WIRE_PROP for a side, BOOKSHELF_PROP
+    // for slot 2; none of these blocks can be
     // waterlogged), so skip the check for those families.
-    if ((dataVal & WATERLOGGED_BIT) && tf != MUSHROOM_PROP && tf != MUSHROOM_STEM_PROP && tf != NOTE_BLOCK_PROP && tf != DOOR_PROP) {
+    bool waterloggable = (tf != MUSHROOM_PROP && tf != MUSHROOM_STEM_PROP && tf != NOTE_BLOCK_PROP && tf != DOOR_PROP && tf != WIRE_PROP && tf != BOOKSHELF_PROP);
+    if ((dataVal & WATERLOGGED_BIT) && waterloggable) {
         // Most families don't have waterlogged; the extra prop is harmless on those that do.
         // The block families that *do* support waterlogged include stairs, slabs, fences, walls,
         // chests, signs, ladders, glow lichen, etc. Mineways uses bit 0x40 internally for this.
         // Insert in alphabetical position. Since "waterlogged" comes last alphabetically anyway
         // for almost every family we emit, we just append it.
         spongeAppendProp(props, (int)sizeof(props), &plen, &started, "waterlogged", "true");
+    }
+    else if (waterloggable) {
+        // A block that's waterlogged by default, such as coral or a conduit, would be read back as waterlogged without this
+        const char* defaults = defaultStateProperties(name);
+        if (defaults != NULL && strstr(defaults, "waterlogged=true") != NULL)
+            spongeAppendProp(props, (int)sizeof(props), &plen, &started, "waterlogged", "false");
     }
 
     if (started) {
@@ -9940,6 +10089,18 @@ int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
     else if (name == e->name && strcmp(name, "grass") == 0) {
         // renamed short_grass in 1.20.3; "grass" comes first in its bucket for reading older worlds
         name = "short_grass";
+    }
+    else if (name == e->name && strcmp(name, "grass_path") == 0) {
+        // renamed dirt_path in 1.17
+        name = "dirt_path";
+    }
+    else if (name == e->name && strcmp(name, "chain") == 0) {
+        // renamed iron_chain in 1.21.9
+        name = "iron_chain";
+    }
+    else if (name == e->name && strcmp(name, "ominous_banner") == 0) {
+        // an item's name, not a block's: the block is a white banner (with the pattern in its block entity)
+        name = "white_banner";
     }
 
     int n = snprintf(out, (size_t)outSize, "minecraft:%s%s", name, props);

@@ -561,6 +561,10 @@ extern BlockDefinition gBlockDefinitions[];
 #define BED_COLOR_RED 14
 #define BED_COLOR(dataVal) ((((dataVal) & BED_COLOR_MASK) >> BED_COLOR_SHIFT) ^ BED_COLOR_RED)
 #define BED_COLOR_BITS(color) ((((color) ^ BED_COLOR_RED) & 0xF) << BED_COLOR_SHIFT)
+// The growing tip of kelp, weeping and twisting vines, and cave vines has an "age", 0-25, kept in bits 0xF80
+#define GROWTH_AGE_SHIFT 7
+#define GROWTH_AGE_MASK (0x1F << GROWTH_AGE_SHIFT)
+#define GROWTH_AGE(dataVal) (((dataVal) & GROWTH_AGE_MASK) >> GROWTH_AGE_SHIFT)
 #define IS_SIGN_TYPE(type) ((type) == BLOCK_SIGN_POST || (type) == BLOCK_WALL_SIGN || (type) == BLOCK_HANGING_SIGN || (type) == BLOCK_WALL_HANGING_SIGN)
 typedef struct SignWood {
     const char* name;           // Minecraft's name prefix, e.g. "dark_oak" for dark_oak_sign and dark_oak_wall_sign

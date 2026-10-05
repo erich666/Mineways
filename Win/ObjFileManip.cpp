@@ -1066,6 +1066,7 @@ static int writeUSDTextures();
 
 static int writeSchematicBox();
 static int writeSpongeSchematicBox();
+static int spongeWallTallSides(int dataVal, int aboveIndex);
 static int schematicWriteCompoundTag(gzFile gz, char* tag);
 static int schematicWriteShortTag(gzFile gz, char* tag, short value);
 static int schematicWriteIntTag(gzFile gz, char* tag, int value);
@@ -3244,6 +3245,10 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
                 gBoxData[boxIndex].data = dataVal;
                 blockID = gBoxData[boxIndex].origType =
                     gBoxData[boxIndex].type = BLOCK_TYPE_FROM_GRID_DATA(block->grid[chunkIndex], block->data[chunkIndex]);
+                // Redstone wire's connections (see WIRE_PROP in nbt.cpp) are kept for .schem export; a model finds its own from
+                // the neighbors (see computeRedstoneConnectivity()), in the same bits, so clear them.
+                if (blockID == BLOCK_REDSTONE_WIRE && gModel.options->pEFD->fileType != FILE_TYPE_SCHEMATIC && gModel.options->pEFD->fileType != FILE_TYPE_SPONGE_SCHEMATIC)
+                    gBoxData[boxIndex].data &= 0xF;
                 // if you hit this, something has gone odd with the type-extension nibble, which shouldn't happen.
                 assert(blockID < NUM_BLOCKS_DEFINED);
 
@@ -4233,8 +4238,8 @@ static int computeFlatFlags(int boxIndex)
 
     case BLOCK_MANGROVE_PROPAGULE:
         //case BLOCK_CHAIN:   // questionable: should a chain (offset to the edge!) really be flattened onto the neighbor below?
-        // If mangrove propagule is hanging, just ignore it (can't really used textures, and hard to see, anyway)
-        if ((gBoxData[boxIndex].data & 0x7) == 0x0)
+        // If mangrove propagule is hanging (bit 0x8), just ignore it (can't really used textures, and hard to see, anyway)
+        if ((gBoxData[boxIndex].data & 0x8) == 0x0)
             gBoxData[boxIndex - 1].flatFlags |= FLAT_FACE_ABOVE;
         break;
 
@@ -26681,7 +26686,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 rotateIndices(localIndices, angle);
             break;
         case BLOCK_TNT:						// getSwatch
-            switch (dataVal & 0xf)
+            // From 1.13 on, bit 0x2 is tnt's "unstable", which looks the same as any tnt
+            switch ((gIs13orNewer && !(dataVal & 0x1)) ? 0 : (dataVal & 0xf))
             {
             default:
                 assert(0);
@@ -38721,6 +38727,36 @@ static bool isDoorType(int type)
 // inside an unnamed root compound; Palette/Data/BlockEntities are grouped under a "Blocks"
 // sub-compound; the v2 "BlockData" tag is renamed to "Data"; the v2 "PaletteMax" int is removed
 // (the palette size is implicit in the compound).
+// Which of a wall's connected sides are "tall" in Minecraft: those whose strip the block above covers at its bottom, as Minecraft's
+// WallBlock finds them. That's a full block, a bottom slab, stairs right side up, or a sculk sensor; or a wall, glass pane, fence,
+// or bars connected in that direction. Returns the sides, in the wall's dataVal bits (south 0x100, west 0x200, north 0x400, east 0x800).
+static int spongeWallTallSides(int dataVal, int aboveIndex)
+{
+    int sides = dataVal & 0xF00;
+    int aboveType = gBoxData[aboveIndex].type;
+    int aboveData = gBoxData[aboveIndex].data;
+    unsigned int flags = gBlockDefinitions[aboveType].flags;
+    if (aboveType == BLOCK_AIR)
+        return 0;
+    // the same bits as the wall's (see WALL_PROP and STAINED_PANE_PROP in nbt.cpp)
+    if (aboveType == BLOCK_COBBLESTONE_WALL || aboveType == BLOCK_STAINED_GLASS_PANE)
+        return sides & aboveData;
+    // FENCE_PROP's bits: south 0x1, west 0x2, north 0x4, east 0x8
+    if ((flags & BLF_FENCE) || aboveType == BLOCK_GLASS_PANE || aboveType == BLOCK_IRON_BARS ||
+        aboveType == BLOCK_COPPER_BARS || aboveType == BLOCK_WAXED_COPPER_BARS)
+        return sides & ((aboveData & 0xF) << 8);
+    if (flags & BLF_WHOLE)
+        return sides;
+    if (aboveType == BLOCK_SCULK_SENSOR)
+        return sides;
+    // a slab's bit 0x8 is the top half; stairs' bit 0x4 is upside down
+    if ((flags & BLF_HALF) && !(aboveData & 0x8))
+        return sides;
+    if ((flags & BLF_STAIRS) && !(aboveData & 0x4))
+        return sides;
+    return 0;
+}
+
 static int writeSpongeSchematicBox()
 {
     FILE* fptr;
@@ -38879,6 +38915,16 @@ static int writeSpongeSchematicBox()
                     }
                 }
 
+                // A wall's connected sides are "low" or "tall", which Mineways doesn't keep (all twelve bits are used); Minecraft
+                // finds it from the block above, so do so here (see spongeWallTallSides()).
+                int wallTall = 0;
+                if ((type & 0xFFF) == BLOCK_COBBLESTONE_WALL && loc[Y] < gSolidBox.max[Y]) {
+                    int aboveIndex = rotateQuarter
+                        ? BOX_INDEX(loc[Z], loc[Y] + 1, loc[X])
+                        : BOX_INDEX(loc[X], loc[Y] + 1, loc[Z]);
+                    wallTall = spongeWallTallSides(dataVal, aboveIndex);
+                }
+
                 int lookupKey = (type & 0xFFF) * lookupDataVals + (dataVal & DATAVAL_MASK);
                 if (lookupKey < 0 || lookupKey >= NUM_BLOCKS_DEFINED * lookupDataVals) {
                     // unknown block — fall back to air, count it for the user-facing warning
@@ -38888,12 +38934,23 @@ static int writeSpongeSchematicBox()
                     unknownBlockExports++;
                 }
 
-                int paletteIndex = paletteIndexLookup[lookupKey];
+                // a wall with tall sides isn't told apart by its dataVal, so it's looked up by its name
+                int paletteIndex = wallTall ? -1 : paletteIndexLookup[lookupKey];
                 if (paletteIndex < 0) {
                     int n = spongeBlockStateString(type, dataVal, nameBuf, sizeof(nameBuf));
                     if (n <= 0) {
                         // shouldn't happen with sensible block IDs, but be safe
                         snprintf(nameBuf, sizeof(nameBuf), "minecraft:air");
+                    }
+                    if (wallTall) {
+                        static const char* wallSides[4] = { "south=low", "west=low", "north=low", "east=low" };
+                        std::string state(nameBuf);
+                        for (int side = 0; side < 4; side++) {
+                            size_t at = state.find(wallSides[side]);
+                            if ((wallTall & (0x100 << side)) && at != std::string::npos)
+                                state.replace(at + strlen(wallSides[side]) - 3, 3, "tall");
+                        }
+                        strcpy_s(nameBuf, sizeof(nameBuf), state.c_str());
                     }
                     auto it = paletteByName.find(nameBuf);
                     if (it != paletteByName.end()) {
@@ -38904,7 +38961,8 @@ static int writeSpongeSchematicBox()
                         paletteNames.emplace_back(nameBuf);
                         paletteByName.emplace(paletteNames.back(), paletteIndex);
                     }
-                    paletteIndexLookup[lookupKey] = paletteIndex;
+                    if (!wallTall)
+                        paletteIndexLookup[lookupKey] = paletteIndex;
                 }
 
                 int nb = spongeWriteVarint(NULL, (unsigned int)paletteIndex, varintBytes);

@@ -323,7 +323,7 @@ BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
     { /* 226 */ "Gray Shulker Box",       		0x383B3F, 1.000f, 0xff7711, 0xff7711, 0.12345f,  7, 27, 0x00, BLF_WHOLE },
     { /* 227 */ "Light Grey Shulker Box", 		0x7E7E75, 1.000f, 0xff7711, 0xff7711, 0.12345f,  8, 27, 0x00, BLF_WHOLE },
     { /* 228 */ "Cyan Shulker Box",       		0x147A88, 1.000f, 0xff7711, 0xff7711, 0.12345f,  9, 27, 0x00, BLF_WHOLE },
-    { /* 229 */ "Purple Shulker Box",     		0x8C618C, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 27, 0x00, BLF_WHOLE },
+    { /* 229 */ "Purple Shulker Box",     		0x8C618C, 1.000f, 0xff7711, 0xff7711, 0.12345f, 10, 27, 0x08, BLF_WHOLE },	// bit 0x8 is the undyed shulker box
     { /* 230 */ "Blue Shulker Box",       		0x2C2E8D, 1.000f, 0xff7711, 0xff7711, 0.12345f, 11, 27, 0x00, BLF_WHOLE },
     { /* 231 */ "Brown Shulker Box",      		0x6B4224, 1.000f, 0xff7711, 0xff7711, 0.12345f, 12, 27, 0x00, BLF_WHOLE },
     { /* 232 */ "Green Shulker Box",      		0x4F6520, 1.000f, 0xff7711, 0xff7711, 0.12345f, 13, 27, 0x00, BLF_WHOLE },

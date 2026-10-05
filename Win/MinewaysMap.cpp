@@ -1723,6 +1723,12 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         }
         break;
 
+    case BLOCK_SHULKER_CHEST + 10:
+        // the undyed shulker box shares the purple one's type, with bit 0x8
+        if (dataVal & 0x8)
+            return "Shulker Box";
+        break;
+
     case BLOCK_BED:
         // the color is in BED_COLOR_MASK; dataVal bit 0x8 is part (0=foot,1=head)
         strcpy_s(gConcatString, 100, gConcreteWoolColorNames[BED_COLOR(dataVal)]);
