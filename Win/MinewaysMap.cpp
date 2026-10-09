@@ -47,6 +47,7 @@ static void addCushions(wchar_t* directory, int cx, int cz, WorldBlock* block);
 static int createBlockFromSchematic(WorldGuide* pWorldGuide, int cx, int cz, WorldBlock* block);
 static void initColors();
 static void saveBadChunkLocation(int bx, int bz);
+static bool westHeightsAvailable(int bx, int bz, int topy, int worldType);
 
 
 static int gColorsInited = 0;
@@ -5138,10 +5139,9 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
     // already rendered?
     if (block->rendery == heightAlloc && block->renderopts == pOpts->worldType && block->colormap == gColormap)
     {
-        void* dummy;
         if (block->rendermissing // wait, the last render was incomplete
-            && Cache_Find(bx, bz + block->rendermissing, &dummy)) {
-            ; // we can do a better render now that the missing block is loaded
+            && westHeightsAvailable(bx, bz, heightAlloc, pOpts->worldType)) {
+            ; // we can do a better render now that the missing block to the west is loaded
         }
         else {
             // Yes, it's been rendered, but now we need to check if the highlight number is OK:
@@ -8918,6 +8918,28 @@ void SetNonBlockingDraw(bool on)
     gNonBlockingDraw = on;
     if (on)
         gChunksMissing = false;
+}
+
+// Is the chunk west of bx, bz, whose heights shade its west edge, loaded and drawn for this depth and these options?
+static bool westHeightsAvailable(int bx, int bz, int topy, int worldType)
+{
+    void* data;
+    if (!Cache_Find(bx - 1, bz, &data) || data == NULL)
+        return false;
+    WorldBlock* west = (WorldBlock*)data;
+    return west->blockType != NBT_NO_SECTIONS && west->rendery == topy && west->renderopts == worldType;
+}
+
+// Was chunk bx, bz drawn before the chunk west of it was, so its west edge should be drawn again
+// now that the west chunk is? Prefetch loads chunks in rings from the center, so this happens.
+bool ChunkNeedsWestEdgeRedraw(int bx, int bz, int topy, Options* pOpts)
+{
+    void* data;
+    if (!Cache_Find(bx, bz, &data) || data == NULL)
+        return false;
+    WorldBlock* block = (WorldBlock*)data;
+    return block->rendermissing && block->rendery == topy && block->renderopts == pOpts->worldType &&
+        westHeightsAvailable(bx, bz, topy, pOpts->worldType);
 }
 
 bool GetChunksMissing(void)

@@ -141,6 +141,7 @@ unsigned short GetMapColormap(void);
 int GetMapHighlightID(void);
 void SetNonBlockingDraw(bool on);
 bool GetChunksMissing(void);
+bool ChunkNeedsWestEdgeRedraw(int bx, int bz, int topy, Options* pOpts);
 void PrefetchBlock(WorldGuide* pWorldGuide, int bx, int bz, int mcVersion, int versionID, unsigned int worldType);
 char* MapUnknownBlockName();
 void ClearUnknownBlockNameString();

@@ -1788,6 +1788,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         if (shiftx < 0) { startxblock--; shiftx += blockScale; }
         if (shiftz < 0) { startzblock--; shiftz += blockScale; }
 
+        // paint one chunk's rectangle
+        auto paintChunk = [&](int cx, int cz) {
+            int px = -shiftx + (cx - startxblock) * blockScale;
+            int pz = -shiftz + (cz - startzblock) * blockScale;
+            int px2 = px + blockScale;
+            int pz2 = pz + blockScale;
+            // Clip to screen bounds
+            if (px < 0) px = 0;
+            if (pz < 0) pz = 0;
+            if (px2 > bitWidth) px2 = bitWidth;
+            if (pz2 > bitHeight) pz2 = bitHeight;
+            if (px < px2 && pz < pz2) {
+                DrawMapStrips(&gWorldGuide, gCurX, gCurZ, gCurDepth - gMinHeight, gMaxHeight,
+                    bitWidth, bitHeight, gCurScale, map, &gOptions, gHitsFound,
+                    NULL, gMinecraftVersion, gVersionID,
+                    px, pz, px2, pz2);
+            }
+        };
+
         if (nBest > 0) {
             for (int i = 0; i < nBest; i++) {
                 // Skip chunks the time budget left unloaded: drawing them here would load them
@@ -1797,23 +1816,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     continue;
                 if (!gMapBufferComplete)
                     gPaintedChunks.insert(PAINTED_CHUNK_KEY(best[i].cx, best[i].cz));
-                int relX = best[i].cx - startxblock;
-                int relZ = best[i].cz - startzblock;
-                int px = -shiftx + relX * blockScale;
-                int pz = -shiftz + relZ * blockScale;
-                int px2 = px + blockScale;
-                int pz2 = pz + blockScale;
-                // Clip to screen bounds
-                if (px < 0) px = 0;
-                if (pz < 0) pz = 0;
-                if (px2 > bitWidth) px2 = bitWidth;
-                if (pz2 > bitHeight) pz2 = bitHeight;
-                if (px < px2 && pz < pz2) {
-                    DrawMapStrips(&gWorldGuide, gCurX, gCurZ, gCurDepth - gMinHeight, gMaxHeight,
-                        bitWidth, bitHeight, gCurScale, map, &gOptions, gHitsFound,
-                        NULL, gMinecraftVersion, gVersionID,
-                        px, pz, px2, pz2);
-                }
+                paintChunk(best[i].cx, best[i].cz);
+                // If the chunk to the east was drawn before this one was loaded, its west edge was
+                // shaded without this chunk's heights (dark stripes in water), so draw it again.
+                if (ChunkNeedsWestEdgeRedraw(best[i].cx + 1, best[i].cz, gCurDepth - gMinHeight, &gOptions))
+                    paintChunk(best[i].cx + 1, best[i].cz);
             }
             InvalidateRect(hWnd, NULL, FALSE);
         }
