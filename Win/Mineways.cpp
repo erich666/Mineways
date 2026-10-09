@@ -47,6 +47,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <unordered_set>
 #include <cstdint>
 
 // Should really make a full-featured error system, a la https://www.softwariness.com/articles/assertions-in-cpp/, but this'll do for now.
@@ -145,6 +146,16 @@ static int gLockMouseX = 0;                               // if true, don't allo
 static int gLockMouseZ = 0;
 static double gCurScale = DEFAULTZOOM;					    //current zoom scale
 static int gCurDepth = INIT_MAP_MAX_HEIGHT;					//current depth
+
+// Scroll-blit cache: reuse the composited screen buffer when only the center changes (pan).
+// On a pure pan we shift the existing pixels and only render the newly-exposed edge strips.
+static bool gScrollCacheValid = false;
+static double gLastDrawnCurX = 0.0, gLastDrawnCurZ = 0.0;
+static double gLastDrawnScale = 0.0;
+static int gLastDrawnDepth = 0;
+static unsigned short gLastDrawnColormap = 0;
+static int gLastDrawnOpts = 0;
+static int gLastDrawnHighlightID = 0;
 static int gStartHiX, gStartHiZ;						    //starting highlight X and Z
 
 static BOOL gHighlightOn = FALSE;
@@ -187,6 +198,34 @@ static bool gShowRenderStats = true;
 static int gAutocorrectDepth = 1;
 
 static int gBottomControlEnabled = FALSE;
+static DWORD gLastMapDrawTick = 0;
+static bool gMapRedrawQueued = false;
+#define WM_APP_MAP_REDRAW (WM_APP + 1)
+
+// Background chunk prefetch: after a non-blocking draw leaves blank tiles,
+// WM_APP_PREFETCH loads a batch of missing chunks and redraws.
+static HWND gMainHWnd = NULL;
+static bool gPrefetchQueued = false;
+#define WM_APP_PREFETCH   (WM_APP + 2)
+#define PREFETCH_MARGIN   2    // chunks beyond viewport to pre-load
+#define PREFETCH_BATCH    128  // max chunks to collect per scan pass
+#define PREFETCH_TIME_MS  40   // time budget per tick for loading chunks
+// Which chunks are drawn in the map buffer. When zoomed far out, a full redraw clears the buffer
+// and leaves the filling to prefetch, which must then draw cached chunks too, not just the ones
+// it loads. gMapBufferComplete means a full DrawMap drew everything; else gPaintedChunks lists the
+// chunks prefetch has drawn since the buffer was cleared.
+static bool gMapBufferComplete = false;
+static std::unordered_set<long long> gPaintedChunks;
+#define PAINTED_CHUNK_KEY(cx, cz)   (((long long)(cx) << 32) | (unsigned int)(cz))
+
+// Map memory: the most memory the chunk cache may use, from Help > Map memory, kept in the registry
+// as HKCU\Software\Eric Haines\Mineways\MapMemoryMB. The cache holds as many chunks as fit at the
+// loaded world's height (see Cache_EntriesForBudget), so a taller world holds fewer.
+#define MAP_MEMORY_REGKEY       L"Software\\Eric Haines\\Mineways"
+#define MAP_MEMORY_DEFAULT_MB   2048
+static const int gMapMemoryChoicesMB[] = { 1024, 2048, 4096, 8192, 16384 };    // IDM_MAPMEMORY_1GB on
+#define NUM_MAP_MEMORY_CHOICES  (int)(sizeof(gMapMemoryChoicesMB) / sizeof(gMapMemoryChoicesMB[0]))
+static int gMapMemoryMB = MAP_MEMORY_DEFAULT_MB;
 
 // export type selected in menu
 #define	RENDERING_EXPORT	0
@@ -437,6 +476,9 @@ static void loadRecentExportsFromRegistry();
 static void saveRecentExportsToRegistry();
 static void addToRecentExports(const wchar_t* path);
 static void populateRecentExportsMenu(HWND hWnd);
+static void loadMapMemoryFromRegistry();
+static void saveMapMemoryToRegistry();
+static void applyMapMemory(HWND hWnd);
 static HMENU findRecentExportsSubmenu(HWND hWnd);
 static void appendDefaultExportSuffix(wchar_t* path, int fileType);
 static void drawTheMap();
@@ -956,6 +998,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
     case WM_CREATE:
     {
+        gMainHWnd = hWnd;
         validateItems(GetMenu(hWnd));
 
         int val = getSuppressFromCommandLine(gArgList, gArgCount);
@@ -1051,6 +1094,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         LOG_INFO(gExecutionLogfile, " loadRecentExportsFromRegistry\n");
         loadRecentExportsFromRegistry();
         populateRecentExportsMenu(hWnd);
+
+        loadMapMemoryFromRegistry();
+        applyMapMemory(hWnd);
 
         ctlBrush = CreateSolidBrush(GetSysColor(COLOR_WINDOW));
 
@@ -1579,6 +1625,211 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
     MButtonUp:
         break;
+    case WM_APP_MAP_REDRAW:
+        gMapRedrawQueued = false;
+        drawTheMap();
+        InvalidateRect(hWnd, NULL, FALSE);
+        return 0;
+
+    case WM_TIMER:
+        if (wParam == WM_APP_PREFETCH) {
+            KillTimer(hWnd, WM_APP_PREFETCH);
+            goto HandlePrefetch;
+        }
+        break;
+
+    case WM_APP_PREFETCH:
+    HandlePrefetch:
+    {
+        gPrefetchQueued = false;
+        if (!gLoaded)
+            return 0;
+        DWORD tPF0 = GetTickCount();
+
+        int blockScale = (int)(16 * gCurScale);
+        if (blockScale < 1) blockScale = 1;
+        int hBlocks = (bitWidth + blockScale * 2) / blockScale;
+        int vBlocks = (bitHeight + blockScale * 2) / blockScale;
+
+        // Scan exactly the chunks visible in the viewport (plus a small margin).
+        // This avoids wasting iterations on off-screen chunks while ensuring the
+        // entire viewport eventually fills in.
+        double startx = gCurX - (double)bitWidth / (2 * gCurScale);
+        double startz = gCurZ - (double)bitHeight / (2 * gCurScale);
+        int centerCX = (int)floor(gCurX / 16.0);
+        int centerCZ = (int)floor(gCurZ / 16.0);
+        int scanStartX = (int)floor(startx / 16.0) - PREFETCH_MARGIN;
+        int scanStartZ = (int)floor(startz / 16.0) - PREFETCH_MARGIN;
+        int scanH = hBlocks + 2 * PREFETCH_MARGIN;
+        int scanV = vBlocks + 2 * PREFETCH_MARGIN;
+
+        // Scan outward from center in expanding rings, collecting chunks that
+        // need loading (uncached) or re-rendering (stale highlight). Stops when
+        // PREFETCH_BATCH chunks are found or the entire viewport is covered.
+        int curHiliteID = GetMapHighlightID();
+        int hlOn, hlMinX, hlMinY, hlMinZ, hlMaxX, hlMaxY, hlMaxZ;
+        GetHighlightState(&hlOn, &hlMinX, &hlMinY, &hlMinZ, &hlMaxX, &hlMaxY, &hlMaxZ, gMinHeight);
+
+        // Viewport bounds in chunk coords
+        int vpMinCX = scanStartX;
+        int vpMinCZ = scanStartZ;
+        int vpMaxCX = scanStartX + scanH - 1;
+        int vpMaxCZ = scanStartZ + scanV - 1;
+        int maxRing = max(max(centerCX - vpMinCX, vpMaxCX - centerCX),
+                         max(centerCZ - vpMinCZ, vpMaxCZ - centerCZ));
+        // Don't go past the rings that fit in the cache: loading more would evict the
+        // center chunks, which the next pass would then load again, forever. So when
+        // zoomed far out, the map memory setting decides how much of the view fills in.
+        int cacheLimit = gOptions.currentCacheSize * 9 / 10;
+        for (int ring = 0; ring <= maxRing; ring++) {
+            int w = min(centerCX + ring, vpMaxCX) - max(centerCX - ring, vpMinCX) + 1;
+            int h = min(centerCZ + ring, vpMaxCZ) - max(centerCZ - ring, vpMinCZ) + 1;
+            if ((long long)w * h > cacheLimit) {
+                maxRing = max(ring - 1, 0);
+                break;
+            }
+        }
+
+        struct ChunkDist { int cx, cz; bool needsLoad; };
+        ChunkDist best[PREFETCH_BATCH];
+        int nBest = 0;
+        bool anyMissing = false;
+        DWORD tScanDeadline = tPF0 + 12;  // max ~12ms scanning
+
+        for (int ring = 0; ring <= maxRing && nBest < PREFETCH_BATCH; ring++) {
+            // Walk the perimeter of the ring (or just center for ring 0)
+            int rMinX = centerCX - ring, rMaxX = centerCX + ring;
+            int rMinZ = centerCZ - ring, rMaxZ = centerCZ + ring;
+
+            for (int side = 0; side < (ring == 0 ? 1 : 4) && nBest < PREFETCH_BATCH; side++) {
+                int sx, sz, ex, ez;
+                switch (side) {
+                case 0: sx = rMinX; sz = rMinZ; ex = rMaxX; ez = rMinZ; break; // top
+                case 1: sx = rMaxX; sz = rMinZ + 1; ex = rMaxX; ez = rMaxZ; break; // right
+                case 2: sx = rMaxX - 1; sz = rMaxZ; ex = rMinX; ez = rMaxZ; break; // bottom
+                case 3: sx = rMinX; sz = rMaxZ - 1; ex = rMinX; ez = rMinZ + 1; break; // left
+                default: sx = ez = ex = sz = 0; break;
+                }
+                int dxStep = (ex >= sx) ? 1 : -1;
+                int dzStep = (ez >= sz) ? 1 : -1;
+                // For ring 0, just one point
+                int cx = sx, cz = sz;
+                bool more = true;
+                while (more && nBest < PREFETCH_BATCH) {
+                    // Clamp to viewport
+                    if (cx >= vpMinCX && cx <= vpMaxCX && cz >= vpMinCZ && cz <= vpMaxCZ) {
+                        void* data;
+                        bool inCache = Cache_Find(cx, cz, &data);
+                        bool needsLoad = !inCache;
+                        // cached but not yet drawn since the buffer was cleared
+                        bool needsRedraw = inCache && !gMapBufferComplete &&
+                            gPaintedChunks.find(PAINTED_CHUNK_KEY(cx, cz)) == gPaintedChunks.end();
+
+                        if (!needsRedraw && inCache && data != NULL) {
+                            WorldBlock* block = (WorldBlock*)data;
+                            bool isOnOrInside = hlOn &&
+                                (cx * 16 + 15 >= hlMinX && cx * 16 <= hlMaxX &&
+                                 cz * 16 + 15 >= hlMinZ && cz * 16 <= hlMaxZ);
+                            if (!((block->renderhilitID == curHiliteID && isOnOrInside) ||
+                                  (block->renderhilitID == 0 && !isOnOrInside))) {
+                                needsRedraw = true;
+                            }
+                        }
+
+                        if (needsLoad || needsRedraw) {
+                            if (needsLoad) anyMissing = true;
+                            best[nBest].cx = cx;
+                            best[nBest].cz = cz;
+                            best[nBest].needsLoad = needsLoad;
+                            nBest++;
+                        }
+                    }
+
+                    // Advance along the side
+                    if (ring == 0) { more = false; break; }
+                    if (side == 0 || side == 2) {
+                        if (cx == ex) { more = false; break; }
+                        cx += dxStep;
+                    } else {
+                        if (cz == ez) { more = false; break; }
+                        cz += dzStep;
+                    }
+                }
+            }
+
+            // Time-check every 8 rings to avoid calling GetTickCount too often
+            if ((ring & 7) == 7 && GetTickCount() >= tScanDeadline)
+                break;
+        }
+
+        // Load uncached chunks within a time budget
+        DWORD tLoadStart = GetTickCount();
+        int loaded = 0;
+        for (int i = 0; i < nBest; i++) {
+            if (best[i].needsLoad) {
+                PrefetchBlock(&gWorldGuide, best[i].cx, best[i].cz, gMinecraftVersion, gVersionID, gOptions.worldType);
+                loaded++;
+                if (GetTickCount() - tLoadStart >= PREFETCH_TIME_MS)
+                    break;
+            }
+        }
+
+
+        // Targeted redraw: repaint only the pixel rectangles of chunks that
+        // were loaded or need highlight refresh, instead of a full-screen
+        // DrawMap (which at extreme zoom iterates millions of chunks).
+        // Compute pixel positions using the same math as DrawMapStrips so
+        // the clip rects align exactly — any truncation difference causes
+        // 1-pixel gaps (black lines).
+        int startxblock = (int)(startx / 16);
+        int startzblock = (int)(startz / 16);
+        int shiftx = (int)((startx - startxblock * 16) * gCurScale);
+        int shiftz = (int)((startz - startzblock * 16) * gCurScale);
+        if (shiftx < 0) { startxblock--; shiftx += blockScale; }
+        if (shiftz < 0) { startzblock--; shiftz += blockScale; }
+
+        if (nBest > 0) {
+            for (int i = 0; i < nBest; i++) {
+                // Skip chunks the time budget left unloaded: drawing them here would load them
+                // anyway. They are still missing, so the next pass gets them.
+                void* data;
+                if (!Cache_Find(best[i].cx, best[i].cz, &data))
+                    continue;
+                if (!gMapBufferComplete)
+                    gPaintedChunks.insert(PAINTED_CHUNK_KEY(best[i].cx, best[i].cz));
+                int relX = best[i].cx - startxblock;
+                int relZ = best[i].cz - startzblock;
+                int px = -shiftx + relX * blockScale;
+                int pz = -shiftz + relZ * blockScale;
+                int px2 = px + blockScale;
+                int pz2 = pz + blockScale;
+                // Clip to screen bounds
+                if (px < 0) px = 0;
+                if (pz < 0) pz = 0;
+                if (px2 > bitWidth) px2 = bitWidth;
+                if (pz2 > bitHeight) pz2 = bitHeight;
+                if (px < px2 && pz < pz2) {
+                    DrawMapStrips(&gWorldGuide, gCurX, gCurZ, gCurDepth - gMinHeight, gMaxHeight,
+                        bitWidth, bitHeight, gCurScale, map, &gOptions, gHitsFound,
+                        NULL, gMinecraftVersion, gVersionID,
+                        px, pz, px2, pz2);
+                }
+            }
+            InvalidateRect(hWnd, NULL, FALSE);
+        }
+
+        // Keep going if there are uncached or stale-highlight chunks remaining
+        if (nBest > 0) anyMissing = true;
+        if (anyMissing) {
+            // Use a short timer instead of PostMessage so mouse/paint messages
+            // get processed between batches. Without this, PostMessage fires
+            // back-to-back hundreds of times and starves the message queue.
+            gPrefetchQueued = true;
+            SetTimer(hWnd, WM_APP_PREFETCH, 15, NULL);  // ~1 frame at 60fps
+        }
+        return 0;
+    }
+
     case WM_MOUSEMOVE:
         if (gLoaded)
         {
@@ -1593,8 +1844,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 int mouseY = HIWORD(lParam);
                 if (mouseY > 0x7fff)
                     mouseY -= 0x10000;
-                gCurZ -= (mouseY - oldY) / gCurScale;
-                gCurX -= (mouseX - oldX) / gCurScale;
+                double deltaX = (mouseX - oldX) / gCurScale;
+                double deltaZ = (mouseY - oldY) / gCurScale;
+                gCurX -= deltaX;
+                gCurZ -= deltaZ;
                 oldX = mouseX;
                 oldY = mouseY;
                 drawInvalidateUpdate(hWnd);
@@ -2675,6 +2928,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 CheckMenuItem(GetMenu(hWnd), wmId, (gOptions.moreExportMemory) ? MF_CHECKED : MF_UNCHECKED);
                 MinimizeCacheBlocks(gOptions.moreExportMemory);
                 break;
+            case IDM_MAPMEMORY_1GB:
+            case IDM_MAPMEMORY_2GB:
+            case IDM_MAPMEMORY_4GB:
+            case IDM_MAPMEMORY_8GB:
+            case IDM_MAPMEMORY_16GB:
+                gMapMemoryMB = gMapMemoryChoicesMB[wmId - IDM_MAPMEMORY_1GB];
+                saveMapMemoryToRegistry();
+                // a smaller cache is emptied, so chunks get reloaded as needed
+                applyMapMemory(hWnd);
+                if (gLoaded) {
+                    REDRAW_ALL;
+                }
+                break;
             default:
                 return DefWindowProc(hWnd, message, wParam, lParam);
             }
@@ -2740,6 +3006,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         if (bitmap != NULL)
             DeleteObject(bitmap);
         bitmap = CreateDIBSection(NULL, &bmi, DIB_RGB_COLORS, (void**)&map, NULL, 0);
+        gScrollCacheValid = false;
         if (hdcMem != NULL)
             SelectObject(hdcMem, bitmap);
 
@@ -2749,21 +3016,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             SendMessage(hwndStatus, SB_SETPARTS, 2, (LPARAM)parts);
         }
 
-        {
-            // On resize, figure out a better hash table size for cache, if needed.
-            // Take the pixels on the screen, compare to cache size * 16^2 (pixels per chunk) times 2.1
-            // (as a guess for the number of chunks we might want total, e.g., 2x the screen size).
-            // I'd love to kick it to 4.0x the screen size, that's a bit nicer, but risks running out of memory.
-            float zoomFactor = min(gMinZoom, 1.0f);
-            zoomFactor *= zoomFactor;
-            int sizeNeeded = (int)(2.1f * (float)((rect.bottom - rect.top) * (rect.right - rect.left)) / (256.0f * zoomFactor));
-            if (sizeNeeded > gOptions.currentCacheSize)
-            {
-                // make new cache twice the size of the previous cache size, or the sizeNeeded above, whichever is larger
-                gOptions.currentCacheSize = (sizeNeeded > 2 * gOptions.currentCacheSize) ? sizeNeeded : 2 * gOptions.currentCacheSize;
-                ChangeCache(gOptions.currentCacheSize);
-            }
-        }
+        // The cache size no longer grows with the window: Help > Map memory sets it (see applyMapMemory).
         //InvalidateRect(hWnd,NULL,TRUE);
         //UpdateWindow(hWnd);
         drawTheMap();
@@ -3379,14 +3632,20 @@ static bool processCreateArguments(WindowSet& ws, const char** pBlockLabel, LPAR
 // kinda overkill, we should note it's loaded only once
 static void setUIOnLoadWorld(HWND hWnd, HWND hwndSlider, HWND hwndLabel, HWND hwndInfoLabel, HWND hwndBottomSlider, HWND hwndBottomLabel)
 {
+    // Cancel any pending prefetch — we're switching worlds
+    gPrefetchQueued = false;
+
     if (!gLoaded) {
         gLoaded = TRUE;
+        gScrollCacheValid = false;
         EnableWindow(hwndSlider, TRUE);
         EnableWindow(hwndLabel, TRUE);
         EnableWindow(hwndInfoLabel, TRUE);
         EnableWindow(hwndBottomSlider, TRUE);
         EnableWindow(hwndBottomLabel, TRUE);
     }
+    // the world's height sets how many chunks fit in the map memory
+    applyMapMemory(hWnd);
     // we want to set to 383 for new worlds, 255 for old
     SendMessage(hwndSlider, TBM_SETRANGE, TRUE, MAKELONG(0, gMaxHeight - gMinHeight));
     setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
@@ -3700,27 +3959,205 @@ static void updateProgress(float progress, wchar_t* buf)
     }
 }
 
+// Shift the screen pixel buffer by (dx,dy) pixels. Positive dx shifts image right
+// (exposes left edge), positive dy shifts image down (exposes top edge). The newly
+// exposed strips are filled with 0xFF (white/opaque) so they're visible if not
+// overdrawn by DrawMapStrips.
+static void scrollMapBuffer(unsigned char* buf, int w, int h, int dx, int dy)
+{
+    int rowBytes = w * 4;
+
+    // Vertical shift: move rows up or down
+    if (dy > 0) {
+        // shift down: copy from top, going bottom-up to avoid overlap issues
+        for (int row = h - 1; row >= dy; row--)
+            memmove(buf + row * rowBytes, buf + (row - dy) * rowBytes, rowBytes);
+        // clear top strip
+        memset(buf, 0xff, dy * rowBytes);
+    }
+    else if (dy < 0) {
+        int ady = -dy;
+        // shift up: copy from bottom, going top-down
+        for (int row = 0; row < h - ady; row++)
+            memmove(buf + row * rowBytes, buf + (row + ady) * rowBytes, rowBytes);
+        // clear bottom strip
+        memset(buf + (h - ady) * rowBytes, 0xff, ady * rowBytes);
+    }
+
+    // Horizontal shift: per-row memmove
+    if (dx > 0) {
+        int copyBytes = (w - dx) * 4;
+        for (int row = 0; row < h; row++) {
+            unsigned char* rowPtr = buf + row * rowBytes;
+            memmove(rowPtr + dx * 4, rowPtr, copyBytes);
+            memset(rowPtr, 0xff, dx * 4);
+        }
+    }
+    else if (dx < 0) {
+        int adx = -dx;
+        int copyBytes = (w - adx) * 4;
+        for (int row = 0; row < h; row++) {
+            unsigned char* rowPtr = buf + row * rowBytes;
+            memmove(rowPtr, rowPtr + adx * 4, copyBytes);
+            memset(rowPtr + copyBytes, 0xff, adx * 4);
+        }
+    }
+}
+
 static void drawTheMap()
 {
     if (gLoaded) {
-        ClearUnknownBlockNameString();
-        checkMapDrawErrorCode(
-            DrawMap(&gWorldGuide, gCurX, gCurZ, gCurDepth - gMinHeight, gMaxHeight, bitWidth, bitHeight, gCurScale, map, &gOptions, gHitsFound, updateProgress, gMinecraftVersion, gVersionID)
-        );
+        unsigned short curColormap = GetMapColormap();
+        int curHighlightID = GetMapHighlightID();
+        int curOpts = gOptions.worldType;
+
+        // Fast path: if only the pan position changed, shift existing pixels and
+        // render only the newly-exposed edge strips.
+        if (gScrollCacheValid
+            && bitWidth > 0 && bitHeight > 0
+            && gCurScale == gLastDrawnScale
+            && (gCurDepth - gMinHeight) == gLastDrawnDepth
+            && curColormap == gLastDrawnColormap
+            && curOpts == gLastDrawnOpts
+            && curHighlightID == gLastDrawnHighlightID)
+        {
+            int dx = (int)((gLastDrawnCurX - gCurX) * gCurScale);
+            int dy = (int)((gLastDrawnCurZ - gCurZ) * gCurScale);
+
+            if (dx == 0 && dy == 0) {
+                // Sub-pixel pan, no visible change — skip the redraw entirely.
+                SendMessage(progressBar, PBM_SETPOS, 0, 0);
+                return;
+            }
+
+            int adx = (dx < 0) ? -dx : dx;
+            int ady = (dy < 0) ? -dy : dy;
+
+            if (adx < bitWidth && ady < bitHeight) {
+                scrollMapBuffer(map, bitWidth, bitHeight, dx, dy);
+
+                // Build clip rectangles for the exposed strips and render them.
+                // Non-blocking: skip disk I/O for cache misses (show blank tiles
+                // instead) so panning never stalls. Missing chunks are streamed in
+                // by WM_APP_PREFETCH afterward.
+                ClearUnknownBlockNameString();
+                SetNonBlockingDraw(true);
+                // Horizontal strip (full width, at top or bottom edge):
+                if (dy > 0) {
+                    // exposed at top
+                    checkMapDrawErrorCode(
+                        DrawMapStrips(&gWorldGuide, gCurX, gCurZ, gCurDepth - gMinHeight, gMaxHeight, bitWidth, bitHeight, gCurScale, map, &gOptions, gHitsFound, updateProgress, gMinecraftVersion, gVersionID,
+                            0, 0, bitWidth, dy));
+                }
+                else if (dy < 0) {
+                    // exposed at bottom
+                    checkMapDrawErrorCode(
+                        DrawMapStrips(&gWorldGuide, gCurX, gCurZ, gCurDepth - gMinHeight, gMaxHeight, bitWidth, bitHeight, gCurScale, map, &gOptions, gHitsFound, updateProgress, gMinecraftVersion, gVersionID,
+                            0, bitHeight + dy, bitWidth, bitHeight));
+                }
+                // Vertical strip (excluding the already-covered horizontal strip):
+                if (dx > 0) {
+                    // exposed at left
+                    int stripTop = (dy > 0) ? dy : 0;
+                    int stripBot = (dy < 0) ? bitHeight + dy : bitHeight;
+                    checkMapDrawErrorCode(
+                        DrawMapStrips(&gWorldGuide, gCurX, gCurZ, gCurDepth - gMinHeight, gMaxHeight, bitWidth, bitHeight, gCurScale, map, &gOptions, gHitsFound, updateProgress, gMinecraftVersion, gVersionID,
+                            0, stripTop, dx, stripBot));
+                }
+                else if (dx < 0) {
+                    // exposed at right
+                    int stripTop = (dy > 0) ? dy : 0;
+                    int stripBot = (dy < 0) ? bitHeight + dy : bitHeight;
+                    checkMapDrawErrorCode(
+                        DrawMapStrips(&gWorldGuide, gCurX, gCurZ, gCurDepth - gMinHeight, gMaxHeight, bitWidth, bitHeight, gCurScale, map, &gOptions, gHitsFound, updateProgress, gMinecraftVersion, gVersionID,
+                            bitWidth + dx, stripTop, bitWidth, stripBot));
+                }
+                SetNonBlockingDraw(false);
+                bool missing = GetChunksMissing();
+
+                // Track the actual position the buffer represents, not gCurX.
+                // The buffer was shifted by exactly dx/dy integer pixels; the
+                // sub-pixel remainder stays in the difference so the next frame's
+                // dx/dy computation picks it up. Without this, truncation error
+                // accumulates and causes 1-2px misalignment between shifted
+                // content and newly rendered strips.
+                gLastDrawnCurX -= (double)dx / gCurScale;
+                gLastDrawnCurZ -= (double)dy / gCurScale;
+                SendMessage(progressBar, PBM_SETPOS, 0, 0);
+
+                // If chunks were missed, queue a background prefetch pass
+                if (missing && !gPrefetchQueued) {
+                    gPrefetchQueued = true;
+                    PostMessage(gMainHWnd, WM_APP_PREFETCH, 0, 0);
+                }
+                return;
+            }
+            // else delta too large, fall through to full redraw
+        }
+
+        // Slow path: full redraw.
+        // At extreme zoom-out, the viewport can span millions of chunks (e.g.
+        // 2560x1440 at zoom 0.0625 → 3.7M chunks). Even a non-blocking DrawMap
+        // that skips I/O still iterates millions of times (draw + Cache_Find +
+        // blit per chunk), taking ~750ms+ per frame — enough to freeze the UI.
+        //
+        // When the chunk count is too large, skip DrawMap entirely: clear the
+        // buffer and let the prefetch system paint chunks in progressively.
+        {
+            int bs = max(1, (int)(16 * gCurScale));
+            int visibleChunks = ((bitWidth + bs * 2) / bs) * ((bitHeight + bs * 2) / bs);
+            bool tooMany = (visibleChunks > gOptions.currentCacheSize / 2);
+
+            ClearUnknownBlockNameString();
+            if (tooMany) {
+                // Check if only the highlight changed (position/zoom/depth/options same).
+                // If so, keep existing pixels — the old highlight is better than a white
+                // flash — and let prefetch progressively refresh chunks with the new
+                // highlight overlay.
+                bool highlightOnly = (gScrollCacheValid
+                    && gCurScale == gLastDrawnScale
+                    && (gCurDepth - gMinHeight) == gLastDrawnDepth
+                    && curColormap == gLastDrawnColormap
+                    && curOpts == gLastDrawnOpts);
+
+                if (!highlightOnly) {
+                    // Major change — clear and rebuild from scratch
+                    memset(map, 0xff, (size_t)bitWidth * bitHeight * 4);
+                    gMapBufferComplete = false;
+                    gPaintedChunks.clear();
+                }
+                // else: keep existing pixels; prefetch will update highlight
+
+                if (!gPrefetchQueued) {
+                    gPrefetchQueued = true;
+                    PostMessage(gMainHWnd, WM_APP_PREFETCH, 0, 0);
+                }
+            }
+            else {
+                checkMapDrawErrorCode(
+                    DrawMap(&gWorldGuide, gCurX, gCurZ, gCurDepth - gMinHeight, gMaxHeight, bitWidth, bitHeight, gCurScale, map, &gOptions, gHitsFound, updateProgress, gMinecraftVersion, gVersionID)
+                );
+                gMapBufferComplete = true;
+                gPaintedChunks.clear();
+            }
+        }
+        gLastDrawnCurX = gCurX;
+        gLastDrawnCurZ = gCurZ;
+        gLastDrawnScale = gCurScale;
+        gLastDrawnDepth = gCurDepth - gMinHeight;
+        gLastDrawnColormap = curColormap;
+        gLastDrawnOpts = curOpts;
+        gLastDrawnHighlightID = curHighlightID;
+        gScrollCacheValid = true;
     } else {
         // avoid clearing nothing at all.
         if (bitWidth > 0 && bitHeight > 0)
             memset(map, 0xff, bitWidth * bitHeight * 4);
         else
             return;	// nothing to draw
+        gScrollCacheValid = false;
     }
     SendMessage(progressBar, PBM_SETPOS, 0, 0);
-    for (int i = 0; i < bitWidth * bitHeight * 4; i += 4)
-    {
-        map[i] ^= map[i + 2];
-        map[i + 2] ^= map[i];
-        map[i] ^= map[i + 2];
-    }
     return;
 }
 
@@ -4343,6 +4780,77 @@ static void populateRecentExportsMenu(HWND hWnd)
     }
 }
 
+// Read the map memory budget from the registry; keep the default if it's missing or tiny.
+static void loadMapMemoryFromRegistry()
+{
+    HKEY key = NULL;
+    if (RegOpenKeyEx(HKEY_CURRENT_USER, MAP_MEMORY_REGKEY, 0, KEY_READ, &key) != ERROR_SUCCESS)
+        return;
+    DWORD value = 0;
+    DWORD len = sizeof(value);
+    DWORD type = 0;
+    if (RegQueryValueEx(key, L"MapMemoryMB", NULL, &type, (LPBYTE)&value, &len) == ERROR_SUCCESS
+        && type == REG_DWORD && value >= 256 && value <= 1024 * 1024) {
+        gMapMemoryMB = (int)value;
+    }
+    RegCloseKey(key);
+}
+
+static void saveMapMemoryToRegistry()
+{
+    HKEY key = NULL;
+    if (RegCreateKeyEx(HKEY_CURRENT_USER, MAP_MEMORY_REGKEY, 0, NULL,
+        REG_OPTION_NON_VOLATILE, KEY_WRITE, NULL, &key, NULL) != ERROR_SUCCESS)
+        return;
+    DWORD value = (DWORD)gMapMemoryMB;
+    RegSetValueEx(key, L"MapMemoryMB", 0, REG_DWORD, (LPBYTE)&value, sizeof(value));
+    RegCloseKey(key);
+}
+
+// Size the chunk cache from the map memory budget and the world's height, and update the
+// Help > Map memory items: each shows about how many chunks it holds, the chosen one is checked,
+// and those more than 3/4 of the computer's memory (or 1 GB, for a 32-bit build) are grayed out.
+static void applyMapMemory(HWND hWnd)
+{
+    // until a world is loaded, size for a 1.18 and newer world, -64 to 319
+    int height = gLoaded ? gMaxHeight - gMinHeight + 1 : 384;
+    int entries = Cache_EntriesForBudget(gMapMemoryMB, height);
+    if (entries != gOptions.currentCacheSize) {
+        gOptions.currentCacheSize = entries;
+        ChangeCache(entries);
+    }
+
+    HMENU menu = GetMenu(hWnd);
+    if (menu == NULL)
+        return;
+#ifdef MINEWAYS_X64
+    MEMORYSTATUSEX memStatus;
+    memStatus.dwLength = sizeof(memStatus);
+    long long usableMB = GlobalMemoryStatusEx(&memStatus) ? (long long)(memStatus.ullTotalPhys / (1024 * 1024)) * 3 / 4 : LLONG_MAX;
+#else
+    long long usableMB = 1024;
+#endif
+    for (int i = 0; i < NUM_MAP_MEMORY_CHOICES; i++) {
+        int mb = gMapMemoryChoicesMB[i];
+        // round to hundreds, as it's an estimate
+        int chunks = (Cache_EntriesForBudget(mb, height) + 50) / 100 * 100;
+        wchar_t chunkString[32];
+        if (chunks >= 1000)
+            swprintf_s(chunkString, _countof(chunkString), L"%d,%03d", chunks / 1000, chunks % 1000);
+        else
+            swprintf_s(chunkString, _countof(chunkString), L"%d", chunks);
+        wchar_t label[64];
+        swprintf_s(label, _countof(label), L"%d GB%s (about %s chunks)", mb / 1024,
+            (mb == MAP_MEMORY_DEFAULT_MB) ? L", default" : L"", chunkString);
+        UINT flags = MF_BYCOMMAND | MF_STRING;
+        if (mb > usableMB && mb != gMapMemoryMB)
+            flags |= MF_GRAYED;
+        ModifyMenu(menu, IDM_MAPMEMORY_1GB + i, flags, IDM_MAPMEMORY_1GB + i, label);
+        if (mb == gMapMemoryMB)
+            CheckMenuRadioItem(menu, IDM_MAPMEMORY_1GB, IDM_MAPMEMORY_1GB + NUM_MAP_MEMORY_CHOICES - 1, IDM_MAPMEMORY_1GB + i, MF_BYCOMMAND);
+    }
+}
+
 static int loadWorldList(HMENU menu)
 {
     int oldVersionDetected = 0;
@@ -4755,9 +5263,19 @@ static void setSlider(HWND hWnd, HWND hwndSlider, HWND hwndLabel, int depth, boo
 
 static void drawInvalidateUpdate(HWND hWnd)
 {
-    drawTheMap();
-    InvalidateRect(hWnd, NULL, FALSE);
-    UpdateWindow(hWnd);
+    // The full map redraw happens on the UI thread. If we call it directly from
+    // WM_MOUSEMOVE the whole app stalls until the redraw finishes. Queue a single
+    // pending redraw instead, so the window can process input and repaint itself
+    // while the expensive chunk generation happens in between messages.
+    if (gMapRedrawQueued)
+        return;
+
+    gMapRedrawQueued = true;
+    if (!PostMessage(hWnd, WM_APP_MAP_REDRAW, 0, 0)) {
+        gMapRedrawQueued = false;
+        drawTheMap();
+        InvalidateRect(hWnd, NULL, FALSE);
+    }
 }
 
 
