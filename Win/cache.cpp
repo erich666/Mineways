@@ -45,10 +45,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 #define HASH_SIZE (HASH_XDIM * HASH_ZDIM)
 
-// arbitrary, let users tune this?
-// 6000 entries translates to Mineways using ~300MB of RAM (on x64)
-
-static int gHashMaxEntries = INITIAL_CACHE_SIZE;   // was 6000, Sean said to increase it - really should be 30000, because export memory toggle now changes it to this
+// Set from the user's map memory budget, see Cache_EntriesForBudget().
+static int gHashMaxEntries = INITIAL_CACHE_SIZE;
 
 typedef struct block_entry {
     int x, z;
@@ -120,6 +118,29 @@ void Change_Cache_Size(int size)
         }
     }
     gHashMaxEntries = size;
+}
+
+// Approximate memory one cached chunk takes in a world "height" blocks tall: the WorldBlock, its
+// grid, data and light arrays (see block_alloc), its hash entry and its history slot. Block entities
+// and heap overhead are not counted. Chunks that don't exist are cached as NULL and take much less,
+// so this is an upper bound for most worlds.
+size_t Cache_BytesPerChunk(int height)
+{
+    if (height < 1)
+        height = 1;
+    return sizeof(WorldBlock) + sizeof(block_entry) + sizeof(IPoint2) +
+        16 * 16 * (size_t)height * (sizeof(unsigned char) + sizeof(unsigned short)) + 16 * 16 * (size_t)height / 2;
+}
+
+// How many chunks fit in budgetMB megabytes, for a world "height" blocks tall.
+int Cache_EntriesForBudget(int budgetMB, int height)
+{
+    size_t entries = (size_t)(budgetMB > 1 ? budgetMB : 1) * 1024 * 1024 / Cache_BytesPerChunk(height);
+    if (entries < MIN_CACHE_SIZE)
+        entries = MIN_CACHE_SIZE;
+    if (entries > INT_MAX / 2)
+        entries = INT_MAX / 2;
+    return (int)entries;
 }
 
 // "data" here is the WorldBlock

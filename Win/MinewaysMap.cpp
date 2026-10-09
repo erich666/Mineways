@@ -47,6 +47,7 @@ static void addCushions(wchar_t* directory, int cx, int cz, WorldBlock* block);
 static int createBlockFromSchematic(WorldGuide* pWorldGuide, int cx, int cz, WorldBlock* block);
 static void initColors();
 static void saveBadChunkLocation(int bx, int bz);
+static bool westHeightsAvailable(int bx, int bz, int topy, int worldType);
 
 
 static int gColorsInited = 0;
@@ -58,6 +59,12 @@ static unsigned char gBlankTransitionTile[16 * 16 * 4];
 
 static unsigned short gColormap = 0;
 // no longer needed: static long long gMapSeed;
+
+// Non-blocking draw: when set, draw() skips LoadBlock on cache misses and returns
+// a blank tile immediately, recording that chunks were missed. Used by the
+// scroll-cache fast path so panning never stalls on disk I/O.
+static bool gNonBlockingDraw = false;
+static bool gChunksMissing = false;
 
 static HighlightBox gBox = { 0,0,0,0,0,0,0 };
 static HighlightBox gPreviousBox = { 0,0,0,0,0,0,0 };
@@ -403,6 +410,87 @@ int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int mapMaxY
     return sumRetCode;
 }
 
+// Like DrawMap but only renders chunks whose blitted pixel area overlaps the clip rectangle
+// [clipMinX..clipMaxX) x [clipMinY..clipMaxY) in screen pixel coords. Used by the scroll
+// cache to redraw only newly-exposed edge strips after a pan.
+int DrawMapStrips(WorldGuide* pWorldGuide, double cx, double cz, int topy, int mapMaxY, int w, int h, double zoom, unsigned char* bits, Options* pOpts, int hitsFound[3], ProgressCallback callback, int mcVersion, int versionID, int clipMinX, int clipMinY, int clipMaxX, int clipMaxY)
+{
+    int sumRetCode = 0;
+    if (pWorldGuide->type == WORLD_LEVEL_TYPE) {
+        SetDimensionDirectory(pWorldGuide, pOpts->worldType);
+        wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"region");
+        if (!DirectoryExists(pWorldGuide->directory)) {
+            sumRetCode |= NBT_WARNING_DIRECTORY_NOT_FOUND;
+        }
+    }
+
+    unsigned char* blockbits;
+    int z, x, px, py;
+    int blockScale = (int)(16 * zoom);
+
+    int hBlocks = (w + blockScale * 2) / blockScale;
+    int vBlocks = (h + blockScale * 2) / blockScale;
+
+    double startx = cx - (double)w / (2 * zoom);
+    double startz = cz - (double)h / (2 * zoom);
+    int startxblock = (int)(startx / 16);
+    int startzblock = (int)(startz / 16);
+    int shiftx = (int)((startx - startxblock * 16) * zoom);
+    int shifty = (int)((startz - startzblock * 16) * zoom);
+
+    int retCode;
+
+    if (shiftx < 0) {
+        startxblock--;
+        shiftx += blockScale;
+    }
+    if (shifty < 0) {
+        startzblock--;
+        shifty += blockScale;
+    }
+
+    if (!gColorsInited)
+        initColors();
+
+    // Compute the z/x block range that intersects the clip rectangle, so we
+    // iterate only over the chunks we need instead of all hBlocks*vBlocks.
+    // py(z) = -shifty + z*blockScale; draw condition: py+blockScale > clipMinY && py < clipMaxY.
+    int zStart = max(0, (clipMinY + shifty) / blockScale);
+    int zEnd   = min(vBlocks, (clipMaxY + shifty - 1) / blockScale);
+    int xStart = max(0, (clipMinX + shiftx) / blockScale);
+    int xEnd   = min(hBlocks, (clipMaxX + shiftx - 1) / blockScale);
+
+    float pctprogress = DRAW_PROGRESS_INCREMENT;
+    for (z = zStart, py = -shifty + zStart * blockScale; z <= zEnd; z++, py += blockScale)
+    {
+        for (x = xStart, px = -shiftx + xStart * blockScale; x <= xEnd; x++, px += blockScale)
+        {
+
+            blockbits = draw(pWorldGuide, startxblock + x, startzblock + z, topy, mapMaxY, pOpts, callback, (float)(z * hBlocks + x) / (float)(vBlocks * hBlocks), pctprogress, hitsFound, mcVersion, versionID, retCode);
+            if (retCode < 0) {
+                sumRetCode = retCode;
+            }
+            else if (sumRetCode >= 0) {
+                sumRetCode |= retCode;
+            }
+            blit(blockbits, bits, px, py, zoom, w, h);
+        }
+    }
+
+    if (gBox.highlightUsed) {
+        gDirtyBoxMinX = gBox.minX;
+        gDirtyBoxMinZ = gBox.minZ;
+        gDirtyBoxMaxX = gBox.maxX;
+        gDirtyBoxMaxZ = gBox.maxZ;
+    }
+    else {
+        gDirtyBoxMinX = gDirtyBoxMinZ = INT_MAX;
+        gDirtyBoxMaxX = gDirtyBoxMaxZ = INT_MIN;
+    }
+
+    return sumRetCode;
+}
+
 //image = 3 bytes per pixel, w*h*zoom^2
 //cx = upper left x world
 //cz = upper left z world
@@ -517,16 +605,20 @@ int DrawMapToArray(unsigned char* image, WorldGuide* pWorldGuide, int cx, int cz
                     // make sure in range
                     //assert(((iz + b2iz) * w + (ix + b2ix)) >= 0 && ((iz + b2iz) * w + (ix + b2ix)) <= w * h);
                     if (zoom == 1) {
-                        *curImg++ = *curBits++;
-                        *curImg++ = *curBits++;
-                        *curImg++ = *curBits++;
+                        // rendercache is BGRA; output image is RGB
+                        unsigned char cb = *curBits++;
+                        unsigned char cg = *curBits++;
+                        unsigned char cr = *curBits++;
                         curBits++;
+                        *curImg++ = cr;
+                        *curImg++ = cg;
+                        *curImg++ = cb;
                     }
                     else {
-                        // loop and fill in image
-                        unsigned char r = *curBits++;
-                        unsigned char g = *curBits++;
+                        // rendercache is BGRA; output image is RGB
                         unsigned char b = *curBits++;
+                        unsigned char g = *curBits++;
+                        unsigned char r = *curBits++;
                         curBits++;
                         unsigned char* curImgLine = curImg;
                         for (int imgz = 0; imgz < zoom; imgz++) {
@@ -4956,6 +5048,14 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
 
     if (!found)
     {
+        // In non-blocking mode (scroll-cache strip draws), skip disk I/O and
+        // return a blank tile. The missing chunk will be loaded later by the
+        // prefetch handler.
+        if (gNonBlockingDraw) {
+            gChunksMissing = true;
+            goto DrawBlank;
+        }
+
         SetDimensionDirectory(pWorldGuide, pOpts->worldType);
 
         //char debugString[256];
@@ -5016,9 +5116,9 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
                         {
                             blend = gHalphaBorder;
                         }
-                        gBlankTransitionTile[offset++] = (unsigned char)((double)gBlankTransitionTile[offset] * (1.0 - blend) + blend * (double)gHred);
+                        gBlankTransitionTile[offset++] = (unsigned char)((double)gBlankTransitionTile[offset] * (1.0 - blend) + blend * (double)gHblue);
                         gBlankTransitionTile[offset++] = (unsigned char)((double)gBlankTransitionTile[offset] * (1.0 - blend) + blend * (double)gHgreen);
-                        gBlankTransitionTile[offset] = (unsigned char)((double)gBlankTransitionTile[offset] * (1.0 - blend) + blend * (double)gHblue);
+                        gBlankTransitionTile[offset] = (unsigned char)((double)gBlankTransitionTile[offset] * (1.0 - blend) + blend * (double)gHred);
                     }
                 }
             }
@@ -5039,10 +5139,9 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
     // already rendered?
     if (block->rendery == heightAlloc && block->renderopts == pOpts->worldType && block->colormap == gColormap)
     {
-        void* dummy;
         if (block->rendermissing // wait, the last render was incomplete
-            && Cache_Find(bx, bz + block->rendermissing, &dummy)) {
-            ; // we can do a better render now that the missing block is loaded
+            && westHeightsAvailable(bx, bz, heightAlloc, pOpts->worldType)) {
+            ; // we can do a better render now that the missing block to the west is loaded
         }
         else {
             // Yes, it's been rendered, but now we need to check if the highlight number is OK:
@@ -5368,9 +5467,9 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
             if (prevy == -1 && !hitGrid) {
                 // empty, so make it background color to start
                 unsigned char* clr = &gBlankTile[(x + z * 16) * 4];
-                r = *clr++;
+                b = *clr++;
                 g = *clr++;
-                b = *clr; // ++ if you add alpha
+                r = *clr; // ++ if you add alpha
                 // highlight the block if in selected area, as otherwise it looks like it's missing with schematics.
                 // Make selected area slightly red
                 if (gBox.highlightUsed &&
@@ -5399,9 +5498,9 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
             }
 #endif
 
-            bits[ofs++] = r;
-            bits[ofs++] = g;
             bits[ofs++] = b;
+            bits[ofs++] = g;
+            bits[ofs++] = r;
             bits[ofs++] = 0xff;
 
             // heightmap determines what value is displayed on status and for shadowing. If "show all" is on,
@@ -8804,6 +8903,61 @@ void InvalidateMapRenderCache(void)
     gColormap++;
 }
 
+unsigned short GetMapColormap(void)
+{
+    return gColormap;
+}
+
+int GetMapHighlightID(void)
+{
+    return gHighlightID;
+}
+
+void SetNonBlockingDraw(bool on)
+{
+    gNonBlockingDraw = on;
+    if (on)
+        gChunksMissing = false;
+}
+
+// Is the chunk west of bx, bz, whose heights shade its west edge, loaded and drawn for this depth and these options?
+static bool westHeightsAvailable(int bx, int bz, int topy, int worldType)
+{
+    void* data;
+    if (!Cache_Find(bx - 1, bz, &data) || data == NULL)
+        return false;
+    WorldBlock* west = (WorldBlock*)data;
+    return west->blockType != NBT_NO_SECTIONS && west->rendery == topy && west->renderopts == worldType;
+}
+
+// Was chunk bx, bz drawn before the chunk west of it was, so its west edge should be drawn again
+// now that the west chunk is? Prefetch loads chunks in rings from the center, so this happens.
+bool ChunkNeedsWestEdgeRedraw(int bx, int bz, int topy, Options* pOpts)
+{
+    void* data;
+    if (!Cache_Find(bx, bz, &data) || data == NULL)
+        return false;
+    WorldBlock* block = (WorldBlock*)data;
+    return block->rendermissing && block->rendery == topy && block->renderopts == pOpts->worldType &&
+        westHeightsAvailable(bx, bz, topy, pOpts->worldType);
+}
+
+bool GetChunksMissing(void)
+{
+    return gChunksMissing;
+}
+
+void PrefetchBlock(WorldGuide* pWorldGuide, int bx, int bz, int mcVersion, int versionID, unsigned int worldType)
+{
+    void* data;
+    if (Cache_Find(bx, bz, &data))
+        return;  // already cached
+    SetDimensionDirectory(pWorldGuide, worldType);
+    int retCode;
+    WorldBlock* block = LoadBlock(pWorldGuide, bx, bz, mcVersion, versionID, retCode);
+    Cache_Add(bx, bz, block);
+}
+
 // for each block color, calculate light levels 0-15
 static void initColors()
 {
@@ -8850,10 +9004,10 @@ static void initColors()
             gBlankTile[off + 2] = (unsigned char)tone;
             gBlankTile[off + 3] = (unsigned char)255;	// was 128 - why?
 
-            // fully inside highlight box
-            gBlankHighlitTile[off] = (unsigned char)((double)gBlankTile[off] * (1.0 - gHalpha) + gHalpha * (double)gHred);
+            // fully inside highlight box (BGRA order to match DIBSection)
+            gBlankHighlitTile[off] = (unsigned char)((double)gBlankTile[off] * (1.0 - gHalpha) + gHalpha * (double)gHblue);
             gBlankHighlitTile[off + 1] = (unsigned char)((double)gBlankTile[off + 1] * (1.0 - gHalpha) + gHalpha * (double)gHgreen);
-            gBlankHighlitTile[off + 2] = (unsigned char)((double)gBlankTile[off + 2] * (1.0 - gHalpha) + gHalpha * (double)gHblue);
+            gBlankHighlitTile[off + 2] = (unsigned char)((double)gBlankTile[off + 2] * (1.0 - gHalpha) + gHalpha * (double)gHred);
             gBlankHighlitTile[off + 3] = (unsigned char)255;
         }
     }

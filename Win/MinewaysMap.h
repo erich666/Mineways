@@ -107,6 +107,7 @@ void SetHighlightState(int on, int minx, int miny, int minz, int maxx, int maxy,
 void GetHighlightState(int* on, int* minx, int* miny, int* minz, int* maxx, int* maxy, int* maxz, int mapMinHeight);
 int DrawMapToArray(unsigned char* image, WorldGuide* pWorldGuide, int cx, int cz, int topy, int mapMaxY, int w, int h, int zoom, Options* pOpts, int* hitsFound, ProgressCallback callback, int mcVersion, int versionID);
 int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int mapMaxY, int w, int h, double zoom, unsigned char* bits, Options* pOpts, int hitsFound[3], ProgressCallback callback, int mcVersion, int versionID);
+int DrawMapStrips(WorldGuide* pWorldGuide, double cx, double cz, int topy, int mapMaxY, int w, int h, double zoom, unsigned char* bits, Options* pOpts, int hitsFound[3], ProgressCallback callback, int mcVersion, int versionID, int clipMinX, int clipMinY, int clipMaxX, int clipMaxY);
 const char* IDBlock(int bx, int by, double cx, double cz, int w, int h, int yOffset, double zoom, int* ox, int* oy, int* oz, int* type, int* dataVal, int* biome, bool schematic);
 const char* RetrieveBlockSubname(int type, int dataVal); //, WorldBlock* block = NULL, int xoff = 0, int y = 0, int zoff = 0);
 void CloseAll();
@@ -136,6 +137,12 @@ void SetMapPremultipliedColors(int start);
 // cache key is gColormap, so without this the next drawTheMap() returns the stale
 // cached bitmap.
 void InvalidateMapRenderCache(void);
+unsigned short GetMapColormap(void);
+int GetMapHighlightID(void);
+void SetNonBlockingDraw(bool on);
+bool GetChunksMissing(void);
+bool ChunkNeedsWestEdgeRedraw(int bx, int bz, int topy, Options* pOpts);
+void PrefetchBlock(WorldGuide* pWorldGuide, int bx, int bz, int mcVersion, int versionID, unsigned int worldType);
 char* MapUnknownBlockName();
 void ClearUnknownBlockNameString();
 void SetUnknownBlockID(int val);

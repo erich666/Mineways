@@ -30,15 +30,12 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "nbt.h"
 
-// For 64 bits we can increase the amount of map memory we can hold at one time considerably.
-#ifndef MINEWAYS_X64
-// 32 bits can run out of memory pretty quickly
+// Number of chunks the cache holds until the map memory setting is applied (Help > Map memory),
+// which sets it from a memory budget with Cache_EntriesForBudget(). About 2 GB for a 384-tall world.
 #define INITIAL_CACHE_SIZE 6000
-#else
-// this is about the number of chunks visible on a 4K screen.
-//#define INITIAL_CACHE_SIZE 30000
-#define INITIAL_CACHE_SIZE 6000
-#endif
+
+// Fewest chunks the cache will hold, whatever the budget: enough to fill a window at a normal zoom.
+#define MIN_CACHE_SIZE 1000
 
 // we track maximum height per chunk. Start at this value; if value found later, chunk is empty
 #define EMPTY_MAX_HEIGHT -1
@@ -79,6 +76,8 @@ typedef struct WorldBlock {
 } WorldBlock;
 
 void Change_Cache_Size(int size);
+size_t Cache_BytesPerChunk(int height);
+int Cache_EntriesForBudget(int budgetMB, int height);
 bool Cache_Find(int bx, int bz, void** data);
 void Cache_Add(int bx, int bz, void* data);
 void Cache_Empty();
