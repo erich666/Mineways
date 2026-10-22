@@ -66,66 +66,116 @@ deflated data is the chunk length - 1.
 // had to kick this up due to F Seaworld 1.18 world test
 #define CHUNK_INFLATE_MAX (20 * 1024 * 1024) // 20MB limit for inflated chunks
 
-#define RERROR(x) if(x) { PortaClose(regionFile); return 0; }
-
 static z_stream strm;
 static int strm_initialized = 0;
+
+// Region files are kept open, up to REGION_FILE_CACHE_SIZE of them, each with its 4 KB table of where its chunks are: opening
+// a file and reading its table for every chunk took longer than reading and decompressing the chunks themselves. A file that
+// doesn't exist is remembered, too, e.g. the "entities" file of a region without entities. Minecraft may be saving the world
+// while Mineways reads it, which can move chunks within a file, so a file's table is read again when its size or last-written
+// time changes, or when a chunk read from it doesn't check out, and a missing file is looked for again after a few seconds.
+// regionCleanup() closes them all.
+#define REGION_FILE_CACHE_SIZE 32
+#define REGION_TABLE_SIZE 4096
+#define REGION_MISSING_RECHECK_MS 5000
+
+typedef struct RegionFile {
+    wchar_t name[256];
+    bool used;
+    bool exists;
+    HANDLE h;
+    unsigned long long size;        // the file's size and last-written time when its table was read
+    unsigned long long writeTime;
+    DWORD checkedTick;              // when a missing file was last looked for
+    unsigned int lastUse;
+    unsigned char table[REGION_TABLE_SIZE]; // each chunk's location: a 3-byte 4 KB sector offset and a 1-byte sector count
+} RegionFile;
+static RegionFile gRegionFiles[REGION_FILE_CACHE_SIZE];
+static unsigned int gRegionFileUse = 0;
+
+// Get the file's size and last-written time, to tell if it has changed.
+static bool regionFileStamp(HANDLE h, unsigned long long* size, unsigned long long* writeTime)
+{
+    BY_HANDLE_FILE_INFORMATION info;
+    if (!GetFileInformationByHandle(h, &info))
+        return false;
+    *size = ((unsigned long long)info.nFileSizeHigh << 32) | info.nFileSizeLow;
+    *writeTime = ((unsigned long long)info.ftLastWriteTime.dwHighDateTime << 32) | info.ftLastWriteTime.dwLowDateTime;
+    return true;
+}
+
+// Read the file's table of chunk locations. A file too short to hold the whole table, e.g. an empty one, has no chunks.
+static void readRegionTable(RegionFile* rf)
+{
+    DWORD br = 0;
+    if (SetFilePointer(rf->h, 0, NULL, FILE_BEGIN) == INVALID_SET_FILE_POINTER ||
+        !ReadFile(rf->h, rf->table, REGION_TABLE_SIZE, &br, NULL) || br < REGION_TABLE_SIZE)
+        memset(rf->table, 0, REGION_TABLE_SIZE);
+    if (!regionFileStamp(rf->h, &rf->size, &rf->writeTime))
+        rf->size = rf->writeTime = 0;
+}
+
+static void openRegionFile(RegionFile* rf)
+{
+    // FILE_SHARE_DELETE, too, so that the world can still be deleted or renamed while Mineways has the file open
+    rf->h = CreateFileW(rf->name, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, 0, NULL);
+    rf->exists = (rf->h != INVALID_HANDLE_VALUE);
+    rf->checkedTick = GetTickCount();
+    if (rf->exists)
+        readRegionTable(rf);
+}
+
+// Find the region file in the cache, or open it, replacing the least recently used one, and make sure its table is current.
+static RegionFile* getRegionFile(const wchar_t* filename)
+{
+    RegionFile* rf = NULL;
+    RegionFile* victim = &gRegionFiles[0];
+    for (int i = 0; i < REGION_FILE_CACHE_SIZE; i++) {
+        RegionFile* e = &gRegionFiles[i];
+        if (e->used && wcscmp(e->name, filename) == 0) {
+            rf = e;
+            break;
+        }
+        if (!e->used || (victim->used && e->lastUse < victim->lastUse))
+            victim = e;
+    }
+    if (rf == NULL) {
+        rf = victim;
+        if (rf->used && rf->exists)
+            CloseHandle(rf->h);
+        wcscpy_s(rf->name, 256, filename);
+        rf->used = true;
+        openRegionFile(rf);
+    }
+    else if (!rf->exists) {
+        // Minecraft may have made it since
+        if (GetTickCount() - rf->checkedTick >= REGION_MISSING_RECHECK_MS)
+            openRegionFile(rf);
+    }
+    else {
+        // has Minecraft changed the file since its table was read?
+        unsigned long long size, writeTime;
+        if (!regionFileStamp(rf->h, &size, &writeTime) || size != rf->size || writeTime != rf->writeTime)
+            readRegionTable(rf);
+    }
+    rf->lastUse = ++gRegionFileUse;
+    return rf;
+}
 
 // subdirectory is "region" for the blocks, "entities" for the entities (1.17 on)
 static int regionPrepareBuffer(bfFile & bf, wchar_t* directory, const wchar_t* subdirectory, int cx, int cz)
 {
     wchar_t filename[256];
-    PORTAFILE regionFile;
-#ifdef WIN32
-    DWORD br;
-#endif
     static unsigned char buf[CHUNK_DEFLATE_MAX];
     static unsigned char out[CHUNK_INFLATE_MAX];
 
-    int sectorNumber, offset, chunkLength;
-
-    int status;
-
-    // open the region file - note we get the new mca 1.2 file type here!
+    // the .mca file for the chunk - note we get the new mca 1.2 file type here!
     swprintf_s(filename, 256, L"%s%s/r.%d.%d.mca", directory, subdirectory, cx >> 5, cz >> 5);
 
-    regionFile = PortaOpen(filename);
-    // this error means that we're trying to open an .mca that doesn't actually exist;
-    // no data -> nothing to do, but don't flag an error
-    if (regionFile == INVALID_HANDLE_VALUE)
+    RegionFile* rf = getRegionFile(filename);
+    // the .mca doesn't actually exist: no data -> nothing to do, but don't flag an error
+    if (!rf->exists)
         return 0;
-
-    // seek to the chunk offset
-    RERROR(PortaSeek(regionFile, 4 * ((cx & 31) + (cz & 31) * 32)));
-
-    // get the chunk offset
-    RERROR(PortaRead(regionFile, buf, 4));
-
-    sectorNumber = buf[3]; // how many 4096B sectors the chunk takes up
-    offset = (buf[0] << 16) | (buf[1] << 8) | buf[2]; // 4KB sector the chunk is in
-
-    RERROR(offset == 0); // an empty chunk
-
-    RERROR(PortaSeek(regionFile, 4096 * offset));
-
-    RERROR(sectorNumber * 4096 > CHUNK_DEFLATE_MAX);
-
-    // read chunk in one shot
-    // this is faster than reading the header and data separately
-    RERROR(PortaRead(regionFile, buf, 4096 * sectorNumber));
-
-    chunkLength = (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
-
-    // sanity check chunk size
-    RERROR(chunkLength > sectorNumber * 4096 || chunkLength > CHUNK_DEFLATE_MAX);
-
-    // only handle zlib-compressed chunks (v2)
-    RERROR(buf[4] != 2);
-
-    PortaClose(regionFile);
-
-    // decompress chunk
-
 
     if (!strm_initialized) {
         // we re-use dynamically allocated memory
@@ -137,27 +187,64 @@ static int regionPrepareBuffer(bfFile & bf, wchar_t* directory, const wchar_t* s
         strm_initialized = 1;
     }
 
-    strm.next_out = out;
-    strm.avail_out = CHUNK_INFLATE_MAX;
-    strm.avail_in = chunkLength - 1;
-    strm.next_in = buf + 5;
+    // If the chunk doesn't check out, the file may have changed since its table was read: read the table again and try once more.
+    for (int attempt = 0; attempt < 2; attempt++) {
+        if (attempt > 0)
+            readRegionTable(rf);
 
-    inflateReset(&strm);
-    status = inflate(&strm, Z_FINISH); // decompress in one step
+        const unsigned char* entry = rf->table + 4 * ((cx & 31) + (cz & 31) * 32);
+        int sectorNumber = entry[3]; // how many 4096B sectors the chunk takes up
+        int offset = (entry[0] << 16) | (entry[1] << 8) | entry[2]; // 4KB sector the chunk is in
+        if (offset == 0)
+            return 0; // an empty chunk
+        if (sectorNumber * 4096 > CHUNK_DEFLATE_MAX)
+            return 0;
 
-    if (status != Z_STREAM_END) // error inflating (not enough space? Increase CHUNK_INFLATE_MAX, ugh)
-        return ERROR_INFLATE;
+        // read the chunk in one shot. The last chunk in a file may not fill its last sector.
+        DWORD br = 0;
+        if (SetFilePointer(rf->h, 4096 * offset, NULL, FILE_BEGIN) == INVALID_SET_FILE_POINTER ||
+            !ReadFile(rf->h, buf, 4096 * sectorNumber, &br, NULL) || br < 5)
+            continue;
 
-    // the uncompressed chunk data is now in "out", with length strm.avail_out
+        int chunkLength = (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
 
-    bf.type = BF_BUFFER;
-    bf.buf = out;
-    bf.buflen = CHUNK_INFLATE_MAX - (int)strm.avail_out;
-    bf._offset = 0;
-    bf.offset = &bf._offset;
+        // sanity check chunk size: it must all have been read
+        if (chunkLength < 1 || chunkLength > CHUNK_DEFLATE_MAX || 4 + chunkLength > (int)br)
+            continue;
 
-    // all's fine
-    return 1;
+        // only handle zlib-compressed chunks (v2)
+        if (buf[4] != 2)
+            continue;
+
+        // decompress chunk
+        strm.next_out = out;
+        strm.avail_out = CHUNK_INFLATE_MAX;
+        strm.avail_in = chunkLength - 1;
+        strm.next_in = buf + 5;
+
+        inflateReset(&strm);
+        int status = inflate(&strm, Z_FINISH); // decompress in one step
+
+        if (status != Z_STREAM_END) {
+            // error inflating (not enough space? Increase CHUNK_INFLATE_MAX, ugh) - or a stale table
+            if (attempt > 0)
+                return ERROR_INFLATE;
+            continue;
+        }
+
+        // the uncompressed chunk data is now in "out", with length strm.avail_out
+
+        bf.type = BF_BUFFER;
+        bf.buf = out;
+        bf.buflen = CHUNK_INFLATE_MAX - (int)strm.avail_out;
+        bf._offset = 0;
+        bf.offset = &bf._offset;
+
+        // all's fine
+        return 1;
+    }
+    // the chunk's data doesn't check out
+    return 0;
 }
 
 // directory: the base world directory, e.g. "/home/ryan/.minecraft/saves/World1/" - note the trailing "/" is in place
@@ -207,6 +294,13 @@ int regionGetCushions(wchar_t* directory, int cx, int cz, CushionEntity* cushion
 
 void regionCleanup()
 {
+    // close the region files: the world is closing, or changing
+    for (int i = 0; i < REGION_FILE_CACHE_SIZE; i++) {
+        if (gRegionFiles[i].used && gRegionFiles[i].exists)
+            CloseHandle(gRegionFiles[i].h);
+        gRegionFiles[i].used = false;
+    }
+
     if (strm_initialized) {
         inflateEnd(&strm);
         strm_initialized = 0;
