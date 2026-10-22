@@ -56,6 +56,17 @@ static unsigned char gEmptyR, gEmptyG, gEmptyB;
 static unsigned char gBlankTile[16 * 16 * 4];
 static unsigned char gBlankHighlitTile[16 * 16 * 4];
 static unsigned char gBlankTransitionTile[16 * 16 * 4];
+// What the map shows for a chunk depends on what's known about it. The gray checkerboard, gBlankTile, means it was
+// looked at and nothing is there. White, gPendingTile (and the color the map buffer is cleared to), means it hasn't been
+// looked at yet, e.g. it's still to be loaded in the background. Solid gray, gOutOfMemoryTile, means it won't be loaded,
+// as the map memory setting holds only the chunks around the center of a large view (see MarkOutOfMemoryChunks()).
+static unsigned char gPendingTile[16 * 16 * 4];
+static unsigned char gOutOfMemoryTile[16 * 16 * 4];
+static unsigned char gOutOfMemoryHighlitTile[16 * 16 * 4];
+static unsigned char gOutOfMemoryTransitionTile[16 * 16 * 4];
+#define OUT_OF_MEMORY_TONE 105
+// the colors, BGR, of gOutOfMemoryTile, plain, in the highlight box, and on its border
+static unsigned char gOutOfMemoryColors[3][3];
 
 static unsigned short gColormap = 0;
 // no longer needed: static long long gMapSeed;
@@ -408,6 +419,32 @@ int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int mapMaxY
     }
 
     return sumRetCode;
+}
+
+// The pixel position at which DrawMap() puts chunk 0,0's corner, for a view centered at cx, cz: chunk bx, bz is at
+// ox + bx * blockScale, oz + bz * blockScale, where blockScale is (int)(16 * zoom). Chunks are placed every blockScale pixels,
+// a whole number, but the view moves within a chunk at the true zoom, so when 16 * zoom isn't a whole number, the map doesn't
+// move evenly with the view. Moving the map's pixels by the change in this origin gives exactly what DrawMap() would draw.
+void GetMapChunkOrigin(double cx, double cz, int w, int h, double zoom, int* ox, int* oz)
+{
+    // the same math as DrawMap()
+    int blockScale = (int)(16 * zoom);
+    double startx = cx - (double)w / (2 * zoom);
+    double startz = cz - (double)h / (2 * zoom);
+    int startxblock = (int)(startx / 16);
+    int startzblock = (int)(startz / 16);
+    int shiftx = (int)((startx - startxblock * 16) * zoom);
+    int shifty = (int)((startz - startzblock * 16) * zoom);
+    if (shiftx < 0) {
+        startxblock--;
+        shiftx += blockScale;
+    }
+    if (shifty < 0) {
+        startzblock--;
+        shifty += blockScale;
+    }
+    *ox = -shiftx - startxblock * blockScale;
+    *oz = -shifty - startzblock * blockScale;
 }
 
 // Like DrawMap but only renders chunks whose blitted pixel area overlaps the clip rectangle
@@ -5004,6 +5041,51 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
     return color;
 }   // endend
 
+// A tile that doesn't depend on the chunk's contents, such as gBlankTile, made slightly red where it's in the highlight box:
+// as is, all highlit (highlitTile), or, for a chunk the box's edge crosses, blended a texel at a time into transitionTile.
+static unsigned char* highlightTile(unsigned char* tile, unsigned char* highlitTile, unsigned char* transitionTile, int bx, int bz)
+{
+    // highlighting off, or fully outside real area? Use the tile.
+    if (!gBox.highlightUsed ||
+        (bx * 16 + 15 < gBox.minX) || (bx * 16 > gBox.maxX) ||
+        (bz * 16 + 15 < gBox.minZ) || (bz * 16 > gBox.maxZ))
+        return tile;
+
+    // fully inside? Use precomputed highlit area
+    if ((bx * 16 > gBox.minX) && (bx * 16 + 15 < gBox.maxX) &&
+        (bz * 16 > gBox.minZ) && (bz * 16 + 15 < gBox.maxZ))
+        return highlitTile;
+
+    // draw the highlighted area
+    memcpy(transitionTile, tile, 16 * 16 * 4);
+    // z increases south, decreases north
+    for (int z = 0; z < 16; z++)
+    {
+        // x increases west, decreases east
+        for (int x = 0; x < 16; x++)
+        {
+            int offset = (z * 16 + x) * 4;
+            // make selected area slightly red
+            if (bx * 16 + x >= gBox.minX && bx * 16 + x <= gBox.maxX &&
+                bz * 16 + z >= gBox.minZ && bz * 16 + z <= gBox.maxZ)
+            {
+                // blend in highlight color
+                double blend = gHalpha;
+                // are we on a border? If so, change blend factor
+                if (bx * 16 + x == gBox.minX || bx * 16 + x == gBox.maxX ||
+                    bz * 16 + z == gBox.minZ || bz * 16 + z == gBox.maxZ)
+                {
+                    blend = gHalphaBorder;
+                }
+                transitionTile[offset] = (unsigned char)((double)transitionTile[offset] * (1.0 - blend) + blend * (double)gHblue);
+                transitionTile[offset + 1] = (unsigned char)((double)transitionTile[offset + 1] * (1.0 - blend) + blend * (double)gHgreen);
+                transitionTile[offset + 2] = (unsigned char)((double)transitionTile[offset + 2] * (1.0 - blend) + blend * (double)gHred);
+            }
+        }
+    }
+    return transitionTile;
+}
+
 // Draw a block at chunk bx,bz
 // opts is a bitmask representing render options (see MinewaysMap.h)
 // returns 16x16 set of block colors to use to render map.
@@ -5049,11 +5131,11 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
     if (!found)
     {
         // In non-blocking mode (scroll-cache strip draws), skip disk I/O and
-        // return a blank tile. The missing chunk will be loaded later by the
+        // return the white "not looked at yet" tile. The missing chunk will be loaded later by the
         // prefetch handler.
         if (gNonBlockingDraw) {
             gChunksMissing = true;
-            goto DrawBlank;
+            return gPendingTile;
         }
 
         SetDimensionDirectory(pWorldGuide, pOpts->worldType);
@@ -5082,47 +5164,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
         if ((block == NULL) || (block->blockType == NBT_NO_SECTIONS)) //blank tile
         {
         DrawBlank:
-
-            // highlighting off, or fully outside real area? Use blank tile.
-            if (!gBox.highlightUsed ||
-                (bx * 16 + 15 < gBox.minX) || (bx * 16 > gBox.maxX) ||
-                (bz * 16 + 15 < gBox.minZ) || (bz * 16 > gBox.maxZ))
-                return gBlankTile;
-
-            // fully inside? Use precomputed highlit area
-            // static int flux = 0;
-            if ((bx * 16 > gBox.minX) && (bx * 16 + 15 < gBox.maxX) &&
-                (bz * 16 > gBox.minZ) && (bz * 16 + 15 < gBox.maxZ))
-                return gBlankHighlitTile;
-
-            // draw the highlighted area
-            memcpy(gBlankTransitionTile, gBlankTile, 16 * 16 * 4);
-            // z increases south, decreases north
-            for (z = 0; z < 16; z++)
-            {
-                // x increases west, decreases east
-                for (x = 0; x < 16; x++)
-                {
-                    int offset = (z * 16 + x) * 4;
-                    // make selected area slightly red
-                    if (bx * 16 + x >= gBox.minX && bx * 16 + x <= gBox.maxX &&
-                        bz * 16 + z >= gBox.minZ && bz * 16 + z <= gBox.maxZ)
-                    {
-                        // blend in highlight color
-                        blend = gHalpha;
-                        // are we on a border? If so, change blend factor
-                        if (bx * 16 + x == gBox.minX || bx * 16 + x == gBox.maxX ||
-                            bz * 16 + z == gBox.minZ || bz * 16 + z == gBox.maxZ)
-                        {
-                            blend = gHalphaBorder;
-                        }
-                        gBlankTransitionTile[offset++] = (unsigned char)((double)gBlankTransitionTile[offset] * (1.0 - blend) + blend * (double)gHblue);
-                        gBlankTransitionTile[offset++] = (unsigned char)((double)gBlankTransitionTile[offset] * (1.0 - blend) + blend * (double)gHgreen);
-                        gBlankTransitionTile[offset] = (unsigned char)((double)gBlankTransitionTile[offset] * (1.0 - blend) + blend * (double)gHred);
-                    }
-                }
-            }
-            return gBlankTransitionTile;
+            return highlightTile(gBlankTile, gBlankHighlitTile, gBlankTransitionTile, bx, bz);
         }
     } else if (block == NULL || block->blockType == NBT_NO_SECTIONS) {
         // should really call a "draw blank" subroutine, but here goes...
@@ -8947,15 +8989,90 @@ bool GetChunksMissing(void)
     return gChunksMissing;
 }
 
-void PrefetchBlock(WorldGuide* pWorldGuide, int bx, int bz, int mcVersion, int versionID, unsigned int worldType)
+// Is this map buffer pixel (BGRA) of a chunk that nothing has been drawn for (white), or that's already marked out of memory?
+static bool isUnloadedChunkPixel(const unsigned char* pixel)
+{
+    if (pixel[0] == 255 && pixel[1] == 255 && pixel[2] == 255)
+        return true;
+    for (int i = 0; i < 3; i++) {
+        if (pixel[0] == gOutOfMemoryColors[i][0] && pixel[1] == gOutOfMemoryColors[i][1] && pixel[2] == gOutOfMemoryColors[i][2])
+            return true;
+    }
+    return false;
+}
+
+// Background loading (WM_APP_PREFETCH in Mineways.cpp) loads only the chunks around the center of the view that fit in the
+// map memory, those in chunk box [minCX..maxCX] x [minCZ..maxCZ]. Mark the visible chunks outside it that nothing has been
+// drawn for, which would otherwise stay white, as if still to be loaded, with gOutOfMemoryTile, solid gray. Chunks already
+// marked are marked again, so their highlighting is current. Drawn chunks, e.g. ones still in the cache from earlier, are
+// left as they are. The position math is DrawMapStrips()'.
+void MarkOutOfMemoryChunks(double cx, double cz, int w, int h, double zoom, unsigned char* bits, int minCX, int minCZ, int maxCX, int maxCZ)
+{
+    if (!gColorsInited)
+        initColors();
+    int blockScale = (int)(16 * zoom);
+    if (blockScale < 1)
+        return;
+    int hBlocks = (w + blockScale * 2) / blockScale;
+    int vBlocks = (h + blockScale * 2) / blockScale;
+
+    double startx = cx - (double)w / (2 * zoom);
+    double startz = cz - (double)h / (2 * zoom);
+    int startxblock = (int)(startx / 16);
+    int startzblock = (int)(startz / 16);
+    int shiftx = (int)((startx - startxblock * 16) * zoom);
+    int shifty = (int)((startz - startzblock * 16) * zoom);
+    if (shiftx < 0) {
+        startxblock--;
+        shiftx += blockScale;
+    }
+    if (shifty < 0) {
+        startzblock--;
+        shifty += blockScale;
+    }
+
+    int z, x, px, py;
+    for (z = 0, py = -shifty; z <= vBlocks; z++, py += blockScale)
+    {
+        int bz = startzblock + z;
+        // the chunk's visible rows
+        int y0 = max(py, 0);
+        int y1 = min(py + blockScale, h);
+        if (y0 >= y1)
+            continue;
+        for (x = 0, px = -shiftx; x <= hBlocks; x++, px += blockScale)
+        {
+            int bx = startxblock + x;
+            if (bx >= minCX && bx <= maxCX && bz >= minCZ && bz <= maxCZ)
+                continue;
+            int x0 = max(px, 0);
+            int x1 = min(px + blockScale, w);
+            if (x0 >= x1)
+                continue;
+            // look at the middle of what's visible of the chunk
+            if (!isUnloadedChunkPixel(bits + ((size_t)((y0 + y1) / 2) * w + (x0 + x1) / 2) * 4))
+                continue;
+            blit(highlightTile(gOutOfMemoryTile, gOutOfMemoryHighlitTile, gOutOfMemoryTransitionTile, bx, bz), bits, px, py, zoom, w, h);
+        }
+    }
+}
+
+// Load chunk bx, bz into the cache, if it isn't there. Returns LoadBlock()'s code, as draw() does, so the caller can report
+// errors and warnings: negative for an error (the chunk's location is saved, see GetBadChunkLocation()), else warning bits.
+int PrefetchBlock(WorldGuide* pWorldGuide, int bx, int bz, int mcVersion, int versionID, unsigned int worldType)
 {
     void* data;
     if (Cache_Find(bx, bz, &data))
-        return;  // already cached
+        return 0;  // already cached
     SetDimensionDirectory(pWorldGuide, worldType);
-    int retCode;
+    int retCode = 0;
     WorldBlock* block = LoadBlock(pWorldGuide, bx, bz, mcVersion, versionID, retCode);
+    if (retCode < 0) {
+        // save bx and bz for error message later
+        saveBadChunkLocation(bx, bz);
+    }
     Cache_Add(bx, bz, block);
+    return retCode;
 }
 
 // for each block color, calculate light levels 0-15
@@ -9009,8 +9126,27 @@ static void initColors()
             gBlankHighlitTile[off + 1] = (unsigned char)((double)gBlankTile[off + 1] * (1.0 - gHalpha) + gHalpha * (double)gHgreen);
             gBlankHighlitTile[off + 2] = (unsigned char)((double)gBlankTile[off + 2] * (1.0 - gHalpha) + gHalpha * (double)gHred);
             gBlankHighlitTile[off + 3] = (unsigned char)255;
+
+            // not looked at yet: white, the color the map buffer is cleared to
+            gPendingTile[off] = gPendingTile[off + 1] = gPendingTile[off + 2] = gPendingTile[off + 3] = (unsigned char)255;
+
+            // won't be loaded, as it's beyond the map memory: solid gray
+            gOutOfMemoryTile[off] = gOutOfMemoryTile[off + 1] = gOutOfMemoryTile[off + 2] = (unsigned char)OUT_OF_MEMORY_TONE;
+            gOutOfMemoryTile[off + 3] = (unsigned char)255;
+            gOutOfMemoryHighlitTile[off] = (unsigned char)((double)OUT_OF_MEMORY_TONE * (1.0 - gHalpha) + gHalpha * (double)gHblue);
+            gOutOfMemoryHighlitTile[off + 1] = (unsigned char)((double)OUT_OF_MEMORY_TONE * (1.0 - gHalpha) + gHalpha * (double)gHgreen);
+            gOutOfMemoryHighlitTile[off + 2] = (unsigned char)((double)OUT_OF_MEMORY_TONE * (1.0 - gHalpha) + gHalpha * (double)gHred);
+            gOutOfMemoryHighlitTile[off + 3] = (unsigned char)255;
         }
     }
+    // the out-of-memory tile's colors, as highlightTile() makes them, to recognize it in the map buffer
+    for (int i = 0; i < 3; i++) {
+        double blend = (i == 0) ? 0.0 : (i == 1) ? gHalpha : gHalphaBorder;
+        gOutOfMemoryColors[i][0] = (unsigned char)((double)OUT_OF_MEMORY_TONE * (1.0 - blend) + blend * (double)gHblue);
+        gOutOfMemoryColors[i][1] = (unsigned char)((double)OUT_OF_MEMORY_TONE * (1.0 - blend) + blend * (double)gHgreen);
+        gOutOfMemoryColors[i][2] = (unsigned char)((double)OUT_OF_MEMORY_TONE * (1.0 - blend) + blend * (double)gHred);
+    }
+    gOutOfMemoryColors[0][0] = gOutOfMemoryColors[0][1] = gOutOfMemoryColors[0][2] = (unsigned char)OUT_OF_MEMORY_TONE;
 }
 
 char* MapUnknownBlockName()

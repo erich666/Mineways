@@ -216,13 +216,21 @@ static bool gPrefetchQueued = false;
 // chunks prefetch has drawn since the buffer was cleared.
 static bool gMapBufferComplete = false;
 static std::unordered_set<long long> gPaintedChunks;
+// When a prefetch scan runs out of time before finding anything to do, the next pass carries on from this ring, so that a
+// large view still gets finished. Any redraw starts it over at 0, as the view, and what's been drawn, may have changed.
+static int gPrefetchResumeRing = 0;
 #define PAINTED_CHUNK_KEY(cx, cz)   (((long long)(cx) << 32) | (unsigned int)(cz))
 
 // Map memory: the most memory the chunk cache may use, from Help > Map memory, kept in the registry
 // as HKCU\Software\Eric Haines\Mineways\MapMemoryMB. The cache holds as many chunks as fit at the
 // loaded world's height (see Cache_EntriesForBudget), so a taller world holds fewer.
+// A 32-bit build can use only 1 GB, so it neither reads nor writes the setting, which is then left for the 64-bit build.
 #define MAP_MEMORY_REGKEY       L"Software\\Eric Haines\\Mineways"
+#ifdef MINEWAYS_X64
 #define MAP_MEMORY_DEFAULT_MB   2048
+#else
+#define MAP_MEMORY_DEFAULT_MB   1024
+#endif
 static const int gMapMemoryChoicesMB[] = { 1024, 2048, 4096, 8192, 16384 };    // IDM_MAPMEMORY_1GB on
 #define NUM_MAP_MEMORY_CHOICES  (int)(sizeof(gMapMemoryChoicesMB) / sizeof(gMapMemoryChoicesMB[0]))
 static int gMapMemoryMB = MAP_MEMORY_DEFAULT_MB;
@@ -476,6 +484,7 @@ static void loadRecentExportsFromRegistry();
 static void saveRecentExportsToRegistry();
 static void addToRecentExports(const wchar_t* path);
 static void populateRecentExportsMenu(HWND hWnd);
+static int mapMemoryLimitMB();
 static void loadMapMemoryFromRegistry();
 static void saveMapMemoryToRegistry();
 static void applyMapMemory(HWND hWnd);
@@ -1644,7 +1653,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         gPrefetchQueued = false;
         if (!gLoaded)
             return 0;
-        DWORD tPF0 = GetTickCount();
 
         int blockScale = (int)(16 * gCurScale);
         if (blockScale < 1) blockScale = 1;
@@ -1681,6 +1689,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         // center chunks, which the next pass would then load again, forever. So when
         // zoomed far out, the map memory setting decides how much of the view fills in.
         int cacheLimit = gOptions.currentCacheSize * 9 / 10;
+        int viewMaxRing = maxRing;
         for (int ring = 0; ring <= maxRing; ring++) {
             int w = min(centerCX + ring, vpMaxCX) - max(centerCX - ring, vpMinCX) + 1;
             int h = min(centerCZ + ring, vpMaxCZ) - max(centerCZ - ring, vpMinCZ) + 1;
@@ -1694,9 +1703,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         ChunkDist best[PREFETCH_BATCH];
         int nBest = 0;
         bool anyMissing = false;
-        DWORD tScanDeadline = tPF0 + 12;  // max ~12ms scanning
+        // max ~12ms scanning. GetTickCount() moves in steps of about 16 ms, so it can't time this: a scan taking a few
+        // microseconds would sometimes look like it ran out of time.
+        LARGE_INTEGER scanFreq, scanStart, scanNow;
+        QueryPerformanceFrequency(&scanFreq);
+        QueryPerformanceCounter(&scanStart);
+        LONGLONG scanTicks = scanFreq.QuadPart * 12 / 1000;
+        // the rings before gPrefetchResumeRing were found to have nothing to do by earlier passes
+        int startRing = (gPrefetchResumeRing <= maxRing) ? gPrefetchResumeRing : 0;
+        int ringsScanned = startRing - 1;  // the last ring scanned through
+        bool scanTimedOut = false;
 
-        for (int ring = 0; ring <= maxRing && nBest < PREFETCH_BATCH; ring++) {
+        for (int ring = startRing; ring <= maxRing && nBest < PREFETCH_BATCH; ring++) {
             // Walk the perimeter of the ring (or just center for ring 0)
             int rMinX = centerCX - ring, rMaxX = centerCX + ring;
             int rMinZ = centerCZ - ring, rMaxZ = centerCZ + ring;
@@ -1757,17 +1775,39 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 }
             }
 
-            // Time-check every 8 rings to avoid calling GetTickCount too often
-            if ((ring & 7) == 7 && GetTickCount() >= tScanDeadline)
-                break;
+            if (nBest < PREFETCH_BATCH)
+                ringsScanned = ring;
+            // Time-check every 8 rings
+            if ((ring & 7) == 7) {
+                QueryPerformanceCounter(&scanNow);
+                if (scanNow.QuadPart - scanStart.QuadPart >= scanTicks) {
+                    scanTimedOut = (ring < maxRing);
+                    break;
+                }
+            }
+        }
+        // If the scan ran out of time without finding anything, the next pass carries on from where it stopped,
+        // instead of prefetch stopping with the rest of the view never looked at.
+        if (scanTimedOut && nBest == 0) {
+            gPrefetchResumeRing = ringsScanned + 1;
+            anyMissing = true;
+        }
+        else {
+            gPrefetchResumeRing = 0;
         }
 
-        // Load uncached chunks within a time budget
+        // Load uncached chunks within a time budget. Errors and warnings are collected as DrawMap() collects them, and
+        // reported below, so that loading in the background still shows them.
         DWORD tLoadStart = GetTickCount();
         int loaded = 0;
+        int loadRetCode = 0;
         for (int i = 0; i < nBest; i++) {
             if (best[i].needsLoad) {
-                PrefetchBlock(&gWorldGuide, best[i].cx, best[i].cz, gMinecraftVersion, gVersionID, gOptions.worldType);
+                int retCode = PrefetchBlock(&gWorldGuide, best[i].cx, best[i].cz, gMinecraftVersion, gVersionID, gOptions.worldType);
+                if (retCode < 0)
+                    loadRetCode = retCode;
+                else if (loadRetCode >= 0)
+                    loadRetCode |= retCode;
                 loaded++;
                 if (GetTickCount() - tLoadStart >= PREFETCH_TIME_MS)
                     break;
@@ -1824,6 +1864,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
             InvalidateRect(hWnd, NULL, FALSE);
         }
+
+        // When the map memory doesn't hold the whole view, and everything that fits is done, mark the rest of the view
+        // that hasn't been drawn as out of memory (solid gray), so it doesn't look like it's still to be loaded (white).
+        if (maxRing < viewMaxRing && nBest == 0 && ringsScanned == maxRing) {
+            MarkOutOfMemoryChunks(gCurX, gCurZ, bitWidth, bitHeight, gCurScale, map,
+                centerCX - maxRing, centerCZ - maxRing, centerCX + maxRing, centerCZ + maxRing);
+            InvalidateRect(hWnd, NULL, FALSE);
+        }
+
+        // Show any error or warning from loading (each kind once, see checkMapDrawErrorCode), before queuing the next
+        // pass, as the message box lets other messages through while it's up.
+        if (loadRetCode != 0)
+            checkMapDrawErrorCode(loadRetCode);
 
         // Keep going if there are uncached or stale-highlight chunks remaining
         if (nBest > 0) anyMissing = true;
@@ -2946,6 +2999,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 applyMapMemory(hWnd);
                 if (gLoaded) {
                     REDRAW_ALL;
+                    // The view hasn't moved, so the redraw above changes nothing: have background loading look at the view
+                    // again, as the new size holds more (or fewer) of its chunks. What's drawn stays until it's replaced.
+                    if (!gPrefetchQueued) {
+                        gPrefetchQueued = true;
+                        PostMessage(hWnd, WM_APP_PREFETCH, 0, 0);
+                    }
                 }
                 break;
             default:
@@ -4013,6 +4072,8 @@ static void scrollMapBuffer(unsigned char* buf, int w, int h, int dx, int dy)
 
 static void drawTheMap()
 {
+    // what's drawn may change, so prefetch must look at the whole view again
+    gPrefetchResumeRing = 0;
     if (gLoaded) {
         unsigned short curColormap = GetMapColormap();
         int curHighlightID = GetMapHighlightID();
@@ -4028,8 +4089,15 @@ static void drawTheMap()
             && curOpts == gLastDrawnOpts
             && curHighlightID == gLastDrawnHighlightID)
         {
-            int dx = (int)((gLastDrawnCurX - gCurX) * gCurScale);
-            int dy = (int)((gLastDrawnCurZ - gCurZ) * gCurScale);
+            // Shift by exactly how far DrawMap() would move the chunks. That's not the view's move times the zoom: chunks
+            // are placed a whole number of pixels apart, (int)(16 * zoom), so when that's rounded, the map jumps a fraction
+            // of a pixel at each chunk boundary, and shifting by the zoom alone leaves the old pixels and the newly drawn
+            // strips out of line (doubled edges, and white gaps between them).
+            int oldOX, oldOZ, newOX, newOZ;
+            GetMapChunkOrigin(gLastDrawnCurX, gLastDrawnCurZ, bitWidth, bitHeight, gCurScale, &oldOX, &oldOZ);
+            GetMapChunkOrigin(gCurX, gCurZ, bitWidth, bitHeight, gCurScale, &newOX, &newOZ);
+            int dx = newOX - oldOX;
+            int dy = newOZ - oldOZ;
 
             if (dx == 0 && dy == 0) {
                 // Sub-pixel pan, no visible change — skip the redraw entirely.
@@ -4082,14 +4150,9 @@ static void drawTheMap()
                 SetNonBlockingDraw(false);
                 bool missing = GetChunksMissing();
 
-                // Track the actual position the buffer represents, not gCurX.
-                // The buffer was shifted by exactly dx/dy integer pixels; the
-                // sub-pixel remainder stays in the difference so the next frame's
-                // dx/dy computation picks it up. Without this, truncation error
-                // accumulates and causes 1-2px misalignment between shifted
-                // content and newly rendered strips.
-                gLastDrawnCurX -= (double)dx / gCurScale;
-                gLastDrawnCurZ -= (double)dy / gCurScale;
+                // The buffer now holds exactly what DrawMap() would draw for the current position.
+                gLastDrawnCurX = gCurX;
+                gLastDrawnCurZ = gCurZ;
                 SendMessage(progressBar, PBM_SETPOS, 0, 0);
 
                 // If chunks were missed, queue a background prefetch pass
@@ -4141,11 +4204,20 @@ static void drawTheMap()
                 }
             }
             else {
+                // Non-blocking, as for panning: draw the chunks already loaded now, and leave the rest white for
+                // WM_APP_PREFETCH to load and draw, so that, e.g., making the window larger doesn't wait on the disk.
+                SetNonBlockingDraw(true);
                 checkMapDrawErrorCode(
                     DrawMap(&gWorldGuide, gCurX, gCurZ, gCurDepth - gMinHeight, gMaxHeight, bitWidth, bitHeight, gCurScale, map, &gOptions, gHitsFound, updateProgress, gMinecraftVersion, gVersionID)
                 );
+                SetNonBlockingDraw(false);
+                // every loaded chunk is drawn; prefetch draws the rest as it loads them
                 gMapBufferComplete = true;
                 gPaintedChunks.clear();
+                if (GetChunksMissing() && !gPrefetchQueued) {
+                    gPrefetchQueued = true;
+                    PostMessage(gMainHWnd, WM_APP_PREFETCH, 0, 0);
+                }
             }
         }
         gLastDrawnCurX = gCurX;
@@ -4788,8 +4860,25 @@ static void populateRecentExportsMenu(HWND hWnd)
 }
 
 // Read the map memory budget from the registry; keep the default if it's missing or tiny.
+// The most map memory Mineways may use, in MB: three quarters of the computer's memory, or 1 GB for a 32-bit build,
+// which has only a few GB of address space for everything.
+static int mapMemoryLimitMB()
+{
+#ifdef MINEWAYS_X64
+    MEMORYSTATUSEX memStatus;
+    memStatus.dwLength = sizeof(memStatus);
+    if (!GlobalMemoryStatusEx(&memStatus))
+        return INT_MAX;
+    long long usableMB = (long long)(memStatus.ullTotalPhys / (1024 * 1024)) * 3 / 4;
+    return (usableMB > INT_MAX) ? INT_MAX : (int)usableMB;
+#else
+    return 1024;
+#endif
+}
+
 static void loadMapMemoryFromRegistry()
 {
+#ifdef MINEWAYS_X64
     HKEY key = NULL;
     if (RegOpenKeyEx(HKEY_CURRENT_USER, MAP_MEMORY_REGKEY, 0, KEY_READ, &key) != ERROR_SUCCESS)
         return;
@@ -4801,10 +4890,28 @@ static void loadMapMemoryFromRegistry()
         gMapMemoryMB = (int)value;
     }
     RegCloseKey(key);
+    // A setting saved on a computer with more memory may be too much for this one: use the largest choice that fits
+    // (but don't change the saved setting).
+    int limitMB = mapMemoryLimitMB();
+    if (gMapMemoryMB > limitMB) {
+        gMapMemoryMB = gMapMemoryChoicesMB[0];
+        for (int i = 0; i < NUM_MAP_MEMORY_CHOICES; i++) {
+            if (gMapMemoryChoicesMB[i] <= limitMB)
+                gMapMemoryMB = gMapMemoryChoicesMB[i];
+        }
+    }
+#else
+    // only 1 GB fits; the saved setting is the 64-bit build's
+    gMapMemoryMB = MAP_MEMORY_DEFAULT_MB;
+#endif
 }
 
 static void saveMapMemoryToRegistry()
 {
+#ifndef MINEWAYS_X64
+    // a 32-bit build has just the one choice, so leave the saved setting to the 64-bit build
+    return;
+#else
     HKEY key = NULL;
     if (RegCreateKeyEx(HKEY_CURRENT_USER, MAP_MEMORY_REGKEY, 0, NULL,
         REG_OPTION_NON_VOLATILE, KEY_WRITE, NULL, &key, NULL) != ERROR_SUCCESS)
@@ -4812,6 +4919,7 @@ static void saveMapMemoryToRegistry()
     DWORD value = (DWORD)gMapMemoryMB;
     RegSetValueEx(key, L"MapMemoryMB", 0, REG_DWORD, (LPBYTE)&value, sizeof(value));
     RegCloseKey(key);
+#endif
 }
 
 // Size the chunk cache from the map memory budget and the world's height, and update the
@@ -4830,13 +4938,7 @@ static void applyMapMemory(HWND hWnd)
     HMENU menu = GetMenu(hWnd);
     if (menu == NULL)
         return;
-#ifdef MINEWAYS_X64
-    MEMORYSTATUSEX memStatus;
-    memStatus.dwLength = sizeof(memStatus);
-    long long usableMB = GlobalMemoryStatusEx(&memStatus) ? (long long)(memStatus.ullTotalPhys / (1024 * 1024)) * 3 / 4 : LLONG_MAX;
-#else
-    long long usableMB = 1024;
-#endif
+    int usableMB = mapMemoryLimitMB();
     for (int i = 0; i < NUM_MAP_MEMORY_CHOICES; i++) {
         int mb = gMapMemoryChoicesMB[i];
         // round to hundreds, as it's an estimate
