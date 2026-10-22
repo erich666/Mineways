@@ -71,7 +71,7 @@ void addBackslashIfNeeded(wchar_t* dir, size_t dirSize)
 // return negative number for error type;
 // otherwise returns number of files that we care about, i.e., ones that we'll want to read in later. Note: this number includes duplicates,
 // but does not include tiles that we simply don't care about (on the gUnneeded list).
-int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, ChestGrid* psg, ChestGrid* pcushg, ChestGrid* pheadg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, bool topmost, bool warnUnused, bool warnDups)
+int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, ChestGrid* psg, ChestGrid* pcushg, ChestGrid* pheadg, ChestGrid* pshulkg, ChestGrid* pportalg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, bool topmost, bool warnUnused, bool warnDups)
 {
 	int filesProcessed = 0;
 	int filesSubProcessed = 0;
@@ -106,6 +106,8 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg
 		bool shelfFound = false;
 		bool cushionFound = false;
 		bool headFound = false;
+		bool shulkerFound = false;
+		bool endPortalFound = false;
 		do {
 			if (verbose) {
 				wprintf(L"File %s in directory %s being examined.\n", ffd.cFileName, tilePath);
@@ -117,17 +119,12 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg
 				if ((!lstrcmpW(ffd.cFileName, L".")) || (!lstrcmpW(ffd.cFileName, L".."))) {
 					continue;
 				}
-				// the "textures/item" directory uses alternate names (that mods use) for textures, so ignore that directory
-				if (!lstrcmpW(ffd.cFileName, L"item") ) {
-					continue;
-				}
-
 				wchar_t subdir[MAX_PATH_AND_FILE];
 				wcscpy_s(subdir, MAX_PATH_AND_FILE, tilePathAppended);
 				wcscat_s(subdir, MAX_PATH_AND_FILE, ffd.cFileName);
 				addBackslashIfNeeded(subdir, MAX_PATH_AND_FILE);
 
-				int fileCount = searchDirectoryForTiles(pfg, pcg, ppg, psg, pcushg, pheadg, subdir, origTPLen, verbose, alternate, false, warnUnused, warnDups);
+				int fileCount = searchDirectoryForTiles(pfg, pcg, ppg, psg, pcushg, pheadg, pshulkg, pportalg, subdir, origTPLen, verbose, alternate, false, warnUnused, warnDups);
 				if (fileCount < 0) {
 					// error, cannot read subdirectory for some reason - we just ignore it for now; main test is the top directory test, above.
 					//return -2;
@@ -143,10 +140,12 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg
 				// In other words, don't check the original directory passed in for "block", to avoid cases like the original path being:
 				// c:\temp\my_block_processing\Vanilla\ where Vanilla is where you put the resource pack, as ALL subdirectories will be
 				// considered to be "block" directories.
+				// The "textures/item" directory uses alternate names (that mods use) for textures, so from it take only barrier.png.
+				// decorated_pot_side.png is a block tile kept in "textures/entity/decorated_pot".
 				if (topmost ||
 					wcsstr(tilePathAppended + origTPLen, L"block") != NULL ||
-					wcsstr(tilePathAppended + origTPLen, L"decorated_pot_side") != NULL ||	// for decorated_pot_side.png
-					wcsstr(tilePathAppended + origTPLen, L"item") != NULL	// for barrier.png
+					(wcsstr(tilePathAppended + origTPLen, L"decorated_pot") != NULL && _wcsnicmp(ffd.cFileName, L"decorated_pot_side", 18) == 0) ||
+					(wcsstr(tilePathAppended + origTPLen, L"item") != NULL && _wcsnicmp(ffd.cFileName, L"barrier", 7) == 0)
 					) {
 
 					// with my scheme, shelf files can be found in the main blocks area, or in the "shelf" directory. Here we check the main directory,
@@ -234,12 +233,34 @@ int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg
 					}
 				}
 
+				// shulker box - check shulker subdirectory (textures\entity\shulker), if any
+				if (used == 0) {
+					if (topmost || wcsstr(tilePathAppended + origTPLen, L"shulker") != NULL) {
+						used = testIfChestFile(pshulkg, TOTAL_SHULKER_TILES, L"shulker", gShulkerNames, gShulkerNamesAlt, tilePathAppended, ffd.cFileName, verbose) ? 1 : 0;
+						if (used) {
+							filesProcessed++;
+							shulkerFound = true;
+						}
+					}
+				}
+
+				// end portal - check end_portal subdirectory (textures\entity\end_portal), if any
+				if (used == 0) {
+					if (topmost || wcsstr(tilePathAppended + origTPLen, L"end_portal") != NULL) {
+						used = testIfChestFile(pportalg, TOTAL_END_PORTAL_TILES, L"end portal", gEndPortalNames, gEndPortalNamesAlt, tilePathAppended, ffd.cFileName, verbose) ? 1 : 0;
+						if (used) {
+							filesProcessed++;
+							endPortalFound = true;
+						}
+					}
+				}
+
 				// squirrelly: have we already found some useful PNG in this directory, and is this not a chest or decorated pot directory?
 				// 
 				if (!used) {
 					int flag = 0x0;
 					int imageFileType = isImageFile(ffd.cFileName);
-					if (filesProcessed > 0 && !chestFound && !decoratedPotFound && !shelfFound && !cushionFound && !headFound && (imageFileType == PNG_EXTENSION_FOUND || imageFileType == TGA_EXTENSION_FOUND)) {
+					if (filesProcessed > 0 && !chestFound && !decoratedPotFound && !shelfFound && !cushionFound && !headFound && !shulkerFound && !endPortalFound && (imageFileType == PNG_EXTENSION_FOUND || imageFileType == TGA_EXTENSION_FOUND)) {
 						// we already found some good files in this directory, so don't use this unused one.
 						//wprintf(L"WARNING: The file '%s' in directory '%s' is not recognized and so is not used.\n", ffd.cFileName, tilePath);
 					}

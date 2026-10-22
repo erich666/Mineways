@@ -94,11 +94,11 @@ static struct {
     int spanX;
     int spanY;
 
-    // Mineways uses a few special tiles for input, and for output. Tiles starting "MW_" are ones that are not (easily) found in Minecraft
-    // in the block textures and so are ones cobbled together to provide the effect: end portal effect, shulker box side and bottom.
-    // Tiles starting "MWO_" are not required as inputs (though could be, if needed), but are output. These are chests and redstone wire,
-    // at this point, which the TileMaker normally reads specially from the chests directory and writes to these locations, or Mineways
-    // creates on the fly internally.
+    // Mineways uses a few special tiles for input, and for output.
+    // Tiles starting "MWO_" are not required as inputs (though could be, if needed), but are output. These are made from parts of Minecraft
+    // textures, not read as tiles: chests, decorated pots, cushions, mob heads, shulker box sides and bottoms, and the end portal, which
+    // TileMaker reads specially from the chest, decorated_pot, cushion, head, shulker, and end_portal directories and writes to these
+    // locations, and redstone wire, which Mineways creates on the fly internally.
     // TODO: someday, just read from the unzipped texture pack itself, using the proper paths.
     // NOTE! If you change anything here, you'll have to change faceCanTile's swatchLoc exception list.
 } gTilesTable[TOTAL_TILES] = {
@@ -462,7 +462,7 @@ static struct {
     {  5, 11,  17, 0, L"acacia_log", L"log_acacia", 0x0 },	// ADD-IN 1.7.2
     {  6, 11, 116, 0, L"enchanting_table_side", L"", SWATCH_CLAMP_ALL_BUT_TOP | SBIT_CUTOUT_GEOMETRY },
     {  7, 11, 116, 0, L"enchanting_table_bottom", L"", SWATCH_REPEAT_ALL },
-    {  8, 11, 119, 0, L"MW_end_portal", L"", SWATCH_REPEAT_ALL },    // custom - the 3D effect seen through the end portal - TODO: extract a small chunk from assets\minecraft\textures\entity
+    {  8, 11, 119, 0, L"MWO_end_portal", L"MW_end_portal", SWATCH_REPEAT_ALL },    // the effect seen through the end portal; TileMaker takes it from the center of assets\minecraft\textures\entity\end_portal\end_portal.png
     {  9, 11,  50, 0, L"MWO_flattened_soul_torch_top", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// MANUFACTURED used for flattened soul torch top; not used in rendering, but 3D printing uses for composites for torches from above
     { 10, 11, 140, 0, L"flower_pot", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 11, 11,  17, 0, L"birch_log_top", L"log_birch_top", SWATCH_REPEAT_ALL },	// ADD-IN
@@ -1094,22 +1094,22 @@ static struct {
     { 29, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 30, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 31, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    {  0, 31, 219, 0, L"shulker_side_white", L"", SWATCH_REPEAT_ALL },    // optional tiles - BD Craft has them, for example
-    {  1, 31, 220, 0, L"shulker_side_orange", L"", SWATCH_REPEAT_ALL },
-    {  2, 31, 221, 0, L"shulker_side_magenta", L"", SWATCH_REPEAT_ALL },
-    {  3, 31, 222, 0, L"shulker_side_light_blue", L"", SWATCH_REPEAT_ALL },
-    {  4, 31, 223, 0, L"shulker_side_yellow", L"", SWATCH_REPEAT_ALL },
-    {  5, 31, 224, 0, L"shulker_side_lime", L"", SWATCH_REPEAT_ALL },
-    {  6, 31, 225, 0, L"shulker_side_pink", L"", SWATCH_REPEAT_ALL },
-    {  7, 31, 226, 0, L"shulker_side_gray", L"", SWATCH_REPEAT_ALL },
-    {  8, 31, 227, 0, L"shulker_side_silver", L"", SWATCH_REPEAT_ALL },
-    {  9, 31, 228, 0, L"shulker_side_cyan", L"", SWATCH_REPEAT_ALL },
-    { 10, 31, 229, 0, L"shulker_side_purple", L"", SWATCH_REPEAT_ALL },
-    { 11, 31, 230, 0, L"shulker_side_blue", L"", SWATCH_REPEAT_ALL },
-    { 12, 31, 231, 0, L"shulker_side_brown", L"", SWATCH_REPEAT_ALL },
-    { 13, 31, 232, 0, L"shulker_side_green", L"", SWATCH_REPEAT_ALL },
-    { 14, 31, 233, 0, L"shulker_side_red", L"", SWATCH_REPEAT_ALL },
-    { 15, 31, 234, 0, L"shulker_side_black", L"", SWATCH_REPEAT_ALL },
+    {  0, 31, 219, 0, L"MWO_shulker_side_white", L"shulker_side_white", SWATCH_REPEAT_ALL },    // optional tiles - BD Craft has them, for example
+    {  1, 31, 220, 0, L"MWO_shulker_side_orange", L"shulker_side_orange", SWATCH_REPEAT_ALL },
+    {  2, 31, 221, 0, L"MWO_shulker_side_magenta", L"shulker_side_magenta", SWATCH_REPEAT_ALL },
+    {  3, 31, 222, 0, L"MWO_shulker_side_light_blue", L"shulker_side_light_blue", SWATCH_REPEAT_ALL },
+    {  4, 31, 223, 0, L"MWO_shulker_side_yellow", L"shulker_side_yellow", SWATCH_REPEAT_ALL },
+    {  5, 31, 224, 0, L"MWO_shulker_side_lime", L"shulker_side_lime", SWATCH_REPEAT_ALL },
+    {  6, 31, 225, 0, L"MWO_shulker_side_pink", L"shulker_side_pink", SWATCH_REPEAT_ALL },
+    {  7, 31, 226, 0, L"MWO_shulker_side_gray", L"shulker_side_gray", SWATCH_REPEAT_ALL },
+    {  8, 31, 227, 0, L"MWO_shulker_side_light_gray", L"shulker_side_silver", SWATCH_REPEAT_ALL },
+    {  9, 31, 228, 0, L"MWO_shulker_side_cyan", L"shulker_side_cyan", SWATCH_REPEAT_ALL },
+    { 10, 31, 229, 0, L"MWO_shulker_side_purple", L"shulker_side_purple", SWATCH_REPEAT_ALL },
+    { 11, 31, 230, 0, L"MWO_shulker_side_blue", L"shulker_side_blue", SWATCH_REPEAT_ALL },
+    { 12, 31, 231, 0, L"MWO_shulker_side_brown", L"shulker_side_brown", SWATCH_REPEAT_ALL },
+    { 13, 31, 232, 0, L"MWO_shulker_side_green", L"shulker_side_green", SWATCH_REPEAT_ALL },
+    { 14, 31, 233, 0, L"MWO_shulker_side_red", L"shulker_side_red", SWATCH_REPEAT_ALL },
+    { 15, 31, 234, 0, L"MWO_shulker_side_black", L"shulker_side_black", SWATCH_REPEAT_ALL },
     { 16, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -5 },	// member of MWO_dragon_head at 16,26
     { 17, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -5 },	// member of MWO_dragon_head at 16,26
     { 18, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -2, -5 },	// member of MWO_dragon_head at 16,26
@@ -1126,22 +1126,22 @@ static struct {
     { 29, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 30, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 31, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    {  0, 32, 219, 0, L"shulker_bottom_white", L"", SWATCH_REPEAT_ALL },    // optional tiles - BD Craft has them, for example
-    {  1, 32, 220, 0, L"shulker_bottom_orange", L"", SWATCH_REPEAT_ALL },
-    {  2, 32, 221, 0, L"shulker_bottom_magenta", L"", SWATCH_REPEAT_ALL },
-    {  3, 32, 222, 0, L"shulker_bottom_light_blue", L"", SWATCH_REPEAT_ALL },
-    {  4, 32, 223, 0, L"shulker_bottom_yellow", L"", SWATCH_REPEAT_ALL },
-    {  5, 32, 224, 0, L"shulker_bottom_lime", L"", SWATCH_REPEAT_ALL },
-    {  6, 32, 225, 0, L"shulker_bottom_pink", L"", SWATCH_REPEAT_ALL },
-    {  7, 32, 226, 0, L"shulker_bottom_gray", L"", SWATCH_REPEAT_ALL },
-    {  8, 32, 227, 0, L"shulker_bottom_silver", L"", SWATCH_REPEAT_ALL },
-    {  9, 32, 228, 0, L"shulker_bottom_cyan", L"", SWATCH_REPEAT_ALL },
-    { 10, 32, 229, 0, L"shulker_bottom_purple", L"", SWATCH_REPEAT_ALL },
-    { 11, 32, 230, 0, L"shulker_bottom_blue", L"", SWATCH_REPEAT_ALL },
-    { 12, 32, 231, 0, L"shulker_bottom_brown", L"", SWATCH_REPEAT_ALL },
-    { 13, 32, 232, 0, L"shulker_bottom_green", L"", SWATCH_REPEAT_ALL },
-    { 14, 32, 233, 0, L"shulker_bottom_red", L"", SWATCH_REPEAT_ALL },
-    { 15, 32, 234, 0, L"shulker_bottom_black", L"", SWATCH_REPEAT_ALL },
+    {  0, 32, 219, 0, L"MWO_shulker_bottom_white", L"shulker_bottom_white", SWATCH_REPEAT_ALL },    // optional tiles - BD Craft has them, for example
+    {  1, 32, 220, 0, L"MWO_shulker_bottom_orange", L"shulker_bottom_orange", SWATCH_REPEAT_ALL },
+    {  2, 32, 221, 0, L"MWO_shulker_bottom_magenta", L"shulker_bottom_magenta", SWATCH_REPEAT_ALL },
+    {  3, 32, 222, 0, L"MWO_shulker_bottom_light_blue", L"shulker_bottom_light_blue", SWATCH_REPEAT_ALL },
+    {  4, 32, 223, 0, L"MWO_shulker_bottom_yellow", L"shulker_bottom_yellow", SWATCH_REPEAT_ALL },
+    {  5, 32, 224, 0, L"MWO_shulker_bottom_lime", L"shulker_bottom_lime", SWATCH_REPEAT_ALL },
+    {  6, 32, 225, 0, L"MWO_shulker_bottom_pink", L"shulker_bottom_pink", SWATCH_REPEAT_ALL },
+    {  7, 32, 226, 0, L"MWO_shulker_bottom_gray", L"shulker_bottom_gray", SWATCH_REPEAT_ALL },
+    {  8, 32, 227, 0, L"MWO_shulker_bottom_light_gray", L"shulker_bottom_silver", SWATCH_REPEAT_ALL },
+    {  9, 32, 228, 0, L"MWO_shulker_bottom_cyan", L"shulker_bottom_cyan", SWATCH_REPEAT_ALL },
+    { 10, 32, 229, 0, L"MWO_shulker_bottom_purple", L"shulker_bottom_purple", SWATCH_REPEAT_ALL },
+    { 11, 32, 230, 0, L"MWO_shulker_bottom_blue", L"shulker_bottom_blue", SWATCH_REPEAT_ALL },
+    { 12, 32, 231, 0, L"MWO_shulker_bottom_brown", L"shulker_bottom_brown", SWATCH_REPEAT_ALL },
+    { 13, 32, 232, 0, L"MWO_shulker_bottom_green", L"shulker_bottom_green", SWATCH_REPEAT_ALL },
+    { 14, 32, 233, 0, L"MWO_shulker_bottom_red", L"shulker_bottom_red", SWATCH_REPEAT_ALL },
+    { 15, 32, 234, 0, L"MWO_shulker_bottom_black", L"shulker_bottom_black", SWATCH_REPEAT_ALL },
     { 16, 32,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 17, 32,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 18, 32,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
@@ -1163,8 +1163,8 @@ static struct {
     {  2, 33, 218, 0, L"observer_front", L"", SWATCH_REPEAT_ALL },
     {  3, 33, 218, 0, L"observer_side", L"", SWATCH_REPEAT_ALL },
     {  4, 33, 218, 0, L"observer_top", L"", SWATCH_REPEAT_ALL },   // alternate name is Sphax BD Craft
-    {  5, 33, 219, 0, L"MW_SHULKER_SIDE", L"MW_shulker_side", SWATCH_REPEAT_ALL },
-    {  6, 33, 219, 0, L"MW_SHULKER_BOTTOM", L"MW_shulker_bottom", SWATCH_REPEAT_ALL },
+    {  5, 33,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    {  6, 33,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     {  7, 33, 313, 0, L"dried_kelp_top", L"", SWATCH_REPEAT_ALL },  // 1.13 starts here
     {  8, 33, 313, 0, L"dried_kelp_side", L"dried_kelp_side_a", SWATCH_REPEAT_ALL },    // alt bedrock; there's also a side_b
     {  9, 33, 313, 0, L"dried_kelp_bottom", L"", SWATCH_REPEAT_ALL },
@@ -2055,10 +2055,10 @@ static struct {
     { 30, 60,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 31, 60,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     {  0, 61, 417, 0, L"decorated_pot_side", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_CUTOUT_GEOMETRY },
-    {  1, 61, 417, 0, L"MW_decorated_pot_base1", L"", SWATCH_REPEAT_ALL },
-    {  2, 61, 417, 0, L"MW_decorated_pot_base2", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  3, 61, 417, 0, L"MW_decorated_pot_base3", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  4, 61, 417, 0, L"MW_decorated_pot_base4", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  1, 61, 417, 0, L"MWO_decorated_pot_base1", L"MW_decorated_pot_base1", SWATCH_REPEAT_ALL },
+    {  2, 61, 417, 0, L"MWO_decorated_pot_base2", L"MW_decorated_pot_base2", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  3, 61, 417, 0, L"MWO_decorated_pot_base3", L"MW_decorated_pot_base3", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  4, 61, 417, 0, L"MWO_decorated_pot_base4", L"MW_decorated_pot_base4", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  5, 61, 170, 0, L"stripped_bamboo_block", L"", SWATCH_REPEAT_ALL },
     {  6, 61, 170, 0, L"stripped_bamboo_block_top", L"", SWATCH_REPEAT_ALL },
     {  7, 61,  47, 0, L"chiseled_bookshelf_top", L"", SWATCH_REPEAT_ALL },

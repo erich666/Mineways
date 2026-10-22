@@ -2638,6 +2638,11 @@ static int fillMissingTilesFromBuiltIn(progimage_info* pITI)
                     if (!fileEmpty[(size_t)anchorRow * XTILES + anchorCol])
                         continue;
                 }
+                // an unused tile, one with no name (and not part of a larger image), is not missing, even if the built-in data
+                // still has something there, e.g. the retired shulker box templates at 5,33 and 6,33
+                else if (gTilesTable[tileIndex].filename[0] == 0) {
+                    continue;
+                }
             }
             bool builtInEmpty = true;
             for (int y = 0; y < builtInTileSize && builtInEmpty; y++) {

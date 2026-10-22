@@ -89,6 +89,17 @@ static const wchar_t* gHeadNamesAlt[] = { L"", L"", L"", L"", L"", L"", L"" };
 // entity\shield, and steve.png is also in entity\player\slim. They are also read from a "head" directory, where ChannelMixer copies them.
 static const wchar_t* gHeadDirs[] = { L"skeleton\\", L"skeleton\\", L"zombie\\", L"player\\wide\\", L"creeper\\", L"piglin\\", L"enderdragon\\" };
 
+// shulker boxes, from textures\entity\shulker, in the order of the dye colors. The undyed shulker.png is not used: Mineways draws the
+// undyed box as the purple one.
+#define TOTAL_SHULKER_TILES	16
+static const wchar_t* gShulkerNames[] = { L"shulker_white", L"shulker_orange", L"shulker_magenta", L"shulker_light_blue", L"shulker_yellow", L"shulker_lime", L"shulker_pink", L"shulker_gray", L"shulker_light_gray", L"shulker_cyan", L"shulker_purple", L"shulker_blue", L"shulker_brown", L"shulker_green", L"shulker_red", L"shulker_black" };
+static const wchar_t* gShulkerNamesAlt[] = { L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"" };
+
+// the end portal's effect texture, from textures\entity\end_portal; its center 16x16 (for a 256x256 image) becomes MWO_end_portal
+#define TOTAL_END_PORTAL_TILES	1
+static const wchar_t* gEndPortalNames[] = { L"end_portal" };
+static const wchar_t* gEndPortalNamesAlt[] = { L"" };
+
 typedef struct ChestGrid {
 	int chestCount;
 	int totalCategories;
@@ -104,6 +115,10 @@ static ChestGrid gShelfGrid;
 static ChestGrid gCushionGrid;
 // mob heads, too (there are fewer heads than chests)
 static ChestGrid gHeadGrid;
+// shulker boxes, too (there are fewer shulker boxes than chests)
+static ChestGrid gShulkerGrid;
+// and the end portal
+static ChestGrid gEndPortalGrid;
 
 typedef struct DecoratedPotGrid {
 	int decoratedPotCount;
@@ -119,7 +134,7 @@ void initializeFileGrid(FileGrid* pfg);
 void initializeChestGrid(ChestGrid* pcg);
 void initializeDecoratedPotGrid(DecoratedPotGrid* ppg);
 void addBackslashIfNeeded(wchar_t* dir, size_t dirSize);
-int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, ChestGrid *psg, ChestGrid* pcushg, ChestGrid* pheadg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, bool topmost, bool warnUnused, bool warnDups);
+int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, ChestGrid *psg, ChestGrid* pcushg, ChestGrid* pheadg, ChestGrid* pshulkg, ChestGrid* pportalg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, bool topmost, bool warnUnused, bool warnDups);
 bool dirExists(const wchar_t* path);
 bool createDir(const wchar_t* path);
 int checkTilesInDirectory(FileGrid* pfg, const wchar_t* tilePath, int verbose, int alternate);

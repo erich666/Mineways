@@ -39,6 +39,10 @@ static bool gCushionDirectoryExists = false;
 static bool gCushionDirectoryFailed = false;
 static bool gHeadDirectoryExists = false;
 static bool gHeadDirectoryFailed = false;
+static bool gShulkerDirectoryExists = false;
+static bool gShulkerDirectoryFailed = false;
+static bool gEndPortalDirectoryExists = false;
+static bool gEndPortalDirectoryFailed = false;
 
 //                                                L"", L"_n", L"_normal", L"_m", L"_e", L"_r", L"_s", L"_mer", L"_y", L"_heightmap"
 static bool gUseCategory[TOTAL_CATEGORIES] = { true, true, true, true, true, true, true, true, true, true };
@@ -69,6 +73,10 @@ static bool setCushionDirectory(const wchar_t* outputDirectory, wchar_t* outputC
 static int copyCushionFiles(ChestGrid* pcushg, const wchar_t* outputDirectory, bool verbose);
 static bool setHeadDirectory(const wchar_t* outputDirectory, wchar_t* outputHeadDirectory);
 static int copyHeadFiles(ChestGrid* pheadg, const wchar_t* outputDirectory, bool verbose);
+static bool setShulkerDirectory(const wchar_t* outputDirectory, wchar_t* outputShulkerDirectory);
+static int copyShulkerFiles(ChestGrid* pshulkg, const wchar_t* outputDirectory, bool verbose);
+static bool setEndPortalDirectory(const wchar_t* outputDirectory, wchar_t* outputEndPortalDirectory);
+static int copyEndPortalFiles(ChestGrid* pportalg, const wchar_t* outputDirectory, bool verbose);
 
 static int isNearlyGrayscale(progimage_info* src, int channels);
 static bool isAlphaSemitransparent(progimage_info * src);
@@ -95,6 +103,8 @@ int wmain(int argc, wchar_t* argv[])
 	initializeChestGrid(&gShelfGrid);
 	initializeChestGrid(&gCushionGrid);
 	initializeChestGrid(&gHeadGrid);
+	initializeChestGrid(&gShulkerGrid);
+	initializeChestGrid(&gEndPortalGrid);
 
 	bool inputCalled = false;
 
@@ -207,7 +217,7 @@ int wmain(int argc, wchar_t* argv[])
 
 	// look through tiles in tiles directories, see which exist.
 	int filesFound = 0;
-	int fileCount = searchDirectoryForTiles(&gFG, &gChestGrid, &gPotGrid, &gShelfGrid, &gCushionGrid, &gHeadGrid, inputDirectory, wcslen(inputDirectory), verbose, alternate, true, warnUnused, true);
+	int fileCount = searchDirectoryForTiles(&gFG, &gChestGrid, &gPotGrid, &gShelfGrid, &gCushionGrid, &gHeadGrid, &gShulkerGrid, &gEndPortalGrid, inputDirectory, wcslen(inputDirectory), verbose, alternate, true, warnUnused, true);
 	if (fileCount < 0) {
 		swprintf_s(gErrorString, 1000, L"***** ERROR: cannot access the directory '%s' (Windows error code # %d). Ignoring directory.\n", inputDirectory, GetLastError());
 		saveErrorForEnd();
@@ -234,6 +244,8 @@ int wmain(int argc, wchar_t* argv[])
 		filesProcessed += copyFiles(&gFG, &gChestGrid, &gPotGrid, &gShelfGrid, outputDirectory, verbose);
 		filesProcessed += copyCushionFiles(&gCushionGrid, outputDirectory, verbose);
 		filesProcessed += copyHeadFiles(&gHeadGrid, outputDirectory, verbose);
+		filesProcessed += copyShulkerFiles(&gShulkerGrid, outputDirectory, verbose);
+		filesProcessed += copyEndPortalFiles(&gEndPortalGrid, outputDirectory, verbose);
 	}
 
 	if (gFG.categories[CATEGORY_SPECULAR] > 0 || gChestGrid.categories[CATEGORY_SPECULAR] > 0 || gPotGrid.categories[CATEGORY_SPECULAR] > 0) {
@@ -1744,6 +1756,116 @@ static bool setHeadDirectory(const wchar_t* outputDirectory, wchar_t* outputHead
 		}
 	}
 	return !gHeadDirectoryFailed;
+}
+
+// Copy the shulker box textures found, of all categories, to the output directory's "shulker" subdirectory, where TileMaker looks for them.
+static int copyShulkerFiles(ChestGrid* pshulkg, const wchar_t* outputDirectory, bool verbose)
+{
+	int filesRead = 0;
+	wchar_t outputShulkerDirectory[MAX_PATH];
+	for (int i = 0; i < pshulkg->totalCategories * pshulkg->totalTiles; i++) {
+		if (!pshulkg->cr[i].exists)
+			continue;
+		if (!setShulkerDirectory(outputDirectory, outputShulkerDirectory))
+			break;
+
+		wchar_t inputFile[MAX_PATH_AND_FILE];
+		wcscpy_s(inputFile, MAX_PATH_AND_FILE, pshulkg->cr[i].path);
+		wcscat_s(inputFile, MAX_PATH_AND_FILE, pshulkg->cr[i].fullFilename);
+
+		wchar_t outputFile[MAX_PATH_AND_FILE];
+		wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputShulkerDirectory);
+		wcscat_s(outputFile, MAX_PATH_AND_FILE, pshulkg->cr[i].fullFilename);
+
+		// overwrite previous file
+		if (CopyFile(inputFile, outputFile, false) == 0) {
+			swprintf_s(gErrorString, 1000, L"***** ERROR: file '%s' could not be copied to '%s'.\n", inputFile, outputFile);
+			saveErrorForEnd();
+			gErrorCount++;
+		}
+		else {
+			filesRead++;
+			if (verbose) {
+				wprintf(L"Shulker box texture '%s' copied to '%s'.\n", inputFile, outputFile);
+			}
+		}
+	}
+	return filesRead;
+}
+
+static bool setShulkerDirectory(const wchar_t* outputDirectory, wchar_t* outputShulkerDirectory)
+{
+	// copy directory over and add "\shulker", as setCushionDirectory does
+	wcscpy_s(outputShulkerDirectory, MAX_PATH, outputDirectory);
+	wcscat_s(outputShulkerDirectory, MAX_PATH, L"shulker\\");
+
+	// lazy global - check if we've done this operation before
+	if (!gShulkerDirectoryExists && !gShulkerDirectoryFailed) {
+		gShulkerDirectoryExists = true;
+		if (!createDir(outputShulkerDirectory)) {
+			// does not exist and could not create it
+			swprintf_s(gErrorString, 1000, L"***** ERROR: Output shulker box directory %s cannot be accessed. No shulker box tiles will be saved.\n", outputShulkerDirectory);
+			saveErrorForEnd();
+			gErrorCount++;
+			gShulkerDirectoryFailed = true;
+		}
+	}
+	return !gShulkerDirectoryFailed;
+}
+
+// Copy the end portal textures found, of all categories, to the output directory's "end_portal" subdirectory, where TileMaker looks for them.
+static int copyEndPortalFiles(ChestGrid* pportalg, const wchar_t* outputDirectory, bool verbose)
+{
+	int filesRead = 0;
+	wchar_t outputEndPortalDirectory[MAX_PATH];
+	for (int i = 0; i < pportalg->totalCategories * pportalg->totalTiles; i++) {
+		if (!pportalg->cr[i].exists)
+			continue;
+		if (!setEndPortalDirectory(outputDirectory, outputEndPortalDirectory))
+			break;
+
+		wchar_t inputFile[MAX_PATH_AND_FILE];
+		wcscpy_s(inputFile, MAX_PATH_AND_FILE, pportalg->cr[i].path);
+		wcscat_s(inputFile, MAX_PATH_AND_FILE, pportalg->cr[i].fullFilename);
+
+		wchar_t outputFile[MAX_PATH_AND_FILE];
+		wcscpy_s(outputFile, MAX_PATH_AND_FILE, outputEndPortalDirectory);
+		wcscat_s(outputFile, MAX_PATH_AND_FILE, pportalg->cr[i].fullFilename);
+
+		// overwrite previous file
+		if (CopyFile(inputFile, outputFile, false) == 0) {
+			swprintf_s(gErrorString, 1000, L"***** ERROR: file '%s' could not be copied to '%s'.\n", inputFile, outputFile);
+			saveErrorForEnd();
+			gErrorCount++;
+		}
+		else {
+			filesRead++;
+			if (verbose) {
+				wprintf(L"End portal texture '%s' copied to '%s'.\n", inputFile, outputFile);
+			}
+		}
+	}
+	return filesRead;
+}
+
+static bool setEndPortalDirectory(const wchar_t* outputDirectory, wchar_t* outputEndPortalDirectory)
+{
+	// copy directory over and add "\end_portal", as setCushionDirectory does
+	wcscpy_s(outputEndPortalDirectory, MAX_PATH, outputDirectory);
+	wcscat_s(outputEndPortalDirectory, MAX_PATH, L"end_portal\\");
+
+	// lazy global - check if we've done this operation before
+	if (!gEndPortalDirectoryExists && !gEndPortalDirectoryFailed) {
+		gEndPortalDirectoryExists = true;
+		if (!createDir(outputEndPortalDirectory)) {
+			// does not exist and could not create it
+			swprintf_s(gErrorString, 1000, L"***** ERROR: Output end portal directory %s cannot be accessed. No end portal tile will be saved.\n", outputEndPortalDirectory);
+			saveErrorForEnd();
+			gErrorCount++;
+			gEndPortalDirectoryFailed = true;
+		}
+	}
+	return !gEndPortalDirectoryFailed;
 }
 
 static bool setShelfDirectory(const wchar_t* outputDirectory, wchar_t* outputShelfDirectory)
