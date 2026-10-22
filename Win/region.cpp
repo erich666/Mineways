@@ -66,15 +66,13 @@ deflated data is the chunk length - 1.
 // had to kick this up due to F Seaworld 1.18 world test
 #define CHUNK_INFLATE_MAX (20 * 1024 * 1024) // 20MB limit for inflated chunks
 
-static z_stream strm;
-static int strm_initialized = 0;
-
 // Region files are kept open, up to REGION_FILE_CACHE_SIZE of them, each with its 4 KB table of where its chunks are: opening
 // a file and reading its table for every chunk took longer than reading and decompressing the chunks themselves. A file that
 // doesn't exist is remembered, too, e.g. the "entities" file of a region without entities. Minecraft may be saving the world
 // while Mineways reads it, which can move chunks within a file, so a file's table is read again when its size or last-written
 // time changes, or when a chunk read from it doesn't check out, and a missing file is looked for again after a few seconds.
-// regionCleanup() closes them all.
+// Each thread reading chunks has its own files, buffers and decompressor, a RegionReader, so that chunks can be loaded on several
+// threads at once; regionCleanup() closes the calling thread's files and frees its RegionReader.
 #define REGION_FILE_CACHE_SIZE 32
 #define REGION_TABLE_SIZE 4096
 #define REGION_MISSING_RECHECK_MS 5000
@@ -90,8 +88,36 @@ typedef struct RegionFile {
     unsigned int lastUse;
     unsigned char table[REGION_TABLE_SIZE]; // each chunk's location: a 3-byte 4 KB sector offset and a 1-byte sector count
 } RegionFile;
-static RegionFile gRegionFiles[REGION_FILE_CACHE_SIZE];
-static unsigned int gRegionFileUse = 0;
+
+typedef struct RegionReader {
+    RegionFile files[REGION_FILE_CACHE_SIZE];
+    unsigned int fileUse;
+    z_stream strm;
+    bool strmInitialized;
+    unsigned char* buf;     // a chunk as read, CHUNK_DEFLATE_MAX bytes
+    unsigned char* out;     // the chunk decompressed, CHUNK_INFLATE_MAX bytes
+} RegionReader;
+static thread_local RegionReader* tReader = NULL;
+
+// The calling thread's RegionReader, made on first use. NULL if out of memory.
+static RegionReader* getRegionReader()
+{
+    if (tReader == NULL) {
+        RegionReader* rr = (RegionReader*)calloc(1, sizeof(RegionReader));
+        if (rr == NULL)
+            return NULL;
+        rr->buf = (unsigned char*)malloc(CHUNK_DEFLATE_MAX);
+        rr->out = (unsigned char*)malloc(CHUNK_INFLATE_MAX);
+        if (rr->buf == NULL || rr->out == NULL) {
+            free(rr->buf);
+            free(rr->out);
+            free(rr);
+            return NULL;
+        }
+        tReader = rr;
+    }
+    return tReader;
+}
 
 // Get the file's size and last-written time, to tell if it has changed.
 static bool regionFileStamp(HANDLE h, unsigned long long* size, unsigned long long* writeTime)
@@ -126,12 +152,12 @@ static void openRegionFile(RegionFile* rf)
 }
 
 // Find the region file in the cache, or open it, replacing the least recently used one, and make sure its table is current.
-static RegionFile* getRegionFile(const wchar_t* filename)
+static RegionFile* getRegionFile(RegionReader* rr, const wchar_t* filename)
 {
     RegionFile* rf = NULL;
-    RegionFile* victim = &gRegionFiles[0];
+    RegionFile* victim = &rr->files[0];
     for (int i = 0; i < REGION_FILE_CACHE_SIZE; i++) {
-        RegionFile* e = &gRegionFiles[i];
+        RegionFile* e = &rr->files[i];
         if (e->used && wcscmp(e->name, filename) == 0) {
             rf = e;
             break;
@@ -158,7 +184,7 @@ static RegionFile* getRegionFile(const wchar_t* filename)
         if (!regionFileStamp(rf->h, &size, &writeTime) || size != rf->size || writeTime != rf->writeTime)
             readRegionTable(rf);
     }
-    rf->lastUse = ++gRegionFileUse;
+    rf->lastUse = ++rr->fileUse;
     return rf;
 }
 
@@ -166,25 +192,30 @@ static RegionFile* getRegionFile(const wchar_t* filename)
 static int regionPrepareBuffer(bfFile & bf, wchar_t* directory, const wchar_t* subdirectory, int cx, int cz)
 {
     wchar_t filename[256];
-    static unsigned char buf[CHUNK_DEFLATE_MAX];
-    static unsigned char out[CHUNK_INFLATE_MAX];
+
+    RegionReader* rr = getRegionReader();
+    if (rr == NULL)
+        return ERROR_INFLATE;
+    unsigned char* buf = rr->buf;
+    unsigned char* out = rr->out;
+    z_stream& strm = rr->strm;
 
     // the .mca file for the chunk - note we get the new mca 1.2 file type here!
     swprintf_s(filename, 256, L"%s%s/r.%d.%d.mca", directory, subdirectory, cx >> 5, cz >> 5);
 
-    RegionFile* rf = getRegionFile(filename);
+    RegionFile* rf = getRegionFile(rr, filename);
     // the .mca doesn't actually exist: no data -> nothing to do, but don't flag an error
     if (!rf->exists)
         return 0;
 
-    if (!strm_initialized) {
+    if (!rr->strmInitialized) {
         // we re-use dynamically allocated memory
         strm.zalloc = (alloc_func)NULL;
         strm.zfree = (free_func)NULL;
         strm.opaque = NULL;
         if (inflateInit(&strm) != Z_OK)
             return ERROR_INFLATE;
-        strm_initialized = 1;
+        rr->strmInitialized = true;
     }
 
     // If the chunk doesn't check out, the file may have changed since its table was read: read the table again and try once more.
@@ -294,16 +325,19 @@ int regionGetCushions(wchar_t* directory, int cx, int cz, CushionEntity* cushion
 
 void regionCleanup()
 {
-    // close the region files: the world is closing, or changing
+    // close the calling thread's region files: the world is closing, or changing, or the thread is done
+    RegionReader* rr = tReader;
+    if (rr == NULL)
+        return;
     for (int i = 0; i < REGION_FILE_CACHE_SIZE; i++) {
-        if (gRegionFiles[i].used && gRegionFiles[i].exists)
-            CloseHandle(gRegionFiles[i].h);
-        gRegionFiles[i].used = false;
+        if (rr->files[i].used && rr->files[i].exists)
+            CloseHandle(rr->files[i].h);
     }
-
-    if (strm_initialized) {
-        inflateEnd(&strm);
-        strm_initialized = 0;
-    }
+    if (rr->strmInitialized)
+        inflateEnd(&rr->strm);
+    free(rr->buf);
+    free(rr->out);
+    free(rr);
+    tReader = NULL;
 }
 

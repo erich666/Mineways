@@ -91,11 +91,12 @@ void MinimizeCacheBlocks(bool min);
 * cacheAdd(newBlock)
 *  free(oldBlock) // same size
 *
-* Repeated over and over. Recycling the most recently freed block
-* prevents expensive reallocations.
+* Repeated over and over. Recycling freed blocks prevents expensive
+* reallocations.
 */
 
 WorldBlock* block_alloc(int minHeight, int maxHeight);           // allocate memory for a block
 void block_free(WorldBlock* block); // release memory for a block
 void block_force_free(WorldBlock* block); // no single block cache test - clears the cache, too
 void block_realloc(WorldBlock* block);   // realloc and copy over
+void block_pool_trim();     // free the blocks kept for reuse

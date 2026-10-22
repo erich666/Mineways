@@ -203,13 +203,15 @@ static bool gMapRedrawQueued = false;
 #define WM_APP_MAP_REDRAW (WM_APP + 1)
 
 // Background chunk prefetch: after a non-blocking draw leaves blank tiles,
-// WM_APP_PREFETCH loads a batch of missing chunks and redraws.
+// WM_APP_PREFETCH loads a batch of missing chunks and redraws. A world on disk
+// is loaded by the chunk loader threads (see ChunkLoaderRequest()): each pass
+// draws the chunks they've loaded since the last, and asks for more.
 static HWND gMainHWnd = NULL;
 static bool gPrefetchQueued = false;
 #define WM_APP_PREFETCH   (WM_APP + 2)
 #define PREFETCH_MARGIN   2    // chunks beyond viewport to pre-load
-#define PREFETCH_BATCH    128  // max chunks to collect per scan pass
-#define PREFETCH_TIME_MS  40   // time budget per tick for loading chunks
+#define PREFETCH_BATCH    1024 // max chunks to collect per scan pass; enough to keep the chunk loader threads busy
+#define PREFETCH_TIME_MS  40   // time budget per tick for loading chunks, when not loaded by the chunk loader threads
 // Which chunks are drawn in the map buffer. When zoomed far out, a full redraw clears the buffer
 // and leaves the filling to prefetch, which must then draw cached chunks too, not just the ones
 // it loads. gMapBufferComplete means a full DrawMap drew everything; else gPaintedChunks lists the
@@ -1671,6 +1673,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         int scanH = hBlocks + 2 * PREFETCH_MARGIN;
         int scanV = vBlocks + 2 * PREFETCH_MARGIN;
 
+        // Chunks the chunk loader threads have loaded since the last pass go in the cache now, to be drawn below. Errors and
+        // warnings from loading are collected as DrawMap() collects them, and reported below, so that loading in the background
+        // still shows them.
+        bool threaded = ChunkLoaderUsable(&gWorldGuide);
+        int loadRetCode = 0;
+        static int doneCX[PREFETCH_BATCH], doneCZ[PREFETCH_BATCH];
+        int nDone = threaded ? ChunkLoaderCollect(doneCX, doneCZ, PREFETCH_BATCH, loadRetCode) : 0;
+
         // Scan outward from center in expanding rings, collecting chunks that
         // need loading (uncached) or re-rendering (stale highlight). Stops when
         // PREFETCH_BATCH chunks are found or the entire viewport is covered.
@@ -1796,21 +1806,29 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             gPrefetchResumeRing = 0;
         }
 
-        // Load uncached chunks within a time budget. Errors and warnings are collected as DrawMap() collects them, and
-        // reported below, so that loading in the background still shows them.
-        DWORD tLoadStart = GetTickCount();
-        int loaded = 0;
-        int loadRetCode = 0;
-        for (int i = 0; i < nBest; i++) {
-            if (best[i].needsLoad) {
-                int retCode = PrefetchBlock(&gWorldGuide, best[i].cx, best[i].cz, gMinecraftVersion, gVersionID, gOptions.worldType);
-                if (retCode < 0)
-                    loadRetCode = retCode;
-                else if (loadRetCode >= 0)
-                    loadRetCode |= retCode;
-                loaded++;
-                if (GetTickCount() - tLoadStart >= PREFETCH_TIME_MS)
+        if (threaded) {
+            // Ask the chunk loader threads for the uncached chunks, nearest first, in place of what the last pass asked for
+            // and they haven't started on, as the view may have moved since.
+            ChunkLoaderCancelRequests();
+            for (int i = 0; i < nBest; i++) {
+                if (best[i].needsLoad &&
+                    !ChunkLoaderRequest(&gWorldGuide, best[i].cx, best[i].cz, gMinecraftVersion, gVersionID, gOptions.worldType))
                     break;
+            }
+        }
+        else {
+            // Load uncached chunks within a time budget.
+            DWORD tLoadStart = GetTickCount();
+            for (int i = 0; i < nBest; i++) {
+                if (best[i].needsLoad) {
+                    int retCode = PrefetchBlock(&gWorldGuide, best[i].cx, best[i].cz, gMinecraftVersion, gVersionID, gOptions.worldType);
+                    if (retCode < 0)
+                        loadRetCode = retCode;
+                    else if (loadRetCode >= 0)
+                        loadRetCode |= retCode;
+                    if (GetTickCount() - tLoadStart >= PREFETCH_TIME_MS)
+                        break;
+                }
             }
         }
 
@@ -1847,23 +1865,28 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
         };
 
-        if (nBest > 0) {
-            for (int i = 0; i < nBest; i++) {
-                // Skip chunks the time budget left unloaded: drawing them here would load them
-                // anyway. They are still missing, so the next pass gets them.
-                void* data;
-                if (!Cache_Find(best[i].cx, best[i].cz, &data))
-                    continue;
-                if (!gMapBufferComplete)
-                    gPaintedChunks.insert(PAINTED_CHUNK_KEY(best[i].cx, best[i].cz));
-                paintChunk(best[i].cx, best[i].cz);
-                // If the chunk to the east was drawn before this one was loaded, its west edge was
-                // shaded without this chunk's heights (dark stripes in water), so draw it again.
-                if (ChunkNeedsWestEdgeRedraw(best[i].cx + 1, best[i].cz, gCurDepth - gMinHeight, &gOptions))
-                    paintChunk(best[i].cx + 1, best[i].cz);
-            }
-            InvalidateRect(hWnd, NULL, FALSE);
+        // draw a chunk that's been loaded, or needs its highlight changed
+        auto drawChunk = [&](int cx, int cz) {
+            if (!gMapBufferComplete)
+                gPaintedChunks.insert(PAINTED_CHUNK_KEY(cx, cz));
+            paintChunk(cx, cz);
+            // If the chunk to the east was drawn before this one was loaded, its west edge was
+            // shaded without this chunk's heights (dark stripes in water), so draw it again.
+            if (ChunkNeedsWestEdgeRedraw(cx + 1, cz, gCurDepth - gMinHeight, &gOptions))
+                paintChunk(cx + 1, cz);
+        };
+
+        for (int i = 0; i < nDone; i++)
+            drawChunk(doneCX[i], doneCZ[i]);
+        for (int i = 0; i < nBest; i++) {
+            // Skip chunks not loaded yet: drawing them here would load them. They are
+            // still missing, so a later pass gets them.
+            void* data;
+            if (Cache_Find(best[i].cx, best[i].cz, &data))
+                drawChunk(best[i].cx, best[i].cz);
         }
+        if (nBest > 0 || nDone > 0)
+            InvalidateRect(hWnd, NULL, FALSE);
 
         // When the map memory doesn't hold the whole view, and everything that fits is done, mark the rest of the view
         // that hasn't been drawn as out of memory (solid gray), so it doesn't look like it's still to be loaded (white).
@@ -1878,8 +1901,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         if (loadRetCode != 0)
             checkMapDrawErrorCode(loadRetCode);
 
-        // Keep going if there are uncached or stale-highlight chunks remaining
+        // Keep going if there are uncached or stale-highlight chunks remaining, or chunks being loaded
         if (nBest > 0) anyMissing = true;
+        if (threaded && ChunkLoaderBusy()) anyMissing = true;
+        // done loading: free the blocks kept for the chunk loader threads to reuse
+        if (!anyMissing)
+            block_pool_trim();
         if (anyMissing) {
             // Use a short timer instead of PostMessage so mouse/paint messages
             // get processed between batches. Without this, PostMessage fires
@@ -3298,7 +3325,8 @@ static void freeMinewaysResources()
         free(gCustomCurrency);
         gCustomCurrency = NULL;
     }
-    Cache_Empty();
+    // stops the chunk loader threads, too
+    CloseAll();
 }
 // parse on startup, looking for an execution log file name.
 // Return true if successful (i.e. no error found) - does NOT mean a log file was opened, just that the parse was OK.
@@ -3700,10 +3728,11 @@ static void setUIOnLoadWorld(HWND hWnd, HWND hwndSlider, HWND hwndLabel, HWND hw
 {
     // Cancel any pending prefetch — we're switching worlds
     gPrefetchQueued = false;
+    // the map buffer shows the old world: don't pan it, draw it all
+    gScrollCacheValid = false;
 
     if (!gLoaded) {
         gLoaded = TRUE;
-        gScrollCacheValid = false;
         EnableWindow(hwndSlider, TRUE);
         EnableWindow(hwndLabel, TRUE);
         EnableWindow(hwndInfoLabel, TRUE);
@@ -4369,6 +4398,8 @@ static void testWorldHeight(int& minHeight, int& maxHeight, int mcVersion, int s
 static int loadWorld(HWND hWnd)
 {
     CloseAll();
+    // the map buffer shows the old world, so the next draw can't just pan it
+    gScrollCacheValid = false;
     // defaults
     gWorldGuide.minHeight = 0;
     gWorldGuide.maxHeight = 255;
@@ -9670,6 +9701,8 @@ JumpToSpawn:
             strcpy_s(ptt->name, stringLength, string1);
             ptt->type = typeValue;
             ptt->useData = useData;
+            // the chunk loader threads read the translations
+            ChunkLoaderStop();
             ptt->next = gModTranslations;
             gModTranslations = ptt;
             SetModTranslations(gModTranslations);
@@ -9681,6 +9714,8 @@ JumpToSpawn:
     if (strPtr != NULL) {
         if (is.processData)
         {
+            // the chunk loader threads read the translations
+            ChunkLoaderStop();
             // free linked list
             TranslationTuple* ptt = gModTranslations;
             while (ptt) {

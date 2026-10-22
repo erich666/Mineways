@@ -36,6 +36,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CullingSchemes.h"	// isBlockCulled() — skip culled voxels in the map render
 #include <assert.h>
 #include <string.h>
+#include <deque>
+#include <vector>
+#include <unordered_set>
 
 static void clearUndoHighlight();
 static void copyHighlightState(HighlightBox& destBox, HighlightBox& srcBox);
@@ -44,6 +47,9 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int topy, in
 static void blit(unsigned char* block, unsigned char* bits, int px, int py, double zoom, int w, int h);
 static WorldBlock* determineMaxFilledHeight(WorldBlock* block);
 static void addCushions(wchar_t* directory, int cx, int cz, WorldBlock* block);
+static void saveBadChunkLocation(int bx, int bz);
+static void addUnknownBlockNames(const char* names);
+void ChunkLoaderStop();
 static int createBlockFromSchematic(WorldGuide* pWorldGuide, int cx, int cz, WorldBlock* block);
 static void initColors();
 static void saveBadChunkLocation(int bx, int bz);
@@ -3014,6 +3020,8 @@ static void blit(unsigned char* block, unsigned char* bits, int px, int py,
 
 void CloseAll()
 {
+    // the chunk loader threads are reading the old world: stop them first
+    ChunkLoaderStop();
     Cache_Empty();
     regionCleanup();
 }
@@ -8285,8 +8293,28 @@ void testNumeral(WorldBlock* block, int type, int y, int digitPlace, int outType
     }
 }
 
+// What loading a chunk needs, and finds, that differs between the main thread and a chunk loader thread.
+typedef struct LoadContext {
+    char* unknownBlockName;     // names of unknown blocks found are added to this
+    int unknownBlockID;         // what unknown blocks become
+    bool onLoaderThread;        // can't touch the cache, which is the main thread's
+    bool outOfMemory;           // set if a chunk loader thread couldn't allocate the chunk
+    bool foundUnknownBlock;     // set if a block type was out of range and made BLOCK_UNKNOWN
+} LoadContext;
+
+static WorldBlock* loadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, int versionID, int& retCode, LoadContext& lc);
+
 // return NULL if no block loaded.
 WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, int versionID, int& retCode)
+{
+    LoadContext lc = { gUnknownBlockName, gUnknownBlockID, false, false, false };
+    WorldBlock* block = loadBlock(pWorldGuide, cx, cz, mcVersion, versionID, retCode, lc);
+    if (lc.foundUnknownBlock && gPerformUnknownBlockCheck)
+        gUnknownBlock = 1;
+    return block;
+}
+
+static WorldBlock* loadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, int versionID, int& retCode, LoadContext& lc)
 {
     // return negative value on error, 1 on read OK, 2 on read and it's empty, and higher bits than 1 or 2 are warnings
     retCode = 0;
@@ -8313,6 +8341,11 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
     // out of memory? If so, clear cache and cross fingers
     if (block == NULL)
     {
+        if (lc.onLoaderThread) {
+            // only the main thread can empty the cache: it'll load this chunk itself
+            lc.outOfMemory = true;
+            return NULL;
+        }
         Cache_Empty();
         //block = block_alloc(MAX_ARRAY_HEIGHT(versionID, mcVersion));
         block = block_alloc(pWorldGuide->minHeight, pWorldGuide->maxHeight);
@@ -8454,11 +8487,11 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
 
             // Given coordinates, check if the file for that location exists, data for the chunk exists, and populate the block.
             // Return 
-            retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion, block->minHeight, block->maxHeight, block->maxFilledSectionHeight, gUnknownBlockName, gUnknownBlockID);
+            retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion, block->minHeight, block->maxHeight, block->maxFilledSectionHeight, lc.unknownBlockName, lc.unknownBlockID);
             assert(block->numEntities <= 384);  // if higher, the allocation above needs to change!
 
             if (retCode == ERROR_INFLATE) {
-                block->blockType = retCode;
+                block_free(block);
                 return NULL;
             }
 
@@ -8478,9 +8511,12 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
 
                     if (block->entities)
                         memcpy(block->entities, blockEntities, block->numEntities * sizeof(BlockEntity));
-                    else
+                    else {
                         // couldn't alloc data
+                        block->numEntities = 0;
+                        block_free(block);
                         return NULL;
+                    }
                 }
             }
             else {
@@ -8515,8 +8551,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
                     // note that we always clean up bad blocks;
                     // whether we flag that a bad block was found is optional.
                     // This gets turned off once the user has been warned, once, that his map has some funky data.
-                    if (gPerformUnknownBlockCheck)
-                        gUnknownBlock = 1;
+                    lc.foundUnknownBlock = true;
                 }
             }
             return block;
@@ -8533,7 +8568,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
 // block, in sixteenths, CUSHION_DROP.
 static void addCushions(wchar_t* directory, int cx, int cz, WorldBlock* block)
 {
-    static CushionEntity cushions[MAX_CUSHIONS_PER_CHUNK];
+    static thread_local CushionEntity cushions[MAX_CUSHIONS_PER_CHUNK];
     int count = regionGetCushions(directory, cx, cz, cushions, MAX_CUSHIONS_PER_CHUNK);
     for (int i = 0; i < count; i++) {
         int x = cushions[i].x - cx * 16;
@@ -9075,6 +9110,249 @@ int PrefetchBlock(WorldGuide* pWorldGuide, int bx, int bz, int mcVersion, int ve
     return retCode;
 }
 
+// Chunk loader threads. Loading a chunk - reading it from its region file, decompressing it, and parsing it - is done for the map on
+// several threads at once. The main thread asks for chunks with ChunkLoaderRequest() and takes the loaded ones with
+// ChunkLoaderCollect(), which puts them in the cache: only the main thread uses the cache. Only worlds on disk are loaded this way;
+// the test world and schematics, already in memory, are made by the main thread, with LoadBlock().
+//
+// About half the cores is best: in timing tests, loading with 8 threads on a 16-core CPU was 3.3x as fast as with one, and with 16
+// threads slower than with 8. Each thread allocates its chunks, and with many threads, they mostly wait on each other to do so.
+#define CHUNK_LOADER_MAX_THREADS    8
+// Most chunks asked for and not yet collected, per thread. Loaded chunks wait to be collected, by the main thread's next prefetch
+// pass, and a thread loads a chunk in about a quarter of a millisecond, so this keeps the threads busy between passes.
+#define CHUNK_LOADER_JOBS_PER_THREAD    96
+// Each thread's stack holds a chunk's block entities, about 800 KB, in loadBlock().
+#define CHUNK_LOADER_STACK_SIZE (4 * 1024 * 1024)
+#define CHUNK_LOADER_KEY(bx, bz)    (((long long)(bx) << 32) | (unsigned int)(bz))
+
+typedef struct ChunkLoadResult {
+    int bx, bz;
+    WorldBlock* block;
+    int retCode;
+    bool outOfMemory;
+    bool foundUnknownBlock;
+    char* unknownBlockNames;    // malloc'ed, or NULL if none
+} ChunkLoadResult;
+
+static bool gLoaderLockInited = false;
+static CRITICAL_SECTION gLoaderLock;
+static CONDITION_VARIABLE gLoaderJobReady;
+static int gLoaderNumThreads = 0;   // 0 when the threads aren't running
+static HANDLE gLoaderThreads[CHUNK_LOADER_MAX_THREADS];
+static bool gLoaderQuit = false;
+static std::deque<long long> gLoaderJobs;               // chunks waiting to be loaded
+static std::unordered_set<long long> gLoaderPending;    // chunks asked for and not yet collected
+static std::vector<ChunkLoadResult> gLoaderResults;     // chunks loaded and not yet collected
+// what the threads load from, set when they start, and unchanged while they run
+static WorldGuide gLoaderGuide;
+static int gLoaderMcVersion = 0;
+static int gLoaderVersionID = 0;
+static int gLoaderUnknownBlockID = 0;
+
+static DWORD WINAPI chunkLoaderThread(LPVOID)
+{
+    char unknownBlockName[MAX_PATH_AND_FILE];
+    EnterCriticalSection(&gLoaderLock);
+    for (;;) {
+        while (!gLoaderQuit && gLoaderJobs.empty())
+            SleepConditionVariableCS(&gLoaderJobReady, &gLoaderLock, INFINITE);
+        if (gLoaderQuit)
+            break;
+        long long key = gLoaderJobs.front();
+        gLoaderJobs.pop_front();
+        LeaveCriticalSection(&gLoaderLock);
+
+        ChunkLoadResult result;
+        result.bx = (int)(key >> 32);
+        result.bz = (int)(unsigned int)key;
+        unknownBlockName[0] = '\0';
+        LoadContext lc = { unknownBlockName, gLoaderUnknownBlockID, true, false, false };
+        result.block = loadBlock(&gLoaderGuide, result.bx, result.bz, gLoaderMcVersion, gLoaderVersionID, result.retCode, lc);
+        result.outOfMemory = lc.outOfMemory;
+        result.foundUnknownBlock = lc.foundUnknownBlock;
+        result.unknownBlockNames = (unknownBlockName[0] != '\0') ? _strdup(unknownBlockName) : NULL;
+
+        EnterCriticalSection(&gLoaderLock);
+        gLoaderResults.push_back(result);
+    }
+    LeaveCriticalSection(&gLoaderLock);
+    // close this thread's region files
+    regionCleanup();
+    return 0;
+}
+
+static void freeChunkLoadResult(ChunkLoadResult& result)
+{
+    block_free(result.block);
+    free(result.unknownBlockNames);
+}
+
+// Stop the chunk loader threads, if running, dropping the chunks asked for and those loaded but not collected. Called when the world,
+// or what's loaded from it, changes. The threads start again with the next ChunkLoaderRequest().
+void ChunkLoaderStop()
+{
+    if (gLoaderNumThreads == 0)
+        return;
+    EnterCriticalSection(&gLoaderLock);
+    gLoaderQuit = true;
+    gLoaderJobs.clear();
+    LeaveCriticalSection(&gLoaderLock);
+    WakeAllConditionVariable(&gLoaderJobReady);
+    WaitForMultipleObjects(gLoaderNumThreads, gLoaderThreads, TRUE, INFINITE);
+    for (int i = 0; i < gLoaderNumThreads; i++)
+        CloseHandle(gLoaderThreads[i]);
+    gLoaderNumThreads = 0;
+    gLoaderQuit = false;
+    for (ChunkLoadResult& result : gLoaderResults)
+        freeChunkLoadResult(result);
+    gLoaderResults.clear();
+    gLoaderPending.clear();
+}
+
+static bool startChunkLoader(WorldGuide* pWorldGuide, int mcVersion, int versionID)
+{
+    if (!gLoaderLockInited) {
+        InitializeCriticalSection(&gLoaderLock);
+        InitializeConditionVariable(&gLoaderJobReady);
+        gLoaderLockInited = true;
+    }
+    // the threads share the name tables, which must be made before they start
+    nbtInitTables();
+    gLoaderGuide = *pWorldGuide;
+    gLoaderMcVersion = mcVersion;
+    gLoaderVersionID = versionID;
+    gLoaderUnknownBlockID = gUnknownBlockID;
+
+    int numThreads = (int)GetActiveProcessorCount(ALL_PROCESSOR_GROUPS) / 2;
+#ifdef MINEWAYS_X64
+    numThreads = min(numThreads, CHUNK_LOADER_MAX_THREADS);
+#else
+    // a 32-bit program has little memory to spare: each thread has about 21 MB of buffers for reading chunks
+    numThreads = min(numThreads, 2);
+#endif
+    numThreads = max(numThreads, 1);
+    for (int i = 0; i < numThreads; i++) {
+        HANDLE h = CreateThread(NULL, CHUNK_LOADER_STACK_SIZE, chunkLoaderThread, NULL, STACK_SIZE_PARAM_IS_A_RESERVATION, NULL);
+        if (h == NULL)
+            break;
+        gLoaderThreads[gLoaderNumThreads++] = h;
+    }
+    return gLoaderNumThreads > 0;
+}
+
+// Can the chunk loader threads load this world's chunks? If so, use ChunkLoaderRequest(), else PrefetchBlock().
+bool ChunkLoaderUsable(WorldGuide* pWorldGuide)
+{
+    return pWorldGuide->type == WORLD_LEVEL_TYPE;
+}
+
+// Ask the chunk loader threads to load chunk bx, bz, if it isn't already cached or asked for. Returns false if they have as many
+// chunks to load as they can take, or can't be started, in which case the caller should try again later.
+bool ChunkLoaderRequest(WorldGuide* pWorldGuide, int bx, int bz, int mcVersion, int versionID, unsigned int worldType)
+{
+    SetDimensionDirectory(pWorldGuide, worldType);
+    // Is what's being loaded from different? CloseAll() stops the threads when the world or dimension changes, so this shouldn't
+    // happen, but if it does, what they have is for the old one.
+    if (gLoaderNumThreads > 0 &&
+        (wcscmp(gLoaderGuide.directory, pWorldGuide->directory) != 0 || gLoaderGuide.minHeight != pWorldGuide->minHeight ||
+            gLoaderGuide.maxHeight != pWorldGuide->maxHeight || gLoaderMcVersion != mcVersion || gLoaderVersionID != versionID ||
+            gLoaderUnknownBlockID != gUnknownBlockID))
+        ChunkLoaderStop();
+    if (gLoaderNumThreads == 0 && !startChunkLoader(pWorldGuide, mcVersion, versionID))
+        return false;
+
+    long long key = CHUNK_LOADER_KEY(bx, bz);
+    bool added = false;
+    EnterCriticalSection(&gLoaderLock);
+    if (gLoaderPending.find(key) != gLoaderPending.end())
+        added = true;   // already asked for
+    else if ((int)gLoaderPending.size() < gLoaderNumThreads * CHUNK_LOADER_JOBS_PER_THREAD) {
+        void* data;
+        if (!Cache_Find(bx, bz, &data)) {
+            gLoaderPending.insert(key);
+            gLoaderJobs.push_back(key);
+        }
+        added = true;
+    }
+    LeaveCriticalSection(&gLoaderLock);
+    if (added)
+        WakeConditionVariable(&gLoaderJobReady);
+    return added;
+}
+
+// Drop the chunks asked for that no thread has started loading, e.g. as the map's been moved since they were asked for.
+void ChunkLoaderCancelRequests()
+{
+    if (gLoaderNumThreads == 0)
+        return;
+    EnterCriticalSection(&gLoaderLock);
+    for (long long key : gLoaderJobs)
+        gLoaderPending.erase(key);
+    gLoaderJobs.clear();
+    LeaveCriticalSection(&gLoaderLock);
+}
+
+// Are chunks asked for still to be collected?
+bool ChunkLoaderBusy()
+{
+    if (gLoaderNumThreads == 0)
+        return false;
+    EnterCriticalSection(&gLoaderLock);
+    bool busy = !gLoaderPending.empty();
+    LeaveCriticalSection(&gLoaderLock);
+    return busy;
+}
+
+// Put up to maxChunks of the chunks the threads have loaded in the cache, listing them in bx[] and bz[], and return how many.
+// Errors and warnings are combined into retCode, as DrawMap() combines them.
+int ChunkLoaderCollect(int* bx, int* bz, int maxChunks, int& retCode)
+{
+    if (gLoaderNumThreads == 0)
+        return 0;
+    std::vector<ChunkLoadResult> results;
+    EnterCriticalSection(&gLoaderLock);
+    int n = min((int)gLoaderResults.size(), maxChunks);
+    results.assign(gLoaderResults.begin(), gLoaderResults.begin() + n);
+    gLoaderResults.erase(gLoaderResults.begin(), gLoaderResults.begin() + n);
+    for (ChunkLoadResult& result : results)
+        gLoaderPending.erase(CHUNK_LOADER_KEY(result.bx, result.bz));
+    LeaveCriticalSection(&gLoaderLock);
+
+    for (int i = 0; i < n; i++) {
+        ChunkLoadResult& result = results[i];
+        if (result.unknownBlockNames != NULL) {
+            addUnknownBlockNames(result.unknownBlockNames);
+            free(result.unknownBlockNames);
+        }
+        if (result.foundUnknownBlock && gPerformUnknownBlockCheck)
+            gUnknownBlock = 1;
+        void* data;
+        int chunkRetCode = 0;
+        if (Cache_Find(result.bx, result.bz, &data)) {
+            // the main thread loaded it meanwhile, e.g. to export it
+            block_free(result.block);
+        }
+        else {
+            WorldBlock* block = result.block;
+            chunkRetCode = result.retCode;
+            if (result.outOfMemory) {
+                // the main thread can empty the cache to make room
+                block = LoadBlock(&gLoaderGuide, result.bx, result.bz, gLoaderMcVersion, gLoaderVersionID, chunkRetCode);
+            }
+            if (chunkRetCode < 0)
+                saveBadChunkLocation(result.bx, result.bz);
+            Cache_Add(result.bx, result.bz, block);
+        }
+        if (chunkRetCode < 0)
+            retCode = chunkRetCode;
+        else if (retCode >= 0)
+            retCode |= chunkRetCode;
+        bx[i] = result.bx;
+        bz[i] = result.bz;
+    }
+    return n;
+}
+
 // for each block color, calculate light levels 0-15
 static void initColors()
 {
@@ -9152,6 +9430,35 @@ static void initColors()
 char* MapUnknownBlockName()
 {
     return gUnknownBlockName;
+}
+
+// Add the names of unknown blocks a chunk loader thread found, ", "-separated, to gUnknownBlockName, as nbtGetBlocks() adds them.
+static void addUnknownBlockNames(const char* names)
+{
+    char name[MAX_PATH_AND_FILE];
+    const char* start = names;
+    while (*start) {
+        const char* end = strstr(start, ", ");
+        size_t len = end ? (size_t)(end - start) : strlen(start);
+        if (len > 0 && len < MAX_PATH_AND_FILE) {
+            memcpy(name, start, len);
+            name[len] = '\0';
+            if (strcmp(name, "etc.") != 0 && strstr(gUnknownBlockName, name) == NULL) {
+                size_t stringLength = strlen(gUnknownBlockName);
+                if (stringLength + len + 8 < MAX_PATH_AND_FILE) {
+                    if (stringLength > 0)
+                        strcat_s(gUnknownBlockName, MAX_PATH_AND_FILE, ", ");
+                    strcat_s(gUnknownBlockName, MAX_PATH_AND_FILE, name);
+                }
+                else if (stringLength + 6 < MAX_PATH_AND_FILE && strstr(gUnknownBlockName, ", etc.") == NULL) {
+                    strcat_s(gUnknownBlockName, MAX_PATH_AND_FILE, ", etc.");
+                }
+            }
+        }
+        if (end == NULL)
+            break;
+        start = end + 2;
+    }
 }
 
 // reset error field for bad block names

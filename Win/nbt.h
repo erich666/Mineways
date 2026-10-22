@@ -181,6 +181,7 @@ int nbtGetCushions(bfFile* pbf, CushionEntity* cushions, int maxCushions);
 
 int SlowFindIndexFromName(char* name);
 void SetModTranslations(TranslationTuple* mt);
+void nbtInitTables();
 
 // Sponge Schematic v3 export (issue #40): build the canonical Minecraft block-state string
 // for a Mineways internal (type, dataVal). Writes "minecraft:name[prop=val,...]" into `out`.

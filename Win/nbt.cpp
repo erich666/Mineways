@@ -2180,6 +2180,21 @@ int SlowFindIndexFromName(char* name)
     return -1;
 }
 
+// Build the block and biome name tables now, rather than on first use by nbtGetBlocks(), which isn't safe when chunks are
+// loaded on several threads at once.
+void makeBiomeHashTable();
+void nbtInitTables()
+{
+    if (makeHash) {
+        makeHashTable();
+        makeHash = false;
+    }
+    if (makeBiomeHash) {
+        makeBiomeHashTable();
+        makeBiomeHash = false;
+    }
+}
+
 // should be called any time the mod translation pointer changes
 void SetModTranslations(TranslationTuple* mt)
 {
