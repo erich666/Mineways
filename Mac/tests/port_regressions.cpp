@@ -93,10 +93,49 @@ static void checkSchematic(int version)
     assert(unlink(path) == 0);
 }
 
+static void checkSchematicBoundaries()
+{
+    for (int size : { 16, 17, 32 }) {
+        WorldGuide guide = {};
+        guide.type = WORLD_SCHEMATIC_TYPE;
+        guide.maxHeight = 255;
+        guide.sch.width = guide.sch.length = size;
+        guide.sch.height = 8;
+        guide.sch.numBlocks = size * size * 8;
+        std::vector<unsigned char> blocks(guide.sch.numBlocks, BLOCK_STONE);
+        std::vector<unsigned short> data(guide.sch.numBlocks, 0);
+        guide.sch.blocks = blocks.data();
+        guide.sch.data = data.data();
+        const int outside = (size + 15) / 16;
+        const int positions[][2] = {
+            { 0, 0 }, { outside - 1, outside - 1 },
+            { outside, 0 }, { 0, outside }, { outside, outside },
+            { -1, 0 }, { 0, -1 }
+        };
+        for (const auto& position : positions) {
+            int result = 0;
+            WorldBlock* block = LoadBlock(&guide, position[0], position[1],
+                DATA_VERSION_TO_RELEASE_NUMBER(5023), 5023, result);
+            const bool inside = position[0] >= 0 && position[0] < outside &&
+                position[1] >= 0 && position[1] < outside;
+            assert((block != nullptr) == inside);
+            if (inside) {
+                assert(block->grid[0] == BLOCK_STONE);
+                const int lastX = (size - 1) % 16;
+                const int lastZ = (size - 1) % 16;
+                assert(block->grid[(7 * 16 + lastZ) * 16 + lastX] == BLOCK_STONE);
+            }
+            block_free(block);
+        }
+    }
+    block_pool_trim();
+}
+
 int main()
 {
+    checkSchematicBoundaries();
     checkOptions();
     for (int version : { 5023, 3953, 2586, 1343, -1 })
         checkSchematic(version);
-    puts("PASS: OBJ option order, aliases, USD independence, syntax-only pass, invalid booleans, schematic versions and height bounds");
+    puts("PASS: schematic chunk boundaries, OBJ option order, aliases, USD independence, syntax-only pass, invalid booleans, schematic versions and height bounds");
 }

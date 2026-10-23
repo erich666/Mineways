@@ -8639,9 +8639,9 @@ int createBlockFromSchematic(WorldGuide* pWorldGuide, int cx, int cz, WorldBlock
 {
     if (!pWorldGuide->sch.repeat) {
         // does block overlap the schematic?
-        if ((cx * 16 > pWorldGuide->sch.width) || (cx < 0))
+        if ((cx * 16 >= pWorldGuide->sch.width) || (cx < 0))
             return 0;
-        if ((cz * 16 > pWorldGuide->sch.length) || (cz < 0))
+        if ((cz * 16 >= pWorldGuide->sch.length) || (cz < 0))
             return 0;
     }
 
