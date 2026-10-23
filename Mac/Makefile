@@ -48,6 +48,7 @@ CORE_SRCS := $(SRC_DIR)/blockInfo.cpp \
 GUI_SRCS  := MinewaysApp.cpp \
              MinewaysFrame.cpp \
              MapPanel.cpp \
+             MapRenderer.cpp \
              LocationDialog.cpp \
              ExportDialog.cpp \
              MacCullingSchemes.cpp \
@@ -111,6 +112,9 @@ MinewaysApp.o: MinewaysApp.cpp $(COMPAT_H)
 
 MinewaysFrame.o: MinewaysFrame.cpp $(COMPAT_H)
 	$(CXX) $(GUI_CXXFLAGS) -c $< -o $@
+
+MapRenderer.o: MapRenderer.cpp $(COMPAT_H)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 MapPanel.o: MapPanel.cpp $(COMPAT_H)
 	$(CXX) $(GUI_CXXFLAGS) -c $< -o $@

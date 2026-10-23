@@ -45,6 +45,17 @@ typedef void* HMODULE;
 // HANDLE is FILE* on macOS (PortaCreate/PortaWrite/PortaClose all use FILE*)
 typedef FILE* HANDLE;
 
+typedef pthread_mutex_t CRITICAL_SECTION;
+typedef pthread_cond_t CONDITION_VARIABLE;
+static inline void InitializeCriticalSection(CRITICAL_SECTION* lock) { pthread_mutex_init(lock, nullptr); }
+static inline void EnterCriticalSection(CRITICAL_SECTION* lock) { pthread_mutex_lock(lock); }
+static inline void LeaveCriticalSection(CRITICAL_SECTION* lock) { pthread_mutex_unlock(lock); }
+static inline void InitializeConditionVariable(CONDITION_VARIABLE* ready) { pthread_cond_init(ready, nullptr); }
+static inline void SleepConditionVariableCS(CONDITION_VARIABLE* ready, CRITICAL_SECTION* lock, unsigned) { pthread_cond_wait(ready, lock); }
+static inline void WakeConditionVariable(CONDITION_VARIABLE* ready) { pthread_cond_signal(ready); }
+static inline void WakeAllConditionVariable(CONDITION_VARIABLE* ready) { pthread_cond_broadcast(ready); }
+#define INFINITE 0xFFFFFFFFu
+
 typedef pthread_mutex_t SRWLOCK;
 #define SRWLOCK_INIT PTHREAD_MUTEX_INITIALIZER
 static inline void AcquireSRWLockExclusive(SRWLOCK* lock) { pthread_mutex_lock(lock); }

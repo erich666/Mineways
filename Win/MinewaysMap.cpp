@@ -9124,7 +9124,6 @@ int PrefetchBlock(WorldGuide* pWorldGuide, int bx, int bz, int mcVersion, int ve
 //
 // About half the cores is best: in timing tests, loading with 8 threads on a 16-core CPU was 3.3x as fast as with one, and with 16
 // threads slower than with 8. Each thread allocates its chunks, and with many threads, they mostly wait on each other to do so.
-#ifdef WIN32
 #define CHUNK_LOADER_MAX_THREADS    8
 // Most chunks asked for and not yet collected, per thread. Loaded chunks wait to be collected, by the main thread's next prefetch
 // pass, and a thread loads a chunk in about a quarter of a millisecond, so this keeps the threads busy between passes.
@@ -9146,7 +9145,11 @@ static bool gLoaderLockInited = false;
 static CRITICAL_SECTION gLoaderLock;
 static CONDITION_VARIABLE gLoaderJobReady;
 static int gLoaderNumThreads = 0;   // 0 when the threads aren't running
+#ifdef WIN32
 static HANDLE gLoaderThreads[CHUNK_LOADER_MAX_THREADS];
+#else
+static pthread_t gLoaderThreads[CHUNK_LOADER_MAX_THREADS];
+#endif
 static bool gLoaderQuit = false;
 static std::deque<long long> gLoaderJobs;               // chunks waiting to be loaded
 static std::unordered_set<long long> gLoaderPending;    // chunks asked for and not yet collected
@@ -9157,7 +9160,11 @@ static int gLoaderMcVersion = 0;
 static int gLoaderVersionID = 0;
 static int gLoaderUnknownBlockID = 0;
 
+#ifdef WIN32
 static DWORD WINAPI chunkLoaderThread(LPVOID)
+#else
+static void* chunkLoaderThread(void*)
+#endif
 {
     char unknownBlockName[MAX_PATH_AND_FILE];
     EnterCriticalSection(&gLoaderLock);
@@ -9206,9 +9213,14 @@ void ChunkLoaderStop()
     gLoaderJobs.clear();
     LeaveCriticalSection(&gLoaderLock);
     WakeAllConditionVariable(&gLoaderJobReady);
+#ifdef WIN32
     WaitForMultipleObjects(gLoaderNumThreads, gLoaderThreads, TRUE, INFINITE);
     for (int i = 0; i < gLoaderNumThreads; i++)
         CloseHandle(gLoaderThreads[i]);
+#else
+    for (int i = 0; i < gLoaderNumThreads; i++)
+        pthread_join(gLoaderThreads[i], NULL);
+#endif
     gLoaderNumThreads = 0;
     gLoaderQuit = false;
     for (ChunkLoadResult& result : gLoaderResults)
@@ -9231,7 +9243,11 @@ static bool startChunkLoader(WorldGuide* pWorldGuide, int mcVersion, int version
     gLoaderVersionID = versionID;
     gLoaderUnknownBlockID = gUnknownBlockID;
 
+#ifdef WIN32
     int numThreads = (int)GetActiveProcessorCount(ALL_PROCESSOR_GROUPS) / 2;
+#else
+    int numThreads = (int)sysconf(_SC_NPROCESSORS_ONLN) / 2;
+#endif
 #ifdef MINEWAYS_X64
     numThreads = min(numThreads, CHUNK_LOADER_MAX_THREADS);
 #else
@@ -9240,10 +9256,24 @@ static bool startChunkLoader(WorldGuide* pWorldGuide, int mcVersion, int version
 #endif
     numThreads = max(numThreads, 1);
     for (int i = 0; i < numThreads; i++) {
+#ifdef WIN32
         HANDLE h = CreateThread(NULL, CHUNK_LOADER_STACK_SIZE, chunkLoaderThread, NULL, STACK_SIZE_PARAM_IS_A_RESERVATION, NULL);
         if (h == NULL)
             break;
         gLoaderThreads[gLoaderNumThreads++] = h;
+#else
+        pthread_attr_t attributes;
+        if (pthread_attr_init(&attributes) != 0)
+            break;
+        int error = pthread_attr_setstacksize(&attributes, CHUNK_LOADER_STACK_SIZE);
+        pthread_t thread;
+        if (error == 0)
+            error = pthread_create(&thread, &attributes, chunkLoaderThread, NULL);
+        pthread_attr_destroy(&attributes);
+        if (error != 0)
+            break;
+        gLoaderThreads[gLoaderNumThreads++] = thread;
+#endif
     }
     return gLoaderNumThreads > 0;
 }
@@ -9360,16 +9390,6 @@ int ChunkLoaderCollect(int* bx, int* bz, int maxChunks, int& retCode)
     }
     return n;
 }
-
-#else
-// The Mac map still loads chunks synchronously through DrawMap().
-void ChunkLoaderStop() {}
-bool ChunkLoaderUsable(WorldGuide*) { return false; }
-bool ChunkLoaderRequest(WorldGuide*, int, int, int, int, unsigned int) { return false; }
-void ChunkLoaderCancelRequests() {}
-bool ChunkLoaderBusy() { return false; }
-int ChunkLoaderCollect(int*, int*, int, int& retCode) { retCode = 0; return 0; }
-#endif
 
 // for each block color, calculate light levels 0-15
 static void initColors()

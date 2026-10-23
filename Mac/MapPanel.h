@@ -1,5 +1,6 @@
 #pragma once
 #include <wx/wx.h>
+#include "MapRenderer.h"
 
 // wxPanel that renders the Minecraft map via DrawMap() into a pixel buffer,
 // then blits it using wxClientDC.
@@ -8,10 +9,17 @@ public:
     MapPanel(wxWindow* parent);
     ~MapPanel();
 
-    void RedrawMap();      // call DrawMap() + Refresh()
+    void RedrawMap();
+    void ResetMap();
+    void PauseLoading();
+    void ResumeLoading();
     void ResizeBuffer(int w, int h);
 
 private:
+    wxTimer m_timer;
+    MapRenderer m_renderer;
+    bool m_paused = false;
+    void OnRenderTimer(wxTimerEvent&);
     int m_w = 0, m_h = 0;
     unsigned char* m_rgbBuf = nullptr;  // reused RGB conversion buffer, resized alongside m_w/m_h
 

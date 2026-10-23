@@ -19,6 +19,8 @@
 #include <limits>
 #include <new>
 #include <stdexcept>
+#include <sys/sysctl.h>
+#include <wx/scopeguard.h>
 
 // ─── Globals (mirror of Win/Mineways.cpp static globals) ────────────────────
 #define MINZOOM 1.0f
@@ -244,19 +246,14 @@ static int LoadSchematicFile(const wchar_t* pathAndFile, bool isSponge)
 
 // ─── MapPanel calls this to redraw into gMapBits, then Refresh() itself ──────
 // (called from MapPanel.cpp via friend access or by having this function visible)
-void RedrawMapIntoBuffer()
+bool RenderMapIntoBuffer(MapRenderer& renderer)
 {
-    if (!gLoaded || !gMapBits || gMapWidth == 0 || gMapHeight == 0) {
-        if (gMapBits)
-            memset(gMapBits, 0xff, (size_t)gMapWidth * gMapHeight * 4);
-        return;
-    }
-    DrawMap(&gWorldGuide, gCurX, gCurZ,
-            gCurDepth - gMinHeight, gMaxHeight,
-            gMapWidth, gMapHeight, gCurScale,
-            gMapBits, &gOptions, gHitsFound,
-            progressCB, gMinecraftVersion, gVersionID);
-    // DrawMap writes R,G,B,0xFF per pixel — already correct for wxImage (no swap needed)
+    int error = 0;
+    bool pending = renderer.Render(&gWorldGuide, gCurX, gCurZ, gCurDepth - gMinHeight,
+        gMaxHeight, gMapWidth, gMapHeight, gCurScale, gMapBits, &gOptions,
+        gHitsFound, gMinecraftVersion, gVersionID, error);
+    if (error < 0 && gFrame) gFrame->SetStatusText("Map chunk read failed. Reload the world to retry.", 0);
+    return pending;
 }
 
 // Accessors used by MapPanel
@@ -334,6 +331,7 @@ wxBEGIN_EVENT_TABLE(MinewaysFrame, wxFrame)
     EVT_MENU(ID_HELP_DOCUMENTATION,    MinewaysFrame::OnHelpURL)
     EVT_MENU(ID_HELP_REPORT_BUG,       MinewaysFrame::OnHelpURL)
     EVT_MENU(ID_HELP_GIVE_MORE_MEMORY, MinewaysFrame::OnGiveMoreExportMemory)
+    EVT_MENU_RANGE(ID_MAP_MEMORY_1GB, ID_MAP_MEMORY_16GB, MinewaysFrame::OnMapMemory)
     EVT_MENU_RANGE(ID_WORLD_ITEM_BASE, ID_WORLD_ITEM_BASE + MAX_WORLDS - 1,
                    MinewaysFrame::OnWorldMenuItem)
 wxEND_EVENT_TABLE()
@@ -368,6 +366,9 @@ MinewaysFrame::MinewaysFrame(wxWindow* parent)
 
     // Restore persisted settings
     wxConfig cfg("Mineways");
+    long memory = cfg.ReadLong("mapMemoryMB", 2048);
+    if (memory == 1024 || memory == 2048 || memory == 4096 || memory == 8192 || memory == 16384)
+        m_mapMemoryMB = (int)memory;
     wxString cfgTerrain, cfgSaves, cfgExportPath;
     if (cfg.Read("terrainPath", &cfgTerrain) && wxFileExists(cfgTerrain))
         terrainPath = cfgTerrain;
@@ -396,6 +397,7 @@ MinewaysFrame::MinewaysFrame(wxWindow* parent)
 
     // Build UI
     BuildMenu();
+    ApplyMapMemory();
     CreateStatusBar(2);
     SetStatusText("No world loaded", 0);
 
@@ -435,6 +437,8 @@ MinewaysFrame::MinewaysFrame(wxWindow* parent)
 
 MinewaysFrame::~MinewaysFrame()
 {
+    if (m_mapPanel) m_mapPanel->PauseLoading();
+    ClearLoadedWorldData();
     // Persist settings to plist via wxConfig
     wxConfig cfg("Mineways");
     cfg.Write("terrainPath", wxString(gSelectTerrainPathAndName));
@@ -615,6 +619,10 @@ void MinewaysFrame::BuildMenu()
     helpMenu->Append(wxID_ABOUT, "About Mineways");
     helpMenu->AppendSeparator();
     helpMenu->AppendCheckItem(ID_HELP_GIVE_MORE_MEMORY, "Give more export memory!");
+    wxMenu* memoryMenu = new wxMenu;
+    for (int i = 0; i < 5; ++i)
+        memoryMenu->AppendRadioItem(ID_MAP_MEMORY_1GB + i, wxString::Format("%d GB", 1 << i));
+    helpMenu->AppendSubMenu(memoryMenu, "Map memory");
 
     mb->Append(fileMenu, "&File");
     mb->Append(viewMenu, "&View");
@@ -662,6 +670,37 @@ void MinewaysFrame::BuildMenu()
     };
     wxAcceleratorTable accel(WXSIZEOF(entries), entries);
     SetAcceleratorTable(accel);
+}
+
+void MinewaysFrame::ApplyMapMemory()
+{
+    uint64_t physical = 0;
+    size_t length = sizeof(physical);
+    int limitMB = 16384;
+    if (sysctlbyname("hw.memsize", &physical, &length, nullptr, 0) == 0)
+        limitMB = (int)min((uint64_t)16384, physical / (1024 * 1024) * 3 / 4);
+    while (m_mapMemoryMB > max(1024, limitMB)) m_mapMemoryMB /= 2;
+    const int entries = Cache_EntriesForBudget(m_mapMemoryMB, gMaxHeight - gMinHeight + 1);
+    if (entries != gOptions.currentCacheSize) {
+        if (m_mapPanel) m_mapPanel->ResetMap();
+        ChunkLoaderStop();
+        Change_Cache_Size(entries);
+        gOptions.currentCacheSize = entries;
+    }
+    for (int i = 0; i < 5; ++i) {
+        GetMenuBar()->Check(ID_MAP_MEMORY_1GB + i, m_mapMemoryMB == (1024 << i));
+        GetMenuBar()->Enable(ID_MAP_MEMORY_1GB + i, (1024 << i) <= limitMB || (1024 << i) == m_mapMemoryMB);
+    }
+}
+
+void MinewaysFrame::OnMapMemory(wxCommandEvent& event)
+{
+    m_mapMemoryMB = 1024 << (event.GetId() - ID_MAP_MEMORY_1GB);
+    ApplyMapMemory();
+    wxConfig cfg("Mineways");
+    cfg.Write("mapMemoryMB", m_mapMemoryMB);
+    cfg.Flush();
+    RedrawMap();
 }
 
 void MinewaysFrame::OnMapPanelSize(int w, int h)
@@ -723,6 +762,7 @@ void MinewaysFrame::LoadTestBlockWorld()
     gTargetDepth      = gMinHeight;
     gLoaded           = TRUE;
 
+    ApplyMapMemory();
     SetTitle("Mineways — Test Block World");
     if (m_sliderTop) {
         m_sliderTop->SetRange(gMinHeight, gMaxHeight);
@@ -999,6 +1039,8 @@ void MinewaysFrame::OnExportOBJ(wxCommandEvent&)
 // (reuses the last-used efd/path without reopening the dialog).
 void MinewaysFrame::RunExport(ExportFileData& efd, const wchar_t* outputPath)
 {
+    m_mapPanel->PauseLoading();
+    wxON_BLOCK_EXIT_OBJ0(*m_mapPanel, MapPanel::ResumeLoading);
     // Re-derive the export bounds from the live highlight state, same as Win/Mineways.cpp's
     // saveObjFile does unconditionally before every export. Without this, a script's
     // "Selection location..." command (which only updates the map highlight via
@@ -1254,6 +1296,7 @@ void MinewaysFrame::OnRecentExportItem(wxCommandEvent& e)
 
 void MinewaysFrame::OnGiveMoreExportMemory(wxCommandEvent&)
 {
+    ChunkLoaderStop();
     gOptions.moreExportMemory = !gOptions.moreExportMemory;
     if (GetMenuBar()) GetMenuBar()->Check(ID_HELP_GIVE_MORE_MEMORY, gOptions.moreExportMemory);
     MinimizeCacheBlocks(gOptions.moreExportMemory);
@@ -1289,6 +1332,8 @@ void MinewaysFrame::OnRepeatExport(wxCommandEvent&)
 // platform-independent code already compiled into the Mac binary.
 void MinewaysFrame::OnExportMap(wxCommandEvent&)
 {
+    m_mapPanel->PauseLoading();
+    wxON_BLOCK_EXIT_OBJ0(*m_mapPanel, MapPanel::ResumeLoading);
     if (!gLoaded) {
         wxMessageBox("Load a world first.", "No world loaded", wxOK | wxICON_WARNING, this);
         return;
@@ -1616,11 +1661,13 @@ void MinewaysFrame::OnViewEnd(wxCommandEvent&)
 
 void MinewaysFrame::RedrawMap()
 {
+    ApplyMapMemory();
     if (m_mapPanel) m_mapPanel->RedrawMap();
 }
 
 void MinewaysFrame::ClearLoadedWorld()
 {
+    if (m_mapPanel) m_mapPanel->ResetMap();
     ClearLoadedWorldData();
     SetTitle("Mineways");
     SetStatusText("No world loaded", 0);

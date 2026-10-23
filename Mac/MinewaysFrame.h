@@ -41,6 +41,9 @@ private:
     wxStaticText* m_labelBot  = nullptr;
 
     void BuildMenu();
+    void ApplyMapMemory();
+    void OnMapMemory(wxCommandEvent&);
+    int m_mapMemoryMB = 2048;
     void ClearLoadedWorld();
 
     // File menu
@@ -125,6 +128,11 @@ enum {
     ID_HELP_DOCUMENTATION,
     ID_HELP_REPORT_BUG,
     ID_HELP_GIVE_MORE_MEMORY,
+    ID_MAP_MEMORY_1GB,
+    ID_MAP_MEMORY_2GB,
+    ID_MAP_MEMORY_4GB,
+    ID_MAP_MEMORY_8GB,
+    ID_MAP_MEMORY_16GB,
     // Dynamic world-list items occupy [ID_WORLD_ITEM_BASE, ID_WORLD_ITEM_BASE+MAX_WORLDS)
     ID_WORLD_ITEM_BASE = wxID_HIGHEST + 100,
     MAX_WORLDS         = 50,

@@ -24,7 +24,7 @@ extern int&        GetStartHiZ();
 extern Options*    GetOptions();
 extern WorldGuide* GetWorldGuide();
 extern const char* QueryBlock(int bx, int by, int* mx, int* my, int* mz, int* type, int* dataVal, int* biome);
-extern void    RedrawMapIntoBuffer();
+extern bool RenderMapIntoBuffer(MapRenderer& renderer);
 extern MinewaysFrame* gFrame;   // ponytail: fine as extern, single instance
 
 wxBEGIN_EVENT_TABLE(MapPanel, wxPanel)
@@ -41,16 +41,18 @@ wxEND_EVENT_TABLE()
 
 MapPanel::MapPanel(wxWindow* parent)
     : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize,
-              wxWANTS_CHARS | wxFULL_REPAINT_ON_RESIZE)
+              wxWANTS_CHARS | wxFULL_REPAINT_ON_RESIZE), m_timer(this)
 {
     SetBackgroundStyle(wxBG_STYLE_PAINT);
+    Bind(wxEVT_TIMER, &MapPanel::OnRenderTimer, this, m_timer.GetId());
 }
 
-MapPanel::~MapPanel() { free(m_rgbBuf); }
+MapPanel::~MapPanel() { ResetMap(); free(m_rgbBuf); }
 
 void MapPanel::ResizeBuffer(int w, int h)
 {
     if (w == m_w && h == m_h) return;
+    ResetMap();
     m_w = w; m_h = h;
     free(m_rgbBuf);
     m_rgbBuf = (w > 0 && h > 0) ? (unsigned char*)malloc((size_t)w * h * 3) : nullptr;
@@ -59,7 +61,32 @@ void MapPanel::ResizeBuffer(int w, int h)
 
 void MapPanel::RedrawMap()
 {
-    RedrawMapIntoBuffer();
+    if (!m_paused && !m_timer.IsRunning()) m_timer.Start(16);
+}
+
+void MapPanel::ResetMap()
+{
+    m_timer.Stop();
+    ChunkLoaderStop();
+    m_renderer.Reset();
+}
+
+void MapPanel::PauseLoading()
+{
+    m_paused = true;
+    ResetMap();
+}
+
+void MapPanel::ResumeLoading()
+{
+    m_paused = false;
+    RedrawMap();
+}
+
+void MapPanel::OnRenderTimer(wxTimerEvent&)
+{
+    if (m_paused) return;
+    if (!RenderMapIntoBuffer(m_renderer)) m_timer.Stop();
     Refresh(false);
 }
 
