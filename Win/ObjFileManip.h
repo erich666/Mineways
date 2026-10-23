@@ -193,6 +193,8 @@ typedef struct SimplifyFaceRecord {
     float yll;
     SimplifyFaceRecord* pXneighborSFR;
     SimplifyFaceRecord* pYneighborSFR;
+    // the planning pass that put this face in a rectangle, see planSimplifyRects()
+    int planPass;
 } SimplifyFaceRecord;
 
 #define SIMPLIFY_FACE_RECORD_POOL_SIZE 10000
