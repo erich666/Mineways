@@ -234,8 +234,9 @@ static int LoadSchematicFile(const wchar_t* pathAndFile, bool isSponge)
     }
 
     gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
-    gMaxHeight = MAX_WORLD_HEIGHT(gVersionID, gMinecraftVersion);
-    gMinHeight = ZERO_WORLD_HEIGHT(gVersionID, gMinecraftVersion);
+    // Schematics start at y=0, independently of their Minecraft version.
+    gMinHeight = 0;
+    gMaxHeight = 255;
     gWorldGuide.minHeight = gMinHeight;
     gWorldGuide.maxHeight = gMaxHeight;
     return 0;
@@ -709,7 +710,7 @@ void MinewaysFrame::LoadTestBlockWorld()
 
     gWorldGuide.type  = WORLD_TEST_BLOCK_TYPE;
     gWorldGuide.world[0] = 0;
-    gVersionID        = 3953;   // current data version
+    gVersionID        = 5023;   // Minecraft 26.3
     gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
     gMinHeight        = ZERO_WORLD_HEIGHT(gVersionID, gMinecraftVersion);
     gMaxHeight        = MAX_WORLD_HEIGHT(gVersionID, gMinecraftVersion);

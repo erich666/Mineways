@@ -62,9 +62,13 @@ TARGET    := mineways
 APP_NAME  := Mineways.app
 APP_CONTENTS := $(APP_NAME)/Contents
 
-.PHONY: all app clean FORCE
+.PHONY: all app clean test FORCE
 
 all: $(TARGET)
+
+test: $(ALL_OBJS)
+	$(CXX) $(GUI_CXXFLAGS) tests/port_regressions.cpp $(filter-out MinewaysApp.o MinewaysFrame.o ImportSettings.o,$(ALL_OBJS)) $(LDFLAGS) $(LIBS) -o /tmp/mineways-port-regressions
+	/tmp/mineways-port-regressions
 
 $(TARGET): $(ALL_OBJS)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)

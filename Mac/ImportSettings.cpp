@@ -594,7 +594,11 @@ static int InterpretImportLine(char* line, ImportedSet& is)
         char string1[100] = {};
         if (sscanf(strPtr, "%99s", string1) != 1) { SaveErrorMessage(is, "could not find boolean value for 'Export separate objects' command."); return INTERPRETER_FOUND_ERROR; }
         if (!ValidBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-        if (is.processData) is.pEFD->chkSeparateTypes = InterpretBoolean(string1);
+        if (is.processData) {
+            is.pEFD->chkSeparateTypes = InterpretBoolean(string1);
+            if (is.pEFD->chkSeparateTypes && (is.pEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || is.pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ))
+                is.pEFD->chkIndividualBlocks[is.pEFD->fileType] = 0;
+        }
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 
@@ -604,7 +608,11 @@ static int InterpretImportLine(char* line, ImportedSet& is)
         char string1[100] = {};
         if (sscanf(strPtr, "%99s", string1) != 1) { SaveErrorMessage(is, "could not find boolean value for 'Individual blocks' command."); return INTERPRETER_FOUND_ERROR; }
         if (!ValidBoolean(is, string1)) return INTERPRETER_FOUND_ERROR;
-        if (is.processData) is.pEFD->chkIndividualBlocks[is.pEFD->fileType] = InterpretBoolean(string1);
+        if (is.processData) {
+            is.pEFD->chkIndividualBlocks[is.pEFD->fileType] = InterpretBoolean(string1);
+            if (is.pEFD->chkIndividualBlocks[is.pEFD->fileType] && (is.pEFD->fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ || is.pEFD->fileType == FILE_TYPE_WAVEFRONT_REL_OBJ))
+                is.pEFD->chkSeparateTypes = 0;
+        }
         return INTERPRETER_FOUND_VALID_EXPORT_LINE;
     }
 
