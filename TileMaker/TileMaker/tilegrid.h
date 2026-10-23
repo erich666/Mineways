@@ -76,6 +76,30 @@ static const wchar_t* gShelfNames[] = { L"acacia_shelf", L"birch_shelf", L"cherr
 	L"jungle_shelf", L"mangrove_shelf", L"oak_shelf", L"pale_oak_shelf", L"warped_shelf", L"bamboo_shelf", L"spruce_shelf", L"poplar_shelf" };
 static const wchar_t* gShelfNamesAlt[] = { L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"" };
 
+// cushions, from textures\entity\cushion, in the order of the dye colors
+#define TOTAL_CUSHION_TILES	16
+static const wchar_t* gCushionNames[] = { L"white_cushion", L"orange_cushion", L"magenta_cushion", L"light_blue_cushion", L"yellow_cushion", L"lime_cushion", L"pink_cushion", L"gray_cushion", L"light_gray_cushion", L"cyan_cushion", L"purple_cushion", L"blue_cushion", L"brown_cushion", L"green_cushion", L"red_cushion", L"black_cushion" };
+static const wchar_t* gCushionNamesAlt[] = { L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"" };
+
+// mob heads: skeleton, wither skeleton, zombie, player, creeper, piglin, and dragon. The player head uses the default "steve" skin.
+#define TOTAL_HEAD_TILES	7
+static const wchar_t* gHeadNames[] = { L"skeleton", L"wither_skeleton", L"zombie", L"steve", L"creeper", L"piglin", L"dragon" };
+static const wchar_t* gHeadNamesAlt[] = { L"", L"", L"", L"", L"", L"", L"" };
+// The directory under textures\entity each is in. Another directory will not do: creeper.png and piglin.png are also in entity\banner and
+// entity\shield, and steve.png is also in entity\player\slim. They are also read from a "head" directory, where ChannelMixer copies them.
+static const wchar_t* gHeadDirs[] = { L"skeleton\\", L"skeleton\\", L"zombie\\", L"player\\wide\\", L"creeper\\", L"piglin\\", L"enderdragon\\" };
+
+// shulker boxes, from textures\entity\shulker, in the order of the dye colors. The undyed shulker.png is not used: Mineways draws the
+// undyed box as the purple one.
+#define TOTAL_SHULKER_TILES	16
+static const wchar_t* gShulkerNames[] = { L"shulker_white", L"shulker_orange", L"shulker_magenta", L"shulker_light_blue", L"shulker_yellow", L"shulker_lime", L"shulker_pink", L"shulker_gray", L"shulker_light_gray", L"shulker_cyan", L"shulker_purple", L"shulker_blue", L"shulker_brown", L"shulker_green", L"shulker_red", L"shulker_black" };
+static const wchar_t* gShulkerNamesAlt[] = { L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"", L"" };
+
+// the end portal's effect texture, from textures\entity\end_portal; its center 16x16 (for a 256x256 image) becomes MWO_end_portal
+#define TOTAL_END_PORTAL_TILES	1
+static const wchar_t* gEndPortalNames[] = { L"end_portal" };
+static const wchar_t* gEndPortalNamesAlt[] = { L"" };
+
 typedef struct ChestGrid {
 	int chestCount;
 	int totalCategories;
@@ -87,6 +111,14 @@ typedef struct ChestGrid {
 static ChestGrid gChestGrid;
 // very stupid code! Shares ChestGrid, but "cr" is not properly allocated for shelfs (but there are more chests than shelves, so it works). UGH.
 static ChestGrid gShelfGrid;
+// cushions, too, share ChestGrid (there are fewer cushions than chests)
+static ChestGrid gCushionGrid;
+// mob heads, too (there are fewer heads than chests)
+static ChestGrid gHeadGrid;
+// shulker boxes, too (there are fewer shulker boxes than chests)
+static ChestGrid gShulkerGrid;
+// and the end portal
+static ChestGrid gEndPortalGrid;
 
 typedef struct DecoratedPotGrid {
 	int decoratedPotCount;
@@ -102,7 +134,7 @@ void initializeFileGrid(FileGrid* pfg);
 void initializeChestGrid(ChestGrid* pcg);
 void initializeDecoratedPotGrid(DecoratedPotGrid* ppg);
 void addBackslashIfNeeded(wchar_t* dir, size_t dirSize);
-int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, ChestGrid *psg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, bool topmost, bool warnUnused, bool warnDups);
+int searchDirectoryForTiles(FileGrid* pfg, ChestGrid* pcg, DecoratedPotGrid* ppg, ChestGrid *psg, ChestGrid* pcushg, ChestGrid* pheadg, ChestGrid* pshulkg, ChestGrid* pportalg, const wchar_t* tilePath, size_t origTPLen, int verbose, int alternate, bool topmost, bool warnUnused, bool warnDups);
 bool dirExists(const wchar_t* path);
 bool createDir(const wchar_t* path);
 int checkTilesInDirectory(FileGrid* pfg, const wchar_t* tilePath, int verbose, int alternate);

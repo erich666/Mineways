@@ -12,12 +12,13 @@
 #include <tchar.h>
 #include <stdio.h>
 #include <vector>
+#include <math.h>
 
 #include "readtga.h"
 #include "tiles.h"
 #include "tilegrid.h"
 
-#define	VERSION_STRING	L"3.29"
+#define	VERSION_STRING	L"3.32"
 
 //#define TILE_PATH	L".\\blocks\\"
 #define BASE_INPUT_FILENAME			L"terrainBase.png"
@@ -201,6 +202,157 @@ static Chest gShelf1219[TOTAL_SHELF_TILES] = {
 	{ L"poplar_shelf", 3, 32, 32, NULL },	// tiles are in the new right half, see below
 };
 
+// Cushions: each 64x64 entity\cushion\*_cushion.png holds a 16x4x16 box in the usual entity layout, using only its top 20 rows. Each is
+// repacked into a 32x32 image, a 2x2 tile span in the terrain image (see MWO_*_cushion in tiles.h): the top and the bottom side by side,
+// and below the top, the four 16x4 sides, one above the other. This template is for the first cushion, white, at 16,12; each color's
+// span is at 16 + 2*(color % 8), 12 + 2*(color / 8).
+static ChestData gCushionData[] = {
+	//  from,    size, to tile,  starting at corner
+	{ 16,  0,  16, 16,  16, 12,   0,  0,  0x0 },	// top
+	{ 32,  0,  16, 16,  17, 12,   0,  0,  0x0 },	// bottom
+	{  0, 16,  16,  4,  16, 13,   0,  0,  0x0 },	// side, texture u 0-16
+	{ 16, 16,  16,  4,  16, 13,   0,  4,  0x0 },	// side, texture u 16-32
+	{ 32, 16,  16,  4,  16, 13,   0,  8,  0x0 },	// side, texture u 32-48
+	{ 48, 16,  16,  4,  16, 13,   0, 12,  0x0 },	// side, texture u 48-64
+};
+#define CUSHION_COPIES	((int)(sizeof(gCushionData) / sizeof(ChestData)))
+
+// the template, moved to each color's location
+ChestData gCushions[TOTAL_CUSHION_TILES][CUSHION_COPIES];
+
+// the data pointers are set to gCushions
+static Chest gCushion[TOTAL_CUSHION_TILES] = {
+	{ L"white_cushion", 6, 64, 64, NULL },
+	{ L"orange_cushion", 6, 64, 64, NULL },
+	{ L"magenta_cushion", 6, 64, 64, NULL },
+	{ L"light_blue_cushion", 6, 64, 64, NULL },
+	{ L"yellow_cushion", 6, 64, 64, NULL },
+	{ L"lime_cushion", 6, 64, 64, NULL },
+	{ L"pink_cushion", 6, 64, 64, NULL },
+	{ L"gray_cushion", 6, 64, 64, NULL },
+	{ L"light_gray_cushion", 6, 64, 64, NULL },
+	{ L"cyan_cushion", 6, 64, 64, NULL },
+	{ L"purple_cushion", 6, 64, 64, NULL },
+	{ L"blue_cushion", 6, 64, 64, NULL },
+	{ L"brown_cushion", 6, 64, 64, NULL },
+	{ L"green_cushion", 6, 64, 64, NULL },
+	{ L"red_cushion", 6, 64, 64, NULL },
+	{ L"black_cushion", 6, 64, 64, NULL }
+};
+
+// Mob heads: each head's entity texture (64x32 or 64x64) has the 8x8x8 head box in the usual entity layout at 0,0, in its top 16 rows,
+// and, for the zombie and player, the hat box beside it, at 32,0. These top 16 rows are repacked into a 32x32 image, a 2x2 tile span
+// in the terrain image (see MWO_*_head and MWO_*_skull in tiles.h): the head's half above, the hat's half below. The piglin's 64x64
+// texture has no hat, but its top 16 rows also hold its snout, tusks, and ears. This template is for the first head, the skeleton's,
+// at 16,24; each head type's span is at 16 + 2*type, 24 (see gHeadType).
+static ChestData gHeadData[] = {
+	//  from,    size, to tile,  starting at corner
+	{  0,  0,  16, 16,  16, 24,   0,  0,  0x0 },	// head, texture u 0-16
+	{ 16,  0,  16, 16,  17, 24,   0,  0,  0x0 },	// head, texture u 16-32
+	{ 32,  0,  16, 16,  16, 25,   0,  0,  0x0 },	// hat, texture u 32-48
+	{ 48,  0,  16, 16,  17, 25,   0,  0,  0x0 },	// hat, texture u 48-64
+};
+#define HEAD_COPIES	((int)(sizeof(gHeadData) / sizeof(ChestData)))
+
+// The dragon head's parts are scattered over its 256x256 entity texture, dragon.png: the head box, the upper lip (snout), the jaw, the
+// scales (horns), and the nostrils. They are repacked into a 96x96 image, a 6x6 tile span at 16,26 (see MWO_dragon_head in tiles.h):
+// the head box's layout at its upper left, below it the upper lip's, below that the jaw's, and to the head box's right, the scale's
+// and then the nostril's. Each part is copied a tile at a time.
+static ChestData gDragonHeadData[] = {
+	//  from,    size, to tile,  starting at corner
+	{ 112,  30,  16, 16,  16, 26,   0,  0,  0x0 },	// upper head
+	{ 128,  30,  16, 16,  17, 26,   0,  0,  0x0 },	// upper head
+	{ 144,  30,  16, 16,  18, 26,   0,  0,  0x0 },	// upper head
+	{ 160,  30,  16, 16,  19, 26,   0,  0,  0x0 },	// upper head
+	{ 112,  46,  16, 16,  16, 27,   0,  0,  0x0 },	// upper head
+	{ 128,  46,  16, 16,  17, 27,   0,  0,  0x0 },	// upper head
+	{ 144,  46,  16, 16,  18, 27,   0,  0,  0x0 },	// upper head
+	{ 160,  46,  16, 16,  19, 27,   0,  0,  0x0 },	// upper head
+	{ 176,  44,  16, 16,  16, 28,   0,  0,  0x0 },	// upper lip
+	{ 192,  44,  16, 16,  17, 28,   0,  0,  0x0 },	// upper lip
+	{ 208,  44,  16, 16,  18, 28,   0,  0,  0x0 },	// upper lip
+	{ 224,  44,   8, 16,  19, 28,   0,  0,  0x0 },	// upper lip
+	{ 176,  60,  16,  5,  16, 29,   0,  0,  0x0 },	// upper lip
+	{ 192,  60,  16,  5,  17, 29,   0,  0,  0x0 },	// upper lip
+	{ 208,  60,  16,  5,  18, 29,   0,  0,  0x0 },	// upper lip
+	{ 224,  60,   8,  5,  19, 29,   0,  0,  0x0 },	// upper lip
+	{ 176,  65,  16, 16,  16, 30,   0,  0,  0x0 },	// jaw
+	{ 192,  65,  16, 16,  17, 30,   0,  0,  0x0 },	// jaw
+	{ 208,  65,  16, 16,  18, 30,   0,  0,  0x0 },	// jaw
+	{ 224,  65,   8, 16,  19, 30,   0,  0,  0x0 },	// jaw
+	{ 176,  81,  16,  4,  16, 31,   0,  0,  0x0 },	// jaw
+	{ 192,  81,  16,  4,  17, 31,   0,  0,  0x0 },	// jaw
+	{ 208,  81,  16,  4,  18, 31,   0,  0,  0x0 },	// jaw
+	{ 224,  81,   8,  4,  19, 31,   0,  0,  0x0 },	// jaw
+	{   0,   0,  16, 10,  20, 26,   0,  0,  0x0 },	// scale
+	{ 112,   0,  12,  6,  21, 26,   0,  0,  0x0 },	// nostril
+};
+#define DRAGON_HEAD_COPIES	((int)(sizeof(gDragonHeadData) / sizeof(ChestData)))
+
+// the template, moved to each head's location
+ChestData gHeads[TOTAL_HEAD_TILES][HEAD_COPIES];
+
+// the data pointers are set to gHeads
+static Chest gHead[TOTAL_HEAD_TILES] = {
+	{ L"skeleton", 4, 64, 32, NULL },
+	{ L"wither_skeleton", 4, 64, 32, NULL },
+	{ L"zombie", 4, 64, 64, NULL },
+	{ L"steve", 4, 64, 64, NULL },
+	{ L"creeper", 4, 64, 32, NULL },
+	{ L"piglin", 4, 64, 64, NULL },
+	{ L"dragon", DRAGON_HEAD_COPIES, 256, 256, gDragonHeadData }
+};
+// the Mineways head type of each, which places its span; the dragon head, type 5, has its own data, gDragonHeadData
+#define HEAD_TYPE_DRAGON	5
+static const int gHeadType[TOTAL_HEAD_TILES] = { 0, 1, 2, 3, 4, 6, HEAD_TYPE_DRAGON };
+
+// Shulker boxes: each 64x64 entity\shulker\shulker_*.png holds the lid, a 16x12x16 box at 0,0, and the base, a 16x8x16 box at 0,28, in the
+// usual entity layout. The closed box's side is the lid's side over the base's side: the lid covers the top 12 rows, and the base shows in
+// the bottom 4 rows and through the lid's transparent pixels (flag 0x4). The bottom is the base's bottom. The top is the block texture
+// itself, e.g. white_shulker_box.png. This template is for white, MWO_shulker_side_white at 0,31 and MWO_shulker_bottom_white at 0,32;
+// each color's tiles are one column over, at the color's index.
+static ChestData gShulkerData[] = {
+	//  from,    size, to tile,  starting at corner
+	{  0, 44,  16,  8,   0, 31,   0,  8,  0x0 },	// side of base, under the lid
+	{  0, 16,  16, 12,   0, 31,   0,  0,  0x4 },	// side of lid, over the base
+	{ 32, 28,  16, 16,   0, 32,   0,  0,  0x0 },	// bottom of base
+};
+#define SHULKER_COPIES	((int)(sizeof(gShulkerData) / sizeof(ChestData)))
+
+// the template, moved to each color's location
+ChestData gShulkers[TOTAL_SHULKER_TILES][SHULKER_COPIES];
+
+// the data pointers are set to gShulkers
+static Chest gShulker[TOTAL_SHULKER_TILES] = {
+	{ L"shulker_white", 3, 64, 64, NULL },
+	{ L"shulker_orange", 3, 64, 64, NULL },
+	{ L"shulker_magenta", 3, 64, 64, NULL },
+	{ L"shulker_light_blue", 3, 64, 64, NULL },
+	{ L"shulker_yellow", 3, 64, 64, NULL },
+	{ L"shulker_lime", 3, 64, 64, NULL },
+	{ L"shulker_pink", 3, 64, 64, NULL },
+	{ L"shulker_gray", 3, 64, 64, NULL },
+	{ L"shulker_light_gray", 3, 64, 64, NULL },
+	{ L"shulker_cyan", 3, 64, 64, NULL },
+	{ L"shulker_purple", 3, 64, 64, NULL },
+	{ L"shulker_blue", 3, 64, 64, NULL },
+	{ L"shulker_brown", 3, 64, 64, NULL },
+	{ L"shulker_green", 3, 64, 64, NULL },
+	{ L"shulker_red", 3, 64, 64, NULL },
+	{ L"shulker_black", 3, 64, 64, NULL }
+};
+
+// End portal: the center 16x16 of the 256x256 entity\end_portal\end_portal.png becomes MWO_end_portal at 8,11. For the color tile this is
+// then replaced by layering tinted copies of the whole texture, see makeEndPortalTile().
+static ChestData gEndPortalData[] = {
+	//  from,    size, to tile,  starting at corner
+	{ 120, 120,  16, 16,   8, 11,   0,  0,  0x0 },	// MWO_end_portal
+};
+
+static Chest gEndPortal[TOTAL_END_PORTAL_TILES] = {
+	{ L"end_portal", 1, 256, 256, gEndPortalData }
+};
+
 static int gErrorCount = 0;
 static int gWarningCount = 0;
 
@@ -242,16 +394,15 @@ static void setBlackAlphaPNGTile(int chosenTile, progimage_info* src);
 static int setBlackToNearlyBlack(progimage_info* src);
 static int copyPNGTile(progimage_info* dst, int channels, unsigned long dst_x, unsigned long dst_y, unsigned long chosenTile, progimage_info* src,
 	unsigned long dst_x_lo, unsigned long dst_y_lo, unsigned long dst_x_hi, unsigned long dst_y_hi, unsigned long src_x_lo, unsigned long src_y_lo, unsigned long flags, float zoom);
-static void multPNGTileByColor(progimage_info* dst, int dst_x, int dst_y, int* color);
 static bool getPNGPixel(progimage_info* src, int channels, int col, int row, unsigned char* color);
-static void getBrightestPNGPixel(progimage_info* src, int channels, unsigned long col, unsigned long row, unsigned long res, unsigned char* color, int* locc, int* locr);
 static int computeVerticalTileOffset(progimage_info* src, int chosenTile);
 static int isPNGTileEmpty(progimage_info* dst, int dst_x, int dst_y);
 static void makePNGTileEmpty(progimage_info* dst, int dst_x, int dst_y);
 static void makeSolidTile(progimage_info* dst, int chosenTile, int solid, int span);
 
 static void copyPNG(progimage_info* dst, progimage_info* src);
-static void copyPNGArea(progimage_info* dst, unsigned long dst_x_min, unsigned long dst_y_min, unsigned long size_x, unsigned long size_y, progimage_info* src, int src_x_min, int src_y_min);
+
+static void makeEndPortalTile(progimage_info* dst, int dst_x, int dst_y, progimage_info* src);
 
 static int checkForCutout(progimage_info* dst);
 static int isNormalMapZ01(progimage_info& tile);
@@ -271,7 +422,7 @@ int wmain(int argc, wchar_t* argv[])
 	progimage_info destination;
 	progimage_info* destination_ptr = &destination;
 
-	int i, j, catIndex;
+	int i, catIndex;
 	int index, sideIndex, dirtIndex, fullIndex, fullSideIndex, fullDirtIndex;
 
 	int baseTileSize, xTiles, baseYTiles, baseXResolution, baseYResolution;
@@ -295,6 +446,10 @@ int wmain(int argc, wchar_t* argv[])
 	int overlayChestSize = 0;
 	int overlayDecoratedPotSize = 0;
 	int overlayShelfSize = 0;
+	int overlayCushionSize = 0;
+	int overlayHeadSize = 0;
+	int overlayShulkerSize = 0;
+	int overlayEndPortalSize = 0;
 	int forcedTileSize = 0;
 	int chosenTile = 0;
 
@@ -321,6 +476,18 @@ int wmain(int argc, wchar_t* argv[])
 	bool allShelfs = true;	// yeah, I know, "shelves", but going for consistency here so it's easier to edit
 	bool anyShelfs = false;
 
+	bool allCushions = true;
+	bool anyCushions = false;
+
+	bool allHeads = true;
+	bool anyHeads = false;
+
+	bool allShulkers = true;
+	bool anyShulkers = false;
+
+	bool allEndPortals = true;
+	bool anyEndPortals = false;
+
 	bool terrainBaseSet = false;
 	bool warnUnused = false;
 
@@ -328,6 +495,10 @@ int wmain(int argc, wchar_t* argv[])
 	initializeChestGrid(&gChestGrid);
 	initializeDecoratedPotGrid(&gPotGrid);
 	initializeChestGrid(&gShelfGrid);
+	initializeChestGrid(&gCushionGrid);
+	initializeChestGrid(&gHeadGrid);
+	initializeChestGrid(&gShulkerGrid);
+	initializeChestGrid(&gEndPortalGrid);
 
 	wcscpy_s(terrainBase, MAX_PATH_AND_FILE, BASE_INPUT_FILENAME);
 	wcscpy_s(terrainExtOutputTemplate, MAX_PATH_AND_FILE, OUTPUT_FILENAME);
@@ -594,9 +765,13 @@ int wmain(int argc, wchar_t* argv[])
 		//  "chest" or "chests" - look for chest names and fill in
 		//  "decorated_pot" or "decorated_pots" - look for decorated pot names and fill in
 		//  "shelf" - look for shelf names and fill in
+		//  "cushion" - look for cushion names and fill in
+		//  "head", or each mob head's own entity directory - look for mob head names and fill in
+		//  "shulker" - look for shulker box names and fill in
+		//  "end_portal" - look for end_portal.png and fill in
 		//  "item" or "items" - look for barrier.png, only
 		// If it's none of these, then look through it for directories. Ignore '.' and '..'. Recursively search directories for more directories.
-		int fileCount = searchDirectoryForTiles(&gFG, &gChestGrid, &gPotGrid, &gShelfGrid, *inputDirectoryPtr, wcslen(*inputDirectoryPtr), verbose, alternate, true, warnUnused, warnDups);
+		int fileCount = searchDirectoryForTiles(&gFG, &gChestGrid, &gPotGrid, &gShelfGrid, &gCushionGrid, &gHeadGrid, &gShulkerGrid, &gEndPortalGrid, *inputDirectoryPtr, wcslen(*inputDirectoryPtr), verbose, alternate, true, warnUnused, warnDups);
 		warnDups = false;
 		if (fileCount < 0) {
 			swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR: cannot access the directory '%s' (Windows error code # %d). Ignoring directory.\n", *inputDirectoryPtr, GetLastError());
@@ -610,7 +785,7 @@ int wmain(int argc, wchar_t* argv[])
 	}
 
 	// any data found? Not needed if forcing a tile size (resizing the base texture).
-	if ((forcedTileSize == 0) && (gFG.fileCount <= 0 && gChestGrid.chestCount <= 0 && gPotGrid.decoratedPotCount <= 0 && gShelfGrid.chestCount <= 0)) {
+	if ((forcedTileSize == 0) && (gFG.fileCount <= 0 && gChestGrid.chestCount <= 0 && gPotGrid.decoratedPotCount <= 0 && gShelfGrid.chestCount <= 0 && gCushionGrid.chestCount <= 0 && gHeadGrid.chestCount <= 0 && gShulkerGrid.chestCount <= 0 && gEndPortalGrid.chestCount <= 0)) {
 		wprintf(L"***** ERROR: no textures were read in for replacing. Nothing to do!\n  Put your new textures in the 'blocks' directory, or use\n  the '-d directory' command line option to say where your new textures are.\n");
 		return 1;
 	}
@@ -679,6 +854,70 @@ int wmain(int argc, wchar_t* argv[])
 				}
 				else {
 					overlayShelfSize = size;
+				}
+			}
+		}
+	}
+
+	// check over cushion tiles' power of twos, to see if any are in error
+	for (catIndex = 0; catIndex < gCushionGrid.totalCategories; catIndex++) {
+		for (index = 0; index < gCushionGrid.totalTiles; index++) {
+			fullIndex = catIndex * gCushionGrid.totalTiles + index;
+			if (gCushionGrid.cr[fullIndex].exists) {
+				size = checkFileWidth(&gCushionGrid.cr[fullIndex], overlayCushionSize, false, false, -1, 0, 0, 0);
+				if (size == 0) {
+					deleteChestFromGrid(&gCushionGrid, fullIndex / gCushionGrid.totalTiles, fullIndex);
+				}
+				else {
+					overlayCushionSize = size;
+				}
+			}
+		}
+	}
+
+	// check over mob head tiles' power of twos, to see if any are in error
+	for (catIndex = 0; catIndex < gHeadGrid.totalCategories; catIndex++) {
+		for (index = 0; index < gHeadGrid.totalTiles; index++) {
+			fullIndex = catIndex * gHeadGrid.totalTiles + index;
+			if (gHeadGrid.cr[fullIndex].exists) {
+				size = checkFileWidth(&gHeadGrid.cr[fullIndex], overlayHeadSize, false, false, -1, 0, 0, 0);
+				if (size == 0) {
+					deleteChestFromGrid(&gHeadGrid, fullIndex / gHeadGrid.totalTiles, fullIndex);
+				}
+				else {
+					overlayHeadSize = size;
+				}
+			}
+		}
+	}
+
+	// check over shulker box tiles' power of twos, to see if any are in error
+	for (catIndex = 0; catIndex < gShulkerGrid.totalCategories; catIndex++) {
+		for (index = 0; index < gShulkerGrid.totalTiles; index++) {
+			fullIndex = catIndex * gShulkerGrid.totalTiles + index;
+			if (gShulkerGrid.cr[fullIndex].exists) {
+				size = checkFileWidth(&gShulkerGrid.cr[fullIndex], overlayShulkerSize, false, false, -1, 0, 0, 0);
+				if (size == 0) {
+					deleteChestFromGrid(&gShulkerGrid, fullIndex / gShulkerGrid.totalTiles, fullIndex);
+				}
+				else {
+					overlayShulkerSize = size;
+				}
+			}
+		}
+	}
+
+	// check over end portal tiles' power of twos, to see if any are in error
+	for (catIndex = 0; catIndex < gEndPortalGrid.totalCategories; catIndex++) {
+		for (index = 0; index < gEndPortalGrid.totalTiles; index++) {
+			fullIndex = catIndex * gEndPortalGrid.totalTiles + index;
+			if (gEndPortalGrid.cr[fullIndex].exists) {
+				size = checkFileWidth(&gEndPortalGrid.cr[fullIndex], overlayEndPortalSize, false, false, -1, 0, 0, 0);
+				if (size == 0) {
+					deleteChestFromGrid(&gEndPortalGrid, fullIndex / gEndPortalGrid.totalTiles, fullIndex);
+				}
+				else {
+					overlayEndPortalSize = size;
 				}
 			}
 		}
@@ -1197,80 +1436,7 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 			}
 
 			////////////////////////
-			// Special stuff - shulker boxes, and chests, and decorated pot, and shelfs
-			if (catIndex == CATEGORY_RGBA) {
-				// Compute shulker box sides and bottoms, if not input
-
-				// look through tiles missing: if shulker side and bottom tiles found, note they don't need to be generated;
-				// these are not standard at all - shulkers now have their own entitities - but are left in for simplicity.
-				// TODO: someday add in shulker box reader, just like chests
-				int topIndex = findTileIndex(L"white_shulker_box", 0);
-				int startIndex = findTileIndex(L"shulker_side_white", 0);
-				int neutralSideIndex = findTileIndex(L"MW_SHULKER_SIDE", 0);
-				int neutralBottomIndex = findTileIndex(L"MW_SHULKER_BOTTOM", 0);
-				// where do shulker sides start?
-				fullIndex = catIndex * gFG.totalTiles + startIndex;
-				// go through 16 side and bottoms
-				for (i = 0; i < 16; i++) {
-					bool sideNeeded = !gFG.fr[fullIndex].exists;
-					bool bottomNeeded = !gFG.fr[fullIndex + XTILES].exists;	// bottoms follow sides, one row down
-					if (sideNeeded || bottomNeeded) {
-						// Compute shulker box sides and bottoms, if not input
-
-						// Take location 2,2 on the top as the "base color". Multiply by this color, divide by the white color, and then multiply the side and bottom tile by this color. Save.
-						unsigned char box_color[4];
-						int neutral_color[4], mult_color[4];
-
-						// check that the entries are in tiles.h.
-						// Note that we work from the output image file being generated, so we
-						// don't actually ever read in any of the 3 images above - they're assumed
-						// to be in the output image already (from terrainBase.png).
-						assert(topIndex >= 0 && neutralSideIndex >= 0 && neutralBottomIndex >= 0);
-						int pick_row = outputTileSize / 2;
-						int pick_col = outputTileSize / 2;
-
-						// compute side and bottom color
-						// First, find brightest pixel
-						if (i == 0) {
-							// the white box needs no adjustment
-							getBrightestPNGPixel(destination_ptr, channels, gTilesTable[topIndex].txrX * outputTileSize, gTilesTable[topIndex].txrY * outputTileSize, outputTileSize, box_color, &pick_col, &pick_row);
-							for (j = 0; j < 4; j++) {
-								neutral_color[j] = box_color[j];
-								mult_color[j] = 255;
-							}
-						}
-						else {
-							getPNGPixel(destination_ptr, channels, gTilesTable[topIndex].txrX * outputTileSize + pick_col, gTilesTable[topIndex].txrY * outputTileSize + pick_row, box_color);
-							for (j = 0; j < 4; j++) {
-								if (neutral_color[j] > 0) {
-									mult_color[j] = (255 * (int)box_color[j] / (int)neutral_color[j]);
-								}
-								else {
-									// avoid division by zero
-									mult_color[j] = 0;
-								}
-							}
-						}
-						// we now have the multiplier color, so multiply base tile by it
-						if (sideNeeded) {
-							// note it "exists" (on output, only) so that the -m missing option is fooled
-							gFG.fr[fullIndex].exists = true;
-							copyPNGArea(destination_ptr, gTilesTable[topIndex].txrX * outputTileSize, (gTilesTable[topIndex].txrY + 4) * outputTileSize, outputTileSize, outputTileSize,
-								destination_ptr, gTilesTable[neutralSideIndex].txrX * outputTileSize, gTilesTable[neutralSideIndex].txrY * outputTileSize);
-							multPNGTileByColor(destination_ptr, gTilesTable[topIndex].txrX, gTilesTable[topIndex].txrY + 4, mult_color);
-						}
-						if (bottomNeeded) {
-							// note it "exists" (on output, only) so that the -m missing option is fooled
-							gFG.fr[fullIndex + XTILES].exists = true;
-							copyPNGArea(destination_ptr, gTilesTable[topIndex].txrX * outputTileSize, (gTilesTable[topIndex].txrY + 5) * outputTileSize, outputTileSize, outputTileSize,
-								destination_ptr, gTilesTable[neutralBottomIndex].txrX * outputTileSize, gTilesTable[neutralBottomIndex].txrY * outputTileSize);
-							multPNGTileByColor(destination_ptr, gTilesTable[topIndex].txrX, gTilesTable[topIndex].txrY + 5, mult_color);
-						}
-					}
-					topIndex++;
-					fullIndex++;
-				}
-			}
+			// Special stuff - chests, shelves, cushions, mob heads, shulker boxes, end portal, and decorated pot
 
 			// Note: done for all categories
 			// Test if any chest exists for this category
@@ -1460,9 +1626,94 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 				transferChestData(catIndex, numShelfs, allShelfs, anyShelfs, shelf, gShelfGrid, gShelfNames, destination_ptr, filesProcessed, channels, normalsZoom, verbose, rc);
 			}
 
+			// Cushions, like chests: repack each color's entity texture into its span of tiles
+			bool cushion_exists = false;
+			for (ic = 0; ic < TOTAL_CUSHION_TILES; ic++) {
+				if (gCushionGrid.cr[ic + catIndex * gCushionGrid.totalTiles].exists) {
+					cushion_exists = true;
+					break;
+				}
+			}
+			if (cushion_exists && (gCushionGrid.chestCount > 0))
+			{
+				for (int icu = 0; icu < TOTAL_CUSHION_TILES; icu++) {
+					for (int ip = 0; ip < CUSHION_COPIES; ip++) {
+						gCushions[icu][ip] = gCushionData[ip];
+						gCushions[icu][ip].txrX += 2 * (icu % 8);
+						gCushions[icu][ip].txrY += 2 * (icu / 8);
+					}
+					gCushion[icu].data = gCushions[icu];
+				}
+				transferChestData(catIndex, TOTAL_CUSHION_TILES, allCushions, anyCushions, gCushion, gCushionGrid, gCushionNames, destination_ptr, filesProcessed, channels, normalsZoom, verbose, rc);
+			}
+
+			// Mob heads, like chests: repack each head's entity texture into its span of tiles
+			bool head_exists = false;
+			for (ic = 0; ic < TOTAL_HEAD_TILES; ic++) {
+				if (gHeadGrid.cr[ic + catIndex * gHeadGrid.totalTiles].exists) {
+					head_exists = true;
+					break;
+				}
+			}
+			if (head_exists && (gHeadGrid.chestCount > 0))
+			{
+				for (int ih = 0; ih < TOTAL_HEAD_TILES; ih++) {
+					if (gHeadType[ih] == HEAD_TYPE_DRAGON)
+						continue;
+					for (int ip = 0; ip < HEAD_COPIES; ip++) {
+						gHeads[ih][ip] = gHeadData[ip];
+						gHeads[ih][ip].txrX += 2 * gHeadType[ih];
+					}
+					gHead[ih].data = gHeads[ih];
+				}
+				transferChestData(catIndex, TOTAL_HEAD_TILES, allHeads, anyHeads, gHead, gHeadGrid, gHeadNames, destination_ptr, filesProcessed, channels, normalsZoom, verbose, rc);
+			}
+
+			// Shulker boxes, like chests: make each color's side and bottom tiles from its entity texture
+			bool shulker_exists = false;
+			for (ic = 0; ic < TOTAL_SHULKER_TILES; ic++) {
+				if (gShulkerGrid.cr[ic + catIndex * gShulkerGrid.totalTiles].exists) {
+					shulker_exists = true;
+					break;
+				}
+			}
+			if (shulker_exists && (gShulkerGrid.chestCount > 0))
+			{
+				for (int ish = 0; ish < TOTAL_SHULKER_TILES; ish++) {
+					for (int ip = 0; ip < SHULKER_COPIES; ip++) {
+						gShulkers[ish][ip] = gShulkerData[ip];
+						gShulkers[ish][ip].txrX += ish;
+					}
+					gShulker[ish].data = gShulkers[ish];
+				}
+				transferChestData(catIndex, TOTAL_SHULKER_TILES, allShulkers, anyShulkers, gShulker, gShulkerGrid, gShulkerNames, destination_ptr, filesProcessed, channels, normalsZoom, verbose, rc);
+			}
+
+			// End portal, like chests: copy part of its entity texture to MWO_end_portal
+			if (gEndPortalGrid.cr[catIndex * gEndPortalGrid.totalTiles].exists && (gEndPortalGrid.chestCount > 0))
+			{
+				transferChestData(catIndex, TOTAL_END_PORTAL_TILES, allEndPortals, anyEndPortals, gEndPortal, gEndPortalGrid, gEndPortalNames, destination_ptr, filesProcessed, channels, normalsZoom, verbose, rc);
+
+				// The texture alone is nearly black. For the color tile, layer tinted copies of it, as Minecraft's end portal shader does.
+				if (catIndex == CATEGORY_RGBA && gEndPortalGrid.cr[0].exists) {
+					wchar_t portalFile[MAX_PATH_AND_FILE];
+					wcscpy_s(portalFile, MAX_PATH_AND_FILE, gEndPortalGrid.cr[0].path);
+					wcscat_s(portalFile, MAX_PATH_AND_FILE, gEndPortalGrid.cr[0].fullFilename);
+					progimage_info portalImage;
+					rc = readImage(&portalImage, portalFile, gCatFormat[catIndex], isImageFile(portalFile));
+					if (rc != 0) {
+						reportReadError(rc, portalFile);
+					}
+					else {
+						makeEndPortalTile(destination_ptr, gEndPortalData[0].txrX, gEndPortalData[0].txrY, &portalImage);
+						readImage_cleanup(1, &portalImage);
+					}
+				}
+			}
+
 			// Note: done for all categories
 			// Test if any decorated pot exists for this category.
-			// Really, there's just one tile which makes four textures, MW_decorated_pot_base[1-4], so do things manually
+			// Really, there's just one tile which makes four textures, MWO_decorated_pot_base[1-4], so do things manually
 			if ((gPotGrid.decoratedPotCount > 0) && gPotGrid.pr[catIndex * gPotGrid.totalTiles].exists ) {
 
 				if (gPotGrid.pr[catIndex * gPotGrid.totalTiles].exists) {
@@ -1512,7 +1763,7 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 						float zoom = (float)destination_ptr->width / ((16.0f * XTILES) * (float)potImage.width / 32.0f);	// 16 units per tile, XTILES tiles across
 
 						// copy bits:
-						// MW_decorated_pot_base1
+						// MWO_decorated_pot_base1
 						//   8,0 to 15,7 -> 0,0 to 7,7
 						//   0,8 to 15,10 -> 0,8 to 15,10
 						//   0,11 to 11,11 -> 0,11 to 11,11
@@ -1535,7 +1786,7 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 							0x0,
 							zoom);	// default is (16 * XTILES) / 64 * 4 or 128 * 2 - the 16 * XTILES is 512 now
 
-						// MW_decorated_pot_base2
+						// MWO_decorated_pot_base2
 						//   16,0 to 23,7 -> 0,0 to 7,7
 						//   16,8 to 31,10 -> 0,8 to 15,10
 						//   12,11 to 23,11 -> 0,11 to 11,11
@@ -1558,7 +1809,7 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 							0x0,
 							zoom);	// default is (16 * XTILES) / 64 * 4 or 128 * 2 - the 16 * XTILES is 512 now
 
-						// MW_decorated_pot_base3
+						// MWO_decorated_pot_base3
 						//   0,13 to 13,26 -> 1,1 to 14,14
 						copyPNGTile(destination_ptr, channels, 3, 61, 0,
 							&potImage,
@@ -1567,7 +1818,7 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 							0x0,
 							zoom);	// default is (16 * XTILES) / 64 * 4 or 128 * 2 - the 16 * XTILES is 512 now
 
-						// MW_decorated_pot_base4
+						// MWO_decorated_pot_base4
 						//   14,13 to 13,26 -> 1,1 to 14,14
 						copyPNGTile(destination_ptr, channels, 4, 61, 0,
 							&potImage,
@@ -1682,7 +1933,9 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 					wprintf(L"WARNING: TileMaker needs a tile named '%s.png' that was not replaced.\n", gTilesTable[i].filename);
 					gWarningCount++;
 				}
-				if (wcslen(gTilesTable[i].filename) > 0 &&
+				// MWO_ chest tiles are made from the chest images, not read as tiles, so they are missing only if no chest image was used
+				if (!anyChests &&
+					wcslen(gTilesTable[i].filename) > 0 &&
 					wcsncmp(gTilesTable[i].filename, L"MW", 2) == 0 &&
 					wcsstr(gTilesTable[i].filename, L"chest") != 0
 					) {
@@ -1704,7 +1957,7 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 
 	// warn user that nothing was done
 	// 3 is the number of MW_*.png files that are sometimes used with TileMaker
-	if (gFG.fileCount <= 3 && !anyChests && !anyPots && !anyShelfs) {
+	if (gFG.fileCount <= 3 && !anyChests && !anyPots && !anyShelfs && !anyCushions && !anyHeads && !anyShulkers && !anyEndPortals) {
 		wprintf(L"SERIOUS WARNING: It's likely no real work was done. To use TileMaker, you need to put\n  all the images from your resource pack's 'assets\\minecraft\\textures'\n  block and entity\\chest directories into TileMaker's 'blocks' and\n  'blocks\\chest' directories. See http://mineways.com for more about TileMaker.\n");
 		gWarningCount++;
 	}
@@ -1714,6 +1967,22 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 	}
 	else if (!allShelfs) {
 		wprintf(L"WARNING: Not all relevant shelf images were found in the 'blocks\\shelf' directory.\n  TileMaker worked, but you can add shelf images if you like.\n  Copy these texture resources from Minecraft's jar-file\n  'assets\\minecraft\\textures' directory to\n  Mineways' subdirectory blocks\\shelf.\n");
+		gWarningCount++;
+	}
+	else if (!allCushions) {
+		wprintf(L"WARNING: Not all relevant cushion images were found in the 'blocks\\cushion' directory.\n  TileMaker worked, but you can add cushion images if you like.\n  Copy these texture resources from Minecraft's jar-file\n  'assets\\minecraft\\textures\\entity\\cushion' directory to\n  Mineways' subdirectory blocks\\cushion.\n");
+		gWarningCount++;
+	}
+	else if (!allHeads) {
+		wprintf(L"WARNING: Not all relevant mob head images were found in the 'blocks\\head' directory.\n  TileMaker worked, but you can add mob head images if you like.\n  Copy skeleton.png, wither_skeleton.png, zombie.png, creeper.png, piglin.png, enderdragon\\dragon.png,\n  and player\\wide\\steve.png\n  from Minecraft's jar-file 'assets\\minecraft\\textures\\entity' directories to\n  Mineways' subdirectory blocks\\head.\n");
+		gWarningCount++;
+	}
+	else if (!allShulkers) {
+		wprintf(L"WARNING: Not all relevant shulker box images were found in the 'blocks\\shulker' directory.\n  TileMaker worked, but you can add shulker box images if you like.\n  Copy these texture resources from Minecraft's jar-file\n  'assets\\minecraft\\textures\\entity\\shulker' directory to\n  Mineways' subdirectory blocks\\shulker.\n");
+		gWarningCount++;
+	}
+	else if (!allEndPortals) {
+		wprintf(L"WARNING: The end portal image in the 'blocks\\end_portal' directory could not be used.\n  TileMaker worked, but you can add the end portal image if you like.\n  Copy end_portal.png from Minecraft's jar-file\n  'assets\\minecraft\\textures\\entity\\end_portal' directory to\n  Mineways' subdirectory blocks\\end_portal.\n");
 		gWarningCount++;
 	}
 
@@ -2191,7 +2460,9 @@ static int copyPNGTile(progimage_info* dst, int channels, unsigned long dst_x, u
 					return 1;
 				if (channels == 4 && color[3] == 0)
 				{
-					memset(dst_data, 0, channels);
+					// flag 0x4: a transparent pixel leaves what is there, so this copy is laid over an earlier one
+					if (!(flags & 0x4))
+						memset(dst_data, 0, channels);
 				}
 				else
 				{
@@ -2243,6 +2514,9 @@ static int copyPNGTile(progimage_info* dst, int channels, unsigned long dst_x, u
 					return 1;
 				if (channels == 4 && color[3] == 0)
 				{
+					// flag 0x4: a transparent pixel leaves what is there
+					if (flags & 0x4)
+						continue;
 					color[0] = color[1] = color[2] = 0;
 				}
 				for (zoomrow = 0; zoomrow < izoom; zoomrow++)
@@ -2303,6 +2577,9 @@ static int copyPNGTile(progimage_info* dst, int channels, unsigned long dst_x, u
 						}
 					}
 				}
+				// flag 0x4: a transparent pixel leaves what is there
+				if (channels == 4 && sum[3] == 0 && (flags & 0x4))
+					continue;
 				dst_data = &dst->image_data[0] + ((dst_y * tileSize + row) * dst->width + dst_x * tileSize + col) * channels;
 				for (zoomcol = 0; zoomcol < izoom; zoomcol++)
 				{
@@ -2315,29 +2592,6 @@ static int copyPNGTile(progimage_info* dst, int channels, unsigned long dst_x, u
 		}
 	}
 	return 0;
-}
-
-// Meant for RGBA only!
-static void multPNGTileByColor(progimage_info* dst, int dst_x, int dst_y, int* color)
-{
-	unsigned long row, col, i;
-	unsigned char* dst_data;
-
-	unsigned long tileSize = dst->width / XTILES;
-
-	for (row = 0; row < tileSize; row++)
-	{
-		dst_data = &dst->image_data[0] + ((dst_y * tileSize + row) * dst->width + dst_x * tileSize) * 4;
-		for (col = 0; col < tileSize; col++)
-		{
-			for (i = 0; i < 3; i++) {
-				int val = color[i] * (int)*dst_data / 255;
-				*dst_data++ = (val > 255) ? 255 : (unsigned char)val;
-			}
-			// ignore alpha - assumed solid, and that we wouldn't want to multiply anyway
-			dst_data++;
-		}
-	}
 }
 
 static int computeVerticalTileOffset(progimage_info* src, int chosenTile)
@@ -2358,6 +2612,101 @@ static int computeVerticalTileOffset(progimage_info* src, int chosenTile)
 	}
 
 	return offset;
+}
+
+// Make the MWO_end_portal color tile the way Minecraft's end portal shader (rendertype_end_portal.fsh) draws the portal: 15 copies of
+// end_portal.png, each turned, scaled, and shifted by its layer number, tinted by that layer's color, and added together. The shader's
+// coordinates are in screen space and move with time; here the tile is a fixed window onto the layers, with time 0, and sized so that
+// a middle layer shows about one texel per output pixel at the default 256x256 resolution. The shader's first, end_sky.png, layer is
+// left out. Summed, the layers are dim, at most about 40 of 255, so the tile is then scaled so its brightest channel is 255.
+// src is the RGBA end_portal.png; its red channel is used.
+static void makeEndPortalTile(progimage_info* dst, int dst_x, int dst_y, progimage_info* src)
+{
+	// COLORS from rendertype_end_portal.fsh; layer i uses COLORS[i - 1]
+	static const float layerColor[15][3] = {
+		{ 0.022087f, 0.098399f, 0.110818f },
+		{ 0.011892f, 0.095924f, 0.089485f },
+		{ 0.027636f, 0.101689f, 0.100326f },
+		{ 0.046564f, 0.109883f, 0.114838f },
+		{ 0.064901f, 0.117696f, 0.097189f },
+		{ 0.063761f, 0.086895f, 0.123646f },
+		{ 0.084817f, 0.111994f, 0.166380f },
+		{ 0.097489f, 0.154120f, 0.091064f },
+		{ 0.106152f, 0.131144f, 0.195191f },
+		{ 0.097721f, 0.110188f, 0.187229f },
+		{ 0.133516f, 0.138278f, 0.148582f },
+		{ 0.070006f, 0.243332f, 0.235792f },
+		{ 0.196766f, 0.142899f, 0.214696f },
+		{ 0.047281f, 0.315338f, 0.321970f },
+		{ 0.204675f, 0.390010f, 0.302066f },
+	};
+	const int numLayers = 15;
+	if (src->width <= 0 || src->height <= 0 || (int)src->image_data.size() < src->width * src->height * 4)
+		return;
+
+	int tileSize = dst->width / XTILES;
+	float texWidth = (float)src->width;
+	float texHeight = (float)src->height;
+	// texture span across the tile, as a fraction of the texture, per unit of the shader's layer scale; the middle layer's scale is 5
+	float spanPerScale = 1.0f / (16.0f * 5.0f);
+
+	std::vector<float> layered((size_t)tileSize * tileSize * 3);
+	float maxChannel = 0.0f;
+	for (int row = 0; row < tileSize; row++) {
+		for (int col = 0; col < tileSize; col++) {
+			// position in the tile, -0.5 to 0.5
+			float px = ((float)col + 0.5f) / (float)tileSize - 0.5f;
+			float py = ((float)row + 0.5f) / (float)tileSize - 0.5f;
+			float sum[3] = { 0.0f, 0.0f, 0.0f };
+			for (int layer = 1; layer <= numLayers; layer++) {
+				float fl = (float)layer;
+				float angle = (fl * fl * 4321.0f + fl * 9.0f) * 2.0f * 3.14159265f / 180.0f;
+				float scale = (4.5f - fl / 4.0f) * 2.0f;
+				float ca = cosf(angle);
+				float sa = sinf(angle);
+				// turn and scale, then shift by the shader's 17/layer, in texture fractions
+				float u = (ca * px - sa * py) * scale * spanPerScale + 17.0f / fl;
+				float v = (sa * px + ca * py) * scale * spanPerScale;
+				// bilinear sample, wrapping, in texels
+				float tu = u * texWidth - 0.5f;
+				float tv = v * texHeight - 0.5f;
+				float fu = floorf(tu);
+				float fv = floorf(tv);
+				float wu = tu - fu;
+				float wv = tv - fv;
+				int iu0 = ((int)fu % src->width + src->width) % src->width;
+				int iv0 = ((int)fv % src->height + src->height) % src->height;
+				int iu1 = (iu0 + 1) % src->width;
+				int iv1 = (iv0 + 1) % src->height;
+				float t00 = (float)src->image_data[(iv0 * src->width + iu0) * 4];
+				float t10 = (float)src->image_data[(iv0 * src->width + iu1) * 4];
+				float t01 = (float)src->image_data[(iv1 * src->width + iu0) * 4];
+				float t11 = (float)src->image_data[(iv1 * src->width + iu1) * 4];
+				float texel = (t00 * (1.0f - wu) + t10 * wu) * (1.0f - wv) + (t01 * (1.0f - wu) + t11 * wu) * wv;
+				for (int ic = 0; ic < 3; ic++) {
+					sum[ic] += texel * layerColor[layer - 1][ic];
+				}
+			}
+			for (int ic = 0; ic < 3; ic++) {
+				layered[((size_t)row * tileSize + col) * 3 + ic] = sum[ic];
+				if (sum[ic] > maxChannel)
+					maxChannel = sum[ic];
+			}
+		}
+	}
+
+	float gain = (maxChannel > 0.0f) ? 255.0f / maxChannel : 1.0f;
+	for (int row = 0; row < tileSize; row++) {
+		unsigned char* dst_data = &dst->image_data[0] + ((dst_y * tileSize + row) * dst->width + dst_x * tileSize) * 4;
+		for (int col = 0; col < tileSize; col++) {
+			for (int ic = 0; ic < 3; ic++) {
+				float value = layered[((size_t)row * tileSize + col) * 3 + ic] * gain;
+				dst_data[ic] = (unsigned char)((value > 255.0f) ? 255.0f : value + 0.5f);
+			}
+			dst_data[3] = 255;
+			dst_data += 4;
+		}
+	}
 }
 
 static bool getPNGPixel(progimage_info* src, int channels, int col, int row, unsigned char* color)
@@ -2418,32 +2767,6 @@ static bool getPNGPixel(progimage_info* src, int channels, int col, int row, uns
 	//	assert(0);
 	//}
 	return true;
-}
-
-static void getBrightestPNGPixel(progimage_info* src, int channels, unsigned long col, unsigned long row, unsigned long res, unsigned char* color, int* locc, int* locr)
-{
-	unsigned long r, c;
-	int i;
-	unsigned char testColor[4];
-	int maxSum, testSum;
-	maxSum = -1;
-	color[0] = color[1] = color[2] = 0;
-	color[3] = 255;
-	for (r = 0; r < res; r++) {
-		for (c = 0; c < res; c++) {
-			if (!getPNGPixel(src, channels, col + c, row + r, testColor))
-				continue;
-			testSum = (int)testColor[0] + (int)testColor[1] + (int)testColor[2];
-			if (testSum > maxSum) {
-				maxSum = testSum;
-				*locr = r;
-				*locc = c;
-				for (i = 0; i < ((channels > 3) ? 3 : channels); i++) {
-					color[i] = testColor[i];
-				}
-			}
-		}
-	}
 }
 
 // meant for RGBA only
@@ -2568,19 +2891,6 @@ static void copyPNG(progimage_info* dst, progimage_info* src)
 				src_data += zoom * 4;
 			}
 		}
-	}
-}
-
-static void copyPNGArea(progimage_info* dst, unsigned long dst_x_min, unsigned long dst_y_min, unsigned long size_x, unsigned long size_y, progimage_info* src, int src_x_min, int src_y_min)
-{
-	unsigned long row;
-	unsigned long dst_offset, src_offset;
-
-	for (row = 0; row < size_y; row++)
-	{
-		dst_offset = ((dst_y_min + row) * dst->width + dst_x_min) * 4;
-		src_offset = ((src_y_min + row) * src->width + src_x_min) * 4;
-		memcpy(&dst->image_data[dst_offset], &src->image_data[src_offset], size_x * 4);
 	}
 }
 

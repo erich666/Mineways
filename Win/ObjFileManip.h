@@ -155,6 +155,13 @@ typedef struct UVOutput
     float uc;
     float vc;
     int swatchLoc;	// where this record is stored, for purposes of outputting comments and sorting
+    // For a UV on a multi-tile ("span") image such as straw_bed.png, the tiles.h swatch location of the image's anchor tile, else -1.
+    // su, sv are then the UV over the whole image (0-1, v up), used as-is when exporting individual tiles, and outIndex is the
+    // OBJ "vt" index given to that UV in that mode. uc, vc are the usual mosaic texture location.
+    int spanAnchor;
+    float su;
+    float sv;
+    int outIndex;
 } UVOutput;
 
 

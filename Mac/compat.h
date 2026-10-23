@@ -12,6 +12,8 @@
 #include <limits.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <time.h>
+#include <pthread.h>
 
 // errno_t: C11 type, not always exposed on macOS headers
 #ifndef errno_t
@@ -42,6 +44,11 @@ typedef void* HMODULE;
 
 // HANDLE is FILE* on macOS (PortaCreate/PortaWrite/PortaClose all use FILE*)
 typedef FILE* HANDLE;
+
+typedef pthread_mutex_t SRWLOCK;
+#define SRWLOCK_INIT PTHREAD_MUTEX_INITIALIZER
+static inline void AcquireSRWLockExclusive(SRWLOCK* lock) { pthread_mutex_lock(lock); }
+static inline void ReleaseSRWLockExclusive(SRWLOCK* lock) { pthread_mutex_unlock(lock); }
 
 #define TRUE  1
 #define FALSE 0
@@ -125,7 +132,6 @@ static inline errno_t _wcslwr_s(wchar_t* s, size_t /*n*/) {
 }
 
 // Time shims (__time32_t / _time32 / _localtime32_s / asctime_s)
-#include <time.h>
 #define __time32_t  time_t
 #define _time32(p)  time(p)
 static inline errno_t _localtime32_s(struct tm* t, const time_t* clock) {
@@ -341,6 +347,13 @@ static inline int WideCharToMultiByte(unsigned /*cp*/, unsigned /*flags*/,
 // ── Win32 filesystem stubs ────────────────────────────────────────────────────
 #define ERROR_ALREADY_EXISTS EEXIST
 static inline DWORD GetLastError() { return (DWORD)errno; }
+
+static inline DWORD GetTickCount()
+{
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return (DWORD)((uint64_t)now.tv_sec * 1000 + now.tv_nsec / 1000000);
+}
 
 static inline BOOL CreateDirectoryW(const wchar_t* wpath, void* /*sa*/)
 {

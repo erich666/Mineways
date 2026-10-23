@@ -201,7 +201,8 @@ static int LoadSchematicFile(const wchar_t* pathAndFile, bool isSponge)
         int w = 0, h = 0, l = 0;
         unsigned char* blocks = nullptr;
         unsigned short* data  = nullptr;
-        int rv = GetSpongeSchematic(pathAndFile, &w, &h, &l, &blocks, &data);
+        int dataVersion = 0;
+        int rv = GetSpongeSchematic(pathAndFile, &w, &h, &l, &blocks, &data, &dataVersion);
         if (rv != 1) { free(blocks); free(data); return 100 + (rv == -1 ? 1 : 5); }
         gWorldGuide.sch.width  = w; gWorldGuide.sch.height = h; gWorldGuide.sch.length = l;
         if (!nbtGetValidatedSchematicVolume(w, h, l, &gWorldGuide.sch.numBlocks)) {
@@ -209,7 +210,7 @@ static int LoadSchematicFile(const wchar_t* pathAndFile, bool isSponge)
             return 105;
         }
         gWorldGuide.sch.blocks = blocks; gWorldGuide.sch.data = data;
-        gVersionID = 2586;
+        gVersionID = (dataVersion >= 1519) ? dataVersion : 2586;
     } else {
         if (GetSchematicWord(pathAndFile, "Width",  &gWorldGuide.sch.width)  != 1) return 101;
         if (GetSchematicWord(pathAndFile, "Height", &gWorldGuide.sch.height) != 1) return 102;

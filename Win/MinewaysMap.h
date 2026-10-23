@@ -107,6 +107,8 @@ void SetHighlightState(int on, int minx, int miny, int minz, int maxx, int maxy,
 void GetHighlightState(int* on, int* minx, int* miny, int* minz, int* maxx, int* maxy, int* maxz, int mapMinHeight);
 int DrawMapToArray(unsigned char* image, WorldGuide* pWorldGuide, int cx, int cz, int topy, int mapMaxY, int w, int h, int zoom, Options* pOpts, int* hitsFound, ProgressCallback callback, int mcVersion, int versionID);
 int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int mapMaxY, int w, int h, double zoom, unsigned char* bits, Options* pOpts, int hitsFound[3], ProgressCallback callback, int mcVersion, int versionID);
+void GetMapChunkOrigin(double cx, double cz, int w, int h, double zoom, int* ox, int* oz);
+int DrawMapStrips(WorldGuide* pWorldGuide, double cx, double cz, int topy, int mapMaxY, int w, int h, double zoom, unsigned char* bits, Options* pOpts, int hitsFound[3], ProgressCallback callback, int mcVersion, int versionID, int clipMinX, int clipMinY, int clipMaxX, int clipMaxY);
 const char* IDBlock(int bx, int by, double cx, double cz, int w, int h, int yOffset, double zoom, int* ox, int* oy, int* oz, int* type, int* dataVal, int* biome, bool schematic);
 const char* RetrieveBlockSubname(int type, int dataVal); //, WorldBlock* block = NULL, int xoff = 0, int y = 0, int zoff = 0);
 void CloseAll();
@@ -127,14 +129,28 @@ int GetSchematicWord(const wchar_t* schematic, char* field, int* word);
 int GetSchematicBlocksAndData(const wchar_t* schematic, int numBlocks, unsigned char* schematicBlocks, unsigned short* schematicBlockData);
 // Sponge Schematic v3 reader (issue #40). On success, returns 1 and malloc's the blocks/data arrays
 // (caller frees). On parse failure returns 0. On file open failure returns -1.
+// dataVersion is set to the file's DataVersion, or 0 if it has none.
 int GetSpongeSchematic(const wchar_t* schematic, int* width, int* height, int* length,
-    unsigned char** blocks, unsigned short** data);
+    unsigned char** blocks, unsigned short** data, int* dataVersion);
 void SetMapPremultipliedColors(int start);
 // Bump the per-chunk render cache so drawTheMap() re-renders. The Culling Scheme path
 // changes block VISIBILITY (cells render as air or skip) without touching colors; the
 // cache key is gColormap, so without this the next drawTheMap() returns the stale
 // cached bitmap.
 void InvalidateMapRenderCache(void);
+unsigned short GetMapColormap(void);
+int GetMapHighlightID(void);
+void SetNonBlockingDraw(bool on);
+bool GetChunksMissing(void);
+bool ChunkNeedsWestEdgeRedraw(int bx, int bz, int topy, Options* pOpts);
+int PrefetchBlock(WorldGuide* pWorldGuide, int bx, int bz, int mcVersion, int versionID, unsigned int worldType);
+bool ChunkLoaderUsable(WorldGuide* pWorldGuide);
+bool ChunkLoaderRequest(WorldGuide* pWorldGuide, int bx, int bz, int mcVersion, int versionID, unsigned int worldType);
+void ChunkLoaderCancelRequests();
+bool ChunkLoaderBusy();
+int ChunkLoaderCollect(int* bx, int* bz, int maxChunks, int& retCode);
+void ChunkLoaderStop();
+void MarkOutOfMemoryChunks(double cx, double cz, int w, int h, double zoom, unsigned char* bits, int minCX, int minCZ, int maxCX, int maxCZ);
 char* MapUnknownBlockName();
 void ClearUnknownBlockNameString();
 void SetUnknownBlockID(int val);

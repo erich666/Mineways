@@ -196,13 +196,35 @@ The general flow is:
 Put your terrainExt image file wherever mineways.exe is located and start Mineways up. You then can load the terrainExt_yourNameHere.png file you've created by using "File -> Choose Terrain File". You can even make it the default terrain you always use when starting up Mineways, <a href="mineways.html#default_terrain">as explained here</a>.
 
 <P>
-Why two separate processes? Because resource pack makers do all sorts of things, so along the way you may need to modify their input textures. ChannelMixer copies the textures Mineways cares about into a directory (and a "chests" subdirectory). For example, for basic Minecraft the block textures are found in "\assets\minecraft\textures\blocks" and chest textures in "\assets\minecraft\textures\entity\chest".
+Why two separate processes? Because resource pack makers do all sorts of things, so along the way you may need to modify their input textures. ChannelMixer copies the textures Mineways cares about into a directory, with a few subdirectories for textures that need special handling, such as chests. For example, for basic Minecraft the block textures are found in "\assets\minecraft\textures\block" and chest textures in "\assets\minecraft\textures\entity\chest". The full list is <a href="#special_textures">just below</a>.
 
 <P>
 TileMaker then puts all these tiles into a single terrain file (or a set of terrain files, if physically based materials are supported by the resource pack). Each program may issue warnings or errors when run, which is where you come in. You can blithely ignore these messages, or you can look them over and take corrective actions, such as renaming, resizing, or otherwise modifying the resource pack's textures. I recommend the free <a href="https://www.getpaint.net/">paint.net</a> program if you are just getting started, but any image manipulation tool you like is fine.
 
 <P>
-What TileMaker does by default is simple: it reads in the terrainBase.png file Mineways provides (or ../terrainExt.png, if terrainBase.png is not found), overlays it with any tiles in the "blocks" directory (replacing the originals), extracts the chests from the "chest" subdirectory, then writes out this new image as terrainExt.png. The "chest" subdirectory normally has three chest tiles, as available - ender.png, normal.png, and normal_double.png (or similar names) - to generate chest tiles.
+What TileMaker does by default is simple: it reads in the terrainBase.png file Mineways provides (or ../terrainExt.png, if terrainBase.png is not found), overlays it with any tiles in the "blocks" directory (replacing the originals), extracts tiles from the special images in its subdirectories (chests, shulker boxes, and so on), then writes out this new image as terrainExt.png. Any tile not found in the "blocks" directory keeps its look from terrainBase.png, so a resource pack does not need to have every texture.
+
+<h3 id="special_textures">Where the Textures Come From</h3>
+
+Most textures are block textures, one image per tile, found in "\assets\minecraft\textures\block" in Minecraft and in most resource packs. ChannelMixer copies these to the top of its output directory. A few textures Mineways needs are elsewhere, or are entity textures, which hold many parts of a model in one image. TileMaker cuts the parts it needs out of these and puts them into tiles whose names start "MWO_" ("Mineways output"). ChannelMixer copies these images into subdirectories of its output directory, which is where TileMaker looks for them:
+
+<UL>
+<LI><B>chest</B> - from "textures\entity\chest": normal.png, normal_left.png, normal_right.png, ender.png, and the copper chests copper.png, copper_left.png, copper_right.png, and the same for copper_exposed, copper_oxidized, and copper_weathered. Older packs may have normal_double.png instead of normal_left.png and normal_right.png. The Christmas and trapped chests are not used.
+<LI><B>decorated_pot</B> - from "textures\entity\decorated_pot": decorated_pot_base.png. Its neighbor decorated_pot_side.png is a plain block texture, so it goes in the top directory.
+<LI><B>shelf</B> - from "textures\block": acacia_shelf.png, birch_shelf.png, and so on, one per wood type.
+<LI><B>cushion</B> - from "textures\entity\cushion": white_cushion.png through black_cushion.png.
+<LI><B>head</B> - mob heads, each from its own "textures\entity" directory: skeleton\skeleton.png, skeleton\wither_skeleton.png, zombie\zombie.png, creeper\creeper.png, piglin\piglin.png, enderdragon\dragon.png, and player\wide\steve.png for the player head.
+<LI><B>shulker</B> - from "textures\entity\shulker": shulker_white.png through shulker_black.png. These give the sides and bottoms of the shulker boxes; the tops are the block textures white_shulker_box.png etc. The undyed shulker.png is not used, as Mineways draws the undyed shulker box as purple.
+<LI><B>end_portal</B> - from "textures\entity\end_portal": end_portal.png. TileMaker makes the MWO_end_portal tile, the starry look inside an end portal, by layering several tinted copies of this image, much as Minecraft's own shader does.
+</UL>
+
+Two block textures are also found outside of "textures\block": barrier.png, in "textures\item", and decorated_pot_side.png, mentioned above. ChannelMixer finds both and copies them to the top directory with the other block textures. Other than barrier.png, ChannelMixer ignores the "item" directory, as resource packs often reuse block texture names there for their item icons.
+
+<P>
+So, point ChannelMixer at the top of the unzipped resource pack, or at least at its "assets\minecraft" directory, not at its "textures\block" directory, so that it finds all of these. If you make your "blocks" directory by hand instead, copy these images into subdirectories with these same names.
+
+<P>
+If a resource pack does not change one of these images, the tiles from terrainBase.png are used. You can always get Minecraft's own images from its jar file, e.g., ".minecraft\versions\26.3\26.3.jar": copy it, rename the copy to a ".zip" file, and unzip it. Run ChannelMixer on that to fill in whatever your pack lacks, using TileMaker's ability to read <a href="#multiple_dirs">more than one directory</a>.
 
 <P>
 Mineways' two tools work with both Minecraft Classic resource packs and with Minecraft Bedrock <a href="https://mcpedb.com/tag/mcpack/">MCPack files</a>. You can find resource packs on such sites as <a href="https://www.reddit.com/r/minecraftRTX/comments/iq3lkl/getting_startedhelpful_guidesresource_packs/">this NVIDIA RTX-related page</a>, <a href="https://shaderlabs.org/wiki/LabPBR_Supported_Packs">this LabPBR page</a>, <a href="https://www.planetminecraft.com/texture-packs/">this PlanetMinecraft page</a>, <a href="https://www.curseforge.com/minecraft/texture-packs">this CurseForge page</a>, <a href="https://mcpedl.com/?s=PBR">this MCPEDL page</a> (and also <a href="https://mcpedl.com/?s=RTX">this RTX search</a> there), and <a href="https://resourcepack.net/">this site</a>. Or <a href="https://www.google.com/search?q=minecraft+resource+packs">google around</a> for way too many more. Best ones? <a href="https://www.pcgamer.com/best-minecraft-texture-packs/">Here's what PC Gamer</a> thinks. Want to make your own PBR resource pack? <a href="https://www.planetminecraft.com/blog/how-to-convert-any-texture-pack-to-support-ray-tracing/">This post</a> gives some tools and steps for making normal maps, etc.
@@ -289,7 +311,7 @@ Once you have a directory full of the textures you want to turn into a terrain f
 TileMaker.exe -d "jg-rtx-channelmixer" -o terrainExt_JG-RTX.png -t 256
 </PRE>
 
-TileMaker will take all the images ChannelMixer copied over and glue them up into one giant terrain file. It will also process chest images, turning them into (admittedly old-school) tiles. It will also attempt to make any missing tiles, either by copying tiles that do exist or manufacturing them (such as shulker boxes).
+TileMaker will take all the images ChannelMixer copied over and glue them up into one giant terrain file. It will also process chest, shulker box, and other <a href="#special_textures">special images</a>, turning them into (admittedly old-school) tiles. It will also attempt to make some missing tiles by copying tiles that do exist, e.g., using one side texture for another when a pack has only one of them.
 
 <P>
 When you run TileMaker on JG-RTX 0.7.0-alpha, you will again get some warnings and errors:
@@ -328,7 +350,7 @@ This option says to force all textures to be 256x256 in size. This is an importa
 <P>
 With TileMaker you can also do time-saving tricks such as setting "-t 64" or "-t 32", making a much smaller terrain PNG texture that will look fine for previews. Using a smaller terrain file makes for much faster Mineways exports.
 
-<P>
+<P id="multiple_dirs">
 One last trick: you can use TileMaker to read multiple directories (block-and-chest or original resource pack, if you're daring) and soak up all the textures it finds for terrain file creation. So, for example, you might like the Fancy pack, but if Fancy is missing something, then you might be happy with VanillaPBR instead. This looks something like "TileMaker.exe -d FancyDir -d VanillaPBRDir -o terrainExt_MySuperPack.png". By importing both directories in the order of preference, TileMaker will pull in whatever it finds for Fancy, then fill in (and will not warn you of duplicates) with VanillaPBR.
 
 <P>
@@ -370,7 +392,7 @@ Mod makers over the years have developed a wide variety of these additional file
 <LI><B>_o</B> - ambient occlusion, I believe. Seen in some forms of R3DCraft and nowhere else, it looks to be baked-in light maps. These files are ignored by ChannelMixer and TileMaker.
 </UL>
 
-ChannelMixer main task is to seek out relevant files and copies them over, splitting them up into separate textures as needed (TileMaker does not perform texture splitting for specular *_s.png or MER *_mer.png files). It searches the directory structure, looking for textures it needs in areas such as the "\assets\minecraft\textures\block(s)" and "\assets\minecraft\textures\entity\chest" directories of the resource pack. It copies over the RGB, _n, and _normal textures, unmodified.
+ChannelMixer main task is to seek out relevant files and copies them over, splitting them up into separate textures as needed (TileMaker does not perform texture splitting for specular *_s.png or MER *_mer.png files). It searches the directory structure, looking for textures it needs in areas such as the "\assets\minecraft\textures\block(s)" and "\assets\minecraft\textures\entity\chest" directories of the resource pack (see the <a href="#special_textures">full list</a>). It copies over the RGB, _n, and _normal textures, unmodified.
 It also converts _mer and _s files into the _m/_e/_r files used as input by TileMaker. As an aside, I've opted with Mineways to go with separate _m/_e/_r textures for clarity, to understand what each texture does. For example, if I instead used an _mer texture, it would not be clear if the author had all three textures, or just the roughness, or roughness and metallic, etc. ChannelMixer will attempt to figure out which of the channels in _mer and _s textures have meaning, i.e., have truly been set. A texture will not be used if it is default, i.e., if roughness is always 1.0, metallic is always 0.0, or emissive is always 0.0.
 
 <P>
@@ -486,7 +508,7 @@ on the command line.
 <LI><b>-r</b> - replace (from the 'blocks' directories) only those tiles not in the base
     texture. This is a way of extending a base texture to new versions of Mineways. You will likely never use this.
 <LI><b>-m</b> - to report all missing tiles, ones that Mineways uses but were not in the
-    tiles directory.
+    tiles directory. Tiles made by TileMaker itself, such as those starting "MW", are not listed; the "MWO_" chest tiles are listed only if no chest image was found.
 <LI><b>-s</b> - take the average color of the incoming tile and output this solid color.
 <LI><b>-S</b> - as above, but preserve the cutout transparent areas.
 <LI><b>-dcn</b> - don't clean normals. Many normal maps are poorly formed, with normals pointing
@@ -502,7 +524,7 @@ on the command line.
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 1/12/2026</p>
+		<br id="lastUpdate">Last updated 10/22/2026</p>
 	</div>
 </div>
 

@@ -45,10 +45,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 #define HASH_SIZE (HASH_XDIM * HASH_ZDIM)
 
-// arbitrary, let users tune this?
-// 6000 entries translates to Mineways using ~300MB of RAM (on x64)
-
-static int gHashMaxEntries = INITIAL_CACHE_SIZE;   // was 6000, Sean said to increase it - really should be 30000, because export memory toggle now changes it to this
+// Set from the user's map memory budget, see Cache_EntriesForBudget().
+static int gHashMaxEntries = INITIAL_CACHE_SIZE;
 
 typedef struct block_entry {
     int x, z;
@@ -122,6 +120,29 @@ void Change_Cache_Size(int size)
     gHashMaxEntries = size;
 }
 
+// Approximate memory one cached chunk takes in a world "height" blocks tall: the WorldBlock, its
+// grid, data and light arrays (see block_alloc), its hash entry and its history slot. Block entities
+// and heap overhead are not counted. Chunks that don't exist are cached as NULL and take much less,
+// so this is an upper bound for most worlds.
+size_t Cache_BytesPerChunk(int height)
+{
+    if (height < 1)
+        height = 1;
+    return sizeof(WorldBlock) + sizeof(block_entry) + sizeof(IPoint2) +
+        16 * 16 * (size_t)height * (sizeof(unsigned char) + sizeof(unsigned short)) + 16 * 16 * (size_t)height / 2;
+}
+
+// How many chunks fit in budgetMB megabytes, for a world "height" blocks tall.
+int Cache_EntriesForBudget(int budgetMB, int height)
+{
+    size_t entries = (size_t)(budgetMB > 1 ? budgetMB : 1) * 1024 * 1024 / Cache_BytesPerChunk(height);
+    if (entries < MIN_CACHE_SIZE)
+        entries = MIN_CACHE_SIZE;
+    if (entries > INT_MAX / 2)
+        entries = INT_MAX / 2;
+    return (int)entries;
+}
+
 // "data" here is the WorldBlock
 void Cache_Add(int bx, int bz, void* data)
 {
@@ -190,7 +211,7 @@ void Cache_Add(int bx, int bz, void* data)
             if ((**cur).x == coord.x && (**cur).z == coord.z) {
                 to_del = *cur;
                 *cur = to_del->next;
-                // save away the WorldBlock itself for reuse in "last_block"
+                // save away the WorldBlock itself for reuse
                 block_free(to_del->data);
                 to_del->data = NULL;    // for safety's sake
                 //free(to_del); // we will re-use this entry below
@@ -256,6 +277,7 @@ void Cache_Empty()
         free(gCacheHistory);
         gCacheHistory = NULL;
         gCacheN = 0;
+        block_pool_trim();
         return;
     }
 
@@ -278,6 +300,7 @@ void Cache_Empty()
     gBlockCache = NULL;
     gCacheHistory = NULL;
     gCacheN = 0;
+    block_pool_trim();
 }
 
 
@@ -291,9 +314,21 @@ void Cache_Empty()
 **
 ** repeatedly. Recycling the old block can prevent the need for
 ** malloc and free.
+**
+** Chunks are loaded on several threads at once (see ChunkLoaderRequest()), while the main thread
+** frees the chunks the cache drops for them. Each allocation and free goes through the one heap,
+** so the threads would mostly wait on each other: freed blocks are kept in a pool for the threads
+** to reuse instead, up to BLOCK_POOL_MAX of them. block_pool_trim() frees them when loading's done.
 **/
 
-static WorldBlock* last_block = NULL;
+#ifdef MINEWAYS_X64
+#define BLOCK_POOL_MAX 1024
+#else
+#define BLOCK_POOL_MAX 256
+#endif
+static SRWLOCK gBlockPoolLock = SRWLOCK_INIT;
+static WorldBlock* gBlockPool[BLOCK_POOL_MAX];
+static int gBlockPoolN = 0;
 
 WorldBlock* block_alloc(int minHeight, int maxHeight)
 {
@@ -307,25 +342,33 @@ WorldBlock* block_alloc(int minHeight, int maxHeight)
     size_t dataSize = 16 * 16 * (size_t)height * sizeof(unsigned short);
     size_t lightSize = gridSize / 2;
     WorldBlock* ret = NULL;
-    // is a cached block available and is it the right size?
-    if (last_block != NULL && last_block->heightAlloc == height)
+    // is a freed block available?
+    WorldBlock* saved = NULL;
+    AcquireSRWLockExclusive(&gBlockPoolLock);
+    if (gBlockPoolN > 0)
+        saved = gBlockPool[--gBlockPoolN];
+    ReleaseSRWLockExclusive(&gBlockPoolLock);
+    // is it the right size?
+    if (saved != NULL && saved->heightAlloc == height)
     {
         // use this cached block (clearing out just the optional entity storage first)
-        ret = last_block;
+        ret = saved;
         if (ret->entities != NULL) {
             free(ret->entities);
             ret->entities = NULL;
             ret->numEntities = 0;
         }
-        last_block = NULL;
+        // the same size, but maybe not the same range, e.g. a schematic's
+        ret->minHeight = minHeight;
+        ret->maxHeight = maxHeight;
+        ret->maxFilledSectionHeight = ret->maxFilledHeight = EMPTY_MAX_HEIGHT;  // not yet determined
         return ret;
     }
     else {
         // new block needed
-        if (last_block != NULL) {
+        if (saved != NULL) {
             // saved block was wrong size - clear it out, since it's unlikely to be used
-            block_force_free(last_block);
-            last_block = NULL;
+            block_force_free(saved);
         }
         // allocate normally
         ret = (WorldBlock*)calloc(1, sizeof(WorldBlock));
@@ -354,21 +397,34 @@ WorldBlock* block_alloc(int minHeight, int maxHeight)
     }
 }
 
-// Given a WorldBlock that is no longer cached, save it away as "last_block" for immediate reuse if possible.
-// If there's already a last_block, get rid of that one and save this one instead (TODO: is there a better tie break?)
+// Given a WorldBlock that is no longer cached, save it away in the pool for reuse, if there's room, else free it.
 void block_free(WorldBlock* block)
 {
-    // don't bother "caching" an empty WorldBlock - keep the old one in last_block for return some other time
     if (block == NULL)
         return;
 
-    // keep latest freed block available in "last_block", so free the one already there
-    if (last_block != NULL && last_block != block)
-    {
-        block_force_free(last_block);
+    bool pooled = false;
+    AcquireSRWLockExclusive(&gBlockPoolLock);
+    if (gBlockPoolN < BLOCK_POOL_MAX) {
+        gBlockPool[gBlockPoolN++] = block;
+        pooled = true;
     }
+    ReleaseSRWLockExclusive(&gBlockPoolLock);
+    if (!pooled)
+        block_force_free(block);
+}
 
-    last_block = block;
+// Free the blocks kept for reuse, e.g. when chunks are no longer being loaded, so they don't add to the map memory used.
+void block_pool_trim()
+{
+    WorldBlock* blocks[BLOCK_POOL_MAX];
+    AcquireSRWLockExclusive(&gBlockPoolLock);
+    int n = gBlockPoolN;
+    memcpy(blocks, gBlockPool, n * sizeof(WorldBlock*));
+    gBlockPoolN = 0;
+    ReleaseSRWLockExclusive(&gBlockPoolLock);
+    for (int i = 0; i < n; i++)
+        block_force_free(blocks[i]);
 }
 
 // Really free the block, period

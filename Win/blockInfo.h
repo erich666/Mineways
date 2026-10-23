@@ -429,7 +429,7 @@ typedef struct Options {
 } Options;
 
 // number of blocks with entries in block info table (max number at bottom + 1) - now that 255 is used, we need this
-#define NUM_BLOCKS_DEFINED 559
+#define NUM_BLOCKS_DEFINED 561
 // number of official Minecraft blocks (no longer needed - we used to have the block after everything be special)
 #define NUM_BLOCKS_STANDARD NUM_BLOCKS_DEFINED
 // number of blocks we want to show on the map (no longer needed - includes the unknown one)
@@ -537,11 +537,49 @@ typedef struct BlockDefinition {
     float alpha;
     int txrX;   // column and row, from upper left, of 16x16 tiles in terrainExt.png, for TOP view of block
     int txrY;
-    unsigned char subtype_mask;	// bits that are used in the data value to determine whether this is a separate material
+    unsigned short subtype_mask;	// bits that are used in the data value to determine whether this is a separate material
     unsigned int flags;
 } BlockDefinition;
 
 extern BlockDefinition gBlockDefinitions[];
+
+// Standing signs of every wood are BLOCK_SIGN_POST, with the 16-way rotation in bits 0xF; wall signs of every wood are BLOCK_WALL_SIGN,
+// with the facing (2-5: north, south, west, east) in bits 0x7. Hanging signs of every wood are BLOCK_HANGING_SIGN, with the 16-way
+// rotation in bits 0xF and "attached" in bit 0x10; wall hanging signs of every wood are BLOCK_WALL_HANGING_SIGN, with the facing
+// (0-3: south, west, north, east) in bits 0x3. For all four, the wood is in bits 0x780 of dataVal, an index into gSignWoods[].
+#define SIGN_WOOD_SHIFT 7
+#define SIGN_WOOD_MASK (0xF << SIGN_WOOD_SHIFT)
+#define SIGN_WOOD(dataVal) (((dataVal) & SIGN_WOOD_MASK) >> SIGN_WOOD_SHIFT)
+#define NUM_SIGN_WOODS 13
+// A cushion resting on a partial block, such as a slab, carpet, or snow layers, is in the block above it, lowered by this many sixteenths
+#define CUSHION_DROP_SHIFT 7
+#define CUSHION_DROP(dataVal) (((dataVal) >> CUSHION_DROP_SHIFT) & 0xF)
+// A bed's color, as for wool (0 = white ... 14 = red, 15 = black), is in bits 0x780. It's stored exclusive-or'ed with red, so that
+// 0, the bed of worlds before 1.13 and of "bed", is red.
+#define BED_COLOR_SHIFT 7
+#define BED_COLOR_MASK (0xF << BED_COLOR_SHIFT)
+#define BED_COLOR_RED 14
+#define BED_COLOR(dataVal) ((((dataVal) & BED_COLOR_MASK) >> BED_COLOR_SHIFT) ^ BED_COLOR_RED)
+#define BED_COLOR_BITS(color) ((((color) ^ BED_COLOR_RED) & 0xF) << BED_COLOR_SHIFT)
+// The growing tip of kelp, weeping and twisting vines, and cave vines has an "age", 0-25, kept in bits 0xF80
+#define GROWTH_AGE_SHIFT 7
+#define GROWTH_AGE_MASK (0x1F << GROWTH_AGE_SHIFT)
+#define GROWTH_AGE(dataVal) (((dataVal) & GROWTH_AGE_MASK) >> GROWTH_AGE_SHIFT)
+#define IS_SIGN_TYPE(type) ((type) == BLOCK_SIGN_POST || (type) == BLOCK_WALL_SIGN || (type) == BLOCK_HANGING_SIGN || (type) == BLOCK_WALL_HANGING_SIGN)
+typedef struct SignWood {
+    const char* name;           // Minecraft's name prefix, e.g. "dark_oak" for dark_oak_sign and dark_oak_wall_sign
+    const char* signName;       // e.g. "Dark Oak Sign"
+    const char* wallSignName;   // e.g. "Dark Oak Wall Sign"
+    const char* hangingSignName;        // e.g. "Dark Oak Hanging Sign"
+    const char* wallHangingSignName;    // e.g. "Dark Oak Wall Hanging Sign"
+    unsigned int color;         // map color, standing and wall signs
+    unsigned int hangingColor;  // map color, hanging and wall hanging signs
+    int planksX, planksY;       // tiles: planks, for the sign's board
+    int logEndX, logEndY;       // end of log, for the post
+    int barkX, barkY;           // log bark, for the post
+    int strippedX, strippedY;   // stripped log, for hanging signs
+} SignWood;
+extern const SignWood gSignWoods[NUM_SIGN_WOODS];
 
 //unsigned int gWoolColors[16]={
 //    0xDDDDDD, //     0x0	 Regular wool (white)
@@ -585,7 +623,7 @@ enum block_types {
     BLOCK_DISPENSER = 23,
     BLOCK_SANDSTONE = 24,
     BLOCK_NOTEBLOCK = 25,
-    BLOCK_BED = 26,
+    BLOCK_BED = 26,    // bits 0x3 the facing (0 = south, 1 = west, 2 = north, 3 = east), 0x4 occupied, 0x8 the head, 0x780 the color (see BED_COLOR)
     BLOCK_POWERED_RAIL = 27,
     BLOCK_DETECTOR_RAIL = 28,
     BLOCK_STICKY_PISTON = 29,
@@ -862,7 +900,7 @@ enum block_types {
     // 1.14: we give each new block type a number, trying to make it sensible. Put in blockinfo.cpp.
     // in BlockTranslations in nbt.cpp put the name used by Minecraft to convert to a number.
     BLOCK_DEAD_CORAL = 325, // 5 different types
-    BLOCK_ACACIA_SIGN_POST = 326,
+    // 326 is unused: it was acacia, dark oak, crimson, and warped signs, now in BLOCK_SIGN_POST
     BLOCK_SWEET_BERRY_BUSH = 327,
     BLOCK_BAMBOO = 328,
     BLOCK_ANDESITE_DOUBLE_SLAB = 329,
@@ -936,7 +974,7 @@ enum block_types {
     BLOCK_WEATHERED_CUT_COPPER_STAIRS = 393,
     BLOCK_OXIDIZED_CUT_COPPER_STAIRS = 394,
     BLOCK_LIGHTNING_ROD = 395,
-    BLOCK_RED_SHRUB = 396,
+    // 396 is unused: it was red shrub, now 559
     BLOCK_CUT_COPPER_DOUBLE_SLAB = 397,
     BLOCK_CUT_COPPER_SLAB = 398,
     BLOCK_WAXED_CUT_COPPER_STAIRS = 399,
@@ -968,8 +1006,7 @@ enum block_types {
     BLOCK_STRIPPED_MANGROVE_WOOD = 424,
     BLOCK_MANGROVE_STAIRS = 425,
     BLOCK_MUD_BRICK_STAIRS = 426,
-    BLOCK_MANGROVE_SIGN_POST = 427,
-    BLOCK_MANGROVE_WALL_SIGN = 428,
+    // 427 and 428 are unused: they were mangrove, cherry, bamboo, and pale oak signs and wall signs, now in BLOCK_SIGN_POST and BLOCK_WALL_SIGN
     BLOCK_RESIN_BRICK_STAIRS = 429, // was BLOCK_MANGROVE_PRESSURE_PLATE = 429,
     BLOCK_MANGROVE_BUTTON = 430,
     BLOCK_MANGROVE_FENCE = 431,
@@ -1000,13 +1037,9 @@ enum block_types {
     BLOCK_SNIFFER_EGG = 455,
     BLOCK_SUSPICIOUS_GRAVEL = 456,
     BLOCK_TORCHFLOWER_CROP = 457,
-    BLOCK_OAK_WALL_HANGING_SIGN = 458,
-    BLOCK_OAK_HANGING_SIGN = 459,
-    BLOCK_BIRCH_HANGING_SIGN = 460,
-    BLOCK_ACACIA_HANGING_SIGN = 461,
-    BLOCK_CRIMSON_HANGING_SIGN = 462,
-    BLOCK_MANGROVE_HANGING_SIGN = 463,
-    BLOCK_BAMBOO_HANGING_SIGN = 464,
+    BLOCK_WALL_HANGING_SIGN = 458,  // all woods, see SIGN_WOOD()
+    BLOCK_HANGING_SIGN = 459,       // all woods, see SIGN_WOOD()
+    // 460-464 are unused: they were birch/jungle, acacia/dark oak, crimson/warped, mangrove/cherry, and bamboo/pale oak hanging signs, now in BLOCK_HANGING_SIGN
     BLOCK_TRIAL_SPAWNER = 465,
     BLOCK_VAULT = 466,
     BLOCK_CRAFTER = 467,
@@ -1060,9 +1093,8 @@ enum block_types {
     BLOCK_POPLAR_FENCE = 515,
     BLOCK_POPLAR_FENCE_GATE = 516,
     BLOCK_POPLAR_TRAPDOOR = 517,
-    BLOCK_POPLAR_SIGN_POST = 518,
-    BLOCK_POPLAR_WALL_SIGN = 519,
-    BLOCK_POPLAR_HANGING_SIGN = 520,
+    // 518 and 519 are unused: they were poplar signs and wall signs, now in BLOCK_SIGN_POST and BLOCK_WALL_SIGN
+    // 520 is unused: it was poplar hanging signs, now in BLOCK_HANGING_SIGN
     BLOCK_WHITE_CONCRETE_STAIRS = 521,
     BLOCK_ORANGE_CONCRETE_STAIRS = 522,
     BLOCK_MAGENTA_CONCRETE_STAIRS = 523,
@@ -1101,4 +1133,7 @@ enum block_types {
     BLOCK_WOOL_SLAB = 556,
     BLOCK_SHELF_MUSHROOM = 557,   // bits 0x3 are facing (door_facing: 0=east,1=south,2=west,3=north), bit 0x4 is age (0=small,1=large)
     BLOCK_STRAW_BED = 558,   // bits 0x3 are SWNE facing (south=0,west=1,north=2,east=3), bit 0x8 is part (0=foot,1=head)
+    BLOCK_RED_SHRUB = 559,   // was 396 (140 + TYPE_HIGH_BIT1), which the translation table couldn't tell from potted cactus (140, CACTUS_FIELD)
+    BLOCK_CUSHION = 560,   // an entity, not a block (see addCushions() in MinewaysMap.cpp): bits 0xF are the color, as for wool, bits 0x30 the facing, yaw / 90 (0 = south, 1 = west, 2 = north, 3 = east),
+                           // bits 0x780 how far below its block it sits, in sixteenths (see CUSHION_DROP)
 };

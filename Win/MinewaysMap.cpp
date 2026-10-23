@@ -36,6 +36,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CullingSchemes.h"	// isBlockCulled() — skip culled voxels in the map render
 #include <assert.h>
 #include <string.h>
+#include <deque>
+#include <vector>
+#include <unordered_set>
 
 static void clearUndoHighlight();
 static void copyHighlightState(HighlightBox& destBox, HighlightBox& srcBox);
@@ -43,9 +46,14 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int topy, in
     ProgressCallback callback, float percent, float & pctprogress, int* hitsFound, int mcVersion, int versionID, int& retCode);
 static void blit(unsigned char* block, unsigned char* bits, int px, int py, double zoom, int w, int h);
 static WorldBlock* determineMaxFilledHeight(WorldBlock* block);
+static void addCushions(wchar_t* directory, int cx, int cz, WorldBlock* block);
+static void saveBadChunkLocation(int bx, int bz);
+static void addUnknownBlockNames(const char* names);
+void ChunkLoaderStop();
 static int createBlockFromSchematic(WorldGuide* pWorldGuide, int cx, int cz, WorldBlock* block);
 static void initColors();
 static void saveBadChunkLocation(int bx, int bz);
+static bool westHeightsAvailable(int bx, int bz, int topy, int worldType);
 
 
 static int gColorsInited = 0;
@@ -54,9 +62,26 @@ static unsigned char gEmptyR, gEmptyG, gEmptyB;
 static unsigned char gBlankTile[16 * 16 * 4];
 static unsigned char gBlankHighlitTile[16 * 16 * 4];
 static unsigned char gBlankTransitionTile[16 * 16 * 4];
+// What the map shows for a chunk depends on what's known about it. The gray checkerboard, gBlankTile, means it was
+// looked at and nothing is there. White, gPendingTile (and the color the map buffer is cleared to), means it hasn't been
+// looked at yet, e.g. it's still to be loaded in the background. Solid gray, gOutOfMemoryTile, means it won't be loaded,
+// as the map memory setting holds only the chunks around the center of a large view (see MarkOutOfMemoryChunks()).
+static unsigned char gPendingTile[16 * 16 * 4];
+static unsigned char gOutOfMemoryTile[16 * 16 * 4];
+static unsigned char gOutOfMemoryHighlitTile[16 * 16 * 4];
+static unsigned char gOutOfMemoryTransitionTile[16 * 16 * 4];
+#define OUT_OF_MEMORY_TONE 105
+// the colors, BGR, of gOutOfMemoryTile, plain, in the highlight box, and on its border
+static unsigned char gOutOfMemoryColors[3][3];
 
 static unsigned short gColormap = 0;
 // no longer needed: static long long gMapSeed;
+
+// Non-blocking draw: when set, draw() skips LoadBlock on cache misses and returns
+// a blank tile immediately, recording that chunks were missed. Used by the
+// scroll-cache fast path so panning never stalls on disk I/O.
+static bool gNonBlockingDraw = false;
+static bool gChunksMissing = false;
 
 static HighlightBox gBox = { 0,0,0,0,0,0,0 };
 static HighlightBox gPreviousBox = { 0,0,0,0,0,0,0 };
@@ -402,6 +427,113 @@ int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int mapMaxY
     return sumRetCode;
 }
 
+// The pixel position at which DrawMap() puts chunk 0,0's corner, for a view centered at cx, cz: chunk bx, bz is at
+// ox + bx * blockScale, oz + bz * blockScale, where blockScale is (int)(16 * zoom). Chunks are placed every blockScale pixels,
+// a whole number, but the view moves within a chunk at the true zoom, so when 16 * zoom isn't a whole number, the map doesn't
+// move evenly with the view. Moving the map's pixels by the change in this origin gives exactly what DrawMap() would draw.
+void GetMapChunkOrigin(double cx, double cz, int w, int h, double zoom, int* ox, int* oz)
+{
+    // the same math as DrawMap()
+    int blockScale = (int)(16 * zoom);
+    double startx = cx - (double)w / (2 * zoom);
+    double startz = cz - (double)h / (2 * zoom);
+    int startxblock = (int)(startx / 16);
+    int startzblock = (int)(startz / 16);
+    int shiftx = (int)((startx - startxblock * 16) * zoom);
+    int shifty = (int)((startz - startzblock * 16) * zoom);
+    if (shiftx < 0) {
+        startxblock--;
+        shiftx += blockScale;
+    }
+    if (shifty < 0) {
+        startzblock--;
+        shifty += blockScale;
+    }
+    *ox = -shiftx - startxblock * blockScale;
+    *oz = -shifty - startzblock * blockScale;
+}
+
+// Like DrawMap but only renders chunks whose blitted pixel area overlaps the clip rectangle
+// [clipMinX..clipMaxX) x [clipMinY..clipMaxY) in screen pixel coords. Used by the scroll
+// cache to redraw only newly-exposed edge strips after a pan.
+int DrawMapStrips(WorldGuide* pWorldGuide, double cx, double cz, int topy, int mapMaxY, int w, int h, double zoom, unsigned char* bits, Options* pOpts, int hitsFound[3], ProgressCallback callback, int mcVersion, int versionID, int clipMinX, int clipMinY, int clipMaxX, int clipMaxY)
+{
+    int sumRetCode = 0;
+    if (pWorldGuide->type == WORLD_LEVEL_TYPE) {
+        SetDimensionDirectory(pWorldGuide, pOpts->worldType);
+        wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"region");
+        if (!DirectoryExists(pWorldGuide->directory)) {
+            sumRetCode |= NBT_WARNING_DIRECTORY_NOT_FOUND;
+        }
+    }
+
+    unsigned char* blockbits;
+    int z, x, px, py;
+    int blockScale = (int)(16 * zoom);
+
+    int hBlocks = (w + blockScale * 2) / blockScale;
+    int vBlocks = (h + blockScale * 2) / blockScale;
+
+    double startx = cx - (double)w / (2 * zoom);
+    double startz = cz - (double)h / (2 * zoom);
+    int startxblock = (int)(startx / 16);
+    int startzblock = (int)(startz / 16);
+    int shiftx = (int)((startx - startxblock * 16) * zoom);
+    int shifty = (int)((startz - startzblock * 16) * zoom);
+
+    int retCode;
+
+    if (shiftx < 0) {
+        startxblock--;
+        shiftx += blockScale;
+    }
+    if (shifty < 0) {
+        startzblock--;
+        shifty += blockScale;
+    }
+
+    if (!gColorsInited)
+        initColors();
+
+    // Compute the z/x block range that intersects the clip rectangle, so we
+    // iterate only over the chunks we need instead of all hBlocks*vBlocks.
+    // py(z) = -shifty + z*blockScale; draw condition: py+blockScale > clipMinY && py < clipMaxY.
+    int zStart = max(0, (clipMinY + shifty) / blockScale);
+    int zEnd   = min(vBlocks, (clipMaxY + shifty - 1) / blockScale);
+    int xStart = max(0, (clipMinX + shiftx) / blockScale);
+    int xEnd   = min(hBlocks, (clipMaxX + shiftx - 1) / blockScale);
+
+    float pctprogress = DRAW_PROGRESS_INCREMENT;
+    for (z = zStart, py = -shifty + zStart * blockScale; z <= zEnd; z++, py += blockScale)
+    {
+        for (x = xStart, px = -shiftx + xStart * blockScale; x <= xEnd; x++, px += blockScale)
+        {
+
+            blockbits = draw(pWorldGuide, startxblock + x, startzblock + z, topy, mapMaxY, pOpts, callback, (float)(z * hBlocks + x) / (float)(vBlocks * hBlocks), pctprogress, hitsFound, mcVersion, versionID, retCode);
+            if (retCode < 0) {
+                sumRetCode = retCode;
+            }
+            else if (sumRetCode >= 0) {
+                sumRetCode |= retCode;
+            }
+            blit(blockbits, bits, px, py, zoom, w, h);
+        }
+    }
+
+    if (gBox.highlightUsed) {
+        gDirtyBoxMinX = gBox.minX;
+        gDirtyBoxMinZ = gBox.minZ;
+        gDirtyBoxMaxX = gBox.maxX;
+        gDirtyBoxMaxZ = gBox.maxZ;
+    }
+    else {
+        gDirtyBoxMinX = gDirtyBoxMinZ = INT_MAX;
+        gDirtyBoxMaxX = gDirtyBoxMaxZ = INT_MIN;
+    }
+
+    return sumRetCode;
+}
+
 //image = 3 bytes per pixel, w*h*zoom^2
 //cx = upper left x world
 //cz = upper left z world
@@ -516,16 +648,20 @@ int DrawMapToArray(unsigned char* image, WorldGuide* pWorldGuide, int cx, int cz
                     // make sure in range
                     //assert(((iz + b2iz) * w + (ix + b2ix)) >= 0 && ((iz + b2iz) * w + (ix + b2ix)) <= w * h);
                     if (zoom == 1) {
-                        *curImg++ = *curBits++;
-                        *curImg++ = *curBits++;
-                        *curImg++ = *curBits++;
+                        // rendercache is BGRA; output image is RGB
+                        unsigned char cb = *curBits++;
+                        unsigned char cg = *curBits++;
+                        unsigned char cr = *curBits++;
                         curBits++;
+                        *curImg++ = cr;
+                        *curImg++ = cg;
+                        *curImg++ = cb;
                     }
                     else {
-                        // loop and fill in image
-                        unsigned char r = *curBits++;
-                        unsigned char g = *curBits++;
+                        // rendercache is BGRA; output image is RGB
                         unsigned char b = *curBits++;
+                        unsigned char g = *curBits++;
+                        unsigned char r = *curBits++;
                         curBits++;
                         unsigned char* curImgLine = curImg;
                         for (int imgz = 0; imgz < zoom; imgz++) {
@@ -794,7 +930,6 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
     case BLOCK_STAINED_GLASS_PANE:
     case BLOCK_CONCRETE:
     case BLOCK_CONCRETE_POWDER:
-        // someday, when I add beds with colors: case BLOCK_BED - and we'll probably need to shift the data value, since the lower bits are used for top/bottom etc.
         sprintf_s(gConcatString, 100, "%s %s", gColorNames[dataVal & 0xf].name, gBlockDefinitions[type].name);
         return gConcatString;
 
@@ -1463,100 +1598,15 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         break;
 
     case BLOCK_SIGN_POST:
-        switch (dataVal & (BIT_16 | BIT_32))
-        {
-        default:
-            assert(0);
-            break;
-        case 0:
-            //return "Oak Sign";
-            break;
-        case BIT_16:	// spruce
-            return "Spruce Sign";
-        case BIT_32:	// birch
-            return "Birch Sign";
-        case BIT_32 | BIT_16:	// jungle
-            return "Jungle Sign";
-        }
-        break;
-
-    case BLOCK_ACACIA_SIGN_POST:
-        switch (dataVal & (BIT_16 | BIT_32))
-        {
-        default:
-            assert(0);
-            break;
-        case 0:
-            //return "Acacia Sign";
-            break;
-        case BIT_16:	// dark oak
-            return "Dark Oak Sign";
-        case BIT_32:	// dark oak
-            return "Crimson Sign";
-        case BIT_32 | BIT_16:	// dark oak
-            return "Warped Sign";
-        }
-        break;
-
-    case BLOCK_MANGROVE_SIGN_POST:
-    case BLOCK_POPLAR_SIGN_POST:
-        switch (dataVal & (BIT_16 | BIT_32))
-        {
-        default:
-            assert(0);
-            break;
-        case 0:
-            //return "Mangrove Sign";
-            break;
-        case BIT_16:
-            return "Cherry Sign";
-        case BIT_32:
-            return "Bamboo Sign";
-        case BIT_32 | BIT_16:
-            return "Pale Oak Sign";
-        }
+        // the wood is in SIGN_WOOD_MASK; oak keeps the default name, "Oak Sign"
+        if (SIGN_WOOD(dataVal) > 0 && SIGN_WOOD(dataVal) < NUM_SIGN_WOODS)
+            return gSignWoods[SIGN_WOOD(dataVal)].signName;
         break;
 
     case BLOCK_WALL_SIGN:
-        switch (dataVal & (BIT_8 | BIT_16 | BIT_32))
-        {
-        default:
-            assert(0);
-            break;
-        case 0:
-            return "Oak Wall Sign";
-        case BIT_8:	// spruce
-            return "Spruce Wall Sign";
-        case BIT_16:	// birch
-            return "Birch Wall Sign";
-        case BIT_16 | BIT_8:	// jungle
-            return "Jungle Wall Sign";
-        case BIT_32:	// acacia
-            return "Acacia Wall Sign";
-        case BIT_32 | BIT_8:	// dark oak
-            return "Dark Oak Wall Sign";
-        case BIT_32 | BIT_16:
-            return "Crimson Wall Sign";
-        case BIT_32 | BIT_16 | BIT_8:
-            return "Warped Wall Sign";
-        }
-        break;
-
-    case BLOCK_MANGROVE_WALL_SIGN:
-        switch (dataVal & (BIT_8 | BIT_16 | BIT_32))
-        {
-        default:
-            assert(0);
-            break;
-        case 0:
-            return "Mangrove Wall Sign";
-        case BIT_8:
-            return "Cherry Wall Sign";
-        case BIT_16:	// bamboo
-            return "Bamboo Wall Sign";
-        case BIT_16 | BIT_8:	// pale oak
-            return "Pale Oak Wall Sign";
-        }
+        // the wood is in SIGN_WOOD_MASK; the default name, "Wall Sign", is not specific enough, so always name the wood
+        if (SIGN_WOOD(dataVal) < NUM_SIGN_WOODS)
+            return gSignWoods[SIGN_WOOD(dataVal)].wallSignName;
         break;
 
     case BLOCK_SMOOTH_STONE:
@@ -1795,6 +1845,12 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         strcat_s(gConcatString, 100, " Wool Slab");
         return gConcatString;
 
+    case BLOCK_CUSHION:
+        // the color is in bits 0xF, as for wool
+        strcpy_s(gConcatString, 100, gConcreteWoolColorNames[dataVal & 0xF]);
+        strcat_s(gConcatString, 100, " Cushion");
+        return gConcatString;
+
     case BLOCK_SHELF_MUSHROOM:
         // dataVal bit 0x4 is age (0=small stage0, 1=large stage1); default name "Shelf Mushroom" covers age 0.
         if (dataVal & 0x4) {
@@ -1802,6 +1858,17 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         }
         break;
 
+    case BLOCK_SHULKER_CHEST + 10:
+        // the undyed shulker box shares the purple one's type, with bit 0x8
+        if (dataVal & 0x8)
+            return "Shulker Box";
+        break;
+
+    case BLOCK_BED:
+        // the color is in BED_COLOR_MASK; dataVal bit 0x8 is part (0=foot,1=head)
+        strcpy_s(gConcatString, 100, gConcreteWoolColorNames[BED_COLOR(dataVal)]);
+        strcat_s(gConcatString, 100, (dataVal & 0x8) ? " Bed (Head)" : " Bed");
+        return gConcatString;
     case BLOCK_STRAW_BED:
         // dataVal bit 0x8 is part (0=foot,1=head); default name "Straw Bed" covers the foot half.
         if (dataVal & 0x8) {
@@ -2398,12 +2465,10 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         break;
 
     case BLOCK_COLORED_CANDLE:
-        // someday, when I add beds with colors: case BLOCK_BED - and we'll probably need to shift the data value, since the lower bits are used for top/bottom etc.
         sprintf_s(gConcatString, 100, "%s %s", gColorNames[dataVal & 0xf].name, gBlockDefinitions[BLOCK_CANDLE].name);
         return gConcatString;
 
     case BLOCK_LIT_COLORED_CANDLE:
-        // someday, when I add beds with colors: case BLOCK_BED - and we'll probably need to shift the data value, since the lower bits are used for top/bottom etc.
         sprintf_s(gConcatString, 100, "Lit %s %s", gColorNames[dataVal & 0xf].name, gBlockDefinitions[BLOCK_CANDLE].name);
         return gConcatString;
 
@@ -2636,67 +2701,16 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
         }
         break;
 
-    case BLOCK_OAK_WALL_HANGING_SIGN:
-        switch (dataVal & (0xC | BIT_16 | BIT_32))
-        {
-        default:
-            assert(0);
-        case 0:
-            break;
-            // return "Oak Wall Hanging Sign";
-        case 1 << 2:	// spruce
-            return "Spruce Wall Hanging Sign";
-        case 2 << 2:	// birch
-            return "Birch Wall Hanging Sign";
-        case 3 << 2:	// jungle
-            return "Jungle Wall Hanging Sign";
-        case 4 << 2:	// acacia
-            return "Acacia Wall Hanging Sign";
-        case 5 << 2:	// dark oak
-            return "Dark Oak Wall Hanging Sign";
-        case 6 << 2:
-            return "Crimson Wall Hanging Sign";
-        case 7 << 2:
-            return "Warped Wall Hanging Sign";
-        case 8 << 2:
-            return "Mangrove Wall Hanging Sign";
-        case 9 << 2:
-            return "Cherry Wall Hanging Sign";
-        case 10 << 2:
-            return "Bamboo Wall Hanging Sign";
-        case 11 << 2:
-            return "Pale Oak Wall Hanging Sign";
-        case 12 << 2:
-            return "Poplar Wall Hanging Sign";
-        }
+    case BLOCK_WALL_HANGING_SIGN:
+        // the wood is in SIGN_WOOD_MASK; oak keeps the default name, "Oak Wall Hanging Sign"
+        if (SIGN_WOOD(dataVal) > 0 && SIGN_WOOD(dataVal) < NUM_SIGN_WOODS)
+            return gSignWoods[SIGN_WOOD(dataVal)].wallHangingSignName;
         break;
 
-    case BLOCK_OAK_HANGING_SIGN:
-        if (dataVal & BIT_16)
-        {
-            return "Spruce Hanging Sign";
-        }
-        break;
-
-    case BLOCK_ACACIA_HANGING_SIGN:
-        if (dataVal & BIT_16)
-        {
-            return "Dark Oak Hanging Sign";
-        }
-        break;
-
-    case BLOCK_CRIMSON_HANGING_SIGN:
-        if (dataVal & BIT_16)
-        {
-            return "Warped Hanging Sign";
-        }
-        break;
-
-    case BLOCK_MANGROVE_HANGING_SIGN:
-        if (dataVal & BIT_16)
-        {
-            return "Cherry Hanging Sign";
-        }
+    case BLOCK_HANGING_SIGN:
+        // the wood is in SIGN_WOOD_MASK; oak keeps the default name, "Oak Hanging Sign"
+        if (SIGN_WOOD(dataVal) > 0 && SIGN_WOOD(dataVal) < NUM_SIGN_WOODS)
+            return gSignWoods[SIGN_WOOD(dataVal)].hangingSignName;
         break;
 
     case BLOCK_COPPER_BULB:
@@ -3006,6 +3020,8 @@ static void blit(unsigned char* block, unsigned char* bits, int px, int py,
 
 void CloseAll()
 {
+    // the chunk loader threads are reading the old world: stop them first
+    ChunkLoaderStop();
     Cache_Empty();
     regionCleanup();
 }
@@ -3699,6 +3715,12 @@ unsigned int GetBlockDataColor(int type, int dataVal)
     case BLOCK_WOOL_SLAB:
         return gWoolColors[CONCRETE_WOOL_SLAB_COLOR_INDEX(dataVal)];
 
+    case BLOCK_CUSHION:
+        return gWoolColors[dataVal & 0xF];
+
+    case BLOCK_BED:
+        return gWoolColors[BED_COLOR(dataVal)];
+
     case BLOCK_CUT_COPPER_DOUBLE_SLAB:
     case BLOCK_CUT_COPPER_SLAB:
         switch (dataVal & 0x17)
@@ -3957,84 +3979,11 @@ unsigned int GetBlockDataColor(int type, int dataVal)
         }
 
     case BLOCK_SIGN_POST:
-        switch (dataVal & (BIT_16 | BIT_32))
-        {
-        default:
-        case 0:
-            return gBlockDefinitions[type].color;
-        case BIT_16:	// spruce
-            return 0x745632;
-        case BIT_32:	// birch
-            return 0xC2B17A;
-        case BIT_32 | BIT_16:	// jungle
-            return 0xA37654;
-        }
-
-    case BLOCK_ACACIA_SIGN_POST:
-        switch (dataVal & (BIT_16 | BIT_32))
-        {
-        default:
-        case 0:
-            return gBlockDefinitions[type].color;
-        case BIT_16:	// dark oak
-            return 0x442C15;
-        case BIT_32:	// crimson
-            return 0x7B3953;
-        case BIT_32 | BIT_16:	// warped
-            return 0x35837F;
-        }
-
-    case BLOCK_MANGROVE_SIGN_POST:
-    case BLOCK_POPLAR_SIGN_POST:
-        switch (dataVal & (BIT_16 | BIT_32))
-        {
-        default:
-        case 0:
-            return gBlockDefinitions[type].color;
-        case BIT_16:	// cherry
-            return gBlockDefinitions[BLOCK_CHERRY_STAIRS].pcolor;
-        case BIT_32:	// bamboo
-            return gBlockDefinitions[BLOCK_BAMBOO_STAIRS].pcolor;
-        case BIT_32 | BIT_16:	// pale oak
-            return gBlockDefinitions[BLOCK_PALE_OAK_STAIRS].pcolor;
-        }
-
     case BLOCK_WALL_SIGN:
-        switch (dataVal & (BIT_8 | BIT_16 | BIT_32))
-        {
-        default:
-        case 0:
-            return gBlockDefinitions[type].color;
-        case BIT_8:	// spruce
-            return 0x745632;
-        case BIT_16:	// birch
-            return 0xC2B17A;
-        case BIT_16 | BIT_8:	// jungle
-            return 0xA37654;
-        case BIT_32:	// acacia
-            return 0xA95B33;
-        case BIT_32 | BIT_8:	// dark oak
-            return 0x442C15;
-        case BIT_32 | BIT_16:   // crimson
-            return 0x7B3953;
-        case BIT_32 | BIT_16 | BIT_8:   // warped
-            return 0x35837F;
-        }
-
-    case BLOCK_MANGROVE_WALL_SIGN:
-    case BLOCK_POPLAR_WALL_SIGN:
-        switch (dataVal & (BIT_8 | BIT_16 | BIT_32))
-        {
-        default:
-        case 0:
-            return gBlockDefinitions[type].color;
-        case BIT_8:	// cherry
-            return 0xE3B4AE;
-        case BIT_16:	// bamboo
-            return 0xC4AF52;
-        case BIT_16 | BIT_8:	// pale oak
-            return 0xE5DBDA;
-        }
+        // the wood is in SIGN_WOOD_MASK; oak uses the block's own (color scheme) color
+        if (SIGN_WOOD(dataVal) > 0 && SIGN_WOOD(dataVal) < NUM_SIGN_WOODS)
+            return gSignWoods[SIGN_WOOD(dataVal)].color;
+        return gBlockDefinitions[type].color;
 
     case BLOCK_SMOOTH_STONE:
         switch (dataVal & 0x3)
@@ -4431,66 +4380,11 @@ unsigned int GetBlockDataColor(int type, int dataVal)
             return 0xDACDA1;
         }
 
-    case BLOCK_OAK_WALL_HANGING_SIGN:
-        switch (dataVal & (0xC | BIT_16 | BIT_32))
-        {
-        default:
-        case 0:
-            return gBlockDefinitions[type].color;
-        case 1 << 2:	// spruce
-            return 0x745A35;
-        case 2 << 2:	// birch
-            return 0xC5B077;
-        case 3 << 2:	// jungle
-            return 0xAC8555;
-        case 4 << 2:	// acacia
-            return 0xAF5D3C;
-        case 5 << 2:	// dark oak
-            return 0x493924;
-        case 6 << 2:   // crimson
-            return 0x8A3A5A;
-        case 7 << 2:   // warped
-            return 0x3A9794;
-        case 8 << 2:    // mangrove
-            return 0x783730;
-        case 9 << 2:	// cherry
-            return 0xDDA7A0;
-        case 10 << 2:	// bamboo
-            return 0xC4AF52;
-        case 11 << 2:	// pale oak
-            return 0xE5DBDA;
-        case 12 << 2:	// poplar
-            return 0xA5998C;
-        }
-
-    case BLOCK_OAK_HANGING_SIGN:
-        if (dataVal & BIT_32) {
-            return 0x745632;   // spruce
-        }
-        return gBlockDefinitions[type].color;
-
-    case BLOCK_BIRCH_HANGING_SIGN:
-        if (dataVal & BIT_32) {
-            return 0xAC8555;   // jungle
-        }
-        return gBlockDefinitions[type].color;
-
-    case BLOCK_ACACIA_HANGING_SIGN:
-        if (dataVal & BIT_32) {
-            return 0x745632;   // dark oak
-        }
-        return gBlockDefinitions[type].color;
-
-    case BLOCK_CRIMSON_HANGING_SIGN:
-        if (dataVal & BIT_32) {
-            return 0x745632;   // warped
-        }
-        return gBlockDefinitions[type].color;
-
-    case BLOCK_MANGROVE_HANGING_SIGN:
-        if (dataVal & BIT_32) {
-            return 0x745632;   // mangrove
-        }
+    case BLOCK_WALL_HANGING_SIGN:
+    case BLOCK_HANGING_SIGN:
+        // the wood is in SIGN_WOOD_MASK; oak uses the block's own (color scheme) color
+        if (SIGN_WOOD(dataVal) > 0 && SIGN_WOOD(dataVal) < NUM_SIGN_WOODS)
+            return gSignWoods[SIGN_WOOD(dataVal)].hangingColor;
         return gBlockDefinitions[type].color;
 
     case BLOCK_TRIAL_SPAWNER:
@@ -5155,6 +5049,51 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
     return color;
 }   // endend
 
+// A tile that doesn't depend on the chunk's contents, such as gBlankTile, made slightly red where it's in the highlight box:
+// as is, all highlit (highlitTile), or, for a chunk the box's edge crosses, blended a texel at a time into transitionTile.
+static unsigned char* highlightTile(unsigned char* tile, unsigned char* highlitTile, unsigned char* transitionTile, int bx, int bz)
+{
+    // highlighting off, or fully outside real area? Use the tile.
+    if (!gBox.highlightUsed ||
+        (bx * 16 + 15 < gBox.minX) || (bx * 16 > gBox.maxX) ||
+        (bz * 16 + 15 < gBox.minZ) || (bz * 16 > gBox.maxZ))
+        return tile;
+
+    // fully inside? Use precomputed highlit area
+    if ((bx * 16 > gBox.minX) && (bx * 16 + 15 < gBox.maxX) &&
+        (bz * 16 > gBox.minZ) && (bz * 16 + 15 < gBox.maxZ))
+        return highlitTile;
+
+    // draw the highlighted area
+    memcpy(transitionTile, tile, 16 * 16 * 4);
+    // z increases south, decreases north
+    for (int z = 0; z < 16; z++)
+    {
+        // x increases west, decreases east
+        for (int x = 0; x < 16; x++)
+        {
+            int offset = (z * 16 + x) * 4;
+            // make selected area slightly red
+            if (bx * 16 + x >= gBox.minX && bx * 16 + x <= gBox.maxX &&
+                bz * 16 + z >= gBox.minZ && bz * 16 + z <= gBox.maxZ)
+            {
+                // blend in highlight color
+                double blend = gHalpha;
+                // are we on a border? If so, change blend factor
+                if (bx * 16 + x == gBox.minX || bx * 16 + x == gBox.maxX ||
+                    bz * 16 + z == gBox.minZ || bz * 16 + z == gBox.maxZ)
+                {
+                    blend = gHalphaBorder;
+                }
+                transitionTile[offset] = (unsigned char)((double)transitionTile[offset] * (1.0 - blend) + blend * (double)gHblue);
+                transitionTile[offset + 1] = (unsigned char)((double)transitionTile[offset + 1] * (1.0 - blend) + blend * (double)gHgreen);
+                transitionTile[offset + 2] = (unsigned char)((double)transitionTile[offset + 2] * (1.0 - blend) + blend * (double)gHred);
+            }
+        }
+    }
+    return transitionTile;
+}
+
 // Draw a block at chunk bx,bz
 // opts is a bitmask representing render options (see MinewaysMap.h)
 // returns 16x16 set of block colors to use to render map.
@@ -5199,6 +5138,14 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
 
     if (!found)
     {
+        // In non-blocking mode (scroll-cache strip draws), skip disk I/O and
+        // return the white "not looked at yet" tile. The missing chunk will be loaded later by the
+        // prefetch handler.
+        if (gNonBlockingDraw) {
+            gChunksMissing = true;
+            return gPendingTile;
+        }
+
         SetDimensionDirectory(pWorldGuide, pOpts->worldType);
 
         //char debugString[256];
@@ -5225,47 +5172,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
         if ((block == NULL) || (block->blockType == NBT_NO_SECTIONS)) //blank tile
         {
         DrawBlank:
-
-            // highlighting off, or fully outside real area? Use blank tile.
-            if (!gBox.highlightUsed ||
-                (bx * 16 + 15 < gBox.minX) || (bx * 16 > gBox.maxX) ||
-                (bz * 16 + 15 < gBox.minZ) || (bz * 16 > gBox.maxZ))
-                return gBlankTile;
-
-            // fully inside? Use precomputed highlit area
-            // static int flux = 0;
-            if ((bx * 16 > gBox.minX) && (bx * 16 + 15 < gBox.maxX) &&
-                (bz * 16 > gBox.minZ) && (bz * 16 + 15 < gBox.maxZ))
-                return gBlankHighlitTile;
-
-            // draw the highlighted area
-            memcpy(gBlankTransitionTile, gBlankTile, 16 * 16 * 4);
-            // z increases south, decreases north
-            for (z = 0; z < 16; z++)
-            {
-                // x increases west, decreases east
-                for (x = 0; x < 16; x++)
-                {
-                    int offset = (z * 16 + x) * 4;
-                    // make selected area slightly red
-                    if (bx * 16 + x >= gBox.minX && bx * 16 + x <= gBox.maxX &&
-                        bz * 16 + z >= gBox.minZ && bz * 16 + z <= gBox.maxZ)
-                    {
-                        // blend in highlight color
-                        blend = gHalpha;
-                        // are we on a border? If so, change blend factor
-                        if (bx * 16 + x == gBox.minX || bx * 16 + x == gBox.maxX ||
-                            bz * 16 + z == gBox.minZ || bz * 16 + z == gBox.maxZ)
-                        {
-                            blend = gHalphaBorder;
-                        }
-                        gBlankTransitionTile[offset++] = (unsigned char)((double)gBlankTransitionTile[offset] * (1.0 - blend) + blend * (double)gHred);
-                        gBlankTransitionTile[offset++] = (unsigned char)((double)gBlankTransitionTile[offset] * (1.0 - blend) + blend * (double)gHgreen);
-                        gBlankTransitionTile[offset] = (unsigned char)((double)gBlankTransitionTile[offset] * (1.0 - blend) + blend * (double)gHblue);
-                    }
-                }
-            }
-            return gBlankTransitionTile;
+            return highlightTile(gBlankTile, gBlankHighlitTile, gBlankTransitionTile, bx, bz);
         }
     } else if (block == NULL || block->blockType == NBT_NO_SECTIONS) {
         // should really call a "draw blank" subroutine, but here goes...
@@ -5282,10 +5189,9 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
     // already rendered?
     if (block->rendery == heightAlloc && block->renderopts == pOpts->worldType && block->colormap == gColormap)
     {
-        void* dummy;
         if (block->rendermissing // wait, the last render was incomplete
-            && Cache_Find(bx, bz + block->rendermissing, &dummy)) {
-            ; // we can do a better render now that the missing block is loaded
+            && westHeightsAvailable(bx, bz, heightAlloc, pOpts->worldType)) {
+            ; // we can do a better render now that the missing block to the west is loaded
         }
         else {
             // Yes, it's been rendered, but now we need to check if the highlight number is OK:
@@ -5611,9 +5517,9 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
             if (prevy == -1 && !hitGrid) {
                 // empty, so make it background color to start
                 unsigned char* clr = &gBlankTile[(x + z * 16) * 4];
-                r = *clr++;
+                b = *clr++;
                 g = *clr++;
-                b = *clr; // ++ if you add alpha
+                r = *clr; // ++ if you add alpha
                 // highlight the block if in selected area, as otherwise it looks like it's missing with schematics.
                 // Make selected area slightly red
                 if (gBox.highlightUsed &&
@@ -5642,9 +5548,9 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
             }
 #endif
 
-            bits[ofs++] = r;
-            bits[ofs++] = g;
             bits[ofs++] = b;
+            bits[ofs++] = g;
+            bits[ofs++] = r;
             bits[ofs++] = 0xff;
 
             // heightmap determines what value is displayed on status and for shadowing. If "show all" is on,
@@ -5776,7 +5682,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         if (dataVal < 2)
         {
             // put stone overhead
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
             addBlock = 1;
         }
         break;
@@ -5924,7 +5830,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
     case BLOCK_PUMPKIN:
     case BLOCK_JACK_O_LANTERN:
-    case BLOCK_RESPAWN_ANCHOR:
     case BLOCK_MANGROVE_LEAVES:     // uses 0-5: mangrove, cherry, pale oak, and the yellow, orange, and red poplar leaves
         // uses 0-5
         if (dataVal < 6)
@@ -5932,9 +5837,16 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             addBlock = 1;
         }
         break;
+    case BLOCK_RESPAWN_ANCHOR:
+        // charges 0-4
+        if (dataVal < 5)
+        {
+            addBlock = 1;
+        }
+        break;
     case BLOCK_DANDELION:
         // uses 0-6
-        if (dataVal < 6)
+        if (dataVal < 7)
         {
             addBlock = 1;
         }
@@ -5992,7 +5904,6 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
     case BLOCK_ANDESITE_DOUBLE_SLAB:
     case BLOCK_BAMBOO:
     case BLOCK_JIGSAW:
-    case BLOCK_HEAD:
         // uses 0-5 - could use more for 1.16 orientations, TODO
         if (dataVal < 6)
         {
@@ -6187,13 +6098,27 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         if (dataVal < 8)
         {
             addBlock = 1;
-        }
-        break;
-    case BLOCK_STRAW_BED:
-        // valid values are {0,1,2,3,8,9,10,11}: bits 0x3 are SWNE facing, bit 0x8 is part - bits 0x4 unused
-        if ((dataVal & ~0xB) == 0)
-        {
-            addBlock = 1;
+
+            trimVal = dataVal & 0x3;
+            switch (trimVal)
+            {
+            case 0:
+                // put block to west
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
+                break;
+            case 1:
+                // put block to north
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_GLASS;
+                break;
+            case 2:
+                // put block to east
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
+                break;
+            case 3:
+                // put block to south
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_GLASS;
+                break;
+            }
         }
         break;
     case BLOCK_WHEAT:
@@ -6415,19 +6340,19 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
         case 3:	// not actually used
             // put block to south
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_GLASS;
             break;
         case 1:
             // put block to north
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_GLASS;
             break;
         case 2:
             // put block to east
-            block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
             break;
         case 0:
             // put block to west
-            block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
             break;
         }
     }
@@ -6567,14 +6492,12 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
 
-    case BLOCK_POPLAR_SIGN_POST:
-        // a single kind of sign: rotation is all there is
+    case BLOCK_SIGN_POST:
+        // the 16 rotations, cycling through the woods
         addBlock = 1;
+        finalDataVal = dataVal | ((dataVal % NUM_SIGN_WOODS) << SIGN_WOOD_SHIFT);
         break;
 
-    case BLOCK_SIGN_POST:
-    case BLOCK_ACACIA_SIGN_POST:
-    case BLOCK_MANGROVE_SIGN_POST:
     case BLOCK_COLORED_CANDLE:
     case BLOCK_LIT_COLORED_CANDLE:
     case BLOCK_VAULT:
@@ -6589,7 +6512,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
 
             // add the five other variants around a block of stone
             neighborIndex = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
-            block->grid[neighborIndex] = BLOCK_STONE;
+            block->grid[neighborIndex] = BLOCK_GLASS;
             block->data[neighborIndex] = 0x0;
 
             neighborIndex = BLOCK_INDEX(3 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
@@ -6724,19 +6647,19 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 break;
             case 2:
                 // put block to north
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 3:
                 // put block to south
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 4:
                 // put block to west
-                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 5:
                 // put block to east
-                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             }
         }
@@ -6754,19 +6677,19 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             {
             case 1:
                 // put block to west
-                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 2:
                 // put block to east
-                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 3:
                 // put block to north
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 4:
                 // put block to south
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             default:
                 // do nothing - on ground
@@ -6783,19 +6706,19 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             {
             case 2:
                 // put block to south
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 3:
                 // put block to north
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 4:
                 // put block to east
-                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 5:
                 // put block to west
-                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             }
             finalDataVal = (dataVal & 0x7) | ((dataVal >= 8) ? WATERLOGGED_BIT : 0x0);
@@ -6814,19 +6737,19 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             {
             case 0:
                 // put block to south
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 1:
                 // put block to west
-                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 2:
                 // put block to north
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 3:
                 // put block to east
-                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             default:
                 assert(0);
@@ -6834,7 +6757,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 break;
             case 5:
                 // put block above
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             }
             finalDataVal = (1 << (dataVal & 0x7)) | ((dataVal >= 8) ? WATERLOGGED_BIT : 0x0);
@@ -6863,66 +6786,107 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             {
             case 2:
                 // put block to south
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 3:
                 // put block to north
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 4:
                 // put block to east
-                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 5:
                 // put block to west
-                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             }
         }
         break;
 
-    case BLOCK_WALL_SIGN:
-    case BLOCK_MANGROVE_WALL_SIGN:
-    case BLOCK_POPLAR_WALL_SIGN:
-        // there are now 8 materials for wall signs and 4 for mangrove wall signs. Rather than going absolutely nuts, we change the dataVal for each.
-        // directions are 2-5, so allow those and 10-13
-        if ((dataVal & 0x7) >= 2 && (dataVal & 0x7) <= 5)
-        {
+    case BLOCK_CUSHION:
+        // the 16 colors, cycling through the four facings; the second eight rest on snow, 1 to 8 layers, and so are in the block
+        // above the snow, lowered by the rest of the snow's block, as the world reader puts them (see addCushions)
+        finalDataVal = dataVal | ((dataVal & 0x3) << 4);
+        if (dataVal & 0x8) {
+            int layers = (dataVal & 0x7) + 1;
+            bi = BLOCK_INDEX(4 + (origType % 2) * 8, y, 4 + (dataVal % 2) * 8);
+            block->grid[bi] = BLOCK_SNOW;
+            block->data[bi] = (unsigned short)(layers - 1);
+            // 8 layers is a whole block, so the cushion is not lowered at all
+            bi = BLOCK_INDEX(4 + (origType % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
+            block->grid[bi] = (unsigned char)type;
+            block->data[bi] = (unsigned short)(finalDataVal | (((16 - 2 * layers) & 0xF) << CUSHION_DROP_SHIFT) | typeHighBit);
+        }
+        else {
             addBlock = 1;
-            // set higher bits BIT_8 and BIT_16
-            if (origType == BLOCK_WALL_SIGN) {
-                // cycle 8 materials
-                finalDataVal = ((dataVal % 8) << 3) | (dataVal & 0x7);
-            }
-            else if (origType == BLOCK_POPLAR_WALL_SIGN) {
-                // only one material, so just the direction
-                finalDataVal = dataVal & 0x7;
+        }
+        break;
+
+    case BLOCK_HEAD:
+        // each of the seven head types, on the floor (even dataVal), turned a different amount for each type, and on a wall (odd dataVal),
+        // cycling through the four facings, with the wall behind it
+        if (dataVal < 14)
+        {
+            int headType = dataVal >> 1;
+            addBlock = 1;
+            if ((dataVal & 0x1) == 0) {
+                finalDataVal = 0x80 | (headType << 4) | ((3 * headType) & 0xf);
             }
             else {
-                // cycle 4 materials
-                finalDataVal = ((dataVal % 4) << 3) | (dataVal & 0x7);
+                int facing = 2 + (headType & 0x3);
+                finalDataVal = (headType << 4) | facing;
+                switch (facing)
+                {
+                default:
+                    assert(0);
+                case 2:
+                    // put block to south
+                    block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_GLASS;
+                    break;
+                case 3:
+                    // put block to north
+                    block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_GLASS;
+                    break;
+                case 4:
+                    // put block to east
+                    block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
+                    break;
+                case 5:
+                    // put block to west
+                    block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
+                    break;
+                }
             }
+        }
+        break;
 
-            switch (dataVal & 0x7)
+    case BLOCK_WALL_SIGN:
+        // the four facings, 2-5, each four times, cycling through the woods
+        {
+            int facing = 2 + (dataVal & 0x3);
+            addBlock = 1;
+            finalDataVal = facing | ((dataVal % NUM_SIGN_WOODS) << SIGN_WOOD_SHIFT);
+
+            switch (facing)
             {
-                // do all the wood types
             default:
                 assert(0);
             case 2:
                 // put block to south
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 3:
                 // put block to north
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 4:
                 // put block to east
-                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 5:
                 // put block to west
-                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             }
         }
@@ -6951,19 +6915,19 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             {
             case 2:
                 // put block to east
-                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 3:
                 // put block to west
-                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 4:
                 // put block to north
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 5:
                 // put block to south
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             default:
                 // do nothing - on ground
@@ -6978,24 +6942,24 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
         case 1:
             // put block to west
-            block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
             break;
         case 2:
             // put block to east
-            block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
             break;
         case 3:
             // put block to north
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_GLASS;
             break;
         case 4:
             // put block to south
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_GLASS;
             break;
         case 7:
         case 0:
             // put block above
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
             break;
         default:
             // do nothing - on ground
@@ -7042,8 +7006,14 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
     case BLOCK_BED:
-        if (dataVal < 8)
+    case BLOCK_STRAW_BED:
+        // the straw bed has the four facings; the bed has each of its 16 colors, cycling through the facings
+        if (dataVal < 4 || origType == BLOCK_BED)
         {
+            int bedVal = dataVal & 0x3;
+            if (origType == BLOCK_BED)
+                bedVal |= BED_COLOR_BITS(dataVal);
+            finalDataVal = bedVal;
             addBlock = 1;
             switch (dataVal & 0x3)
             {
@@ -7051,25 +7021,25 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 // put head to south
                 bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
                 block->grid[bi] = (unsigned char)type;
-                block->data[bi] |= (unsigned char)(dataVal | 0x8);
+                block->data[bi] |= (unsigned short)(bedVal | typeHighBit | 0x8);
                 break;
             case 1:
                 // put head to west
                 bi = BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
                 block->grid[bi] = (unsigned char)type;
-                block->data[bi] |= (unsigned char)(dataVal | 0x8);
+                block->data[bi] |= (unsigned short)(bedVal | typeHighBit | 0x8);
                 break;
             case 2:
                 // put head to north
                 bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8);
                 block->grid[bi] = (unsigned char)type;
-                block->data[bi] |= (unsigned char)(dataVal | 0x8);
+                block->data[bi] |= (unsigned short)(bedVal | typeHighBit | 0x8);
                 break;
             case 3:
                 // put head to east
                 bi = BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
                 block->grid[bi] = (unsigned char)type;
-                block->data[bi] |= (unsigned char)(dataVal | 0x8);
+                block->data[bi] |= (unsigned short)(bedVal | typeHighBit | 0x8);
                 break;
             }
         }
@@ -7151,19 +7121,19 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
         case 3:
             // put block to west
-            block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
             break;
         case 2:
             // put block to east
-            block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
             break;
         case 1:
             // put block to north
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_GLASS;
             break;
         case 0:
             // put block to south
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_GLASS;
             break;
         }
         break;
@@ -7222,7 +7192,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 bi = BLOCK_INDEX(bx, by, bz);
                 block->grid[bi] = BLOCK_PISTON_HEAD;
                 // sticky or not, plus direction
-                block->data[bi] |= (unsigned char)(trimVal | ((origType == BLOCK_STICKY_PISTON) ? 0x8 : 0x0));
+                block->data[bi] |= (unsigned short)(trimVal | ((origType == BLOCK_STICKY_PISTON) ? 0x8 : 0x0));
             }
         }
         break;
@@ -7253,7 +7223,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         block->grid[bi] = (unsigned char)type;
         block->data[bi] = (unsigned short)(dataVal | typeHighBit);
 
-        block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 2, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+        block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 2, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
         break;
     case BLOCK_FENCE:
     case BLOCK_SPRUCE_FENCE:
@@ -7373,47 +7343,78 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         break;
     case BLOCK_STAINED_GLASS_PANE:	// color AND neighbors!
         // this one is specialized: incoming dataVal chooses where to put neighbors, NSEW
-        // *and* what color to use. Unlike the "clear" glass pane, above, the 4 bits
-        // in the final dataVal are the color, not the neighbors. :( - need more bits
-        bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-        block->grid[bi] = (unsigned char)type;
-        block->data[bi] = (unsigned short)(dataVal | typeHighBit);
-
-        if (dataVal & 0x1)
-        {
-            // alternate between wall and mossy wall - we set mossy wall if odd
-            block->data[bi] |= (unsigned char)0x1;
-
-            // put block to north
-            bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
-            // alternate between wall and mossy wall
-            block->data[bi] = (unsigned short)(dataVal | typeHighBit);
+        // *and* what color to use. Unlike the "clear" glass pane, above, the low 4 bits
+        // in the final dataVal are the color; the connections go in bits 8-11: 0x100 south,
+        // 0x200 west, 0x400 north, 0x800 east (see STAINED_PANE_PROP in nbt.cpp).
+    {
+        int centerIndex = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
+        block->grid[centerIndex] = (unsigned char)type;
+        block->data[centerIndex] = (unsigned short)(dataVal | typeHighBit);
+        // neighbors north, east, south, west: dataVal bit, X and Z offsets, the center's connection bit and the neighbor's back to it
+        static const int paneNeighbor[4][5] = {
+            { 0x1, 0, -1, 0x400, 0x100 }, { 0x2, 1, 0, 0x800, 0x200 }, { 0x4, 0, 1, 0x100, 0x400 }, { 0x8, -1, 0, 0x200, 0x800 } };
+        for (int n = 0; n < 4; n++) {
+            if (dataVal & paneNeighbor[n][0]) {
+                bi = BLOCK_INDEX(4 + paneNeighbor[n][1] + (type % 2) * 8, y, 4 + paneNeighbor[n][2] + (dataVal % 2) * 8);
+                block->grid[bi] = (unsigned char)type;
+                block->data[bi] = (unsigned short)(dataVal | paneNeighbor[n][4] | typeHighBit);
+                block->data[centerIndex] |= (unsigned short)paneNeighbor[n][3];
+            }
         }
-        if (dataVal & 0x2)
-        {
-            // put block to east
-            bi = BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
-            // alternate between wall and mossy wall
-            block->data[bi] = (unsigned short)(dataVal | typeHighBit);
+    }
+        break;
+    case BLOCK_TRIPWIRE:
+        // this one is specialized, using its 8x8 area:
+        // 0, 1: a pair of tripwire hooks, each on a plank block, facing each other across 4 blocks of string, east-west; 1 is powered
+        // 2, 3: the same, north-south
+        // 4-7: loose string, not attached to hooks: a straight line, a corner, a T, and a cross
+        // String's dataVal: 0x1 powered, 0x4 attached, and its connections, 0x100 south, 0x200 west, 0x400 north, 0x800 east (see
+        // TRIPWIRE_PROP in nbt.cpp). A hook's: 0x3 the way it faces (0 south, 1 west, 2 north, 3 east), 0x4 attached, 0x8 powered.
+    {
+        int x0 = (type % 2) * 8;
+        int z0 = (dataVal % 2) * 8;
+        // put a block at x, z (within the 8x8 area) of the given type and data
+        auto putBlock = [&](int px, int pz, int putType, int putData) {
+            bi = BLOCK_INDEX(x0 + px, y, z0 + pz);
+            block->grid[bi] = (unsigned char)putType;
+            block->data[bi] = (unsigned short)(putData | typeHighBit);
+        };
+        if (dataVal < 4) {
+            bool powered = (dataVal & 0x1) ? true : false;
+            int wireData = 0x4 | (powered ? 0x1 : 0x0);
+            int hookData = 0x4 | (powered ? 0x8 : 0x0);
+            for (int i = 0; i < 8; i++) {
+                // along the line: plank, hook, 4 string, hook, plank
+                int px = (dataVal < 2) ? i : 4;
+                int pz = (dataVal < 2) ? 4 : i;
+                if (i == 0 || i == 7) {
+                    putBlock(px, pz, BLOCK_OAK_PLANKS, 0);
+                }
+                else if (i == 1) {
+                    // faces east, or south
+                    putBlock(px, pz, BLOCK_TRIPWIRE_HOOK, hookData | ((dataVal < 2) ? 3 : 0));
+                }
+                else if (i == 6) {
+                    // faces west, or north
+                    putBlock(px, pz, BLOCK_TRIPWIRE_HOOK, hookData | ((dataVal < 2) ? 1 : 2));
+                }
+                else {
+                    putBlock(px, pz, type, wireData | ((dataVal < 2) ? (0x800 | 0x200) : (0x400 | 0x100)));
+                }
+            }
         }
-        if (dataVal & 0x4)
-        {
-            // put block to south
-            bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
-            // alternate between wall and mossy wall
-            block->data[bi] = (unsigned short)(dataVal | typeHighBit);
+        else if (dataVal < 8) {
+            // loose string: the center, (4, 4), connects north for a corner, T, or cross, east always, south for a T or cross,
+            // and west for a straight line or cross; each neighbor connects back to it
+            static const int looseArms[4] = { 0x800 | 0x200, 0x400 | 0x800, 0x400 | 0x800 | 0x100, 0x400 | 0x800 | 0x100 | 0x200 };
+            int arms = looseArms[dataVal - 4];
+            putBlock(4, 4, type, arms);
+            if (arms & 0x400) putBlock(4, 3, type, 0x100);
+            if (arms & 0x800) putBlock(5, 4, type, 0x200);
+            if (arms & 0x100) putBlock(4, 5, type, 0x400);
+            if (arms & 0x200) putBlock(3, 4, type, 0x800);
         }
-        if (dataVal & 0x8)
-        {
-            // put block to west
-            bi = BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
-            block->grid[bi] = (unsigned char)type;
-            // alternate between wall and mossy wall
-            block->data[bi] = (unsigned short)(dataVal | typeHighBit);
-        }
+    }
         break;
     case BLOCK_COBBLESTONE_WALL:
         // this one is specialized: dataVal just says where to put neighbors, NSEW
@@ -7483,25 +7484,25 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         if (dataVal & 0x1)
         {
             // put block to north
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_GLASS;
             block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 3 + (dataVal % 2) * 8)] = (unsigned char)type;
         }
         if (dataVal & 0x2)
         {
             // put block to east
-            block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
             block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = (unsigned char)type;
         }
         if (dataVal & 0x4)
         {
             // put block to south
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_GLASS;
             block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 5 + (dataVal % 2) * 8)] = (unsigned char)type;
         }
         if (dataVal & 0x8)
         {
             // put block to west, redstone atop it
-            block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
             block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = (unsigned char)type;
         }
         break;
@@ -7591,7 +7592,9 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         if (dataVal == 0)
         {
             int wrow, wcol;
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = (unsigned char)type;
+            bi = BLOCK_INDEX(4 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8);
+            block->grid[bi] = (unsigned char)type;
+            block->data[bi] |= (unsigned short)typeHighBit;
             for (wrow = 3; wrow <= 5; wrow++)
                 for (wcol = 3; wcol <= 5; wcol++)
                     block->grid[BLOCK_INDEX(wrow + (type % 2) * 8, y - 1, wcol + (dataVal % 2) * 8)] = BLOCK_STATIONARY_WATER;
@@ -7685,7 +7688,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                     block->data[bi] = (unsigned short)TYPE_PROMOTE_256;
                     // hang off something
                     bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 2, 4 + (dataVal % 2) * 8);
-                    block->grid[bi] = (unsigned char)BLOCK_STONE;
+                    block->grid[bi] = (unsigned char)BLOCK_GLASS;
                 }
                 else {
                     // twisting vines are 0x1
@@ -7695,7 +7698,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             else {
                 // hang off something
                 bi = BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8);
-                block->grid[bi] = (unsigned char)BLOCK_STONE;
+                block->grid[bi] = (unsigned char)BLOCK_GLASS;
             }
         }
         break;
@@ -7764,26 +7767,26 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         {
         case 0x4:	// ceiling
             // put block above
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
             break;
         case 0x8:	// single wall
             switch (dataVal & 0x3)
             {
             case 0:
                 // put block to east
-                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 1:
                 // put block to south
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 2:
                 // put block to west
-                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 3:
                 // put block to north
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             }
             break;
@@ -7793,16 +7796,16 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
             case 0:
             case 2:
                 // put block to west
-                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 // put block to east
-                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 1:
             case 3:
                 // put block to south
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 // put block to north
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             }
             break;
@@ -7821,25 +7824,25 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 {
                 case 0:
                     // put block to west
-                    block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                    block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                     break;
                 case 1:
                     // put block to north
-                    block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                    block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                     break;
                 case 2:
                     // put block to east
-                    block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                    block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                     break;
                 case 3:
                     // put block to south
-                    block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                    block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                     break;
                 }
                 break;
             case 0x8:	// ceiling
                 // put block above
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             default:	// floor
                 // do nothing - on ground
@@ -7853,7 +7856,7 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         addBlock = 1;
         if (dataVal & 0x1) {
             // put block above lantern
-            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+            block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y + 1, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
         }
         finalDataVal = (dataVal & 0x3) | ((dataVal >= 4) ? WATERLOGGED_BIT : 0);
         break;
@@ -7919,26 +7922,19 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
         }
         break;
 
-    case BLOCK_OAK_WALL_HANGING_SIGN:
-        // 0-11 x 4 + 0-3 => 0-43
-    {
+    case BLOCK_WALL_HANGING_SIGN:
+        // the four facings, 0-3, each four times, cycling through the woods
         addBlock = 1;
-        addDiagonalBlocksToMap(48, y, type, dataVal, finalDataVal, typeHighBit, block);
-    }
-    break;
-    case BLOCK_OAK_HANGING_SIGN:
-    case BLOCK_BIRCH_HANGING_SIGN:
-    case BLOCK_ACACIA_HANGING_SIGN:
-    case BLOCK_CRIMSON_HANGING_SIGN:
-    case BLOCK_MANGROVE_HANGING_SIGN:
-    case BLOCK_BAMBOO_HANGING_SIGN:
-    case BLOCK_POPLAR_HANGING_SIGN:
-        // 0-64,
-        // add new style diagonally SE of original
-        {
-            addBlock = 1;
-            addDiagonalBlocksToMap(64, y, type, dataVal, finalDataVal, typeHighBit, block);
-        }
+        finalDataVal = (dataVal & 0x3) | ((dataVal % NUM_SIGN_WOODS) << SIGN_WOOD_SHIFT);
+        break;
+
+    case BLOCK_HANGING_SIGN:
+        // the 16 rotations, cycling through the woods, and an attached one diagonally SE of each
+        addBlock = 1;
+        finalDataVal = dataVal | ((dataVal % NUM_SIGN_WOODS) << SIGN_WOOD_SHIFT);
+        neighborIndex = BLOCK_INDEX(5 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8);
+        block->grid[neighborIndex] = (unsigned char)type;
+        block->data[neighborIndex] = (unsigned short)(finalDataVal | BIT_16 | typeHighBit);
         break;
     case BLOCK_CRAFTER:
         // uses bits 0-11, with variations to show other styles
@@ -8088,19 +8084,19 @@ void testBlock(WorldBlock* block, int origType, int y, int dataVal)
                 assert(0);
             case 3:
                 // put block to south
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 5 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 1:
                 // put block to north
-                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(4 + (type % 2) * 8, y, 3 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 2:
                 // put block to east
-                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(5 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             case 0:
                 // put block to west
-                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_STONE;
+                block->grid[BLOCK_INDEX(3 + (type % 2) * 8, y, 4 + (dataVal % 2) * 8)] = BLOCK_GLASS;
                 break;
             }
         }
@@ -8297,8 +8293,28 @@ void testNumeral(WorldBlock* block, int type, int y, int digitPlace, int outType
     }
 }
 
+// What loading a chunk needs, and finds, that differs between the main thread and a chunk loader thread.
+typedef struct LoadContext {
+    char* unknownBlockName;     // names of unknown blocks found are added to this
+    int unknownBlockID;         // what unknown blocks become
+    bool onLoaderThread;        // can't touch the cache, which is the main thread's
+    bool outOfMemory;           // set if a chunk loader thread couldn't allocate the chunk
+    bool foundUnknownBlock;     // set if a block type was out of range and made BLOCK_UNKNOWN
+} LoadContext;
+
+static WorldBlock* loadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, int versionID, int& retCode, LoadContext& lc);
+
 // return NULL if no block loaded.
 WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, int versionID, int& retCode)
+{
+    LoadContext lc = { gUnknownBlockName, gUnknownBlockID, false, false, false };
+    WorldBlock* block = loadBlock(pWorldGuide, cx, cz, mcVersion, versionID, retCode, lc);
+    if (lc.foundUnknownBlock && gPerformUnknownBlockCheck)
+        gUnknownBlock = 1;
+    return block;
+}
+
+static WorldBlock* loadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, int versionID, int& retCode, LoadContext& lc)
 {
     // return negative value on error, 1 on read OK, 2 on read and it's empty, and higher bits than 1 or 2 are warnings
     retCode = 0;
@@ -8325,6 +8341,11 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
     // out of memory? If so, clear cache and cross fingers
     if (block == NULL)
     {
+        if (lc.onLoaderThread) {
+            // only the main thread can empty the cache: it'll load this chunk itself
+            lc.outOfMemory = true;
+            return NULL;
+        }
         Cache_Empty();
         //block = block_alloc(MAX_ARRAY_HEIGHT(versionID, mcVersion));
         block = block_alloc(pWorldGuide->minHeight, pWorldGuide->maxHeight);
@@ -8466,17 +8487,22 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
 
             // Given coordinates, check if the file for that location exists, data for the chunk exists, and populate the block.
             // Return 
-            retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion, block->minHeight, block->maxHeight, block->maxFilledSectionHeight, gUnknownBlockName, gUnknownBlockID);
+            retCode = regionGetBlocks(pWorldGuide->directory, cx, cz, block->grid, block->data, block->light, block->biome, blockEntities, &block->numEntities, block->mcVersion, block->minHeight, block->maxHeight, block->maxFilledSectionHeight, lc.unknownBlockName, lc.unknownBlockID);
             assert(block->numEntities <= 384);  // if higher, the allocation above needs to change!
 
             if (retCode == ERROR_INFLATE) {
-                block->blockType = retCode;
+                block_free(block);
                 return NULL;
             }
 
             // values 1 and 2 are valid; 3's not used - higher bits are warnings; see nbt.h
             if (retCode >= NBT_VALID_BUT_EMPTY) {
                 block->blockType = retCode & 0x3;
+
+                // cushions are entities, kept in the "entities" region files: put each into its place in the block
+                if (block->blockType == NBT_VALID_BLOCK) {
+                    addCushions(pWorldGuide->directory, cx, cz, block);
+                }
 
                 // for old-style chunks, there may be tile entities, such as flower and head types, which need to get transferred and used later
                 if ((retCode == NBT_VALID_BLOCK) && (block->numEntities > 0)) {
@@ -8485,9 +8511,12 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
 
                     if (block->entities)
                         memcpy(block->entities, blockEntities, block->numEntities * sizeof(BlockEntity));
-                    else
+                    else {
                         // couldn't alloc data
+                        block->numEntities = 0;
+                        block_free(block);
                         return NULL;
+                    }
                 }
             }
             else {
@@ -8529,8 +8558,7 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
                     // note that we always clean up bad blocks;
                     // whether we flag that a bad block was found is optional.
                     // This gets turned off once the user has been warned, once, that his map has some funky data.
-                    if (gPerformUnknownBlockCheck)
-                        gUnknownBlock = 1;
+                    lc.foundUnknownBlock = true;
                 }
             }
             return block;
@@ -8539,6 +8567,40 @@ WorldBlock* LoadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVersion, in
 
     block_free(block);
     return NULL;
+}
+
+// Cushions are entities, not blocks, stored in the "entities" region files. Mineways treats each as a block, BLOCK_CUSHION, at its
+// "block_pos", if that location is empty. A cushion resting on a partial block, such as a bottom slab, carpet, or snow layers, has
+// that block's location, a bit above its bottom; it's put in the (normally empty) location above instead, lowered by the rest of the
+// block, in sixteenths, CUSHION_DROP.
+static void addCushions(wchar_t* directory, int cx, int cz, WorldBlock* block)
+{
+    static thread_local CushionEntity cushions[MAX_CUSHIONS_PER_CHUNK];
+    int count = regionGetCushions(directory, cx, cz, cushions, MAX_CUSHIONS_PER_CHUNK);
+    for (int i = 0; i < count; i++) {
+        int x = cushions[i].x - cx * 16;
+        int z = cushions[i].z - cz * 16;
+        int y = cushions[i].y - block->minHeight;
+        int dataVal = cushions[i].dataVal;
+        // how far above its block_pos the cushion's bottom is, in sixteenths
+        int height = (int)floor((cushions[i].posY - (double)cushions[i].y) * 16.0 + 0.5);
+        if (height > 0 && height < 16) {
+            // resting on a partial block: put it in the block above, lowered
+            y++;
+            dataVal |= (16 - height) << CUSHION_DROP_SHIFT;
+        }
+        if (x < 0 || x > 15 || z < 0 || z > 15 || y < 0 || y >= block->heightAlloc)
+            continue;
+        int index = BLOCK_INDEX(x, y, z);
+        if (BLOCK_TYPE_FROM_GRID_DATA(block->grid[index], block->data[index]) != BLOCK_AIR)
+            continue;
+        block->grid[index] = (unsigned char)(BLOCK_CUSHION & 0xFF);
+        block->data[index] = PACK_TYPE_EXT_AND_DATAVAL(BLOCK_CUSHION, dataVal);
+        // the section holding the cushion may otherwise be empty
+        if (y > block->maxFilledSectionHeight) {
+            block->maxFilledSectionHeight = min(block->heightAlloc - 1, y | 0xF);
+        }
+    }
 }
 
 static WorldBlock* determineMaxFilledHeight(WorldBlock* block)
@@ -8887,13 +8949,13 @@ int GetSchematicBlocksAndData(const wchar_t* schematic, int numBlocks, unsigned 
 // Reads a Sponge Schematic v3 (.schem) file. Returns 1 on success (and malloc's outputs which
 // the caller frees); 0 on parse failure; -1 if the file couldn't be opened. Issue #40.
 int GetSpongeSchematic(const wchar_t* schematic, int* width, int* height, int* length,
-    unsigned char** blocks, unsigned short** data)
+    unsigned char** blocks, unsigned short** data, int* dataVersion)
 {
     bfFile bf;
     int err = 0;
     bf = newNBT(schematic, &err);
     if (bf.gz == 0x0) return -1;
-    int retval = nbtGetSpongeSchematic(&bf, width, height, length, blocks, data);
+    int retval = nbtGetSpongeSchematic(&bf, width, height, length, blocks, data, dataVersion);
     nbtClose(&bf);
     return retval;
 }
@@ -8924,6 +8986,390 @@ void InvalidateMapRenderCache(void)
 {
     gColormap++;
 }
+
+unsigned short GetMapColormap(void)
+{
+    return gColormap;
+}
+
+int GetMapHighlightID(void)
+{
+    return gHighlightID;
+}
+
+void SetNonBlockingDraw(bool on)
+{
+    gNonBlockingDraw = on;
+    if (on)
+        gChunksMissing = false;
+}
+
+// Is the chunk west of bx, bz, whose heights shade its west edge, loaded and drawn for this depth and these options?
+static bool westHeightsAvailable(int bx, int bz, int topy, int worldType)
+{
+    void* data;
+    if (!Cache_Find(bx - 1, bz, &data) || data == NULL)
+        return false;
+    WorldBlock* west = (WorldBlock*)data;
+    return west->blockType != NBT_NO_SECTIONS && west->rendery == topy && west->renderopts == worldType;
+}
+
+// Was chunk bx, bz drawn before the chunk west of it was, so its west edge should be drawn again
+// now that the west chunk is? Prefetch loads chunks in rings from the center, so this happens.
+bool ChunkNeedsWestEdgeRedraw(int bx, int bz, int topy, Options* pOpts)
+{
+    void* data;
+    if (!Cache_Find(bx, bz, &data) || data == NULL)
+        return false;
+    WorldBlock* block = (WorldBlock*)data;
+    return block->rendermissing && block->rendery == topy && block->renderopts == pOpts->worldType &&
+        westHeightsAvailable(bx, bz, topy, pOpts->worldType);
+}
+
+bool GetChunksMissing(void)
+{
+    return gChunksMissing;
+}
+
+// Is this map buffer pixel (BGRA) of a chunk that nothing has been drawn for (white), or that's already marked out of memory?
+static bool isUnloadedChunkPixel(const unsigned char* pixel)
+{
+    if (pixel[0] == 255 && pixel[1] == 255 && pixel[2] == 255)
+        return true;
+    for (int i = 0; i < 3; i++) {
+        if (pixel[0] == gOutOfMemoryColors[i][0] && pixel[1] == gOutOfMemoryColors[i][1] && pixel[2] == gOutOfMemoryColors[i][2])
+            return true;
+    }
+    return false;
+}
+
+// Background loading (WM_APP_PREFETCH in Mineways.cpp) loads only the chunks around the center of the view that fit in the
+// map memory, those in chunk box [minCX..maxCX] x [minCZ..maxCZ]. Mark the visible chunks outside it that nothing has been
+// drawn for, which would otherwise stay white, as if still to be loaded, with gOutOfMemoryTile, solid gray. Chunks already
+// marked are marked again, so their highlighting is current. Drawn chunks, e.g. ones still in the cache from earlier, are
+// left as they are. The position math is DrawMapStrips()'.
+void MarkOutOfMemoryChunks(double cx, double cz, int w, int h, double zoom, unsigned char* bits, int minCX, int minCZ, int maxCX, int maxCZ)
+{
+    if (!gColorsInited)
+        initColors();
+    int blockScale = (int)(16 * zoom);
+    if (blockScale < 1)
+        return;
+    int hBlocks = (w + blockScale * 2) / blockScale;
+    int vBlocks = (h + blockScale * 2) / blockScale;
+
+    double startx = cx - (double)w / (2 * zoom);
+    double startz = cz - (double)h / (2 * zoom);
+    int startxblock = (int)(startx / 16);
+    int startzblock = (int)(startz / 16);
+    int shiftx = (int)((startx - startxblock * 16) * zoom);
+    int shifty = (int)((startz - startzblock * 16) * zoom);
+    if (shiftx < 0) {
+        startxblock--;
+        shiftx += blockScale;
+    }
+    if (shifty < 0) {
+        startzblock--;
+        shifty += blockScale;
+    }
+
+    int z, x, px, py;
+    for (z = 0, py = -shifty; z <= vBlocks; z++, py += blockScale)
+    {
+        int bz = startzblock + z;
+        // the chunk's visible rows
+        int y0 = max(py, 0);
+        int y1 = min(py + blockScale, h);
+        if (y0 >= y1)
+            continue;
+        for (x = 0, px = -shiftx; x <= hBlocks; x++, px += blockScale)
+        {
+            int bx = startxblock + x;
+            if (bx >= minCX && bx <= maxCX && bz >= minCZ && bz <= maxCZ)
+                continue;
+            int x0 = max(px, 0);
+            int x1 = min(px + blockScale, w);
+            if (x0 >= x1)
+                continue;
+            // look at the middle of what's visible of the chunk
+            if (!isUnloadedChunkPixel(bits + ((size_t)((y0 + y1) / 2) * w + (x0 + x1) / 2) * 4))
+                continue;
+            blit(highlightTile(gOutOfMemoryTile, gOutOfMemoryHighlitTile, gOutOfMemoryTransitionTile, bx, bz), bits, px, py, zoom, w, h);
+        }
+    }
+}
+
+// Load chunk bx, bz into the cache, if it isn't there. Returns LoadBlock()'s code, as draw() does, so the caller can report
+// errors and warnings: negative for an error (the chunk's location is saved, see GetBadChunkLocation()), else warning bits.
+int PrefetchBlock(WorldGuide* pWorldGuide, int bx, int bz, int mcVersion, int versionID, unsigned int worldType)
+{
+    void* data;
+    if (Cache_Find(bx, bz, &data))
+        return 0;  // already cached
+    SetDimensionDirectory(pWorldGuide, worldType);
+    int retCode = 0;
+    WorldBlock* block = LoadBlock(pWorldGuide, bx, bz, mcVersion, versionID, retCode);
+    if (retCode < 0) {
+        // save bx and bz for error message later
+        saveBadChunkLocation(bx, bz);
+    }
+    Cache_Add(bx, bz, block);
+    return retCode;
+}
+
+// Chunk loader threads. Loading a chunk - reading it from its region file, decompressing it, and parsing it - is done for the map on
+// several threads at once. The main thread asks for chunks with ChunkLoaderRequest() and takes the loaded ones with
+// ChunkLoaderCollect(), which puts them in the cache: only the main thread uses the cache. Only worlds on disk are loaded this way;
+// the test world and schematics, already in memory, are made by the main thread, with LoadBlock().
+//
+// About half the cores is best: in timing tests, loading with 8 threads on a 16-core CPU was 3.3x as fast as with one, and with 16
+// threads slower than with 8. Each thread allocates its chunks, and with many threads, they mostly wait on each other to do so.
+#ifdef WIN32
+#define CHUNK_LOADER_MAX_THREADS    8
+// Most chunks asked for and not yet collected, per thread. Loaded chunks wait to be collected, by the main thread's next prefetch
+// pass, and a thread loads a chunk in about a quarter of a millisecond, so this keeps the threads busy between passes.
+#define CHUNK_LOADER_JOBS_PER_THREAD    96
+// Each thread's stack holds a chunk's block entities, about 800 KB, in loadBlock().
+#define CHUNK_LOADER_STACK_SIZE (4 * 1024 * 1024)
+#define CHUNK_LOADER_KEY(bx, bz)    (((long long)(bx) << 32) | (unsigned int)(bz))
+
+typedef struct ChunkLoadResult {
+    int bx, bz;
+    WorldBlock* block;
+    int retCode;
+    bool outOfMemory;
+    bool foundUnknownBlock;
+    char* unknownBlockNames;    // malloc'ed, or NULL if none
+} ChunkLoadResult;
+
+static bool gLoaderLockInited = false;
+static CRITICAL_SECTION gLoaderLock;
+static CONDITION_VARIABLE gLoaderJobReady;
+static int gLoaderNumThreads = 0;   // 0 when the threads aren't running
+static HANDLE gLoaderThreads[CHUNK_LOADER_MAX_THREADS];
+static bool gLoaderQuit = false;
+static std::deque<long long> gLoaderJobs;               // chunks waiting to be loaded
+static std::unordered_set<long long> gLoaderPending;    // chunks asked for and not yet collected
+static std::vector<ChunkLoadResult> gLoaderResults;     // chunks loaded and not yet collected
+// what the threads load from, set when they start, and unchanged while they run
+static WorldGuide gLoaderGuide;
+static int gLoaderMcVersion = 0;
+static int gLoaderVersionID = 0;
+static int gLoaderUnknownBlockID = 0;
+
+static DWORD WINAPI chunkLoaderThread(LPVOID)
+{
+    char unknownBlockName[MAX_PATH_AND_FILE];
+    EnterCriticalSection(&gLoaderLock);
+    for (;;) {
+        while (!gLoaderQuit && gLoaderJobs.empty())
+            SleepConditionVariableCS(&gLoaderJobReady, &gLoaderLock, INFINITE);
+        if (gLoaderQuit)
+            break;
+        long long key = gLoaderJobs.front();
+        gLoaderJobs.pop_front();
+        LeaveCriticalSection(&gLoaderLock);
+
+        ChunkLoadResult result;
+        result.bx = (int)(key >> 32);
+        result.bz = (int)(unsigned int)key;
+        unknownBlockName[0] = '\0';
+        LoadContext lc = { unknownBlockName, gLoaderUnknownBlockID, true, false, false };
+        result.block = loadBlock(&gLoaderGuide, result.bx, result.bz, gLoaderMcVersion, gLoaderVersionID, result.retCode, lc);
+        result.outOfMemory = lc.outOfMemory;
+        result.foundUnknownBlock = lc.foundUnknownBlock;
+        result.unknownBlockNames = (unknownBlockName[0] != '\0') ? _strdup(unknownBlockName) : NULL;
+
+        EnterCriticalSection(&gLoaderLock);
+        gLoaderResults.push_back(result);
+    }
+    LeaveCriticalSection(&gLoaderLock);
+    // close this thread's region files
+    regionCleanup();
+    return 0;
+}
+
+static void freeChunkLoadResult(ChunkLoadResult& result)
+{
+    block_free(result.block);
+    free(result.unknownBlockNames);
+}
+
+// Stop the chunk loader threads, if running, dropping the chunks asked for and those loaded but not collected. Called when the world,
+// or what's loaded from it, changes. The threads start again with the next ChunkLoaderRequest().
+void ChunkLoaderStop()
+{
+    if (gLoaderNumThreads == 0)
+        return;
+    EnterCriticalSection(&gLoaderLock);
+    gLoaderQuit = true;
+    gLoaderJobs.clear();
+    LeaveCriticalSection(&gLoaderLock);
+    WakeAllConditionVariable(&gLoaderJobReady);
+    WaitForMultipleObjects(gLoaderNumThreads, gLoaderThreads, TRUE, INFINITE);
+    for (int i = 0; i < gLoaderNumThreads; i++)
+        CloseHandle(gLoaderThreads[i]);
+    gLoaderNumThreads = 0;
+    gLoaderQuit = false;
+    for (ChunkLoadResult& result : gLoaderResults)
+        freeChunkLoadResult(result);
+    gLoaderResults.clear();
+    gLoaderPending.clear();
+}
+
+static bool startChunkLoader(WorldGuide* pWorldGuide, int mcVersion, int versionID)
+{
+    if (!gLoaderLockInited) {
+        InitializeCriticalSection(&gLoaderLock);
+        InitializeConditionVariable(&gLoaderJobReady);
+        gLoaderLockInited = true;
+    }
+    // the threads share the name tables, which must be made before they start
+    nbtInitTables();
+    gLoaderGuide = *pWorldGuide;
+    gLoaderMcVersion = mcVersion;
+    gLoaderVersionID = versionID;
+    gLoaderUnknownBlockID = gUnknownBlockID;
+
+    int numThreads = (int)GetActiveProcessorCount(ALL_PROCESSOR_GROUPS) / 2;
+#ifdef MINEWAYS_X64
+    numThreads = min(numThreads, CHUNK_LOADER_MAX_THREADS);
+#else
+    // a 32-bit program has little memory to spare: each thread has about 21 MB of buffers for reading chunks
+    numThreads = min(numThreads, 2);
+#endif
+    numThreads = max(numThreads, 1);
+    for (int i = 0; i < numThreads; i++) {
+        HANDLE h = CreateThread(NULL, CHUNK_LOADER_STACK_SIZE, chunkLoaderThread, NULL, STACK_SIZE_PARAM_IS_A_RESERVATION, NULL);
+        if (h == NULL)
+            break;
+        gLoaderThreads[gLoaderNumThreads++] = h;
+    }
+    return gLoaderNumThreads > 0;
+}
+
+// Can the chunk loader threads load this world's chunks? If so, use ChunkLoaderRequest(), else PrefetchBlock().
+bool ChunkLoaderUsable(WorldGuide* pWorldGuide)
+{
+    return pWorldGuide->type == WORLD_LEVEL_TYPE;
+}
+
+// Ask the chunk loader threads to load chunk bx, bz, if it isn't already cached or asked for. Returns false if they have as many
+// chunks to load as they can take, or can't be started, in which case the caller should try again later.
+bool ChunkLoaderRequest(WorldGuide* pWorldGuide, int bx, int bz, int mcVersion, int versionID, unsigned int worldType)
+{
+    SetDimensionDirectory(pWorldGuide, worldType);
+    // Is what's being loaded from different? CloseAll() stops the threads when the world or dimension changes, so this shouldn't
+    // happen, but if it does, what they have is for the old one.
+    if (gLoaderNumThreads > 0 &&
+        (wcscmp(gLoaderGuide.directory, pWorldGuide->directory) != 0 || gLoaderGuide.minHeight != pWorldGuide->minHeight ||
+            gLoaderGuide.maxHeight != pWorldGuide->maxHeight || gLoaderMcVersion != mcVersion || gLoaderVersionID != versionID ||
+            gLoaderUnknownBlockID != gUnknownBlockID))
+        ChunkLoaderStop();
+    if (gLoaderNumThreads == 0 && !startChunkLoader(pWorldGuide, mcVersion, versionID))
+        return false;
+
+    long long key = CHUNK_LOADER_KEY(bx, bz);
+    bool added = false;
+    EnterCriticalSection(&gLoaderLock);
+    if (gLoaderPending.find(key) != gLoaderPending.end())
+        added = true;   // already asked for
+    else if ((int)gLoaderPending.size() < gLoaderNumThreads * CHUNK_LOADER_JOBS_PER_THREAD) {
+        void* data;
+        if (!Cache_Find(bx, bz, &data)) {
+            gLoaderPending.insert(key);
+            gLoaderJobs.push_back(key);
+        }
+        added = true;
+    }
+    LeaveCriticalSection(&gLoaderLock);
+    if (added)
+        WakeConditionVariable(&gLoaderJobReady);
+    return added;
+}
+
+// Drop the chunks asked for that no thread has started loading, e.g. as the map's been moved since they were asked for.
+void ChunkLoaderCancelRequests()
+{
+    if (gLoaderNumThreads == 0)
+        return;
+    EnterCriticalSection(&gLoaderLock);
+    for (long long key : gLoaderJobs)
+        gLoaderPending.erase(key);
+    gLoaderJobs.clear();
+    LeaveCriticalSection(&gLoaderLock);
+}
+
+// Are chunks asked for still to be collected?
+bool ChunkLoaderBusy()
+{
+    if (gLoaderNumThreads == 0)
+        return false;
+    EnterCriticalSection(&gLoaderLock);
+    bool busy = !gLoaderPending.empty();
+    LeaveCriticalSection(&gLoaderLock);
+    return busy;
+}
+
+// Put up to maxChunks of the chunks the threads have loaded in the cache, listing them in bx[] and bz[], and return how many.
+// Errors and warnings are combined into retCode, as DrawMap() combines them.
+int ChunkLoaderCollect(int* bx, int* bz, int maxChunks, int& retCode)
+{
+    if (gLoaderNumThreads == 0)
+        return 0;
+    std::vector<ChunkLoadResult> results;
+    EnterCriticalSection(&gLoaderLock);
+    int n = min((int)gLoaderResults.size(), maxChunks);
+    results.assign(gLoaderResults.begin(), gLoaderResults.begin() + n);
+    gLoaderResults.erase(gLoaderResults.begin(), gLoaderResults.begin() + n);
+    for (ChunkLoadResult& result : results)
+        gLoaderPending.erase(CHUNK_LOADER_KEY(result.bx, result.bz));
+    LeaveCriticalSection(&gLoaderLock);
+
+    for (int i = 0; i < n; i++) {
+        ChunkLoadResult& result = results[i];
+        if (result.unknownBlockNames != NULL) {
+            addUnknownBlockNames(result.unknownBlockNames);
+            free(result.unknownBlockNames);
+        }
+        if (result.foundUnknownBlock && gPerformUnknownBlockCheck)
+            gUnknownBlock = 1;
+        void* data;
+        int chunkRetCode = 0;
+        if (Cache_Find(result.bx, result.bz, &data)) {
+            // the main thread loaded it meanwhile, e.g. to export it
+            block_free(result.block);
+        }
+        else {
+            WorldBlock* block = result.block;
+            chunkRetCode = result.retCode;
+            if (result.outOfMemory) {
+                // the main thread can empty the cache to make room
+                block = LoadBlock(&gLoaderGuide, result.bx, result.bz, gLoaderMcVersion, gLoaderVersionID, chunkRetCode);
+            }
+            if (chunkRetCode < 0)
+                saveBadChunkLocation(result.bx, result.bz);
+            Cache_Add(result.bx, result.bz, block);
+        }
+        if (chunkRetCode < 0)
+            retCode = chunkRetCode;
+        else if (retCode >= 0)
+            retCode |= chunkRetCode;
+        bx[i] = result.bx;
+        bz[i] = result.bz;
+    }
+    return n;
+}
+
+#else
+// The Mac map still loads chunks synchronously through DrawMap().
+void ChunkLoaderStop() {}
+bool ChunkLoaderUsable(WorldGuide*) { return false; }
+bool ChunkLoaderRequest(WorldGuide*, int, int, int, int, unsigned int) { return false; }
+void ChunkLoaderCancelRequests() {}
+bool ChunkLoaderBusy() { return false; }
+int ChunkLoaderCollect(int*, int*, int, int& retCode) { retCode = 0; return 0; }
+#endif
 
 // for each block color, calculate light levels 0-15
 static void initColors()
@@ -8971,18 +9417,66 @@ static void initColors()
             gBlankTile[off + 2] = (unsigned char)tone;
             gBlankTile[off + 3] = (unsigned char)255;	// was 128 - why?
 
-            // fully inside highlight box
-            gBlankHighlitTile[off] = (unsigned char)((double)gBlankTile[off] * (1.0 - gHalpha) + gHalpha * (double)gHred);
+            // fully inside highlight box (BGRA order to match DIBSection)
+            gBlankHighlitTile[off] = (unsigned char)((double)gBlankTile[off] * (1.0 - gHalpha) + gHalpha * (double)gHblue);
             gBlankHighlitTile[off + 1] = (unsigned char)((double)gBlankTile[off + 1] * (1.0 - gHalpha) + gHalpha * (double)gHgreen);
-            gBlankHighlitTile[off + 2] = (unsigned char)((double)gBlankTile[off + 2] * (1.0 - gHalpha) + gHalpha * (double)gHblue);
+            gBlankHighlitTile[off + 2] = (unsigned char)((double)gBlankTile[off + 2] * (1.0 - gHalpha) + gHalpha * (double)gHred);
             gBlankHighlitTile[off + 3] = (unsigned char)255;
+
+            // not looked at yet: white, the color the map buffer is cleared to
+            gPendingTile[off] = gPendingTile[off + 1] = gPendingTile[off + 2] = gPendingTile[off + 3] = (unsigned char)255;
+
+            // won't be loaded, as it's beyond the map memory: solid gray
+            gOutOfMemoryTile[off] = gOutOfMemoryTile[off + 1] = gOutOfMemoryTile[off + 2] = (unsigned char)OUT_OF_MEMORY_TONE;
+            gOutOfMemoryTile[off + 3] = (unsigned char)255;
+            gOutOfMemoryHighlitTile[off] = (unsigned char)((double)OUT_OF_MEMORY_TONE * (1.0 - gHalpha) + gHalpha * (double)gHblue);
+            gOutOfMemoryHighlitTile[off + 1] = (unsigned char)((double)OUT_OF_MEMORY_TONE * (1.0 - gHalpha) + gHalpha * (double)gHgreen);
+            gOutOfMemoryHighlitTile[off + 2] = (unsigned char)((double)OUT_OF_MEMORY_TONE * (1.0 - gHalpha) + gHalpha * (double)gHred);
+            gOutOfMemoryHighlitTile[off + 3] = (unsigned char)255;
         }
     }
+    // the out-of-memory tile's colors, as highlightTile() makes them, to recognize it in the map buffer
+    for (int i = 0; i < 3; i++) {
+        double blend = (i == 0) ? 0.0 : (i == 1) ? gHalpha : gHalphaBorder;
+        gOutOfMemoryColors[i][0] = (unsigned char)((double)OUT_OF_MEMORY_TONE * (1.0 - blend) + blend * (double)gHblue);
+        gOutOfMemoryColors[i][1] = (unsigned char)((double)OUT_OF_MEMORY_TONE * (1.0 - blend) + blend * (double)gHgreen);
+        gOutOfMemoryColors[i][2] = (unsigned char)((double)OUT_OF_MEMORY_TONE * (1.0 - blend) + blend * (double)gHred);
+    }
+    gOutOfMemoryColors[0][0] = gOutOfMemoryColors[0][1] = gOutOfMemoryColors[0][2] = (unsigned char)OUT_OF_MEMORY_TONE;
 }
 
 char* MapUnknownBlockName()
 {
     return gUnknownBlockName;
+}
+
+// Add the names of unknown blocks a chunk loader thread found, ", "-separated, to gUnknownBlockName, as nbtGetBlocks() adds them.
+static void addUnknownBlockNames(const char* names)
+{
+    char name[MAX_PATH_AND_FILE];
+    const char* start = names;
+    while (*start) {
+        const char* end = strstr(start, ", ");
+        size_t len = end ? (size_t)(end - start) : strlen(start);
+        if (len > 0 && len < MAX_PATH_AND_FILE) {
+            memcpy(name, start, len);
+            name[len] = '\0';
+            if (strcmp(name, "etc.") != 0 && strstr(gUnknownBlockName, name) == NULL) {
+                size_t stringLength = strlen(gUnknownBlockName);
+                if (stringLength + len + 8 < MAX_PATH_AND_FILE) {
+                    if (stringLength > 0)
+                        strcat_s(gUnknownBlockName, MAX_PATH_AND_FILE, ", ");
+                    strcat_s(gUnknownBlockName, MAX_PATH_AND_FILE, name);
+                }
+                else if (stringLength + 6 < MAX_PATH_AND_FILE && strstr(gUnknownBlockName, ", etc.") == NULL) {
+                    strcat_s(gUnknownBlockName, MAX_PATH_AND_FILE, ", etc.");
+                }
+            }
+        }
+        if (end == NULL)
+            break;
+        start = end + 2;
+    }
 }
 
 // reset error field for bad block names

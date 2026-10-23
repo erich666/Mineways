@@ -49,9 +49,14 @@ THE POSSIBILITY OF SUCH DAMAGE.
 // Set to a tiny number to have front and back faces of billboards be separated a bit.
 // TODO: currently works only for those billboards made by using the various multitile calls,
 // not by the traditional billboard calls.
-//#define STOP_Z_FIGHTING	(0.0002f/2.0f)
+//#define STOP_DOUBLE_SIDED_BILLBOARD_Z_FIGHTING	(0.0002f/2.0f)
 // feature currently disabled, G3D was fixed so this is no longer an issue.
-#define STOP_Z_FIGHTING	0.0f
+#define STOP_DOUBLE_SIDED_BILLBOARD_Z_FIGHTING	0.0f
+
+// Some blocks, such as leaf litter and straw beds, have elements that are directly on the ground
+// but need to be slightly above, to avoid (or at least ameliorate) z-fighting. This value sets
+// how much of a texel height these output elements are moved upwards
+#define Z_FIGHTING_BIAS 0.05f
 
 // If the model is going to undergo a transform, we don't know the normal of the surface,
 // so figure out the normal at the end of the run.
@@ -121,7 +126,11 @@ static IPoint gWorld2BoxOffset;
 
 Model gModel;
 
+// materials to output, each a type and (material) dataVal; dataVal can use all 12 bits, e.g. a sign's wood (SIGN_WOOD_MASK)
 static std::vector<unsigned int> gMtlList;
+#define MTL_LIST_ENTRY(type, dataVal)   (((unsigned int)(type) << 16) | (unsigned int)(dataVal))
+#define MTL_LIST_TYPE(entry)            ((int)((entry) >> 16))
+#define MTL_LIST_DATAVAL(entry)         ((int)((entry) & 0xFFFF))
 
 
 typedef struct FillAlpha {
@@ -335,6 +344,111 @@ static void getTileMaterialName(int swatchLoc, char* outName, int outSizeChars)
     wchar_t wName[MAX_PATH_AND_FILE];
     getTileMaterialNameW(swatchLoc, wName, MAX_PATH_AND_FILE);
     WcharToChar(wName, outName, outSizeChars);
+}
+
+// How many tiles wide (and high - spans are square) the image anchored at this swatch is: 1 for a normal tile.
+static int tileSpan(int swatchLoc)
+{
+    if (swatchLoc < 0 || swatchLoc >= TOTAL_TILES)
+        return 1;
+    return (TILES_ENTRY(swatchLoc).spanX > 1) ? TILES_ENTRY(swatchLoc).spanX : 1;
+}
+
+// Multi-tile ("span") images, such as straw_bed.png, are used whole by model faces (see saveBoxModelFace), never chopped into their
+// separate 16x16 tiles: when exporting individual tiles the image is written out as one file with UVs over the whole image, so it
+// can be swapped out after export. When exporting a mosaic, each span image gets its own contiguous block of span x span swatch slots
+// in the mosaic, with a border span texels wide (SWATCH_BORDER scaled up by the span) filled by clamping the image's edges.
+#define MAX_SPAN_IMAGES 64
+typedef struct SpanImage {
+    int anchorLoc;  // tiles.h swatch location of the image's upper left tile
+    int span;       // image is span x span tiles
+    int blockCol;   // mosaic swatch slot column and row of the reserved block's upper left, -1 if none
+    int blockRow;
+    UVList uvList;  // span UVs saved so far, so that they can be shared
+} SpanImage;
+static SpanImage gSpanImages[MAX_SPAN_IMAGES];
+static int gSpanImageCount = 0;
+
+static void freeSpanImages()
+{
+    for (int i = 0; i < gSpanImageCount; i++) {
+        free(gSpanImages[i].uvList.records);
+    }
+    memset(gSpanImages, 0, sizeof(gSpanImages));
+    gSpanImageCount = 0;
+}
+
+// find all span images in tiles.h
+static void initSpanImages()
+{
+    freeSpanImages();
+    for (int i = 0; i < TOTAL_TILES; i++) {
+        if (gTilesTable[i].spanX > 1) {
+            assert(gTilesTable[i].spanX == gTilesTable[i].spanY);  // spans must be square
+            assert(gSpanImageCount < MAX_SPAN_IMAGES);
+            if (gSpanImageCount < MAX_SPAN_IMAGES) {
+                SpanImage* pSpan = &gSpanImages[gSpanImageCount++];
+                pSpan->anchorLoc = TILE_TO_SWATCH(gTilesTable[i].txrX, gTilesTable[i].txrY);
+                pSpan->span = gTilesTable[i].spanX;
+                pSpan->blockCol = pSpan->blockRow = -1;
+            }
+        }
+    }
+}
+
+static SpanImage* findSpanImage(int anchorLoc)
+{
+    for (int i = 0; i < gSpanImageCount; i++) {
+        if (gSpanImages[i].anchorLoc == anchorLoc)
+            return &gSpanImages[i];
+    }
+    return NULL;
+}
+
+// Mosaic export: reserve the span images' blocks in the bottom right corner of the mosaic's swatch slots, largest first, side by side
+// from right to left, in shelves: the first sits on the bottom row, and when a shelf is full, the next sits on top of it. Composite
+// swatches (see getCompositeSwatch) are allocated upwards from TOTAL_TILES and skip over these slots. Returns false if the blocks don't
+// fit without overlapping the tiles themselves.
+static bool reserveSpanBlocks()
+{
+    int rightCol = gModel.swatchesPerRow;
+    int shelfBottom = gModel.swatchesPerRow;    // the row below the current shelf
+    int shelfHeight = 0;                        // the current shelf's height, that of its first (largest) block
+    for (int size = 64; size > 1; size--) {
+        for (int i = 0; i < gSpanImageCount; i++) {
+            if (gSpanImages[i].span == size) {
+                if (rightCol - size < 0) {
+                    // this shelf is full, so start another on top of it
+                    shelfBottom -= shelfHeight;
+                    rightCol = gModel.swatchesPerRow;
+                    shelfHeight = 0;
+                }
+                if (shelfHeight == 0)
+                    shelfHeight = size;
+                gSpanImages[i].blockCol = rightCol - size;
+                gSpanImages[i].blockRow = shelfBottom - size;
+                rightCol -= size;
+                // first slot of the block's top row is its lowest numbered slot, which must be past the tiles
+                if (gSpanImages[i].blockCol < 0 || gSpanImages[i].blockRow * gModel.swatchesPerRow + gSpanImages[i].blockCol < TOTAL_TILES)
+                    return false;
+            }
+        }
+    }
+    return true;
+}
+
+static bool isSpanReservedSlot(int swatchLoc)
+{
+    int col, row;
+    SWATCH_TO_COL_ROW(swatchLoc, col, row);
+    for (int i = 0; i < gSpanImageCount; i++) {
+        const SpanImage* pSpan = &gSpanImages[i];
+        if (pSpan->blockCol >= 0 &&
+            col >= pSpan->blockCol && col < pSpan->blockCol + pSpan->span &&
+            row >= pSpan->blockRow && row < pSpan->blockRow + pSpan->span)
+            return true;
+    }
+    return false;
 }
 
 // these are swatches that we will use for other things;
@@ -718,7 +832,6 @@ static float getRand3to1(int boxIndex);
 
 static bool fenceNeighbor(int type, int boxIndex, int blockSide);
 static int saveBillboardOrGeometry(int boxIndex, int type);
-static void makePinkPetalFlowerStem(int boxIndex, int type, int dataVal, int swatchLoc, float x, float y, int height);
 static int saveTriangleGeometry(int type, int dataVal, int boxIndex, int typeBelow, int dataValBelow, int boxIndexBelow, int choppedSide);
 static bool badNeighborTest(int& neighborIndex, int boxIndex, int offset);
 static unsigned int getStairMask(int boxIndex, int dataVal);
@@ -739,12 +852,70 @@ static void saveBoxReuseGeometry(int boxIndex, int type, int dataVal, int swatch
 static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatchLocSet[6], int markFirstFace, int faceMask, int rotUVs, int reuseVerts,
     float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
 static int saveBoxCustomUVVertices(int boxIndex, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
-static int saveBoxCustomUVFace(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int swatchLoc,
-    float uMin, float uMax, float vMin, float vMax);
-static void saveMushroomSplitFace(int boxIndex, int type, int dataVal, int faceDirection, float splitCoord,
-    float minX, float maxX, float minY, float maxY, float minZ, float maxZ,
-    int swatchMinSide, float uMinMinSide, float uMaxMinSide, float vMinMinSide, float vMaxMinSide,
-    int swatchMaxSide, float uMinMaxSide, float uMaxMaxSide, float vMinMaxSide, float vMaxMaxSide);
+// One face of a Minecraft block model JSON element: direction, "uv" [u1,v1,u2,v2] in 0-16 units over the whole texture, and "rotation"
+// billboardBack is set (to 1) on the back face of a flat, two-faced element, such as a straw bed frill. It is output only when
+// gModel.singleSided is true ("Double all billboard faces"); otherwise the front face alone is output, to be rendered double-sided.
+typedef struct ModelFace {
+    int faceDirection;
+    float uv[4];
+    int rotation;
+    int billboardBack;
+    int swatchLoc;  // the face's own 16x16 tile, e.g. a bed's, or 0 to use the model's whole (possibly multi-tile) image
+} ModelFace;
+// One Minecraft block model JSON element: "from", "to" (in 0-16 pixel units) and its faces. An element may also have a "rotation":
+// rotAngle degrees, as in the JSON (so, about Y, negative turns clockwise, seen from above), about rotOrigin, in pixel units, about
+// the axis rotAxis, 0 for Y (the default), 1 for X, 2 for Z, with "rescale" if rescale is 1.
+typedef struct ModelElement {
+    float from[3];
+    float to[3];
+    int faceCount;
+    ModelFace face[6];
+    float rotAngle;
+    float rotOrigin[3];
+    int rotAxis;
+    int rescale;
+} ModelElement;
+static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, float yAngle, int xAngle = 0, bool uvlock = false);
+static int saveRotatedModel(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, int xAngle, int yAngle, bool uvlock);
+// The terrain tile anchor of a sign's 32x32 texture (see tiles.h): standing and wall signs in rows 4-7, hanging and wall hanging signs in
+// rows 8-11, eight woods (SIGN_WOOD(), the order of gSignWoods[]) to each pair of rows, from column 16.
+#define SIGN_TEXTURE_ANCHOR(wood, hanging) TILE_TO_SWATCH(16 + 2 * ((wood) % 8), ((hanging) ? 8 : 4) + 2 * ((wood) / 8))
+static int saveSignModel(int boxIndex, int type, int dataVal, bool hanging, const ModelElement* elements, int elementCount, float yAngle);
+static int saveTurnedModel(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, float yAngle);
+static int paneConnects(int neighborType);
+static int saveFenceRails(int boxIndex, int type, int dataVal, int yAngle);
+static int savePaneModel(int boxIndex, int type, int dataVal, int paneLoc, int edgeLoc, int filled);
+static int modelFaceIsCovered(int boxIndex, const ModelElement* pElem, int faceDirection, float yAngle);
+// The terrain tile anchor of a cushion's 32x32 texture (see tiles.h), for its color: eight colors to each pair of rows, from column 16, row 12.
+#define CUSHION_TEXTURE_ANCHOR(color) TILE_TO_SWATCH(16 + 2 * ((color) % 8), 12 + 2 * ((color) / 8))
+// The terrain tile anchor of a mob head's 32x32 texture (see tiles.h), for its head type (bits 0x70 of the data value), from column 16, row 24.
+// Every head type has one except the dragon's, which has a 96x96 texture.
+#define HEAD_TEXTURE_ANCHOR(headType) TILE_TO_SWATCH(16 + 2 * (headType), 24)
+#define DRAGON_HEAD_TEXTURE_ANCHOR TILE_TO_SWATCH(16, 26)
+// a uv coordinate on the dragon head's 96x96 texture, from a pixel location on it
+#define DRAGON_UV(px) ((float)(px) / 6.0f)
+#define HEAD_TYPE_DRAGON 5
+#define HEAD_TYPE_PIGLIN 6
+// a dragon head's jaw is open 0.2 radians, as DragonHeadModel.setupAnim() sets it when the head is not animated
+#define DRAGON_JAW_ANGLE 11.459f
+static float getHeadYAngle(int dataVal);
+// a piglin head's ears hang tilted out from its head by 0.7 radians, as PiglinHeadModel.setupAnim() sets them when the head is not animated
+#define PIGLIN_EAR_ANGLE 40.107f
+// A bed's 16x16 textures (see tiles.h): each color (BED_COLOR()) has a column, from column 16, and each of its seven textures a row,
+// from row 16, in this order. All colors share bed_down.png and bed_head_north.png.
+#define BED_FOOT_EAST 0
+#define BED_FOOT_SOUTH 1
+#define BED_FOOT_UP 2
+#define BED_FOOT_WEST 3
+#define BED_HEAD_EAST 4
+#define BED_HEAD_UP 5
+#define BED_HEAD_WEST 6
+#define BED_TILE(color, texture) TILE_TO_SWATCH(16 + (color), 16 + (texture))
+#define BED_DOWN_TILE TILE_TO_SWATCH(16, 23)
+#define BED_HEAD_NORTH_TILE TILE_TO_SWATCH(17, 23)
+static int saveBoxModelFace(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int anchorLoc, const float uv[4], int rotation);
+static int saveBoxModelFaceUVLock(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int anchorLoc, const float uv[4], int rotation, int xAngle, int yAngle);
+static int saveSpanTextureUV(int anchorLoc, int type, float su, float sv);
 static int findFaceDimensions(float rect[4], int faceDirection, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
 static int lesserNeighborCoversRectangle(int faceDirection, int boxIndex, float rect[4]);
 static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRect[4]);
@@ -819,8 +990,12 @@ static int neighborMayCoverFace(int neighborType, int view3D, int testPartial, i
 static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, int view3D);
 static int isFluidBlockFull(int boxIndex);
 static int cornerHeights(int boxIndex, float heights[4]);
-static float computeUpperCornerHeight(int boxIndex, int x, int z);
-static float getFluidHeightPercent(int dataVal);
+static int fluidNeighborIndex(int boxIndex, int dx, int dy, int dz);
+static float fluidOwnHeight(int boxIndex);
+static float fluidHeightAt(int fluidBoxIndex, int boxIndex);
+static float fluidCornerHeight(int boxIndex, float height, float height1, float height2, int diagonalIndex);
+static bool fluidFlow(int boxIndex, float* flowX, float* flowZ);
+static int saveFluidFaceUVs(int boxIndex, int faceDirection, float heights[4], int uvIndices[4]);
 static int sameFluid(int fluidBI, int typeBI);
 static int saveSpecialVertices(int boxIndex, int faceDirection, IPoint loc, float heights[4], int heightIndices[4]);
 static int saveVertices(int boxIndex, int faceDirection, IPoint loc);
@@ -848,7 +1023,7 @@ static void resolveFaceNormals();
 
 static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float power);
 
-static int mosaicUVtoSeparateUV();
+static int mosaicUVtoSeparateUV(int* pUVOutputCount);
 
 static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* box, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC);
 static int writeBinarySTLBox(WorldGuide* pWorldGuide, IBox* box, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC);
@@ -891,6 +1066,7 @@ static int writeUSDTextures();
 
 static int writeSchematicBox();
 static int writeSpongeSchematicBox();
+static int spongeWallTallSides(int dataVal, int aboveIndex);
 static int schematicWriteCompoundTag(gzFile gz, char* tag);
 static int schematicWriteShortTag(gzFile gz, char* tag, short value);
 static int schematicWriteIntTag(gzFile gz, char* tag, int value);
@@ -935,6 +1111,9 @@ static int createBaseMaterialTexture();
 static void copyPNGArea(progimage_info* dst, int dst_x_min, int dst_y_min, int size_x, int size_y, progimage_info* src, int src_x_min, int src_y_min);
 static void copyPNGAreaChannels(progimage_info* dst, int dst_x_min, int dst_y_min, int size_x, int size_y, progimage_info* src, int src_x_min, int src_y_min, int channels);
 static void extendPBRSwatchBorder(progimage_info* dst, int swatchCol, int swatchRow, int swatchSize, int tileSize, int channels);
+static void gatherSpanFromMaster(progimage_info* dst, int dstX, int dstY, progimage_info* src, int anchorLoc, int span, int swatchSize, int swatchesPerRow);
+static void clampImageBorder(progimage_info* img, int x0, int y0, int size, int border, int channels);
+static void getSpanBlockImageOrigin(const SpanImage* pSpan, int& x0, int& y0);
 static void setColorPNGArea(progimage_info* dst, int dst_x_min, int dst_y_min, int size_x, int size_y, unsigned int value);
 static void stretchSwatchToTop(progimage_info* dst, int swatchIndex, float startStretch);
 static void stretchSwatchToFill(progimage_info* dst, int swatchIndex, int xlo, int ylo, int xhi, int yhi);
@@ -1274,6 +1453,8 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
                     continue;
                 }
             }
+            // keep any warning, e.g. that missing tiles were filled in from the built-in terrain
+            retCode |= localRetCode;
 
             // check if height of texture is sufficient.
             if (gModel.pInputTerrainImage[catIndex]->height / (gModel.pInputTerrainImage[catIndex]->width / XTILES) < 16)
@@ -1375,6 +1556,21 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         gModel.textureUVPerTile = (float)gModel.tileSize / (float)gModel.textureResolution; // e.g. 16 / 256
         gModel.swatchListSize = gModel.swatchesPerRow * gModel.swatchesPerRow;
 
+        // multi-tile images get their own blocks in a mosaic; see reserveSpanBlocks()
+        initSpanImages();
+        if ((gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) && !gModel.exportTiles) {
+            // Only very small tiles (under 16x16) could fail to fit, in which case make a larger mosaic
+            while (!reserveSpanBlocks()) {
+                gModel.textureResolution *= 2;
+                gModel.invTextureResolution = 1.0f / (float)gModel.textureResolution;
+                gModel.swatchesPerRow = (int)(gModel.textureResolution / gModel.swatchSize);
+                gModel.textureUVPerSwatch = (float)gModel.swatchSize / (float)gModel.textureResolution;
+                gModel.textureUVPerTile = (float)gModel.tileSize / (float)gModel.textureResolution;
+                // composites are limited by the per-swatch UV lists
+                gModel.swatchListSize = min(gModel.swatchesPerRow * gModel.swatchesPerRow, NUM_MAX_SWATCHES);
+            }
+        }
+
         if (EXPORT_TEXTURE) {
             retCode |= createBaseMaterialTexture();
         }
@@ -1392,6 +1588,16 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     if (warnOnSize && gModel.textureResolution >= 16384 && !gModel.exportTiles) {
         warnOnSize = false;
         retCode |= MW_TEXTURE_RESOLUTION_HIGH;
+    }
+
+    // an incomplete terrain file (tiles filled from the built-in terrain, or a material file padded or ignored)
+    // stays that way from export to export, so warn only once a session
+    static bool warnOnIncompleteTerrain = true;
+    if (retCode & MW_NOT_ENOUGH_ROWS) {
+        if (warnOnIncompleteTerrain)
+            warnOnIncompleteTerrain = false;
+        else
+            retCode &= ~MW_NOT_ENOUGH_ROWS;
     }
 
     UPDATE_PROGRESS(gProgress.start.readBlocks + 0.45f * gProgress.absolute.readBlocks);
@@ -1678,9 +1884,9 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
             // For 3D printing detailed blocks, we specify the textures where we want to composite over something special, like black or stone.
             // Otherwise, all alphas are set to the average color of the tile, to avoid bleeding black along the edges.
             // if we're rendering all blocks, don't fill in cauldrons, beds, etc. as we want these cutouts for rendering; else use offset:
-#define FA_TABLE__RENDER_BLOCK_START 7
+#define FA_TABLE__RENDER_BLOCK_START 3
 #define FA_TABLE__VIEW_SIZE (1+FA_TABLE__RENDER_BLOCK_START)
-#define FA_TABLE_SIZE 61
+#define FA_TABLE_SIZE 57
             static FillAlpha faTable[FA_TABLE_SIZE] =
             {
                 // Stuff filled only if lesser (i.e. all blocks) is off for rendering, so that the cauldron is rendered as a solid block.
@@ -1689,11 +1895,6 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
                 // value as SWATCH_INDEX(0,0), which is grass.
                 { SWATCH_INDEX(10, 9), -BLOCK_TRIPWIRE }, // cauldron side
                 { SWATCH_INDEX(11, 9), -BLOCK_TRIPWIRE }, // cauldron bottom
-
-                { SWATCH_INDEX(5, 9), -BLOCK_TRIPWIRE }, // bed
-                { SWATCH_INDEX(6, 9), -BLOCK_TRIPWIRE }, // bed
-                { SWATCH_INDEX(7, 9), -BLOCK_TRIPWIRE }, // bed
-                { SWATCH_INDEX(8, 9), -BLOCK_TRIPWIRE }, // bed
 
                 { SWATCH_INDEX(6, 4), -BLOCK_CACTUS }, // cactus
 
@@ -2393,10 +2594,92 @@ static int initializeModelData()
     return MW_NO_ERROR;
 }
 
+// A terrain file made for an older Mineways lacks the newer tiles: they're fully transparent (or past its last
+// row), so those blocks would export invisible. Fill each such tile from the built-in terrainExtData, scaled to
+// the file's tile size, adding rows if the file has fewer than the built-in data. The RGBA image must already be
+// XTILES wide. Returns the number of tiles filled.
+static int fillMissingTilesFromBuiltIn(progimage_info* pITI)
+{
+    int tileSize = pITI->width / XTILES;
+    int builtInTileSize = gTerrainExtWidth / XTILES;
+    int builtInRows = gTerrainExtHeight / builtInTileSize;
+    if (tileSize <= 0 || builtInTileSize <= 0)
+        return 0;
+
+    // pad a short file with transparent rows, so that the missing rows get filled, too
+    if (pITI->height / tileSize < builtInRows) {
+        pITI->image_data.resize((size_t)pITI->width * (size_t)(builtInRows * tileSize) * 4, 0x0);
+        pITI->height = builtInRows * tileSize;
+    }
+
+    // which tiles have no content in the file, as read (before any filling)
+    std::vector<bool> fileEmpty((size_t)builtInRows * XTILES, true);
+    for (int row = 0; row < builtInRows; row++) {
+        for (int col = 0; col < XTILES; col++) {
+            bool empty = true;
+            for (int y = 0; y < tileSize && empty; y++) {
+                const unsigned char* p = &pITI->image_data[(((size_t)row * tileSize + y) * pITI->width + (size_t)col * tileSize) * 4];
+                for (int x = 0; x < tileSize; x++) {
+                    if (p[x * 4 + 3] != 0) { empty = false; break; }
+                }
+            }
+            fileEmpty[(size_t)row * XTILES + col] = empty;
+        }
+    }
+
+    int filled = 0;
+    for (int row = 0; row < builtInRows; row++) {
+        for (int col = 0; col < XTILES; col++) {
+            // skip tiles that have any content in the file, or that are empty in the built-in data, too
+            if (!fileEmpty[(size_t)row * XTILES + col])
+                continue;
+            // A member of an image spanning several tiles (see tiles.h) is part of that image: if the file has the image (its anchor
+            // tile has content), an empty member is just a transparent part of it, e.g. the bottom of the creeper head's image,
+            // which in the built-in data has a single, nearly transparent pixel.
+            if (row < VERTICAL_TILES) {
+                int tileIndex = col + XTILES * row;
+                if (gTilesTable[tileIndex].spanX < 0 || gTilesTable[tileIndex].spanY < 0) {
+                    int anchorCol = col + gTilesTable[tileIndex].spanX;
+                    int anchorRow = row + gTilesTable[tileIndex].spanY;
+                    if (!fileEmpty[(size_t)anchorRow * XTILES + anchorCol])
+                        continue;
+                }
+                // an unused tile, one with no name (and not part of a larger image), is not missing, even if the built-in data
+                // still has something there, e.g. the retired shulker box templates at 5,33 and 6,33
+                else if (gTilesTable[tileIndex].filename[0] == 0) {
+                    continue;
+                }
+            }
+            bool builtInEmpty = true;
+            for (int y = 0; y < builtInTileSize && builtInEmpty; y++) {
+                const unsigned char* p = &gTerrainExt[(((size_t)row * builtInTileSize + y) * gTerrainExtWidth + (size_t)col * builtInTileSize) * 4];
+                for (int x = 0; x < builtInTileSize; x++) {
+                    if (p[x * 4 + 3] != 0) { builtInEmpty = false; break; }
+                }
+            }
+            if (builtInEmpty)
+                continue;
+
+            // nearest-neighbor scale, which keeps Minecraft's pixel look when enlarging
+            for (int y = 0; y < tileSize; y++) {
+                int sy = y * builtInTileSize / tileSize;
+                for (int x = 0; x < tileSize; x++) {
+                    int sx = x * builtInTileSize / tileSize;
+                    memcpy(&pITI->image_data[(((size_t)row * tileSize + y) * pITI->width + (size_t)col * tileSize + x) * 4],
+                        &gTerrainExt[(((size_t)row * builtInTileSize + sy) * gTerrainExtWidth + (size_t)col * builtInTileSize + sx) * 4], 4);
+                }
+            }
+            filled++;
+        }
+    }
+    return filled;
+}
+
 static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* selectedTerrainFileName, int category, int exportFileType)
 {
     // file should be in same directory as .exe, sort of
     int rc = 0;
+    int warningCode = MW_NO_ERROR;
 
     if (wcslen(selectedTerrainFileName) > 0)
     {
@@ -2477,6 +2760,22 @@ static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* 
     // check that height is divisible by tile size
     if ((pITI->height % (pITI->width / XTILES)) != 0)
         return MW_IMAGE_WRONG_WIDTH;
+
+    // A terrain file from an older version lacks the newer tiles: fill them in from the built-in terrain. Only for a
+    // color file actually read (not the built-in one itself), and only if its pixels were read, not just its header.
+    if (category == CATEGORY_RGBA && !gModel.terrainImageNotFound && gCatChannels[category] == 4 &&
+        pITI->image_data.size() == (size_t)pITI->width * (size_t)pITI->height * 4 &&
+        gTerrainExtHeight == VERTICAL_TILES * (gTerrainExtWidth / XTILES)) {
+        int filled = fillMissingTilesFromBuiltIn(pITI);
+        if (filled > 0) {
+            wchar_t statusString[1024];
+            swprintf_s(statusString, 1024, L"Terrain file %s is missing %d tiles; filled them from the built-in terrain",
+                getFilename(selectedTerrainFileName), filled);
+            UPDATE_STATUS(-999.0f, statusString);
+            // and warn, as the texture pack is incomplete and some blocks now use Mineways' own textures
+            warningCode = MW_NOT_ENOUGH_ROWS;
+        }
+    }
 
     // should compute just once; CATEGORY_RGBA is assumed always read first
     if (category == CATEGORY_RGBA) {
@@ -2596,7 +2895,7 @@ static int readTerrainPNG(const wchar_t* curDir, progimage_info* pITI, wchar_t* 
     }
 #endif
 
-    return MW_NO_ERROR;
+    return warningCode;
 }
 
 // assumes a single channel image
@@ -2957,6 +3256,10 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
                 gBoxData[boxIndex].data = dataVal;
                 blockID = gBoxData[boxIndex].origType =
                     gBoxData[boxIndex].type = BLOCK_TYPE_FROM_GRID_DATA(block->grid[chunkIndex], block->data[chunkIndex]);
+                // Redstone wire's connections (see WIRE_PROP in nbt.cpp) are kept for .schem export; a model finds its own from
+                // the neighbors (see computeRedstoneConnectivity()), in the same bits, so clear them.
+                if (blockID == BLOCK_REDSTONE_WIRE && gModel.options->pEFD->fileType != FILE_TYPE_SCHEMATIC && gModel.options->pEFD->fileType != FILE_TYPE_SPONGE_SCHEMATIC)
+                    gBoxData[boxIndex].data &= 0xF;
                 // if you hit this, something has gone odd with the type-extension nibble, which shouldn't happen.
                 assert(blockID < NUM_BLOCKS_DEFINED);
 
@@ -3295,6 +3598,9 @@ static int filterBox(ChangeBlockCommand* pCBC)
                                 retVal = saveBillboardOrGeometry(boxIndex, type);
                                 if (retVal == 1)
                                 {
+                                    // successfully saved a billboard or flattenable geometry, e.g. a flower, carpet, or cushion - count it just once
+                                    gModel.billboardCount++;
+
                                     // this block is then cleared out, since it's been processed.
                                     if (IS_WATERLOGGED(type, boxIndex)) {
                                         // clears to water if waterlogged, e.g., seagrass.
@@ -3372,7 +3678,7 @@ static int filterBox(ChangeBlockCommand* pCBC)
                         if (type != BLOCK_AIR)
                         {
                             int flags = gBlockDefinitions[type].flags;
-                            // check: is it geometry we can export? Clear it out if so.
+                            // check: is it geometry we can export? Export and clear it out if so.
 
                             // If we're 3d printing, or rendering without textures, then export 3D printable bits,
                             // on the assumption that the software can merge the data properly with the solid model.
@@ -3383,6 +3689,9 @@ static int filterBox(ChangeBlockCommand* pCBC)
                                 retVal = saveBillboardOrGeometry(boxIndex, type);
                                 if (retVal == 1)
                                 {
+                                    // successfully saved minor geometry - count it just once
+                                    gModel.billboardCount++;
+
                                     // this block is then cleared out, since it's been processed.
                                     if (IS_WATERLOGGED(type, boxIndex)) {
                                         // clears to water if waterlogged, e.g., seagrass
@@ -3895,6 +4204,7 @@ static int computeFlatFlags(int boxIndex)
     case BLOCK_WEIGHTED_PRESSURE_PLATE_HEAVY:
     case BLOCK_SNOW:
     case BLOCK_CARPET:
+    case BLOCK_CUSHION:
     case BLOCK_REDSTONE_REPEATER_OFF:
     case BLOCK_REDSTONE_REPEATER_ON:
     case BLOCK_REDSTONE_COMPARATOR:
@@ -3939,8 +4249,8 @@ static int computeFlatFlags(int boxIndex)
 
     case BLOCK_MANGROVE_PROPAGULE:
         //case BLOCK_CHAIN:   // questionable: should a chain (offset to the edge!) really be flattened onto the neighbor below?
-        // If mangrove propagule is hanging, just ignore it (can't really used textures, and hard to see, anyway)
-        if ((gBoxData[boxIndex].data & 0x7) == 0x0)
+        // If mangrove propagule is hanging (bit 0x8), just ignore it (can't really used textures, and hard to see, anyway)
+        if ((gBoxData[boxIndex].data & 0x8) == 0x0)
             gBoxData[boxIndex - 1].flatFlags |= FLAT_FACE_ABOVE;
         break;
 
@@ -4028,8 +4338,6 @@ static int computeFlatFlags(int boxIndex)
 
     case BLOCK_LADDER:						// computeFlatFlags
     case BLOCK_WALL_SIGN:
-    case BLOCK_MANGROVE_WALL_SIGN:
-    case BLOCK_POPLAR_WALL_SIGN:
     case BLOCK_WALL_BANNER:
     case BLOCK_ORANGE_WALL_BANNER:
     case BLOCK_MAGENTA_WALL_BANNER:
@@ -4798,15 +5106,15 @@ static bool fenceNeighbor(int type, int boxIndex, int blockSide)
 // return 1 if block processed as a billboard or true geometry
 static int saveBillboardOrGeometry(int boxIndex, int type)
 {
-    int dataVal, faceMask, tbFaceMask, dir;
+    int dataVal, faceMask, tbFaceMask;
     float minx, maxx, miny, maxy, minz, maxz, bitAdd;
     int swatchLoc, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc;
     int topDataVal, bottomDataVal, shiftVal, neighborType, neighborIndex;
     // lots of these could be moved into individual cases, but let's not bother
     int i, firstFace, totalVertexCount, littleTotalVertexCount, uberTotalVertexCount, typeBelow, dataValBelow, useInsidesAndBottom, filled;  // cppcheck-suppress 398
-    float xrot, yrot, zrot;
+    float yrot, zrot;
     float hasPost, covered, newHeight;  // cppcheck-suppress 398
-    float mtx[4][4], angle, hingeAngle, signMult;
+    float mtx[4][4], angle;
     int swatchLocSet[6];
     // how much to add to dimension when fattening
     float fatten = (gModel.options->pEFD->chkFatten) ? 2.0f : 0.0f;
@@ -4899,6 +5207,274 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break;	// saveBillboardOrGeometry
 
     case BLOCK_MANGROVE_PROPAGULE:
+        if (!gModel.print3D) {
+            // Minecraft's mangrove_propagule model or, hanging (dataVal 0x8), mangrove_propagule_hanging_0-4 by the age, dataVal
+            // 0x7, offset randomly in X and Z as Minecraft does. The elements are made from the models' JSON.
+            int standingLoc = SWATCH_INDEX(1, 55);
+            int hangingLoc = SWATCH_INDEX(2, 55);
+            ModelElement hanging0Elements[] = {
+                { { 7, 13.611f, 10.0719f }, { 9, 13.611f, 12.0719f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 180, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 0, 1, hangingLoc }
+                }, 22.5f, { 8, 16, 8 }, 1, 0 },
+                { { 10.0719f, 13.611f, 7 }, { 12.0719f, 13.611f, 9 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 90, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 90, 1, hangingLoc }
+                }, -22.5f, { 8, 16, 8 }, 2, 0 },
+                { { 7, 13.611f, 3.92807f }, { 9, 13.611f, 5.92807f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 180, 1, hangingLoc }
+                }, -22.5f, { 8, 16, 8 }, 1, 0 },
+                { { 3.92807f, 13.611f, 7 }, { 5.92807f, 13.611f, 9 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 270, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 270, 1, hangingLoc }
+                }, 22.5f, { 8, 16, 8 }, 2, 0 },
+                { { 7, 13, 7 }, { 9, 14, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 2, 2 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 3, 2, 5 }, 0, 0, hangingLoc }
+                } },
+                { { 7, 14, 8 }, { 9, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 2 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 2 }, 0, 0, hangingLoc }
+                }, -45, { 8, 16, 8 }, 0, 0 },
+                { { 7, 14, 8 }, { 9, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 2 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 2 }, 0, 0, hangingLoc }
+                }, 45, { 8, 16, 8 }, 0, 0 },
+            };
+            ModelElement hanging1Elements[] = {
+                { { 7, 10, 7 }, { 9, 13, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 5, 2, 7 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 5, 2, 7 }, 0, 0, hangingLoc }
+                } },
+                { { 7, 13.611f, 10.0719f }, { 9, 13.611f, 12.0719f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 180, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 0, 1, hangingLoc }
+                }, 22.5f, { 8, 16, 8 }, 1, 0 },
+                { { 10.0719f, 13.611f, 7 }, { 12.0719f, 13.611f, 9 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 90, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 90, 1, hangingLoc }
+                }, -22.5f, { 8, 16, 8 }, 2, 0 },
+                { { 7, 13.611f, 3.92807f }, { 9, 13.611f, 5.92807f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 180, 1, hangingLoc }
+                }, -22.5f, { 8, 16, 8 }, 1, 0 },
+                { { 3.92807f, 13.611f, 7 }, { 5.92807f, 13.611f, 9 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 270, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 270, 1, hangingLoc }
+                }, 22.5f, { 8, 16, 8 }, 2, 0 },
+                { { 7, 13, 7 }, { 9, 14, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 2, 2 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 3, 2, 5 }, 0, 0, hangingLoc }
+                } },
+                { { 7, 14, 8 }, { 9, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 2 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 2 }, 0, 0, hangingLoc }
+                }, -45, { 8, 16, 8 }, 0, 0 },
+                { { 7, 14, 8 }, { 9, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 2 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 2 }, 0, 0, hangingLoc }
+                }, 45, { 8, 16, 8 }, 0, 0 },
+            };
+            ModelElement hanging2Elements[] = {
+                { { 7, 10, 7 }, { 9, 13, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 5, 2, 7 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 10, 2, 12 }, 0, 0, hangingLoc }
+                } },
+                { { 7, 13.611f, 10.0719f }, { 9, 13.611f, 12.0719f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 180, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 0, 1, hangingLoc }
+                }, 22.5f, { 8, 16, 8 }, 1, 0 },
+                { { 10.0719f, 13.611f, 7 }, { 12.0719f, 13.611f, 9 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 90, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 90, 1, hangingLoc }
+                }, -22.5f, { 8, 16, 8 }, 2, 0 },
+                { { 7, 13.611f, 3.92807f }, { 9, 13.611f, 5.92807f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 180, 1, hangingLoc }
+                }, -22.5f, { 8, 16, 8 }, 1, 0 },
+                { { 3.92807f, 13.611f, 7 }, { 5.92807f, 13.611f, 9 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 270, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 270, 1, hangingLoc }
+                }, 22.5f, { 8, 16, 8 }, 2, 0 },
+                { { 7, 13, 7 }, { 9, 14, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 2, 2 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 3, 2, 5 }, 0, 0, hangingLoc }
+                } },
+                { { 7, 14, 8 }, { 9, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 2 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 2 }, 0, 0, hangingLoc }
+                }, -45, { 8, 16, 8 }, 0, 0 },
+                { { 7, 14, 8 }, { 9, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 2 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 2 }, 0, 0, hangingLoc }
+                }, 45, { 8, 16, 8 }, 0, 0 },
+                { { 7, 7, 8 }, { 9, 10, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 7, 5, 10 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 7, 5, 10 }, 0, 0, hangingLoc }
+                }, 45, { 8, 16, 8 }, 0, 0 },
+                { { 7, 7, 8 }, { 9, 10, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 7, 5, 10 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 7, 5, 10 }, 0, 0, hangingLoc }
+                }, -45, { 8, 16, 8 }, 0, 0 },
+            };
+            ModelElement hanging3Elements[] = {
+                { { 7, 10, 7 }, { 9, 13, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 5, 2, 7 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 10, 2, 12 }, 0, 0, hangingLoc }
+                } },
+                { { 7, 13.611f, 10.0719f }, { 9, 13.611f, 12.0719f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 180, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 0, 1, hangingLoc }
+                }, 22.5f, { 8, 16, 8 }, 1, 0 },
+                { { 10.0719f, 13.611f, 7 }, { 12.0719f, 13.611f, 9 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 90, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 90, 1, hangingLoc }
+                }, -22.5f, { 8, 16, 8 }, 2, 0 },
+                { { 7, 13.611f, 3.92807f }, { 9, 13.611f, 5.92807f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 180, 1, hangingLoc }
+                }, -22.5f, { 8, 16, 8 }, 1, 0 },
+                { { 3.92807f, 13.611f, 7 }, { 5.92807f, 13.611f, 9 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 270, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 270, 1, hangingLoc }
+                }, 22.5f, { 8, 16, 8 }, 2, 0 },
+                { { 7, 13, 7 }, { 9, 14, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 2, 2 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 3, 2, 5 }, 0, 0, hangingLoc }
+                } },
+                { { 7, 14, 8 }, { 9, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 2 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 2 }, 0, 0, hangingLoc }
+                }, -45, { 8, 16, 8 }, 0, 0 },
+                { { 7, 14, 8 }, { 9, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 2 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 2 }, 0, 0, hangingLoc }
+                }, 45, { 8, 16, 8 }, 0, 0 },
+                { { 7, 3, 8 }, { 9, 10, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 3, 5, 10 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 3, 5, 10 }, 0, 0, hangingLoc }
+                }, 45, { 8, 16, 8 }, 0, 0 },
+                { { 7, 3, 8 }, { 9, 10, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 3, 5, 10 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 3, 5, 10 }, 0, 0, hangingLoc }
+                }, -45, { 8, 16, 8 }, 0, 0 },
+            };
+            ModelElement hanging4Elements[] = {
+                { { 7, 10, 7 }, { 9, 13, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 7, 2, 10 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 5, 2, 7 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 10, 2, 12 }, 0, 0, hangingLoc }
+                } },
+                { { 7, 13.611f, 10.0719f }, { 9, 13.611f, 12.0719f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 180, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 0, 1, hangingLoc }
+                }, 22.5f, { 8, 16, 8 }, 1, 0 },
+                { { 10.0719f, 13.611f, 7 }, { 12.0719f, 13.611f, 9 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 90, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 90, 1, hangingLoc }
+                }, -22.5f, { 8, 16, 8 }, 2, 0 },
+                { { 7, 13.611f, 3.92807f }, { 9, 13.611f, 5.92807f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 180, 1, hangingLoc }
+                }, -22.5f, { 8, 16, 8 }, 1, 0 },
+                { { 3.92807f, 13.611f, 7 }, { 5.92807f, 13.611f, 9 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 3, 10, 5 }, 270, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 3, 8, 5 }, 270, 1, hangingLoc }
+                }, 22.5f, { 8, 16, 8 }, 2, 0 },
+                { { 7, 13, 7 }, { 9, 14, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 2, 2, 3 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 2, 2 }, 0, 0, hangingLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 3, 2, 5 }, 0, 0, hangingLoc }
+                } },
+                { { 7, 14, 8 }, { 9, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 2 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 2 }, 0, 0, hangingLoc }
+                }, -45, { 8, 16, 8 }, 0, 0 },
+                { { 7, 14, 8 }, { 9, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 2 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 2 }, 0, 0, hangingLoc }
+                }, 45, { 8, 16, 8 }, 0, 0 },
+                { { 7, 0, 8 }, { 9, 10, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 5, 10 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 5, 10 }, 0, 0, hangingLoc }
+                }, 45, { 8, 16, 8 }, 0, 0 },
+                { { 7, 0, 8 }, { 9, 10, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 5, 10 }, 0, 1, hangingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 5, 10 }, 0, 0, hangingLoc }
+                }, -45, { 8, 16, 8 }, 0, 0 },
+            };
+            ModelElement standingElements[] = {
+                { { 4.5f, 9, 8 }, { 11.5f, 15, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 1, 11, 7 }, 0, 1, standingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 1, 11, 7 }, 0, 0, standingLoc }
+                }, 45, { 8, 0, 8 }, 0, 1 },
+                { { 8, 9, 4.5f }, { 8, 15, 11.5f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 4, 1, 11, 7 }, 0, 0, standingLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 4, 1, 11, 7 }, 0, 1, standingLoc }
+                }, 45, { 8, 0, 8 }, 0, 1 },
+                { { 8, 0, 7 }, { 8, 9, 9 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 7, 7, 9, 16 }, 0, 0, standingLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 7, 7, 9, 16 }, 0, 1, standingLoc }
+                }, 45, { 8, 0, 8 }, 0, 1 },
+                { { 7, 0, 8 }, { 9, 9, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 7, 7, 9, 16 }, 0, 1, standingLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 7, 7, 9, 16 }, 0, 0, standingLoc }
+                }, 45, { 8, 0, 8 }, 0, 1 },
+            };
+            const ModelElement* hangingModel[5] = { hanging0Elements, hanging1Elements, hanging2Elements, hanging3Elements, hanging4Elements };
+            static const int hangingCount[5] = { 7, 8, 10, 10, 10 };
+            totalVertexCount = gModel.vertexCount;
+            if (dataVal & 0x8) {
+                int propaguleAge = (dataVal & 0x7) > 4 ? 4 : (dataVal & 0x7);
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, hangingLoc, hangingModel[propaguleAge], hangingCount[propaguleAge], 0, 0, false);
+            }
+            else {
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, standingLoc, standingElements, 4, 0, 0, false);
+            }
+            wobbleObjectLocation(boxIndex, shiftX, shiftZ);
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            translateMtx(mtx, shiftX / 16.0f, 0.0f, shiftZ / 16.0f);
+            gUsingTransform = 1;
+            transformVertices(totalVertexCount, mtx);
+            gUsingTransform = 0;
+            break;
+        }
         if (!(dataVal & 0x8))
             return saveBillboardFaces(boxIndex, type, BB_FULL_CROSS);
         else {
@@ -5074,25 +5650,72 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
     case BLOCK_CORAL_FAN:
     case BLOCK_DEAD_CORAL_FAN:
-        return saveBillboardFaces(boxIndex, type, BB_FAN);
-        break;	// saveBillboardOrGeometry
-
     case BLOCK_CORAL_WALL_FAN:
     case BLOCK_DEAD_CORAL_WALL_FAN:
-        return saveBillboardFaces(boxIndex, type, BB_WALL_FAN);
+        if (gModel.print3D) {
+            return saveBillboardFaces(boxIndex, type, ((type == BLOCK_CORAL_FAN) || (type == BLOCK_DEAD_CORAL_FAN)) ? BB_FAN : BB_WALL_FAN);
+        }
+        else {
+            // Minecraft's coral_fan model (four flat leaves tilted 22.5 degrees, reaching past the block's sides) and coral_wall_fan
+            // model (two leaves, stretched by "rescale"), turned by "y" for a wall fan; its dataVal 0x30 faces south, west, north,
+            // east. The low bits are the coral's kind. The elements are made from the models' JSON.
+            bool dead = (type == BLOCK_DEAD_CORAL_FAN) || (type == BLOCK_DEAD_CORAL_WALL_FAN);
+            // the fans' tiles are in row 36 by kind (the block's own tile is a coral plant's)
+            swatchLoc = SWATCH_INDEX((dead ? 5 : 0) + (dataVal & 0x7), 36);
+            ModelElement fanElements[] = {
+            { { 8, 0, 0 }, { 24, 0, 16 }, 2, {
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 90, 0, swatchLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 270, 1, swatchLoc }
+            }, 22.5f, { 8, 0, 0 }, 2, 0 },
+            { { -8, 0, 0 }, { 8, 0, 16 }, 2, {
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 270, 0, swatchLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 90, 1, swatchLoc }
+            }, -22.5f, { 8, 0, 0 }, 2, 0 },
+            { { 0, 0, 8 }, { 16, 0, 24 }, 2, {
+                { DIRECTION_BLOCK_TOP, { 16, 16, 0, 0 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 16, 0, 0, 16 }, 0, 1, swatchLoc }
+            }, -22.5f, { 0, 0, 8 }, 1, 0 },
+            { { 0, 0, -8 }, { 16, 0, 8 }, 2, {
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 0, 1, swatchLoc }
+            }, 22.5f, { 0, 0, 8 }, 1, 0 },
+            };
+            ModelElement wallFanElements[] = {
+            { { 0, 8, 0 }, { 16, 8, 16 }, 2, {
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 16, 16, 0, 0 }, 0, 1, swatchLoc }
+            }, 22.5f, { 8, 8, 14 }, 1, 1 },
+            { { 0, 8, 0 }, { 16, 8, 16 }, 2, {
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 16, 16, 0, 0 }, 0, 1, swatchLoc }
+            }, -22.5f, { 8, 8, 14 }, 1, 1 },
+            };
+            if ((type == BLOCK_CORAL_FAN) || (type == BLOCK_DEAD_CORAL_FAN)) {
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, swatchLoc, fanElements, 4, 0, 0, false);
+            }
+            else {
+                static const int wallFanYAngle[4] = { 180, 270, 0, 90 };
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, swatchLoc, wallFanElements, 2, 0, wallFanYAngle[(dataVal >> 4) & 0x3], false);
+            }
+        }
         break;	// saveBillboardOrGeometry
 
     // special: billboard and possible an extra stem to the pumpkin or melon
     case BLOCK_PUMPKIN_STEM:						// saveBillboardOrGeometry
     case BLOCK_MELON_STEM:
-        saveBillboardFaces(boxIndex, type, BB_FULL_CROSS);
-        // if stem is full maturity and is next to a pumpkin/melon, add extra stem
+    {
+        // Minecraft's stem_growth0-7 models: two flat planes crossing, turned 45 degrees about Y and stretched ("rescale") to reach
+        // the block's corners, from Y -1 (down in the farmland) up 2 pixels for each stage of growth, showing the top of the texture.
+        // A stem attached to its fruit is stem_fruit: the planes 8 pixels high, plus a flat element reaching to the fruit, with the
+        // attached stem's texture, turned by the blockstate's "y". The planes' backs are output only when billboards are doubled.
+        bool attached = false;
+        angle = 0;
         if ((dataVal & 0x7) == 7)
         {
-            // fully mature, change height to 10 if the proper fruit is next door
             if (gIs13orNewer) {
                 if (dataVal & 0x8) {
                     // attached stem
+                    attached = true;
                     switch (dataVal & (BIT_16 | BIT_32)) {
                     default:
                     case 0:
@@ -5113,13 +5736,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                         break;
                     }
                 }
-                else {
-                    // fully grown, but not attached
-                    return 1;
-                }
             }
             else {
                 matchType = (type == BLOCK_PUMPKIN_STEM) ? BLOCK_PUMPKIN : BLOCK_MELON;
+                attached = true;
                 if (gBoxData[boxIndex - gBoxSizeYZ].origType == matchType) {
                     // to west
                     angle = 0;
@@ -5135,28 +5755,65 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                     angle = 270;
                 }
                 else
-                    // all done, nothing next to it
-                    return 1;
+                    attached = false;
             }
+        }
+        float stemHeight = attached ? 8.0f : 2.0f * (float)((dataVal & 0x7) + 1);
+        float stemUV[4] = { 0.0f, 0.0f, 16.0f, stemHeight };
+        float stemBackUV[4] = { 16.0f, 0.0f, 0.0f, stemHeight };
+        // the stem's own tile (getSwatch() would composite it with the block behind, which is only for composite overlay output)
+        swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+        gUsingTransform = 1;
+        int stemVertexStart = gModel.vertexCount;
+        totalVertexCount = gModel.vertexCount;
+        int startVertexIndex = saveBoxCustomUVVertices(boxIndex, 0.0f, 16.0f, -1.0f, stemHeight - 1.0f, 8.0f, 8.0f);
+        if (startVertexIndex < 0)
+            return MW_WORLD_EXPORT_TOO_LARGE;
+        retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 1, swatchLoc, stemUV, 0);
+        if (gModel.singleSided)
+            retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, swatchLoc, stemBackUV, 0);
+        startVertexIndex = saveBoxCustomUVVertices(boxIndex, 8.0f, 8.0f, -1.0f, stemHeight - 1.0f, 0.0f, 16.0f);
+        if (startVertexIndex < 0)
+            return MW_WORLD_EXPORT_TOO_LARGE;
+        retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, DIRECTION_BLOCK_SIDE_LO_X, 0, swatchLoc, stemUV, 0);
+        if (gModel.singleSided)
+            retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, DIRECTION_BLOCK_SIDE_HI_X, 0, swatchLoc, stemBackUV, 0);
+        if (retCode >= MW_BEGIN_ERRORS)
+            return retCode;
+        totalVertexCount = gModel.vertexCount - totalVertexCount;
+        identityMtx(mtx);
+        translateToOriginMtx(mtx, boxIndex);
+        // Minecraft's element rotation about Y turns the other way from rotateMtx's; "rescale" for 45 degrees is 1/cos(45 degrees)
+        rotateMtx(mtx, 0.0f, -45.0f, 0.0f);
+        scaleMtx(mtx, 1.41421356f, 1.0f, 1.41421356f);
+        translateFromOriginMtx(mtx, boxIndex);
+        transformVertices(totalVertexCount, mtx);
 
-            // connected melon or pumpkin stem
+        if (attached)
+        {
+            // the connection to the melon or pumpkin, made reaching west; then the whole model is turned into place
+            static const float upperUV[4] = { 9.0f, 0.0f, 0.0f, 16.0f };
+            static const float upperBackUV[4] = { 0.0f, 0.0f, 9.0f, 16.0f };
             swatchLoc = (type == BLOCK_PUMPKIN_STEM) ? SWATCH_INDEX(15, 11) : SWATCH_INDEX(15, 7);
-            totalVertexCount = gModel.vertexCount;
-
-            // so sleazy: make this a top geometry so that top and bottom will match. Rotate to position, twice
-            gUsingTransform = 1;
-            saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | (gModel.singleSided ? 0x0 : DIR_BOTTOM_BIT), 0, 16, 8, 8, 0, 16);
-            gUsingTransform = 0;
-            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            startVertexIndex = saveBoxCustomUVVertices(boxIndex, 0.0f, 9.0f, 0.0f, 16.0f, 8.0f, 8.0f);
+            if (startVertexIndex < 0)
+                return MW_WORLD_EXPORT_TOO_LARGE;
+            retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, swatchLoc, upperUV, 0);
+            if (gModel.singleSided)
+                retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, swatchLoc, upperBackUV, 0);
+            if (retCode >= MW_BEGIN_ERRORS)
+                return retCode;
+            totalVertexCount = gModel.vertexCount - stemVertexStart;
             identityMtx(mtx);
             translateToOriginMtx(mtx, boxIndex);
-            rotateMtx(mtx, -90.0f, 0.0f, 0.0f);
             rotateMtx(mtx, 0.0f, (float)angle, 0.0f);
             translateFromOriginMtx(mtx, boxIndex);
             transformVertices(totalVertexCount, mtx);
         }
-        return 1;
-        break; // saveBillboardOrGeometry
+        gUsingTransform = 0;
+    }
+    return 1;
+    break; // saveBillboardOrGeometry
 
     case BLOCK_WHEAT:						// saveBillboardOrGeometry
     case BLOCK_NETHER_WART:
@@ -5210,9 +5867,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 modDataVal &= 0x7;
                 break;
             case BLOCK_ACTIVATOR_RAIL:
-                if (modDataVal & 0x8)
+                // by default, activated
+                if (!(modDataVal & 0x8))
                 {
-                    // activated rail
+                    // unactivated rail
                     swatchLoc = SWATCH_INDEX(9, 17);
                 }
                 // if not a normal rail, there are no curve bits, so mask off upper bit, which is
@@ -5331,7 +5989,22 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         return saveBillboardFaces(boxIndex, type, BB_BOTTOM);
 
     case BLOCK_FROGSPAWN:					// saveBillboardOrGeometry
-        return saveBillboardFaces(boxIndex, type, BB_BOTTOM);
+        if (gModel.print3D) {
+            return saveBillboardFaces(boxIndex, type, BB_BOTTOM);
+        }
+        else {
+            // Minecraft's frogspawn model, a flat sheet a quarter pixel up, as for the lily pad. The elements are made from the
+            // model's JSON.
+            swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            ModelElement frogspawnElements[] = {
+            { { 0, 0.25f, 0 }, { 16, 0.25f, 16 }, 2, {
+                { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 0, 1, swatchLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, swatchLoc }
+            } },
+            };
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, swatchLoc, frogspawnElements, 1, 0, 0, false);
+        }
+        break;
 
         /////////////////////////////////////////////////////////////////////////////////////////
         // real-live solid output, baby
@@ -5397,6 +6070,95 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 firstFace = 0;	// not necessary, but for consistency in case code is added below  // cppcheck-suppress 563
             }
         }
+        else if (!gModel.print3D && (type == BLOCK_BAMBOO_FENCE)) {
+            // Minecraft's bamboo_fence_post model and, for each side the fence connects to, bamboo_fence_side_north, _east, _south,
+            // or _west, made from the custom_fence templates, which map parts of the bamboo_fence texture onto each face. The
+            // elements are made from the models' JSON.
+            int fenceLoc = SWATCH_INDEX(9, 60);
+            ModelElement postElements[] = {
+                { { 6, 0, 6 }, { 10, 16, 10 }, 6, {
+                    { DIRECTION_BLOCK_TOP, { 4, 0, 8, 4 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 4, 0, 8, 4 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 4, 16 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 4, 16 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 4, 16 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 4, 16 }, 0, 0, fenceLoc }
+                } },
+            };
+            ModelElement northElements[] = {
+                { { 7, 12, 0 }, { 9, 15, 9 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 13, 4, 15, 7 }, 180, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 7, 15, 16 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 7, 15, 16 }, 0, 0, fenceLoc }
+                } },
+                { { 7, 6, 0 }, { 9, 9, 9 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 13, 4, 15, 7 }, 180, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 7, 15, 16 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 7, 15, 16 }, 0, 0, fenceLoc }
+                } },
+            };
+            ModelElement eastElements[] = {
+                { { 7, 12, 7 }, { 16, 15, 9 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 13, 4, 15, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 7, 15, 16 }, 270, 0, fenceLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 7, 15, 16 }, 90, 0, fenceLoc }
+                } },
+                { { 7, 6, 7 }, { 16, 9, 9 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 13, 4, 15, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 7, 15, 16 }, 270, 0, fenceLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 7, 15, 16 }, 90, 0, fenceLoc }
+                } },
+            };
+            ModelElement southElements[] = {
+                { { 7, 12, 7 }, { 9, 15, 16 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 13, 4, 15, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 7, 15, 16 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 7, 15, 16 }, 0, 0, fenceLoc }
+                } },
+                { { 7, 6, 7 }, { 9, 9, 16 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 13, 4, 15, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 7, 15, 16 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 7, 15, 16 }, 0, 0, fenceLoc }
+                } },
+            };
+            ModelElement westElements[] = {
+                { { 0, 12, 7 }, { 9, 15, 9 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 15, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 7, 15, 16 }, 270, 0, fenceLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 7, 15, 16 }, 90, 0, fenceLoc }
+                } },
+                { { 0, 6, 7 }, { 9, 9, 9 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 15, 4, 13, 7 }, 0, 0, fenceLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 7, 15, 16 }, 270, 0, fenceLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 7, 15, 16 }, 90, 0, fenceLoc }
+                } },
+            };
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, fenceLoc, postElements, 1, 0, 0, false);
+            if ((dataVal & 0x4) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_LO_Z))
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, fenceLoc, northElements, 2, 0, 0, false);
+            if ((dataVal & 0x8) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_HI_X))
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, fenceLoc, eastElements, 2, 0, 0, false);
+            if ((dataVal & 0x1) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_HI_Z))
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, fenceLoc, southElements, 2, 0, 0, false);
+            if ((dataVal & 0x2) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_LO_X))
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, fenceLoc, westElements, 2, 0, 0, false);
+        }
         else
         {
             // don't really need to "fatten", as it's now done above, but keeping fatten around is good to know.
@@ -5407,40 +6169,48 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
             // since we erase "billboard" objects as we go, we need to test against origType.
             // Note that if a render export chops through a fence, the fence will not join. TODO - this would be good to fix, as it means tiling output doesn't work in this case.
-            if ((dataVal & 0x2) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_LO_X))
-            {
-                // this fence connects to the neighboring block, so output the fence pieces
-                //transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gModel.print3D && (type != neighborType));
-                //saveBoxGeometry(boxIndex, type, dataVal, 0, (gModel.print3D ? 0x0 : DIR_HI_X_BIT) | (transNeighbor ? 0x0 : DIR_LO_X_BIT), 0, 6 - fatten, 6, 9, 7 - fatten, 9 + fatten);
-                //saveBoxGeometry(boxIndex, type, dataVal, 0, (gModel.print3D ? 0x0 : DIR_HI_X_BIT) | (transNeighbor ? 0x0 : DIR_LO_X_BIT), 0, 6 - fatten, 12, 15, 7 - fatten, 9 + fatten);
-                saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 0, 6 - fatten, 6, 9, 7 - fatten, 9 + fatten);
-                saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 0, 6 - fatten, 12, 15, 7 - fatten, 9 + fatten);
+            if (!gModel.print3D) {
+                // Minecraft's fence_side model, turned by "y" with "uvlock" for each side the fence connects to
+                if ((dataVal & 0x4) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_LO_Z))
+                    retCode |= saveFenceRails(boxIndex, type, dataVal, 0);
+                if ((dataVal & 0x8) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_HI_X))
+                    retCode |= saveFenceRails(boxIndex, type, dataVal, 90);
+                if ((dataVal & 0x1) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_HI_Z))
+                    retCode |= saveFenceRails(boxIndex, type, dataVal, 180);
+                if ((dataVal & 0x2) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_LO_X))
+                    retCode |= saveFenceRails(boxIndex, type, dataVal, 270);
+                if (retCode >= MW_BEGIN_ERRORS)
+                    return retCode;
             }
-            if ((dataVal & 0x8) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_HI_X))
-            {
-                // this fence connects to the neighboring block, so output the fence pieces
-                //transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gModel.print3D && (type != neighborType));
-                saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 10 + fatten, 16, 6, 9, 7 - fatten, 9 + fatten);
-                saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 10 + fatten, 16, 12, 15, 7 - fatten, 9 + fatten);
-            }
-            if ((dataVal & 0x4) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_LO_Z))
-            {
-                // this fence connects to the neighboring block, so output the fence pieces
-                //transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gModel.print3D && (type != neighborType));
-                saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7 - fatten, 9 + fatten, 6, 9, 0, 6 - fatten);
-                saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7 - fatten, 9 + fatten, 12, 15, 0, 6 - fatten);
-            }
-            if ((dataVal & 0x1) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_HI_Z))
-            {
-                // this fence connects to the neighboring block, so output the fence pieces
-                //transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || groupByBlock || (gModel.print3D && (type != neighborType));
-                saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7 - fatten, 9 + fatten, 6, 9, 10 + fatten, 16);
-                saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7 - fatten, 9 + fatten, 12, 15, 10 + fatten, 16);
+            else {
+                // for 3D printing, solid rails, ending at the post
+                if ((dataVal & 0x2) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_LO_X))
+                {
+                    saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 0, 6 - fatten, 6, 9, 7 - fatten, 9 + fatten);
+                    saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 0, 6 - fatten, 12, 15, 7 - fatten, 9 + fatten);
+                }
+                if ((dataVal & 0x8) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_HI_X))
+                {
+                    saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 10 + fatten, 16, 6, 9, 7 - fatten, 9 + fatten);
+                    saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 10 + fatten, 16, 12, 15, 7 - fatten, 9 + fatten);
+                }
+                if ((dataVal & 0x4) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_LO_Z))
+                {
+                    saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7 - fatten, 9 + fatten, 6, 9, 0, 6 - fatten);
+                    saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7 - fatten, 9 + fatten, 12, 15, 0, 6 - fatten);
+                }
+                if ((dataVal & 0x1) || fenceNeighbor(type, boxIndex, DIRECTION_BLOCK_SIDE_HI_Z))
+                {
+                    saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7 - fatten, 9 + fatten, 6, 9, 10 + fatten, 16);
+                    saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7 - fatten, 9 + fatten, 12, 15, 10 + fatten, 16);
+                }
             }
         }
         break; // saveBillboardOrGeometry
 
     case BLOCK_COBBLESTONE_WALL:						// saveBillboardOrGeometry
+    {
+        int wallProps;
         individualBlocks = (gModel.options->exportFlags & EXPT_INDIVIDUAL_BLOCKS);
         // which posts are needed: NSEW. Brute-force it.
 
@@ -5555,6 +6325,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // since we erase "billboard" objects as we go, we need to test against origType.
 
         hasPost = 0;
+        // 1.13 and on: the blockstate's post ("up") and which sides connect, kept in bits 7-11 (see WALL_PROP in nbt.cpp); dataVal
+        // gets reused below
+        wallProps = dataVal;
         // "covered" means the walls themselves should go all the way up. This is the "up" characteristic.
         // Each wall can have this separately, just to make things exciting. But, a few items force
         // "up" for all wall extensions, which is what "covered" is about here.
@@ -5615,6 +6388,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                     // Almost all blocks with a "full bottom" cover but do not create a post.
                     else if ((gBlockDefinitions[neighborType].flags & (BLF_WHOLE| BLF_STAIRS| BLF_HALF)) ||
                         (neighborType == BLOCK_CARPET) ||
+                        (neighborType == BLOCK_CUSHION) ||
                         (neighborType == BLOCK_SCULK_SHRIEKER) ||
                         (neighborType == BLOCK_SCULK_SENSOR) ||
                         (neighborType == BLOCK_FROGLIGHT)
@@ -5760,9 +6534,11 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                     }
                 }
                 else if ((neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) || (neighborType == BLOCK_IRON_BARS)) {
-                    if (gIs13orNewer && neighborType != BLOCK_STAINED_GLASS_PANE) {
-                        // easy and dependable - neighbors marked by bits 0-3
+                    if (gIs13orNewer) {
+                        // easy and dependable - neighbors marked by bits 0-3, or for stained glass panes, 8-11 (see STAINED_PANE_PROP)
                         dataVal = gBoxData[boxIndex + 1].data;
+                        if (neighborType == BLOCK_STAINED_GLASS_PANE)
+                            dataVal >>= 8;
                         if (dataVal & 0x2)
                         {
                             if (xLowWall) {
@@ -6012,8 +6788,17 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 }
             }
 
+            if (gIs13orNewer) {
+                // The blockstate says which sides connect and whether there's a post; the neighbors above, found above, still say
+                // which sides are tall ("covered").
+                if (!(wallProps & 0x200)) xLowWall = 0.0f; else if (xLowWall == 0.0f) xLowWall = 1.0f + (float)covered;
+                if (!(wallProps & 0x800)) xHighWall = 0.0f; else if (xHighWall == 0.0f) xHighWall = 1.0f + (float)covered;
+                if (!(wallProps & 0x400)) zLowWall = 0.0f; else if (zLowWall == 0.0f) zLowWall = 1.0f + (float)covered;
+                if (!(wallProps & 0x100)) zHighWall = 0.0f; else if (zHighWall == 0.0f) zHighWall = 1.0f + (float)covered;
+                hasPost = (wallProps & 0x80) ? 1.0f : 0.0f;
+            }
             // for walls, if the count is anything but 2 and both along an axis, put the post
-            if (!((((xLowWall > 0.0f) + (xHighWall > 0.0f) == 2) && ((zLowWall > 0.0f) + (zHighWall > 0.0f) == 0)) ||
+            else if (!((((xLowWall > 0.0f) + (xHighWall > 0.0f) == 2) && ((zLowWall > 0.0f) + (zHighWall > 0.0f) == 0)) ||
                 (((xLowWall > 0.0f) + (xHighWall > 0.0f) == 0) && ((zLowWall > 0.0f) + (zHighWall > 0.0f) == 2))))
             {
                 // special case for 1.16 and newer: if it's a four way, no post; else, post at corner or end of wall
@@ -6033,41 +6818,132 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 firstFace = 1;
             }
 
-            // which walls to output?
+            // which walls to output? As in Minecraft's template_wall_side, each reaches the center, into the post, except for 3D
+            // printing, where it stops at the post
+            float armShorten = (gModel.print3D && hasPost) ? 4.0f : 0.0f;
             if (xLowWall > 0.0f) {
                 // this wall connects to the neighboring block, so output the wall piece
                 // if the neighbor is transparent, or a different type, or individual blocks are made, we'll output the face facing the neighbor (important if we connect to a fence, for example)
                 neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_X]].origType;
                 transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType) || (xLowWall == 2.0f);
-                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_HI_X_BIT) | (transNeighbor ? 0x0 : DIR_LO_X_BIT), 0, 8 - hasPost * 4, 0, 12 + xLowWall * 2, 5, 11);
+                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_HI_X_BIT) | (transNeighbor ? 0x0 : DIR_LO_X_BIT), 0, 8 - armShorten, 0, 12 + xLowWall * 2, 5, 11);
                 firstFace = 0;
             }
             if (xHighWall > 0.0f) {
                 // this wall connects to the neighboring block, so output the wall piece
                 neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_X]].origType;
                 transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType) || (xHighWall == 2.0f);
-                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_LO_X_BIT) | (transNeighbor ? 0x0 : DIR_HI_X_BIT), 8 + hasPost * 4, 16, 0, 12 + xHighWall * 2, 5, 11);
+                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_LO_X_BIT) | (transNeighbor ? 0x0 : DIR_HI_X_BIT), 8 + armShorten, 16, 0, 12 + xHighWall * 2, 5, 11);
                 firstFace = 0;
             }
             if (zLowWall > 0.0f) {
                 // this wall connects to the neighboring block, so output the wall piece
                 neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_LO_Z]].origType;
                 transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType) || (zLowWall == 2.0f);
-                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_HI_Z_BIT) | (transNeighbor ? 0x0 : DIR_LO_Z_BIT), 5, 11, 0, 12 + zLowWall * 2, 0, 8 - hasPost * 4);
+                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_HI_Z_BIT) | (transNeighbor ? 0x0 : DIR_LO_Z_BIT), 5, 11, 0, 12 + zLowWall * 2, 0, 8 - armShorten);
                 firstFace = 0;
             }
             if (zHighWall > 0.0f) {
                 // this wall connects to the neighboring block, so output the wall piece
                 neighborType = gBoxData[boxIndex + gFaceOffset[DIRECTION_BLOCK_SIDE_HI_Z]].origType;
                 transNeighbor = (gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT) || individualBlocks || (type != neighborType) || (zHighWall == 2.0f);
-                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_LO_Z_BIT) | (transNeighbor ? 0x0 : DIR_HI_Z_BIT), 5, 11, 0, 12 + zHighWall * 2, 8 + hasPost * 4, 16);
+                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, firstFace, (gModel.print3D ? 0x0 : DIR_LO_Z_BIT) | (transNeighbor ? 0x0 : DIR_HI_Z_BIT), 5, 11, 0, 12 + zHighWall * 2, 8 + armShorten, 16);
                 firstFace = 0;	// not necessary, but for safety in case new code is added below  // cppcheck-suppress 563
             }
         }
-        break; // saveBillboardOrGeometry
+    }
+    break; // saveBillboardOrGeometry
 
     case BLOCK_CHORUS_PLANT:						// saveBillboardOrGeometry
     {
+        if (!gModel.print3D) {
+            // Minecraft's chorus_plant multipart: for each direction the plant connects to (another chorus plant or a chorus flower,
+            // or end stone below), the chorus_plant_side model, and for each it doesn't, chorus_plant_noside (twice as likely),
+            // noside1, noside2, or noside3, picked at random, each turned to its direction by "x" or "y" with "uvlock". dataVal
+            // has the connections: south 0x1, west 0x2, north 0x4, east 0x8, down BIT_16, up BIT_32; older worlds don't store
+            // these, so then the neighbors decide. The elements are made from the models' JSON.
+            int plantLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            ModelElement sideElements[] = {
+                { { 4, 4, 0 }, { 12, 12, 4 }, 5, {
+                    { DIRECTION_BLOCK_BOTTOM, { 4, 12, 12, 16 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 0, 12, 4 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 4, 12, 12 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 4, 4, 12 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 4, 16, 12 }, 0, 0, plantLoc }
+                } },
+            };
+            ModelElement noside0Elements[] = {
+                { { 4, 4, 4 }, { 12, 12, 12 }, 1, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 4, 12, 12 }, 0, 0, plantLoc }
+                } },
+            };
+            ModelElement noside1Elements[] = {
+                { { 4, 4, 4 }, { 12, 12, 12 }, 1, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 4, 12, 12 }, 0, 0, plantLoc }
+                } },
+                { { 4, 4, 3 }, { 12, 12, 4 }, 5, {
+                    { DIRECTION_BLOCK_BOTTOM, { 4, 12, 12, 13 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 3, 12, 4 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 4, 12, 12 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 3, 4, 4, 12 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 4, 13, 12 }, 0, 0, plantLoc }
+                } },
+            };
+            ModelElement noside2Elements[] = {
+                { { 4, 4, 4 }, { 12, 12, 12 }, 1, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 4, 12, 12 }, 0, 0, plantLoc }
+                } },
+                { { 5, 5, 2 }, { 11, 11, 4 }, 5, {
+                    { DIRECTION_BLOCK_BOTTOM, { 5, 12, 11, 14 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_TOP, { 5, 2, 11, 4 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 5, 5, 11, 11 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 2, 5, 4, 11 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 14, 11 }, 0, 0, plantLoc }
+                } },
+            };
+            ModelElement noside3Elements[] = {
+                { { 4, 4, 4 }, { 12, 12, 12 }, 1, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 4, 12, 12 }, 0, 0, plantLoc }
+                } },
+                { { 4, 4, 3 }, { 12, 12, 4 }, 5, {
+                    { DIRECTION_BLOCK_BOTTOM, { 4, 12, 12, 13 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 3, 12, 4 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 4, 12, 12 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 3, 4, 4, 12 }, 0, 0, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 4, 13, 12 }, 0, 0, plantLoc }
+                } },
+            };
+            const ModelElement* nosideModel[5] = { noside0Elements, noside0Elements, noside1Elements, noside2Elements, noside3Elements };
+            static const int nosideCount[5] = { 1, 1, 2, 2, 2 };
+            // north, east, south, west, up, down: the connection bit, the neighbor, and the blockstate's "x" and "y"
+            static const int chorusBit[6] = { 0x4, 0x8, 0x1, 0x2, BIT_32, BIT_16 };
+            static const int chorusNeighbor[6] = { DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_X, DIRECTION_BLOCK_SIDE_HI_Z,
+                DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_TOP, DIRECTION_BLOCK_BOTTOM };
+            static const int chorusXAngle[6] = { 0, 0, 0, 0, 270, 90 };
+            static const int chorusYAngle[6] = { 0, 90, 180, 270, 0, 0 };
+            // one random number gives a base-5 digit for each direction's pick
+            int chorusPicks = (int)(getChorusRand3to1(boxIndex) * 15625.0f);
+            for (i = 0; i < 6; i++) {
+                bool connected;
+                if (gIs13orNewer) {
+                    connected = (dataVal & chorusBit[i]) ? true : false;
+                }
+                else {
+                    int chorusNeighborType = gBoxData[boxIndex + gFaceOffset[chorusNeighbor[i]]].origType;
+                    connected = (chorusNeighborType == BLOCK_CHORUS_PLANT) || (chorusNeighborType == BLOCK_CHORUS_FLOWER) ||
+                        ((i == 5) && (chorusNeighborType == BLOCK_END_STONE));
+                }
+                if (connected) {
+                    retCode |= saveRotatedModel(boxIndex, type, dataVal, plantLoc, sideElements, 1, chorusXAngle[i], chorusYAngle[i], true);
+                }
+                else {
+                    int pick = chorusPicks % 5;
+                    retCode |= saveRotatedModel(boxIndex, type, dataVal, plantLoc, nosideModel[pick], nosideCount[pick], chorusXAngle[i], chorusYAngle[i], true);
+                }
+                chorusPicks /= 5;
+            }
+            break;
+        }
         // 6 sides, no interior
         // for each neighbor, decide whether to extend the side (and so not put the face).
 
@@ -6291,12 +7167,13 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         }
         // the only reason I fatten here is because plates get used for table tops sometimes...
         // note we don't use gUsingTransform here, because if bottom of plate can match, remove it
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, 0, 0x0, 1, 15, 0, 1 + fatten, 1, 15);
+        // pressed, it's half a pixel high, with its sides' texture from the top half of where an unpressed plate's is, as in
+        // Minecraft's pressure_plate_down model: so, make the top half of the plate and kick it down half a pixel
+        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, 0, 0x0, 1, 15, (dataVal & 0x1) ? 0.5f : 0.0f, 1 + fatten, 1, 15);
         if (dataVal & 0x1)
         {
-            // pressed, kick it down half a pixel
             identityMtx(mtx);
-            translateMtx(mtx, 0.0f, -0.5f / 16.0f, 0.5 / 16.0f);
+            translateMtx(mtx, 0.0f, -0.5f / 16.0f, 0.0f);
             transformVertices(8, mtx);
         }
         break;
@@ -6313,15 +7190,43 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         }
         // the only reason I fatten here is because plates get used for table tops sometimes...
         // note we don't use gUsingTransform here, because if bottom of plate can match, remove it
-        saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 1, 15, 0, 1 + fatten, 1, 15);
-        if (dataVal & 0x1)
+        // pressed, it's half a pixel high, with its sides' texture from the top half of where an unpressed plate's is, as in
+        // Minecraft's pressure_plate_down model: so, make the top half of the plate and kick it down half a pixel
+        // A weighted plate's dataVal is its power, 0-15; it's pressed when powered.
         {
-            // pressed, kick it down half a pixel
-            identityMtx(mtx);
-            translateMtx(mtx, 0.0f, -0.5f / 16.0f, 0.5 / 16.0f);
-            transformVertices(8, mtx);
+            bool platePressed = (type == BLOCK_WOODEN_PRESSURE_PLATE) ? ((dataVal & 0x1) != 0) : ((dataVal & 0xf) != 0);
+            saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 1, 15, platePressed ? 0.5f : 0.0f, 1 + fatten, 1, 15);
+            if (platePressed)
+            {
+                identityMtx(mtx);
+                translateMtx(mtx, 0.0f, -0.5f / 16.0f, 0.0f);
+                transformVertices(8, mtx);
+            }
         }
         break; // saveBillboardOrGeometry
+
+    case BLOCK_CUSHION:						// saveBillboardOrGeometry
+    {
+        // A cushion is an entity (see addCushions() in MinewaysMap.cpp), a 16x4x16 box, textured by its color's 32x32 image, which TileMaker
+        // repacks from entity\cushion\*_cushion.png's box layout: the top, then the bottom, then, below the top, the four 16x4 sides,
+        // from the entity texture's u 0-16, 16-32, 32-48, 48-64. Entity models are drawn flipped in X and Y, so these are the world's
+        // east, north, west, and south sides, and the top and bottom are each turned 180 degrees.
+        // A cushion resting on a partial block, such as a slab, is lowered into it (see CUSHION_DROP), so its box starts below this block.
+        float drop = (float)CUSHION_DROP(dataVal);
+        ModelElement cushionElements[] = {
+            { { 0.0f, -drop, 0.0f }, { 16.0f, 4.0f - drop, 16.0f }, 6, {
+                { DIRECTION_BLOCK_TOP, { 8.0f, 8.0f, 0.0f, 0.0f }, 0 },
+                { DIRECTION_BLOCK_BOTTOM, { 16.0f, 0.0f, 8.0f, 8.0f }, 0 },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0.0f, 8.0f, 8.0f, 10.0f }, 0 },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 10.0f, 8.0f, 12.0f }, 0 },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0.0f, 12.0f, 8.0f, 14.0f }, 0 },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0.0f, 14.0f, 8.0f, 16.0f }, 0 }
+            } },
+        };
+        // bits 0x30 are the facing, yaw / 90, which turns clockwise, seen from above
+        saveTurnedModel(boxIndex, type, dataVal, CUSHION_TEXTURE_ANCHOR(dataVal & 0xF), cushionElements, sizeof(cushionElements) / sizeof(ModelElement), 90.0f * (float)((dataVal >> 4) & 0x3));
+    }
+    break; // saveBillboardOrGeometry
 
     case BLOCK_CARPET:						// saveBillboardOrGeometry
         // if printing and the location below the carpet is empty, then don't make carpet (it'll be too thin)
@@ -6349,6 +7254,39 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // bit 32 - are there any sides at all, for a quick out; optional
         firstFace = 1;
         swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+        if (!gModel.print3D) {
+            // Minecraft's pale_moss_carpet model if "bottom", and for each side that is "low" (bits 0x80, 0x100, 0x200, 0x400 for
+            // north, east, south, west) or "tall" (bits 0x2, 0x4, 0x8, 0x10), the pale_moss_carpet_side_small or _tall model, turned
+            // by "y". With no bottom and no sides, Minecraft draws the carpet and all four tall sides. The elements are made from the
+            // models' JSON.
+            int smallLoc = swatchLoc + 1;
+            int tallLoc = swatchLoc + 2;
+            ModelElement smallElements[] = {
+                { { 0, 0, 0.1f }, { 16, 16, 0.1f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 16, 0, 0, 16 }, 0, 1, smallLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, smallLoc }
+                } },
+            };
+            ModelElement tallElements[] = {
+                { { 0, 0, 0.1f }, { 16, 16, 0.1f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 16, 0, 0, 16 }, 0, 1, tallLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, tallLoc }
+                } },
+            };
+            int allTall = ((dataVal & (0x1 | 0x1e | 0x780)) == 0);
+            if ((dataVal & 0x1) || allTall) {
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0, 0, 16, 0, 1, 0, 16);
+            }
+            for (i = 0; i < 4; i++) {
+                if (allTall || (dataVal & (0x2 << i))) {
+                    retCode |= saveRotatedModel(boxIndex, type, dataVal, tallLoc, tallElements, 1, 0, 90 * i, true);
+                }
+                else if (dataVal & (0x80 << i)) {
+                    retCode |= saveRotatedModel(boxIndex, type, dataVal, smallLoc, smallElements, 1, 0, 90 * i, true);
+                }
+            }
+            break;
+        }
         if (dataVal & 0x1) {
             // process bottom
             if (gModel.print3D &&
@@ -6522,6 +7460,26 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             sideSwatchLoc = SWATCH_INDEX(14, 13);
             bottomSwatchLoc = SWATCH_INDEX(5, 8);
             break;
+        case BLOCK_QUARTZ_STAIRS:
+            // as in Minecraft's quartz_stairs model, the top and bottom are quartz_block_top, the sides quartz_block_side
+            topSwatchLoc = bottomSwatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            sideSwatchLoc = SWATCH_INDEX(6, 17);
+            break;
+        case BLOCK_SMOOTH_QUARTZ_STAIRS:
+            // smooth quartz is quartz_block_bottom, as for the smooth quartz block
+            topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = SWATCH_INDEX(1, 17);
+            break;
+        case BLOCK_BLACKSTONE_STAIRS:
+            // the top and bottom are blackstone_top, the sides blackstone
+            topSwatchLoc = bottomSwatchLoc = SWATCH_INDEX(0, 46);
+            sideSwatchLoc = SWATCH_INDEX(1, 46);
+            break;
+        }
+        if (dataVal & 0x4) {
+            // upside-down stairs are Minecraft's stairs model turned over (blockstate "x": 180), so the top shows its bottom texture
+            int swapSwatchLoc = topSwatchLoc;
+            topSwatchLoc = bottomSwatchLoc;
+            bottomSwatchLoc = swapSwatchLoc;
         }
 
         // figure out the stair geometry, as 1.12 and earlier worlds don't have flags for this (backward compatibility)
@@ -6588,6 +7546,38 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 minx = 8;
                 stepMask &= ~0xA;
                 northSouth = true;
+            }
+
+            // An inner corner has both the 2x1 step and a 1x1 box beside it, making an L. Where they touch, each box would have a
+            // face against the other, hidden inside, and the 2x1's face on that side would be half hidden. So, unless 3D printing
+            // (where each box must be watertight), leave off the 1x1's face toward the 2x1, and the 2x1's face toward the 1x1, and
+            // add just the exposed half of that 2x1 face. As Minecraft's stairs model has it, nothing is inside.
+            int stepHiddenFace = 0;         // the 2x1's face (bit) toward the 1x1
+            int cornerHiddenFace = 0;       // the 1x1's face (bit) toward the 2x1
+            float exposedMinX = 0, exposedMaxX = 0, exposedMinZ = 0, exposedMaxZ = 0;    // the quarter of the 2x1 whose face is exposed
+            if (outputStep && (stepMask != 0x0) && !gModel.print3D)
+            {
+                // the 1x1 is in the corner given by the one bit left: 0x1 northwest, 0x2 northeast, 0x4 southwest, 0x8 southeast
+                bool cornerWest = (stepMask == 0x1) || (stepMask == 0x4);
+                bool cornerNorth = (stepMask == 0x1) || (stepMask == 0x2);
+                if (northSouth) {
+                    // the 2x1 runs north-south, on the west or east half; the 1x1 is beside it in X
+                    stepHiddenFace = (maxx == 8) ? DIR_HI_X_BIT : DIR_LO_X_BIT;
+                    cornerHiddenFace = (maxx == 8) ? DIR_LO_X_BIT : DIR_HI_X_BIT;
+                    exposedMinX = minx;
+                    exposedMaxX = maxx;
+                    exposedMinZ = cornerNorth ? 8.0f : 0.0f;
+                    exposedMaxZ = cornerNorth ? 16.0f : 8.0f;
+                }
+                else {
+                    // the 2x1 runs east-west, on the north or south half; the 1x1 is beside it in Z
+                    stepHiddenFace = (maxz == 8) ? DIR_HI_Z_BIT : DIR_LO_Z_BIT;
+                    cornerHiddenFace = (maxz == 8) ? DIR_LO_Z_BIT : DIR_HI_Z_BIT;
+                    exposedMinX = cornerWest ? 8.0f : 0.0f;
+                    exposedMaxX = cornerWest ? 16.0f : 8.0f;
+                    exposedMinZ = minz;
+                    exposedMaxZ = maxz;
+                }
             }
 
             if (outputStep)
@@ -6676,7 +7666,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                         }
                     }
                 }
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, faceMask, 0, minx, maxx, miny, maxy, minz, maxz);
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, faceMask | stepHiddenFace, 0, minx, maxx, miny, maxy, minz, maxz);
+                if (stepHiddenFace) {
+                    // the exposed half of the 2x1's face toward the 1x1
+                    saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, DIR_ALL_BITS & ~stepHiddenFace, 0,
+                        exposedMinX, exposedMaxX, miny, maxy, exposedMinZ, exposedMaxZ);
+                }
             }
 
             // anything left? output that little 1x1 box
@@ -6728,7 +7723,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                     // should never get here
                     assert(0);
                 }
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, faceMask, 0, minx, maxx, miny, maxy, minz, maxz);
+                saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 0, faceMask | cornerHiddenFace, 0, minx, maxx, miny, maxy, minz, maxz);
             }
         }
 
@@ -6784,10 +7779,9 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 topSwatchLoc = bottomSwatchLoc = sideSwatchLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_NETHER_BRICKS].txrX, gBlockDefinitions[BLOCK_NETHER_BRICKS].txrY);
                 break;
             case 7:
-                // quartz with distinctive sides and bottom
-                topSwatchLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_QUARTZ_BLOCK].txrX, gBlockDefinitions[BLOCK_QUARTZ_BLOCK].txrY);
+                // quartz with distinctive sides; as in Minecraft's quartz_slab model, the bottom is the top's texture
+                topSwatchLoc = bottomSwatchLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_QUARTZ_BLOCK].txrX, gBlockDefinitions[BLOCK_QUARTZ_BLOCK].txrY);
                 sideSwatchLoc = SWATCH_INDEX(6, 17);
-                bottomSwatchLoc = SWATCH_INDEX(1, 17);
                 break;
             }
             break;
@@ -7063,6 +8057,47 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_CHERRY_BUTTON:
     case BLOCK_BAMBOO_BUTTON:
         // The bottom 3 bits is direction of button. Top bit is whether it's pressed.
+        if ((dataVal & 0x7) <= 5) {
+            // Minecraft's button and button_pressed models (its 1.02 high pressed button made 1 high), turned by the blockstate's
+            // "x" and "y". On the ceiling or floor the texture turns with it; on a wall, "uvlock" keeps it lined up with the world.
+            // On the ceiling or floor, BIT_16 means facing east or west, else north or south, and BIT_32 means the second of these.
+            // On a wall, the facing is 1-4: east, west, south, north.
+            static const int buttonFace[6] = { DIRECTION_BLOCK_BOTTOM, DIRECTION_BLOCK_TOP, DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
+            static const float buttonUV[6][4] = { { 5.0f, 6.0f, 11.0f, 10.0f }, { 5.0f, 6.0f, 11.0f, 10.0f }, { 5.0f, 14.0f, 11.0f, 16.0f },
+                { 5.0f, 14.0f, 11.0f, 16.0f }, { 6.0f, 14.0f, 10.0f, 16.0f }, { 6.0f, 14.0f, 10.0f, 16.0f } };
+            // "y" for facing north, east, south, west, on the floor and on the ceiling
+            static const float buttonYAngle[2][4] = { { 0.0f, 90.0f, 180.0f, 270.0f }, { 180.0f, 270.0f, 0.0f, 90.0f } };
+            static const int wallYAngle[5] = { 0, 90, 270, 180, 0 };
+            bool ceiling = ((dataVal & 0x7) == 0);
+            bool wall = ((dataVal & 0x7) != 0) && ((dataVal & 0x7) != 5);
+            bool pressed = (dataVal & 0x8) ? true : false;
+            int buttonFacing = (dataVal & BIT_16) ? ((dataVal & BIT_32) ? 3 : 1) : ((dataVal & BIT_32) ? 2 : 0);
+            int xAngle = wall ? 90 : (ceiling ? 180 : 0);
+            int yAngle = wall ? wallYAngle[dataVal & 0x7] : (int)buttonYAngle[ceiling ? 1 : 0][buttonFacing];
+            swatchLoc = getSwatch(type, dataVal, DIRECTION_BLOCK_TOP, 0, NULL);
+            gUsingTransform = 1;
+            totalVertexCount = gModel.vertexCount;
+            int startVertexIndex = saveBoxCustomUVVertices(boxIndex, 5.0f, 11.0f, 0.0f, pressed ? 1.0f : 2.0f, 6.0f, 10.0f);
+            if (startVertexIndex < 0)
+                return MW_WORLD_EXPORT_TOO_LARGE;
+            for (int f = 0; f < 6; f++) {
+                float uv[4] = { buttonUV[f][0], buttonUV[f][1], buttonUV[f][2], buttonUV[f][3] };
+                if (pressed && f >= 2)
+                    uv[3] = 15.0f;
+                retCode |= saveBoxModelFaceUVLock(startVertexIndex, type, dataVal, buttonFace[f], (f == 0), swatchLoc, uv, 0, wall ? xAngle : 0, wall ? yAngle : 0);
+                if (retCode >= MW_BEGIN_ERRORS)
+                    return retCode;
+            }
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            rotateMtx(mtx, (float)xAngle, 0.0f, 0.0f);
+            rotateMtx(mtx, 0.0f, (float)yAngle, 0.0f);
+            translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(totalVertexCount, mtx);
+            gUsingTransform = 0;
+            break;
+        }
         bitAdd = (dataVal & 0x8) ? 1.0f : 0.0f;
         miny = 6;
         maxy = 10;
@@ -7135,70 +8170,29 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break; // saveBillboardOrGeometry
 
     case BLOCK_WALL_SIGN:						// saveBillboardOrGeometry
-    case BLOCK_MANGROVE_WALL_SIGN:
-    case BLOCK_POPLAR_WALL_SIGN:
-        if (type == BLOCK_WALL_SIGN) {
-            switch (dataVal & (BIT_32 | BIT_16 | BIT_8)) {
-            default:
-            case 0:
-                // oak
-                swatchLoc = SWATCH_INDEX(4, 0);
-                break;
-            case BIT_8:
-                // spruce
-                swatchLoc = SWATCH_INDEX(6, 12);
-                break;
-            case BIT_16:
-                // birch
-                swatchLoc = SWATCH_INDEX(6, 13);
-                break;
-            case (BIT_16 | BIT_8):
-                // jungle
-                swatchLoc = SWATCH_INDEX(7, 12);
-                break;
-            case BIT_32:
-                // acacia
-                swatchLoc = SWATCH_INDEX(0, 22);
-                break;
-            case (BIT_32 | BIT_8):
-                // dark oak
-                swatchLoc = SWATCH_INDEX(1, 22);
-                break;
-            case BIT_32 | BIT_16:
-                // crimson
-                swatchLoc = SWATCH_INDEX(8, 43);
-                break;
-            case BIT_32 | BIT_16 | BIT_8:
-                // warped
-                swatchLoc = SWATCH_INDEX(8, 44);
-                break;
-            }
+        // Minecraft 26.3's block/template_wall_sign.json, with the sign's own 32x32 texture. For 3D printing, the thicker plank geometry below is used instead.
+        if (!gModel.print3D) {
+            static const ModelElement wallSignElements[] = {
+                { { 0.0f, 13.0f / 3.0f, 1.0f / 3.0f }, { 16.0f, 37.0f / 3.0f, 5.0f / 3.0f }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 8.0f, 12.0f, 14.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12.0f, 1.0f, 13.0f, 7.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0.0f, 1.0f, 12.0f, 7.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 12.0f, 8.0f, 13.0f, 14.0f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 0.0f, 0.0f, 12.0f, 1.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 0.0f, 14.0f, 12.0f, 15.0f }, 0 }
+                } },
+            };
+            // the model is on the north wall, facing south; facing is 2-5: north, south, west, east
+            static const float wallSignAngle[4] = { 180.0f, 0.0f, 90.0f, 270.0f };
+            saveSignModel(boxIndex, type, dataVal, false, wallSignElements, sizeof(wallSignElements) / sizeof(ModelElement), wallSignAngle[((dataVal & 0x7) - 2) & 0x3]);
+            break;
         }
-        else if (type == BLOCK_POPLAR_WALL_SIGN) {
-            // poplar sign: just the one kind
-            swatchLoc = SWATCH_INDEX(15, 79);   // planks
-        }
-        else {
-            // mangrove sign
-            switch (dataVal & (BIT_32 | BIT_16 | BIT_8)) {
-            default:
-            case 0:
-                // mangrove
-                swatchLoc = SWATCH_INDEX(0, 55);
-                break;
-            case BIT_8:
-                // cherry
-                swatchLoc = SWATCH_INDEX(8, 57);
-                break;
-            case BIT_16:
-                // bamboo
-                swatchLoc = SWATCH_INDEX(14, 60);
-                break;
-            case (BIT_16 | BIT_8):
-                // pale oak
-                swatchLoc = SWATCH_INDEX(8, 67);
-                break;
-            }
+        // the wood is in SIGN_WOOD_MASK; the board is made of its planks
+        {
+            int wood = SIGN_WOOD(dataVal);
+            if (wood >= NUM_SIGN_WOODS)
+                wood = 0;
+            swatchLoc = SWATCH_INDEX(gSignWoods[wood].planksX, gSignWoods[wood].planksY);
         }
         switch (dataVal & 0x7)
         {
@@ -7315,160 +8309,70 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
     case BLOCK_SHELF_MUSHROOM:						// saveBillboardOrGeometry
     {
-        // Real geometry translated directly from Minecraft's own block/shelf_mushroom_stage0.json and stage1.json (two small flat boxes:
-        // a wider "cap" and a smaller "lip" beneath it). Unlike most Mineways blocks, the vanilla model's texture is one small image (per
-        // stage) with all six faces of both boxes hand-packed into it at custom UV positions - not a simple repeated/cropped 16x16 tile.
-        // tiles.h registers shelf_mushroom_stage0/1 as a 2x2-tile (32x32 pixel) image (spanX=2,spanY=2) so TileMaker copies it whole into
-        // the terrain atlas, but Mineways' own swatch/UV system (unlike TileMaker) has no concept of a multi-tile span: each of the 2x2
-        // tiles the image occupies is just an ordinary, separately-addressable swatch. So each vanilla face's UV rectangle is expressed
-        // below in its "home" quadrant's own 0-16 local coordinates (dqx,dqy selects which of the 4 quadrant swatches); a handful of faces
-        // (thin side edges) straddle a quadrant boundary in the original art and are clipped to whichever quadrant holds most of them -
-        // an approximation only on those thin edges, not on the top/bottom faces that are actually seen.
-        struct MushroomFaceUV { unsigned char dqx, dqy; float uMin, uMax, vMin, vMax; };
-        // indexed [stage 0/1][box 0=top/1=bottom][faceDirection 0-5, i.e. LO_X/BOTTOM/LO_Z/HI_X/TOP/HI_Z == west/bottom/north/east/top/south]
-        // uMin/uMax/vMin/vMax are NOT simply the vanilla model's raw "uv": [x1,y1,x2,y2]" doubled to real pixels: saveBoxCustomUVFace fixes
-        // which geometric corner gets which of {uMin,uMax}x{vMin,vMax} purely by faceDirection - and that fixed corner assignment is NOT the
-        // same for every direction. Empirically (checked against in-game screenshots of real placed blocks, from directly above, at an angle
-        // from below, and side-on, since getting this wrong doesn't throw or look obviously broken - it just silently samples the wrong pixels
-        // or shows them upside down), every face needs vMin/vMax derived from the source image's real pixel rows (0 = top of the source crop),
-        // but which one gets "16 - rowMin" and which gets "16 - rowMax" flips between TOP and every other direction:
-        //   - TOP:                              vMin = 16 - rowMin, vMax = 16 - rowMax
-        //   - BOTTOM and all four side faces:   vMin = 16 - rowMax, vMax = 16 - rowMin
-        // (BOTTOM is TOP's mirror image, and the side faces turned out to share BOTTOM's convention rather than TOP's - confirmed by first
-        // fixing only TOP/BOTTOM uniformly, seeing the side faces and mushroom_top's underside still come out wrong, then re-deriving each
-        // direction's own corner assignment from saveBoxCustomUVFace's vindex[] tables instead of assuming they all match TOP.) u is the plain
-        // real-pixel column (uMin < uMax, no mirroring) for every face except mushroom_bottom's own "bottom" face on both stages, whose art is
-        // rotated 180 degrees from the rest (confirmed by comparing an export against an in-game screenshot) and so also needs uMin > uMax.
-        static const MushroomFaceUV faceUV[2][2][6] = {
-            { // stage 0 (small)
-                { // "mushroom_top" box, from [3,9,9] to [13,11,16] in the vanilla model
-                    { 0, 0, 10, 16, 12, 14 },	// west (source rows 2-4)
-                    { 0, 0,  0, 10,  2,  9 },	// bottom (source rows 7-14)
-                    { 0, 0, 10, 16, 10, 12 },	// north (source rows 4-6)
-                    { 0, 0, 10, 16, 14, 16 },	// east (source rows 0-2)
-                    { 0, 0,  0, 10, 16,  9 },	// top (source rows 0-7) - TOP's own convention, unchanged since the first fix
-                    { 0, 0, 10, 16,  8, 10 },	// south (source rows 6-8)
-                },
-                { // "mushroom_bottom" box, from [5,8,12] to [11,9,16]
-                    { 0, 0, 10, 14,  6,  7 },	// west (source rows 9-10)
-                    { 0, 1,  6,  0, 10, 14 },	// bottom (source rows 2-6; u also flipped - this face's own art is rotated 180 degrees)
-                    { 0, 0, 10, 16,  5,  6 },	// north (source rows 10-11)
-                    { 0, 0, 10, 14,  7,  8 },	// east (source rows 8-9)
-                    { 0, 0,  0,  6,  2,  0 },	// top (source rows 14-16) - TOP's own convention, unchanged since the first fix
-                    { 0, 0, 10, 16,  4,  5 },	// south (source rows 11-12)
-                },
+        // Minecraft's block/shelf_mushroom_stage0.json and stage1.json, used verbatim: element boxes, and each face's uv and rotation
+        // on the whole 32x32 shelf_mushroom_stage0/1.png image (a 2x2 tile span in tiles.h). See saveModelElements.
+        static const ModelElement stage0Elements[] = {
+            { // mushroom_top
+                { 3.0f, 9.0f, 9.0f }, { 13.0f, 11.0f, 16.0f }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 5.0f, 2.0f, 10.0f, 3.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 5.0f, 0.0f, 8.5f, 1.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 5.0f, 3.0f, 10.0f, 4.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 5.0f, 1.0f, 8.5f, 2.0f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 5.0f, 3.5f, 0.0f, 0.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 5.0f, 3.5f, 0.0f, 7.0f }, 0 },
+                }
             },
-            { // stage 1 (large)
-                { // "mushroom_top" box, from [1,8,6] to [15,11,16]
-                    { 1, 0,  0,  8, 10, 13 },	// west (source rows 3-6)
-                    { 0, 0,  0, 14,  0,  6 },	// bottom (source rows 10-16)
-                    { 1, 0,  0, 12,  7, 10 },	// north (source rows 6-9)
-                    { 1, 0,  0,  8, 13, 16 },	// east (source rows 0-3)
-                    { 0, 0,  0, 14, 16,  6 },	// top (source rows 0-10) - TOP's own convention, unchanged since the first fix
-                    { 1, 0,  0, 12,  4,  7 },	// south (source rows 9-12)
-                },
-                { // "mushroom_bottom" box, from [4,6,10] to [12,8,16]
-                    { 0, 1,  8, 14,  8, 10 },	// west (source rows 6-8)
-                    { 0, 1,  8,  0,  0,  6 },	// bottom (source rows 10-16; u also flipped - this face's own art is rotated 180 degrees)
-                    { 0, 1,  8, 16,  6,  8 },	// north (source rows 8-10)
-                    { 0, 1,  8, 14, 10, 12 },	// east (source rows 4-6)
-                    { 0, 1,  0,  8, 12,  6 },	// top (source rows 4-10) - TOP's own convention, unchanged since the first fix
-                    { 0, 1,  8, 16,  4,  6 },	// south (source rows 10-12)
-                },
+            { // mushroom_bottom
+                { 5.0f, 8.0f, 12.0f }, { 11.0f, 9.0f, 16.0f }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 5.0f, 5.0f, 8.0f, 5.5f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 5.0f, 4.0f, 7.0f, 4.5f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 5.0f, 5.5f, 8.0f, 6.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 5.0f, 4.5f, 7.0f, 5.0f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 3.0f, 9.0f, 0.0f, 7.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 3.0f, 9.0f, 0.0f, 11.0f }, 0 },
+                }
             },
         };
-        // box from/to (minX,maxX,minY,maxY,minZ,maxZ), indexed [stage][box]
-        static const float boxA[2][6] = { { 3,13, 9,11, 9,16 }, { 1,15, 8,11, 6,16 } };	// "mushroom_top"
-        static const float boxB[2][6] = { { 5,11, 8,9, 12,16 }, { 4,12, 6,8, 10,16 } };	// "mushroom_bottom"
+        static const ModelElement stage1Elements[] = {
+            { // mushroom_top
+                { 1.0f, 8.0f, 6.0f }, { 15.0f, 11.0f, 16.0f }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 7.0f, 3.0f, 14.0f, 4.5f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 7.0f, 0.0f, 12.0f, 1.5f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 7.0f, 4.5f, 14.0f, 6.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 7.0f, 1.5f, 12.0f, 3.0f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 7.0f, 5.0f, 0.0f, 0.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 7.0f, 5.0f, 0.0f, 10.0f }, 0 },
+                }
+            },
+            { // mushroom_bottom
+                { 4.0f, 6.0f, 10.0f }, { 12.0f, 8.0f, 16.0f }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4.0f, 12.0f, 8.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 4.0f, 10.0f, 7.0f, 11.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 4.0f, 13.0f, 8.0f, 14.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 4.0f, 11.0f, 7.0f, 12.0f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 4.0f, 13.0f, 0.0f, 10.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 4.0f, 13.0f, 0.0f, 16.0f }, 0 },
+                }
+            },
+        };
 
         int stage = (dataVal >> 2) & 0x1;	// age: 0 = small (stage0), 1 = large (stage1)
-        int anchorX = (stage == 0) ? 24 : 26;
-        // the four swatches for the packed image's four quadrants, indexed [dqx][dqy]
-        int quadSwatch[2][2];
-        quadSwatch[0][0] = TILE_TO_SWATCH(anchorX, 0);
-        quadSwatch[1][0] = TILE_TO_SWATCH(anchorX + 1, 0);
-        quadSwatch[0][1] = TILE_TO_SWATCH(anchorX, 1);
-        quadSwatch[1][1] = TILE_TO_SWATCH(anchorX + 1, 1);
-
+        // the model is for facing=north (unrotated); it's rotated into place for the other three facings.
+        // door_facing: 0=east,1=south,2=west,3=north - map to the blockstate's own "y" rotation (north=0,east=90,south=180,west=270)
+        int yAngle = (((dataVal & 0x3) + 1) % 4) * 90;
         totalVertexCount = gModel.vertexCount;
         gUsingTransform = 1;
-
-        // mushroom_top's west/north/east/south faces are wider (in real texels) than the vanilla art can
-        // supply from one swatch, in both stages - checked directly against an in-game screenshot: e.g. a
-        // face that's 10 texels wide geometrically ("north"/"south") was only showing 6-7 texels of actual
-        // texture, clipped at the packed image's quadrant boundary. Those go through saveMushroomSplitFace
-        // as two quads each, so the full-width vanilla art shows with no clipping (the faceUV[][0][...]
-        // table entries for these four directions are unused/stale - kept only as a record of what the
-        // single-quad, clipped version used to be). For stage 1, "bottom" (the underside) straddles too.
-        int vA = saveBoxCustomUVVertices(boxIndex, boxA[stage][0], boxA[stage][1], boxA[stage][2], boxA[stage][3], boxA[stage][4], boxA[stage][5]);
-        if (vA >= 0) {
-            const MushroomFaceUV* fuvTop = &faceUV[stage][0][DIRECTION_BLOCK_TOP];
-            saveBoxCustomUVFace(vA, type, dataVal, DIRECTION_BLOCK_TOP, 1, quadSwatch[fuvTop->dqx][fuvTop->dqy], fuvTop->uMin, fuvTop->uMax, fuvTop->vMin, fuvTop->vMax);
-            if (stage == 0) {
-                // stage 0's "bottom" (the underside) doesn't straddle - it fits in one quadrant already.
-                const MushroomFaceUV* fuvBottom = &faceUV[stage][0][DIRECTION_BLOCK_BOTTOM];
-                saveBoxCustomUVFace(vA, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[fuvBottom->dqx][fuvBottom->dqy], fuvBottom->uMin, fuvBottom->uMax, fuvBottom->vMin, fuvBottom->vMax);
-            }
-        }
-        // saveBoxCustomUVFace's corner assignment makes EAST and NORTH the mirror image of WEST and SOUTH:
-        // re-deriving each direction's vindex[]/uv-ordering by hand shows WEST and SOUTH have u increasing
-        // the same way their own box-space axis does (Z for west, X for south), but EAST and NORTH have u
-        // running the *opposite* way along that same axis (they're the opposite-facing plane, so their
-        // natural "as viewed from outside" unwrap runs backwards). Getting this right for a face that also
-        // straddles the quadrant boundary means recomputing the whole split from scratch for EAST/NORTH,
-        // not just flipping uMin/uMax within each of WEST/SOUTH's two pieces (tried that first - it's wrong:
-        // since the coordinate-to-texel mapping runs backwards, the split point itself falls somewhere else,
-        // and the two pieces' quadrants swap sides too, not just their own internal u order). Concretely,
-        // for EAST/NORTH: minSide (the box's lower X or Z) shows the *higher* texel values - which is
-        // whichever quadrant that ends up being, generally the *other* one from WEST/SOUTH's minSide - and
-        // each piece's own u is a plain ascending pair within itself either way.
         if (stage == 0) {
-            // west/east are 7 texels wide (straddle by only 1 texel); north/south are 10 (straddle by 4).
-            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_LO_X, 15.0f, 3, 13, 9, 11, 9, 16,
-                quadSwatch[0][0], 10, 16, 12, 14, quadSwatch[1][0], 0, 1, 12, 14);	// west
-            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_HI_X, 10.0f, 3, 13, 9, 11, 9, 16,
-                quadSwatch[1][0], 0, 1, 14, 16, quadSwatch[0][0], 10, 16, 14, 16);	// east (recomputed)
-            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 7.0f, 3, 13, 9, 11, 9, 16,
-                quadSwatch[1][0], 0, 4, 10, 12, quadSwatch[0][0], 10, 16, 10, 12);	// north (recomputed)
-            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 9.0f, 3, 13, 9, 11, 9, 16,
-                quadSwatch[0][0], 10, 16, 8, 10, quadSwatch[1][0], 0, 4, 8, 10);	// south
+            saveModelElements(boxIndex, type, dataVal, TILE_TO_SWATCH(24, 0), stage0Elements, sizeof(stage0Elements) / sizeof(ModelElement), (float)yAngle);
         }
         else {
-            // west/east are 10 texels wide; north/south are 14; "bottom"'s own row-span is 10. All straddle.
-            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_LO_X, 8.0f, 1, 15, 8, 11, 6, 16,
-                quadSwatch[0][0], 14, 16, 10, 13, quadSwatch[1][0], 0, 8, 10, 13);	// west
-            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_HI_X, 14.0f, 1, 15, 8, 11, 6, 16,
-                quadSwatch[1][0], 0, 8, 13, 16, quadSwatch[0][0], 14, 16, 13, 16);	// east (recomputed)
-            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 13.0f, 1, 15, 8, 11, 6, 16,
-                quadSwatch[1][0], 0, 12, 7, 10, quadSwatch[0][0], 14, 16, 7, 10);	// north (recomputed)
-            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 3.0f, 1, 15, 8, 11, 6, 16,
-                quadSwatch[0][0], 14, 16, 4, 7, quadSwatch[1][0], 0, 12, 4, 7);	// south
-            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_BOTTOM, 12.0f, 1, 15, 8, 11, 6, 16,
-                quadSwatch[0][0], 0, 14, 0, 6, quadSwatch[0][1], 0, 14, 12, 16);	// bottom (down)
-        }
-
-        int vB = saveBoxCustomUVVertices(boxIndex, boxB[stage][0], boxB[stage][1], boxB[stage][2], boxB[stage][3], boxB[stage][4], boxB[stage][5]);
-        if (vB >= 0) {
-            for (int fd = 0; fd < 6; fd++) {
-                if (stage == 0 && fd == DIRECTION_BLOCK_TOP)
-                    continue;	// straddles; handled below via saveMushroomSplitFace instead
-                const MushroomFaceUV* fuv = &faceUV[stage][1][fd];
-                saveBoxCustomUVFace(vB, type, dataVal, fd, 0, quadSwatch[fuv->dqx][fuv->dqy], fuv->uMin, fuv->uMax, fuv->vMin, fuv->vMax);
-            }
-        }
-        if (stage == 0) {
-            // mushroom_bottom's "up" face is hidden under mushroom_top in a solid render, but its 4-row
-            // span still straddles the boundary exactly in half - worth getting right regardless.
-            saveMushroomSplitFace(boxIndex, type, dataVal, DIRECTION_BLOCK_TOP, 14.0f, 5, 11, 8, 9, 12, 16,
-                quadSwatch[0][0], 0, 6, 2, 0, quadSwatch[0][1], 0, 6, 16, 14);
+            saveModelElements(boxIndex, type, dataVal, TILE_TO_SWATCH(26, 0), stage1Elements, sizeof(stage1Elements) / sizeof(ModelElement), (float)yAngle);
         }
         totalVertexCount = gModel.vertexCount - totalVertexCount;
 
-        // the boxes above are built for facing=north (the vanilla model's default, unrotated orientation); rotate into place for the other
-        // three facings. door_facing: 0=east,1=south,2=west,3=north - map to the blockstate's own "y" rotation (north=0,east=90,south=180,west=270)
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
-        rotateMtx(mtx, 0.0f, (float)(((dataVal & 0x3) + 1) % 4) * 90.0f, 0.0f);
+        rotateMtx(mtx, 0.0f, (float)yAngle, 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(totalVertexCount, mtx);
         gUsingTransform = 0;
@@ -7477,233 +8381,139 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
     case BLOCK_STRAW_BED:							// saveBillboardOrGeometry
     {
-        // Real geometry translated directly from Minecraft's own block/straw_bed_foot.json and straw_bed_head.json
-        // (15 elements total: foot has a base slab plus 3 thin "frill" overhangs that poke past the block's own
-        // X/Z bounds; head has a base slab, a raised pillow, 2 more frills, and 8 thin pillow-frill sheets). Like
-        // BLOCK_SHELF_MUSHROOM, the vanilla texture is one small hand-packed image (straw_bed.png, registered in
-        // tiles.h as a 4x4-tile/64x64 image anchored at (28,0)) with every face's UV rectangle placed at a custom
-        // spot rather than a simple repeated/cropped 16x16 tile, so every face here goes through
-        // saveBoxCustomUVVertices/saveBoxCustomUVFace with an explicit per-face UV rectangle (in real 0-64 pixel
-        // units, i.e. the vanilla model's own "uv" values x4) rather than one auto-derived from face position.
-        // Faces whose real-pixel UV rectangle crosses a 16-texel tile boundary in the packed atlas are split into
-        // multiple partial-range boxes (one saveBoxCustomUVVertices call each), each covering the proportional
-        // sub-range of world space that piece's fraction of the texture actually shows - same technique as
-        // BLOCK_SHELF_MUSHROOM's saveMushroomSplitFace, generalized here to 2D (row AND column) splits since these
-        // elements are packed far more densely than the mushroom's were.
-        //
-        // Every face's uMin/uMax/vMin/vMax below follows the same empirically-validated (via 5 rounds of
-        // BLOCK_SHELF_MUSHROOM fixes) per-direction rules baked into the code generator that produced this case:
-        //   - u's world axis is Z for west/east, X for north/south/up/down; v's world axis is Y for the four side
-        //     faces, Z for up/down.
-        //   - u runs DIRECT (world-axis-min <-> local-column-min) for west/south/up/down, and INVERSE
-        //     (world-axis-min <-> local-column-max) for east/north - and for a straddling face on an inverse
-        //     direction, the piece on the geometric-min side gets the piece with the HIGHER real-pixel column
-        //     range, not just a flipped u within a fixed column tile (re-derived and cross-checked by hand against
-        //     BLOCK_SHELF_MUSHROOM's own validated east/north split geometry before trusting the generator's output
-        //     for this block's two multi-column-tile north faces, head's "base" and "pillow").
-        //   - v = 16-rowMax,16-rowMin (rowMin<rowMax sorted, in that piece's own local tile row) for up; the
-        //     opposite pairing, v = 16-rowMin,16-rowMax, for down and all four side faces.
-        //   - a vanilla "rotation": 180 flag (frills_03/frills_04/frills_05 in the foot model) swaps both
-        //     uMin<->uMax and vMin<->vMax after the base formula above.
-        // Local (element-relative) box coordinates were taken verbatim from the vanilla model JSON; some frill
-        // elements extend a few pixels past the block's own 0-16 cube (e.g. foot's frills_04 to X=19, frills_05 to
-        // X=-3) exactly as they do in vanilla, which saveBoxCustomUVVertices supports fine (it only derives vertex
-        // positions from pixel coordinates - it doesn't require or clamp to the 0-16 range).
+        // Minecraft's block/straw_bed_foot.json and straw_bed_head.json, used verbatim: element boxes, and each face's uv and rotation
+        // on the whole 64x64 straw_bed.png image (a 4x4 tile span in tiles.h). See saveModelElements. Some "frill" elements poke out past
+        // the block's own 0-16 bounds, as they do in Minecraft. Frill coordinates are rounded to exact texel boundaries (Minecraft's
+        // model nudges them slightly), except that the horizontal frills on the ground are raised by Z_FIGHTING_BIAS.
+        static const ModelElement footElements[] = {
+            { // base
+                { 0.0f, 0.0f, 0.0f }, { 16.0f, 4.0f, 16.0f }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4.0f, 10.25f, 8.0f, 11.25f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0.0f, 10.25f, 4.0f, 11.25f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8.0f, 10.25f, 12.0f, 11.25f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 8.0f, 10.25f, 4.0f, 6.25f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 12.0f, 6.25f, 8.0f, 10.25f }, 0 },
+                }
+            },
+            { // frills_03
+                { 0.0f, Z_FIGHTING_BIAS, -3.0f }, { 16.0f, Z_FIGHTING_BIAS, 0.0f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 0.0f, 11.25f, 4.0f, 12.0f }, 180 },
+                    { DIRECTION_BLOCK_BOTTOM, { 0.0f, 12.75f, 4.0f, 12.0f }, 180, 1 },
+                }
+            },
+            { // frills_04
+                { 16.0f, Z_FIGHTING_BIAS, 0.0f }, { 19.0f, Z_FIGHTING_BIAS, 16.0f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 12.0f, 6.25f, 12.75f, 10.25f }, 180 },
+                    { DIRECTION_BLOCK_BOTTOM, { 12.75f, 10.25f, 13.5f, 6.25f }, 180, 1 },
+                }
+            },
+            { // frills_05
+                { -3.0f, Z_FIGHTING_BIAS, 0.0f }, { 0.0f, Z_FIGHTING_BIAS, 16.0f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 13.5f, 10.25f, 14.25f, 6.25f }, 180 },
+                    { DIRECTION_BLOCK_BOTTOM, { 14.25f, 6.25f, 15.0f, 10.25f }, 180, 1 },
+                }
+            },
+        };
+        static const ModelElement headElements[] = {
+            { // base
+                { 0.0f, 0.0f, 0.0f }, { 16.0f, 4.0f, 8.0f }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2.0f, 5.25f, 6.0f, 6.25f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0.0f, 5.25f, 2.0f, 6.25f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 8.0f, 5.25f, 12.0f, 6.25f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 6.0f, 5.25f, 8.0f, 6.25f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 6.0f, 5.25f, 2.0f, 3.25f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 10.0f, 3.25f, 6.0f, 5.25f }, 0 },
+                }
+            },
+            { // pillow_frills_01
+                { -2.0f, Z_FIGHTING_BIAS, 8.0f }, { 0.0f, Z_FIGHTING_BIAS, 16.0f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 1.5f, 8.25f, 1.0f, 6.25f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 2.0f, 6.25f, 1.5f, 8.25f }, 0, 1 },
+                }
+            },
+            { // pillow_frills_02
+                { -2.0f, 5.0f, 8.0f }, { 0.0f, 5.0f, 16.0f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 10.5f, 2.0f, 10.0f, 0.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 11.0f, 0.0f, 10.5f, 2.0f }, 0, 1 },
+                }
+            },
+            { // pillow_frills_03
+                { -2.0f, 0.0f, 8.0f }, { 0.0f, 5.0f, 8.0f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1.0f, 8.25f, 1.5f, 9.5f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2.0f, 8.25f, 1.5f, 9.5f }, 0, 1 },
+                }
+            },
+            { // pillow_frills_04
+                { -2.0f, 0.0f, 16.0f }, { 0.0f, 5.0f, 16.0f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 10.0f, 3.25f, 10.5f, 4.5f }, 0, 1 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 10.5f, 3.25f, 11.0f, 4.5f }, 0 },
+                }
+            },
+            { // pillow_frills_05
+                { 16.0f, Z_FIGHTING_BIAS, 8.0f }, { 18.0f, Z_FIGHTING_BIAS, 16.0f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 0.5f, 8.25f, 0.0f, 6.25f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 0.5f, 6.25f, 1.0f, 8.25f }, 0, 1 },
+                }
+            },
+            { // pillow_frills_06
+                { 16.0f, 5.0f, 8.0f }, { 18.0f, 5.0f, 16.0f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 0.5f, 2.0f, 0.0f, 0.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 0.5f, 0.0f, 1.0f, 2.0f }, 0, 1 },
+                }
+            },
+            { // pillow_frills_07
+                { 16.0f, 0.0f, 8.0f }, { 18.0f, 5.0f, 8.0f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 8.25f, 0.5f, 9.5f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 1.0f, 8.25f, 0.5f, 9.5f }, 0, 1 },
+                }
+            },
+            { // pillow_frills_08
+                { 16.0f, 0.0f, 16.0f }, { 18.0f, 5.0f, 16.0f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 3.25f, 0.5f, 4.5f }, 0, 1 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 1.0f, 3.25f, 0.5f, 4.5f }, 0 },
+                }
+            },
+            { // pillow
+                { 0.0f, 0.0f, 8.0f }, { 16.0f, 5.0f, 16.0f }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2.0f, 2.0f, 6.0f, 3.25f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0.0f, 2.0f, 2.0f, 3.25f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 8.0f, 2.0f, 12.0f, 3.25f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 6.0f, 2.0f, 8.0f, 3.25f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 6.0f, 2.0f, 2.0f, 0.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 10.0f, 0.0f, 6.0f, 2.0f }, 0 },
+                }
+            },
+            { // frills_02
+                { 16.0f, Z_FIGHTING_BIAS, 0.0f }, { 19.0f, Z_FIGHTING_BIAS, 8.0f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 12.75f, 6.25f, 12.0f, 4.25f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 13.5f, 4.25f, 12.75f, 6.25f }, 0, 1 },
+                }
+            },
+            { // frills_03
+                { -3.0f, Z_FIGHTING_BIAS, 0.0f }, { 0.0f, Z_FIGHTING_BIAS, 8.0f }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 14.25f, 6.25f, 13.5f, 4.25f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 15.0f, 4.25f, 14.25f, 6.25f }, 0, 1 },
+                }
+            },
+        };
 
-        int part = (dataVal & 0x8) ? 1 : 0;	// 0 = foot, 1 = head
         int bedFacing = dataVal & 0x3;	// SWNE: 0=south,1=west,2=north,3=east (same convention as BED_PROP)
-
-        // the 16 swatches for the packed 64x64 image's 4x4 tile grid, indexed [column][row]
-        int quadSwatch[4][4];
-        for (int qc = 0; qc < 4; qc++)
-            for (int qr = 0; qr < 4; qr++)
-                quadSwatch[qc][qr] = TILE_TO_SWATCH(28 + qc, qr);
-
+        // the model is for facing=south (unrotated); it's rotated into place for the other three facings. SWNE facing maps directly to the
+        // blockstate's own "y" rotation (south=0,west=90,north=180,east=270)
+        int yAngle = bedFacing * 90;
         totalVertexCount = gModel.vertexCount;
         gUsingTransform = 1;
-
-        if (part == 0) {
-            // ---- FOOT ----
-            { // element: base
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 0.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 1, quadSwatch[1][2], 16.0f,0.0f, 3.0f,7.0f); } // base.north
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 0.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_X, 0, quadSwatch[0][2], 16.0f,0.0f, 3.0f,7.0f); } // base.east
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 0.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_X, 0, quadSwatch[2][2], 0.0f,16.0f, 3.0f,7.0f); } // base.west
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 9.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[1][1], 16.0f,0.0f, 7.0f,0.0f); } // base.up_11
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 0.0f,9.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[1][2], 16.0f,0.0f, 16.0f,7.0f); } // base.up_12
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 0.0f,7.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[2][1], 16.0f,0.0f, 0.0f,7.0f); } // base.down_21
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 7.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[2][2], 16.0f,0.0f, 7.0f,16.0f); } // base.down_22
-            }
-            { // element: frills_03
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.125000f,0.125000f, -3.0f,0.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][2], 16.0f,0.0f, 0.0f,3.0f); } // frills_03.up
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.125000f,0.125000f, -3.0f,0.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[0][3], 16.0f,0.0f, 16.0f,13.0f); } // frills_03.down
-            }
-            { // element: frills_04
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,19.0f, 0.105000f,0.105000f, 0.0f,7.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[3][1], 3.0f,0.0f, 0.0f,7.0f); } // frills_04.up_31
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,19.0f, 0.105000f,0.105000f, 7.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[3][2], 3.0f,0.0f, 7.0f,16.0f); } // frills_04.up_32
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,19.0f, 0.105000f,0.105000f, 9.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[3][1], 6.0f,3.0f, 7.0f,0.0f); } // frills_04.down_31
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,19.0f, 0.105000f,0.105000f, 0.0f,9.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[3][2], 6.0f,3.0f, 16.0f,7.0f); } // frills_04.down_32
-            }
-            { // element: frills_05
-              { int v = saveBoxCustomUVVertices(boxIndex, -3.0f,0.0f, 0.115000f,0.115000f, 9.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[3][1], 9.0f,6.0f, 0.0f,7.0f); } // frills_05.up_31
-              { int v = saveBoxCustomUVVertices(boxIndex, -3.0f,0.0f, 0.115000f,0.115000f, 0.0f,9.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[3][2], 9.0f,6.0f, 7.0f,16.0f); } // frills_05.up_32
-              { int v = saveBoxCustomUVVertices(boxIndex, -3.0f,0.0f, 0.115000f,0.115000f, 0.0f,7.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[3][1], 12.0f,9.0f, 7.0f,0.0f); } // frills_05.down_31
-              { int v = saveBoxCustomUVVertices(boxIndex, -3.0f,0.0f, 0.115000f,0.115000f, 7.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[3][2], 12.0f,9.0f, 16.0f,7.0f); } // frills_05.down_32
-            }
+        if (dataVal & 0x8) {
+            saveModelElements(boxIndex, type, dataVal, TILE_TO_SWATCH(28, 0), headElements, sizeof(headElements) / sizeof(ModelElement), (float)yAngle);
         }
         else {
-            // ---- HEAD ----
-            { // element: base
-              { int v = saveBoxCustomUVVertices(boxIndex, 8.0f,16.0f, 0.0f,4.0f, 0.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 1, quadSwatch[0][1], 16.0f,8.0f, 7.0f,11.0f); } // base.north_01
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,8.0f, 0.0f,4.0f, 0.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[1][1], 8.0f,0.0f, 7.0f,11.0f); } // base.north_11
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 0.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_X, 0, quadSwatch[0][1], 8.0f,0.0f, 7.0f,11.0f); } // base.east
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 0.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, quadSwatch[2][1], 0.0f,16.0f, 7.0f,11.0f); } // base.south
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,4.0f, 0.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_X, 0, quadSwatch[1][1], 8.0f,16.0f, 7.0f,11.0f); } // base.west
-              { int v = saveBoxCustomUVVertices(boxIndex, 8.0f,16.0f, 0.0f,4.0f, 5.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][0], 16.0f,8.0f, 3.0f,0.0f); } // base.up_00
-              { int v = saveBoxCustomUVVertices(boxIndex, 8.0f,16.0f, 0.0f,4.0f, 0.0f,5.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][1], 16.0f,8.0f, 16.0f,11.0f); } // base.up_01
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,8.0f, 0.0f,4.0f, 5.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[1][0], 8.0f,0.0f, 3.0f,0.0f); } // base.up_10
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,8.0f, 0.0f,4.0f, 0.0f,5.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[1][1], 8.0f,0.0f, 16.0f,11.0f); } // base.up_11
-              { int v = saveBoxCustomUVVertices(boxIndex, 8.0f,16.0f, 0.0f,4.0f, 0.0f,3.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[1][0], 16.0f,8.0f, 0.0f,3.0f); } // base.down_10
-              { int v = saveBoxCustomUVVertices(boxIndex, 8.0f,16.0f, 0.0f,4.0f, 3.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[1][1], 16.0f,8.0f, 11.0f,16.0f); } // base.down_11
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,8.0f, 0.0f,4.0f, 0.0f,3.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[2][0], 8.0f,0.0f, 0.0f,3.0f); } // base.down_20
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,8.0f, 0.0f,4.0f, 3.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[2][1], 8.0f,0.0f, 11.0f,16.0f); } // base.down_21
-            }
-            { // element: pillow_frills_01
-              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 0.065000f,0.065000f, 9.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][1], 6.0f,4.0f, 7.0f,0.0f); } // pillow_frills_01.up_01
-              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 0.065000f,0.065000f, 8.0f,9.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][2], 6.0f,4.0f, 16.0f,15.0f); } // pillow_frills_01.up_02
-              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 0.065000f,0.065000f, 8.0f,15.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[0][1], 8.0f,6.0f, 0.0f,7.0f); } // pillow_frills_01.down_01
-              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 0.065000f,0.065000f, 15.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[0][2], 8.0f,6.0f, 15.0f,16.0f); } // pillow_frills_01.down_02
-            }
-            { // element: pillow_frills_02
-              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 4.960000f,4.960000f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[2][0], 10.0f,8.0f, 16.0f,8.0f); } // pillow_frills_02.up
-              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 4.960000f,4.960000f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[2][0], 12.0f,10.0f, 8.0f,16.0f); } // pillow_frills_02.down
-            }
-            { // element: pillow_frills_03
-              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 0.065000f,4.950000f, 8.025000f,8.025000f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[0][2], 6.0f,4.0f, 10.075000f,15.0f); } // pillow_frills_03.north
-              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 0.065000f,4.950000f, 8.025000f,8.025000f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, quadSwatch[0][2], 8.0f,6.0f, 10.075000f,15.0f); } // pillow_frills_03.south
-            }
-            { // element: pillow_frills_04
-              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 0.065000f,3.040635f, 15.985000f,15.985000f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[2][0], 10.0f,8.0f, 0.0f,3.0f); } // pillow_frills_04.north_20
-              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 3.040635f,4.950000f, 15.985000f,15.985000f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[2][1], 10.0f,8.0f, 14.075000f,16.0f); } // pillow_frills_04.north_21
-              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 0.065000f,3.040635f, 15.985000f,15.985000f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, quadSwatch[2][0], 10.0f,12.0f, 0.0f,3.0f); } // pillow_frills_04.south_20
-              { int v = saveBoxCustomUVVertices(boxIndex, -2.0f,0.0f, 3.040635f,4.950000f, 15.985000f,15.985000f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, quadSwatch[2][1], 10.0f,12.0f, 14.075000f,16.0f); } // pillow_frills_04.south_21
-            }
-            { // element: pillow_frills_05
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 0.050000f,0.050000f, 9.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][1], 2.0f,0.0f, 7.0f,0.0f); } // pillow_frills_05.up_01
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 0.050000f,0.050000f, 8.0f,9.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][2], 2.0f,0.0f, 16.0f,15.0f); } // pillow_frills_05.up_02
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 0.050000f,0.050000f, 8.0f,15.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[0][1], 2.0f,4.0f, 0.0f,7.0f); } // pillow_frills_05.down_01
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 0.050000f,0.050000f, 15.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[0][2], 2.0f,4.0f, 15.0f,16.0f); } // pillow_frills_05.down_02
-            }
-            { // element: pillow_frills_06
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 4.975000f,4.975000f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][0], 2.0f,0.0f, 16.0f,8.0f); } // pillow_frills_06.up
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 4.975000f,4.975000f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[0][0], 2.0f,4.0f, 8.0f,16.0f); } // pillow_frills_06.down
-            }
-            { // element: pillow_frills_07
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 0.050000f,4.975000f, 8.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[0][2], 2.0f,0.0f, 10.075000f,15.0f); } // pillow_frills_07.north
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 0.050000f,4.975000f, 8.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, quadSwatch[0][2], 4.0f,2.0f, 10.075000f,15.0f); } // pillow_frills_07.south
-            }
-            { // element: pillow_frills_08
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 0.050000f,3.050000f, 15.975000f,15.975000f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[0][0], 2.0f,0.0f, 0.0f,3.0f); } // pillow_frills_08.north_00
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 3.050000f,4.975000f, 15.975000f,15.975000f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[0][1], 2.0f,0.0f, 14.075000f,16.0f); } // pillow_frills_08.north_01
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 0.050000f,3.050000f, 15.975000f,15.975000f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, quadSwatch[0][0], 4.0f,2.0f, 0.0f,3.0f); } // pillow_frills_08.south_00
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,18.0f, 3.050000f,4.975000f, 15.975000f,15.975000f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, quadSwatch[0][1], 4.0f,2.0f, 14.075000f,16.0f); } // pillow_frills_08.south_01
-            }
-            { // element: pillow
-              { int v = saveBoxCustomUVVertices(boxIndex, 8.0f,16.0f, 0.0f,5.0f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[0][0], 16.0f,8.0f, 3.0f,8.0f); } // pillow.north_00
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,8.0f, 0.0f,5.0f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, quadSwatch[1][0], 8.0f,0.0f, 3.0f,8.0f); } // pillow.north_10
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,5.0f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_X, 0, quadSwatch[0][0], 8.0f,0.0f, 3.0f,8.0f); } // pillow.east
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,5.0f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, quadSwatch[2][0], 0.0f,16.0f, 3.0f,8.0f); } // pillow.south
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,16.0f, 0.0f,5.0f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_SIDE_LO_X, 0, quadSwatch[1][0], 8.0f,16.0f, 3.0f,8.0f); } // pillow.west
-              { int v = saveBoxCustomUVVertices(boxIndex, 8.0f,16.0f, 0.0f,5.0f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[0][0], 16.0f,8.0f, 16.0f,8.0f); } // pillow.up_00
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,8.0f, 0.0f,5.0f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[1][0], 8.0f,0.0f, 16.0f,8.0f); } // pillow.up_10
-              { int v = saveBoxCustomUVVertices(boxIndex, 8.0f,16.0f, 0.0f,5.0f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[1][0], 16.0f,8.0f, 8.0f,16.0f); } // pillow.down_10
-              { int v = saveBoxCustomUVVertices(boxIndex, 0.0f,8.0f, 0.0f,5.0f, 8.0f,16.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[2][0], 8.0f,0.0f, 8.0f,16.0f); } // pillow.down_20
-            }
-            { // element: frills_02
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,19.0f, 0.050000f,0.050000f, 0.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[3][1], 3.0f,0.0f, 15.0f,7.0f); } // frills_02.up
-              { int v = saveBoxCustomUVVertices(boxIndex, 16.0f,19.0f, 0.050000f,0.050000f, 0.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[3][1], 6.0f,3.0f, 7.0f,15.0f); } // frills_02.down
-            }
-            { // element: frills_03b
-              { int v = saveBoxCustomUVVertices(boxIndex, -3.0f,0.0f, 0.065000f,0.065000f, 0.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_TOP, 0, quadSwatch[3][1], 9.0f,6.0f, 15.0f,7.0f); } // frills_03b.up
-              { int v = saveBoxCustomUVVertices(boxIndex, -3.0f,0.0f, 0.065000f,0.065000f, 0.0f,8.0f);
-                if (v >= 0) saveBoxCustomUVFace(v, type, dataVal, DIRECTION_BLOCK_BOTTOM, 0, quadSwatch[3][1], 12.0f,9.0f, 7.0f,15.0f); } // frills_03b.down
-            }
+            saveModelElements(boxIndex, type, dataVal, TILE_TO_SWATCH(28, 0), footElements, sizeof(footElements) / sizeof(ModelElement), (float)yAngle);
         }
-
         totalVertexCount = gModel.vertexCount - totalVertexCount;
 
-        // the elements above are built for facing=south (the vanilla model's default, unrotated orientation, per
-        // straw_bed.json's blockstates - unlike BLOCK_SHELF_MUSHROOM's door_facing/north default); rotate into
-        // place for the other three facings. SWNE facing maps directly to the blockstate's own "y" rotation
-        // (south=0,west=90,north=180,east=270), i.e. angle = facing * 90, with no remap needed.
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
-        rotateMtx(mtx, 0.0f, (float)bedFacing * 90.0f, 0.0f);
+        rotateMtx(mtx, 0.0f, (float)yAngle, 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(totalVertexCount, mtx);
         gUsingTransform = 0;
@@ -8096,157 +8906,115 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         //	if ( gBoxData[boxIndex-1].type == BLOCK_AIR)
         //		return 0;
         //}
-        gUsingTransform = 1;
-        swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, FLIP_TOP_V_VALUES, 0, 16, 13, 16, 0, 16);
-        identityMtx(mtx);
-        translateToOriginMtx(mtx, boxIndex);
-		// lower from 13-16 height to 0-3 height
-        translateMtx(mtx, 0.0f, -13.0f / 16.0f, 0.0f);
-        // undo translation to origin
-
-        // 0x4 means rotated up or down
-        if (dataVal & 0x4)
+        // Minecraft's trapdoor models: template_trapdoor_bottom, _top, and _open, or, for woods whose texture has a direction,
+        // template_orientable_trapdoor_*, which turn with the trapdoor's facing (and turn over when open at the top).
+        // dataVal: 0x3 facing north, south, west, east; 0x4 open; 0x8 top half
         {
-            translateMtx(mtx, 0.0f, 0.5f - 1.5f / 16.0f, -6.5f / 16.0f);
-            rotateMtx(mtx, (dataVal & 0x8) ? 90.0f : -90.0f, 0.0f, 0.0f);
-            translateMtx(mtx, 0.0f, -0.5f + 1.5f / 16.0f,6.5f / 16.0f);
+            // faces down, up, north, south, west, east; for closed (bottom and top) and open; plain and orientable
+            static const int trapdoorFace[6] = { DIRECTION_BLOCK_BOTTOM, DIRECTION_BLOCK_TOP, DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
+            static const float trapdoorUV[2][2][6][4] = {
+                {   // plain
+                    { { 0.0f, 0.0f, 16.0f, 16.0f }, { 0.0f, 0.0f, 16.0f, 16.0f }, { 0.0f, 16.0f, 16.0f, 13.0f }, { 0.0f, 16.0f, 16.0f, 13.0f }, { 0.0f, 16.0f, 16.0f, 13.0f }, { 0.0f, 16.0f, 16.0f, 13.0f } },
+                    { { 0.0f, 13.0f, 16.0f, 16.0f }, { 0.0f, 16.0f, 16.0f, 13.0f }, { 0.0f, 0.0f, 16.0f, 16.0f }, { 0.0f, 0.0f, 16.0f, 16.0f }, { 16.0f, 0.0f, 13.0f, 16.0f }, { 13.0f, 0.0f, 16.0f, 16.0f } }
+                },
+                {   // orientable
+                    { { 0.0f, 0.0f, 16.0f, 16.0f }, { 0.0f, 16.0f, 16.0f, 0.0f }, { 0.0f, 0.0f, 16.0f, 3.0f }, { 0.0f, 0.0f, 16.0f, 3.0f }, { 0.0f, 0.0f, 16.0f, 3.0f }, { 0.0f, 0.0f, 16.0f, 3.0f } },
+                    { { 0.0f, 0.0f, 16.0f, 3.0f }, { 0.0f, 3.0f, 16.0f, 0.0f }, { 0.0f, 16.0f, 16.0f, 0.0f }, { 0.0f, 16.0f, 16.0f, 0.0f }, { 0.0f, 0.0f, 16.0f, 3.0f }, { 0.0f, 3.0f, 16.0f, 0.0f } }
+                }
+            };
+            static const int openOrientableUVRotation[6] = { 0, 0, 0, 0, 90, 90 };
+            // "y" for facing north, south, west, east
+            static const float trapdoorYAngle[4] = { 0.0f, 180.0f, 270.0f, 90.0f };
+            bool orientable;
+            switch (type) {
+            case BLOCK_SPRUCE_TRAPDOOR:
+            case BLOCK_BIRCH_TRAPDOOR:
+            case BLOCK_JUNGLE_TRAPDOOR:
+            case BLOCK_ACACIA_TRAPDOOR:
+            case BLOCK_CRIMSON_TRAPDOOR:
+            case BLOCK_WARPED_TRAPDOOR:
+            case BLOCK_MANGROVE_TRAPDOOR:
+            case BLOCK_CHERRY_TRAPDOOR:
+            case BLOCK_BAMBOO_TRAPDOOR:
+            case BLOCK_PALE_OAK_TRAPDOOR:
+            case BLOCK_POPLAR_TRAPDOOR:
+                orientable = true;
+                break;
+            default:
+                orientable = false;
+                break;
+            }
+            bool open = (dataVal & 0x4) ? true : false;
+            bool top = (dataVal & 0x8) ? true : false;
+            float xAngle = 0.0f;
+            float yAngle = 0.0f;
+            if (open) {
+                yAngle = trapdoorYAngle[dataVal & 0x3];
+                if (orientable && top) {
+                    xAngle = 180.0f;
+                    yAngle = (float)(((int)yAngle + 180) % 360);
+                }
+            }
+            else if (orientable) {
+                yAngle = trapdoorYAngle[dataVal & 0x3];
+            }
+            swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            gUsingTransform = 1;
+            totalVertexCount = gModel.vertexCount;
+            int startVertexIndex = open ? saveBoxCustomUVVertices(boxIndex, 0.0f, 16.0f, 0.0f, 16.0f, 13.0f, 16.0f) :
+                saveBoxCustomUVVertices(boxIndex, 0.0f, 16.0f, top ? 13.0f : 0.0f, top ? 16.0f : 3.0f, 0.0f, 16.0f);
+            if (startVertexIndex < 0)
+                return MW_WORLD_EXPORT_TOO_LARGE;
+            for (int f = 0; f < 6; f++) {
+                retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, trapdoorFace[f], (f == 0), swatchLoc,
+                    trapdoorUV[orientable ? 1 : 0][open ? 1 : 0][f], (orientable && open) ? openOrientableUVRotation[f] : 0);
+                if (retCode >= MW_BEGIN_ERRORS)
+                    return retCode;
+            }
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            rotateMtx(mtx, xAngle, 0.0f, 0.0f);
+            rotateMtx(mtx, 0.0f, yAngle, 0.0f);
+            translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(totalVertexCount, mtx);
+            gUsingTransform = 0;
         }
-
-        // 0x3 is which edge hinge is at
-        switch (dataVal & 0x3)
-        {
-        default:    // make compiler happy
-        case 0: // south
-            angle = 0.0f;
-            break;
-        case 1: // north
-            angle = 180.0f;
-            break;
-        case 2: // east
-            angle = 270.0f;
-            break;
-        case 3: // west
-            angle = 90.0f;
-            break;
-        }
-        // rotate into position
-        rotateMtx(mtx, 0.0f, angle, 0.0f);
-
-        // attached at top vs. bottom
-        if (dataVal & 0x8)
-        {
-            translateMtx(mtx, 0.0f, 13.0f / 16.0f, 0.0f);
-        }
-
-        // undo translation to origin and perform transform
-        translateFromOriginMtx(mtx, boxIndex);
-        transformVertices(8, mtx);
-        gUsingTransform = 0;
         break; // saveBillboardOrGeometry
 
     case BLOCK_SIGN_POST:						// saveBillboardOrGeometry
-    case BLOCK_ACACIA_SIGN_POST:						// saveBillboardOrGeometry
-    case BLOCK_MANGROVE_SIGN_POST:						// saveBillboardOrGeometry
-    case BLOCK_POPLAR_SIGN_POST:						// saveBillboardOrGeometry
-        // set top to plank, bottom to log end
-        if (type == BLOCK_SIGN_POST) {
-            switch (dataVal & (BIT_32 | BIT_16)) {
-            default:
-            case 0:
-                // oak
-                topSwatchLoc = SWATCH_INDEX(4, 0);   // planks
-                bottomSwatchLoc = SWATCH_INDEX(5, 1);   // end of log, for the post
-                sideSwatchLoc = SWATCH_INDEX(4, 1);    // log bark, for the post
-                break;
-
-            case BIT_16:
-                // spruce
-                topSwatchLoc = SWATCH_INDEX(6, 12);   // planks
-                bottomSwatchLoc = SWATCH_INDEX(11, 11);   // end of log, for the post
-                sideSwatchLoc = SWATCH_INDEX(4, 7);    // log bark, for the post
-                break;
-
-            case BIT_32:
-                // birch
-                topSwatchLoc = SWATCH_INDEX(6, 13);   // planks
-                bottomSwatchLoc = SWATCH_INDEX(12, 11);   // end of log, for the post
-                sideSwatchLoc = SWATCH_INDEX(5, 7);    // log bark, for the post
-                break;
-
-            case (BIT_32 | BIT_16):
-                // jungle
-                topSwatchLoc = SWATCH_INDEX(7, 12);   // planks
-                bottomSwatchLoc = SWATCH_INDEX(13, 11);   // end of log, for the post
-                sideSwatchLoc = SWATCH_INDEX(9, 9);    // log bark, for the post
-                break;
-            }
+        // Minecraft 26.3's block/template_sign_rot_0.json, with the sign's own 32x32 texture; the other rotations are this turned by 22.5 degree steps.
+        // For 3D printing, the thicker plank geometry below is used instead.
+        if (!gModel.print3D) {
+            static const ModelElement signElements[] = {
+                { { 22.0f / 3.0f, 0.0f, 22.0f / 3.0f }, { 26.0f / 3.0f, 28.0f / 3.0f, 26.0f / 3.0f }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 14.0f, 8.0f, 15.0f, 15.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 15.0f, 0.0f, 16.0f, 7.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 14.0f, 0.0f, 15.0f, 7.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 15.0f, 8.0f, 16.0f, 15.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 14.0f, 15.0f, 15.0f, 16.0f }, 0 }
+                } },
+                { { 0.0f, 28.0f / 3.0f, 22.0f / 3.0f }, { 16.0f, 52.0f / 3.0f, 26.0f / 3.0f }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 8.0f, 12.0f, 14.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12.0f, 1.0f, 13.0f, 7.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0.0f, 1.0f, 12.0f, 7.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 12.0f, 8.0f, 13.0f, 14.0f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 0.0f, 0.0f, 12.0f, 1.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 0.0f, 14.0f, 12.0f, 15.0f }, 0 }
+                } },
+            };
+            // rotation 0-15 turns clockwise, seen from above, from facing south
+            saveSignModel(boxIndex, type, dataVal, false, signElements, sizeof(signElements) / sizeof(ModelElement), 22.5f * (float)(dataVal & 0xF));
+            break;
         }
-        else if (type == BLOCK_ACACIA_SIGN_POST) {
-            // acacia, dark oak
-            switch (dataVal & (BIT_32 | BIT_16)) {
-            default:
-            case 0:
-                // acacia
-                topSwatchLoc = SWATCH_INDEX(0, 22);   // planks
-                bottomSwatchLoc = SWATCH_INDEX(13, 19);   // end of log, for the post
-                sideSwatchLoc = SWATCH_INDEX(5, 11);    // log bark, for the post
-                break;
-            case BIT_16:
-                // dark oak
-                topSwatchLoc = SWATCH_INDEX(1, 22);   // planks
-                bottomSwatchLoc = SWATCH_INDEX(15, 19);   // end of log, for the post
-                sideSwatchLoc = SWATCH_INDEX(14, 19);    // log bark, for the post
-                break;
-            case BIT_32:
-                // crimson
-                topSwatchLoc = sideSwatchLoc = SWATCH_INDEX(8, 43);   // planks
-                bottomSwatchLoc = SWATCH_INDEX(0, 43);   // end of log, for the post
-                sideSwatchLoc = SWATCH_INDEX(1, 43);    // log bark, for the post
-                break;
-            case BIT_32 | BIT_16:
-                // warped
-                topSwatchLoc = sideSwatchLoc = SWATCH_INDEX(8, 44);   // planks
-                bottomSwatchLoc = SWATCH_INDEX(0, 44);   // end of log, for the post
-                sideSwatchLoc = SWATCH_INDEX(1, 44);    // log bark, for the post
-                break;
-            }
-        }
-        else if (type == BLOCK_POPLAR_SIGN_POST) {
-            // poplar: just the one kind
-            topSwatchLoc = sideSwatchLoc = SWATCH_INDEX(15, 79);   // planks
-            bottomSwatchLoc = SWATCH_INDEX(11, 79);   // end of log, for the post
-            sideSwatchLoc = SWATCH_INDEX(12, 79);    // log bark, for the post
-        }
-        else {
-            // Mangrove, cherry, bamboo, pale oak
-            switch (dataVal & (BIT_32 | BIT_16)) {
-            default:
-            case 0:
-                // mangrove
-                topSwatchLoc = SWATCH_INDEX(0, 55);   // planks
-                bottomSwatchLoc = SWATCH_INDEX(12, 54);   // end of log, for the post
-                sideSwatchLoc = SWATCH_INDEX(13, 54);    // log bark, for the post
-                break;
-            case BIT_16:
-                // cherry
-                topSwatchLoc = SWATCH_INDEX(8, 57);   // planks
-                bottomSwatchLoc = SWATCH_INDEX(7, 57);   // end of log, for the post
-                sideSwatchLoc = SWATCH_INDEX(6, 57);    // log bark, for the post
-                break;
-            case BIT_32:
-                // bamboo
-                topSwatchLoc = sideSwatchLoc = SWATCH_INDEX(14, 60);   // planks
-                bottomSwatchLoc = SWATCH_INDEX(6, 60);   // end of log, for the post
-                sideSwatchLoc = SWATCH_INDEX(5, 60);    // log bark, for the post
-                break;
-            case BIT_32 | BIT_16:
-                // pale oak
-                topSwatchLoc = sideSwatchLoc = SWATCH_INDEX(8, 67);   // planks
-                bottomSwatchLoc = SWATCH_INDEX(6, 67);   // end of log, for the post
-                sideSwatchLoc = SWATCH_INDEX(7, 67);    // log bark, for the post
-                break;
-            }
+        // the wood is in SIGN_WOOD_MASK; the board is made of its planks, the post of its log
+        {
+            int wood = SIGN_WOOD(dataVal);
+            if (wood >= NUM_SIGN_WOODS)
+                wood = 0;
+            topSwatchLoc = SWATCH_INDEX(gSignWoods[wood].planksX, gSignWoods[wood].planksY);        // planks
+            bottomSwatchLoc = SWATCH_INDEX(gSignWoods[wood].logEndX, gSignWoods[wood].logEndY);     // end of log, for the post
+            sideSwatchLoc = SWATCH_INDEX(gSignWoods[wood].barkX, gSignWoods[wood].barkY);           // log bark, for the post
         }
         // sign is two parts:
         // bottom post is output first, which saves one translation
@@ -8419,74 +9187,62 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             bottomDataVal = dataVal;
         }
 
-        // door facing direction
-        switch (bottomDataVal & 0x3)
+        // Minecraft's door models, door_bottom_* and door_top_*: a slab 3 pixels thick against the west side, with faces chosen by
+        // the hinge (left or right) and whether the door is open, turned by the blockstate's "y". The bottom half has no top face,
+        // and the top half no bottom face, except when the other half isn't there, or for 3D printing; then the face is given
+        // the other half's texture coordinates, a strip along the door's edge.
         {
-        default:    // make compiler happy
-        case 0: // west
-            angle = 90.0f;
-            break;
-        case 1: // north
-            angle = 180.0f;
-            break;
-        case 2: // east
-            angle = 270.0f;
-            break;
-        case 3: // south
-            angle = 0.0f;
-            break;
-        }
+            // left, left_open, right, right_open; faces down, up, north, south, west, east
+            static const float doorUV[4][6][4] = {
+                { { 16.0f, 13.0f, 0.0f, 16.0f }, { 0.0f, 3.0f, 16.0f, 0.0f }, { 3.0f, 0.0f, 0.0f, 16.0f }, { 0.0f, 0.0f, 3.0f, 16.0f }, { 0.0f, 0.0f, 16.0f, 16.0f }, { 16.0f, 0.0f, 0.0f, 16.0f } },
+                { { 0.0f, 16.0f, 16.0f, 13.0f }, { 0.0f, 3.0f, 16.0f, 0.0f }, { 0.0f, 0.0f, 3.0f, 16.0f }, { 0.0f, 0.0f, 3.0f, 16.0f }, { 16.0f, 0.0f, 0.0f, 16.0f }, { 0.0f, 0.0f, 16.0f, 16.0f } },
+                { { 0.0f, 13.0f, 16.0f, 16.0f }, { 0.0f, 0.0f, 16.0f, 3.0f }, { 3.0f, 0.0f, 0.0f, 16.0f }, { 0.0f, 0.0f, 3.0f, 16.0f }, { 16.0f, 0.0f, 0.0f, 16.0f }, { 0.0f, 0.0f, 16.0f, 16.0f } },
+                { { 16.0f, 16.0f, 0.0f, 13.0f }, { 0.0f, 0.0f, 16.0f, 3.0f }, { 3.0f, 0.0f, 0.0f, 16.0f }, { 3.0f, 0.0f, 0.0f, 16.0f }, { 0.0f, 0.0f, 16.0f, 16.0f }, { 16.0f, 0.0f, 0.0f, 16.0f } }
+            };
+            static const int doorUVRotation[4][2] = { { 90, 90 }, { 90, 270 }, { 90, 270 }, { 90, 90 } };
+            static const int doorFace[6] = { DIRECTION_BLOCK_BOTTOM, DIRECTION_BLOCK_TOP, DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
+            // "y" for a closed door, by facing: east, south, west, north
+            static const float doorRotation[4] = { 0.0f, 90.0f, 180.0f, 270.0f };
+            bool upperHalf = (dataVal & 0x8) ? true : false;
+            int hingeRight = topDataVal & 0x1;
+            int doorOpen = (bottomDataVal & 0x4) ? 1 : 0;
+            int variant = hingeRight * 2 + doorOpen;
+            float thickness = 3.0f + fatten;
+            angle = doorRotation[bottomDataVal & 0x3] + (doorOpen ? (hingeRight ? 270.0f : 90.0f) : 0.0f);
+            bool otherHalfMissing = (gBoxData[boxIndex + (upperHalf ? -1 : 1)].type != type);
 
-        // hinge move
-        // is hinge on right or left?
-        if (topDataVal & 0x1)
-        {
-            // reverse hinge - hinge is on the left
-            angle += (topDataVal & 0x1) ? 180.0f : 0.0f;
-            hingeAngle = (bottomDataVal & 0x4) ? 90.f : 0.0f;
+            gUsingTransform = 1;
+            totalVertexCount = gModel.vertexCount;
+            int startVertexIndex = saveBoxCustomUVVertices(boxIndex, 0.0f, thickness, 0.0f, 16.0f, 0.0f, 16.0f);
+            if (startVertexIndex < 0)
+                return MW_WORLD_EXPORT_TOO_LARGE;
+            firstFace = 1;
+            for (int f = 0; f < 6; f++) {
+                if (f < 2 && (f == (upperHalf ? 0 : 1)) && !gModel.print3D && !otherHalfMissing)
+                    continue;
+                // a fattened door is thicker, so its strips are, too
+                float uv[4];
+                for (int c = 0; c < 4; c++) {
+                    uv[c] = doorUV[variant][f][c];
+                    if (uv[c] == 3.0f)
+                        uv[c] = thickness;
+                    else if (uv[c] == 13.0f)
+                        uv[c] = 16.0f - thickness;
+                }
+                retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, doorFace[f], firstFace, upperHalf ? topSwatchLoc : bottomSwatchLoc,
+                    uv, (f < 2) ? doorUVRotation[variant][f] : 0);
+                if (retCode >= MW_BEGIN_ERRORS)
+                    return retCode;
+                firstFace = 0;
+            }
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            rotateMtx(mtx, 0.0f, angle, 0.0f);
+            translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(totalVertexCount, mtx);
+            gUsingTransform = 0;
         }
-        else
-        {
-            hingeAngle = (bottomDataVal & 0x4) ? 360.0f - 90.f : 0.0f;
-        }
-
-        // one of the only uses of rotUVs other than beds - rotate the UV coordinates by 2, i.e. 180 degrees, for the LO Z face
-        // TODO: note that Minecraft does not generate its doors like this. The difference is in the top (and bottom) of the door.
-        // Their doors are oriented and so use different pieces of the texture for the tops and bottoms, depending on which direction
-        // the door faces (and maybe open/closed). Minecraft appears to grab a strip from the left edge of the bottom tile, or something.
-        // We always use the bottomSwatchLoc for the door's top *and* bottom, as the top piece can look bad.
-        gUsingTransform = 1;
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, swatchLoc, bottomSwatchLoc, 1, 0x0,
-            FLIP_LO_Z_FACE_VERTICALLY | FLIP_TOP_V_VALUES,
-            0, 16, 0, 16, 13 - fatten, 16);
-        gUsingTransform = 0;
-
-        identityMtx(mtx);
-        translateToOriginMtx(mtx, boxIndex);
-        // is hinge on left or right?
-        if (topDataVal & 0x1)
-        {
-            // hinge is on left, so give it a different translation
-            static float offx = 0.0f;
-            translateMtx(mtx, 0.0f + offx / 16.0f, 0.0f, ((float)(13 - fatten) / 16.0f) * ((bottomDataVal & 0x4) ? 1.0f : -1.0f));
-            signMult = -1.0f;
-        }
-        else
-        {
-            signMult = 1.0f;
-        }
-        if (hingeAngle > 0.0f)
-        {
-            // turn door on hinge location: translate hinge to origin, rotate, translate back
-            float halfDepth = (float)(13 - fatten) / 2.0f;
-            translateMtx(mtx, halfDepth / 16.0f * signMult, 0.0f, -halfDepth / 16.0f);
-            rotateMtx(mtx, 0.0f, hingeAngle, 0.0f);
-            translateMtx(mtx, -halfDepth / 16.0f * signMult, 0.0f, halfDepth / 16.0f);
-        }
-        rotateMtx(mtx, 0.0f, angle, 0.0f);
-        // undo translation
-        translateFromOriginMtx(mtx, boxIndex);
-        transformVertices(8, mtx);
         break; // saveBillboardOrGeometry
 
     case BLOCK_SNOW:						// saveBillboardOrGeometry
@@ -8510,18 +9266,24 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break; // saveBillboardOrGeometry
 
     case BLOCK_END_PORTAL_FRAME:						// saveBillboardOrGeometry
-        topSwatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-        sideSwatchLoc = SWATCH_INDEX(15, 9);
-        bottomSwatchLoc = SWATCH_INDEX(15, 10);
-        // TODO: actually, we want to rotate 90, 180, 270 depending on 0x3 bits 0-3 of the portal. We cheat here and rotate by 90 or not.
-        // This mostly matters for the eye of ender box on top, which is not symmetric
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, (dataVal & 0x1) ? REVOLVE_INDICES : 0, 0, 16, 0, 13, 0, 16);
-        if (dataVal & 0x4) {
-            // eye of ender
-            topSwatchLoc = SWATCH_INDEX(14, 10);
-            saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, topSwatchLoc, topSwatchLoc, 0, gModel.print3D ? 0x0 : DIR_BOTTOM_BIT, (dataVal & 0x1) ? REVOLVE_INDICES : 0, 4, 12, 13, 16, 4, 12);
-        }
-        break; // saveBillboardOrGeometry
+    {
+        // Minecraft's end_portal_frame and end_portal_frame_filled models, turned by "y"; dataVal 0x3 faces south, west, north,
+        // east, and 0x4 means there's an eye
+        int frameTopLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+        int frameSideLoc = SWATCH_INDEX(15, 9);
+        int frameBottomLoc = SWATCH_INDEX(15, 10);
+        int eyeLoc = SWATCH_INDEX(14, 10);
+        ModelElement frameElements[2] = {
+            { { 0, 0, 0 }, { 16, 13, 16 }, 6, { { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 16 }, 0, 0, frameBottomLoc }, { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, frameTopLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 3, 16, 16 }, 0, 0, frameSideLoc }, { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 3, 16, 16 }, 0, 0, frameSideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 3, 16, 16 }, 0, 0, frameSideLoc }, { DIRECTION_BLOCK_SIDE_HI_X, { 0, 3, 16, 16 }, 0, 0, frameSideLoc } } },
+            { { 4, 13, 4 }, { 12, 16, 12 }, 5, { { DIRECTION_BLOCK_TOP, { 4, 4, 12, 12 }, 0, 0, eyeLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 0, 12, 3 }, 0, 0, eyeLoc }, { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 0, 12, 3 }, 0, 0, eyeLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 4, 0, 12, 3 }, 0, 0, eyeLoc }, { DIRECTION_BLOCK_SIDE_HI_X, { 4, 0, 12, 3 }, 0, 0, eyeLoc } } }
+        };
+        retCode |= saveTurnedModel(boxIndex, type, dataVal, frameTopLoc, frameElements, (dataVal & 0x4) ? 2 : 1, 90.0f * (float)(dataVal & 0x3));
+    }
+    break; // saveBillboardOrGeometry
 
     case BLOCK_ENCHANTING_TABLE:						// saveBillboardOrGeometry
         topSwatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
@@ -8538,15 +9300,15 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             // 0x20 bit is whether the candle is lit or not, for all 17 candles.
             int candle = 0;
             int bites = dataVal & 0x7;
-            // mask out the candle, if any
-            if (bites == 7) {
-                bites = 0;
-                candle = 16;
-            }
-            else if (dataVal & BIT_16) {
-                // colored candle
+            // mask out the candle, if any; check for a colored candle first, as its color can be 7 or more, e.g., gray or black
+            if (dataVal & BIT_16) {
+                // colored candle, 0-15
                 bites = 0;
                 candle = dataVal & 0xf;
+            }
+            else if (bites == 7) {
+                bites = 0;
+                candle = 16;
             }
             swatchLocSet[DIRECTION_BLOCK_TOP] = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
             swatchLocSet[DIRECTION_BLOCK_BOTTOM] = SWATCH_INDEX(12, 7);
@@ -8556,7 +9318,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX(10, 7);
             saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, 0x0, 0, 0, 1 + (float)bites * 2, 15, 0, 8, 1, 15);
 
-            if (!gModel.print3D && candle > 0) {
+            if (!gModel.print3D && ((dataVal & BIT_16) || candle == 16)) {
                 int ctype = ((dataVal & BIT_32) ? 1 : 0) + ((candle == 16) ? BLOCK_CANDLE : BLOCK_COLORED_CANDLE);
                 // four lowest bits is color of candle, if any (candle 16 is the "normal candle")
                 int cdataval = candle & 0xf;
@@ -8605,92 +9367,297 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_POPLAR_FENCE_GATE:
         gUsingTransform = 1;
         totalVertexCount = gModel.vertexCount;
-        // Check if open
-        if (dataVal & 0x4)
-        {
-            // open
-            if (dataVal & 0x1)
-            {
-                // open west/east
-                saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 7, 9, 5, 16, 0, 2 + fatten);
-                saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7, 9, 5, 16, 14 - fatten, 16);
-                if (dataVal & 0x2)
-                {
-                    // side pieces
-                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_LO_X_BIT), 9, 16, 6, 9, 0, 2 + fatten);
-                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_LO_X_BIT), 9, 16, 12, 15, 0, 2 + fatten);
-                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_LO_X_BIT), 9, 16, 6, 9, 14 - fatten, 16);
-                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_LO_X_BIT), 9, 16, 12, 15, 14 - fatten, 16);
-                    // gate center
-                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_BOTTOM_BIT | DIR_TOP_BIT), 14, 16, 9, 12, 0, 2 + fatten);
-                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_BOTTOM_BIT | DIR_TOP_BIT), 14, 16, 9, 12, 14 - fatten, 16);
-                }
-                else
-                {
-                    // side pieces
-                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_HI_X_BIT), 0, 7, 6, 9, 0, 2 + fatten);
-                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_HI_X_BIT), 0, 7, 12, 15, 0, 2 + fatten);
-                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_HI_X_BIT), 0, 7, 6, 9, 14 - fatten, 16);
-                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_HI_X_BIT), 0, 7, 12, 15, 14 - fatten, 16);
-                    // gate center
-                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_BOTTOM_BIT | DIR_TOP_BIT), 0, 2, 9, 12, 0, 2 + fatten);
-                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_BOTTOM_BIT | DIR_TOP_BIT), 0, 2, 9, 12, 14 - fatten, 16);
-                }
-            }
+        if (!gModel.print3D && (type == BLOCK_BAMBOO_FENCE_GATE)) {
+            // Minecraft's bamboo_fence_gate and bamboo_fence_gate_open models, made from the template_custom_fence_gate models, which
+            // map parts of the bamboo_fence_gate texture onto each face, turned by "y" (without "uvlock"); in a wall, the same, 3
+            // pixels lower, done below. dataVal 0x3 faces south, west, north, east. The elements are made from the models' JSON.
+            int gateLoc = SWATCH_INDEX(10, 60);
+            ModelElement closedElements[] = {
+                { { 0, 5, 7 }, { 2, 16, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 2, 16, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 14, 2, 16, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 14, 2, 16, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 2, 16, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 14, 0, 16, 2 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 13, 14, 15 }, 0, 0, gateLoc }
+                } },
+                { { 14, 5, 7 }, { 16, 16, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 2, 2, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 2, 2, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 2, 2, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 2, 2, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 2, 2 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 13, 0, 15 }, 0, 0, gateLoc }
+                } },
+                { { 6, 6, 7 }, { 8, 15, 9 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 8, 3, 10, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 3, 8, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 3, 10, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 10, 3 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 14, 10, 12 }, 0, 0, gateLoc }
+                } },
+                { { 8, 6, 7 }, { 10, 15, 9 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 3, 8, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 6, 3, 8, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 8, 3, 10, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 6, 1, 8, 3 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 14, 8, 12 }, 0, 0, gateLoc }
+                } },
+                { { 2, 6, 7 }, { 6, 9, 9 }, 4, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 10, 3, 14, 6 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 10, 9, 14, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 10, 1, 14, 3 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 10, 14, 14, 12 }, 0, 0, gateLoc }
+                } },
+                { { 2, 12, 7 }, { 6, 15, 9 }, 4, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 10, 3, 14, 6 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 10, 9, 14, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 10, 1, 14, 3 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 10, 14, 14, 12 }, 0, 0, gateLoc }
+                } },
+                { { 10, 6, 7 }, { 14, 9, 9 }, 4, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 3, 6, 6 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 9, 6, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 2, 1, 6, 3 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 14, 6, 12 }, 0, 0, gateLoc }
+                } },
+                { { 10, 12, 7 }, { 14, 15, 9 }, 4, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 3, 6, 6 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 9, 6, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 2, 1, 6, 3 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 14, 6, 12 }, 0, 0, gateLoc }
+                } },
+            };
+            ModelElement openElements[] = {
+                { { 0, 5, 7 }, { 2, 16, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 2, 16, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 14, 2, 16, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 14, 2, 16, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 2, 16, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 14, 0, 16, 2 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 13, 14, 15 }, 0, 0, gateLoc }
+                } },
+                { { 14, 5, 7 }, { 16, 16, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 2, 2, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 2, 2, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 2, 2, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 2, 2, 13 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 2, 2 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 13, 0, 15 }, 0, 0, gateLoc }
+                } },
+                { { 0, 6, 13 }, { 2, 15, 15 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 8, 3, 10, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 8, 3, 10, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 8, 3, 10, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 3, 10, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 10, 3 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 14, 10, 12 }, 0, 0, gateLoc }
+                } },
+                { { 14, 6, 13 }, { 16, 15, 15 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 3, 8, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 6, 3, 8, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 3, 8, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 6, 3, 8, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 6, 1, 8, 3 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 14, 8, 12 }, 0, 0, gateLoc }
+                } },
+                { { 0, 6, 9 }, { 2, 9, 13 }, 4, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 2, 9, 6, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 2, 3, 6, 6 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 2, 1, 6, 3 }, 270, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 12, 6, 14 }, 270, 0, gateLoc }
+                } },
+                { { 0, 12, 9 }, { 2, 15, 13 }, 4, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 2, 9, 6, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 2, 3, 6, 6 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 2, 1, 6, 3 }, 270, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 12, 6, 14 }, 270, 0, gateLoc }
+                } },
+                { { 14, 6, 9 }, { 16, 9, 13 }, 4, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 10, 9, 14, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 10, 3, 14, 6 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 10, 1, 14, 3 }, 270, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 10, 12, 14, 14 }, 270, 0, gateLoc }
+                } },
+                { { 14, 12, 9 }, { 16, 15, 13 }, 4, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 10, 9, 14, 12 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 3, 10, 6 }, 0, 0, gateLoc },
+                    { DIRECTION_BLOCK_TOP, { 10, 1, 14, 3 }, 270, 0, gateLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 10, 12, 14, 14 }, 270, 0, gateLoc }
+                } },
+            };
+            if (dataVal & 0x4)
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, gateLoc, openElements, 8, 0, 90 * (dataVal & 0x3), false);
             else
-            {
-                // open north/south - hinge posts:
-                saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 0, 2 + fatten, 5, 16, 7, 9);
-                saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 14 - fatten, 16, 5, 16, 7, 9);
-                if (dataVal & 0x2)	// north
-                {
-                    // side pieces
-                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_HI_Z_BIT), 0, 2 + fatten, 6, 9, 0, 7);
-                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_HI_Z_BIT), 0, 2 + fatten, 12, 15, 0, 7);
-                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_HI_Z_BIT), 14 - fatten, 16, 6, 9, 0, 7);
-                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_HI_Z_BIT), 14 - fatten, 16, 12, 15, 0, 7);
-                    // gate center
-                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_BOTTOM_BIT | DIR_TOP_BIT), 0, 2 + fatten, 9, 12, 0, 2);
-                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_BOTTOM_BIT | DIR_TOP_BIT), 14 - fatten, 16, 9, 12, 0, 2);
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, gateLoc, closedElements, 8, 0, 90 * (dataVal & 0x3), false);
+            gUsingTransform = 1;
+        }
+        else if (!gModel.print3D) {
+            // Minecraft's template_fence_gate and template_fence_gate_open models, turned by "y" with "uvlock"; in a wall
+            // (template_fence_gate_wall*), it's the same, 3 pixels lower, done below. dataVal 0x3 faces south, west, north, east.
+            static const ModelElement gateElements[2][8] = {
+                {   // closed
+                    { { 0, 5, 7 }, { 2, 16, 9 }, 6, { { DIRECTION_BLOCK_BOTTOM, { 0, 7, 2, 9 }, 0 }, { DIRECTION_BLOCK_TOP, { 0, 7, 2, 9 }, 0 }, { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 11 }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 11 }, 0 }, { DIRECTION_BLOCK_SIDE_LO_X, { 7, 0, 9, 11 }, 0 }, { DIRECTION_BLOCK_SIDE_HI_X, { 7, 0, 9, 11 }, 0 } } },
+                    { { 14, 5, 7 }, { 16, 16, 9 }, 6, { { DIRECTION_BLOCK_BOTTOM, { 14, 7, 16, 9 }, 0 }, { DIRECTION_BLOCK_TOP, { 14, 7, 16, 9 }, 0 }, { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 0, 16, 11 }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 14, 0, 16, 11 }, 0 }, { DIRECTION_BLOCK_SIDE_LO_X, { 7, 0, 9, 11 }, 0 }, { DIRECTION_BLOCK_SIDE_HI_X, { 7, 0, 9, 11 }, 0 } } },
+                    { { 6, 6, 7 }, { 8, 15, 9 }, 6, { { DIRECTION_BLOCK_BOTTOM, { 6, 7, 8, 9 }, 0 }, { DIRECTION_BLOCK_TOP, { 6, 7, 8, 9 }, 0 }, { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 1, 8, 10 }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 1, 8, 10 }, 0 }, { DIRECTION_BLOCK_SIDE_LO_X, { 7, 1, 9, 10 }, 0 }, { DIRECTION_BLOCK_SIDE_HI_X, { 7, 1, 9, 10 }, 0 } } },
+                    { { 8, 6, 7 }, { 10, 15, 9 }, 6, { { DIRECTION_BLOCK_BOTTOM, { 8, 7, 10, 9 }, 0 }, { DIRECTION_BLOCK_TOP, { 8, 7, 10, 9 }, 0 }, { DIRECTION_BLOCK_SIDE_LO_Z, { 8, 1, 10, 10 }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 8, 1, 10, 10 }, 0 }, { DIRECTION_BLOCK_SIDE_LO_X, { 7, 1, 9, 10 }, 0 }, { DIRECTION_BLOCK_SIDE_HI_X, { 7, 1, 9, 10 }, 0 } } },
+                    { { 2, 6, 7 }, { 6, 9, 9 }, 4, { { DIRECTION_BLOCK_BOTTOM, { 2, 7, 6, 9 }, 0 }, { DIRECTION_BLOCK_TOP, { 2, 7, 6, 9 }, 0 }, { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 7, 6, 10 }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 7, 6, 10 }, 0 } } },
+                    { { 2, 12, 7 }, { 6, 15, 9 }, 4, { { DIRECTION_BLOCK_BOTTOM, { 2, 7, 6, 9 }, 0 }, { DIRECTION_BLOCK_TOP, { 2, 7, 6, 9 }, 0 }, { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 1, 6, 4 }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 1, 6, 4 }, 0 } } },
+                    { { 10, 6, 7 }, { 14, 9, 9 }, 4, { { DIRECTION_BLOCK_BOTTOM, { 10, 7, 14, 9 }, 0 }, { DIRECTION_BLOCK_TOP, { 10, 7, 14, 9 }, 0 }, { DIRECTION_BLOCK_SIDE_LO_Z, { 10, 7, 14, 10 }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 10, 7, 14, 10 }, 0 } } },
+                    { { 10, 12, 7 }, { 14, 15, 9 }, 4, { { DIRECTION_BLOCK_BOTTOM, { 10, 7, 14, 9 }, 0 }, { DIRECTION_BLOCK_TOP, { 10, 7, 14, 9 }, 0 }, { DIRECTION_BLOCK_SIDE_LO_Z, { 10, 1, 14, 4 }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 10, 1, 14, 4 }, 0 } } },
+                },
+                {   // open
+                    { { 0, 5, 7 }, { 2, 16, 9 }, 6, { { DIRECTION_BLOCK_BOTTOM, { 0, 7, 2, 9 }, 0 }, { DIRECTION_BLOCK_TOP, { 0, 7, 2, 9 }, 0 }, { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 11 }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 11 }, 0 }, { DIRECTION_BLOCK_SIDE_LO_X, { 7, 0, 9, 11 }, 0 }, { DIRECTION_BLOCK_SIDE_HI_X, { 7, 0, 9, 11 }, 0 } } },
+                    { { 14, 5, 7 }, { 16, 16, 9 }, 6, { { DIRECTION_BLOCK_BOTTOM, { 14, 7, 16, 9 }, 0 }, { DIRECTION_BLOCK_TOP, { 14, 7, 16, 9 }, 0 }, { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 0, 16, 11 }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 14, 0, 16, 11 }, 0 }, { DIRECTION_BLOCK_SIDE_LO_X, { 7, 0, 9, 11 }, 0 }, { DIRECTION_BLOCK_SIDE_HI_X, { 7, 0, 9, 11 }, 0 } } },
+                    { { 0, 6, 13 }, { 2, 15, 15 }, 6, { { DIRECTION_BLOCK_BOTTOM, { 0, 13, 2, 15 }, 0 }, { DIRECTION_BLOCK_TOP, { 0, 13, 2, 15 }, 0 }, { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 1, 2, 10 }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 1, 2, 10 }, 0 }, { DIRECTION_BLOCK_SIDE_LO_X, { 13, 1, 15, 10 }, 0 }, { DIRECTION_BLOCK_SIDE_HI_X, { 13, 1, 15, 10 }, 0 } } },
+                    { { 14, 6, 13 }, { 16, 15, 15 }, 6, { { DIRECTION_BLOCK_BOTTOM, { 14, 13, 16, 15 }, 0 }, { DIRECTION_BLOCK_TOP, { 14, 13, 16, 15 }, 0 }, { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 1, 16, 10 }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 14, 1, 16, 10 }, 0 }, { DIRECTION_BLOCK_SIDE_LO_X, { 13, 1, 15, 10 }, 0 }, { DIRECTION_BLOCK_SIDE_HI_X, { 13, 1, 15, 10 }, 0 } } },
+                    { { 0, 6, 9 }, { 2, 9, 13 }, 4, { { DIRECTION_BLOCK_BOTTOM, { 0, 9, 2, 13 }, 0 }, { DIRECTION_BLOCK_TOP, { 0, 9, 2, 13 }, 0 }, { DIRECTION_BLOCK_SIDE_LO_X, { 13, 7, 15, 10 }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { 13, 7, 15, 10 }, 0 } } },
+                    { { 0, 12, 9 }, { 2, 15, 13 }, 4, { { DIRECTION_BLOCK_BOTTOM, { 0, 9, 2, 13 }, 0 }, { DIRECTION_BLOCK_TOP, { 0, 9, 2, 13 }, 0 }, { DIRECTION_BLOCK_SIDE_LO_X, { 13, 1, 15, 4 }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { 13, 1, 15, 4 }, 0 } } },
+                    { { 14, 6, 9 }, { 16, 9, 13 }, 4, { { DIRECTION_BLOCK_BOTTOM, { 14, 9, 16, 13 }, 0 }, { DIRECTION_BLOCK_TOP, { 14, 9, 16, 13 }, 0 }, { DIRECTION_BLOCK_SIDE_LO_X, { 13, 7, 15, 10 }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { 13, 7, 15, 10 }, 0 } } },
+                    { { 14, 12, 9 }, { 16, 15, 13 }, 4, { { DIRECTION_BLOCK_BOTTOM, { 14, 9, 16, 13 }, 0 }, { DIRECTION_BLOCK_TOP, { 14, 9, 16, 13 }, 0 }, { DIRECTION_BLOCK_SIDE_LO_X, { 13, 1, 15, 4 }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { 13, 1, 15, 4 }, 0 } } },
                 }
-                else
-                {
-                    // side pieces
-                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_LO_Z_BIT), 0, 2 + fatten, 6, 9, 9, 16);
-                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_LO_Z_BIT), 0, 2 + fatten, 12, 15, 9, 16);
-                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_LO_Z_BIT), 14 - fatten, 16, 6, 9, 9, 16);
-                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_LO_Z_BIT), 14 - fatten, 16, 12, 15, 9, 16);
-                    // gate center
-                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_BOTTOM_BIT | DIR_TOP_BIT), 0, 2 + fatten, 9, 12, 14, 16);
-                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_BOTTOM_BIT | DIR_TOP_BIT), 14 - fatten, 16, 9, 12, 14, 16);
+            };
+            int yAngle = 90 * (dataVal & 0x3);
+            // the posts' outer faces, on the block's sides, are hidden by a whole, opaque neighbor there, as Minecraft culls them
+            static const int sideAfterTurn[4][2] = {
+                { DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X }, { DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z },
+                { DIRECTION_BLOCK_SIDE_HI_X, DIRECTION_BLOCK_SIDE_LO_X }, { DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_Z } };
+            bool sideHidden[2];
+            for (int k = 0; k < 2; k++) {
+                int neighborFenceType = gBoxData[boxIndex + gFaceOffset[sideAfterTurn[dataVal & 0x3][k]]].origType;
+                sideHidden[k] = !(gModel.options->exportFlags & EXPT_INDIVIDUAL_BLOCKS) &&
+                    (gBlockDefinitions[neighborFenceType].flags & BLF_WHOLE) && !(gBlockDefinitions[neighborFenceType].flags & BLF_TRANSPARENT);
+            }
+            swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            int markFirstFace = 1;
+            for (int e = 0; e < 8; e++) {
+                const ModelElement* pElem = &gateElements[(dataVal & 0x4) ? 1 : 0][e];
+                int startVertexIndex = saveBoxCustomUVVertices(boxIndex, pElem->from[X], pElem->to[X], pElem->from[Y], pElem->to[Y], pElem->from[Z], pElem->to[Z]);
+                if (startVertexIndex < 0)
+                    return MW_WORLD_EXPORT_TOO_LARGE;
+                for (int f = 0; f < pElem->faceCount; f++) {
+                    const ModelFace* pFace = &pElem->face[f];
+                    if ((pFace->faceDirection == DIRECTION_BLOCK_SIDE_LO_X && pElem->from[X] == 0.0f && sideHidden[0]) ||
+                        (pFace->faceDirection == DIRECTION_BLOCK_SIDE_HI_X && pElem->to[X] == 16.0f && sideHidden[1]))
+                        continue;
+                    retCode |= saveBoxModelFaceUVLock(startVertexIndex, type, dataVal, pFace->faceDirection, markFirstFace, swatchLoc, pFace->uv, 0, 0, yAngle);
+                    if (retCode >= MW_BEGIN_ERRORS)
+                        return retCode;
+                    markFirstFace = 0;
                 }
             }
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            rotateMtx(mtx, 0.0f, (float)yAngle, 0.0f);
+            translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(gModel.vertexCount - totalVertexCount, mtx);
         }
         else
         {
-            // closed
-            if (dataVal & 0x1)
+            // Check if open
+            if (dataVal & 0x4)
             {
-                // open west/east
-                saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 7 - fatten, 9 + fatten, 5, 16, 0, 2);
-                saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7 - fatten, 9 + fatten, 5, 16, 14, 16);
-                // side pieces
-                saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_LO_Z_BIT | DIR_HI_Z_BIT), 7 - fatten, 9 + fatten, 6, 9, 2, 14);
-                saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_LO_Z_BIT | DIR_HI_Z_BIT), 7 - fatten, 9 + fatten, 12, 15, 2, 14);
-                // gate center
-                saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_BOTTOM_BIT | DIR_TOP_BIT), 7 - fatten, 9 + fatten, 9, 12, 6, 10);
+                // open
+                if (dataVal & 0x1)
+                {
+                    // open west/east
+                    saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 7, 9, 5, 16, 0, 2 + fatten);
+                    saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7, 9, 5, 16, 14 - fatten, 16);
+                    if (dataVal & 0x2)
+                    {
+                        // side pieces
+                        saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_LO_X_BIT), 9, 16, 6, 9, 0, 2 + fatten);
+                        saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_LO_X_BIT), 9, 16, 12, 15, 0, 2 + fatten);
+                        saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_LO_X_BIT), 9, 16, 6, 9, 14 - fatten, 16);
+                        saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_LO_X_BIT), 9, 16, 12, 15, 14 - fatten, 16);
+                        // gate center
+                        saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_BOTTOM_BIT | DIR_TOP_BIT), 14, 16, 9, 12, 0, 2 + fatten);
+                        saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_BOTTOM_BIT | DIR_TOP_BIT), 14, 16, 9, 12, 14 - fatten, 16);
+                    }
+                    else
+                    {
+                        // side pieces
+                        saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_HI_X_BIT), 0, 7, 6, 9, 0, 2 + fatten);
+                        saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_HI_X_BIT), 0, 7, 12, 15, 0, 2 + fatten);
+                        saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_HI_X_BIT), 0, 7, 6, 9, 14 - fatten, 16);
+                        saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_HI_X_BIT), 0, 7, 12, 15, 14 - fatten, 16);
+                        // gate center
+                        saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_BOTTOM_BIT | DIR_TOP_BIT), 0, 2, 9, 12, 0, 2 + fatten);
+                        saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_BOTTOM_BIT | DIR_TOP_BIT), 0, 2, 9, 12, 14 - fatten, 16);
+                    }
+                }
+                else
+                {
+                    // open north/south - hinge posts:
+                    saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 0, 2 + fatten, 5, 16, 7, 9);
+                    saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 14 - fatten, 16, 5, 16, 7, 9);
+                    if (dataVal & 0x2)	// north
+                    {
+                        // side pieces
+                        saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_HI_Z_BIT), 0, 2 + fatten, 6, 9, 0, 7);
+                        saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_HI_Z_BIT), 0, 2 + fatten, 12, 15, 0, 7);
+                        saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_HI_Z_BIT), 14 - fatten, 16, 6, 9, 0, 7);
+                        saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_HI_Z_BIT), 14 - fatten, 16, 12, 15, 0, 7);
+                        // gate center
+                        saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_BOTTOM_BIT | DIR_TOP_BIT), 0, 2 + fatten, 9, 12, 0, 2);
+                        saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_BOTTOM_BIT | DIR_TOP_BIT), 14 - fatten, 16, 9, 12, 0, 2);
+                    }
+                    else
+                    {
+                        // side pieces
+                        saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_LO_Z_BIT), 0, 2 + fatten, 6, 9, 9, 16);
+                        saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_LO_Z_BIT), 0, 2 + fatten, 12, 15, 9, 16);
+                        saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_LO_Z_BIT), 14 - fatten, 16, 6, 9, 9, 16);
+                        saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_LO_Z_BIT), 14 - fatten, 16, 12, 15, 9, 16);
+                        // gate center
+                        saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_BOTTOM_BIT | DIR_TOP_BIT), 0, 2 + fatten, 9, 12, 14, 16);
+                        saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_BOTTOM_BIT | DIR_TOP_BIT), 14 - fatten, 16, 9, 12, 14, 16);
+                    }
+                }
             }
             else
             {
-                // open north/south
-                saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 0, 2, 5, 16, 7 - fatten, 9 + fatten);
-                saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 14, 16, 5, 16, 7 - fatten, 9 + fatten);
-                // side pieces
-                saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_LO_X_BIT | DIR_HI_X_BIT), 2, 14, 6, 9, 7 - fatten, 9 + fatten);
-                saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_LO_X_BIT | DIR_HI_X_BIT), 2, 14, 12, 15, 7 - fatten, 9 + fatten);
-                // gate center
-                saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_BOTTOM_BIT | DIR_TOP_BIT), 6, 10, 9, 12, 7 - fatten, 9 + fatten);
+                // closed
+                if (dataVal & 0x1)
+                {
+                    // open west/east
+                    saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 7 - fatten, 9 + fatten, 5, 16, 0, 2);
+                    saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 7 - fatten, 9 + fatten, 5, 16, 14, 16);
+                    // side pieces
+                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_LO_Z_BIT | DIR_HI_Z_BIT), 7 - fatten, 9 + fatten, 6, 9, 2, 14);
+                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_LO_Z_BIT | DIR_HI_Z_BIT), 7 - fatten, 9 + fatten, 12, 15, 2, 14);
+                    // gate center
+                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_BOTTOM_BIT | DIR_TOP_BIT), 7 - fatten, 9 + fatten, 9, 12, 6, 10);
+                }
+                else
+                {
+                    // open north/south
+                    saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 0, 2, 5, 16, 7 - fatten, 9 + fatten);
+                    saveBoxGeometry(boxIndex, type, dataVal, 0, 0x0, 14, 16, 5, 16, 7 - fatten, 9 + fatten);
+                    // side pieces
+                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_LO_X_BIT | DIR_HI_X_BIT), 2, 14, 6, 9, 7 - fatten, 9 + fatten);
+                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_LO_X_BIT | DIR_HI_X_BIT), 2, 14, 12, 15, 7 - fatten, 9 + fatten);
+                    // gate center
+                    saveBoxGeometry(boxIndex, type, dataVal, 0, gModel.print3D ? 0x0 : (DIR_BOTTOM_BIT | DIR_TOP_BIT), 6, 10, 9, 12, 7 - fatten, 9 + fatten);
+                }
             }
+
         }
 
         totalVertexCount = gModel.vertexCount - totalVertexCount;
@@ -8723,6 +9690,35 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
     case BLOCK_COCOA_PLANT:						// saveBillboardOrGeometry
         swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+        if (!gModel.print3D && (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES)) {
+            // Minecraft's cocoa_stage0-2 models, the pod and its flat stem, turned by "y"; dataVal 0x3 faces south, west, north, east
+            static const ModelElement cocoaElements[3][2] = {
+                {
+                    { { 6, 7, 11 }, { 10, 12, 15 }, 6, { { DIRECTION_BLOCK_BOTTOM, { 0, 0, 4, 4 }, 0 }, { DIRECTION_BLOCK_TOP, { 0, 0, 4, 4 }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 11, 4, 15, 9 }, 0 }, { DIRECTION_BLOCK_SIDE_HI_Z, { 11, 4, 15, 9 }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { 11, 4, 15, 9 }, 0 }, { DIRECTION_BLOCK_SIDE_HI_X, { 11, 4, 15, 9 }, 0 } } },
+                    { { 8, 12, 12 }, { 8, 16, 16 }, 2, { { DIRECTION_BLOCK_SIDE_LO_X, { 12, 0, 16, 4 }, 0 }, { DIRECTION_BLOCK_SIDE_HI_X, { 16, 0, 12, 4 }, 0, 1 } } },
+                },
+                {
+                    { { 5, 5, 9 }, { 11, 12, 15 }, 6, { { DIRECTION_BLOCK_BOTTOM, { 0, 0, 6, 6 }, 0 }, { DIRECTION_BLOCK_TOP, { 0, 0, 6, 6 }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 9, 4, 15, 11 }, 0 }, { DIRECTION_BLOCK_SIDE_HI_Z, { 9, 4, 15, 11 }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { 9, 4, 15, 11 }, 0 }, { DIRECTION_BLOCK_SIDE_HI_X, { 9, 4, 15, 11 }, 0 } } },
+                    { { 8, 12, 12 }, { 8, 16, 16 }, 2, { { DIRECTION_BLOCK_SIDE_LO_X, { 12, 0, 16, 4 }, 0 }, { DIRECTION_BLOCK_SIDE_HI_X, { 16, 0, 12, 4 }, 0, 1 } } },
+                },
+                {
+                    { { 4, 3, 7 }, { 12, 12, 15 }, 6, { { DIRECTION_BLOCK_BOTTOM, { 0, 0, 8, 8 }, 0 }, { DIRECTION_BLOCK_TOP, { 0, 0, 8, 8 }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 8, 4, 16, 13 }, 0 }, { DIRECTION_BLOCK_SIDE_HI_Z, { 8, 4, 16, 13 }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { 8, 4, 16, 13 }, 0 }, { DIRECTION_BLOCK_SIDE_HI_X, { 8, 4, 16, 13 }, 0 } } },
+                    { { 8, 12, 12 }, { 8, 16, 16 }, 2, { { DIRECTION_BLOCK_SIDE_LO_X, { 12, 0, 16, 4 }, 0 }, { DIRECTION_BLOCK_SIDE_HI_X, { 16, 0, 12, 4 }, 0, 1 } } },
+                }
+            };
+            // the stage's texture: 0, small, is 2 after the large one
+            int stage = (dataVal >> 2) & 0x3;
+            if (stage > 2)
+                stage = 2;
+            retCode |= saveTurnedModel(boxIndex, type, dataVal, swatchLoc + 2 - stage, cocoaElements[stage], 2, 90.0f * (float)(dataVal & 0x3));
+            break;
+        }
         shiftVal = 0;
         shiftX = 0;
         gUsingTransform = 1;
@@ -8812,7 +9808,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
         // If printing, we seal the cauldron against the water height (possibly empty), else for rendering we make the walls go to the bottom.
         // This convoluted code for waterHeight here is actually duplicated for the rendering version, below, in more readable form.
-        waterHeight = gModel.print3D ? ( (dataVal & 0xc) ? 15 : (6 + (float)(dataVal & 0x3) * 3) ) : 6;
+        // For rendering, as in Minecraft's cauldron model, the walls' insides go down to Y = 3, and the inside bottom is 1 pixel thick.
+        waterHeight = gModel.print3D ? ( (dataVal & 0xc) ? 15 : (6 + (float)(dataVal & 0x3) * 3) ) : 3;
         // outsides - if printing, just go down to bottom, no real feet, else kick it up
         saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 16, swatchLoc + 17, 1, DIR_TOP_BIT | DIR_BOTTOM_BIT, 0, 0, 16, gModel.print3D ? 0.0f : 3.0f, 16, 0, 16);
         // bottom
@@ -8843,7 +9840,7 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         {
             // show smaller inside bottom if cauldron is empty
             saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc + 1, swatchLoc + 16, swatchLoc + 1, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT, 0,
-                2, 14, 3, 6, 2, 14);
+                2, 14, 3, gModel.print3D ? 6.0f : 4.0f, 2, 14);
 
             if (!gModel.print3D) {
                 // Good times: make four feet that are 4x4 wide with a notch cut out, so really 2x2 each, with proper sides and bottoms
@@ -8913,6 +9910,43 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         {
             // damaged 2
             topSwatchLoc = swatchLoc + 17;
+        }
+        if (!gModel.print3D) {
+            // Minecraft's anvil model, turned by "y"; dataVal 0x3 faces south, west, north, east. The elements are made from the
+            // model's JSON.
+            ModelElement anvilElements[] = {
+            { { 2, 0, 2 }, { 14, 4, 14 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 2, 2, 14, 14 }, 180, 0, swatchLoc },
+                { DIRECTION_BLOCK_TOP, { 2, 2, 14, 14 }, 180, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 12, 14, 16 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 12, 14, 16 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 2, 4, 14 }, 90, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 4, 2, 0, 14 }, 270, 0, swatchLoc }
+            } },
+            { { 4, 4, 3 }, { 12, 5, 13 }, 5, {
+                { DIRECTION_BLOCK_TOP, { 4, 3, 12, 13 }, 180, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 11, 12, 12 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 11, 12, 12 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 4, 3, 5, 13 }, 90, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 5, 3, 4, 13 }, 270, 0, swatchLoc }
+            } },
+            { { 6, 5, 4 }, { 10, 10, 12 }, 4, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 6, 10, 11 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 6, 10, 11 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 5, 4, 10, 12 }, 90, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 10, 4, 5, 12 }, 270, 0, swatchLoc }
+            } },
+            { { 3, 10, 0 }, { 13, 16, 16 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 3, 0, 13, 16 }, 180, 0, swatchLoc },
+                { DIRECTION_BLOCK_TOP, { 3, 0, 13, 16 }, 180, 0, topSwatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 13, 6 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 13, 6 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 10, 0, 16, 16 }, 90, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 16, 0, 10, 16 }, 270, 0, swatchLoc }
+            } },
+            };
+            retCode |= saveTurnedModel(boxIndex, type, dataVal, swatchLoc, anvilElements, 4, 90.0f * (float)(dataVal & 0x3));
+            break;
         }
         gUsingTransform = 1;
         totalVertexCount = gModel.vertexCount;
@@ -9252,8 +10286,236 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // bit 7 - is bottom four bits 3210 the rotation on floor? If off, put on wall.
         // bits 654 - the head. Hopefully Minecraft won't add more than 8 heads...
         // bits 3210 - depends on bit 7; rotation if on floor, or on which wall (2-5)
+        if (((dataVal >> 4) & 0x7) <= HEAD_TYPE_PIGLIN)
+        {
+            // Minecraft's SkullModel: an 8x8x8 head box and, for the zombie and the player, a hat box around it, 0.25 pixel bigger on each
+            // side, textured by the head type's 32x32 image, which TileMaker repacks from the entity texture: the head box's layout above,
+            // the hat box's below. As for the cushion, entity models are drawn flipped in X and Y, so the layout's sides are the world's
+            // east, north (the face), west, and south sides, and the top and bottom are turned. The dragon's and piglin's heads are
+            // different; see below.
+            // On the floor, the head is centered and faces north for rotation 0, each step of rotation turning it 22.5 degrees clockwise,
+            // seen from above. On a wall, it is raised 4 pixels, with its back against the wall, and faces away from the wall.
+            int headType = (dataVal >> 4) & 0x7;
+            float yAngle = getHeadYAngle(dataVal);
+            // the head box's lowest y and z: on the floor; or on a wall, made facing north, against the wall to the south
+            float headY = (dataVal & 0x80) ? 0.0f : 4.0f;
+            float headZ = (dataVal & 0x80) ? 4.0f : 8.0f;
+            if (headType == HEAD_TYPE_DRAGON) {
+                // Minecraft's DragonHeadModel, the ender dragon's head: a 16x16x16 head box, an upper lip (the snout) with a nostril on
+                // each side of its top, a jaw hinged under the upper lip, and a scale (a horn) on each side of the head's top. The east
+                // scale and nostril are mirror images. It's drawn at 0.75 size and raised 6 pixels, so the head box is 12 pixels on a
+                // side and sits on the floor, and the snout sticks out of the block. The jaw is open DRAGON_JAW_ANGLE, so its front
+                // dips below the head's bottom. Faces inside the head box or against another part are left out. The texture is the
+                // 96x96 image TileMaker repacks from dragon.png (see gDragonHeadData in TileMaker), addressed by DRAGON_UV().
+                ModelElement dragonElements[] = {
+                    // upper head
+                    { { 2.0f, headY, headZ - 3.5f }, { 14.0f, headY + 12.0f, headZ + 8.5f }, 6, {
+                        { DIRECTION_BLOCK_TOP, { DRAGON_UV(32), DRAGON_UV(16), DRAGON_UV(16), DRAGON_UV(0) }, 0 },
+                        { DIRECTION_BLOCK_BOTTOM, { DRAGON_UV(48), DRAGON_UV(0), DRAGON_UV(32), DRAGON_UV(16) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { DRAGON_UV(0), DRAGON_UV(16), DRAGON_UV(16), DRAGON_UV(32) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { DRAGON_UV(16), DRAGON_UV(16), DRAGON_UV(32), DRAGON_UV(32) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { DRAGON_UV(32), DRAGON_UV(16), DRAGON_UV(48), DRAGON_UV(32) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { DRAGON_UV(48), DRAGON_UV(16), DRAGON_UV(64), DRAGON_UV(32) }, 0 }
+                    } },
+                    // upper lip
+                    { { 3.5f, headY + 3.0f, headZ - 14.0f }, { 12.5f, headY + 6.75f, headZ - 2.0f }, 5, {
+                        { DIRECTION_BLOCK_TOP, { DRAGON_UV(28), DRAGON_UV(48), DRAGON_UV(16), DRAGON_UV(32) }, 0 },
+                        { DIRECTION_BLOCK_BOTTOM, { DRAGON_UV(40), DRAGON_UV(32), DRAGON_UV(28), DRAGON_UV(48) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { DRAGON_UV(0), DRAGON_UV(48), DRAGON_UV(16), DRAGON_UV(53) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { DRAGON_UV(16), DRAGON_UV(48), DRAGON_UV(28), DRAGON_UV(53) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { DRAGON_UV(28), DRAGON_UV(48), DRAGON_UV(44), DRAGON_UV(53) }, 0 }
+                    } },
+                    // scale, mirrored
+                    { { 10.25f, headY + 12.0f, headZ + 1.0f }, { 11.75f, headY + 15.0f, headZ + 5.5f }, 5, {
+                        { DIRECTION_BLOCK_TOP, { DRAGON_UV(70), DRAGON_UV(6), DRAGON_UV(72), DRAGON_UV(0) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { DRAGON_UV(78), DRAGON_UV(6), DRAGON_UV(72), DRAGON_UV(10) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { DRAGON_UV(72), DRAGON_UV(6), DRAGON_UV(70), DRAGON_UV(10) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { DRAGON_UV(70), DRAGON_UV(6), DRAGON_UV(64), DRAGON_UV(10) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { DRAGON_UV(80), DRAGON_UV(6), DRAGON_UV(78), DRAGON_UV(10) }, 0 }
+                    } },
+                    // scale
+                    { { 4.25f, headY + 12.0f, headZ + 1.0f }, { 5.75f, headY + 15.0f, headZ + 5.5f }, 5, {
+                        { DIRECTION_BLOCK_TOP, { DRAGON_UV(72), DRAGON_UV(6), DRAGON_UV(70), DRAGON_UV(0) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { DRAGON_UV(64), DRAGON_UV(6), DRAGON_UV(70), DRAGON_UV(10) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { DRAGON_UV(70), DRAGON_UV(6), DRAGON_UV(72), DRAGON_UV(10) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { DRAGON_UV(72), DRAGON_UV(6), DRAGON_UV(78), DRAGON_UV(10) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { DRAGON_UV(78), DRAGON_UV(6), DRAGON_UV(80), DRAGON_UV(10) }, 0 }
+                    } },
+                    // nostril, mirrored
+                    { { 10.25f, headY + 6.75f, headZ - 12.5f }, { 11.75f, headY + 8.25f, headZ - 9.5f }, 5, {
+                        { DIRECTION_BLOCK_TOP, { DRAGON_UV(84), DRAGON_UV(4), DRAGON_UV(86), DRAGON_UV(0) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { DRAGON_UV(90), DRAGON_UV(4), DRAGON_UV(86), DRAGON_UV(6) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { DRAGON_UV(86), DRAGON_UV(4), DRAGON_UV(84), DRAGON_UV(6) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { DRAGON_UV(84), DRAGON_UV(4), DRAGON_UV(80), DRAGON_UV(6) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { DRAGON_UV(92), DRAGON_UV(4), DRAGON_UV(90), DRAGON_UV(6) }, 0 }
+                    } },
+                    // nostril
+                    { { 4.25f, headY + 6.75f, headZ - 12.5f }, { 5.75f, headY + 8.25f, headZ - 9.5f }, 5, {
+                        { DIRECTION_BLOCK_TOP, { DRAGON_UV(86), DRAGON_UV(4), DRAGON_UV(84), DRAGON_UV(0) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { DRAGON_UV(80), DRAGON_UV(4), DRAGON_UV(84), DRAGON_UV(6) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { DRAGON_UV(84), DRAGON_UV(4), DRAGON_UV(86), DRAGON_UV(6) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { DRAGON_UV(86), DRAGON_UV(4), DRAGON_UV(90), DRAGON_UV(6) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { DRAGON_UV(90), DRAGON_UV(4), DRAGON_UV(92), DRAGON_UV(6) }, 0 }
+                    } },
+                };
+                ModelElement jawElement[] = {
+                    // jaw
+                    { { 3.5f, headY, headZ - 14.0f }, { 12.5f, headY + 3.0f, headZ - 2.0f }, 5, {
+                        { DIRECTION_BLOCK_TOP, { DRAGON_UV(28), DRAGON_UV(80), DRAGON_UV(16), DRAGON_UV(64) }, 0 },
+                        { DIRECTION_BLOCK_BOTTOM, { DRAGON_UV(40), DRAGON_UV(64), DRAGON_UV(28), DRAGON_UV(80) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { DRAGON_UV(0), DRAGON_UV(80), DRAGON_UV(16), DRAGON_UV(84) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { DRAGON_UV(16), DRAGON_UV(80), DRAGON_UV(28), DRAGON_UV(84) }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { DRAGON_UV(28), DRAGON_UV(80), DRAGON_UV(44), DRAGON_UV(84) }, 0 }
+                    } },
+                };
+                int vertexCount = gModel.vertexCount;
+                gUsingTransform = 1;
+                saveModelElements(boxIndex, type, dataVal, DRAGON_HEAD_TEXTURE_ANCHOR, dragonElements, sizeof(dragonElements) / sizeof(ModelElement), yAngle);
+                // open the jaw: turn it about its hinge, along the top of its back. translateToOriginMtx puts the block's center, pixel
+                // (8,8,8), at the origin. A positive X angle in rotateMtx turns a piece's front (-Z) down.
+                float hingeY = headY + 3.0f;
+                float hingeZ = headZ - 2.0f;
+                int jawVertexCount = gModel.vertexCount;
+                saveModelElements(boxIndex, type, dataVal, DRAGON_HEAD_TEXTURE_ANCHOR, jawElement, 1, yAngle);
+                identityMtx(mtx);
+                translateToOriginMtx(mtx, boxIndex);
+                translateMtx(mtx, 0.0f, (8.0f - hingeY) / 16.0f, (8.0f - hingeZ) / 16.0f);
+                rotateMtx(mtx, DRAGON_JAW_ANGLE, 0.0f, 0.0f);
+                translateMtx(mtx, 0.0f, (hingeY - 8.0f) / 16.0f, (hingeZ - 8.0f) / 16.0f);
+                translateFromOriginMtx(mtx, boxIndex);
+                transformVertices(gModel.vertexCount - jawVertexCount, mtx);
+                // turn the whole head into place
+                identityMtx(mtx);
+                translateToOriginMtx(mtx, boxIndex);
+                rotateMtx(mtx, 0.0f, yAngle, 0.0f);
+                translateFromOriginMtx(mtx, boxIndex);
+                transformVertices(gModel.vertexCount - vertexCount, mtx);
+                gUsingTransform = 0;
+                break; // saveBillboardOrGeometry
+            }
 
-        // make pumpkin, scale it down, and prepare to translate and rotate it, etc.
+            if (headType == HEAD_TYPE_PIGLIN) {
+                // Minecraft's PiglinHeadModel: a 10x8x8 head box with a snout and two tusks on its face, and an ear hanging from each side,
+                // each tilted out by PIGLIN_EAR_ANGLE about its hinge, 2 pixels below the top of the head. The faces of the snout and tusks
+                // against the head and each other are left out. The head box's back is two pieces: in the texture it crosses from the image's
+                // top half to its bottom half (see gHeadData in TileMaker). A flat piece can't be 3D printed, so a print's back is one face,
+                // showing just the part from the top half.
+                ModelElement piglinElements[] = {
+                    // head
+                    { { 3.0f, headY, headZ }, { 13.0f, headY + 8.0f, headZ + 8.0f }, gModel.print3D ? 6 : 5, {
+                        { DIRECTION_BLOCK_TOP, { 9.0f, 4.0f, 4.0f, 0.0f }, 0 },
+                        { DIRECTION_BLOCK_BOTTOM, { 14.0f, 0.0f, 9.0f, 4.0f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { 0.0f, 4.0f, 4.0f, 8.0f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 4.0f, 4.0f, 9.0f, 8.0f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { 9.0f, 4.0f, 13.0f, 8.0f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 13.0f, 4.0f, 16.0f, 8.0f }, 0 }
+                    } },
+                    // head's back, in two pieces
+                    { { 3.0f, headY, headZ + 8.0f }, { 9.0f, headY + 8.0f, headZ + 8.0f }, 1, {
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 13.0f, 4.0f, 16.0f, 8.0f }, 0 }
+                    } },
+                    { { 9.0f, headY, headZ + 8.0f }, { 13.0f, headY + 8.0f, headZ + 8.0f }, 1, {
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 0.0f, 12.0f, 2.0f, 16.0f }, 0 }
+                    } },
+                    // snout
+                    { { 6.0f, headY, headZ - 1.0f }, { 10.0f, headY + 4.0f, headZ }, 5, {
+                        { DIRECTION_BLOCK_TOP, { 2.0f, 9.0f, 0.0f, 8.5f }, 0 },
+                        { DIRECTION_BLOCK_BOTTOM, { 4.0f, 8.5f, 2.0f, 9.0f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { 15.5f, 1.0f, 16.0f, 3.0f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 9.0f, 2.0f, 11.0f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { 2.0f, 9.0f, 2.5f, 11.0f }, 0 }
+                    } },
+                    // tusks
+                    { { 5.0f, headY, headZ - 1.0f }, { 6.0f, headY + 2.0f, headZ }, 4, {
+                        { DIRECTION_BLOCK_TOP, { 2.0f, 2.5f, 1.5f, 2.0f }, 0 },
+                        { DIRECTION_BLOCK_BOTTOM, { 2.5f, 2.0f, 2.0f, 2.5f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 1.5f, 2.5f, 2.0f, 3.5f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { 2.0f, 2.5f, 2.5f, 3.5f }, 0 }
+                    } },
+                    { { 10.0f, headY, headZ - 1.0f }, { 11.0f, headY + 2.0f, headZ }, 4, {
+                        { DIRECTION_BLOCK_TOP, { 2.0f, 0.5f, 1.5f, 0.0f }, 0 },
+                        { DIRECTION_BLOCK_BOTTOM, { 2.5f, 0.0f, 2.0f, 0.5f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { 1.0f, 0.5f, 1.5f, 1.5f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 1.5f, 0.5f, 2.0f, 1.5f }, 0 }
+                    } },
+                };
+                // the ears, west then east, each hinged at its top
+                ModelElement earElements[] = {
+                    { { 2.5f, headY + 1.0f, headZ + 2.0f }, { 3.5f, headY + 6.0f, headZ + 6.0f }, 6, {
+                        { DIRECTION_BLOCK_TOP, { 12.0f, 13.0f, 11.5f, 11.0f }, 0 },
+                        { DIRECTION_BLOCK_BOTTOM, { 12.5f, 11.0f, 12.0f, 13.0f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { 9.5f, 13.0f, 11.5f, 15.5f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 11.5f, 13.0f, 12.0f, 15.5f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { 12.0f, 13.0f, 14.0f, 15.5f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 14.0f, 13.0f, 14.5f, 15.5f }, 0 }
+                    } },
+                    { { 12.5f, headY + 1.0f, headZ + 2.0f }, { 13.5f, headY + 6.0f, headZ + 6.0f }, 6, {
+                        { DIRECTION_BLOCK_TOP, { 6.0f, 13.0f, 5.5f, 11.0f }, 0 },
+                        { DIRECTION_BLOCK_BOTTOM, { 6.5f, 11.0f, 6.0f, 13.0f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_X, { 3.5f, 13.0f, 5.5f, 15.5f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 5.5f, 13.0f, 6.0f, 15.5f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { 6.0f, 13.0f, 8.0f, 15.5f }, 0 },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 8.0f, 13.0f, 8.5f, 15.5f }, 0 }
+                    } },
+                };
+                int anchorLoc = HEAD_TEXTURE_ANCHOR(headType);
+                int vertexCount = gModel.vertexCount;
+                gUsingTransform = 1;
+                saveModelElements(boxIndex, type, dataVal, anchorLoc, piglinElements, sizeof(piglinElements) / sizeof(ModelElement), yAngle);
+                for (int ear = 0; ear < 2; ear++) {
+                    // tilt the ear out about its hinge, at its top, in the middle of the head's side. translateToOriginMtx puts the block's
+                    // center, pixel (8,8,8), at the origin. A positive Z angle in rotateMtx turns the top of an upright piece toward +X, so
+                    // the west ear's angle is positive, swinging its bottom out to the west, and the east ear's negative.
+                    float hingeX = ear ? 12.5f : 3.5f;
+                    float hingeY = headY + 6.0f;
+                    float hingeZ = headZ + 4.0f;
+                    int earVertexCount = gModel.vertexCount;
+                    saveModelElements(boxIndex, type, dataVal, anchorLoc, &earElements[ear], 1, yAngle);
+                    identityMtx(mtx);
+                    translateToOriginMtx(mtx, boxIndex);
+                    translateMtx(mtx, (8.0f - hingeX) / 16.0f, (8.0f - hingeY) / 16.0f, (8.0f - hingeZ) / 16.0f);
+                    rotateMtx(mtx, 0.0f, 0.0f, ear ? -PIGLIN_EAR_ANGLE : PIGLIN_EAR_ANGLE);
+                    translateMtx(mtx, (hingeX - 8.0f) / 16.0f, (hingeY - 8.0f) / 16.0f, (hingeZ - 8.0f) / 16.0f);
+                    translateFromOriginMtx(mtx, boxIndex);
+                    transformVertices(gModel.vertexCount - earVertexCount, mtx);
+                }
+                // turn the whole head into place
+                identityMtx(mtx);
+                translateToOriginMtx(mtx, boxIndex);
+                rotateMtx(mtx, 0.0f, yAngle, 0.0f);
+                translateFromOriginMtx(mtx, boxIndex);
+                transformVertices(gModel.vertexCount - vertexCount, mtx);
+                gUsingTransform = 0;
+                break; // saveBillboardOrGeometry
+            }
+
+            // the hat sticks out from the head, so it's not made for 3D printing
+            bool hat = ((headType == 2) || (headType == 3)) && !gModel.print3D;
+            float hy = headY - 0.25f;
+            float hz = headZ - 0.25f;
+            ModelElement headElements[] = {
+                { { 4.0f, headY, headZ }, { 12.0f, headY + 8.0f, headZ + 8.0f }, 6, {
+                    { DIRECTION_BLOCK_TOP, { 8.0f, 4.0f, 4.0f, 0.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 12.0f, 0.0f, 8.0f, 4.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0.0f, 4.0f, 4.0f, 8.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4.0f, 4.0f, 8.0f, 8.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8.0f, 4.0f, 12.0f, 8.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 12.0f, 4.0f, 16.0f, 8.0f }, 0 }
+                } },
+                { { 3.75f, hy, hz }, { 12.25f, hy + 8.5f, hz + 8.5f }, 6, {
+                    { DIRECTION_BLOCK_TOP, { 8.0f, 12.0f, 4.0f, 8.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 12.0f, 8.0f, 8.0f, 12.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0.0f, 12.0f, 4.0f, 16.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4.0f, 12.0f, 8.0f, 16.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8.0f, 12.0f, 12.0f, 16.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 12.0f, 12.0f, 16.0f, 16.0f }, 0 }
+                } },
+            };
+            saveTurnedModel(boxIndex, type, dataVal, HEAD_TEXTURE_ANCHOR(headType), headElements, hat ? 2 : 1, yAngle);
+            break; // saveBillboardOrGeometry
+        }
+
+        // an unknown head type: make pumpkin, scale it down, and prepare to translate and rotate it, etc.
         gUsingTransform = 1;
         swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = SWATCH_INDEX(7, 7);	// front face, as a start
         swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX(6, 7);
@@ -9313,44 +10575,91 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break; // saveBillboardOrGeometry
 
     case BLOCK_BED:						// saveBillboardOrGeometry
-        // side of bed - head or foot?
-        gUsingTransform = 1;
+    {
+        // Minecraft's block/template_bed_foot.json and template_bed_head.json, used verbatim: a 16x6x16 box on two 3x3x3 legs, at the
+        // corners of the half's end, each face with its own 16x16 texture (see BED_TILE). The models face north, the way the head is
+        // from the foot; bits 0x3 are the facing, 0 = south, 1 = west, 2 = north, 3 = east, turned into Minecraft's blockstate "y".
+        // Neither half's box has a face where it meets the other half. If the other half is missing, or each block is exported by itself,
+        // a cap closes the box, textured as the half's end.
+        int color = BED_COLOR(dataVal);
+        int bedFacing = dataVal & 0x3;
+        float yAngle = 90.0f * (float)((bedFacing + 2) % 4);
+        // the direction of the head from the foot, for each facing
+        static const int headDirection[4] = { DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_X };
+        int down = BED_DOWN_TILE;
+        int north = BED_HEAD_NORTH_TILE;
+        bool individualBed = (gModel.options->exportFlags & EXPT_INDIVIDUAL_BLOCKS) != 0;
         if (dataVal & 0x8)
         {
-            // head of bed.
-            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = SWATCH_INDEX(7, 9);
-            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX(7, 9);
-            swatchLocSet[DIRECTION_BLOCK_TOP] = SWATCH_INDEX(7, 8);
-            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = SWATCH_INDEX(5, 9);  // should normally get removed by neighbor tester code
-            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = SWATCH_INDEX(8, 9);
-            // Note: for rendering we might print an open-ended bed - could test neighbor to see if other half of bed is there.
-            // For 3D printing we can't risk it, so cap the middle of the bed.
-            saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_BOTTOM_BIT | (gModel.print3D ? 0x0 : DIR_LO_X_BIT), FLIP_LO_Z_FACE_VERTICALLY, 0,
-                0, 16, 0, 9, 0, 16);
+            // the head: is the foot behind it?
+            int footIndex = boxIndex - gFaceOffset[headDirection[bedFacing]];
+            bool capped = individualBed || !((gBoxData[footIndex].origType == BLOCK_BED) && ((gBoxData[footIndex].data & 0xB) == bedFacing));
+            int east = BED_TILE(color, BED_HEAD_EAST);
+            int west = BED_TILE(color, BED_HEAD_WEST);
+            ModelElement headElements[] = {
+                { { 0.0f, 3.0f, 0.0f }, { 16.0f, 9.0f, 16.0f }, capped ? 6 : 5, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0.0f, 0.0f, 16.0f, 16.0f }, 0, 0, down },
+                    { DIRECTION_BLOCK_TOP, { 0.0f, 0.0f, 16.0f, 16.0f }, 0, 0, BED_TILE(color, BED_HEAD_UP) },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 7.0f, 16.0f, 13.0f }, 0, 0, north },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0.0f, 7.0f, 16.0f, 13.0f }, 0, 0, west },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0.0f, 7.0f, 16.0f, 13.0f }, 0, 0, east },
+                    // the cap, where the foot would be
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0.0f, 7.0f, 16.0f, 13.0f }, 0, 0, north }
+                } },
+                { { 0.0f, 0.0f, 0.0f }, { 3.0f, 3.0f, 3.0f }, 5, {
+                    { DIRECTION_BLOCK_BOTTOM, { 6.0f, 13.0f, 9.0f, 16.0f }, 0, 0, west },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 13.0f, 13.0f, 16.0f, 16.0f }, 0, 0, north },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3.0f, 13.0f, 6.0f, 16.0f }, 0, 0, west },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0.0f, 13.0f, 3.0f, 16.0f }, 0, 0, west },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 10.0f, 13.0f, 13.0f, 16.0f }, 0, 0, north }
+                } },
+                { { 13.0f, 0.0f, 0.0f }, { 16.0f, 3.0f, 3.0f }, 5, {
+                    { DIRECTION_BLOCK_BOTTOM, { 7.0f, 13.0f, 10.0f, 16.0f }, 0, 0, east },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 13.0f, 3.0f, 16.0f }, 0, 0, north },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 10.0f, 13.0f, 13.0f, 16.0f }, 0, 0, east },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 3.0f, 13.0f, 6.0f, 16.0f }, 0, 0, north },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 13.0f, 13.0f, 16.0f, 16.0f }, 0, 0, east }
+                } },
+            };
+            saveTurnedModel(boxIndex, type, dataVal, BED_TILE(color, BED_HEAD_UP), headElements, sizeof(headElements) / sizeof(ModelElement), yAngle);
         }
         else
         {
-            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = SWATCH_INDEX(6, 9);
-            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = SWATCH_INDEX(6, 9);
-            swatchLocSet[DIRECTION_BLOCK_TOP] = SWATCH_INDEX(6, 8);
-            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = SWATCH_INDEX(5, 9);
-            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = SWATCH_INDEX(8, 9);  // should normally get removed by neighbor tester code
-            saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_BOTTOM_BIT | (gModel.print3D ? 0x0 : DIR_HI_X_BIT), FLIP_LO_Z_FACE_VERTICALLY, 0,
-                0, 16, 0, 9, 0, 16);
+            // the foot: is the head ahead of it?
+            int headIndex = boxIndex + gFaceOffset[headDirection[bedFacing]];
+            bool capped = individualBed || !((gBoxData[headIndex].origType == BLOCK_BED) && ((gBoxData[headIndex].data & 0xB) == (bedFacing | 0x8)));
+            int east = BED_TILE(color, BED_FOOT_EAST);
+            int west = BED_TILE(color, BED_FOOT_WEST);
+            int south = BED_TILE(color, BED_FOOT_SOUTH);
+            ModelElement footElements[] = {
+                { { 0.0f, 3.0f, 0.0f }, { 16.0f, 9.0f, 16.0f }, capped ? 6 : 5, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0.0f, 0.0f, 16.0f, 16.0f }, 0, 0, down },
+                    { DIRECTION_BLOCK_TOP, { 0.0f, 0.0f, 16.0f, 16.0f }, 0, 0, BED_TILE(color, BED_FOOT_UP) },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0.0f, 7.0f, 16.0f, 13.0f }, 0, 0, south },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0.0f, 7.0f, 16.0f, 13.0f }, 0, 0, west },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0.0f, 7.0f, 16.0f, 13.0f }, 0, 0, east },
+                    // the cap, where the head would be
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 7.0f, 16.0f, 13.0f }, 0, 0, south }
+                } },
+                { { 0.0f, 0.0f, 13.0f }, { 3.0f, 3.0f, 16.0f }, 5, {
+                    { DIRECTION_BLOCK_BOTTOM, { 7.0f, 13.0f, 10.0f, 16.0f }, 0, 0, west },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 10.0f, 13.0f, 13.0f, 16.0f }, 0, 0, west },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0.0f, 13.0f, 3.0f, 16.0f }, 0, 0, south },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 13.0f, 13.0f, 16.0f, 16.0f }, 0, 0, west },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 3.0f, 13.0f, 6.0f, 16.0f }, 0, 0, south }
+                } },
+                { { 13.0f, 0.0f, 13.0f }, { 16.0f, 3.0f, 16.0f }, 5, {
+                    { DIRECTION_BLOCK_BOTTOM, { 6.0f, 13.0f, 9.0f, 16.0f }, 0, 0, east },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3.0f, 13.0f, 6.0f, 16.0f }, 0, 0, east },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 13.0f, 13.0f, 16.0f, 16.0f }, 0, 0, south },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 10.0f, 13.0f, 13.0f, 16.0f }, 0, 0, south },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0.0f, 13.0f, 3.0f, 16.0f }, 0, 0, east }
+                } },
+            };
+            saveTurnedModel(boxIndex, type, dataVal, BED_TILE(color, BED_FOOT_UP), footElements, sizeof(footElements) / sizeof(ModelElement), yAngle);
         }
-        gUsingTransform = 0;
-        identityMtx(mtx);
-        translateToOriginMtx(mtx, boxIndex);
-        rotateMtx(mtx, 0.0f, 90.0f * (((dataVal & 0x3) + 1) % 4), 0.0f);
-        // undo translation
-        translateFromOriginMtx(mtx, boxIndex);
-        transformVertices(8, mtx);
-
-        // add bottom at bottom, just in case bed is open to world
-        swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_OAK_PLANKS].txrX, gBlockDefinitions[BLOCK_OAK_PLANKS].txrY);
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT, 0, 0, 16,
-            (gModel.print3D ? 0.0f : 3.0f), (gModel.print3D ? 0.0f : 3.0f), 0, 16);
-        break; // saveBillboardOrGeometry
+    }
+    break; // saveBillboardOrGeometry
 
     case BLOCK_CACTUS:						// saveBillboardOrGeometry
         // are top and bottom needed?
@@ -9570,6 +10879,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLoc + 1;
             swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc + 1;
             swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc + 2;	// front
+            if (type == BLOCK_CHEST || type == BLOCK_TRAPPED_CHEST) {
+                // there's no bottom tile (swatchLoc + 4 is the brown mushroom), so use the top, as double chests do
+                swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc;
+            }
             faceMask = 0x0;
             break;
         case 1:	// left
@@ -9735,10 +11048,11 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         swatchLoc = SWATCH_INDEX(3, 8 + (type == BLOCK_REDSTONE_REPEATER_ON));
         angle = 90.0f * (float)(dataVal & 0x3);
         gUsingTransform = 1;
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0, 0, 16, 14, 16, 0, 16);
+        // as in Minecraft's repeater models, the slab's sides and bottom are smooth stone
+        sideSwatchLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_SMOOTH_STONE].txrX, gBlockDefinitions[BLOCK_SMOOTH_STONE].txrY);
+        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, sideSwatchLoc, sideSwatchLoc, 1, 0x0, 0, 0, 16, 0, 2, 0, 16);
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
-        translateMtx(mtx, 0.0f, -14.0f / 16.0f, 0.0f);
         rotateMtx(mtx, 0.0f, angle, 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(8, mtx);
@@ -9748,16 +11062,20 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             totalVertexCount = gModel.vertexCount;
             // locked?
             if (dataVal & 0x10) {
-                // locked block, I think it's made of bedrock?
+                // the lock, a bedrock bar, as in Minecraft's repeater_*_locked models; it's moved down and into place with the
+                // slideable torch, next
+                static const int lockFace[5] = { DIRECTION_BLOCK_TOP, DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
+                static const float lockUV[5][4] = { { 7.0f, 2.0f, 9.0f, 14.0f }, { 2.0f, 7.0f, 14.0f, 9.0f }, { 2.0f, 7.0f, 14.0f, 9.0f },
+                    { 6.0f, 7.0f, 8.0f, 9.0f }, { 6.0f, 7.0f, 8.0f, 9.0f } };
                 swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_BEDROCK].txrX, gBlockDefinitions[BLOCK_BEDROCK].txrY);
-                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_BOTTOM_BIT, 7, 9, 5, 7, 2, 14);
-                // unrotated looks bad: saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_BOTTOM_BIT, 2, 14, 5, 7, 7, 9);
-                int blockVertexCount = gModel.vertexCount - totalVertexCount;
-                identityMtx(mtx);
-                translateToOriginMtx(mtx, boxIndex);
-                rotateMtx(mtx, 0.0f, 90.0f, 0.0f);
-                translateFromOriginMtx(mtx, boxIndex);
-                transformVertices(blockVertexCount, mtx);
+                int startVertexIndex = saveBoxCustomUVVertices(boxIndex, 2.0f, 14.0f, 5.0f, 7.0f, 7.0f, 9.0f);
+                if (startVertexIndex < 0)
+                    return MW_WORLD_EXPORT_TOO_LARGE;
+                for (int f = 0; f < 5; f++) {
+                    retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, lockFace[f], 0, swatchLoc, lockUV[f], (f == 0) ? 90 : 0);
+                    if (retCode >= MW_BEGIN_ERRORS)
+                        return retCode;
+                }
             }
             else {
                 // second stubby torch
@@ -9796,10 +11114,11 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         swatchLoc = SWATCH_INDEX(14 + in_powered, 14);
         angle = 90.0f * (float)(dataVal & 0x3);
         gUsingTransform = 1;
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0, 0, 16, 14, 16, 0, 16);
+        // as in Minecraft's comparator models, the slab's sides and bottom are smooth stone
+        sideSwatchLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_SMOOTH_STONE].txrX, gBlockDefinitions[BLOCK_SMOOTH_STONE].txrY);
+        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, sideSwatchLoc, sideSwatchLoc, 1, 0x0, 0, 0, 16, 0, 2, 0, 16);
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
-        translateMtx(mtx, 0.0f, -14.0f / 16.0f, 0.0f);
         rotateMtx(mtx, 0.0f, angle, 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(8, mtx);
@@ -9830,13 +11149,13 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             translateFromOriginMtx(mtx, boxIndex);
             transformVertices(totalVertexCount, mtx);
 
-            // the inner one moved 1 more down if not powered
+            // the front one, 3 pixels high, lit in subtract mode, as in Minecraft's comparator models
             totalVertexCount = gModel.vertexCount;
-            saveBillboardFacesExtraData(boxIndex, out_powered ? BLOCK_REDSTONE_TORCH_ON : BLOCK_REDSTONE_TORCH_OFF, BB_TORCH, 0x5 | (out_powered ? 0x20 : 0x30), 0);
+            saveBillboardFacesExtraData(boxIndex, out_powered ? BLOCK_REDSTONE_TORCH_ON : BLOCK_REDSTONE_TORCH_OFF, BB_TORCH, 0x5 | 0x20, 0);
             totalVertexCount = gModel.vertexCount - totalVertexCount;
             identityMtx(mtx);
             translateToOriginMtx(mtx, boxIndex);
-            translateMtx(mtx, 0.0f, out_powered ? -5.0f / 16.0f : -6.0f / 16.0f, -5.0f / 16.0f);
+            translateMtx(mtx, 0.0f, -5.0f / 16.0f, -5.0f / 16.0f);
             rotateMtx(mtx, 0.0f, angle, 0.0f);
             translateFromOriginMtx(mtx, boxIndex);
             transformVertices(totalVertexCount, mtx);
@@ -9849,9 +11168,27 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         saveBoxGeometry(boxIndex, BLOCK_GLASS, 0, 1, 0x0, 0, 16, 0, 16, 0, 16);
         if (!gModel.print3D)
         {
-            // chewy interior
-            saveBoxGeometry(boxIndex, BLOCK_BEACON, dataVal, 0, DIR_BOTTOM_BIT, 3, 13, 3, 13, 3, 13);
-            saveBoxGeometry(boxIndex, BLOCK_OBSIDIAN, 0, 0, 0x0, 2, 14, 0, 3, 2, 14);
+            // Minecraft's beacon model: inside the glass, the obsidian base (0.1 pixel up in Minecraft, Z_FIGHTING_BIAS here) and
+            // the beacon itself, each with its own material
+            static const int beaconFace[6] = { DIRECTION_BLOCK_BOTTOM, DIRECTION_BLOCK_TOP, DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
+            static const float obsidianUV[6][4] = { { 2, 2, 14, 14 }, { 2, 2, 14, 14 }, { 2, 13, 14, 16 }, { 2, 13, 14, 16 }, { 2, 13, 14, 16 }, { 2, 13, 14, 16 } };
+            static const float coreUV[6][4] = { { 3, 3, 13, 13 }, { 3, 3, 13, 13 }, { 3, 2, 13, 13 }, { 3, 2, 13, 13 }, { 3, 2, 13, 13 }, { 3, 2, 13, 13 } };
+            int obsidianLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_OBSIDIAN].txrX, gBlockDefinitions[BLOCK_OBSIDIAN].txrY);
+            int coreLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_BEACON].txrX, gBlockDefinitions[BLOCK_BEACON].txrY);
+            gUsingTransform = 1;
+            int startVertexIndex = saveBoxCustomUVVertices(boxIndex, 2.0f, 14.0f, Z_FIGHTING_BIAS, 3.0f, 2.0f, 14.0f);
+            if (startVertexIndex < 0)
+                return MW_WORLD_EXPORT_TOO_LARGE;
+            for (int f = 0; f < 6; f++)
+                retCode |= saveBoxModelFace(startVertexIndex, BLOCK_OBSIDIAN, 0, beaconFace[f], 0, obsidianLoc, obsidianUV[f], 0);
+            startVertexIndex = saveBoxCustomUVVertices(boxIndex, 3.0f, 13.0f, 3.0f, 14.0f, 3.0f, 13.0f);
+            if (startVertexIndex < 0)
+                return MW_WORLD_EXPORT_TOO_LARGE;
+            for (int f = 0; f < 6; f++)
+                retCode |= saveBoxModelFace(startVertexIndex, BLOCK_BEACON, dataVal, beaconFace[f], 0, coreLoc, coreUV[f], 0);
+            gUsingTransform = 0;
+            if (retCode >= MW_BEGIN_ERRORS)
+                return retCode;
         }
         break; // saveBillboardOrGeometry
 
@@ -9865,120 +11202,130 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break; // saveBillboardOrGeometry
 
     case BLOCK_BREWING_STAND:						// saveBillboardOrGeometry
+    {
         // brewing stand exports as an ugly block for 3D printing - too delicate to print. Check that we're not printing
         assert(!gModel.print3D);
-        swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-        // post
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, 0x0, 0, 7, 9, 0, 14, 7, 9);
-        // go through the three bottle locations
+        // Minecraft's multipart model: brewing_stand, the rod and the base's three feet, and for each of the three slots (dataVal
+        // bits 0x1, 0x2, 0x4) brewing_stand_bottle0-2 or brewing_stand_empty0-2, flat elements, the second and third turned 45
+        // degrees about Y. The bottles' backs are output only when billboards are doubled.
+        int standLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+        int baseLoc = standLoc - 1;
+        ModelElement standElements[7] = {
+            { { 7, 0, 7 }, { 9, 14, 9 }, 6, { { DIRECTION_BLOCK_BOTTOM, { 7, 7, 9, 9 }, 0 }, { DIRECTION_BLOCK_TOP, { 7, 7, 9, 9 }, 0 },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 7, 2, 9, 16 }, 0 }, { DIRECTION_BLOCK_SIDE_HI_Z, { 7, 2, 9, 16 }, 0 },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 7, 2, 9, 16 }, 0 }, { DIRECTION_BLOCK_SIDE_HI_X, { 7, 2, 9, 16 }, 0 } } },
+            { { 9, 0, 5 }, { 15, 2, 11 }, 6, { { DIRECTION_BLOCK_BOTTOM, { 9, 5, 15, 11 }, 0, 0, baseLoc }, { DIRECTION_BLOCK_TOP, { 9, 5, 15, 11 }, 0, 0, baseLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 9, 14, 15, 16 }, 0, 0, baseLoc }, { DIRECTION_BLOCK_SIDE_HI_Z, { 9, 14, 15, 16 }, 0, 0, baseLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 5, 14, 11, 16 }, 0, 0, baseLoc }, { DIRECTION_BLOCK_SIDE_HI_X, { 5, 14, 11, 16 }, 0, 0, baseLoc } } },
+            { { 1, 0, 1 }, { 7, 2, 7 }, 6, { { DIRECTION_BLOCK_BOTTOM, { 1, 1, 7, 7 }, 0, 0, baseLoc }, { DIRECTION_BLOCK_TOP, { 1, 1, 7, 7 }, 0, 0, baseLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 14, 7, 16 }, 0, 0, baseLoc }, { DIRECTION_BLOCK_SIDE_HI_Z, { 1, 14, 7, 16 }, 0, 0, baseLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 1, 14, 7, 16 }, 0, 0, baseLoc }, { DIRECTION_BLOCK_SIDE_HI_X, { 1, 14, 7, 16 }, 0, 0, baseLoc } } },
+            { { 1, 0, 9 }, { 7, 2, 15 }, 6, { { DIRECTION_BLOCK_BOTTOM, { 1, 9, 7, 15 }, 0, 0, baseLoc }, { DIRECTION_BLOCK_TOP, { 1, 9, 7, 15 }, 0, 0, baseLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 14, 7, 16 }, 0, 0, baseLoc }, { DIRECTION_BLOCK_SIDE_HI_Z, { 1, 14, 7, 16 }, 0, 0, baseLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 9, 14, 15, 16 }, 0, 0, baseLoc }, { DIRECTION_BLOCK_SIDE_HI_X, { 9, 14, 15, 16 }, 0, 0, baseLoc } } },
+        };
+        // the three slots, each with a bottle or empty
+        static const ModelElement slotElements[3][2] = {
+            {
+                { { 8, 0, 8 }, { 16, 16, 8 }, 2, { { DIRECTION_BLOCK_SIDE_LO_Z, { 16, 0, 8, 16 }, 0 }, { DIRECTION_BLOCK_SIDE_HI_Z, { 8, 0, 16, 16 }, 0, 1 } } },
+                { { 8, 0, 8 }, { 16, 16, 8 }, 2, { { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 8, 16 }, 0 }, { DIRECTION_BLOCK_SIDE_HI_Z, { 8, 0, 0, 16 }, 0, 1 } } },
+            },
+            {
+                { { -0.41f, 0, 8 }, { 7.59f, 16, 8 }, 2, { { DIRECTION_BLOCK_SIDE_LO_Z, { 8, 0, 16, 16 }, 0 }, { DIRECTION_BLOCK_SIDE_HI_Z, { 16, 0, 8, 16 }, 0, 1 } }, -45.0f, { 8, 8, 8 } },
+                { { -0.41f, 0, 8 }, { 7.59f, 16, 8 }, 2, { { DIRECTION_BLOCK_SIDE_LO_Z, { 8, 0, 0, 16 }, 0 }, { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 8, 16 }, 0, 1 } }, -45.0f, { 8, 8, 8 } },
+            },
+            {
+                { { -0.41f, 0, 8 }, { 7.59f, 16, 8 }, 2, { { DIRECTION_BLOCK_SIDE_LO_Z, { 8, 0, 16, 16 }, 0 }, { DIRECTION_BLOCK_SIDE_HI_Z, { 16, 0, 8, 16 }, 0, 1 } }, 45.0f, { 8, 8, 8 } },
+                { { -0.41f, 0, 8 }, { 7.59f, 16, 8 }, 2, { { DIRECTION_BLOCK_SIDE_LO_Z, { 8, 0, 0, 16 }, 0 }, { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 8, 16 }, 0, 1 } }, 45.0f, { 8, 8, 8 } },
+            }
+        };
         for (i = 0; i < 3; i++)
-        {
-            // is the bottle filled or not?
-            filled = ((0x1 << i) & dataVal) ? 1 : 0;
-
-            angle = i * 120.0f + filled * 180.0f;
-
-            totalVertexCount = gModel.vertexCount;
-            // vertical billboards
-            // The bottom three bits are bit flags for which bottle slots actually contain bottles. The actual bottle contents (and the reagent at the top) are stored in a TileEntity for this block, not in the data field.
-            // 0x1: The slot pointing east
-            // 0x2: The slot pointing southwest
-            // 0x4: The slot pointing northwest
-            // Set angle and whether there is a bottle.
-            // We don't look at (or have!) TileEntity data at this point. TODO
-            gUsingTransform = 1;
-            // need multi so we can flip Z vertically
-            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 9 - (float)filled * 9, 16 - (float)filled * 9, 0, 16, 8, 8);
-            gUsingTransform = 0;
-            totalVertexCount = gModel.vertexCount - totalVertexCount;
-            identityMtx(mtx);
-            translateToOriginMtx(mtx, boxIndex);
-            //translateMtx(mtx, 0.0f, out_powered ? -3.0f/16.0f : -6.0f/16.0f, -5.0f/16.0f );
-            rotateMtx(mtx, 0.0f, angle, 0.0f);
-            translateFromOriginMtx(mtx, boxIndex);
-            transformVertices(totalVertexCount, mtx);
-        }
-
-        // base
-        swatchLoc = (TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) - 1);
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, 0x0, 0, 2, 8, 0, 2, 1, 7);
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, 0x0, 0, 2, 8, 0, 2, 9, 15);
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, 0x0, 0, 9, 15, 0, 2, 5, 11);
-        break; // saveBillboardOrGeometry
+            standElements[4 + i] = slotElements[i][((0x1 << i) & dataVal) ? 1 : 0];
+        gUsingTransform = 1;
+        retCode |= saveModelElements(boxIndex, type, dataVal, standLoc, standElements, 7, 0.0f);
+        gUsingTransform = 0;
+        if (retCode >= MW_BEGIN_ERRORS)
+            return retCode;
+    }
+    break; // saveBillboardOrGeometry
 
     case BLOCK_LEVER:						// saveBillboardOrGeometry
-        // make the lever on the ground, facing east, then move it into position
-        uberTotalVertexCount = gModel.vertexCount;
-        totalVertexCount = gModel.vertexCount;
-        littleTotalVertexCount = gModel.vertexCount;
-        // tip - move over by 1
-        gUsingTransform = 1;
-        saveBoxGeometry(boxIndex, BLOCK_LEVER, dataVal, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT, 7, 9, 10, 10, 6, 8);
-        littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-        identityMtx(mtx);
-        translateMtx(mtx, 0.0f, 0.0f, 1.0f / 16.0f);
-        transformVertices(littleTotalVertexCount, mtx);
+    {
+        // Minecraft's lever (powered) and lever_on models, on the floor facing north, turned as the blockstate says, by "x" and then
+        // "y". The base is nudged -0.02 in Y, as in Minecraft. The handle is turned about X: by -45 degrees in lever, toward the north,
+        // and by 45 in lever_on, toward the south. Floor and ceiling levers keep just an axis and whether the handle points one way
+        // or the other along it (see nbt.cpp), so these are given as unpowered levers, using lever_on.
+        // down, up, north, south, west, east
+        static const int boxFace[6] = { DIRECTION_BLOCK_BOTTOM, DIRECTION_BLOCK_TOP, DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
+        static const float baseUV[6][4] = { { 5.0f, 4.0f, 11.0f, 12.0f }, { 5.0f, 4.0f, 11.0f, 12.0f }, { 5.0f, 0.0f, 11.0f, 3.0f },
+            { 5.0f, 0.0f, 11.0f, 3.0f }, { 4.0f, 0.0f, 12.0f, 3.0f }, { 4.0f, 0.0f, 12.0f, 3.0f } };
+        static const float handleUV[6][4] = { { 0.0f, 0.0f, 0.0f, 0.0f }, { 7.0f, 6.0f, 9.0f, 8.0f }, { 7.0f, 6.0f, 9.0f, 16.0f },
+            { 7.0f, 6.0f, 9.0f, 16.0f }, { 7.0f, 6.0f, 9.0f, 16.0f }, { 7.0f, 6.0f, 9.0f, 16.0f } };
+        // blockstate x and y rotations, and whether the lever_on model is used, for each dataVal & 0x7, and for dataVal & 0x8 off or on
+        static const int leverState[8][2][3] = {
+            { { 180, 90, 1 }, { 180, 270, 1 } },    // 0: ceiling, east-west: west, east
+            { { 90, 90, 1 }, { 90, 90, 0 } },       // 1: wall, east
+            { { 90, 270, 1 }, { 90, 270, 0 } },     // 2: wall, west
+            { { 90, 180, 1 }, { 90, 180, 0 } },     // 3: wall, south
+            { { 90, 0, 1 }, { 90, 0, 0 } },         // 4: wall, north
+            { { 0, 0, 1 }, { 0, 180, 1 } },         // 5: floor, north-south: north, south
+            { { 0, 270, 1 }, { 0, 90, 1 } },        // 6: floor, east-west: west, east
+            { { 180, 180, 1 }, { 180, 0, 1 } },     // 7: ceiling, north-south: north, south
+        };
+        int leverState3[3];
+        memcpy(leverState3, leverState[dataVal & 0x7][(dataVal & 0x8) ? 1 : 0], sizeof(leverState3));
+        // a powered floor or ceiling lever (0x10, see nbt.cpp) is Minecraft's lever model turned half around, which points the
+        // handle the same way as the unpowered lever_on, but turns the base's and handle's texture
+        if ((dataVal & 0x10) && (leverState3[0] != 90)) {
+            leverState3[1] = (leverState3[1] + 180) % 360;
+            leverState3[2] = 0;
+        }
+        const int* state = leverState3;
+        int leverLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_LEVER].txrX, gBlockDefinitions[BLOCK_LEVER].txrY);
+        int baseLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_COBBLESTONE].txrX, gBlockDefinitions[BLOCK_COBBLESTONE].txrY);
 
-        // add lever - always mask top face, which is output above. Use bottom face if 3D printing, to make object watertight.
-        // That said, levers are not currently exported when 3D printing, but just in case we ever do...
-        saveBoxGeometry(boxIndex, BLOCK_LEVER, dataVal, 0, (gModel.print3D ? 0x0 : DIR_BOTTOM_BIT) | DIR_TOP_BIT, 7, 9, 0, 10, 7, 9);
-        totalVertexCount = gModel.vertexCount - totalVertexCount;
+        gUsingTransform = 1;
+        uberTotalVertexCount = gModel.vertexCount;
+        // the handle, which has no bottom face
+        int startVertexIndex = saveBoxCustomUVVertices(boxIndex, 7.0f, 9.0f, 1.0f, 11.0f, 7.0f, 9.0f);
+        if (startVertexIndex < 0)
+            return MW_WORLD_EXPORT_TOO_LARGE;
+        for (int f = 1; f < 6; f++) {
+            retCode |= saveBoxModelFace(startVertexIndex, BLOCK_LEVER, dataVal, boxFace[f], (f == 1), leverLoc, handleUV[f], 0);
+            if (retCode >= MW_BEGIN_ERRORS)
+                return retCode;
+        }
+        // turn it about its bottom's center, (8, 1, 8); a positive X angle in rotateMtx turns the top toward -Z, the opposite of
+        // Minecraft's element rotation
+        totalVertexCount = gModel.vertexCount - uberTotalVertexCount;
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
-        translateMtx(mtx, 0.0f, 9.5f / 16.0f, 0.0f);
-        // tips of levers almost touch
-        rotateMtx(mtx, 0.0f, 0.0f, 38.8f);
-        translateMtx(mtx, 0.0f, -8.0f / 16.0f, 0.0f);
+        translateMtx(mtx, 0.0f, 7.0f / 16.0f, 0.0f);
+        rotateMtx(mtx, state[2] ? -45.0f : 45.0f, 0.0f, 0.0f);
+        translateMtx(mtx, 0.0f, -7.0f / 16.0f, 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(totalVertexCount, mtx);
 
-        saveBoxGeometry(boxIndex, BLOCK_COBBLESTONE, 0, 0, 0x0, 4, 12, 0, 3, 5, 11);
+        // the base
+        startVertexIndex = saveBoxCustomUVVertices(boxIndex, 5.0f, 11.0f, -0.02f, 2.98f, 4.0f, 12.0f);
+        if (startVertexIndex < 0)
+            return MW_WORLD_EXPORT_TOO_LARGE;
+        for (int f = 0; f < 6; f++) {
+            retCode |= saveBoxModelFace(startVertexIndex, BLOCK_COBBLESTONE, 0, boxFace[f], 0, baseLoc, baseUV[f], 0);
+            if (retCode >= MW_BEGIN_ERRORS)
+                return retCode;
+        }
 
         uberTotalVertexCount = gModel.vertexCount - uberTotalVertexCount;
-        // transform lever as a whole
-        yrot = (dataVal & 0x8) ? 180.0f : 0.0f;
-        xrot = zrot = 0.0f;
-        switch (dataVal & 0x7)
-        {
-        case 1:	// facing east
-            yrot += 180.0f;
-            zrot = 90.0f;
-            break;
-        case 2:	// facing west
-            yrot += 0.0f;
-            zrot = -90.0f;
-            break;
-        case 3:	// facing south
-            yrot += 270.0f;
-            xrot = -90.0f;
-            break;
-        case 4:	// facing north
-            yrot += 90.0f;
-            xrot = 90.0f;
-            break;
-        case 5:	// ground south off
-            yrot += 90.0f;
-            break;
-        case 6:	// ground east off
-            // no change
-            break;
-        case 7:	// ceiling south off
-            yrot += 90.0f;
-            zrot = 180.0f;
-            break;
-        case 0:	// ceiling east off
-            yrot += 180.0f;
-            zrot = 180.0f;
-            break;
-        }
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
-        rotateMtx(mtx, 0.0f, yrot, 0.0f);
-        rotateMtx(mtx, xrot, 0.0f, zrot);
+        rotateMtx(mtx, (float)state[0], 0.0f, 0.0f);
+        rotateMtx(mtx, 0.0f, (float)state[1], 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(uberTotalVertexCount, mtx);
         gUsingTransform = 0;
-        break; // saveBillboardOrGeometry
+    }
+    break; // saveBillboardOrGeometry
 
     case BLOCK_DAYLIGHT_SENSOR:						// saveBillboardOrGeometry
     case BLOCK_DAYLIGHT_DETECTOR:
@@ -10013,77 +11360,40 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
         // We know at this point that the piston is extended.
         // 10,6 sticky head, 11,6 head, 12,6 side, 13,6 bottom, 14,6 extended top
-        // we form the head pointing up, so the up direction needs no transform
-        bottomDataVal = dataVal & 0x7;
-        // compute two rotations, and piston nubbin visibility.
-        // Piston nubbin visibility:
-        // the top face of the piston is output only in the rare case that the neighboring voxel is empty;
-        // normally the extended piston head is in the next voxel. If we see *anything* else, assert, as
-        // something's probably wrong with the code.
-        yrot = zrot = 0.0f;
-        dir = DIRECTION_BLOCK_TOP;
-        switch (bottomDataVal)
+        // The piston body is Minecraft's piston_extended model, 12 pixels deep, facing north (the inside, against the head, at
+        // Z = 4). With it is the end of the head's arm, the last 4 pixels of template_piston_head's arm, which reaches into this
+        // block (see BLOCK_PISTON_HEAD). Both are turned to face as the blockstate says, by "x" and then "y".
         {
-        case 0: // pointing down
-            dir = DIRECTION_BLOCK_BOTTOM;
-            zrot = 180.0f;
-            break;
-        case 1: // pointing up
-            dir = DIRECTION_BLOCK_TOP;
-            break;
-        case 2: // pointing north
-            dir = DIRECTION_BLOCK_SIDE_LO_Z;
-            zrot = 90.0f;
-            yrot = 270.0f;
-            break;
-        case 3: // pointing south
-            dir = DIRECTION_BLOCK_SIDE_HI_Z;
-            zrot = 90.0f;
-            yrot = 90.0f;
-            break;
-        case 4: // pointing west
-            dir = DIRECTION_BLOCK_SIDE_LO_X;
-            zrot = 90.0f;
-            yrot = 180.0f;
-            break;
-        case 5: // pointing east
-            dir = DIRECTION_BLOCK_SIDE_HI_X;
-            zrot = 90.0f;
-            break;
-        default:
-            assert(0);
-        }
-        neighborType = gBoxData[boxIndex + gFaceOffset[dir]].origType;
-        assert((neighborType == BLOCK_PISTON_HEAD) || (neighborType == BLOCK_AIR));
-
-        totalVertexCount = gModel.vertexCount;
-        littleTotalVertexCount = gModel.vertexCount;
-
-        // we definitely do move the piston shaft into place, always
-        gUsingTransform = 1;
-        // side of piston body:
-        swatchLoc = SWATCH_INDEX(12, 6);
-        // form the piston itself sideways, just the small connecting bit, then we rotate upwards
-        saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1, ((neighborType == BLOCK_PISTON_HEAD) ? DIR_HI_X_BIT : 0x0) | (gModel.print3D ? 0x0 : DIR_LO_X_BIT), 0, 4, 12, 16, 0, 4);
-        littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-
-        identityMtx(mtx);
-        translateToOriginMtx(mtx, boxIndex);
-        rotateMtx(mtx, 0.0f, 0.0f, -90.0f);
-        translateMtx(mtx, 6.0f / 16.0f, 12.0f / 16.0f, 6.0f / 16.0f);
-        translateFromOriginMtx(mtx, boxIndex);
-        transformVertices(littleTotalVertexCount, mtx);
-
-        // piston body
-        gUsingTransform = (bottomDataVal != 1);
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc + 2, swatchLoc, swatchLoc + 1, 0, 0x0, 0, 0, 16, 0, 12, 0, 16);
-        if ((zrot != 0.0) || (yrot != 0.0))
-        {
+            // down, up, north, south, west, east
+            static const float pistonRotation[6][2] = { { 90.0f, 0.0f }, { 270.0f, 0.0f }, { 0.0f, 0.0f }, { 0.0f, 180.0f }, { 0.0f, 270.0f }, { 0.0f, 90.0f } };
+            static const int bodyFace[6] = { DIRECTION_BLOCK_BOTTOM, DIRECTION_BLOCK_TOP, DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
+            static const float bodyUV[6][4] = { { 0.0f, 4.0f, 16.0f, 16.0f }, { 0.0f, 4.0f, 16.0f, 16.0f }, { 0.0f, 0.0f, 16.0f, 16.0f },
+                { 0.0f, 0.0f, 16.0f, 16.0f }, { 0.0f, 4.0f, 16.0f, 16.0f }, { 0.0f, 4.0f, 16.0f, 16.0f } };
+            static const int bodyUVRotation[6] = { 180, 0, 0, 0, 270, 90 };
+            // the arm reaching into this block is drawn with the piston head, as Minecraft does
+            int sideLoc = SWATCH_INDEX(12, 6);
+            // piston_side, piston_inner (the front), piston_bottom (the back)
+            int bodyLoc[6] = { sideLoc, sideLoc, sideLoc + 2, sideLoc + 1, sideLoc, sideLoc };
+            bottomDataVal = dataVal & 0x7;
+            if (bottomDataVal > 5) {
+                assert(0);
+                bottomDataVal = 1;
+            }
+            gUsingTransform = 1;
+            totalVertexCount = gModel.vertexCount;
+            int startVertexIndex = saveBoxCustomUVVertices(boxIndex, 0.0f, 16.0f, 0.0f, 16.0f, 4.0f, 16.0f);
+            if (startVertexIndex < 0)
+                return MW_WORLD_EXPORT_TOO_LARGE;
+            for (int f = 0; f < 6; f++) {
+                retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, bodyFace[f], (f == 0), bodyLoc[f], bodyUV[f], bodyUVRotation[f]);
+                if (retCode >= MW_BEGIN_ERRORS)
+                    return retCode;
+            }
             totalVertexCount = gModel.vertexCount - totalVertexCount;
             identityMtx(mtx);
             translateToOriginMtx(mtx, boxIndex);
-            rotateMtx(mtx, 0.0, 0.0f, zrot);
-            rotateMtx(mtx, 0.0f, yrot, 0.0f);
+            rotateMtx(mtx, pistonRotation[bottomDataVal][0], 0.0f, 0.0f);
+            rotateMtx(mtx, 0.0f, pistonRotation[bottomDataVal][1], 0.0f);
             translateFromOriginMtx(mtx, boxIndex);
             transformVertices(totalVertexCount, mtx);
         }
@@ -10092,91 +11402,175 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
     // The part of the piston that moves.
     case BLOCK_PISTON_HEAD:						// saveBillboardOrGeometry
-        // 10,6 sticky head, 11,6 head, 12,6 side, 13,6 bottom, 14,6 extended top
-        // we form the head pointing up, so the up direction needs no transform
+    {
+        // Minecraft's template_piston_head model (a resting head is not "short"), facing north: the head's plate, 4 pixels thick,
+        // and the arm, which reaches 4 pixels into the piston's body, in the next block, to Z = 20. It's turned to face as the
+        // blockstate says, by "x" and then "y".
+        // 10,6 sticky head, 11,6 head, 12,6 side
+        // down, up, north, south, west, east
+        static const float headRotation[6][2] = { { 90.0f, 0.0f }, { 270.0f, 0.0f }, { 0.0f, 0.0f }, { 0.0f, 180.0f }, { 0.0f, 270.0f }, { 0.0f, 90.0f } };
+        static const int headFace[6] = { DIRECTION_BLOCK_BOTTOM, DIRECTION_BLOCK_TOP, DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
+        static const float plateUV[6][4] = { { 0.0f, 0.0f, 16.0f, 4.0f }, { 0.0f, 0.0f, 16.0f, 4.0f }, { 0.0f, 0.0f, 16.0f, 16.0f },
+            { 0.0f, 0.0f, 16.0f, 16.0f }, { 0.0f, 0.0f, 16.0f, 4.0f }, { 0.0f, 0.0f, 16.0f, 4.0f } };
+        static const int plateUVRotation[6] = { 180, 0, 0, 0, 270, 90 };
+        // the arm has no faces on its ends
+        static const int armFace[4] = { DIRECTION_BLOCK_BOTTOM, DIRECTION_BLOCK_TOP, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
+        static const float armUV[4][4] = { { 0.0f, 0.0f, 16.0f, 4.0f }, { 0.0f, 0.0f, 16.0f, 4.0f }, { 16.0f, 4.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 16.0f, 4.0f } };
+        static const int armUVRotation[4] = { 90, 270, 0, 0 };
+        int sideLoc = SWATCH_INDEX(12, 6);
+        int unstickyLoc = SWATCH_INDEX(11, 6);
+        // dataVal & 0x8 means it's a sticky piston head
+        int platformLoc = (dataVal & 0x8) ? SWATCH_INDEX(10, 6) : unstickyLoc;
+        int plateLoc[6] = { sideLoc, sideLoc, platformLoc, unstickyLoc, sideLoc, sideLoc };
         bottomDataVal = dataVal & 0x7;
-        // compute two rotations, and piston nubbin visibility.
-        // Piston nubbin visibility:
-        // the bottom face of the piston is output only in the rare case that the neighboring piston voxel is empty;
-        // normally the piston body is in the next voxel. If we see *anything* else, assert, as
-        // something's probably wrong with the code.
-        yrot = zrot = 0.0f;
-        dir = DIRECTION_BLOCK_TOP;
-        switch (bottomDataVal)
-        {
-        case 0: // pointing down
-            dir = DIRECTION_BLOCK_TOP;
-            zrot = 180.0f;
-            yrot = 270.0f;
-            break;
-        case 1: // pointing up
-            dir = DIRECTION_BLOCK_BOTTOM;
-            yrot = 270.0f;
-            break;
-        case 2: // pointing north
-            dir = DIRECTION_BLOCK_SIDE_HI_Z;
-            zrot = 90.0f;
-            yrot = 270.0f;
-            break;
-        case 3: // pointing south
-            dir = DIRECTION_BLOCK_SIDE_LO_Z;
-            zrot = 90.0f;
-            yrot = 90.0f;
-            break;
-        case 4: // pointing west
-            dir = DIRECTION_BLOCK_SIDE_HI_X;
-            zrot = 90.0f;
-            yrot = 180.0f;
-            break;
-        case 5: // pointing east
-            dir = DIRECTION_BLOCK_SIDE_LO_X;
-            zrot = 90.0f;
-            break;
-        default:
+        if (bottomDataVal > 5) {
             assert(0);
+            bottomDataVal = 1;
         }
-        // look at neighboring piston block to know what kind of piston head we are.
-        neighborType = gBoxData[boxIndex + gFaceOffset[dir]].origType;
-        assert((neighborType == BLOCK_PISTON) || (neighborType == BLOCK_STICKY_PISTON) || (neighborType == BLOCK_AIR));
 
-        totalVertexCount = gModel.vertexCount;
-        littleTotalVertexCount = gModel.vertexCount;
-
-        // we definitely do move the piston shaft into place, always
         gUsingTransform = 1;
-        // side of piston body:
-        swatchLoc = SWATCH_INDEX(12, 6);
-        // form the piston shaft sideways, just the small bit, then we rotate upwards
-        saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1,
-            (((neighborType == BLOCK_PISTON) || (neighborType == BLOCK_STICKY_PISTON)) ? DIR_LO_X_BIT : 0x0)
-            | (gModel.print3D ? 0x0 : DIR_HI_X_BIT),
-            4, 16, 12, 16, 0, 4);
-        littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-
-        identityMtx(mtx);
-        translateToOriginMtx(mtx, boxIndex);
-        rotateMtx(mtx, 0.0f, 0.0f, -90.0f);
-        translateMtx(mtx, 6.0f / 16.0f, -4.0f / 16.0f, 6.0f / 16.0f);
-        translateFromOriginMtx(mtx, boxIndex);
-        transformVertices(littleTotalVertexCount, mtx);
-
-        // piston head, formed pointing up; dataVal & 0x8 means it's a sticky piston head
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, (dataVal & 0x8) ? (swatchLoc - 2) : (swatchLoc - 1), swatchLoc, swatchLoc - 1, 0, 0x0, 0, 0, 16, 12, 16, 0, 16);
+        totalVertexCount = gModel.vertexCount;
+        int startVertexIndex = saveBoxCustomUVVertices(boxIndex, 0.0f, 16.0f, 0.0f, 16.0f, 0.0f, 4.0f);
+        if (startVertexIndex < 0)
+            return MW_WORLD_EXPORT_TOO_LARGE;
+        for (int f = 0; f < 6; f++) {
+            retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, headFace[f], (f == 0), plateLoc[f], plateUV[f], plateUVRotation[f]);
+            if (retCode >= MW_BEGIN_ERRORS)
+                return retCode;
+        }
+        startVertexIndex = saveBoxCustomUVVertices(boxIndex, 6.0f, 10.0f, 6.0f, 10.0f, 4.0f, 20.0f);
+        if (startVertexIndex < 0)
+            return MW_WORLD_EXPORT_TOO_LARGE;
+        for (int f = 0; f < 4; f++) {
+            retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, armFace[f], 0, sideLoc, armUV[f], armUVRotation[f]);
+            if (retCode >= MW_BEGIN_ERRORS)
+                return retCode;
+        }
         totalVertexCount = gModel.vertexCount - totalVertexCount;
-
-        // now rotate the whole thing into place:
-        // this is a little confused... I think it's Y (always 90), Z, Y rotation
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
-        rotateMtx(mtx, 0.0, 270.0f, zrot);
-        rotateMtx(mtx, 0.0f, yrot, 0.0f);
+        rotateMtx(mtx, headRotation[bottomDataVal][0], 0.0f, 0.0f);
+        rotateMtx(mtx, 0.0f, headRotation[bottomDataVal][1], 0.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(totalVertexCount, mtx);
         gUsingTransform = 0;
-        break; // saveBillboardOrGeometry
+    }
+    break; // saveBillboardOrGeometry
 
     case BLOCK_HOPPER:						// saveBillboardOrGeometry
         swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+        if (!gModel.print3D) {
+            // Minecraft's hopper and hopper_side models, the latter turned by "y"; dataVal 0x7 is 0 (or 1) down, 2-5 north, south,
+            // west, east. The elements are made from the models' JSON.
+            int topLoc = swatchLoc;
+            int sideLoc = swatchLoc - 1;
+            int insideLoc = swatchLoc - 2;
+            ModelElement hopperDownElements[] = {
+            { { 0, 10, 0 }, { 16, 11, 16 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 16 }, 0, 0, insideLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, insideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 5, 16, 6 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 16, 6 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 5, 16, 6 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 5, 16, 6 }, 0, 0, sideLoc }
+            } },
+            { { 0, 11, 0 }, { 2, 16, 16 }, 5, {
+                { DIRECTION_BLOCK_TOP, { 0, 0, 2, 16 }, 0, 0, topLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 0, 16, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 5 }, 0, 0, sideLoc }
+            } },
+            { { 14, 11, 0 }, { 16, 16, 16 }, 5, {
+                { DIRECTION_BLOCK_TOP, { 14, 0, 16, 16 }, 0, 0, topLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 14, 0, 16, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 5 }, 0, 0, sideLoc }
+            } },
+            { { 2, 11, 0 }, { 14, 16, 2 }, 3, {
+                { DIRECTION_BLOCK_TOP, { 2, 0, 14, 2 }, 0, 0, topLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 0, 14, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 0, 14, 5 }, 0, 0, sideLoc }
+            } },
+            { { 2, 11, 14 }, { 14, 16, 16 }, 3, {
+                { DIRECTION_BLOCK_TOP, { 2, 14, 14, 16 }, 0, 0, topLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 0, 14, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 0, 14, 5 }, 0, 0, sideLoc }
+            } },
+            { { 4, 4, 4 }, { 12, 10, 12 }, 5, {
+                { DIRECTION_BLOCK_BOTTOM, { 4, 4, 12, 12 }, 0, 0, insideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 6, 12, 12 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 6, 12, 12 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 4, 6, 12, 12 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 4, 6, 12, 12 }, 0, 0, sideLoc }
+            } },
+            { { 6, 0, 6 }, { 10, 4, 10 }, 5, {
+                { DIRECTION_BLOCK_BOTTOM, { 6, 6, 10, 10 }, 0, 0, insideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 12, 10, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 12, 10, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 6, 12, 10, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 6, 12, 10, 16 }, 0, 0, sideLoc }
+            } },
+            };
+            ModelElement hopperSideElements[] = {
+            { { 0, 10, 0 }, { 16, 11, 16 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 16 }, 0, 0, insideLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, insideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 5, 16, 6 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 16, 6 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 5, 16, 6 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 5, 16, 6 }, 0, 0, sideLoc }
+            } },
+            { { 0, 11, 0 }, { 2, 16, 16 }, 5, {
+                { DIRECTION_BLOCK_TOP, { 0, 0, 2, 16 }, 0, 0, topLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 0, 16, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 5 }, 0, 0, sideLoc }
+            } },
+            { { 14, 11, 0 }, { 16, 16, 16 }, 5, {
+                { DIRECTION_BLOCK_TOP, { 14, 0, 16, 16 }, 0, 0, topLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 14, 0, 16, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 5 }, 0, 0, sideLoc }
+            } },
+            { { 2, 11, 0 }, { 14, 16, 2 }, 3, {
+                { DIRECTION_BLOCK_TOP, { 2, 0, 14, 2 }, 0, 0, topLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 0, 14, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 0, 14, 5 }, 0, 0, sideLoc }
+            } },
+            { { 2, 11, 14 }, { 14, 16, 16 }, 3, {
+                { DIRECTION_BLOCK_TOP, { 2, 14, 14, 16 }, 0, 0, topLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 0, 14, 5 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 0, 14, 5 }, 0, 0, sideLoc }
+            } },
+            { { 4, 4, 4 }, { 12, 10, 12 }, 5, {
+                { DIRECTION_BLOCK_BOTTOM, { 4, 4, 12, 12 }, 0, 0, insideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 6, 12, 12 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 6, 12, 12 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 4, 6, 12, 12 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 4, 6, 12, 12 }, 0, 0, sideLoc }
+            } },
+            { { 6, 4, 0 }, { 10, 8, 4 }, 5, {
+                { DIRECTION_BLOCK_BOTTOM, { 6, 12, 10, 16 }, 0, 0, insideLoc },
+                { DIRECTION_BLOCK_TOP, { 6, 0, 10, 4 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 8, 10, 12 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 8, 4, 12 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 12, 8, 16, 12 }, 0, 0, sideLoc }
+            } },
+            };
+            static const float hopperYAngle[6] = { 0.0f, 0.0f, 0.0f, 180.0f, 270.0f, 90.0f };
+            int hopperFacing = dataVal & 0x7;
+            if (hopperFacing > 5)
+                hopperFacing = 0;
+            if (hopperFacing <= 1)
+                retCode |= saveTurnedModel(boxIndex, type, dataVal, topLoc, hopperDownElements, 7, 0.0f);
+            else
+                retCode |= saveTurnedModel(boxIndex, type, dataVal, topLoc, hopperSideElements, 7, hopperYAngle[hopperFacing]);
+            break;
+        }
         // outsides and bottom
         saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc - 1, swatchLoc - 1, swatchLoc - 1, 1, DIR_TOP_BIT, 0, 0, 16, 10, 16, 0, 16);
         // next level down outsides and bottom
@@ -10252,6 +11646,44 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     {
             bool endRod = (type == BLOCK_END_ROD);
             swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            if (endRod && !gModel.print3D) {
+                // Minecraft's end_rod model, pointing up, turned by the blockstate's "x" and then "y"; dataVal 0x7 points down, up,
+                // north, south, west, east. The elements are made from the model's JSON.
+                ModelElement rodElements[] = {
+                { { 6, 0, 6 }, { 10, 1, 10 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 6, 2, 2 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 2, 2, 6, 6 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 6, 6, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 6, 6, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 2, 6, 6, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 2, 6, 6, 7 }, 0, 0, swatchLoc }
+                } },
+                { { 7, 1, 7 }, { 9, 16, 9 }, 5, {
+                    { DIRECTION_BLOCK_TOP, { 2, 0, 4, 2 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 2, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 2, 15 }, 0, 0, swatchLoc }
+                } },
+                };
+                // "x" and "y" for each direction
+                static const float rodAngle[6][2] = { { 180.0f, 0.0f }, { 0.0f, 0.0f }, { 90.0f, 0.0f }, { 90.0f, 180.0f }, { 90.0f, 270.0f }, { 90.0f, 90.0f } };
+                int rodFacing = dataVal & 0x7;
+                if (rodFacing > 5)
+                    rodFacing = 1;
+                gUsingTransform = 1;
+                totalVertexCount = gModel.vertexCount;
+                retCode |= saveModelElements(boxIndex, type, dataVal, swatchLoc, rodElements, 2, 0.0f);
+                totalVertexCount = gModel.vertexCount - totalVertexCount;
+                identityMtx(mtx);
+                translateToOriginMtx(mtx, boxIndex);
+                rotateMtx(mtx, rodAngle[rodFacing][0], 0.0f, 0.0f);
+                rotateMtx(mtx, 0.0f, rodAngle[rodFacing][1], 0.0f);
+                translateFromOriginMtx(mtx, boxIndex);
+                transformVertices(totalVertexCount, mtx);
+                gUsingTransform = 0;
+                break;
+            }
             if (!endRod) {
                 // lightning rod - determine lit or unlit version
                 if (dataVal & 0x8) {
@@ -10271,15 +11703,43 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                         swatchLoc = SWATCH_INDEX(15, 71);
                         break;
                     case 0x20:
-                        // weathered version
-                        swatchLoc = SWATCH_INDEX(0, 72);
+                        // weathered version (the tile after oxidized)
+                        swatchLoc = SWATCH_INDEX(1, 72);
                         break;
                     case 0x30:
                         // oxidized version
-                        swatchLoc = SWATCH_INDEX(1, 72);
+                        swatchLoc = SWATCH_INDEX(0, 72);
                         break;
                     }
                 }
+            }
+            if (!endRod && !gModel.print3D) {
+                // Minecraft's lightning_rod (and lightning_rod_on, the same shape) model, pointing up, turned by "x" and then "y";
+                // dataVal 0x7 points down, up, north, south, west, east. The elements are made from the model's JSON.
+                ModelElement rodElements[] = {
+                { { 6, 12, 6 }, { 10, 16, 10 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 4, 0, 0 }, 0, 0, swatchLoc }
+                } },
+                { { 7, 0, 7 }, { 9, 12, 9 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 4, 2, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 4, 2, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 4, 2, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 4, 2, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 4, 2, 6 }, 0, 0, swatchLoc }
+                } },
+                };
+                // "x" and "y" for each direction
+                static const int rodAngle[6][2] = { { 180, 0 }, { 0, 0 }, { 90, 0 }, { 90, 180 }, { 90, 270 }, { 90, 90 } };
+                int rodFacing = dataVal & 0x7;
+                if (rodFacing > 5)
+                    rodFacing = 1;
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, swatchLoc, rodElements, 2, rodAngle[rodFacing][0], rodAngle[rodFacing][1], false);
+                break;
             }
             yrot = zrot = 0.0f;
             //dir = DIRECTION_BLOCK_TOP;
@@ -10399,6 +11859,60 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             // fully mature
             swatchLoc++;
         }
+        if (!gModel.print3D) {
+            // Minecraft's chorus_flower (and chorus_flower_dead) model: the flower's texture on the cap of each of five arms, the
+            // chorus plant's on the rest. The elements are made from the model's JSON.
+            int plantLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_CHORUS_PLANT].txrX, gBlockDefinitions[BLOCK_CHORUS_PLANT].txrY);
+            ModelElement flowerElements[] = {
+            { { 2, 14, 2 }, { 14, 16, 14 }, 5, {
+                { DIRECTION_BLOCK_TOP, { 2, 2, 14, 14 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 0, 14, 2 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 0, 14, 2 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 2, 0, 14, 2 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 2, 0, 14, 2 }, 0, 0, plantLoc }
+            } },
+            { { 0, 2, 2 }, { 2, 14, 14 }, 5, {
+                { DIRECTION_BLOCK_BOTTOM, { 16, 14, 14, 2 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 2, 2, 14 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 2, 16, 14 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 2, 2, 14 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 2, 2, 14, 14 }, 0, 0, swatchLoc }
+            } },
+            { { 2, 2, 0 }, { 14, 14, 2 }, 5, {
+                { DIRECTION_BLOCK_BOTTOM, { 14, 2, 2, 0 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_TOP, { 2, 0, 14, 2 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 2, 14, 14 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 2, 2, 14 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 14, 2, 16, 14 }, 0, 0, plantLoc }
+            } },
+            { { 2, 2, 14 }, { 14, 14, 16 }, 5, {
+                { DIRECTION_BLOCK_BOTTOM, { 14, 16, 2, 14 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_TOP, { 2, 14, 14, 16 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 2, 14, 14 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 14, 2, 16, 14 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 2, 2, 14 }, 0, 0, plantLoc }
+            } },
+            { { 14, 2, 2 }, { 16, 14, 14 }, 5, {
+                { DIRECTION_BLOCK_BOTTOM, { 2, 14, 0, 2 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_TOP, { 14, 2, 16, 14 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 2, 2, 14 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 14, 2, 16, 14 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 2, 2, 14, 14 }, 0, 0, swatchLoc }
+            } },
+            { { 2, 0, 2 }, { 14, 14, 14 }, 6, {
+                { DIRECTION_BLOCK_TOP, { 2, 2, 14, 14 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 14, 14, 2, 2 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 2, 14, 16 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 2, 14, 16 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 2, 2, 14, 16 }, 0, 0, plantLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 2, 2, 14, 16 }, 0, 0, plantLoc }
+            } },
+            };
+            gUsingTransform = 1;
+            retCode |= saveModelElements(boxIndex, type, dataVal, swatchLoc, flowerElements, 6, 0.0f);
+            gUsingTransform = 0;
+            break;
+        }
         saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 1, DIR_BOTTOM_BIT, 2, 14, 14, 16, 2, 14);
         saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_TOP_BIT, 2, 14, 0, 2, 2, 14);
         saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, 0, DIR_HI_X_BIT, 0, 2, 2, 14, 2, 14);
@@ -10431,8 +11945,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             break;
         case BLOCK_COPPER_BARS:
         case BLOCK_WAXED_COPPER_BARS:
-            // get colored swatch
-            swatchLoc += ((dataVal & 0x30) >> 4);
+            // get colored swatch: the tiles are copper, exposed, oxidized, weathered, while dataVal's 0x30 bits are copper,
+            // exposed, weathered, oxidized
+            {
+                static const int barsTile[4] = { 0, 1, 3, 2 };
+                swatchLoc += barsTile[(dataVal & 0x30) >> 4];
+            }
             topSwatchLoc = swatchLoc;	// same
             break;
         }
@@ -10441,13 +11959,14 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         filled = 0x0;
         faceMask = 0x0;
 
-        // sadly, the bits in the stained glass pane are used for colors
-        if (gIs13orNewer && type != BLOCK_STAINED_GLASS_PANE) {
+        // the stained glass pane's color is in its low bits, so its connections are above them, in bits 8-11 (see STAINED_PANE_PROP)
+        if (gIs13orNewer) {
+            int connections = (type == BLOCK_STAINED_GLASS_PANE) ? (dataVal >> 8) : dataVal;
             filled =
-                ((dataVal & 0x8) ? 0x2 : 0) |   // dataVal east 0x8 translated to fill 0x4
-                ((dataVal & 0x2) ? 0x8 : 0) |   // dataVal west 0x2 translated to fill 0x4
-                ((dataVal & 0x1) ? 0x4 : 0) |   // dataVal south 0x1 translated to fill 0x4
-                ((dataVal & 0x4) ? 0x1 : 0);    // dataVal north 0x4 translated to fill 0x1
+                ((connections & 0x8) ? 0x2 : 0) |   // dataVal east 0x8 translated to fill 0x4
+                ((connections & 0x2) ? 0x8 : 0) |   // dataVal west 0x2 translated to fill 0x4
+                ((connections & 0x1) ? 0x4 : 0) |   // dataVal south 0x1 translated to fill 0x4
+                ((connections & 0x4) ? 0x1 : 0);    // dataVal north 0x4 translated to fill 0x1
         }
         else {
             // which neighboring blocks have something that attaches to a glass pane? Things that attach:
@@ -10527,324 +12046,12 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         swatchLocSet[DIRECTION_BLOCK_TOP] = topSwatchLoc;
         swatchLocSet[DIRECTION_BLOCK_BOTTOM] = topSwatchLoc;
 
-        if (((type == BLOCK_IRON_BARS) || (type == BLOCK_COPPER_BARS) || (type == BLOCK_WAXED_COPPER_BARS)) &&
-            !gModel.print3D && (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES))
+        if (!gModel.print3D && (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES))
         {
-            // for rendering bars, we just need one side of each wall - easier
-            switch (filled)
-            {
-            case 0:
-                // just a little box
-                // bottom & top, double-sided
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | (gModel.singleSided ? 0x0 : DIR_BOTTOM_BIT), 0x0, 0,
-                    7, 9, 0, 0, 7, 9);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | (gModel.singleSided ? 0x0 : DIR_BOTTOM_BIT), 0x0, 0,
-                    7, 9, 16, 16, 7, 9);
-
-                // north-south
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 0,
-                    7, 9, 0, 16, 8, 8);
-
-                // east-west
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_LO_X_BIT), FLIP_LO_X_FACE_VERTICALLY, 0,
-                    8, 8, 0, 16, 7, 9);
-                break;
-            case 15:
-                // bottom & top of north-south wall
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 0, 0, 0, 7);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 16, 16, 0, 7);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 0, 0, 9, 16);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 16, 16, 9, 16);
-
-                // bottom & top of east-west wall
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT | tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
-                    0, 16, 0, 0, 7, 9);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
-                    0, 16, 16, 16, 7, 9);
-
-                // north and south ends
-                //saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_LO_Z_FACE_VERTICALLY, 0,
-                //	7, 9, 0,16, 0,16 );
-
-                // east and west ends
-                //saveBoxAlltileGeometry( boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT|DIR_TOP_BIT, FLIP_LO_X_FACE_VERTICALLY, 0,
-                //	7, 9, 0,0, 0,16 );
-
-                // north-south wall (easy!)
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_LO_X_BIT), FLIP_LO_X_FACE_VERTICALLY, 0,
-                    8, 8, 0, 16, 0, 16);
-                // east-west wall (easy!)
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 0,
-                    0, 16, 0, 16, 8, 8);
-                break;
-            case 1:
-                // north wall only, just south edge as border
-                // bottom & top of north-south wall
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 0, 0, 0, 9);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 16, 16, 0, 9);
-
-                // south end
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 0,
-                    7, 9, 0, 16, 9, 9);
-
-                // north wall (easy!)
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_LO_X_BIT), FLIP_LO_X_FACE_VERTICALLY, 0,
-                    8, 8, 0, 16, 0, 9);
-                break;
-            case 2:
-                // east wall only
-                // bottom & top of east wall
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT | tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
-                    7, 16, 0, 0, 7, 9);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
-                    7, 16, 16, 16, 7, 9);
-
-                // west end
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_LO_X_BIT), FLIP_LO_X_FACE_VERTICALLY, 0,
-                    7, 7, 0, 16, 7, 9);
-
-                // east wall (easy!)
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 0,
-                    7, 16, 0, 16, 8, 8);
-                break;
-            case 3:
-                // north and east: build west face of north wall, plus top and bottom
-                // bottom & top of north-south wall
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 0, 0, 0, 8);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 16, 16, 0, 8);
-
-                // north wall (easy!)
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_LO_X_BIT), FLIP_LO_X_FACE_VERTICALLY, 0,
-                    8, 8, 0, 16, 0, 8);
-
-                // bottom & top of east wall - tiny bit of overlap at corner
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT | tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
-                    8, 16, 0, 0, 7, 9);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
-                    8, 16, 16, 16, 7, 9);
-
-                // east wall (easy!)
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 0,
-                    8, 16, 0, 16, 8, 8);
-                break;
-            case 4:
-                // south wall only
-                // bottom & top of north-south wall
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 0, 0, 7, 16);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 16, 16, 7, 16);
-
-                // south end
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 0,
-                    7, 9, 0, 16, 7, 7);
-
-                // south wall (easy!)
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_LO_X_BIT), FLIP_LO_X_FACE_VERTICALLY, 0,
-                    8, 8, 0, 16, 7, 16);
-                break;
-            case 5:
-                // north and south - easy!
-                // bottom & top of north-south wall
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 0, 0, 0, 16);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 16, 16, 0, 16);
-
-                // north-south wall (easy!)
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_LO_X_BIT), FLIP_LO_X_FACE_VERTICALLY, 0,
-                    8, 8, 0, 16, 0, 16);
-                break;
-            case 6:
-                // east and south
-                // south and east: build west face of north wall, plus top and bottom
-                // bottom & top of north-south wall
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 0, 0, 8, 16);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 16, 16, 8, 16);
-
-                // south wall (easy!)
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_LO_X_BIT), FLIP_LO_X_FACE_VERTICALLY, 0,
-                    8, 8, 0, 16, 8, 16);
-
-                // bottom & top of east wall - tiny bit of overlap at corner
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT | tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
-                    8, 16, 0, 0, 7, 9);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
-                    8, 16, 16, 16, 7, 9);
-
-                // east wall (easy!)
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 0,
-                    8, 16, 0, 16, 8, 8);
-                break;
-            case 7:
-                // north, east, and south - 5 faces horizontally
-                // bottom & top of north-south wall
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 0, 0, 0, 16);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 16, 16, 0, 16);
-
-                // south wall (easy!)
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_LO_X_BIT), FLIP_LO_X_FACE_VERTICALLY, 0,
-                    8, 8, 0, 16, 0, 16);
-
-                // bottom & top of east wall
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT | tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
-                    9, 16, 0, 0, 7, 9);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
-                    9, 16, 16, 16, 7, 9);
-
-                // east wall (easy!)
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 0,
-                    8, 16, 0, 16, 8, 8);
-                break;
-            case 8:
-                // west wall only
-                // bottom & top of east wall
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT | tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
-                    0, 9, 0, 0, 7, 9);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
-                    0, 9, 16, 16, 7, 9);
-
-                // west end
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_LO_X_BIT), FLIP_LO_X_FACE_VERTICALLY, 0,
-                    9, 9, 0, 16, 7, 9);
-
-                // east wall (easy!)
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 0,
-                    0, 9, 0, 16, 8, 8);
-                break;
-            case 9:
-                // north and west
-                // bottom & top of north-south wall
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 0, 0, 0, 8);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 16, 16, 0, 8);
-
-                // north wall (easy!)
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_LO_X_BIT), FLIP_LO_X_FACE_VERTICALLY, 0,
-                    8, 8, 0, 16, 0, 8);
-
-                // bottom & top of east wall - tiny bit of overlap at corner
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT | tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
-                    0, 8, 0, 0, 7, 9);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
-                    0, 8, 16, 16, 7, 9);
-
-                // west wall (easy!)
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 0,
-                    0, 8, 0, 16, 8, 8);
-                break;
-            case 10:
-                // east and west - have to mess with top and bottom being rotated
-                // bottom & top of wall
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT | tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
-                    0, 16, 0, 0, 7, 9);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
-                    0, 16, 16, 16, 7, 9);
-
-                // east wall (easy!)
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 0,
-                    0, 16, 0, 16, 8, 8);
-                break;
-            case 11:
-                // north, east, and west
-                // north top and bottom
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 0, 0, 0, 7);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 16, 16, 0, 7);
-                // north wall (easy!)
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_LO_X_BIT), FLIP_LO_X_FACE_VERTICALLY, 0,
-                    8, 8, 0, 16, 0, 8);
-
-                // east-west bottom & top
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT | tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
-                    0, 16, 0, 0, 7, 9);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
-                    0, 16, 16, 16, 7, 9);
-
-                // east wall (easy!)
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 0,
-                    0, 16, 0, 16, 8, 8);
-                break;
-            case 12:
-                // south and west
-                // bottom & top of north-south wall
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 0, 0, 8, 16);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 16, 16, 8, 16);
-
-                // south wall (easy!)
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_LO_X_BIT), FLIP_LO_X_FACE_VERTICALLY, 0,
-                    8, 8, 0, 16, 8, 16);
-
-                // bottom & top of west wall - tiny bit of overlap at corner
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT | tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
-                    0, 8, 0, 0, 7, 9);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
-                    0, 8, 16, 16, 7, 9);
-
-                // west wall (easy!)
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 0,
-                    0, 8, 0, 16, 8, 8);
-                break;
-            case 13:
-                // north, south, and west
-                // bottom & top of north-south wall
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 0, 0, 0, 16);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 16, 16, 0, 16);
-
-                // south wall (easy!)
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_LO_X_BIT), FLIP_LO_X_FACE_VERTICALLY, 0,
-                    8, 8, 0, 16, 0, 16);
-
-                // bottom & top of east wall
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT | tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
-                    0, 7, 0, 0, 7, 9);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
-                    0, 7, 16, 16, 7, 9);
-
-                // east wall (easy!)
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 0,
-                    0, 8, 0, 16, 8, 8);
-                break;
-            case 14:
-                // east, south, and west
-                // south top and bottom
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 0, 0, 9, 16);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | tbFaceMask, 0x0, 0,
-                    7, 9, 16, 16, 9, 16);
-                // north wall (easy!)
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_LO_X_BIT), FLIP_LO_X_FACE_VERTICALLY, 0,
-                    8, 8, 0, 16, 8, 16);
-
-                // east-west bottom & top
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT | tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
-                    0, 16, 0, 0, 7, 9);
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | tbFaceMask, ROTATE_TOP_AND_BOTTOM, 0,
-                    0, 16, 16, 16, 7, 9);
-
-                // east wall (easy!)
-                saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 0,
-                    0, 16, 0, 16, 8, 8);
-                break;
-            }
+            // for rendering, Minecraft's models
+            retCode |= savePaneModel(boxIndex, type, dataVal, swatchLoc, topSwatchLoc, filled);
+            if (retCode >= MW_BEGIN_ERRORS)
+                return retCode;
         }
         else
         {
@@ -11030,8 +12237,485 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         }
         break; // saveBillboardOrGeometry
 
+    case BLOCK_VAULT:						// saveBillboardOrGeometry
+    {
+        // Minecraft's vault model: the cage, a whole block, then, inside, the faces of the "cage_inverted_faces" element, an element
+        // turned inside out so that its faces look inward: the floor, 3 pixels up, and the walls and ceiling, which lie on the cage's
+        // faces (0.002 pixels in, in Minecraft) and so are output only as backs, when faces are single-sided. The model is turned by
+        // "y"; dataVal 0x3 faces north, east, south, west, 0x4 is ominous, and 0x18 is the state: inactive, active, unlocking,
+        // ejecting. (For 3D printing, the vault is a whole block, with getSwatch's textures.)
+        int ominous = (dataVal & 0x4) ? 1 : 0;
+        int vaultState = (dataVal >> 3) & 0x3;
+        int bottomLoc = SWATCH_INDEX(0, 65) + ominous;
+        int topLoc = ((vaultState == 3) ? SWATCH_INDEX(14, 65) : SWATCH_INDEX(12, 65)) + ominous;
+        int frontLoc = ((vaultState == 0) ? SWATCH_INDEX(4, 65) : ((vaultState == 1) ? SWATCH_INDEX(6, 65) : SWATCH_INDEX(2, 65))) + ominous;
+        int sideLoc = ((vaultState == 0) ? SWATCH_INDEX(8, 65) : SWATCH_INDEX(10, 65)) + ominous;
+        ModelElement vaultElements[] = {
+            // the cage
+            { { 0, 0, 0 }, { 16, 16, 16 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 0, frontLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, topLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 16 }, 0, 0, bottomLoc }
+            } },
+            // inside: the floor
+            { { 0, 3, 0 }, { 16, 3, 16 }, 1, {
+                { DIRECTION_BLOCK_TOP, { 16, 16, 0, 0 }, 0, 0, bottomLoc }
+            } },
+            // ceiling
+            { { 0, 16, 0 }, { 16, 16, 16 }, 1, {
+                { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 0, 1, topLoc }
+            } },
+            // north (the front), south, west, east walls
+            { { 0, 3, 0 }, { 16, 16, 0 }, 1, {
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 16, 0, 0, 13 }, 0, 1, frontLoc }
+            } },
+            { { 0, 3, 16 }, { 16, 16, 16 }, 1, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 16, 0, 0, 13 }, 0, 1, sideLoc }
+            } },
+            { { 0, 3, 0 }, { 0, 16, 16 }, 1, {
+                { DIRECTION_BLOCK_SIDE_HI_X, { 16, 0, 0, 13 }, 0, 1, sideLoc }
+            } },
+            { { 16, 3, 0 }, { 16, 16, 16 }, 1, {
+                { DIRECTION_BLOCK_SIDE_LO_X, { 16, 0, 0, 13 }, 0, 1, sideLoc }
+            } },
+        };
+        retCode |= saveRotatedModel(boxIndex, type, dataVal, bottomLoc, vaultElements, 7, 0, 90 * (dataVal & 0x3), false);
+    }
+    break; // saveBillboardOrGeometry
+
+    case BLOCK_TRIPWIRE:						// saveBillboardOrGeometry
+        if (gModel.print3D) {
+            // far too thin to print
+            return 0;
+        }
+        else {
+            // Minecraft's tripwire_n, _ne, _ns, _nse, or _nsew model (or the tripwire_attached_ ones, dataVal 0x4, which use
+            // another part of the texture), by which sides the string connects to, turned by "y". dataVal 0x400, 0x800, 0x100,
+            // 0x200 are north, east, south, west; older worlds don't store these, so then the string connects to neighboring
+            // tripwire and tripwire hooks. The elements are made from the models' JSON.
+            int wireLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_TRIPWIRE].txrX, gBlockDefinitions[BLOCK_TRIPWIRE].txrY);
+            ModelElement looseNElements[] = {
+                { { 7.75f, 1.5f, 0 }, { 8.25f, 1.5f, 4 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 4 }, { 8.25f, 1.5f, 8 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 8 }, { 8.25f, 1.5f, 12 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+            };
+            ModelElement looseNEElements[] = {
+                { { 7.75f, 1.5f, 0 }, { 8.25f, 1.5f, 4 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 4 }, { 8.25f, 1.5f, 8 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 8, 1.5f, 7.75f }, { 12, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 6, 16, 4 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 0, 0, wireLoc }
+                } },
+                { { 12, 1.5f, 7.75f }, { 16, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 6, 16, 4 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 0, 0, wireLoc }
+                } },
+            };
+            ModelElement looseNSElements[] = {
+                { { 7.75f, 1.5f, 0 }, { 8.25f, 1.5f, 4 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 4 }, { 8.25f, 1.5f, 8 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 8 }, { 8.25f, 1.5f, 12 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 12 }, { 8.25f, 1.5f, 16 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+            };
+            ModelElement looseNSEElements[] = {
+                { { 7.75f, 1.5f, 0 }, { 8.25f, 1.5f, 4 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 4 }, { 8.25f, 1.5f, 8 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 8 }, { 8.25f, 1.5f, 12 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 12 }, { 8.25f, 1.5f, 16 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 8, 1.5f, 7.75f }, { 12, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 6, 16, 4 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 0, 0, wireLoc }
+                } },
+                { { 12, 1.5f, 7.75f }, { 16, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 6, 16, 4 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 0, 0, wireLoc }
+                } },
+            };
+            ModelElement looseNSEWElements[] = {
+                { { 7.75f, 1.5f, 0 }, { 8.25f, 1.5f, 4 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 4 }, { 8.25f, 1.5f, 8 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 8 }, { 8.25f, 1.5f, 12 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 12 }, { 8.25f, 1.5f, 16 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 4, 0, 6 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 90, 0, wireLoc }
+                } },
+                { { 0, 1.5f, 7.75f }, { 4, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 6, 16, 4 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 0, 0, wireLoc }
+                } },
+                { { 4, 1.5f, 7.75f }, { 8, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 6, 16, 4 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 0, 0, wireLoc }
+                } },
+                { { 8, 1.5f, 7.75f }, { 12, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 6, 16, 4 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 0, 0, wireLoc }
+                } },
+                { { 12, 1.5f, 7.75f }, { 16, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 6, 16, 4 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 4, 16, 6 }, 0, 0, wireLoc }
+                } },
+            };
+            ModelElement attachedNElements[] = {
+                { { 7.75f, 1.5f, 0 }, { 8.25f, 1.5f, 4 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 4 }, { 8.25f, 1.5f, 8 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 8 }, { 8.25f, 1.5f, 12 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+            };
+            ModelElement attachedNEElements[] = {
+                { { 7.75f, 1.5f, 0 }, { 8.25f, 1.5f, 4 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 4 }, { 8.25f, 1.5f, 8 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 8, 1.5f, 7.75f }, { 12, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 8, 16, 6 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 0, 0, wireLoc }
+                } },
+                { { 12, 1.5f, 7.75f }, { 16, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 8, 16, 6 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 0, 0, wireLoc }
+                } },
+            };
+            ModelElement attachedNSElements[] = {
+                { { 7.75f, 1.5f, 0 }, { 8.25f, 1.5f, 4 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 4 }, { 8.25f, 1.5f, 8 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 8 }, { 8.25f, 1.5f, 12 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 12 }, { 8.25f, 1.5f, 16 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+            };
+            ModelElement attachedNSEElements[] = {
+                { { 7.75f, 1.5f, 0 }, { 8.25f, 1.5f, 4 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 4 }, { 8.25f, 1.5f, 8 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 8 }, { 8.25f, 1.5f, 12 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 12 }, { 8.25f, 1.5f, 16 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 8, 1.5f, 7.75f }, { 12, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 8, 16, 6 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 0, 0, wireLoc }
+                } },
+                { { 12, 1.5f, 7.75f }, { 16, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 8, 16, 6 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 0, 0, wireLoc }
+                } },
+            };
+            ModelElement attachedNSEWElements[] = {
+                { { 7.75f, 1.5f, 0 }, { 8.25f, 1.5f, 4 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 4 }, { 8.25f, 1.5f, 8 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 8 }, { 8.25f, 1.5f, 12 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 7.75f, 1.5f, 12 }, { 8.25f, 1.5f, 16 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+                } },
+                { { 0, 1.5f, 7.75f }, { 4, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 8, 16, 6 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 0, 0, wireLoc }
+                } },
+                { { 4, 1.5f, 7.75f }, { 8, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 8, 16, 6 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 0, 0, wireLoc }
+                } },
+                { { 8, 1.5f, 7.75f }, { 12, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 8, 16, 6 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 0, 0, wireLoc }
+                } },
+                { { 12, 1.5f, 7.75f }, { 16, 1.5f, 8.25f }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 8, 16, 6 }, 0, 1, wireLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 0, 0, wireLoc }
+                } },
+            };
+            const ModelElement* wireModel[2][5] = { { looseNElements, looseNEElements, looseNSElements, looseNSEElements, looseNSEWElements },
+                { attachedNElements, attachedNEElements, attachedNSElements, attachedNSEElements, attachedNSEWElements } };
+            static const int wireCount[2][5] = { { 3, 4, 4, 6, 8 }, { 3, 4, 4, 6, 8 } };
+            // for each set of connections, bits north 0x1, east 0x2, south 0x4, west 0x8: the model, n, ne, ns, nse, nsew, and "y"
+            static const int wireModelIndex[16] = { 2, 0, 0, 1, 0, 2, 1, 3, 0, 1, 2, 3, 1, 3, 3, 4 };
+            static const int wireYAngle[16] = { 0, 0, 90, 0, 180, 0, 90, 0, 270, 270, 90, 270, 180, 180, 90, 0 };
+            int connections = ((dataVal & 0x400) ? 0x1 : 0) | ((dataVal & 0x800) ? 0x2 : 0) | ((dataVal & 0x100) ? 0x4 : 0) | ((dataVal & 0x200) ? 0x8 : 0);
+            if (!gIs13orNewer) {
+                static const int wireNeighbor[4] = { DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_X, DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X };
+                for (i = 0; i < 4; i++) {
+                    int neighborWireType = gBoxData[boxIndex + gFaceOffset[wireNeighbor[i]]].origType;
+                    if ((neighborWireType == BLOCK_TRIPWIRE) || (neighborWireType == BLOCK_TRIPWIRE_HOOK))
+                        connections |= (1 << i);
+                }
+            }
+            int attachedWire = (dataVal & 0x4) ? 1 : 0;
+            int wireIndex = wireModelIndex[connections];
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, wireLoc, wireModel[attachedWire][wireIndex], wireCount[attachedWire][wireIndex], 0, wireYAngle[connections], false);
+        }
+        break; // saveBillboardOrGeometry
+
     case BLOCK_TRIPWIRE_HOOK:						// saveBillboardOrGeometry
     {
+        if (!gModel.print3D) {
+            // Minecraft's tripwire_hook, _on, _attached, and _attached_on models, turned by "y". dataVal 0x3 faces south, west, north,
+            // east; 0x4 means attached to a tripwire, 0x8 powered (tripped). The elements are made from the models' JSON.
+            int hookLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            int woodLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_OAK_PLANKS].txrX, gBlockDefinitions[BLOCK_OAK_PLANKS].txrY);
+            int wireLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_TRIPWIRE].txrX, gBlockDefinitions[BLOCK_TRIPWIRE].txrY);
+        // tripwire_hook
+        ModelElement hookElements[] = {
+            { { 6.2f, 3.8f, 7.9f }, { 9.8f, 4.6f, 11.5f }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 5, 3, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_TOP, { 5, 3, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 5, 3, 11, 4 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 5, 8, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 5, 8, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 5, 3, 11, 4 }, 0, 0, hookLoc }
+            }, -45, { 8, 6, 5.2f }, 1, 0 },
+            { { 7.4f, 3.8f, 10.3f }, { 8.6f, 4.6f, 10.3f }, 1, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 7, 8, 9, 9 }, 0, 0, hookLoc }
+            }, -45, { 8, 6, 5.2f }, 1, 0 },
+            { { 7.4f, 3.8f, 9.1f }, { 8.6f, 4.6f, 9.1f }, 1, {
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 7, 3, 9, 4 }, 0, 0, hookLoc }
+            }, -45, { 8, 6, 5.2f }, 1, 0 },
+            { { 7.4f, 3.8f, 9.1f }, { 7.4f, 4.6f, 10.3f }, 1, {
+                { DIRECTION_BLOCK_SIDE_HI_X, { 7, 8, 9, 9 }, 0, 0, hookLoc }
+            }, -45, { 8, 6, 5.2f }, 1, 0 },
+            { { 8.6f, 3.8f, 9.1f }, { 8.6f, 4.6f, 10.3f }, 1, {
+                { DIRECTION_BLOCK_SIDE_LO_X, { 7, 3, 9, 4 }, 0, 0, hookLoc }
+            }, -45, { 8, 6, 5.2f }, 1, 0 },
+            { { 7.4f, 5.2f, 10 }, { 8.8f, 6.8f, 14 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 7, 9, 9, 14 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_TOP, { 7, 2, 9, 7 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 7, 9, 9, 11 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 7, 9, 9, 11 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 2, 9, 7, 11 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 9, 9, 14, 11 }, 0, 0, woodLoc }
+            }, 45, { 8, 6, 14 }, 1, 0 },
+            { { 6, 1, 14 }, { 10, 9, 16 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 6, 14, 10, 16 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_TOP, { 6, 0, 10, 2 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 7, 10, 15 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 7, 10, 15 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 7, 2, 15 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 14, 7, 16, 15 }, 0, 0, woodLoc }
+            } },
+        };
+        // tripwire_hook_on
+        ModelElement hookOnElements[] = {
+            { { 6.2f, 4.2f, 6.7f }, { 9.8f, 5, 10.3f }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 5, 3, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_TOP, { 5, 3, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 5, 3, 11, 4 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 5, 8, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 5, 8, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 5, 3, 11, 4 }, 0, 0, hookLoc }
+            } },
+            { { 7.4f, 4.2f, 9.1f }, { 8.6f, 5, 9.1f }, 1, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 7, 8, 9, 9 }, 0, 0, hookLoc }
+            } },
+            { { 7.4f, 4.2f, 7.9f }, { 8.6f, 5, 7.9f }, 1, {
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 7, 3, 9, 4 }, 0, 0, hookLoc }
+            } },
+            { { 7.4f, 4.2f, 7.9f }, { 7.4f, 5, 9.1f }, 1, {
+                { DIRECTION_BLOCK_SIDE_HI_X, { 7, 8, 9, 9 }, 0, 0, hookLoc }
+            } },
+            { { 8.6f, 4.2f, 7.9f }, { 8.6f, 5, 9.1f }, 1, {
+                { DIRECTION_BLOCK_SIDE_LO_X, { 7, 3, 9, 4 }, 0, 0, hookLoc }
+            } },
+            { { 7.4f, 5.2f, 10 }, { 8.8f, 6.8f, 14 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 7, 9, 9, 14 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_TOP, { 7, 2, 9, 7 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 7, 9, 9, 11 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 7, 9, 9, 11 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 2, 9, 7, 11 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 9, 9, 14, 11 }, 0, 0, woodLoc }
+            }, -22.5f, { 8, 6, 14 }, 1, 0 },
+            { { 6, 1, 14 }, { 10, 9, 16 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 6, 14, 10, 16 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_TOP, { 6, 0, 10, 2 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 7, 10, 15 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 7, 10, 15 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 7, 2, 15 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 14, 7, 16, 15 }, 0, 0, woodLoc }
+            } },
+        };
+        // tripwire_hook_attached
+        ModelElement hookAttachedElements[] = {
+            { { 7.75f, 1.5f, 0 }, { 8.25f, 1.5f, 6.7f }, 2, {
+                { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+            }, -22.5f, { 8, 0, 0 }, 1, 1 },
+            { { 6.2f, 4.2f, 6.7f }, { 9.8f, 5, 10.3f }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 5, 3, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_TOP, { 5, 3, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 5, 3, 11, 4 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 5, 8, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 5, 8, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 5, 3, 11, 4 }, 0, 0, hookLoc }
+            }, -22.5f, { 8, 4.2f, 6.7f }, 1, 0 },
+            { { 7.4f, 4.2f, 9.1f }, { 8.6f, 5, 9.1f }, 1, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 7, 8, 9, 9 }, 0, 0, hookLoc }
+            }, -22.5f, { 8, 4.2f, 6.7f }, 1, 0 },
+            { { 7.4f, 4.2f, 7.9f }, { 8.6f, 5, 7.9f }, 1, {
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 7, 3, 9, 4 }, 0, 0, hookLoc }
+            }, -22.5f, { 8, 4.2f, 6.7f }, 1, 0 },
+            { { 7.4f, 4.2f, 7.9f }, { 7.4f, 5, 9.1f }, 1, {
+                { DIRECTION_BLOCK_SIDE_HI_X, { 7, 8, 9, 9 }, 0, 0, hookLoc }
+            }, -22.5f, { 8, 4.2f, 6.7f }, 1, 0 },
+            { { 8.6f, 4.2f, 7.9f }, { 8.6f, 5, 9.1f }, 1, {
+                { DIRECTION_BLOCK_SIDE_LO_X, { 7, 3, 9, 4 }, 0, 0, hookLoc }
+            }, -22.5f, { 8, 4.2f, 6.7f }, 1, 0 },
+            { { 7.4f, 5.2f, 10 }, { 8.8f, 6.8f, 14 }, 5, {
+                { DIRECTION_BLOCK_BOTTOM, { 7, 9, 9, 14 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_TOP, { 7, 2, 9, 7 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 7, 9, 9, 11 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 2, 9, 7, 11 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 9, 9, 14, 11 }, 0, 0, woodLoc }
+            } },
+            { { 6, 1, 14 }, { 10, 9, 16 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 6, 14, 10, 16 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_TOP, { 6, 0, 10, 2 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 7, 10, 15 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 7, 10, 15 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 7, 2, 15 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 14, 7, 16, 15 }, 0, 0, woodLoc }
+            } },
+        };
+        // tripwire_hook_attached_on
+        ModelElement hookAttachedOnElements[] = {
+            { { 7.75f, 0.5f, 0 }, { 8.25f, 0.5f, 6.7f }, 2, {
+                { DIRECTION_BLOCK_BOTTOM, { 16, 6, 0, 8 }, 90, 1, wireLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 6, 16, 8 }, 90, 0, wireLoc }
+            }, -22.5f, { 8, 0, 0 }, 1, 1 },
+            { { 6.2f, 3.4f, 6.7f }, { 9.8f, 4.2f, 10.3f }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 5, 3, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_TOP, { 5, 3, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 5, 3, 11, 4 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 5, 8, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 5, 8, 11, 9 }, 0, 0, hookLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 5, 3, 11, 4 }, 0, 0, hookLoc }
+            } },
+            { { 7.4f, 3.4f, 9.1f }, { 8.6f, 4.2f, 9.1f }, 1, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 7, 8, 9, 9 }, 0, 0, hookLoc }
+            } },
+            { { 7.4f, 3.4f, 7.9f }, { 8.6f, 4.2f, 7.9f }, 1, {
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 7, 3, 9, 4 }, 0, 0, hookLoc }
+            } },
+            { { 7.4f, 3.4f, 7.9f }, { 7.4f, 4.2f, 9.1f }, 1, {
+                { DIRECTION_BLOCK_SIDE_HI_X, { 7, 8, 9, 9 }, 0, 0, hookLoc }
+            } },
+            { { 8.6f, 3.4f, 7.9f }, { 8.6f, 4.2f, 9.1f }, 1, {
+                { DIRECTION_BLOCK_SIDE_LO_X, { 7, 3, 9, 4 }, 0, 0, hookLoc }
+            } },
+            { { 7.4f, 5.2f, 10 }, { 8.8f, 6.8f, 14 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 7, 9, 9, 14 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_TOP, { 7, 2, 9, 7 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 7, 9, 9, 11 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 7, 9, 9, 11 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 2, 9, 7, 11 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 9, 9, 14, 11 }, 0, 0, woodLoc }
+            }, -22.5f, { 8, 6, 14 }, 1, 0 },
+            { { 6, 1, 14 }, { 10, 9, 16 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 6, 14, 10, 16 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_TOP, { 6, 0, 10, 2 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 7, 10, 15 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 7, 10, 15 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 7, 2, 15 }, 0, 0, woodLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 14, 7, 16, 15 }, 0, 0, woodLoc }
+            } },
+        };
+            static const float hookYAngle[4] = { 180.0f, 270.0f, 0.0f, 90.0f };
+            const ModelElement* hookModel[4] = { hookElements, hookOnElements, hookAttachedElements, hookAttachedOnElements };
+            static const int hookCount[4] = { 7, 7, 8, 8 };
+            int hookVariant = ((dataVal & 0x4) ? 2 : 0) + ((dataVal & 0x8) ? 1 : 0);
+            retCode |= saveTurnedModel(boxIndex, type, dataVal, hookLoc, hookModel[hookVariant], hookCount[hookVariant], hookYAngle[dataVal & 0x3]);
+            break;
+        }
         // 0x4 means "tripwire connected"
         // 0x8 means "tripwire tripped"
         bool tripwireConnected = (dataVal & 0x4) ? true : false;
@@ -11169,6 +12853,333 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_SEA_PICKLE:						// saveBillboardOrGeometry
         swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
         itemCount = (dataVal & 0x3) + 1;
+        if (!gModel.print3D) {
+            // Minecraft's sea_pickle, two_, three_, and four_sea_pickles models, or the dead_ ones (not waterlogged, no glowing
+            // tops), turned a random quarter turn as Minecraft does. The elements are made from the models' JSON.
+            ModelElement live1[] = {
+                { { 6, 0, 6 }, { 10, 6, 10 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 6, 5.95f, 6 }, { 10, 5.95f, 10 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 7.5f, 5.2f, 8 }, { 8.5f, 8.7f, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 0, 3, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 1, 5 }, 0, 0, swatchLoc }
+                }, 45, { 8, 8, 8 }, 0, 1 },
+                { { 8, 5.2f, 7.5f }, { 8, 8.7f, 8.5f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 13, 0, 15, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 15, 0, 13, 5 }, 0, 0, swatchLoc }
+                }, 45, { 8, 8, 8 }, 0, 1 },
+            };
+            ModelElement live2[] = {
+                { { 3, 0, 3 }, { 7, 6, 7 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 3, 5.95f, 3 }, { 7, 5.95f, 7 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 8, 0, 8 }, { 12, 4, 12 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 9 }, 0, 0, swatchLoc }
+                } },
+                { { 8, 3.95f, 8 }, { 12, 3.95f, 12 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 4.5f, 5.2f, 5 }, { 5.5f, 8.7f, 5 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 0, 3, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 1, 5 }, 0, 0, swatchLoc }
+                }, 45, { 5, 5.6f, 5 }, 0, 1 },
+                { { 5, 5.2f, 4.5f }, { 5, 8.7f, 5.5f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 13, 0, 15, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 15, 0, 13, 5 }, 0, 0, swatchLoc }
+                }, 45, { 5, 5.6f, 5 }, 0, 1 },
+                { { 9.5f, 3.2f, 10 }, { 10.5f, 6.7f, 10 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 0, 3, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 1, 5 }, 0, 0, swatchLoc }
+                }, 45, { 10, 8, 10 }, 0, 1 },
+                { { 10, 3.2f, 9.5f }, { 10, 6.7f, 10.5f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 13, 0, 15, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 15, 0, 13, 5 }, 0, 0, swatchLoc }
+                }, 45, { 10, 8, 10 }, 0, 1 },
+            };
+            ModelElement live3[] = {
+                { { 6, 0, 9 }, { 10, 6, 13 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 6, 5.95f, 9 }, { 10, 5.95f, 13 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 2, 0, 2 }, { 6, 4, 6 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 9 }, 0, 0, swatchLoc }
+                } },
+                { { 2, 3.95f, 2 }, { 6, 3.95f, 6 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 8, 0, 4 }, { 12, 6, 8 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 8, 5.95f, 4 }, { 12, 5.95f, 8 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 7.5f, 5.2f, 11 }, { 8.5f, 8.7f, 11 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 0, 3, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 1, 5 }, 0, 0, swatchLoc }
+                }, 45, { 8, 8, 11 }, 0, 1 },
+                { { 8, 5.2f, 10.5f }, { 8, 8.7f, 11.5f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 13, 0, 15, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 15, 0, 13, 5 }, 0, 0, swatchLoc }
+                }, 45, { 8, 8, 11 }, 0, 1 },
+                { { 3.5f, 3.2f, 4 }, { 4.5f, 6.7f, 4 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 0, 3, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 1, 5 }, 0, 0, swatchLoc }
+                }, 45, { 4, 8, 4 }, 0, 1 },
+                { { 4, 3.2f, 3.5f }, { 4, 6.7f, 4.5f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 13, 0, 15, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 15, 0, 13, 5 }, 0, 0, swatchLoc }
+                }, 45, { 4, 8, 4 }, 0, 1 },
+                { { 9.5f, 5.2f, 6 }, { 10.5f, 8.7f, 6 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 0, 3, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 1, 5 }, 0, 0, swatchLoc }
+                }, 45, { 10, 8, 6 }, 0, 1 },
+                { { 10, 5.2f, 5.5f }, { 10, 8.7f, 6.5f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 13, 0, 15, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 15, 0, 13, 5 }, 0, 0, swatchLoc }
+                }, 45, { 10, 8, 6 }, 0, 1 },
+            };
+            ModelElement live4[] = {
+                { { 2, 0, 2 }, { 6, 6, 6 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 2, 5.95f, 2 }, { 6, 5.95f, 6 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 9, 0, 10 }, { 13, 4, 14 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 9 }, 0, 0, swatchLoc }
+                } },
+                { { 9, 3.95f, 10 }, { 13, 3.95f, 14 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 9, 0, 2 }, { 13, 6, 6 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 9, 5.95f, 2 }, { 13, 5.95f, 6 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 2, 0, 8 }, { 6, 7, 12 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 12 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 12 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 12 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 12 }, 0, 0, swatchLoc }
+                } },
+                { { 2, 6.95f, 8 }, { 6, 6.95f, 12 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 3.5f, 5.2f, 4 }, { 4.5f, 8.7f, 4 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 0, 3, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 1, 5 }, 0, 0, swatchLoc }
+                }, 45, { 4, 8, 4 }, 0, 1 },
+                { { 4, 5.2f, 3.5f }, { 4, 8.7f, 4.5f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 13, 0, 15, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 15, 0, 13, 5 }, 0, 0, swatchLoc }
+                }, 45, { 4, 8, 4 }, 0, 1 },
+                { { 10.5f, 3.2f, 12 }, { 11.5f, 6.7f, 12 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 0, 3, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 1, 5 }, 0, 0, swatchLoc }
+                }, 45, { 11, 8, 12 }, 0, 1 },
+                { { 11, 3.2f, 11.5f }, { 11, 6.7f, 12.5f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 13, 0, 15, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 15, 0, 13, 5 }, 0, 0, swatchLoc }
+                }, 45, { 11, 8, 12 }, 0, 1 },
+                { { 10.5f, 5.2f, 4 }, { 11.5f, 8.7f, 4 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 0, 3, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 1, 5 }, 0, 0, swatchLoc }
+                }, 45, { 11, 8, 4 }, 0, 1 },
+                { { 11, 5.2f, 3.5f }, { 11, 8.7f, 4.5f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 13, 0, 15, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 15, 0, 13, 5 }, 0, 0, swatchLoc }
+                }, 45, { 11, 8, 4 }, 0, 1 },
+                { { 3.5f, 6.2f, 10 }, { 4.5f, 9.7f, 10 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 0, 3, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 1, 5 }, 0, 0, swatchLoc }
+                }, 45, { 4, 8, 10 }, 0, 1 },
+                { { 4, 6.2f, 9.5f }, { 4, 9.7f, 10.5f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 13, 0, 15, 5 }, 0, 1, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 15, 0, 13, 5 }, 0, 0, swatchLoc }
+                }, 45, { 4, 8, 10 }, 0, 1 },
+            };
+            ModelElement dead1[] = {
+                { { 6, 0, 6 }, { 10, 6, 10 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 6, 5.95f, 6 }, { 10, 5.95f, 10 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement dead2[] = {
+                { { 3, 0, 3 }, { 7, 6, 7 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 3, 5.95f, 3 }, { 7, 5.95f, 7 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 8, 0, 8 }, { 12, 4, 12 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 9 }, 0, 0, swatchLoc }
+                } },
+                { { 8, 3.95f, 8 }, { 12, 3.95f, 12 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement dead3[] = {
+                { { 6, 0, 9 }, { 10, 6, 13 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 6, 5.95f, 9 }, { 10, 5.95f, 13 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 2, 0, 2 }, { 6, 4, 6 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 9 }, 0, 0, swatchLoc }
+                } },
+                { { 2, 3.95f, 2 }, { 6, 3.95f, 6 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 8, 0, 4 }, { 12, 6, 8 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 8, 5.95f, 4 }, { 12, 5.95f, 8 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement dead4[] = {
+                { { 2, 0, 2 }, { 6, 6, 6 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 2, 5.95f, 2 }, { 6, 5.95f, 6 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 9, 0, 10 }, { 13, 4, 14 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 9 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 9 }, 0, 0, swatchLoc }
+                } },
+                { { 9, 3.95f, 10 }, { 13, 3.95f, 14 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 9, 0, 2 }, { 13, 6, 6 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 9, 5.95f, 2 }, { 13, 5.95f, 6 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+                { { 2, 0, 8 }, { 6, 7, 12 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 1, 12, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 4, 1, 8, 5 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 5, 8, 12 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 4, 12 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 5, 12, 12 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 12, 5, 16, 12 }, 0, 0, swatchLoc }
+                } },
+                { { 2, 6.95f, 8 }, { 6, 6.95f, 12 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 8, 1, 12, 5 }, 0, 0, swatchLoc }
+                } },
+            };
+            const ModelElement* pickleModel[2][4] = { { dead1, dead2, dead3, dead4 }, { live1, live2, live3, live4 } };
+            static const int pickleCount[2][4] = { { 2, 4, 6, 8 }, { 4, 8, 12, 16 } };
+            int alive = (dataVal & WATERLOGGED_BIT) ? 1 : 0;
+            int pickleAngle;
+            randomRotation(boxIndex, pickleAngle);
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, swatchLoc, pickleModel[alive][itemCount - 1], pickleCount[alive][itemCount - 1], 0, pickleAngle, false);
+            break;
+        }
         {
 
             gUsingTransform = 1;
@@ -11261,6 +13272,104 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
         swatchLoc += ((dataVal >> 2) & 0x3);
         itemCount = (dataVal & 0x3) + 1;
+        if (!gModel.print3D) {
+            // Minecraft's turtle_egg, two_, three_, and four_turtle_eggs models (the cracked ones are the same with another
+            // texture), turned a random quarter turn as Minecraft does. The elements are made from the models' JSON.
+            ModelElement egg1[] = {
+                { { 5, 0, 4 }, { 9, 7, 8 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 4, 5, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 1, 4, 5, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 1, 4, 5, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 1, 4, 5, 11 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement egg2[] = {
+                { { 5, 0, 4 }, { 9, 7, 8 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 4, 5, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 1, 4, 5, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 1, 4, 5, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 1, 4, 5, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 1, 0, 7 }, { 5, 5, 11 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 7, 10, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 6, 7, 10, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 10, 10, 14, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 10, 10, 14, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 10, 10, 14, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 10, 10, 14, 15 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement egg3[] = {
+                { { 5, 0, 4 }, { 9, 7, 8 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 4, 5, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 1, 4, 5, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 1, 4, 5, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 1, 4, 5, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 1, 0, 7 }, { 5, 5, 11 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 7, 10, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 6, 7, 10, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 10, 10, 14, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 10, 10, 14, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 10, 10, 14, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 10, 10, 14, 15 }, 0, 0, swatchLoc }
+                } },
+                { { 11, 0, 7 }, { 14, 4, 10 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 5, 0, 8, 3 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 5, 0, 8, 3 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 8, 3, 11, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 8, 3, 11, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 3, 11, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 8, 3, 11, 7 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement egg4[] = {
+                { { 5, 0, 4 }, { 9, 7, 8 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 4, 4 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 4, 5, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 1, 4, 5, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 1, 4, 5, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 1, 4, 5, 11 }, 0, 0, swatchLoc }
+                } },
+                { { 1, 0, 7 }, { 5, 5, 11 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 6, 7, 10, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 6, 7, 10, 11 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 10, 10, 14, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 10, 10, 14, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 10, 10, 14, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 10, 10, 14, 15 }, 0, 0, swatchLoc }
+                } },
+                { { 11, 0, 7 }, { 14, 4, 10 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 5, 0, 8, 3 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 5, 0, 8, 3 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 8, 3, 11, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 8, 3, 11, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8, 3, 11, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 8, 3, 11, 7 }, 0, 0, swatchLoc }
+                } },
+                { { 6, 0, 9 }, { 10, 4, 13 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 11, 4, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 11, 4, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 11, 8, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 11, 8, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 4, 11, 8, 15 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 4, 11, 8, 15 }, 0, 0, swatchLoc }
+                } },
+            };
+            const ModelElement* eggModel[4] = { egg1, egg2, egg3, egg4 };
+            static const int eggCount[4] = { 1, 2, 3, 4 };
+            int eggAngle;
+            randomRotation(boxIndex, eggAngle);
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, swatchLoc, eggModel[itemCount - 1], eggCount[itemCount - 1], 0, eggAngle, false);
+            break;
+        }
         {
             gUsingTransform = 1;
             // egg sizes, 1,2,3,4
@@ -11332,6 +13441,131 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
         age = (dataVal & 0x1);
         leafSize = (dataVal & 0x6) >> 1;
+
+        if (!gModel.print3D) {
+            // Minecraft's bamboo1-4_age0 or _age1 models, one picked at random (each uses a different part of the texture), and the
+            // bamboo_small_leaves or bamboo_large_leaves model, all offset randomly in X and Z as Minecraft does. The elements are
+            // made from the models' JSON.
+            ModelElement stalk1_0Elements[] = {
+                { { 7, 0, 7 }, { 9, 16, 9 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 4, 15, 6 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 0, 15, 2 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 2, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 2, 16 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement stalk2_0Elements[] = {
+                { { 7, 0, 7 }, { 9, 16, 9 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 4, 15, 6 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 0, 15, 2 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 5, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 5, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 3, 0, 5, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 3, 0, 5, 16 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement stalk3_0Elements[] = {
+                { { 7, 0, 7 }, { 9, 16, 9 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 4, 15, 6 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 0, 15, 2 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 0, 8, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 0, 8, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 6, 0, 8, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 6, 0, 8, 16 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement stalk4_0Elements[] = {
+                { { 7, 0, 7 }, { 9, 16, 9 }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 4, 15, 6 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 0, 15, 2 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 9, 0, 11, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 9, 0, 11, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 9, 0, 11, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 9, 0, 11, 16 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement stalk1_1Elements[] = {
+                { { 6.5f, 0, 6.5f }, { 9.5f, 16, 9.5f }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 4, 16, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 0, 16, 3 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 3, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 3, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 3, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 3, 16 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement stalk2_1Elements[] = {
+                { { 6.5f, 0, 6.5f }, { 9.5f, 16, 9.5f }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 4, 16, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 0, 16, 3 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 6, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 6, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 3, 0, 6, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 3, 0, 6, 16 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement stalk3_1Elements[] = {
+                { { 6.5f, 0, 6.5f }, { 9.5f, 16, 9.5f }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 4, 16, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 0, 16, 3 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 0, 9, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 0, 9, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 6, 0, 9, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 6, 0, 9, 16 }, 0, 0, swatchLoc }
+                } },
+            };
+            ModelElement stalk4_1Elements[] = {
+                { { 6.5f, 0, 6.5f }, { 9.5f, 16, 9.5f }, 6, {
+                    { DIRECTION_BLOCK_BOTTOM, { 13, 4, 16, 7 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_TOP, { 13, 0, 16, 3 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 9, 0, 12, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 9, 0, 12, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 9, 0, 12, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 9, 0, 12, 16 }, 0, 0, swatchLoc }
+                } },
+            };
+            const ModelElement* stalkModel[2][4] = { { stalk1_0Elements, stalk2_0Elements, stalk3_0Elements, stalk4_0Elements },
+                { stalk1_1Elements, stalk2_1Elements, stalk3_1Elements, stalk4_1Elements } };
+            static const int stalkCount[2][4] = { { 1, 1, 1, 1 }, { 1, 1, 1, 1 } };
+            int leafLoc = (leafSize == 2) ? SWATCH_INDEX(6, 37) : SWATCH_INDEX(8, 37);
+            ModelElement smallLeafElements[] = {
+                { { 0.8f, 0, 8 }, { 15.2f, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, leafLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, leafLoc }
+                } },
+                { { 8, 0, 0.8f }, { 8, 16, 15.2f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 16 }, 0, 1, leafLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 16 }, 0, 0, leafLoc }
+                } },
+            };
+            ModelElement largeLeafElements[] = {
+                { { 0.8f, 0, 8 }, { 15.2f, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, leafLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, leafLoc }
+                } },
+                { { 8, 0, 0.8f }, { 8, 16, 15.2f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 16 }, 0, 1, leafLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 16 }, 0, 0, leafLoc }
+                } },
+            };
+            wobbleObjectLocation(boxIndex, shiftX, shiftZ);
+            int variant = (int)(getRand3to1(boxIndex) * 4.0f) & 0x3;
+            gUsingTransform = 1;
+            totalVertexCount = gModel.vertexCount;
+            retCode |= saveModelElements(boxIndex, type, dataVal, swatchLoc, stalkModel[age][variant], stalkCount[age][variant], 0.0f);
+            if (leafSize == 1)
+                retCode |= saveModelElements(boxIndex, type, dataVal, leafLoc, smallLeafElements, 2, 0.0f);
+            else if (leafSize == 2)
+                retCode |= saveModelElements(boxIndex, type, dataVal, leafLoc, largeLeafElements, 2, 0.0f);
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            translateMtx(mtx, shiftX / 16.0f, 0.0f, shiftZ / 16.0f);
+            transformVertices(totalVertexCount, mtx);
+            gUsingTransform = 0;
+            break;
+        }
 
         gUsingTransform = 1;
         totalVertexCount = gModel.vertexCount;
@@ -11416,6 +13650,94 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_COMPOSTER:						// saveBillboardOrGeometry
     {
         swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+        if (!gModel.print3D) {
+            // Minecraft's composter model, plus for levels 1-7 composter_contents1-7, and for 8, composter_contents_ready. The
+            // elements are made from the models' JSON.
+            int sideLoc = swatchLoc + 1;
+            int bottomLoc = swatchLoc + 2;
+            int compostLoc = swatchLoc + 3;
+            int readyLoc = swatchLoc + 4;
+            ModelElement binElements[] = {
+                { { 0, 0, 0 }, { 16, 2, 16 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, bottomLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 16 }, 0, 0, bottomLoc }
+                } },
+                { { 0, 0, 0 }, { 2, 16, 16 }, 5, {
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 2, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 0, 16, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 16 }, 0, 0, sideLoc }
+                } },
+                { { 14, 0, 0 }, { 16, 16, 16 }, 5, {
+                    { DIRECTION_BLOCK_TOP, { 14, 0, 16, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 14, 0, 16, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 16 }, 0, 0, sideLoc }
+                } },
+                { { 2, 0, 0 }, { 14, 16, 2 }, 3, {
+                    { DIRECTION_BLOCK_TOP, { 2, 0, 14, 2 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 0, 14, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 0, 14, 16 }, 0, 0, sideLoc }
+                } },
+                { { 2, 0, 14 }, { 14, 16, 16 }, 3, {
+                    { DIRECTION_BLOCK_TOP, { 2, 14, 14, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 0, 14, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 0, 14, 16 }, 0, 0, sideLoc }
+                } },
+            };
+            ModelElement contents1Elements[] = {
+                { { 2, 0, 2 }, { 14, 3, 14 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 2, 2, 14, 14 }, 0, 0, compostLoc }
+                } },
+            };
+            ModelElement contents2Elements[] = {
+                { { 2, 0, 2 }, { 14, 5, 14 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 2, 2, 14, 14 }, 0, 0, compostLoc }
+                } },
+            };
+            ModelElement contents3Elements[] = {
+                { { 2, 0, 2 }, { 14, 7, 14 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 2, 2, 14, 14 }, 0, 0, compostLoc }
+                } },
+            };
+            ModelElement contents4Elements[] = {
+                { { 2, 0, 2 }, { 14, 9, 14 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 2, 2, 14, 14 }, 0, 0, compostLoc }
+                } },
+            };
+            ModelElement contents5Elements[] = {
+                { { 2, 0, 2 }, { 14, 11, 14 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 2, 2, 14, 14 }, 0, 0, compostLoc }
+                } },
+            };
+            ModelElement contents6Elements[] = {
+                { { 2, 0, 2 }, { 14, 13, 14 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 2, 2, 14, 14 }, 0, 0, compostLoc }
+                } },
+            };
+            ModelElement contents7Elements[] = {
+                { { 2, 0, 2 }, { 14, 15, 14 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 2, 2, 14, 14 }, 0, 0, compostLoc }
+                } },
+            };
+            ModelElement contents8Elements[] = {
+                { { 2, 0, 2 }, { 14, 15, 14 }, 1, {
+                    { DIRECTION_BLOCK_TOP, { 2, 2, 14, 14 }, 0, 0, readyLoc }
+                } },
+            };
+            const ModelElement* contentsModel[8] = { contents1Elements, contents2Elements, contents3Elements, contents4Elements,
+                contents5Elements, contents6Elements, contents7Elements, contents8Elements };
+            static const int contentsCount[8] = { 1, 1, 1, 1, 1, 1, 1, 1 };
+            gUsingTransform = 1;
+            retCode |= saveModelElements(boxIndex, type, dataVal, swatchLoc, binElements, 5, 0.0f);
+            int level = dataVal & 0xf;
+            if (level >= 1 && level <= 8)
+                retCode |= saveModelElements(boxIndex, type, dataVal, swatchLoc, contentsModel[level - 1], contentsCount[level - 1], 0.0f);
+            gUsingTransform = 0;
+            break;
+        }
         // we seal the composter against the compost height (possibly empty)
         int heightVal = (dataVal & 0xf);
         bool fullBin = (heightVal == 8);
@@ -11476,6 +13798,28 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         topSwatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
         sideSwatchLoc = topSwatchLoc + 1;
         bottomSwatchLoc = topSwatchLoc + 2;
+        if (!gModel.print3D) {
+            // Minecraft's stonecutter model, turned by "y"; dataVal 0x3 faces south, west, north, east. The elements are made from
+            // the model's JSON.
+            int sawLoc = SWATCH_INDEX(7, 41);
+            ModelElement cutterElements[] = {
+            { { 0, 0, 0 }, { 16, 9, 16 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 16 }, 0, 0, bottomSwatchLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, topSwatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 7, 16, 16 }, 0, 0, sideSwatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 7, 16, 16 }, 0, 0, sideSwatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 7, 16, 16 }, 0, 0, sideSwatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 7, 16, 16 }, 0, 0, sideSwatchLoc }
+            } },
+            { { 1, 9, 8 }, { 15, 16, 8 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 9, 15, 16 }, 0, 1, sawLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 15, 9, 1, 16 }, 0, 0, sawLoc }
+            } },
+            };
+            static const int cutterYAngle[4] = { 180, 270, 0, 90 };
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, topSwatchLoc, cutterElements, 2, 0, cutterYAngle[dataVal & 0x3], false);
+            break;
+        }
         saveBoxMultitileGeometry(boxIndex, type, dataVal, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc, 1, 0x0, 0, 0, 16, 0, 9, 0, 16);
 
         if (!gModel.print3D) {
@@ -11500,6 +13844,56 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     {
         int face = (dataVal & 0xc) >> 2;	// floor/wall/ceiling
         facing = dataVal & 0x3;
+        if (!gModel.print3D) {
+            // Minecraft's grindstone model, turned by "x" (0 floor, 90 wall, 180 ceiling) and "y"; dataVal 0x3 faces east, south,
+            // west, north. The elements are made from the model's JSON.
+            int sideLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            int pivotLoc = sideLoc + 1;
+            int roundLoc = sideLoc + 2;
+            int legLoc = SWATCH_INDEX(14, 19);
+            ModelElement grindElements[] = {
+            { { 12, 0, 6 }, { 14, 7, 10 }, 5, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 9, 4, 16 }, 0, 0, legLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 10, 16, 6, 9 }, 0, 0, legLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 12, 9, 14, 16 }, 0, 0, legLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 6, 9, 10, 16 }, 0, 0, legLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 12, 6, 14, 10 }, 0, 0, legLoc }
+            } },
+            { { 2, 0, 6 }, { 4, 7, 10 }, 5, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 12, 9, 14, 16 }, 0, 0, legLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 10, 16, 6, 9 }, 0, 0, legLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 9, 4, 16 }, 0, 0, legLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 6, 9, 10, 16 }, 0, 0, legLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 2, 6, 4, 10 }, 0, 0, legLoc }
+            } },
+            { { 12, 7, 5 }, { 14, 13, 11 }, 5, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 0, 8, 6 }, 0, 0, pivotLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 6, 6 }, 0, 0, pivotLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 0, 8, 6 }, 0, 0, pivotLoc },
+                { DIRECTION_BLOCK_TOP, { 8, 0, 10, 6 }, 0, 0, pivotLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 8, 0, 10, 6 }, 0, 0, pivotLoc }
+            } },
+            { { 2, 7, 5 }, { 4, 13, 11 }, 5, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 0, 8, 6 }, 0, 0, pivotLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 0, 8, 6 }, 0, 0, pivotLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 6, 6 }, 0, 0, pivotLoc },
+                { DIRECTION_BLOCK_TOP, { 8, 0, 10, 6 }, 0, 0, pivotLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 8, 0, 10, 6 }, 0, 0, pivotLoc }
+            } },
+            { { 4, 4, 2 }, { 12, 16, 14 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 8, 12 }, 0, 0, roundLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 12, 12 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 8, 12 }, 0, 0, roundLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 12, 12 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 8, 12 }, 0, 0, roundLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 8, 12 }, 0, 0, roundLoc }
+            } },
+            };
+            static const int grindYAngle[3][4] = { { 90, 180, 270, 0 }, { 90, 180, 270, 0 }, { 270, 0, 90, 180 } };
+            int grindFace = (face > 2) ? 0 : face;
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, sideLoc, grindElements, 5, 90 * grindFace, grindYAngle[grindFace][facing], false);
+            break;
+        }
 
         gUsingTransform = 1;
         totalVertexCount = littleTotalVertexCount = gModel.vertexCount;
@@ -11577,6 +13971,42 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_LECTERN: // saveBillboardOrGeometry
     {
         facing = dataVal & 0x3;
+        if (!gModel.print3D) {
+            // Minecraft's lectern model, turned by "y"; dataVal 0x3 faces east, south, west, north. The elements are made from the
+            // model's JSON.
+            int topLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            int sidesLoc = topLoc + 1;
+            int baseLoc = topLoc + 2;
+            int frontLoc = topLoc + 3;
+            int plankLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_OAK_PLANKS].txrX, gBlockDefinitions[BLOCK_OAK_PLANKS].txrY);
+            ModelElement lecternElements[] = {
+            { { 0, 0, 0 }, { 16, 2, 16 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 14, 16, 16 }, 0, 0, baseLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 6, 16, 8 }, 0, 0, baseLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 6, 16, 8 }, 0, 0, baseLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 6, 16, 8 }, 0, 0, baseLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 180, 0, baseLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 16 }, 0, 0, plankLoc }
+            } },
+            { { 4, 2, 4 }, { 12, 15, 12 }, 4, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 8, 13 }, 0, 0, frontLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 2, 16, 15, 8 }, 90, 0, sidesLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 8, 3, 16, 16 }, 0, 0, frontLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 2, 8, 15, 16 }, 90, 0, sidesLoc }
+            } },
+            { { 0.0125f, 12, 3 }, { 15.9875f, 16, 16 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 4 }, 0, 0, sidesLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 4, 13, 8 }, 0, 0, sidesLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 4, 16, 8 }, 0, 0, sidesLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 4, 13, 8 }, 0, 0, sidesLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 1, 16, 14 }, 180, 0, topLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 13 }, 0, 0, plankLoc }
+            }, -22.5f, { 8, 8, 8 }, 1, 0 },
+            };
+            static const int lecternYAngle[4] = { 90, 180, 270, 0 };
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, topLoc, lecternElements, 3, 0, lecternYAngle[facing], false);
+            break;
+        }
 
         gUsingTransform = 1;
         totalVertexCount = littleTotalVertexCount = gModel.vertexCount;
@@ -11680,6 +14110,80 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         translateMtx(mtx, 4.0f / 16.0f, -3.0f / 16.0f, -4.0f / 16.0f);
         transformVertices(littleTotalVertexCount, mtx);
 
+        if (!gModel.print3D) {
+            // turn the bell itself (drawn by Minecraft as a block entity) to its facing
+            totalVertexCount = gModel.vertexCount - totalVertexCount;
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            rotateMtx(mtx, 0.0f, (float)facing * 90.0f, 0.0f);
+            translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(totalVertexCount, mtx);
+            gUsingTransform = 0;
+
+            // the support, Minecraft's bell_floor, bell_ceiling, bell_wall, or bell_between_walls model, by the attachment, turned by
+            // "y"; facing is east, south, west, north. The elements are made from the models' JSON.
+            int barLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_DARK_OAK_WOOD_STAIRS].txrX, gBlockDefinitions[BLOCK_DARK_OAK_WOOD_STAIRS].txrY);
+            int postLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_STONE].txrX, gBlockDefinitions[BLOCK_STONE].txrY);
+            ModelElement floorElements[] = {
+                { { 2, 13, 7 }, { 14, 15, 9 }, 4, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 2, 14, 4 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 3, 14, 5 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_TOP, { 2, 3, 14, 5 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 3, 14, 5 }, 0, 0, barLoc }
+                } },
+                { { 14, 0, 6 }, { 16, 16, 10 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 1, 2, 16 }, 0, 0, postLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 1, 4, 16 }, 0, 0, postLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 1, 2, 16 }, 0, 0, postLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 1, 4, 16 }, 0, 0, postLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 2, 4 }, 0, 0, postLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 0, 2, 4 }, 0, 0, postLoc }
+                } },
+                { { 0, 0, 6 }, { 2, 16, 10 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 1, 2, 16 }, 0, 0, postLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 1, 4, 16 }, 0, 0, postLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 1, 2, 16 }, 0, 0, postLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 1, 4, 16 }, 0, 0, postLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 2, 4 }, 0, 0, postLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 0, 2, 4 }, 0, 0, postLoc }
+                } },
+            };
+            ModelElement ceilingElements[] = {
+                { { 7, 13, 7 }, { 9, 16, 9 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 7, 2, 9, 5 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 1, 2, 3, 5 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 6, 2, 8, 5 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 4, 2, 6, 5 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_TOP, { 1, 3, 3, 5 }, 0, 0, barLoc }
+                } },
+            };
+            ModelElement wallElements[] = {
+                { { 3, 13, 7 }, { 16, 15, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 2, 14, 4 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 5, 4, 7, 6 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 3, 14, 5 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 5, 4, 7, 6 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_TOP, { 2, 3, 14, 5 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 3, 14, 5 }, 0, 0, barLoc }
+                } },
+            };
+            ModelElement betweenElements[] = {
+                { { 0, 13, 7 }, { 16, 15, 9 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 2, 14, 4 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 5, 4, 7, 6 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 3, 14, 5 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 5, 4, 7, 6 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_TOP, { 2, 3, 14, 5 }, 0, 0, barLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 3, 14, 5 }, 0, 0, barLoc }
+                } },
+            };
+            const ModelElement* supportModel[4] = { floorElements, ceilingElements, wallElements, betweenElements };
+            static const int supportCount[4] = { 3, 1, 1, 1 };
+            // "y" by attachment (floor, ceiling, single wall, double wall) and facing
+            static const int supportYAngle[4][4] = { { 90, 180, 270, 0 }, { 90, 180, 270, 0 }, { 0, 90, 180, 270 }, { 0, 90, 180, 270 } };
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, barLoc, supportModel[attachment], supportCount[attachment], 0, supportYAngle[attachment][facing], false);
+            break;
+        }
         swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_DARK_OAK_WOOD_STAIRS].txrX, gBlockDefinitions[BLOCK_DARK_OAK_WOOD_STAIRS].txrY);
         switch (attachment) {
         default:
@@ -11738,80 +14242,74 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             break;
         case 4 << 1:
         case 8 << 1:
-            // Weathered Copper Lantern
-            swatchLoc = SWATCH_INDEX(4, 72);
+            // Weathered Copper Lantern (the tile after oxidized)
+            swatchLoc = SWATCH_INDEX(5, 72);
             break;
         case 5 << 1:
         case 9 << 1:
             // Oxidized Copper Lantern
-            swatchLoc = SWATCH_INDEX(5, 72);
+            swatchLoc = SWATCH_INDEX(4, 72);
             break;
         }
 
-        gUsingTransform = 1;
-
-        // bottom of lantern
-        littleTotalVertexCount = gModel.vertexCount;
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, FLIP_LO_Z_FACE_VERTICALLY | FLIP_LO_X_FACE_VERTICALLY, 0, 6, 7, 14, 10, 16);
-        saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, 0x0, 0, 6, 1, 7);
-        littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-        identityMtx(mtx);
-        // put it on ground or hanging, 1 pixel higher
-        translateMtx(mtx, 5.0f / 16.0f, ((float)hanging - 7.0f) / 16.0f, -5.0f / 16.0f);
-        transformVertices(littleTotalVertexCount, mtx);
-
-        // top of lantern
-        littleTotalVertexCount = gModel.vertexCount;
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT, FLIP_LO_Z_FACE_VERTICALLY | FLIP_LO_X_FACE_VERTICALLY, 1, 5, 14, 16, 11, 15);
-        saveBoxReuseGeometryYFaces(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT, 1, 5, 2, 6);
-        littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-        identityMtx(mtx);
-        // put it on ground or hanging, 1 pixel higher
-        translateMtx(mtx, 5.0f / 16.0f, ((float)hanging - 7.0f) / 16.0f, -5.0f / 16.0f);
-        transformVertices(littleTotalVertexCount, mtx);
-
-        // chain & connector
-        if (!gModel.print3D) {
-            // TODO: maybe make the chains not have lit materials by playing games with the type passed in here?
-            // connector at top
-            for (i = 0; i < 2 - hanging; i++) {
-                littleTotalVertexCount = gModel.vertexCount;
-                saveBoxMultitileGeometry(boxIndex, BLOCK_LANTERN, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 11, 14, 4, 6, 8, 8);
-                littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-                identityMtx(mtx);
-                translateToOriginMtx(mtx, boxIndex);
-                translateMtx(mtx, -4.5f / 16.0f, ((float)hanging + 5.0f) / 16.0f, 0.0f);
-                rotateMtx(mtx, 0.0f, (float)i * 90.0f + 45.0f, 0.0f);
-                translateFromOriginMtx(mtx, boxIndex);
-                transformVertices(littleTotalVertexCount, mtx);
-            }
-            // chain, if any
-            if (hanging) {
-                // link
-                littleTotalVertexCount = gModel.vertexCount;
-                saveBoxMultitileGeometry(boxIndex, BLOCK_LANTERN, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 11, 14, 11, 15, 8, 8);
-                littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-                identityMtx(mtx);
-                translateToOriginMtx(mtx, boxIndex);
-                translateMtx(mtx, -4.5f / 16.0f, 0.0f / 16.0f, 0.0f);
-                rotateMtx(mtx, 0.0f, 135.0f, 0.0f);
-                translateFromOriginMtx(mtx, boxIndex);
-                transformVertices(littleTotalVertexCount, mtx);
-
-                // top link
-                littleTotalVertexCount = gModel.vertexCount;
-                saveBoxMultitileGeometry(boxIndex, BLOCK_LANTERN, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 11, 14, 8, 10, 8, 8);
-                littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-                identityMtx(mtx);
-                translateToOriginMtx(mtx, boxIndex);
-                translateMtx(mtx, -4.5f / 16.0f, 6.0f / 16.0f, 0.0f);
-                rotateMtx(mtx, 0.0f, 45.0f, 0.0f);
-                translateFromOriginMtx(mtx, boxIndex);
-                transformVertices(littleTotalVertexCount, mtx);
-            }
+        {
+            // Minecraft's lantern and lantern_hanging models. The elements are made from the models' JSON. The flat hanger pieces
+            // are left out for 3D printing.
+            ModelElement standingElements[] = {
+            { { 5, 0, 5 }, { 11, 7, 11 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 0, 9, 6, 15 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 9, 6, 15 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 2, 6, 9 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 2, 6, 9 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 2, 6, 9 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 2, 6, 9 }, 0, 0, swatchLoc }
+            } },
+            { { 6, 7, 6 }, { 10, 9, 10 }, 5, {
+                { DIRECTION_BLOCK_TOP, { 1, 10, 5, 14 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 0, 5, 2 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 1, 0, 5, 2 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 1, 0, 5, 2 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 1, 0, 5, 2 }, 0, 0, swatchLoc }
+            } },
+            { { 6.5f, 9, 8 }, { 9.5f, 11, 8 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 1, 11, 3 }, 0, 1, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 11, 1, 14, 3 }, 0, 0, swatchLoc }
+            }, 45, { 8, 8, 8 }, 0, 0 },
+            { { 8, 9, 6.5f }, { 8, 11, 9.5f }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_X, { 14, 10, 11, 12 }, 0, 1, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 11, 10, 14, 12 }, 0, 0, swatchLoc }
+            }, 45, { 8, 8, 8 }, 0, 0 },
+            };
+            ModelElement hangingElements[] = {
+            { { 5, 1, 5 }, { 11, 8, 11 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 0, 9, 6, 15 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 9, 6, 15 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 2, 6, 9 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 2, 6, 9 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 2, 6, 9 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 2, 6, 9 }, 0, 0, swatchLoc }
+            } },
+            { { 6, 8, 6 }, { 10, 10, 10 }, 6, {
+                { DIRECTION_BLOCK_BOTTOM, { 1, 10, 5, 14 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_TOP, { 1, 10, 5, 14 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 0, 5, 2 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 1, 0, 5, 2 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 1, 0, 5, 2 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 1, 0, 5, 2 }, 0, 0, swatchLoc }
+            } },
+            { { 6.5f, 11, 8 }, { 9.5f, 15, 8 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 1, 11, 5 }, 0, 1, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 11, 1, 14, 5 }, 0, 0, swatchLoc }
+            }, 45, { 8, 8, 8 }, 0, 0 },
+            { { 8, 10, 6.5f }, { 8, 16, 9.5f }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_X, { 14, 6, 11, 12 }, 0, 1, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 11, 6, 14, 12 }, 0, 0, swatchLoc }
+            }, 45, { 8, 8, 8 }, 0, 0 },
+            };
+            gUsingTransform = 1;
+            retCode |= saveModelElements(boxIndex, type, dataVal, swatchLoc, hanging ? hangingElements : standingElements, hanging ? 4 : 4, 0.0f);
+            gUsingTransform = 0;
         }
-
-        gUsingTransform = 0;
     }
     break; // saveBillboardOrGeometry
 
@@ -11837,50 +14335,30 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 break;
             case 3:
             case BIT_16 | 3:
-                // Weathered Copper Chain
-                swatchLoc = SWATCH_INDEX(12, 71);
+                // Weathered Copper Chain (the tile after oxidized)
+                swatchLoc = SWATCH_INDEX(13, 71);
                 break;
             case BIT_16:
             case BIT_32:
                 // Oxidized Copper Chain
-                swatchLoc = SWATCH_INDEX(13, 71);
+                swatchLoc = SWATCH_INDEX(12, 71);
                 break;
             }
 
-            gUsingTransform = 1;
-
-            // left half
+            // Minecraft's iron_chain model (all chains), along Y, turned by the blockstate for an X axis ("x" 90, "y" 90) or Z axis
+            // ("x" 90). The elements are made from the model's JSON.
+            ModelElement chainElements[] = {
+            { { 6.5f, 0, 8 }, { 9.5f, 16, 8 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 0, 16 }, 0, 1, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 3, 16 }, 0, 0, swatchLoc }
+            }, 45, { 8, 8, 8 }, 0, 0 },
+            { { 8, 0, 6.5f }, { 8, 16, 9.5f }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_X, { 6, 0, 3, 16 }, 0, 1, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 3, 0, 6, 16 }, 0, 0, swatchLoc }
+            }, 45, { 8, 8, 8 }, 0, 0 },
+            };
             int rotationDV = dataVal & 0xC; // x-axis == 4, z-axis == 8
-            littleTotalVertexCount = gModel.vertexCount;
-            saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, rotationDV, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 0, 3, 0, 16, 8, 8);
-            littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-            identityMtx(mtx);
-            translateToOriginMtx(mtx, boxIndex);
-            translateMtx(mtx, 6.5f / 16.0f, 0.0f, 0.0f);
-            rotateMtx(mtx, 0.0f, 135.0f, 0.0f);
-            // now rotate it if going along X or Z axis
-            if (rotationDV > 0) {
-                rotateMtx(mtx, (rotationDV == 4) ? 0.0f : 90.0f, 0.0f, (rotationDV == 4) ? 90.0f : 0.0f);
-            }
-            translateFromOriginMtx(mtx, boxIndex);
-            transformVertices(littleTotalVertexCount, mtx);
-
-            // right half
-            littleTotalVertexCount = gModel.vertexCount;
-            saveBoxMultitileGeometry(boxIndex, BLOCK_CHAIN, rotationDV, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 3, 6, 0, 16, 8, 8);
-            littleTotalVertexCount = gModel.vertexCount - littleTotalVertexCount;
-            identityMtx(mtx);
-            translateToOriginMtx(mtx, boxIndex);
-            translateMtx(mtx, 3.5f / 16.0f, 0.0f, 0.0f);
-            rotateMtx(mtx, 0.0f, 45.0f, 0.0f);
-            // now rotate it if going along X or Z axis
-            if (rotationDV > 0) {
-                rotateMtx(mtx, (rotationDV == 4) ? 0.0f : 90.0f, 0.0f, (rotationDV == 4) ? 90.0f : 0.0f);
-            }
-            translateFromOriginMtx(mtx, boxIndex);
-            transformVertices(littleTotalVertexCount, mtx);
-
-            gUsingTransform = 0;
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, swatchLoc, chainElements, 2, (rotationDV != 0) ? 90 : 0, (rotationDV == 4) ? 90 : 0, false);
         }
     }
     break; // saveBillboardOrGeometry
@@ -11897,6 +14375,102 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         swatchLoc = (lit ?
             (soul ? SWATCH_INDEX(15, 42) : unburntSwatchLoc + 1) :
             unburntSwatchLoc);
+        if (!gModel.print3D) {
+            // Minecraft's campfire and campfire_off models, turned by "y"; dataVal 0x3 faces east, south, west, north. The elements
+            // are made from the models' JSON.
+            int logLoc = unburntSwatchLoc;
+            ModelElement litElements[] = {
+            { { 1, 0, 0 }, { 5, 4, 16 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 1, 16, 5 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 16, 0, 0, 4 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 4 }, 90, 0, logLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 4 }, 90, 0, logLoc }
+            } },
+            { { 0, 3, 11 }, { 16, 7, 15 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 16, 0, 0, 4 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 4 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 4 }, 180, 0, logLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 4, 16, 8 }, 0, 0, swatchLoc }
+            } },
+            { { 11, 0, 0 }, { 15, 4, 16 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 4 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 16, 1, 0, 5 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 4 }, 90, 0, logLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 4 }, 90, 0, logLoc }
+            } },
+            { { 0, 3, 1 }, { 16, 7, 5 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 4 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 16, 0, 0, 4 }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 4 }, 180, 0, logLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 4, 16, 8 }, 0, 0, swatchLoc }
+            } },
+            { { 5, 0, 0 }, { 11, 1, 16 }, 4, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 15, 6, 16 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 10, 15, 16, 16 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 8, 16, 14 }, 90, 0, swatchLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 8, 16, 14 }, 90, 0, logLoc }
+            } },
+            { { 0.8f, 1, 8 }, { 15.2f, 17, 8 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, fireSwatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, fireSwatchLoc }
+            }, 45, { 8, 8, 8 }, 0, 1 },
+            { { 8, 1, 0.8f }, { 8, 17, 15.2f }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 16 }, 0, 1, fireSwatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 16 }, 0, 0, fireSwatchLoc }
+            }, 45, { 8, 8, 8 }, 0, 1 },
+            };
+            ModelElement offElements[] = {
+            { { 1, 0, 0 }, { 5, 4, 16 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 1, 16, 5 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 16, 0, 0, 4 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 4 }, 90, 0, logLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 4 }, 90, 0, logLoc }
+            } },
+            { { 0, 3, 11 }, { 16, 7, 15 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 16, 0, 0, 4 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 4 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 4 }, 180, 0, logLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 4 }, 0, 0, logLoc }
+            } },
+            { { 11, 0, 0 }, { 15, 4, 16 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 4 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 16, 1, 0, 5 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 4 }, 90, 0, logLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 4 }, 90, 0, logLoc }
+            } },
+            { { 0, 3, 1 }, { 16, 7, 5 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 4 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 16, 0, 0, 4 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 4, 4, 8 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 4 }, 180, 0, logLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 4 }, 0, 0, logLoc }
+            } },
+            { { 5, 0, 0 }, { 11, 1, 16 }, 4, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 15, 6, 16 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 10, 15, 16, 16 }, 0, 0, logLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 8, 16, 14 }, 90, 0, logLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 8, 16, 14 }, 90, 0, logLoc }
+            } },
+            };
+            static const int campfireYAngle[4] = { 270, 0, 90, 180 };
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, logLoc, lit ? litElements : offElements, lit ? 7 : 5, 0, campfireYAngle[facing], false);
+            break;
+        }
 
         gUsingTransform = 1;
         totalVertexCount = gModel.vertexCount;
@@ -11970,6 +14544,146 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         topSwatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
         sideSwatchLoc = topSwatchLoc + 1;
         bottomSwatchLoc = topSwatchLoc + 2;
+        if (!gModel.print3D) {
+            // Minecraft's scaffolding_stable and scaffolding_unstable (dataVal 0x1, "bottom") models. The elements are made from
+            // the models' JSON; the top's and the unstable bottom rim's thin plates are 0.01 pixels thick, as in Minecraft.
+            ModelElement stableElements[] = {
+                { { 0, 15.99f, 0 }, { 16, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, topSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 0, 0, topSwatchLoc }
+                } },
+                { { 0, 0, 0 }, { 2, 16, 2 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 14, 2, 16 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 0, 0, 14 }, { 2, 16, 16 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 0, 2, 2 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 14, 0, 14 }, { 16, 16, 16 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 14, 0, 16, 2 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 14, 0, 0 }, { 16, 16, 2 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 14, 14, 16, 16 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 2, 14, 0 }, { 14, 16, 2 }, 3, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 0, 14, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 2, 14, 4 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 14, 14, 16 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 2, 14, 14 }, { 14, 16, 16 }, 3, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 0, 2, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 0, 14, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 0, 14, 2 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 14, 14, 2 }, { 16, 16, 14 }, 3, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 14, 0, 2, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 2, 2, 4 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 14, 2, 16, 14 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 0, 14, 2 }, { 2, 16, 14 }, 3, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 2, 0, 14, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 0, 2, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 2, 2, 14 }, 0, 0, bottomSwatchLoc }
+                } },
+            };
+            ModelElement unstableElements[] = {
+                { { 0, 15.99f, 0 }, { 16, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, topSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 0, 0, topSwatchLoc }
+                } },
+                { { 0, 0, 0 }, { 2, 16, 2 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 14, 2, 16 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 0, 0, 14 }, { 2, 16, 16 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 0, 2, 2 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 14, 0, 14 }, { 16, 16, 16 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 14, 0, 16, 2 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 14, 0, 0 }, { 16, 16, 2 }, 5, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 14, 0, 16, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 2, 16 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 14, 14, 16, 16 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 2, 14, 0 }, { 14, 16, 2 }, 3, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 0, 14, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 2, 14, 4 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 14, 14, 16 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 2, 14, 14 }, { 14, 16, 16 }, 3, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 0, 2, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 0, 14, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 0, 14, 2 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 14, 14, 2 }, { 16, 16, 14 }, 3, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 14, 0, 2, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 2, 2, 4 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 14, 2, 16, 14 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 0, 14, 2 }, { 2, 16, 14 }, 3, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 2, 0, 14, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 0, 2, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 2, 2, 14 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 0, 1.99f, 0 }, { 16, 2, 16 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, topSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 0, 0, topSwatchLoc }
+                } },
+                { { 2, 0, 0 }, { 14, 2, 2 }, 3, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2, 0, 14, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 2, 14, 4 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 14, 14, 16 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 2, 0, 14 }, { 14, 2, 16 }, 3, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 14, 0, 2, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 2, 0, 14, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 2, 0, 14, 2 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 14, 0, 2 }, { 16, 2, 14 }, 3, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 14, 0, 2, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 2, 2, 4 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 14, 2, 16, 14 }, 0, 0, bottomSwatchLoc }
+                } },
+                { { 0, 0, 2 }, { 2, 2, 14 }, 3, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 2, 0, 14, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 14, 0, 2, 2 }, 0, 0, sideSwatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 2, 2, 14 }, 0, 0, bottomSwatchLoc }
+                } },
+            };
+            gUsingTransform = 1;
+            retCode |= saveModelElements(boxIndex, type, dataVal, topSwatchLoc, bottom ? unstableElements : stableElements, bottom ? 14 : 9, 0.0f);
+            gUsingTransform = 0;
+            break;
+        }
 
         for (i = 0; i <= bottom; i++) {
             gUsingTransform = i;
@@ -12026,9 +14740,10 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
                 // north-south
                 saveBoxGeometry(boxIndex, type, dataVal, 1, 0x0, 6 - fatten, 10 + fatten, 0, 16, 0, 16);
             }
+            break;
         }
-        // 4 is east-west, 8 is north-south
-        if (dataVal < 4)
+        // 1 is east-west (axis x), 2 is north-south (axis z); 0 is an old portal with no axis
+        if (dataVal == 0)
         {
             // pre 1.13, so figure out axis if we can
             // infer direction from surrounding neighbors
@@ -12128,8 +14843,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             saveCandle(type, dataVal, boxIndex, 5, -2.0f, -1.0f, 0.0f);
             break;
         case 2:
-            // three candles
-            saveCandle(type, dataVal, boxIndex, 6, 2.0f, 0.0f, -1.0f);
+            // three candles, placed as in Minecraft's template_three_candles
+            saveCandle(type, dataVal, boxIndex, 6, 1.0f, 0.0f, -1.0f);
             saveCandle(type, dataVal, boxIndex, 5, -2.0f, -1.0f, 0.0f);
             saveCandle(type, dataVal, boxIndex, 3, 0.0f, -3.0f, 2.0f);
             break;
@@ -12145,75 +14860,81 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break; // saveBillboardOrGeometry
 
     case BLOCK_AMETHYST_BUD:						// saveBillboardOrGeometry
-        bottomDataVal = (dataVal & 0x1c)>>2;
-        // compute two rotations, and piston nubbin visibility.
-        // Piston nubbin visibility:
-        // the bottom face of the piston is output only in the rare case that the neighboring piston voxel is empty;
-        // normally the piston body is in the next voxel. If we see *anything* else, assert, as
-        // something's probably wrong with the code.
-        yrot = zrot = 0.0f;
-        //dir = DIRECTION_BLOCK_TOP;
-        switch (bottomDataVal)
-        {
-        case 0: // pointing down
-            //dir = DIRECTION_BLOCK_TOP;
-            zrot = 180.0f;
-            yrot = 270.0f;
-            break;
-        case 1: // pointing up
-            //dir = DIRECTION_BLOCK_BOTTOM;
-            yrot = 270.0f;
-            break;
-        case 2: // pointing north
-            //dir = DIRECTION_BLOCK_SIDE_HI_Z;
-            zrot = 90.0f;
-            yrot = 270.0f;
-            break;
-        case 3: // pointing south
-            //dir = DIRECTION_BLOCK_SIDE_LO_Z;
-            zrot = 90.0f;
-            yrot = 90.0f;
-            break;
-        case 4: // pointing west
-            //dir = DIRECTION_BLOCK_SIDE_HI_X;
-            zrot = 90.0f;
-            yrot = 180.0f;
-            break;
-        case 5: // pointing east
-            //dir = DIRECTION_BLOCK_SIDE_LO_X;
-            zrot = 90.0f;
-            break;
-        default:
+    {
+        // Minecraft's cross model, two planes crossing on the block's diagonals, each an element from pixel 0.8 to 15.2 turned
+        // 45 degrees about Y and stretched by "rescale" to reach that far along the diagonal; then turned to point the way the bud
+        // faces, as its blockstate does it: by "x" (90 takes the top to the north), then by "y" (90 takes north to east).
+        // Bits 0x1c are the facing: down, up, north, south, west, east. Bits 0x3 are the bud's size.
+        static const float facingRotation[6][2] = { { 180.0f, 0.0f }, { 0.0f, 0.0f }, { 90.0f, 0.0f }, { 90.0f, 180.0f }, { 90.0f, 270.0f }, { 90.0f, 90.0f } };
+        int budFacing = (dataVal & 0x1c) >> 2;
+        if (budFacing > 5) {
             assert(0);
+            budFacing = 1;
         }
-
-        // we definitely do move the piston shaft into place, always
-        gUsingTransform = 1;
-        // grab bud
         swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + (dataVal & 0x3);
-
-        // form the bud
-        for (i = 0; i < 2; i++) {
-            totalVertexCount = gModel.vertexCount;
-            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1-i, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 0, 16, 0, 16, 0, 0);
-            totalVertexCount = gModel.vertexCount - totalVertexCount;
-            identityMtx(mtx);
-            translateToOriginMtx(mtx, boxIndex);
-            translateMtx(mtx, 0.0f, 0.0f, 8.0f / 16.0f);
-            rotateMtx(mtx, 0.0f, 45.0f + (float)i * 90.0f, 0.0f);
-            rotateMtx(mtx, 0.0, 0.0f, zrot);
-            rotateMtx(mtx, 0.0f, yrot, 0.0f);
-            translateFromOriginMtx(mtx, boxIndex);
-            transformVertices(totalVertexCount, mtx);
-        }
-
+        // each plane's other face is output only if billboards are doubled, as for other crossed planes
+        ModelElement crossElements[] = {
+            { { 0.8f, 0.0f, 8.0f }, { 15.2f, 16.0f, 8.0f }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 0.0f, 16.0f, 16.0f }, 0, 0, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0.0f, 0.0f, 16.0f, 16.0f }, 0, 1, swatchLoc }
+            } },
+            { { 8.0f, 0.0f, 0.8f }, { 8.0f, 16.0f, 15.2f }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0.0f, 0.0f, 16.0f, 16.0f }, 0, 1, swatchLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0.0f, 0.0f, 16.0f, 16.0f }, 0, 0, swatchLoc }
+            } },
+        };
+        gUsingTransform = 1;
+        totalVertexCount = gModel.vertexCount;
+        saveModelElements(boxIndex, type, dataVal, swatchLoc, crossElements, sizeof(crossElements) / sizeof(ModelElement), 0.0f);
+        totalVertexCount = gModel.vertexCount - totalVertexCount;
+        identityMtx(mtx);
+        translateToOriginMtx(mtx, boxIndex);
+        // Minecraft's element angle is counterclockwise, seen from above; rotateMtx's is clockwise
+        rotateMtx(mtx, 0.0f, -45.0f, 0.0f);
+        scaleMtx(mtx, 1.0f / OSQRT2, 1.0f, 1.0f / OSQRT2);
+        rotateMtx(mtx, facingRotation[budFacing][0], 0.0f, 0.0f);
+        rotateMtx(mtx, 0.0f, facingRotation[budFacing][1], 0.0f);
+        translateFromOriginMtx(mtx, boxIndex);
+        transformVertices(totalVertexCount, mtx);
         gUsingTransform = 0;
-        break; // saveBillboardOrGeometry
+    }
+    break; // saveBillboardOrGeometry
 
     case BLOCK_SPORE_BLOSSOM:						// saveBillboardOrGeometry
-        // make base and blossom, which is like fan coral but upside down
-        saveBillboardFaces(boxIndex, type, BB_SIDE);
-        saveBillboardFaces(boxIndex, type, BB_FAN);
+        if (gModel.print3D) {
+            // make base and blossom, which is like fan coral but upside down
+            saveBillboardFaces(boxIndex, type, BB_SIDE);
+            saveBillboardFaces(boxIndex, type, BB_FAN);
+        }
+        else {
+            // Minecraft's spore_blossom model: the leafy base just under the ceiling (0.1 pixel down in Minecraft, Z_FIGHTING_BIAS
+            // here), and four flowers hinged at the ceiling's edges, tilted down 22.5 degrees. The elements are made from the model's JSON.
+            int flowerLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            int baseLoc = flowerLoc + 1;
+            ModelElement sporeBlossomElements[] = {
+            { { 1, 16.0f - Z_FIGHTING_BIAS, 1 }, { 15, 16.0f - Z_FIGHTING_BIAS, 15 }, 2, {
+                { DIRECTION_BLOCK_TOP, { 1, 1, 15, 15 }, 0, 0, baseLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 1, 1, 15, 15 }, 0, 1, baseLoc }
+            } },
+            { { 8, 15.7f, 0 }, { 24, 15.7f, 16 }, 2, {
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 90, 0, flowerLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 270, 1, flowerLoc }
+            }, -22.5f, { 8, 16, 0 }, 2, 0 },
+            { { -8, 15.7f, 0 }, { 8, 15.7f, 16 }, 2, {
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 270, 0, flowerLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 90, 1, flowerLoc }
+            }, 22.5f, { 8, 16, 0 }, 2, 0 },
+            { { 0, 15.7f, 8 }, { 16, 15.7f, 24 }, 2, {
+                { DIRECTION_BLOCK_TOP, { 16, 16, 0, 0 }, 0, 0, flowerLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 16, 0, 0, 16 }, 0, 1, flowerLoc }
+            }, 22.5f, { 0, 16, 8 }, 1, 0 },
+            { { 0, 15.7f, -8 }, { 16, 15.7f, 8 }, 2, {
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, flowerLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 0, 1, flowerLoc }
+            }, -22.5f, { 0, 16, 8 }, 1, 0 },
+            };
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, flowerLoc, sporeBlossomElements, 5, 0, 0, false);
+        }
         break;
 
     case BLOCK_AZALEA:						// saveBillboardOrGeometry
@@ -12224,14 +14945,158 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 2, swatchLoc, 1, 0x0, 1, 0, 16, 0, 16, 0, 16);
         }
         else {
-            // cross tree
-            saveBillboardFaces(boxIndex, type, BB_FULL_CROSS);
-            saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 2, swatchLoc, 0, DIR_BOTTOM_BIT, 1, 0, 16, 0, 16, 0, 16);
+            // Minecraft's azalea or flowering_azalea (dataVal 0x1) model: a shell of leaves (top and the sides' upper 11
+            // pixels) around a cross of stems. The elements are made from the model's JSON; Minecraft's shell plates are 0.01 pixels
+            // thick, here flat, with the inward face output as the plate's back.
+            int topLoc = SWATCH_INDEX(5, 51) + (dataVal & 0x1);
+            int sideLoc = SWATCH_INDEX(7, 51) + (dataVal & 0x1);
+            int plantLoc = SWATCH_INDEX(9, 51);
+            ModelElement azaleaElements[] = {
+                { { 0, 16, 0 }, { 16, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 0, 1, topLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, topLoc }
+                } },
+                { { 0, 5, 0 }, { 16, 16, 0 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 11 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 16, 0, 0, 11 }, 0, 1, sideLoc }
+                } },
+                { { 0, 5, 16 }, { 16, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 16, 0, 0, 11 }, 0, 1, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 11 }, 0, 0, sideLoc }
+                } },
+                { { 0, 5, 0 }, { 0, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 11 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 16, 0, 0, 11 }, 0, 1, sideLoc }
+                } },
+                { { 16, 5, 0 }, { 16, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 16, 0, 0, 11 }, 0, 1, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 11 }, 0, 0, sideLoc }
+                } },
+                { { 0.1f, 0, 8 }, { 15.9f, 15.9f, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, plantLoc }
+                }, 45, { 8, 8, 8 }, 0, 1 },
+                { { 8, 0, 0.1f }, { 8, 15.9f, 15.9f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 16 }, 0, 1, plantLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 16 }, 0, 0, plantLoc }
+                }, 45, { 8, 8, 8 }, 0, 1 },
+            };
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, topLoc, azaleaElements, 7, 0, 0, false);
         }
         break; // saveBillboardOrGeometry
 
     case BLOCK_BIG_DRIPLEAF:						// saveBillboardOrGeometry
         swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+        if (!gModel.print3D) {
+            // Minecraft's big_dripleaf model (tilt none or unstable), big_dripleaf_partial_tilt, or big_dripleaf_full_tilt, or for the
+            // stem (dataVal 0x1), big_dripleaf_stem, turned by "y"; dataVal 0x6 is the facing, east, south, west, north, and 0x18
+            // the tilt, none, unstable, partial, full. The elements are made from the models' JSON; Minecraft's leaf edges are 0.002
+            // pixels thick, here flat, with the inward face output as the edge's back.
+            int topLoc = swatchLoc;
+            int sideLoc = swatchLoc + 1;
+            int tipLoc = swatchLoc + 2;
+            int stemLoc = swatchLoc + 3;
+            ModelElement leafElements[] = {
+                { { 0, 15, 0 }, { 16, 15, 16 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 0, 1, topLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, topLoc }
+                } },
+                { { 0, 11, 0 }, { 16, 15, 0 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 4 }, 0, 0, tipLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 16, 0, 0, 4 }, 0, 1, tipLoc }
+                } },
+                { { 0, 11, 0 }, { 0, 15, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 16, 0, 0, 4 }, 0, 1, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 4 }, 0, 0, sideLoc }
+                } },
+                { { 16, 11, 0 }, { 16, 15, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 16, 0, 0, 4 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 4 }, 0, 1, sideLoc }
+                } },
+                { { 5, 0, 12 }, { 11, 15, 12 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 14, 16 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 14, 16 }, 0, 0, stemLoc }
+                }, 45, { 8, 8, 12 }, 0, 1 },
+                { { 5, 0, 12 }, { 11, 15, 12 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 14, 16 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 14, 16 }, 0, 0, stemLoc }
+                }, -45, { 8, 8, 12 }, 0, 1 },
+            };
+            ModelElement partialElements[] = {
+                { { 0, 15, 0 }, { 16, 15, 16 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 16, 0, 0 }, 0, 1, topLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, topLoc }
+                }, -22.5f, { 8, 15, 16 }, 1, 0 },
+                { { 0, 11, 0 }, { 16, 15, 0 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 4 }, 0, 1, tipLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 4 }, 0, 0, tipLoc }
+                }, -22.5f, { 8, 15, 16 }, 1, 0 },
+                { { 0, 11, 0 }, { 0, 15, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 16, 0, 0, 4 }, 0, 1, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 4 }, 0, 0, sideLoc }
+                }, -22.5f, { 8, 15, 16 }, 1, 0 },
+                { { 16, 11, 0 }, { 16, 15, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 16, 0, 0, 4 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 4 }, 0, 1, sideLoc }
+                }, -22.5f, { 8, 15, 16 }, 1, 0 },
+                { { 5, 0, 12 }, { 11, 15, 12 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 14, 16 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 14, 16 }, 0, 0, stemLoc }
+                }, 45, { 8, 8, 12 }, 0, 1 },
+                { { 5, 0, 12 }, { 11, 15, 12 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 14, 16 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 14, 16 }, 0, 0, stemLoc }
+                }, -45, { 8, 8, 12 }, 0, 1 },
+            };
+            ModelElement fullElements[] = {
+                { { 0, 15, 0 }, { 16, 15, 16 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 16, 16, 0, 0 }, 0, 1, topLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, topLoc }
+                }, -45, { 8, 15, 16 }, 1, 0 },
+                { { 0, 11, 0 }, { 16, 15, 0 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 4 }, 0, 1, tipLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 4 }, 0, 0, tipLoc }
+                }, -45, { 8, 15, 16 }, 1, 0 },
+                { { 0, 11, 0 }, { 0, 15, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 16, 0, 0, 4 }, 0, 1, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 4 }, 0, 0, sideLoc }
+                }, -45, { 8, 15, 16 }, 1, 0 },
+                { { 16, 11, 0 }, { 16, 15, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 16, 0, 0, 4 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 4 }, 0, 1, sideLoc }
+                }, -45, { 8, 15, 16 }, 1, 0 },
+                { { 5, 0, 12 }, { 11, 15, 12 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 14, 16 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 14, 16 }, 0, 0, stemLoc }
+                }, 45, { 8, 8, 12 }, 0, 1 },
+                { { 5, 0, 12 }, { 11, 15, 12 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 14, 16 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 14, 16 }, 0, 0, stemLoc }
+                }, -45, { 8, 8, 12 }, 0, 1 },
+            };
+            ModelElement stemElements[] = {
+                { { 5, 0, 12 }, { 11, 16, 12 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 14, 16 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 14, 16 }, 0, 0, stemLoc }
+                }, 45, { 8, 8, 12 }, 0, 1 },
+                { { 5, 0, 12 }, { 11, 16, 12 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 0, 14, 16 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 0, 14, 16 }, 0, 0, stemLoc }
+                }, -45, { 8, 8, 12 }, 0, 1 },
+            };
+            const ModelElement* dripleafModel[4] = { leafElements, leafElements, partialElements, fullElements };
+            static const int dripleafCount[4] = { 6, 6, 6, 6 };
+            static const int dripleafYAngle[4] = { 90, 180, 270, 0 };
+            int yAngle = dripleafYAngle[(dataVal >> 1) & 0x3];
+            if (dataVal & 0x1) {
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, stemLoc, stemElements, 2, 0, yAngle, false);
+            }
+            else {
+                int tilt = (dataVal >> 3) & 0x3;
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, topLoc, dripleafModel[tilt], dripleafCount[tilt], 0, yAngle, false);
+            }
+            break;
+        }
         // save stem always
         gUsingTransform = 1;
         yrot = (float)((((dataVal & 0x6) >> 1) + 1 ) % 4);
@@ -12305,6 +15170,83 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
     case BLOCK_SMALL_DRIPLEAF:						// saveBillboardOrGeometry
         {
             swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+            if (!gModel.print3D) {
+                // Minecraft's small_dripleaf_top or, for the lower half (dataVal 0x1), small_dripleaf_bottom model, turned by "y";
+                // dataVal 0x6 is the facing, east, south, west, north. The elements are made from the models' JSON; Minecraft's
+                // leaves are 0.02 pixels above their edges' boxes, here on the texel.
+                int topLoc = swatchLoc;
+                int sideLoc = swatchLoc + 1;
+                int stemLoc = swatchLoc + 2;
+                int stemBottomLoc = swatchLoc + 3;
+                ModelElement topElements[] = {
+                    { { 8, 3, 8 }, { 15, 3, 15 }, 2, {
+                        { DIRECTION_BLOCK_BOTTOM, { 8, 0, 0, 8 }, 0, 1, topLoc },
+                        { DIRECTION_BLOCK_TOP, { 8, 8, 0, 0 }, 0, 0, topLoc }
+                    } },
+                    { { 1, 8, 1 }, { 8, 8, 8 }, 2, {
+                        { DIRECTION_BLOCK_BOTTOM, { 0, 8, 8, 0 }, 0, 1, topLoc },
+                        { DIRECTION_BLOCK_TOP, { 0, 0, 8, 8 }, 0, 0, topLoc }
+                    } },
+                    { { 1, 12, 8 }, { 8, 12, 15 }, 2, {
+                        { DIRECTION_BLOCK_BOTTOM, { 8, 0, 0, 8 }, 270, 1, topLoc },
+                        { DIRECTION_BLOCK_TOP, { 0, 0, 8, 8 }, 270, 0, topLoc }
+                    } },
+                    { { 8, 2, 8 }, { 15, 3, 15 }, 4, {
+                        { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 8, 1 }, 0, 0, sideLoc },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 8, 1 }, 0, 0, sideLoc },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 8, 1 }, 0, 0, sideLoc },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 8, 1 }, 0, 0, sideLoc }
+                    } },
+                    { { 1, 7, 1 }, { 8, 8, 8 }, 4, {
+                        { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 8, 1 }, 0, 0, sideLoc },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 8, 1 }, 0, 0, sideLoc },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 8, 1 }, 0, 0, sideLoc },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 8, 1 }, 0, 0, sideLoc }
+                    } },
+                    { { 1, 11, 8 }, { 8, 12, 15 }, 4, {
+                        { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 8, 1 }, 0, 0, sideLoc },
+                        { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 8, 1 }, 0, 0, sideLoc },
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 8, 1 }, 0, 0, sideLoc },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 8, 1 }, 0, 0, sideLoc }
+                    } },
+                    { { 4.5f, 0, 8 }, { 11.5f, 14, 8 }, 2, {
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 0, 12, 14 }, 0, 1, stemLoc },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 0, 12, 14 }, 0, 0, stemLoc }
+                    }, 45, { 8, 8, 8 }, 0, 0 },
+                    { { 4.5f, 0, 8 }, { 11.5f, 14, 8 }, 2, {
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 0, 12, 14 }, 0, 1, stemLoc },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 0, 12, 14 }, 0, 0, stemLoc }
+                    }, -45, { 8, 8, 8 }, 0, 0 },
+                };
+                ModelElement bottomElements[] = {
+                    { { 4.5f, 0, 8 }, { 11.5f, 16, 8 }, 2, {
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 5, 0, 12, 16 }, 0, 1, stemBottomLoc },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 5, 0, 12, 16 }, 0, 0, stemBottomLoc }
+                    }, 45, { 8, 8, 8 }, 0, 0 },
+                    { { 4.5f, 0, 8 }, { 11.5f, 16, 8 }, 2, {
+                        { DIRECTION_BLOCK_SIDE_LO_Z, { 5, 0, 12, 16 }, 0, 1, stemBottomLoc },
+                        { DIRECTION_BLOCK_SIDE_HI_Z, { 5, 0, 12, 16 }, 0, 0, stemBottomLoc }
+                    }, -45, { 8, 8, 8 }, 0, 0 },
+                };
+                static const int dripleafYAngle[4] = { 90, 180, 270, 0 };
+                int yAngle = dripleafYAngle[(dataVal >> 1) & 0x3];
+                totalVertexCount = gModel.vertexCount;
+                if (dataVal & 0x1) {
+                    retCode |= saveRotatedModel(boxIndex, type, dataVal, stemBottomLoc, bottomElements, 2, 0, yAngle, false);
+                }
+                else {
+                    retCode |= saveRotatedModel(boxIndex, type, dataVal, topLoc, topElements, 8, 0, yAngle, false);
+                }
+                // offset randomly in X and Z, as Minecraft does
+                wobbleObjectLocation(boxIndex, shiftX, shiftZ);
+                totalVertexCount = gModel.vertexCount - totalVertexCount;
+                identityMtx(mtx);
+                translateMtx(mtx, shiftX / 16.0f, 0.0f, shiftZ / 16.0f);
+                gUsingTransform = 1;
+                transformVertices(totalVertexCount, mtx);
+                gUsingTransform = 0;
+                break;
+            }
             // save stem always
             gUsingTransform = 1;
             yrot = (float)((((dataVal & 0x6) >> 1) + 1) % 4);
@@ -12364,6 +15306,86 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // BIT_16 is active or inactive
         // bits 0x3 is facing for the calibrated sculk sensor only
         // bit 0x4 is whether it's a calibrated sculk sensor
+        if (!gModel.print3D) {
+            // Minecraft's sculk_sensor_inactive or _active model (the active and cooldown phases differ only in the tendrils'
+            // texture), or for the calibrated sculk sensor, calibrated_sculk_sensor_inactive or _active, turned by "y"; dataVal 0x3
+            // faces south, west, north, east. The elements are made from the models' JSON.
+            bool calibrated = (dataVal & 0x4) ? true : false;
+            int topLoc = calibrated ? SWATCH_INDEX(2, 57) : SWATCH_INDEX(15, 52);
+            int sideLoc = SWATCH_INDEX(0, 53);
+            int bottomLoc = SWATCH_INDEX(1, 53);
+            int tendrilLoc = (dataVal & BIT_16) ? SWATCH_INDEX(2, 53) : SWATCH_INDEX(3, 53);
+            int amethystLoc = SWATCH_INDEX(0, 57);
+            int inputLoc = SWATCH_INDEX(1, 57);
+            ModelElement sensorElements[] = {
+            { { 0, 0, 0 }, { 16, 8, 16 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 8, 16, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 8, 16, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 8, 16, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 8, 16, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, topLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 16 }, 0, 0, bottomLoc }
+            } },
+            { { -1, 8, 3 }, { 7, 16, 3 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 8, 12, 16 }, 0, 1, tendrilLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 12, 8, 4, 16 }, 0, 0, tendrilLoc }
+            }, 45, { 3, 12, 3 }, 0, 0 },
+            { { 9, 8, 3 }, { 17, 16, 3 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 12, 8, 4, 16 }, 0, 1, tendrilLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 8, 12, 16 }, 0, 0, tendrilLoc }
+            }, -45, { 13, 12, 3 }, 0, 0 },
+            { { 9, 8, 13 }, { 17, 16, 13 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 12, 8, 4, 16 }, 0, 1, tendrilLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 8, 12, 16 }, 0, 0, tendrilLoc }
+            }, 45, { 13, 12, 13 }, 0, 0 },
+            { { -1, 8, 13 }, { 7, 16, 13 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 8, 12, 16 }, 0, 1, tendrilLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 12, 8, 4, 16 }, 0, 0, tendrilLoc }
+            }, -45, { 3, 12, 13 }, 0, 0 },
+            };
+            ModelElement calibratedElements[] = {
+            { { 0, 0, 0 }, { 16, 8, 16 }, 6, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 8, 16, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 8, 16, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 8, 16, 16 }, 0, 0, inputLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 8, 16, 16 }, 0, 0, sideLoc },
+                { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, topLoc },
+                { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 16 }, 0, 0, bottomLoc }
+            } },
+            { { -1, 8, 3 }, { 7, 16, 3 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 8, 12, 16 }, 0, 1, tendrilLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 12, 8, 4, 16 }, 0, 0, tendrilLoc }
+            }, 45, { 3, 12, 3 }, 0, 0 },
+            { { 9, 8, 3 }, { 17, 16, 3 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 12, 8, 4, 16 }, 0, 1, tendrilLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 8, 12, 16 }, 0, 0, tendrilLoc }
+            }, -45, { 13, 12, 3 }, 0, 0 },
+            { { 9, 8, 13 }, { 17, 16, 13 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 12, 8, 4, 16 }, 0, 1, tendrilLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 4, 8, 12, 16 }, 0, 0, tendrilLoc }
+            }, 45, { 13, 12, 13 }, 0, 0 },
+            { { -1, 8, 13 }, { 7, 16, 13 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 4, 8, 12, 16 }, 0, 1, tendrilLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 12, 8, 4, 16 }, 0, 0, tendrilLoc }
+            }, -45, { 3, 12, 13 }, 0, 0 },
+            { { 8, 8, 0 }, { 8, 20, 16 }, 2, {
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0, 4, 16, 16 }, 0, 0, amethystLoc },
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0, 4, 16, 16 }, 0, 1, amethystLoc }
+            }, 45, { 8, 9, 8 }, 0, 1 },
+            { { 0, 8, 8 }, { 16, 20, 8 }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 4, 16, 16 }, 0, 1, amethystLoc },
+                { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 4, 16, 16 }, 0, 0, amethystLoc }
+            }, 45, { 8, 9, 8 }, 0, 1 },
+            };
+            if (calibrated) {
+                static const int calibratedYAngle[4] = { 180, 270, 0, 90 };
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, topLoc, calibratedElements, 7, 0, calibratedYAngle[dataVal & 0x3], false);
+            }
+            else {
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, topLoc, sensorElements, 5, 0, 0, false);
+            }
+            break;
+        }
         if (dataVal & 0x4) {
             // calibrated
             swatchLoc = SWATCH_INDEX(1, 57);    // calibrated_sculk_sensor_input_side
@@ -12464,25 +15486,46 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 1, 0x0, 0, 0, 16, 0, 16, 0, 16);
         }
         else {
-            // a top and bottom, then also a "+" shape of root textures in the middle
-            // if single-sided (culling is on), Minecraft actually does *not* cull backfaces, to get a dense mesh appearance of roots
-            if (gModel.singleSided) {
-                // 8 outputs: bottom, top, then 3 X, 3 Z. Have to do all 8 in order to make each one double-sided by outputting both faces for each.
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 1, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 0, 16, 0, 0, 0, 16);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0, 0, 16, 16, 16, 0, 16);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_LO_Z_FACE_VERTICALLY, 0, 16, 0, 16, 0, 0);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_LO_Z_FACE_VERTICALLY, 0, 16, 0, 16, 8, 8);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT, FLIP_LO_Z_FACE_VERTICALLY, 0, 16, 0, 16, 16, 16);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_LO_X_FACE_VERTICALLY, 0, 0, 0, 16, 0, 16);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_LO_X_FACE_VERTICALLY, 8, 8, 0, 16, 0, 16);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, FLIP_LO_X_FACE_VERTICALLY, 16, 16, 0, 16, 0, 16);
-            }
-            else {
-                // double sided, so just 3 outputs: bottom & top and XZ outer, then X, then Z (and only single sided for those two)
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 1, 0x0, FLIP_LO_X_FACE_VERTICALLY | FLIP_LO_Z_FACE_VERTICALLY, 0, 16, 0, 16, 0, 16);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, FLIP_LO_Z_FACE_VERTICALLY, 0, 16, 0, 16, 8, 8);
-                saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc + 1, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_LO_X_BIT, FLIP_LO_X_FACE_VERTICALLY, 8, 8, 0, 16, 0, 16);
-            }                
+            // Minecraft's mangrove_roots model: a "+" of root textures in the middle, and a shell of two-sided plates around the
+            // block, so the roots look dense from any side. The elements are made from the model's JSON; Minecraft's plates are 0.002
+            // pixels thick, here flat, with the inward face output as the plate's back.
+            int topLoc = swatchLoc;
+            int sideLoc = swatchLoc + 1;
+            ModelElement rootsElements[] = {
+                { { 0, 0, 8 }, { 16, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, sideLoc }
+                } },
+                { { 8, 0, 0 }, { 8, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 16 }, 0, 1, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 16 }, 0, 0, sideLoc }
+                } },
+                { { 0, 16, 0 }, { 16, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 16, 16, 0 }, 0, 1, topLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 16, 16 }, 0, 0, topLoc }
+                } },
+                { { 0, 0, 0 }, { 16, 0, 16 }, 2, {
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 0, 16, 16 }, 0, 0, topLoc },
+                    { DIRECTION_BLOCK_TOP, { 0, 16, 16, 0 }, 0, 1, topLoc }
+                } },
+                { { 0, 0, 0 }, { 16, 16, 0 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 16, 0, 0, 16 }, 0, 1, sideLoc }
+                } },
+                { { 0, 0, 16 }, { 16, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 16, 0, 0, 16 }, 0, 1, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, sideLoc }
+                } },
+                { { 0, 0, 0 }, { 0, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 16, 0, 0, 16 }, 0, 1, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 16 }, 0, 0, sideLoc }
+                } },
+                { { 16, 0, 0 }, { 16, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 16, 0, 0, 16 }, 0, 1, sideLoc }
+                } },
+            };
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, topLoc, rootsElements, 8, 0, 0, false);
         }
         break;
 
@@ -12544,53 +15587,126 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             break;
         }
 
-        // generate all, then rotate
+        if ((dataVal & 0x30) != 16) {
+            // pink petals or wildflowers: Minecraft's flowerbed_1 to flowerbed_4 models (pink_petals_1-4 and wildflowers_1-4 use these
+            // with their textures), as many as the flower amount, (dataVal >> 2) & 0x3, plus one, turned by "y"; dataVal 0x3 faces
+            // east, south, west, north. The elements are made from the models' JSON.
+            int stemLoc = swatchLoc + 1;
+            ModelElement flowerbed1Elements[] = {
+                { { 0, 2.99f, 0 }, { 8, 2.99f, 8 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 8, 8 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 8, 8, 0 }, 0, 1, swatchLoc }
+                } },
+                { { 4.25f, 0, -2.6f }, { 4.25f, 2.99f, -1.6f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 4, 1, 7 }, 0, 0, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 4, 1, 7 }, 0, 1, stemLoc }
+                }, -45, { 0, 0, 0 }, 0, 0 },
+                { { 3.75f, 0, -2.1f }, { 4.75f, 2.99f, -2.1f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 4, 1, 7 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 4, 1, 7 }, 0, 0, stemLoc }
+                }, -45, { 0, 0, 0 }, 0, 0 },
+                { { 4.9f, 0, 2.3f }, { 4.9f, 2.99f, 3.3f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 4, 1, 7 }, 0, 0, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 4, 1, 7 }, 0, 1, stemLoc }
+                }, -45, { 0, 0, 0 }, 0, 0 },
+                { { 4.4f, 0, 2.8f }, { 5.4f, 2.99f, 2.8f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 4, 1, 7 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 4, 1, 7 }, 0, 0, stemLoc }
+                }, -45, { 0, 0, 0 }, 0, 0 },
+                { { 9.15f, 0, -0.45f }, { 9.15f, 2.99f, 0.55f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 4, 1, 7 }, 0, 0, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 4, 1, 7 }, 0, 1, stemLoc }
+                }, -45, { 0, 0, 0 }, 0, 0 },
+                { { 8.65f, 0, 0.05f }, { 9.65f, 2.99f, 0.05f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 4, 1, 7 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 4, 1, 7 }, 0, 0, stemLoc }
+                }, -45, { 0, 0, 0 }, 0, 0 },
+            };
+            ModelElement flowerbed2Elements[] = {
+                { { 0, 1, 8 }, { 8, 1, 16 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 0, 8, 8, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 16, 8, 8 }, 0, 1, swatchLoc }
+                } },
+                { { 0, 1, 8 }, { 8, 1, 16 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 0, 8, 8, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 16, 8, 8 }, 0, 1, swatchLoc }
+                } },
+                { { 10.15f, 0, 5.25f }, { 11.15f, 1, 5.25f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 6, 1, 7 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 6, 1, 7 }, 0, 0, stemLoc }
+                }, -45, { 0, 0, 1 }, 0, 0 },
+                { { 10.65f, 0, 4.75f }, { 10.65f, 1, 5.75f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 6, 1, 7 }, 0, 0, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 6, 1, 7 }, 0, 1, stemLoc }
+                }, -45, { 0, 0, 1 }, 0, 0 },
+            };
+            ModelElement flowerbed3Elements[] = {
+                { { 8, 2, 8 }, { 16, 2, 16 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 8, 16, 16 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 16, 16, 8 }, 0, 1, swatchLoc }
+                } },
+                { { 17.65f, 0, 1.9f }, { 18.65f, 2, 1.9f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 5, 1, 7 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 1, 7 }, 0, 0, stemLoc }
+                }, -45, { 0.5f, 0, 0.5f }, 0, 0 },
+                { { 18.15f, 0, 1.4f }, { 18.15f, 2, 2.4f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 5, 1, 7 }, 0, 0, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 5, 1, 7 }, 0, 1, stemLoc }
+                }, -45, { 0.5f, 0, 0.5f }, 0, 0 },
+                { { 17.65f, 0, -3.35f }, { 17.65f, 2, -2.35f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 5, 1, 7 }, 0, 0, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 5, 1, 7 }, 0, 1, stemLoc }
+                }, -45, { 0, 0, 0 }, 0, 0 },
+                { { 17.15f, 0, -2.85f }, { 18.15f, 2, -2.85f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 5, 1, 7 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 1, 7 }, 0, 0, stemLoc }
+                }, -45, { 0, 0, 0 }, 0, 0 },
+                { { 13.4f, 0, -0.5f }, { 13.4f, 2, 0.5f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 5, 1, 7 }, 0, 0, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 5, 1, 7 }, 0, 1, stemLoc }
+                }, -45, { 0, 0, 0 }, 0, 0 },
+                { { 12.9f, 0, 0 }, { 13.9f, 2, 0 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 5, 1, 7 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 1, 7 }, 0, 0, stemLoc }
+                }, -45, { 0, 0, 0 }, 0, 0 },
+            };
+            ModelElement flowerbed4Elements[] = {
+                { { 8, 2, 0 }, { 16, 2, 8 }, 2, {
+                    { DIRECTION_BLOCK_TOP, { 8, 0, 16, 8 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 8, 8, 16, 0 }, 0, 1, swatchLoc }
+                } },
+                { { 12.4f, 0, -7.7f }, { 12.4f, 2, -6.7f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 5, 1, 7 }, 0, 0, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 5, 1, 7 }, 0, 1, stemLoc }
+                }, -45, { -1, 0, -3 }, 0, 0 },
+                { { 11.9f, 0, -7.2f }, { 12.9f, 2, -7.2f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 5, 1, 7 }, 0, 1, stemLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 5, 1, 7 }, 0, 0, stemLoc }
+                }, -45, { -1, 0, -3 }, 0, 0 },
+            };
+            const ModelElement* flowerbedModel[4] = { flowerbed1Elements, flowerbed2Elements, flowerbed3Elements, flowerbed4Elements };
+            static const int flowerbedCount[4] = { 7, 4, 7, 3 };
+            static const int flowerbedYAngle[4] = { 90, 180, 270, 0 };
+            for (i = 0; i <= ((dataVal >> 2) & 0x3); i++) {
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, swatchLoc, flowerbedModel[i], flowerbedCount[i], 0, flowerbedYAngle[dataVal & 0x3], false);
+            }
+            break;
+        }
+
+        // leaf litter: generate all, then rotate
         gUsingTransform = 1;
         totalVertexCount = gModel.vertexCount;
         angle = 90.0f * (1.0f + (dataVal & 0x3));
         {
-            // go through the up to four amounts of flowers
+            // go through the up to four amounts of leaves
             int flower_amount = 1 + ((dataVal >> 2) & 0x3);
-            int fheights[] = { 3, 1, 2, 2 };
             for (i = 0; i < flower_amount; i++)
             {
-                // leaf litter?
-                if ((dataVal & 0x30) == 16) {
-                    // leaf litter tops - doesn't use heights, just a constant 0.5 (should really be flush, but this is close enough and avoids z-fighting)
-                    saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, i == 0 ? 1 : 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | (gModel.singleSided ? 0x0 : DIR_BOTTOM_BIT),
-                        (i < 2) ? 0.0f : 8.0f, (i < 2) ? 8.0f : 16.0f,
-                        0.05f, 0.05f,
-                        (((i + 3) % 4) >= 2) ? 0.0f : 8.0f, (((i + 3) % 4) >= 2) ? 8.0f : 16.0f);
-                } else {
-                    saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, i == 0 ? 1 : 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | (gModel.singleSided ? 0x0 : DIR_BOTTOM_BIT),
-                        (i < 2) ? 0.0f : 8.0f, (i < 2) ? 8.0f : 16.0f,
-                        (float)fheights[i], (float)fheights[i],
-                        (((i + 3) % 4) >= 2) ? 0.0f : 8.0f, (((i + 3) % 4) >= 2) ? 8.0f : 16.0f);
-
-                    // flower stems - not for leaf litter
-                    switch (i) {
-                    case 0:
-                        // 3 flower stems, left to right
-                        makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 1.5f, 10.5f, fheights[i]);
-                        makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 4.5f, 14.5f, fheights[i]);
-                        makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 6.5f, 9.5f, fheights[i]);
-                        break;
-                    case 1:
-                        // 1 flower stem
-                        makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 4.5f, 4.5f, fheights[i]);
-                        break;
-                    case 2:
-                        // 3 flower stems
-                        makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 9.5f, 6.5f, fheights[i]);
-                        makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 12.0f, 2.0f, fheights[i]);
-                        makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 14.5f, 5.5f, fheights[i]);
-                        break;
-                    case 3:
-                        // 1 flower stem
-                        makePinkPetalFlowerStem(boxIndex, type, dataVal, swatchLoc + 1, 11.5f, 12.5f, fheights[i]);
-                        break;
-                    }
-                }
+                // leaf litter tops - Minecraft's leaf_litter models' constant 0.25 pixel up
+                saveBoxTileGeometry(boxIndex, type, dataVal, swatchLoc, i == 0 ? 1 : 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | (gModel.singleSided ? 0x0 : DIR_BOTTOM_BIT),
+                    (i < 2) ? 0.0f : 8.0f, (i < 2) ? 8.0f : 16.0f,
+                    0.25f, 0.25f,
+                    (((i + 3) % 4) >= 2) ? 0.0f : 8.0f, (((i + 3) % 4) >= 2) ? 8.0f : 16.0f);
             }
             totalVertexCount = gModel.vertexCount - totalVertexCount;
             identityMtx(mtx);
@@ -12604,6 +15720,125 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         break;	// saveBillboardOrGeometry
 
     case BLOCK_PITCHER_CROP:						// saveBillboardOrGeometry
+        if (!gModel.print3D) {
+            // Minecraft's pitcher_crop_bottom_stage_0-4 or, for the upper half (dataVal 0x8), pitcher_crop_top_stage_0-4 model (the
+            // top for ages 0-2 is empty) by the age, dataVal 0x7. The pod is sunk a pixel into the farmland, and the lower half's
+            // plant reaches into the block above. The elements are made from the models' JSON.
+            age = dataVal & 0x7;
+            int topLoc = SWATCH_INDEX(3, 58);
+            int sideLoc = SWATCH_INDEX(2, 58);
+            int bottomLoc = SWATCH_INDEX(13, 57);
+            int stageLoc = (dataVal & 0x8) ? SWATCH_INDEX(1, 58) + age : SWATCH_INDEX(13, 57) + age;
+            ModelElement bottom0Elements[] = {
+                { { 5, -1, 5 }, { 11, 3, 11 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 10, 9, 14 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 3, 10, 9, 14 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 10, 9, 14 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 3, 10, 9, 14 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_TOP, { 5, 5, 11, 11 }, 0, 0, topLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 5, 5, 11, 11 }, 0, 0, bottomLoc }
+                } },
+            };
+            ModelElement bottom1Elements[] = {
+                { { 0, 5, 8 }, { 16, 21, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, stageLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, stageLoc }
+                }, 45, { 8, 5, 8 }, 0, 0 },
+                { { 0, 5, 8 }, { 16, 21, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, stageLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, stageLoc }
+                }, -45, { 8, 5, 8 }, 0, 0 },
+                { { 3, -1, 3 }, { 13, 5, 13 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_TOP, { 3, 3, 13, 13 }, 0, 0, topLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 3, 3, 13, 13 }, 0, 0, bottomLoc }
+                } },
+            };
+            ModelElement bottom2Elements[] = {
+                { { 0, 5, 8 }, { 16, 21, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, stageLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, stageLoc }
+                }, 45, { 8, 6, 8 }, 0, 0 },
+                { { 8, 5, 0 }, { 8, 21, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 16 }, 0, 0, stageLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 16 }, 0, 1, stageLoc }
+                }, 45, { 8, 6, 8 }, 0, 0 },
+                { { 3, -1, 3 }, { 13, 5, 13 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_TOP, { 3, 3, 13, 13 }, 0, 0, topLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 3, 3, 13, 13 }, 0, 0, bottomLoc }
+                } },
+            };
+            ModelElement bottom3Elements[] = {
+                { { 0, 0, 8 }, { 16, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, stageLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, stageLoc }
+                }, 45, { 8, 0, 8 }, 0, 0 },
+                { { 0, 0, 8 }, { 16, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, stageLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, stageLoc }
+                }, -45, { 8, 0, 8 }, 0, 0 },
+                { { 3, -1, 3 }, { 13, 5, 13 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_TOP, { 3, 3, 13, 13 }, 0, 0, topLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 3, 3, 13, 13 }, 0, 0, bottomLoc }
+                } },
+            };
+            ModelElement bottom4Elements[] = {
+                { { 8, 0, 0 }, { 8, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 16 }, 0, 0, stageLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 16 }, 0, 1, stageLoc }
+                }, 45, { 8, 0, 8 }, 0, 0 },
+                { { 0, 0, 8 }, { 16, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, stageLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, stageLoc }
+                }, 45, { 8, 0, 8 }, 0, 0 },
+                { { 3, -1, 3 }, { 13, 5, 13 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 3, 10, 13, 16 }, 0, 0, sideLoc },
+                    { DIRECTION_BLOCK_TOP, { 3, 3, 13, 13 }, 0, 0, topLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 3, 3, 13, 13 }, 0, 0, bottomLoc }
+                } },
+            };
+            ModelElement top3Elements[] = {
+                { { 0, 0, 8 }, { 16, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, stageLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, stageLoc }
+                }, 45, { 8, 16, 8 }, 0, 0 },
+                { { 0, 0, 8 }, { 16, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, stageLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, stageLoc }
+                }, -45, { 8, 16, 8 }, 0, 0 },
+            };
+            ModelElement top4Elements[] = {
+                { { 8, 0, 0 }, { 8, 16, 16 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 16, 16 }, 0, 0, stageLoc },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 16, 16 }, 0, 1, stageLoc }
+                }, 45, { 8, 0, 8 }, 0, 0 },
+                { { 0, 0, 8 }, { 16, 16, 8 }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 16, 16 }, 0, 1, stageLoc },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 16, 16 }, 0, 0, stageLoc }
+                }, 45, { 8, 0, 8 }, 0, 0 },
+            };
+            const ModelElement* pitcherModel[2][5] = { { bottom0Elements, bottom1Elements, bottom2Elements, bottom3Elements, bottom4Elements }, { NULL, NULL, NULL, top3Elements, top4Elements } };
+            static const int pitcherCount[2][5] = { { 1, 3, 3, 3, 3 }, { 0, 0, 0, 2, 2 } };
+            int upper = (dataVal & 0x8) ? 1 : 0;
+            if ((age <= 4) && (pitcherCount[upper][age] > 0)) {
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, topLoc, pitcherModel[upper][age], pitcherCount[upper][age], 0, 0, false);
+            }
+            break;
+        }
         gUsingTransform = 1;
         if (!(dataVal & 0x8)) {
             // bottom output base for bottom only
@@ -12681,76 +15916,74 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         // hatch value:
         swatchLoc += ((dataVal >> 2) & 0x3) * 6;
         {
-            // not needed: we're not rotating, and we do want to have the bottom be deleted if there's a solid block below it
-            //gUsingTransform = 1;
-            totalVertexCount = gModel.vertexCount;
-
-            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLoc + 1;
-            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc - 3;
-            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] = swatchLoc - 2;
-            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc - 1;
-            swatchLocSet[DIRECTION_BLOCK_TOP] = swatchLoc;
-            swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc - 4;
-
-            // make an egg
-            saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT, 0x0, 0, 0, 14, 0, 16, 4, 16);
-            // top
-            saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 14, 0, 16, 0, 12);
-            // north
-            saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc - 2, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_HI_Z_BIT, 0x0, 2, 16, 0, 16, 0, 12);
-            // west
-            saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc + 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 14, 0, 16, 0, 12);
-            // bottom
-            saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc - 4, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 14, 0, 16, 0, 12);
-
-            totalVertexCount = gModel.vertexCount - totalVertexCount;
-            identityMtx(mtx);
-            translateMtx(mtx, 1.0f / 16.0f, 0.0f, -2.0f/16.0f );
-            transformVertices(totalVertexCount, mtx);
-
-            //gUsingTransform = 0;
+            // Minecraft's sniffer_egg model, with a texture for each side; the tiles are bottom, east, north, south, top, west. The
+            // elements are made from the model's JSON.
+            ModelElement eggElements[] = {
+                { { 1, 0, 2 }, { 15, 16, 14 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 14, 16 }, 0, 0, swatchLoc - 2 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 12, 16 }, 0, 0, swatchLoc - 3 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 14, 16 }, 0, 0, swatchLoc - 1 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 12, 16 }, 0, 0, swatchLoc + 1 },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 14, 12 }, 0, 0, swatchLoc },
+                    { DIRECTION_BLOCK_BOTTOM, { 0, 0, 14, 12 }, 0, 0, swatchLoc - 4 }
+                } },
+            };
+            retCode |= saveRotatedModel(boxIndex, type, dataVal, swatchLoc, eggElements, 1, 0, 0, false);
         }
         break; // saveBillboardOrGeometry
 
-    case BLOCK_OAK_WALL_HANGING_SIGN:						// saveBillboardOrGeometry
+    case BLOCK_WALL_HANGING_SIGN:						// saveBillboardOrGeometry
+        // Minecraft 26.3's block/template_wall_hanging_sign.json, with the sign's own 32x32 texture. For 3D printing, the thicker geometry below is used instead.
+        if (!gModel.print3D) {
+            static const ModelElement wallHangingSignElements[] = {
+                { { 1.0f, 0.0f, 7.0f }, { 15.0f, 10.0f, 9.0f }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 9.0f, 8.0f, 16.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 8.0f, 8.0f, 9.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 1.0f, 8.0f, 8.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0.0f, 8.0f, 1.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 1.0f, 7.0f, 8.0f, 8.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 1.0f, 13.0f, 8.0f, 14.0f }, 0 }
+                } },
+                { { 0.0f, 14.0f, 6.0f }, { 16.0f, 16.0f, 10.0f }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0.0f, 3.5f, 8.0f, 4.5f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 8.0f, 2.0f, 10.0f, 3.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0.0f, 2.0f, 8.0f, 3.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 8.0f, 3.5f, 10.0f, 4.5f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 0.0f, 0.0f, 8.0f, 2.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 8.0f, 4.5f, 0.0f, 6.5f }, 0 }
+                } },
+                { { 1.5f, 10.0f, 8.0f }, { 4.5f, 12.0f, 8.0f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 12.5f, 5.5f, 11.0f, 6.5f }, 0, 1 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 11.0f, 5.5f, 12.5f, 6.5f }, 0 }
+                }, 45.0f, { 3.0f, 11.0f, 8.0f } },
+                { { 1.5f, 11.0f, 8.0f }, { 4.5f, 14.0f, 8.0f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 15.5f, 4.5f, 14.0f, 6.0f }, 0, 1 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 14.0f, 4.5f, 15.5f, 6.0f }, 0 }
+                }, -45.0f, { 3.0f, 12.0f, 8.0f } },
+                { { 11.5f, 10.0f, 8.0f }, { 14.5f, 12.0f, 8.0f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 12.5f, 5.5f, 11.0f, 6.5f }, 0, 1 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 11.0f, 5.5f, 12.5f, 6.5f }, 0 }
+                }, 45.0f, { 13.0f, 11.0f, 8.0f } },
+                { { 11.5f, 11.0f, 8.0f }, { 14.5f, 14.0f, 8.0f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 15.5f, 4.5f, 14.0f, 6.0f }, 0, 1 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 14.0f, 4.5f, 15.5f, 6.0f }, 0 }
+                }, -45.0f, { 13.0f, 12.0f, 8.0f } },
+            };
+            // facing is 0-3: south, west, north, east
+            saveSignModel(boxIndex, type, dataVal, true, wallHangingSignElements, sizeof(wallHangingSignElements) / sizeof(ModelElement), 90.0f * (float)(dataVal & 0x3));
+            break;
+        }
         // three main elements:
         // sign itself - stripped logs are used
         // chains - always vertical
         // bar above sign - uses both stripped and iron bits from some tile...
         // Sorry, we don't use the sign textures in textures\entity\signs
-        switch (dataVal & (0xC | BIT_16 | BIT_32))
+        // The wood is in SIGN_WOOD_MASK.
         {
-        default:
-            assert(0);
-        case 0:
-        case 1 << 2:	// spruce
-        case 2 << 2:	// birch
-        case 3 << 2:	// jungle
-        case 4 << 2:	// acacia
-        case 5 << 2:	// dark oak
-            swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + ((dataVal & (0xC | BIT_8 | BIT_16)) >> 2);
-            break;
-        case 6 << 2:   // crimson
-            swatchLoc = SWATCH_INDEX(13, 43);
-            break;
-        case 7 << 2:   // warped
-            swatchLoc = SWATCH_INDEX(13, 44);
-            break;
-        case 8 << 2:    // mangrove
-            swatchLoc = SWATCH_INDEX(15, 54);
-            break;
-        case 9 << 2:	// cherry
-            swatchLoc = SWATCH_INDEX(8, 59);
-            break;
-        case 10 << 2:	// bamboo - pick mosaic so it's less obviously wrong
-            swatchLoc = SWATCH_INDEX(11, 60);
-            break;
-        case 11 << 2:	// pale oak
-            swatchLoc = SWATCH_INDEX(8, 67);
-            break;
-        case 12 << 2:	// poplar - stripped log
-            swatchLoc = SWATCH_INDEX(14, 79);
-            break;
+            int wood = SIGN_WOOD(dataVal);
+            if (wood >= NUM_SIGN_WOODS)
+                wood = 0;
+            swatchLoc = SWATCH_INDEX(gSignWoods[wood].strippedX, gSignWoods[wood].strippedY);
         }
 
         gUsingTransform = 1;
@@ -12825,54 +16058,67 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
         break;
 
-    case BLOCK_OAK_HANGING_SIGN: // saveBillboardOrGeometry
-    case BLOCK_BIRCH_HANGING_SIGN: // saveBillboardOrGeometry
-    case BLOCK_ACACIA_HANGING_SIGN: // saveBillboardOrGeometry
-    case BLOCK_CRIMSON_HANGING_SIGN: // saveBillboardOrGeometry
-    case BLOCK_MANGROVE_HANGING_SIGN: // saveBillboardOrGeometry
-    case BLOCK_BAMBOO_HANGING_SIGN: // saveBillboardOrGeometry
-    case BLOCK_POPLAR_HANGING_SIGN: // saveBillboardOrGeometry
+    case BLOCK_HANGING_SIGN: // saveBillboardOrGeometry
+        // Minecraft 26.3's block/template_hanging_sign_rot_0.json and template_attached_hanging_sign_rot_0.json, with the sign's own 32x32 texture;
+        // the other rotations are these turned by 22.5 degree steps. For 3D printing, the thicker geometry below is used instead.
+        if (!gModel.print3D) {
+            static const ModelElement hangingSignElements[] = {
+                { { 1.0f, 0.0f, 7.0f }, { 15.0f, 10.0f, 9.0f }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 9.0f, 8.0f, 16.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 8.0f, 8.0f, 9.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 1.0f, 8.0f, 8.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0.0f, 8.0f, 1.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 1.0f, 7.0f, 8.0f, 8.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 1.0f, 13.0f, 8.0f, 14.0f }, 0 }
+                } },
+                { { 2.96447f, 10.0f, 4.46447f }, { 5.96447f, 16.0f, 4.46447f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 12.5f, 3.5f, 11.0f, 6.5f }, 0, 1 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 11.0f, 3.5f, 12.5f, 6.5f }, 0 }
+                }, 45.0f, { 8.0f, 0.0f, 8.0f } },
+                { { 2.96447f, 11.0f, 11.53553f }, { 5.96447f, 15.0f, 11.53553f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 15.5f, 4.0f, 14.0f, 6.0f }, 0, 1 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 14.0f, 4.0f, 15.5f, 6.0f }, 0 }
+                }, -45.0f, { 8.0f, 0.0f, 8.0f } },
+                { { 10.03553f, 10.0f, 11.53553f }, { 13.03553f, 16.0f, 11.53553f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 12.5f, 3.5f, 11.0f, 6.5f }, 0, 1 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 11.0f, 3.5f, 12.5f, 6.5f }, 0 }
+                }, 45.0f, { 8.0f, 0.0f, 8.0f } },
+                { { 10.03553f, 11.0f, 4.46447f }, { 13.03553f, 15.0f, 4.46447f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 15.5f, 4.0f, 14.0f, 6.0f }, 0, 1 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 14.0f, 4.0f, 15.5f, 6.0f }, 0 }
+                }, -45.0f, { 8.0f, 0.0f, 8.0f } },
+            };
+            static const ModelElement attachedHangingSignElements[] = {
+                { { 1.0f, 0.0f, 7.0f }, { 15.0f, 10.0f, 9.0f }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 9.0f, 8.0f, 16.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 8.0f, 8.0f, 9.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 1.0f, 8.0f, 8.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0.0f, 8.0f, 1.0f, 13.0f }, 0 },
+                    { DIRECTION_BLOCK_TOP, { 1.0f, 7.0f, 8.0f, 8.0f }, 0 },
+                    { DIRECTION_BLOCK_BOTTOM, { 1.0f, 13.0f, 8.0f, 14.0f }, 0 }
+                } },
+                { { 2.0f, 10.0f, 8.0f }, { 14.0f, 16.0f, 8.0f }, 2, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 16.0f, 0.0f, 10.0f, 3.0f }, 0, 1 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 10.0f, 0.0f, 16.0f, 3.0f }, 0 }
+                } },
+            };
+            // rotation 0-15 turns clockwise, seen from above, from facing south; bit 0x10 is "attached"
+            if (dataVal & BIT_16)
+                saveSignModel(boxIndex, type, dataVal, true, attachedHangingSignElements, sizeof(attachedHangingSignElements) / sizeof(ModelElement), 22.5f * (float)(dataVal & 0xF));
+            else
+                saveSignModel(boxIndex, type, dataVal, true, hangingSignElements, sizeof(hangingSignElements) / sizeof(ModelElement), 22.5f * (float)(dataVal & 0xF));
+            break;
+        }
         // two main elements:
         // sign itself - stripped logs are used
         // chains - vertical or angled, depending on attached (which gives diagonal)
         // Sorry, we don't use the sign textures in textures\entity\signs
-        swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-        switch (type) {
-        default:
-            assert(0);
-        case BLOCK_OAK_HANGING_SIGN:
-            if (dataVal & BIT_32) {
-                swatchLoc++;    // spruce
-            }
-            break;
-        case BLOCK_BIRCH_HANGING_SIGN:
-            if (dataVal & BIT_32) {
-                swatchLoc++;    // jungle
-            }
-            break;
-        case BLOCK_ACACIA_HANGING_SIGN:
-            if (dataVal & BIT_32) {
-                swatchLoc++;    // dark oak
-            }
-            break;
-        case BLOCK_CRIMSON_HANGING_SIGN:
-            if (dataVal & BIT_32) {
-                swatchLoc += 16;    // warped is next row down
-            }
-            break;
-        case BLOCK_MANGROVE_HANGING_SIGN:
-            if (dataVal & BIT_32) {
-                swatchLoc = SWATCH_INDEX(8, 59);    // cherry
-            }
-            break;
-        case BLOCK_POPLAR_HANGING_SIGN:
-            // just the one kind, so the tile from the block definition is right
-            break;
-        case BLOCK_BAMBOO_HANGING_SIGN:
-            if (dataVal & BIT_32) {
-                swatchLoc = SWATCH_INDEX(8, 67);    // pale oak
-            }
-            break;
+        // The wood is in SIGN_WOOD_MASK.
+        {
+            int wood = SIGN_WOOD(dataVal);
+            if (wood >= NUM_SIGN_WOODS)
+                wood = 0;
+            swatchLoc = SWATCH_INDEX(gSignWoods[wood].strippedX, gSignWoods[wood].strippedY);
         }
 
         gUsingTransform = 1;
@@ -12976,6 +16222,72 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             int hydration = (dataVal >> 2) & 0x3;
             // the default texture is the top, so we need to offset based on hydration and subtract 5 to get to the bottom texture of the proper hydration level
             swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + 7 * hydration - 5;
+            if (!gModel.print3D) {
+                // Minecraft's dried_ghast_hydration_0-3 models, all the dried_ghast template with each level's seven textures
+                // (bottom, east, north, south, tentacles, top, west), turned by "y"; dataVal 0x3 faces south, west, north, east.
+                // The elements are made from the template's JSON.
+                ModelElement ghastElements[] = {
+                { { 3, 0, 3 }, { 13, 10, 13 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 0, 0, 10, 10 }, 0, 0, swatchLoc + 2 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 10, 10 }, 0, 0, swatchLoc + 1 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 0, 0, 10, 10 }, 0, 0, swatchLoc + 3 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 0, 0, 10, 10 }, 0, 0, swatchLoc + 6 },
+                    { DIRECTION_BLOCK_TOP, { 0, 0, 10, 10 }, 180, 0, swatchLoc + 5 },
+                    { DIRECTION_BLOCK_BOTTOM, { 10, 0, 0, 10 }, 0, 0, swatchLoc }
+                } },
+                { { 0, 0, 5 }, { 3, 1, 7 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 1.5f, 2.5f, 2 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 1.5f, 1, 2 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3.5f, 1.5f, 5, 2 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 2.5f, 1.5f, 3.5f, 2 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_TOP, { 2.5f, 1.5f, 1.5f, 0 }, 90, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_BOTTOM, { 2.5f, 1.5f, 3.5f, 0 }, 90, 0, swatchLoc + 4 }
+                } },
+                { { 0, 0, 9 }, { 3, 1, 11 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 1, 3.5f, 2.5f, 4 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 0, 3.5f, 1, 4 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 3.5f, 3.5f, 5, 4 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 2.5f, 3.5f, 3.5f, 4 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_TOP, { 2.5f, 3.5f, 1.5f, 2 }, 90, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_BOTTOM, { 2.5f, 3.5f, 3.5f, 2 }, 90, 0, swatchLoc + 4 }
+                } },
+                { { 13, 0, 5 }, { 16, 1, 7 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2.5f, 7.5f, 1, 8 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 3.5f, 7.5f, 2.5f, 8 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 5, 7.5f, 3.5f, 8 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 1, 7.5f, 0, 8 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_TOP, { 2.5f, 6, 1.5f, 7.5f }, 90, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_BOTTOM, { 2.5f, 6, 3.5f, 7.5f }, 90, 0, swatchLoc + 4 }
+                } },
+                { { 13, 0, 9 }, { 16, 1, 11 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 2.5f, 5.5f, 1, 6 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 3.5f, 5.5f, 2.5f, 6 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 5, 5.5f, 3.5f, 6 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 1, 5.5f, 0, 6 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_TOP, { 2.5f, 4, 1.5f, 5.5f }, 90, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_BOTTOM, { 2.5f, 4, 3.5f, 5.5f }, 90, 0, swatchLoc + 4 }
+                } },
+                { { 9, 0, 13 }, { 11, 1, 16 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 2.5f, 5, 3 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 7.5f, 2.5f, 6, 3 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 8.5f, 2.5f, 7.5f, 3 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 10, 2.5f, 8.5f, 3 }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_TOP, { 6, 2.5f, 7.5f, 1.5f }, 90, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_BOTTOM, { 7.5f, 1.5f, 9, 2.5f }, 270, 0, swatchLoc + 4 }
+                } },
+                { { 5, 0, 13 }, { 7, 1, 16 }, 6, {
+                    { DIRECTION_BLOCK_SIDE_LO_Z, { 6, 1, 5, 1.5f }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_HI_X, { 7.5f, 1, 6, 1.5f }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_HI_Z, { 8.5f, 1, 7.5f, 1.5f }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_SIDE_LO_X, { 10, 1, 8.5f, 1.5f }, 0, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_TOP, { 6, 1, 7.5f, 0 }, 90, 0, swatchLoc + 4 },
+                    { DIRECTION_BLOCK_BOTTOM, { 7.5f, 0, 9, 1 }, 270, 0, swatchLoc + 4 }
+                } },
+                };
+                static const int ghastYAngle[4] = { 180, 270, 0, 90 };
+                retCode |= saveRotatedModel(boxIndex, type, dataVal, swatchLoc, ghastElements, 7, 0, ghastYAngle[facing], false);
+                break;
+            }
 
             gUsingTransform = 1;
             totalVertexCount = littleTotalVertexCount = gModel.vertexCount;
@@ -13048,37 +16360,6 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
 
     return 1;
 }   // endend
-
-static void makePinkPetalFlowerStem(int boxIndex, int type, int dataVal, int swatchLoc, float x, float y, int height)
-{
-    // assume gUsingTransform is set
-    assert(gUsingTransform);
-    float mtx[4][4];
-    int totalVertexCount = gModel.vertexCount;
-
-    // move to location
-    for (int i = 0; i < 2; i++) {
-        int singleVertexCount = gModel.vertexCount;
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (gModel.singleSided ? 0x0 : DIR_LO_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY,
-            0, 1, 9, (float)(9 + height), 8, 8);
-
-        singleVertexCount = gModel.vertexCount - singleVertexCount;
-        identityMtx(mtx);
-        translateToOriginMtx(mtx, boxIndex);
-        translateMtx(mtx, (8.0f-0.5f) / 16.0f, 0.0f, 0.0f);
-        rotateMtx(mtx, 0.0f, 45.0f + ((float)i * 90.0f), 0.0f);
-        translateFromOriginMtx(mtx, boxIndex);
-        transformVertices(singleVertexCount, mtx);
-    }
-
-    // final thing, both "vanes"
-    totalVertexCount = gModel.vertexCount - totalVertexCount;
-    identityMtx(mtx);
-    //translateToOriginMtx(mtx, boxIndex);
-    translateMtx(mtx, (x - 8.0f) / 16.0f, -9.0f / 16.0f, (8.0f - y) / 16.0f);
-    //translateFromOriginMtx(mtx, boxIndex);
-    transformVertices(totalVertexCount, mtx);
-}
 
 
 /* ===========================
@@ -13818,9 +17099,9 @@ static int saveCandle(int type, int dataVal, int boxIndex, float height, float x
     saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 1, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT, 0x0, 0, 2, 8-height, 8, 0, 2);
     // for the high X and Z, we need to use (1-u) for x and z
     saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_Z_BIT, 0x0, 14, 16, 8-height, 8, 14, 16);
-    // the ends; we need to use (1-v) for z here
-    saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 2, 2, 2, 0, 2);
-    saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 2, height+2, height+2, 8, 10);
+    // the ends, as in Minecraft's template_candle: the bottom from rows 14-16, the top from rows 6-8
+    saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 2, 2, 2, 14, 16);
+    saveBoxReuseGeometry(boxIndex, type, dataVal, swatchLoc, DIR_BOTTOM_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT, 0x0, 0, 2, height+2, height+2, 6, 8);
 
     int littleTotalVertexCount = gModel.vertexCount - totalVertexCount;
 
@@ -13830,15 +17111,25 @@ static int saveCandle(int type, int dataVal, int boxIndex, float height, float x
     //translateFromOriginMtx(mtx, boxIndex);
     transformVertices(littleTotalVertexCount, mtx);
 
-    // wick
+    // the wick: two crossed flat elements, a texel square, turned 45 and -45 degrees about Y, as in Minecraft's template_candle; the
+    // back is output only when billboards are doubled
+    int retCode = MW_NO_ERROR;
+    static const float wickUV[4] = { 0.0f, 5.0f, 1.0f, 6.0f };
     for (int i = 0; i < 2; i++) {
         totalVertexCount = gModel.vertexCount;
-        saveBoxMultitileGeometry(boxIndex, type, dataVal, swatchLoc, swatchLoc, swatchLoc, 0, DIR_BOTTOM_BIT | DIR_TOP_BIT | DIR_LO_X_BIT | DIR_HI_X_BIT | (gModel.singleSided ? 0x0 : DIR_HI_Z_BIT), FLIP_LO_Z_FACE_VERTICALLY, 0, 1, 10, 11, 0, 0);
+        int startVertexIndex = saveBoxCustomUVVertices(boxIndex, 7.5f, 8.5f, 10.0f, 11.0f, 8.0f, 8.0f);
+        if (startVertexIndex < 0)
+            return MW_WORLD_EXPORT_TOO_LARGE;
+        retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, DIRECTION_BLOCK_SIDE_LO_Z, 0, swatchLoc, wickUV, 0);
+        if (gModel.singleSided)
+            retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, DIRECTION_BLOCK_SIDE_HI_Z, 0, swatchLoc, wickUV, 0);
+        if (retCode >= MW_BEGIN_ERRORS)
+            return retCode;
         totalVertexCount = gModel.vertexCount - totalVertexCount;
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
-        translateMtx(mtx, 7.5f / 16.0f, 0.0f, 8.0f / 16.0f);
-        rotateMtx(mtx, 0.0f, 45.0f + (float)i * 90.0f, 0.0f);
+        // Minecraft's element rotation about Y turns the other way from rotateMtx's
+        rotateMtx(mtx, 0.0f, (i == 0) ? -45.0f : 45.0f, 0.0f);
         translateMtx(mtx, xLoc / 16.0f, (yLoc - 4.0f) / 16.0f, zLoc / 16.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(totalVertexCount, mtx);
@@ -13846,7 +17137,7 @@ static int saveCandle(int type, int dataVal, int boxIndex, float height, float x
 
     gUsingTransform = 0;
 
-    return MW_NO_ERROR;
+    return retCode;
 }
 
 
@@ -13983,18 +17274,18 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
         // add an epsilon to avoid z-fighting
         if (minPixX == maxPixX && !(faceMask & (DIR_LO_X_BIT | DIR_HI_X_BIT)))
         {
-            fminx -= STOP_Z_FIGHTING;
-            fmaxx += STOP_Z_FIGHTING;
+            fminx -= STOP_DOUBLE_SIDED_BILLBOARD_Z_FIGHTING;
+            fmaxx += STOP_DOUBLE_SIDED_BILLBOARD_Z_FIGHTING;
         }
         if (minPixY == maxPixY && !(faceMask & (DIR_BOTTOM_BIT | DIR_TOP_BIT)))
         {
-            fminy -= STOP_Z_FIGHTING;
-            fmaxy += STOP_Z_FIGHTING;
+            fminy -= STOP_DOUBLE_SIDED_BILLBOARD_Z_FIGHTING;
+            fmaxy += STOP_DOUBLE_SIDED_BILLBOARD_Z_FIGHTING;
         }
         if (minPixZ == maxPixZ && !(faceMask & (DIR_LO_Z_BIT | DIR_HI_Z_BIT)))
         {
-            fminz -= STOP_Z_FIGHTING;
-            fmaxz += STOP_Z_FIGHTING;
+            fminz -= STOP_DOUBLE_SIDED_BILLBOARD_Z_FIGHTING;
+            fmaxz += STOP_DOUBLE_SIDED_BILLBOARD_Z_FIGHTING;
         }
         for (i = 0; i < 8; i++)
         {
@@ -14167,13 +17458,23 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
                         minv = (float)minPixX / 16.0f;
                         maxv = (float)maxPixX / 16.0f;
                     }
-                    else
+                    else if (reuseVerts)
                     {
-                        // normal case
+                        // reusing a box's vertices just to choose a texture region (see saveBoxReuseGeometry), where callers
+                        // give the region as before: z's 16 - z2 to 16 - z1 with v going up, i.e., rows z1 to z2
                         minu = (float)minPixX / 16.0f;
                         maxu = (float)maxPixX / 16.0f;
                         minv = (float)(16.0f - maxPixZ) / 16.0f;
                         maxv = (float)(16.0f - minPixZ) / 16.0f;
+                    }
+                    else
+                    {
+                        // normal case: as Minecraft's default "uv" for a down face, [x1, 16-z2, x2, 16-z1], with v going down,
+                        // i.e., with v going up, from z1 to z2
+                        minu = (float)minPixX / 16.0f;
+                        maxu = (float)maxPixX / 16.0f;
+                        minv = (float)minPixZ / 16.0f;
+                        maxv = (float)maxPixZ / 16.0f;
                     }
                     // we used to have to reverse bottom faces, but in 1.20.1 (and likely earlier)
                     // they fixed this to make the norm to be not reversed.
@@ -14313,15 +17614,14 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
         addBounds(anchor, &gModel.billboardBounds);
     }
 
-    gModel.billboardCount++;
+    // was gModel.billboardCount++; - shouldn't do it here, it will overcount minor things like stairs, etc., that have more than one box or billboard, etc.
 
     return retCode;
 }
 
 // Create the 8 corner vertices of a box (minPix..maxPix in 0-16 pixel units, same convention as saveBoxAlltileGeometry), without outputting any
-// faces. Returns the index of the first of the 8 vertices, for use with saveBoxCustomUVFace(). Used for blocks whose texture is a hand-packed
-// atlas (translated directly from a Minecraft model JSON) where each face needs its own explicit UV rectangle rather than one auto-derived from
-// the face's position - see BLOCK_SHELF_MUSHROOM.
+// faces. Vertex i is at X max if (i & 0x4), Y max if (i & 0x2), Z max if (i & 0x1). Returns the index of the first of the 8 vertices, for use
+// with saveBoxModelFace(). The box may extend outside the 0-16 block, as some Minecraft model elements do.
 static int saveBoxCustomUVVertices(int boxIndex, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ)
 {
     IPoint anchor;
@@ -14352,64 +17652,451 @@ static int saveBoxCustomUVVertices(int boxIndex, float minPixX, float maxPixX, f
     return startVertexIndex;
 }
 
-// Save one face of a box created by saveBoxCustomUVVertices(), with an explicit UV rectangle (uMin..vMax, in the same 0-16 unit space as a
-// Minecraft model JSON's own "uv" field) instead of one auto-derived from the face's position. This lets a hand-packed texture atlas (several
-// faces' worth of art crammed into one image, addressed by a custom UV unwrap) be sampled faithfully. See BLOCK_SHELF_MUSHROOM.
-static int saveBoxCustomUVFace(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int swatchLoc,
-    float uMin, float uMax, float vMin, float vMax)
+// Save one face of a box created by saveBoxCustomUVVertices(), textured exactly as Minecraft does for a block model JSON element's face:
+// uv is the face's "uv" [u1,v1,u2,v2] (0-16 units over the whole texture, v going down, and u1 > u2 or v1 > v2 to mirror), rotation is
+// the face's "rotation" (0, 90, 180, 270). The texture is the whole image anchored at anchorLoc, which may span multiple tiles (e.g.
+// straw_bed.png; see saveSpanTextureUV), or is a single 16x16 tile (e.g. a bed's).
+static int saveBoxModelFace(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int anchorLoc, const float uv[4], int rotation)
 {
-    int vindex[4];
-    switch (faceDirection)
-    {
-    default:
-    case DIRECTION_BLOCK_SIDE_LO_X:	// CCW
-        vindex[0] = 0x2 | 0x1; vindex[1] = 0x2; vindex[2] = 0; vindex[3] = 0x1;
-        break;
-    case DIRECTION_BLOCK_SIDE_HI_X:	// CCW
-        vindex[0] = 0x4 | 0x2; vindex[1] = 0x4 | 0x2 | 0x1; vindex[2] = 0x4 | 0x1; vindex[3] = 0x4;
-        break;
-    case DIRECTION_BLOCK_SIDE_LO_Z:
-        vindex[0] = 0x2; vindex[1] = 0x4 | 0x2; vindex[2] = 0x4; vindex[3] = 0;
-        break;
-    case DIRECTION_BLOCK_SIDE_HI_Z:
-        vindex[0] = 0x1 | 0x4 | 0x2; vindex[1] = 0x1 | 0x2; vindex[2] = 0x1; vindex[3] = 0x1 | 0x4;
-        break;
-    case DIRECTION_BLOCK_BOTTOM:
-        vindex[0] = 0x4 | 0x1; vindex[1] = 0x1; vindex[2] = 0; vindex[3] = 0x4;
-        break;
-    case DIRECTION_BLOCK_TOP:
-        vindex[0] = 0x2 | 0x4; vindex[1] = 0x2; vindex[2] = 0x2 | 0x1; vindex[3] = 0x2 | 0x4 | 0x1;
-        break;
-    }
-    // vindex[] here is identical to the position-derived case in saveBoxAlltileGeometry (faceDirection switch above), just without the
-    // rotUVs/reverseLoop options that block doesn't need - so reverseLoop=0, rotUVs=0.
-    return saveBoxFace(swatchLoc, type, dataVal, faceDirection, markFirstFace, startVertexIndex, vindex, 0, 0, uMin / 16.0f, uMax / 16.0f, vMin / 16.0f, vMax / 16.0f);
+    return saveBoxModelFaceUVLock(startVertexIndex, type, dataVal, faceDirection, markFirstFace, anchorLoc, uv, rotation, 0, 0);
 }
 
-// A face whose vanilla-art texture is wider (along one geometric axis) than the 16 texels one swatch can
-// supply straddles the packed image's quadrant boundary - see BLOCK_SHELF_MUSHROOM. This builds it as two
-// quads at splitCoord (a box-space X coordinate for the north/south faces, whose own "u" runs along X; a Z
-// coordinate for every other direction, whose own u or v runs along Z), each on its own partial-range box
-// (so each quad's geometry matches the fraction of the texture it actually shows) and its own swatch/UV:
-// minSide covers [the box's own min bound, splitCoord]; maxSide covers [splitCoord, the box's own max bound].
-static void saveMushroomSplitFace(int boxIndex, int type, int dataVal, int faceDirection, float splitCoord,
-    float minX, float maxX, float minY, float maxY, float minZ, float maxZ,
-    int swatchMinSide, float uMinMinSide, float uMaxMinSide, float vMinMinSide, float vMaxMinSide,
-    int swatchMaxSide, float uMinMaxSide, float uMaxMaxSide, float vMinMaxSide, float vMaxMaxSide)
+// As saveBoxModelFace, for a model the blockstate turns by "x" and then "y" (multiples of 90 degrees) with "uvlock" true: the
+// texture coordinates are changed as Minecraft's BlockMath.getUVLockTransform does. Each is taken as a point on the side of the
+// block the face is on, by Minecraft's default mapping for that side, turned with the block, and mapped back to texture coordinates
+// by the default mapping of the side it's turned to. (So a side face turned about Y keeps its "uv".) The face itself is saved
+// unturned; the caller turns the vertices. With both angles 0, it's saveBoxModelFace.
+static int saveBoxModelFaceUVLock(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int anchorLoc, const float uv[4], int rotation, int xAngle, int yAngle)
 {
-    int vMinSide, vMaxSide;
-    if (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z || faceDirection == DIRECTION_BLOCK_SIDE_HI_Z) {
-        vMinSide = saveBoxCustomUVVertices(boxIndex, minX, splitCoord, minY, maxY, minZ, maxZ);
-        vMaxSide = saveBoxCustomUVVertices(boxIndex, splitCoord, maxX, minY, maxY, minZ, maxZ);
+    // Minecraft's vertex order for each face direction (FaceInfo), as box corner bits: 0x4 X max, 0x2 Y max, 0x1 Z max. Counterclockwise
+    // as seen from outside the box, as Mineways wants.
+    static const int faceVindex[6][4] = {
+        { 0x2, 0x0, 0x1, 0x3 },	// DIRECTION_BLOCK_SIDE_LO_X, west
+        { 0x1, 0x0, 0x4, 0x5 },	// DIRECTION_BLOCK_BOTTOM, down
+        { 0x6, 0x4, 0x0, 0x2 },	// DIRECTION_BLOCK_SIDE_LO_Z, north
+        { 0x7, 0x5, 0x4, 0x6 },	// DIRECTION_BLOCK_SIDE_HI_X, east
+        { 0x2, 0x3, 0x7, 0x6 },	// DIRECTION_BLOCK_TOP, up
+        { 0x3, 0x1, 0x5, 0x7 },	// DIRECTION_BLOCK_SIDE_HI_Z, south
+    };
+    assert(faceDirection >= 0 && faceDirection < 6);
+    int vindex[4];
+    int uvIndices[4] = { 0, 0, 0, 0 };
+    bool span = (findSpanImage(anchorLoc) != NULL);
+    for (int i = 0; i < 4; i++) {
+        vindex[i] = faceVindex[faceDirection][i];
+        if (gModel.exportTexture) {
+            // Minecraft's BlockFaceUV: corner i of the face gets u1 or u2, v1 or v2, shifted by the rotation
+            int shifted = (i + rotation / 90) % 4;
+            float u = (shifted == 0 || shifted == 1) ? uv[0] : uv[2];
+            float v = (shifted == 0 || shifted == 3) ? uv[1] : uv[3];
+            if (xAngle != 0 || yAngle != 0) {
+                // the point on the face's side of the block (pixels, from the block's center), and that side's direction
+                float pt[3], nrm[3];
+                switch (faceDirection) {
+                default:
+                case DIRECTION_BLOCK_SIDE_LO_X: pt[X] = 0.0f; pt[Y] = 16.0f - v; pt[Z] = u; break;
+                case DIRECTION_BLOCK_BOTTOM: pt[X] = u; pt[Y] = 0.0f; pt[Z] = 16.0f - v; break;
+                case DIRECTION_BLOCK_SIDE_LO_Z: pt[X] = 16.0f - u; pt[Y] = 16.0f - v; pt[Z] = 0.0f; break;
+                case DIRECTION_BLOCK_SIDE_HI_X: pt[X] = 16.0f; pt[Y] = 16.0f - v; pt[Z] = 16.0f - u; break;
+                case DIRECTION_BLOCK_TOP: pt[X] = u; pt[Y] = 16.0f; pt[Z] = v; break;
+                case DIRECTION_BLOCK_SIDE_HI_Z: pt[X] = u; pt[Y] = 16.0f - v; pt[Z] = 16.0f; break;
+                }
+                for (int c = 0; c < 3; c++) {
+                    pt[c] -= 8.0f;
+                    nrm[c] = 0.0f;
+                }
+                switch (faceDirection) {
+                default:
+                case DIRECTION_BLOCK_SIDE_LO_X: nrm[X] = -1.0f; break;
+                case DIRECTION_BLOCK_BOTTOM: nrm[Y] = -1.0f; break;
+                case DIRECTION_BLOCK_SIDE_LO_Z: nrm[Z] = -1.0f; break;
+                case DIRECTION_BLOCK_SIDE_HI_X: nrm[X] = 1.0f; break;
+                case DIRECTION_BLOCK_TOP: nrm[Y] = 1.0f; break;
+                case DIRECTION_BLOCK_SIDE_HI_Z: nrm[Z] = 1.0f; break;
+                }
+                // "x" 90 takes up to north, (x,y,z) to (x,z,-y); "y" 90 takes north to east, (x,y,z) to (-z,y,x)
+                for (int q = 0; q < ((xAngle / 90) & 0x3); q++) {
+                    float t = pt[Y]; pt[Y] = pt[Z]; pt[Z] = -t;
+                    t = nrm[Y]; nrm[Y] = nrm[Z]; nrm[Z] = -t;
+                }
+                for (int q = 0; q < ((yAngle / 90) & 0x3); q++) {
+                    float t = pt[X]; pt[X] = -pt[Z]; pt[Z] = t;
+                    t = nrm[X]; nrm[X] = -nrm[Z]; nrm[Z] = t;
+                }
+                for (int c = 0; c < 3; c++)
+                    pt[c] += 8.0f;
+                // the default mapping of the side it's now on
+                if (nrm[X] < -0.5f) { u = pt[Z]; v = 16.0f - pt[Y]; }
+                else if (nrm[X] > 0.5f) { u = 16.0f - pt[Z]; v = 16.0f - pt[Y]; }
+                else if (nrm[Y] < -0.5f) { u = pt[X]; v = 16.0f - pt[Z]; }
+                else if (nrm[Y] > 0.5f) { u = pt[X]; v = pt[Z]; }
+                else if (nrm[Z] < -0.5f) { u = 16.0f - pt[X]; v = 16.0f - pt[Y]; }
+                else { u = pt[X]; v = 16.0f - pt[Y]; }
+            }
+            if (span)
+                uvIndices[i] = saveSpanTextureUV(anchorLoc, type, u / 16.0f, 1.0f - v / 16.0f);
+            else
+                // a single tile; for solid colors, the swatch is the block type (see getSwatch)
+                uvIndices[i] = saveTextureUV((gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) ? anchorLoc : type, type, u / 16.0f, 1.0f - v / 16.0f);
+            if (uvIndices[i] < 0)
+                return MW_WORLD_EXPORT_TOO_LARGE;
+        }
+    }
+    return saveBoxFaceUVs(type, dataVal, faceDirection, markFirstFace, startVertexIndex, vindex, uvIndices);
+}
+
+// Save a sign's model, as given in Minecraft's JSON, textured by its wood's 32x32 sign or hanging sign texture, turned yAngle degrees about Y.
+static int saveSignModel(int boxIndex, int type, int dataVal, bool hanging, const ModelElement* elements, int elementCount, float yAngle)
+{
+    int wood = SIGN_WOOD(dataVal);
+    if (wood >= NUM_SIGN_WOODS)
+        wood = 0;
+    return saveTurnedModel(boxIndex, type, dataVal, SIGN_TEXTURE_ANCHOR(wood, hanging), elements, elementCount, yAngle);
+}
+
+// Save a model, as given in Minecraft's JSON, textured by the (possibly multi-tile) image at anchorLoc, then turn it yAngle degrees
+// about Y (as rotateMtx turns it, clockwise seen from above) into place.
+static int saveTurnedModel(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, float yAngle)
+{
+    float mtx[4][4];
+    int vertexCount = gModel.vertexCount;
+    gUsingTransform = 1;
+    int retCode = saveModelElements(boxIndex, type, dataVal, anchorLoc, elements, elementCount, yAngle);
+    vertexCount = gModel.vertexCount - vertexCount;
+    identityMtx(mtx);
+    translateToOriginMtx(mtx, boxIndex);
+    rotateMtx(mtx, 0.0f, yAngle, 0.0f);
+    translateFromOriginMtx(mtx, boxIndex);
+    transformVertices(vertexCount, mtx);
+    gUsingTransform = 0;
+    return retCode;
+}
+
+// Save the two rails of a fence's side, Minecraft's fence_side model, turned yAngle degrees about Y (0 north, 90 east, 180 south,
+// 270 west) with "uvlock". As in the model, the rails reach 9 pixels in, into the post, with no faces on their inner ends. The
+// outer ends are hidden by a whole, opaque neighbor (except when every face is wanted, for individual blocks).
+static int saveFenceRails(int boxIndex, int type, int dataVal, int yAngle)
+{
+    // faces down, up, north (the outer end), west, east; for the top rail, then the lower one
+    static const int railFace[5] = { DIRECTION_BLOCK_BOTTOM, DIRECTION_BLOCK_TOP, DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
+    static const float railUV[2][5][4] = {
+        { { 7, 0, 9, 9 }, { 7, 0, 9, 9 }, { 7, 1, 9, 4 }, { 0, 1, 9, 4 }, { 0, 1, 9, 4 } },
+        { { 7, 0, 9, 9 }, { 7, 0, 9, 9 }, { 7, 7, 9, 10 }, { 0, 7, 9, 10 }, { 0, 7, 9, 10 } } };
+    static const float railY[2][2] = { { 12.0f, 15.0f }, { 6.0f, 9.0f } };
+    // the side of the block the rails' outer ends are on, for each quarter turn
+    static const int endSide[4] = { DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_X, DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X };
+    int neighborType = gBoxData[boxIndex + gFaceOffset[endSide[(yAngle / 90) & 0x3]]].origType;
+    bool endHidden = !(gModel.options->exportFlags & EXPT_INDIVIDUAL_BLOCKS) &&
+        (gBlockDefinitions[neighborType].flags & BLF_WHOLE) && !(gBlockDefinitions[neighborType].flags & BLF_TRANSPARENT);
+    int swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+    int retCode = MW_NO_ERROR;
+    float mtx[4][4];
+    gUsingTransform = 1;
+    int vertexCount = gModel.vertexCount;
+    for (int r = 0; r < 2; r++) {
+        int startVertexIndex = saveBoxCustomUVVertices(boxIndex, 7.0f, 9.0f, railY[r][0], railY[r][1], 0.0f, 9.0f);
+        if (startVertexIndex < 0)
+            return retCode | MW_WORLD_EXPORT_TOO_LARGE;
+        for (int f = 0; f < 5; f++) {
+            if (railFace[f] == DIRECTION_BLOCK_SIDE_LO_Z && endHidden)
+                continue;
+            retCode |= saveBoxModelFaceUVLock(startVertexIndex, type, dataVal, railFace[f], 0, swatchLoc, railUV[r][f], 0, 0, yAngle);
+            if (retCode >= MW_BEGIN_ERRORS)
+                return retCode;
+        }
+    }
+    identityMtx(mtx);
+    translateToOriginMtx(mtx, boxIndex);
+    rotateMtx(mtx, 0.0f, (float)yAngle, 0.0f);
+    translateFromOriginMtx(mtx, boxIndex);
+    transformVertices(gModel.vertexCount - vertexCount, mtx);
+    gUsingTransform = 0;
+    return retCode;
+}
+
+// Save a model, as given in Minecraft's JSON, textured by the (possibly multi-tile) image at anchorLoc, then turn it as a blockstate
+// does, by "x" and then "y" (multiples of 90 degrees), with "uvlock" if set.
+static int saveRotatedModel(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, int xAngle, int yAngle, bool uvlock)
+{
+    float mtx[4][4];
+    int vertexCount = gModel.vertexCount;
+    gUsingTransform = 1;
+    int retCode = saveModelElements(boxIndex, type, dataVal, anchorLoc, elements, elementCount, (float)yAngle, xAngle, uvlock);
+    vertexCount = gModel.vertexCount - vertexCount;
+    identityMtx(mtx);
+    translateToOriginMtx(mtx, boxIndex);
+    rotateMtx(mtx, (float)xAngle, 0.0f, 0.0f);
+    rotateMtx(mtx, 0.0f, (float)yAngle, 0.0f);
+    translateFromOriginMtx(mtx, boxIndex);
+    transformVertices(vertexCount, mtx);
+    gUsingTransform = 0;
+    return retCode;
+}
+
+// Does a glass pane or bars connect to this neighbor? Panes, bars, walls, and whole blocks.
+static int paneConnects(int neighborType)
+{
+    return (neighborType == BLOCK_IRON_BARS) || (neighborType == BLOCK_GLASS_PANE) || (neighborType == BLOCK_STAINED_GLASS_PANE) ||
+        (neighborType == BLOCK_COBBLESTONE_WALL) || (neighborType == BLOCK_COPPER_BARS) || (neighborType == BLOCK_WAXED_COPPER_BARS) ||
+        (gBlockDefinitions[neighborType].flags & BLF_WHOLE);
+}
+
+// The parts of Minecraft's glass pane and bars models (template_glass_pane_* and template_bars_*): elements, with their faces.
+typedef struct PaneFace {
+    int faceDirection;
+    float uv[4];
+    int edge;   // the face uses the edge texture, else the pane's
+    int back;   // the back of a flat element, output only when billboards are doubled
+    int cap;    // the end of an arm, on the block's side, hidden by a neighbor it connects to (as Minecraft culls it)
+} PaneFace;
+typedef struct PaneElement {
+    float from[3];
+    float to[3];
+    int faceCount;
+    PaneFace face[5];
+} PaneElement;
+
+// Save a glass pane or bars, as the parts of Minecraft's multipart model for its connections, "filled": 0x1 north, 0x2 east,
+// 0x4 south, 0x8 west. Each part is turned by its "y". The bars' flat top and bottom elements, 0.001 pixels in from the block's
+// top and bottom in Minecraft, are Z_FIGHTING_BIAS in.
+static int savePaneModel(int boxIndex, int type, int dataVal, int paneLoc, int edgeLoc, int filled)
+{
+#define B_LO Z_FIGHTING_BIAS
+#define B_HI (16.0f - Z_FIGHTING_BIAS)
+    // glass panes
+    static const PaneElement panePost[] = {
+        { { 7, 0, 7 }, { 9, 16, 9 }, 2, { { DIRECTION_BLOCK_BOTTOM, { 7, 7, 9, 9 }, 1, 0, 0 }, { DIRECTION_BLOCK_TOP, { 7, 7, 9, 9 }, 1, 0, 0 } } } };
+    static const PaneElement paneSide[] = {
+        { { 7, 0, 0 }, { 9, 16, 7 }, 5, { { DIRECTION_BLOCK_BOTTOM, { 7, 0, 9, 7 }, 1, 0, 0 }, { DIRECTION_BLOCK_TOP, { 7, 0, 9, 7 }, 1, 0, 0 },
+            { DIRECTION_BLOCK_SIDE_LO_Z, { 7, 0, 9, 16 }, 1, 0, 1 }, { DIRECTION_BLOCK_SIDE_LO_X, { 16, 0, 9, 16 }, 0, 0, 0 }, { DIRECTION_BLOCK_SIDE_HI_X, { 9, 0, 16, 16 }, 0, 0, 0 } } } };
+    static const PaneElement paneSideAlt[] = {
+        { { 7, 0, 9 }, { 9, 16, 16 }, 5, { { DIRECTION_BLOCK_BOTTOM, { 7, 0, 9, 7 }, 1, 0, 0 }, { DIRECTION_BLOCK_TOP, { 7, 0, 9, 7 }, 1, 0, 0 },
+            { DIRECTION_BLOCK_SIDE_HI_Z, { 7, 0, 9, 16 }, 1, 0, 1 }, { DIRECTION_BLOCK_SIDE_LO_X, { 7, 0, 0, 16 }, 0, 0, 0 }, { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 7, 16 }, 0, 0, 0 } } } };
+    static const PaneElement paneNoside[] = {
+        { { 7, 0, 7 }, { 9, 16, 9 }, 1, { { DIRECTION_BLOCK_SIDE_LO_Z, { 9, 0, 7, 16 }, 0, 0, 0 } } } };
+    static const PaneElement paneNosideAlt[] = {
+        { { 7, 0, 7 }, { 9, 16, 9 }, 1, { { DIRECTION_BLOCK_SIDE_HI_X, { 7, 0, 9, 16 }, 0, 0, 0 } } } };
+    // bars
+    static const PaneElement barsPostEnds[] = {
+        { { 7, B_LO, 7 }, { 9, B_LO, 9 }, 2, { { DIRECTION_BLOCK_BOTTOM, { 7, 7, 9, 9 }, 1, 1, 0 }, { DIRECTION_BLOCK_TOP, { 7, 7, 9, 9 }, 1, 0, 0 } } },
+        { { 7, B_HI, 7 }, { 9, B_HI, 9 }, 2, { { DIRECTION_BLOCK_BOTTOM, { 7, 7, 9, 9 }, 1, 1, 0 }, { DIRECTION_BLOCK_TOP, { 7, 7, 9, 9 }, 1, 0, 0 } } } };
+    static const PaneElement barsPost[] = {
+        { { 8, 0, 7 }, { 8, 16, 9 }, 2, { { DIRECTION_BLOCK_SIDE_LO_X, { 7, 0, 9, 16 }, 0, 0, 0 }, { DIRECTION_BLOCK_SIDE_HI_X, { 9, 0, 7, 16 }, 0, 1, 0 } } },
+        { { 7, 0, 8 }, { 9, 16, 8 }, 2, { { DIRECTION_BLOCK_SIDE_LO_Z, { 7, 0, 9, 16 }, 0, 0, 0 }, { DIRECTION_BLOCK_SIDE_HI_Z, { 9, 0, 7, 16 }, 0, 1, 0 } } } };
+    static const PaneElement barsCap[] = {
+        { { 8, 0, 8 }, { 8, 16, 9 }, 2, { { DIRECTION_BLOCK_SIDE_LO_X, { 8, 0, 7, 16 }, 0, 0, 0 }, { DIRECTION_BLOCK_SIDE_HI_X, { 7, 0, 8, 16 }, 0, 1, 0 } } },
+        { { 7, 0, 9 }, { 9, 16, 9 }, 2, { { DIRECTION_BLOCK_SIDE_LO_Z, { 9, 0, 7, 16 }, 0, 0, 0 }, { DIRECTION_BLOCK_SIDE_HI_Z, { 7, 0, 9, 16 }, 0, 1, 0 } } } };
+    static const PaneElement barsCapAlt[] = {
+        { { 8, 0, 7 }, { 8, 16, 8 }, 2, { { DIRECTION_BLOCK_SIDE_LO_X, { 8, 0, 9, 16 }, 0, 0, 0 }, { DIRECTION_BLOCK_SIDE_HI_X, { 9, 0, 8, 16 }, 0, 1, 0 } } },
+        { { 7, 0, 7 }, { 9, 16, 7 }, 2, { { DIRECTION_BLOCK_SIDE_LO_Z, { 7, 0, 9, 16 }, 0, 0, 0 }, { DIRECTION_BLOCK_SIDE_HI_Z, { 9, 0, 7, 16 }, 0, 1, 0 } } } };
+    static const PaneElement barsSide[] = {
+        { { 8, 0, 0 }, { 8, 16, 8 }, 2, { { DIRECTION_BLOCK_SIDE_LO_X, { 16, 0, 8, 16 }, 0, 0, 0 }, { DIRECTION_BLOCK_SIDE_HI_X, { 8, 0, 16, 16 }, 0, 1, 0 } } },
+        { { 7, 0, 0 }, { 9, 16, 7 }, 1, { { DIRECTION_BLOCK_SIDE_LO_Z, { 7, 0, 9, 16 }, 1, 0, 1 } } },
+        { { 7, B_LO, 0 }, { 9, B_LO, 7 }, 2, { { DIRECTION_BLOCK_BOTTOM, { 9, 0, 7, 7 }, 1, 1, 0 }, { DIRECTION_BLOCK_TOP, { 7, 0, 9, 7 }, 1, 0, 0 } } },
+        { { 7, B_HI, 0 }, { 9, B_HI, 7 }, 2, { { DIRECTION_BLOCK_BOTTOM, { 9, 0, 7, 7 }, 1, 1, 0 }, { DIRECTION_BLOCK_TOP, { 7, 0, 9, 7 }, 1, 0, 0 } } } };
+    // template_bars_side_alt also gives its edge box a top and bottom, the same as its flat elements just inside them; those are left out
+    static const PaneElement barsSideAlt[] = {
+        { { 8, 0, 8 }, { 8, 16, 16 }, 2, { { DIRECTION_BLOCK_SIDE_LO_X, { 8, 0, 0, 16 }, 0, 0, 0 }, { DIRECTION_BLOCK_SIDE_HI_X, { 0, 0, 8, 16 }, 0, 1, 0 } } },
+        { { 7, 0, 9 }, { 9, 16, 16 }, 1, { { DIRECTION_BLOCK_SIDE_HI_Z, { 7, 0, 9, 16 }, 1, 0, 1 } } },
+        { { 7, B_LO, 9 }, { 9, B_LO, 16 }, 2, { { DIRECTION_BLOCK_BOTTOM, { 9, 9, 7, 16 }, 1, 1, 0 }, { DIRECTION_BLOCK_TOP, { 7, 9, 9, 16 }, 1, 0, 0 } } },
+        { { 7, B_HI, 9 }, { 9, B_HI, 16 }, 2, { { DIRECTION_BLOCK_BOTTOM, { 9, 9, 7, 16 }, 1, 1, 0 }, { DIRECTION_BLOCK_TOP, { 7, 9, 9, 16 }, 1, 0, 0 } } } };
+#undef B_LO
+#undef B_HI
+
+    // the parts to output: elements, element count, "y", and for an arm, the side it connects to (its end's side), else -1
+    struct {
+        const PaneElement* elements;
+        int elementCount;
+        float yAngle;
+        int capSide;
+    } parts[10];
+    int partCount = 0;
+#define ADD_PART(p, angle, side) { parts[partCount].elements = p; parts[partCount].elementCount = (int)(sizeof(p) / sizeof(PaneElement)); parts[partCount].yAngle = angle; parts[partCount].capSide = side; partCount++; }
+    bool bars = (type == BLOCK_IRON_BARS) || (type == BLOCK_COPPER_BARS) || (type == BLOCK_WAXED_COPPER_BARS);
+    if (bars) {
+        ADD_PART(barsPostEnds, 0.0f, -1);
+        switch (filled) {
+        case 0x0: ADD_PART(barsPost, 0.0f, -1); break;
+        case 0x1: ADD_PART(barsCap, 0.0f, -1); break;
+        case 0x2: ADD_PART(barsCap, 90.0f, -1); break;
+        case 0x4: ADD_PART(barsCapAlt, 0.0f, -1); break;
+        case 0x8: ADD_PART(barsCapAlt, 90.0f, -1); break;
+        default: break;
+        }
+        if (filled & 0x1) ADD_PART(barsSide, 0.0f, DIRECTION_BLOCK_SIDE_LO_Z);
+        if (filled & 0x2) ADD_PART(barsSide, 90.0f, DIRECTION_BLOCK_SIDE_HI_X);
+        if (filled & 0x4) ADD_PART(barsSideAlt, 0.0f, DIRECTION_BLOCK_SIDE_HI_Z);
+        if (filled & 0x8) ADD_PART(barsSideAlt, 90.0f, DIRECTION_BLOCK_SIDE_LO_X);
     }
     else {
-        vMinSide = saveBoxCustomUVVertices(boxIndex, minX, maxX, minY, maxY, minZ, splitCoord);
-        vMaxSide = saveBoxCustomUVVertices(boxIndex, minX, maxX, minY, maxY, splitCoord, maxZ);
+        ADD_PART(panePost, 0.0f, -1);
+        if (filled & 0x1) ADD_PART(paneSide, 0.0f, DIRECTION_BLOCK_SIDE_LO_Z);
+        if (filled & 0x2) ADD_PART(paneSide, 90.0f, DIRECTION_BLOCK_SIDE_HI_X);
+        if (filled & 0x4) ADD_PART(paneSideAlt, 0.0f, DIRECTION_BLOCK_SIDE_HI_Z);
+        if (filled & 0x8) ADD_PART(paneSideAlt, 90.0f, DIRECTION_BLOCK_SIDE_LO_X);
+        if (!(filled & 0x1)) ADD_PART(paneNoside, 0.0f, -1);
+        if (!(filled & 0x2)) ADD_PART(paneNosideAlt, 0.0f, -1);
+        if (!(filled & 0x4)) ADD_PART(paneNosideAlt, 90.0f, -1);
+        if (!(filled & 0x8)) ADD_PART(paneNoside, 270.0f, -1);
     }
-    if (vMinSide >= 0)
-        saveBoxCustomUVFace(vMinSide, type, dataVal, faceDirection, 0, swatchMinSide, uMinMinSide, uMaxMinSide, vMinMinSide, vMaxMinSide);
-    if (vMaxSide >= 0)
-        saveBoxCustomUVFace(vMaxSide, type, dataVal, faceDirection, 0, swatchMaxSide, uMinMaxSide, uMaxMaxSide, vMinMaxSide, vMaxMaxSide);
+#undef ADD_PART
+
+    int retCode = MW_NO_ERROR;
+    int markFirstFace = 1;
+    float mtx[4][4];
+    gUsingTransform = 1;
+    for (int p = 0; p < partCount; p++) {
+        // an arm's end is hidden by a neighbor it connects to, except when every face is wanted, for individual blocks
+        bool capHidden = (parts[p].capSide >= 0) && !(gModel.options->exportFlags & EXPT_INDIVIDUAL_BLOCKS) &&
+            paneConnects(gBoxData[boxIndex + gFaceOffset[parts[p].capSide]].origType);
+        int partVertexCount = gModel.vertexCount;
+        for (int e = 0; e < parts[p].elementCount; e++) {
+            const PaneElement* pElem = &parts[p].elements[e];
+            // the element's box, to test whether a face against the block's side is hidden by the neighbor there, e.g. a pane's
+            // bottom on an opaque block below, which would otherwise z-fight with it
+            ModelElement elemBox = { { pElem->from[X], pElem->from[Y], pElem->from[Z] }, { pElem->to[X], pElem->to[Y], pElem->to[Z] }, 0 };
+            int startVertexIndex = saveBoxCustomUVVertices(boxIndex, pElem->from[X], pElem->to[X], pElem->from[Y], pElem->to[Y], pElem->from[Z], pElem->to[Z]);
+            if (startVertexIndex < 0)
+                return retCode | MW_WORLD_EXPORT_TOO_LARGE;
+            for (int f = 0; f < pElem->faceCount; f++) {
+                const PaneFace* pFace = &pElem->face[f];
+                if ((pFace->back && !gModel.singleSided) || (pFace->cap && capHidden) ||
+                    modelFaceIsCovered(boxIndex, &elemBox, pFace->faceDirection, parts[p].yAngle))
+                    continue;
+                retCode |= saveBoxModelFace(startVertexIndex, type, dataVal, pFace->faceDirection, markFirstFace, pFace->edge ? edgeLoc : paneLoc, pFace->uv, 0);
+                if (retCode >= MW_BEGIN_ERRORS)
+                    return retCode;
+                markFirstFace = 0;
+            }
+        }
+        if (parts[p].yAngle != 0.0f) {
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            rotateMtx(mtx, 0.0f, parts[p].yAngle, 0.0f);
+            translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(gModel.vertexCount - partVertexCount, mtx);
+        }
+    }
+    gUsingTransform = 0;
+    return retCode;
+}
+
+// Is this model face on the side of its block, and hidden by the neighbor there (e.g. a full opaque block)?
+// The model is turned yAngle degrees about Y after it is saved (as rotateMtx and Minecraft's blockstate "y" turn it, 90 taking
+// north to east), so turn the element's box and face into the block's orientation first. For an angle that is not a multiple of
+// 90 (e.g. a sign's 22.5 degree steps), or an element with its own rotation, the side faces are not against the block's sides,
+// and only a top or bottom face can be hidden, by a neighbor covering the whole face.
+static int modelFaceIsCovered(int boxIndex, const ModelElement* pElem, int faceDirection, float yAngle)
+{
+    if (pElem->rotAngle != 0.0f)
+        return 0;
+    int quarterTurns = (int)(yAngle / 90.0f);
+    bool alignedToBlock = ((float)quarterTurns * 90.0f == yAngle);
+    if (!alignedToBlock && faceDirection != DIRECTION_BLOCK_TOP && faceDirection != DIRECTION_BLOCK_BOTTOM)
+        return 0;
+    float minX = pElem->from[X], maxX = pElem->to[X];
+    float minZ = pElem->from[Z], maxZ = pElem->to[Z];
+    for (int turn = 0; alignedToBlock && turn < (((quarterTurns % 4) + 4) % 4); turn++) {
+        // a quarter turn takes (x,z) to (16-z,x), and each side to the next one clockwise, seen from above
+        float newMinX = 16.0f - maxZ;
+        float newMaxX = 16.0f - minZ;
+        minZ = minX;
+        maxZ = maxX;
+        minX = newMinX;
+        maxX = newMaxX;
+        switch (faceDirection) {
+        case DIRECTION_BLOCK_SIDE_LO_Z: faceDirection = DIRECTION_BLOCK_SIDE_HI_X; break;
+        case DIRECTION_BLOCK_SIDE_HI_X: faceDirection = DIRECTION_BLOCK_SIDE_HI_Z; break;
+        case DIRECTION_BLOCK_SIDE_HI_Z: faceDirection = DIRECTION_BLOCK_SIDE_LO_X; break;
+        case DIRECTION_BLOCK_SIDE_LO_X: faceDirection = DIRECTION_BLOCK_SIDE_LO_Z; break;
+        default: break;
+        }
+    }
+    // the face must be on the block's side, and within it: a frill poking out past the block isn't covered by the neighbor
+    float rect[4];
+    float lo, hi;
+    switch (faceDirection) {
+    case DIRECTION_BLOCK_SIDE_LO_X:
+    case DIRECTION_BLOCK_SIDE_HI_X:
+        lo = minX; hi = maxX;
+        rect[0] = minZ; rect[1] = maxZ; rect[2] = pElem->from[Y]; rect[3] = pElem->to[Y];
+        break;
+    case DIRECTION_BLOCK_SIDE_LO_Z:
+    case DIRECTION_BLOCK_SIDE_HI_Z:
+        lo = minZ; hi = maxZ;
+        rect[0] = minX; rect[1] = maxX; rect[2] = pElem->from[Y]; rect[3] = pElem->to[Y];
+        break;
+    default:
+        lo = pElem->from[Y]; hi = pElem->to[Y];
+        rect[0] = minX; rect[1] = maxX; rect[2] = minZ; rect[3] = maxZ;
+        break;
+    }
+    int onSide = (faceDirection == DIRECTION_BLOCK_SIDE_LO_X || faceDirection == DIRECTION_BLOCK_BOTTOM || faceDirection == DIRECTION_BLOCK_SIDE_LO_Z) ?
+        (lo == 0.0f) : (hi == 16.0f);
+    if (!onSide || rect[0] < 0.0f || rect[1] > 16.0f || rect[2] < 0.0f || rect[3] > 16.0f)
+        return 0;
+    if (!alignedToBlock) {
+        // turned by an odd angle, the face could be anywhere within the block's top or bottom
+        rect[0] = rect[2] = 0.0f;
+        rect[1] = rect[3] = 16.0f;
+    }
+    return lesserNeighborCoversRectangle(faceDirection, boxIndex, rect);
+}
+
+// Save the elements of a Minecraft block model, as given in its JSON file, all textured by the (possibly multi-tile) image at anchorLoc,
+// except for faces with their own tiles.
+// yAngle is the rotation about Y the caller gives the model afterwards, used to find which faces are hidden by neighbors.
+// Elements with their own rotation are turned into place here, so the caller must have set gUsingTransform.
+// The first face saved is marked as the first face of the block.
+static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, float yAngle, int xAngle /*= 0*/, bool uvlock /*= false*/)
+{
+    int retCode = MW_NO_ERROR;
+    int markFirstFace = 1;
+    for (int e = 0; e < elementCount; e++) {
+        const ModelElement* pElem = &elements[e];
+        // a flat element (e.g. a straw bed frill) has no thickness, so it can't be 3D printed and would leave the
+        // model non-manifold: skip it
+        if (gModel.print3D && (pElem->from[X] == pElem->to[X] || pElem->from[Y] == pElem->to[Y] || pElem->from[Z] == pElem->to[Z]))
+            continue;
+        int startVertexIndex = saveBoxCustomUVVertices(boxIndex, pElem->from[X], pElem->to[X], pElem->from[Y], pElem->to[Y], pElem->from[Z], pElem->to[Z]);
+        if (startVertexIndex < 0)
+            return retCode | MW_WORLD_EXPORT_TOO_LARGE;
+        for (int f = 0; f < pElem->faceCount; f++) {
+            const ModelFace* pFace = &pElem->face[f];
+            // the back of a flat element is output only when billboards are doubled
+            if (pFace->billboardBack && !gModel.singleSided)
+                continue;
+            // a face on the block's side is hidden if the neighbor there covers it, e.g. a straw bed's bottom on a full opaque
+            // block, or a shelf mushroom's back against its log (only tested for a model turned just about Y)
+            if ((xAngle == 0) && modelFaceIsCovered(boxIndex, pElem, pFace->faceDirection, yAngle))
+                continue;
+            retCode |= saveBoxModelFaceUVLock(startVertexIndex, type, dataVal, pFace->faceDirection, markFirstFace, pFace->swatchLoc ? pFace->swatchLoc : anchorLoc, pFace->uv, pFace->rotation,
+                uvlock ? xAngle : 0, uvlock ? (int)yAngle : 0);
+            if (retCode >= MW_BEGIN_ERRORS)
+                return retCode;
+            markFirstFace = 0;
+        }
+        if (pElem->rotAngle != 0.0f) {
+            // turn the element about its origin. translateToOriginMtx puts the block's center, pixel (8,8,8), at the origin, so
+            // the element's origin is then (origin-8)/16 from it. Minecraft's element rotation turns the other way from rotateMtx's,
+            // about each axis (about Y, Minecraft's is counterclockwise, seen from above; rotateMtx's is clockwise). With "rescale",
+            // the two other axes are stretched by 1/cos(angle), so a plane at 45 degrees reaches the block's corners.
+            float mtx[4][4];
+            assert(gUsingTransform);
+            identityMtx(mtx);
+            translateToOriginMtx(mtx, boxIndex);
+            translateMtx(mtx, (8.0f - pElem->rotOrigin[X]) / 16.0f, (8.0f - pElem->rotOrigin[Y]) / 16.0f, (8.0f - pElem->rotOrigin[Z]) / 16.0f);
+            rotateMtx(mtx, (pElem->rotAxis == 1) ? -pElem->rotAngle : 0.0f, (pElem->rotAxis == 0) ? -pElem->rotAngle : 0.0f, (pElem->rotAxis == 2) ? -pElem->rotAngle : 0.0f);
+            if (pElem->rescale) {
+                float stretch = 1.0f / (float)cos(DEGREES_TO_RADIANS * pElem->rotAngle);
+                scaleMtx(mtx, (pElem->rotAxis == 1) ? 1.0f : stretch, (pElem->rotAxis == 0) ? 1.0f : stretch, (pElem->rotAxis == 2) ? 1.0f : stretch);
+            }
+            translateMtx(mtx, (pElem->rotOrigin[X] - 8.0f) / 16.0f, (pElem->rotOrigin[Y] - 8.0f) / 16.0f, (pElem->rotOrigin[Z] - 8.0f) / 16.0f);
+            translateFromOriginMtx(mtx, boxIndex);
+            transformVertices(gModel.vertexCount - startVertexIndex, mtx);
+        }
+    }
+    return retCode;
 }
 
 // Find if the specified face touches its voxel's face (i.e., is up against the voxel), and get the dimensions found.
@@ -14834,12 +18521,9 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
                 break;
 
             case BLOCK_BED:
+                // the box, on its legs
                 setTop = 9;
-                if (view3D)
-                {
-                    // when rendering, we can see under the bed
-                    setBottom = 3;
-                }
+                setBottom = 3;
                 break;
 
             case BLOCK_PALE_MOSS_CARPET:
@@ -14855,6 +18539,13 @@ static int getFaceRect(int faceDirection, int boxIndex, int view3D, float faceRe
 
             case BLOCK_CARPET:
                 setTop = 1;
+                break;
+
+            case BLOCK_CUSHION:
+                // lowered, the cushion may not reach up into this block at all
+                setTop = (float)(4 - CUSHION_DROP(dataVal));
+                if (setTop < 0.0f)
+                    setTop = 0.0f;
                 break;
 
             case BLOCK_END_PORTAL_FRAME:
@@ -15066,11 +18757,13 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     int uvIndices[4];  // cppcheck-suppress 398
     int foundSunflowerTop = 0;
     int yShift = 0;
-    int swatchLocSet[6];
     int retCode = MW_NO_ERROR;
     int matchType;  // cppcheck-suppress 398
     bool vineUnderBlock = false;
     bool lichenOverBlock = false;
+    // the billboards (if any) of a vine or lichen under a block and of lichen over a block, whose back faces need their own UVs
+    int underBlockBill = -1;
+    int overBlockBill = -1;
     bool redstoneWireOnBottom = false;
     int faceDirection;
     float distanceOffset = ONE_PIXEL;
@@ -15086,7 +18779,6 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     bool wobbleIt = false;
     int origDataVal = dataVal;
     int origUsingTransform = gUsingTransform;
-    bool fullHeight = false;
     bool singleSided = (gBlockDefinitions[type].flags & BLF_EMITTER) ? gModel.emitterSingleSided : gModel.singleSided;
     int rotateIndex;
 
@@ -15383,11 +19075,16 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
             }
         }
         else {
-            // full check: is dataVal == 0 (means only a vine above) or is there a solid block above?
+            // full check: is dataVal == 0 (means only a vine above) or is there a solid block above? For 1.13 on, "up" (BIT_32,
+            // see VINE_PROP in nbt.cpp) says so, as Minecraft draws it.
             // Note that the solid block must actually exist, vs. "origType"
-            if ((dataVal == 0) || (dataVal == BIT_16) || (dataVal == BIT_32) || (gBlockDefinitions[gBoxData[boxIndex + 1].type].flags & BLF_WHOLE)) {
+            if ((dataVal == 0) || (dataVal == BIT_16) || (dataVal == BIT_32) || (gIs13orNewer && (dataVal & BIT_32)) ||
+                (gBlockDefinitions[gBoxData[boxIndex + 1].type].flags & BLF_WHOLE)) {
                 vineUnderBlock = true;
             }
+            // Minecraft's vine model is 0.8 pixel from the block's face (the top is put 1 pixel in, less shiftY)
+            shiftY = 0.2f * ONE_PIXEL;
+            distanceOffset = 0.8f * ONE_PIXEL;
         }
         break;
     case BLOCK_GLOW_LICHEN:				// saveBillboardFacesExtraData
@@ -15398,12 +19095,13 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
                 lichenOverBlock = true;
             }
             if (dataVal & BIT_32) {
-                // note that, weirdly enough, bit 32, "up", means cover the top of the block here,
-                // but "up" for BLOCK_VINES is BIT_16
+                // bit 32, "up", means cover the top of the block, as for BLOCK_VINES
                 vineUnderBlock = true;
             }
-            shiftY = 0.75f * ONE_PIXEL;
-            distanceOffset = 0.25f * ONE_PIXEL;
+            // Minecraft's glow_lichen (and sculk_vein, resin_clump) model is 0.1 pixel from the block's face (the top and bottom
+            // are put 1 pixel in, less shiftY)
+            shiftY = 0.9f * ONE_PIXEL;
+            distanceOffset = 0.1f * ONE_PIXEL;
         }
         break;
     case BLOCK_SPORE_BLOSSOM:
@@ -15437,6 +19135,8 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
             assert(0);
             return 0;
         }
+        // Minecraft's ladder model is 0.8 pixel from the block's face
+        distanceOffset = 0.8f * ONE_PIXEL;
         break;
     case BLOCK_CACTUS:				// saveBillboardFacesExtraData
         // side faces are one higher
@@ -15546,16 +19246,13 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         else {
             if (dataVal & 0x8)
             {
-                // top half of plant, so need data value of block below
-                // to know which sort of plant
-                // (could be zero if block is missing, in which case it'll be a sunflower, which is fine)
+                // top half of plant: which sort of plant is in the low bits, from its name (1.13 on), or shoved in from the bottom
+                // half (1.12 and earlier, see extractChunk; if the bottom half is missing, it'll be a sunflower, which is fine).
                 // row 19 (#18) has these
-                // old code, before we shoved the dataVal from the bottom half (if available) into the top half (around line 2812), in extractChunk.
-                // But, should work the same, so don't mess with it.
-                swatchLoc = SWATCH_INDEX(gBoxData[boxIndex - 1].data * 2 + 3, 18);
-                // for material differentiation set the dataVal to the bottom half
-                origDataVal = gBoxData[boxIndex - 1].data;
-                if (gBoxData[boxIndex - 1].data == 0)
+                swatchLoc = SWATCH_INDEX((dataVal & 0x7) * 2 + 3, 18);
+                // for material differentiation set the dataVal to the bottom half's
+                origDataVal = dataVal & 0x7;
+                if ((dataVal & 0x7) == 0)
                 {
                     foundSunflowerTop = 1;
                 }
@@ -15568,7 +19265,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         }
         break;
     case BLOCK_TALL_SEAGRASS:				// saveBillboardFacesExtraData
-        wobbleIt = true;
+        // Minecraft doesn't offset seagrass randomly, as it does many plants
         if (dataVal >= 8)
         {
             // top half of plant
@@ -15582,8 +19279,6 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         //}
         break;
     case BLOCK_WEEPING_VINES:				// saveBillboardFacesExtraData
-        // the cross object should go the whole height
-        fullHeight = true;
         if (dataVal & BIT_32)
         {
             // use short half of plant - twisting vines?
@@ -15627,19 +19322,13 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         break;
     case BLOCK_CORAL_FAN:				// saveBillboardFacesExtraData
     case BLOCK_CORAL_WALL_FAN:				// saveBillboardFacesExtraData
-        if (dataVal > 0)
-        {
-            // add 0-4 to get to tile
-            swatchLoc = SWATCH_INDEX((dataVal & 0x7), 36);
-        }
+        // add 0-4 to get to tile (even for tube coral, 0, as the block's own tile is a coral plant's)
+        swatchLoc = SWATCH_INDEX((dataVal & 0x7), 36);
         break;
     case BLOCK_DEAD_CORAL_FAN:				// saveBillboardFacesExtraData
     case BLOCK_DEAD_CORAL_WALL_FAN:				// saveBillboardFacesExtraData
-        if (dataVal > 0)
-        {
-            // add 0-4 to get to tile
-            swatchLoc = SWATCH_INDEX(5 + (dataVal & 0x7), 36);
-        }
+        // add 0-4 to get to tile
+        swatchLoc = SWATCH_INDEX(5 + (dataVal & 0x7), 36);
         break;
     case BLOCK_DEAD_CORAL:				// saveBillboardFacesExtraData
         if (dataVal > 0)
@@ -15763,16 +19452,18 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     {
         float texelWidth, texelLow, texelHigh;
 
-        // approximate width of billboard across block, eyeballing it.
-        texelWidth = 14.5f / 16.0f;
-        if (fullHeight) {
-            texelLow = 0.0f;
-            texelHigh = 1.0f;
+        // Minecraft's cross model: each plane runs diagonally from pixel 0.8 to 15.2 in X and Z (an element from 0.8 to 15.2,
+        // turned 45 degrees and stretched by "rescale" to reach that far along the diagonal)
+        texelWidth = 14.4f / 16.0f;
+        if (type == BLOCK_DOUBLE_FLOWER && (dataVal & 0x7) == 6) {
+            // the pitcher plant's pitcher_plant_bottom and _top models turn 16-pixel planes 45 degrees without "rescale", so they
+            // stop short of the corners: 16 / sqrt(2) pixels across in X and Z
+            texelWidth = 0.70710678f;
         }
-        else {
-            texelLow = (1.0f - texelWidth) / 2.0f;
-            texelHigh = (1.0f + texelWidth) / 2.0f;
-        }
+        texelLow = (1.0f - texelWidth) / 2.0f;
+        texelHigh = (1.0f + texelWidth) / 2.0f;
+        // the sunflower top's crossed planes are half height (see the sunflower head, below)
+        float crossTop = foundSunflowerTop ? 0.5f : 1.0f;
         faceCount = 4;
         // two paired billboards
         faceDir[0] = DIRECTION_LO_X_HI_Z;
@@ -15782,13 +19473,13 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 
         Vec3Scalar(vertexOffsets[0][0], =, texelLow, height, texelLow);
         Vec3Scalar(vertexOffsets[0][1], =, texelHigh, height, texelHigh);
-        Vec3Scalar(vertexOffsets[0][2], =, texelHigh, 1 + height, texelHigh);
-        Vec3Scalar(vertexOffsets[0][3], =, texelLow, 1 + height, texelLow);
+        Vec3Scalar(vertexOffsets[0][2], =, texelHigh, crossTop + height, texelHigh);
+        Vec3Scalar(vertexOffsets[0][3], =, texelLow, crossTop + height, texelLow);
 
         Vec3Scalar(vertexOffsets[1][0], =, texelLow, height, texelHigh);
         Vec3Scalar(vertexOffsets[1][1], =, texelHigh, height, texelLow);
-        Vec3Scalar(vertexOffsets[1][2], =, texelHigh, 1 + height, texelLow);
-        Vec3Scalar(vertexOffsets[1][3], =, texelLow, 1 + height, texelHigh);
+        Vec3Scalar(vertexOffsets[1][2], =, texelHigh, crossTop + height, texelLow);
+        Vec3Scalar(vertexOffsets[1][3], =, texelLow, crossTop + height, texelHigh);
     }
     break;
     case BB_GRID:
@@ -15854,6 +19545,24 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         Vec3Scalar(vertexOffsets[3][1], =, 1, minY, texelHigh);
         Vec3Scalar(vertexOffsets[3][2], =, 1, maxY, texelHigh);
         Vec3Scalar(vertexOffsets[3][3], =, 0, maxY, texelHigh);
+
+        if (vertShift != 0.0f) {
+            // Minecraft's crop model mirrors the texture on the X = 12 and Z = 4 planes, so that the outside faces of all four
+            // read the same way (and the inside faces, too)
+            Vec3Scalar(vertexOffsets[1][0], =, texelHigh, minY, 1);
+            Vec3Scalar(vertexOffsets[1][1], =, texelHigh, minY, 0);
+            Vec3Scalar(vertexOffsets[1][2], =, texelHigh, maxY, 0);
+            Vec3Scalar(vertexOffsets[1][3], =, texelHigh, maxY, 1);
+            faceDir[2] = DIRECTION_BLOCK_SIDE_HI_X;
+            faceDir[3] = DIRECTION_BLOCK_SIDE_LO_X;
+
+            Vec3Scalar(vertexOffsets[2][0], =, 1, minY, texelLow);
+            Vec3Scalar(vertexOffsets[2][1], =, 0, minY, texelLow);
+            Vec3Scalar(vertexOffsets[2][2], =, 0, maxY, texelLow);
+            Vec3Scalar(vertexOffsets[2][3], =, 1, maxY, texelLow);
+            faceDir[4] = DIRECTION_BLOCK_SIDE_LO_Z;
+            faceDir[5] = DIRECTION_BLOCK_SIDE_HI_Z;
+        }
     }
     break;
     case BB_TORCH:
@@ -15873,14 +19582,15 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         switch (dataVal & 0xf)
         {
         case 2: // ascend east +x
-            // two paired billboards
+            // two paired billboards. As in Minecraft (whose model for this is the ascend-north one, turned), the texture's
+            // bottom is at the low end, the same as for the other slopes
             faceDir[0] = DIRECTION_LO_X_HI_Y;
             faceDir[1] = DIRECTION_HI_X_LO_Y;
 
-            Vec3Scalar(vertexOffsets[0][0], =, 1.0f, 1.0f + texelUp, 1.0f);
-            Vec3Scalar(vertexOffsets[0][1], =, 1.0f, 1.0f + texelUp, 0.0f);
-            Vec3Scalar(vertexOffsets[0][2], =, 0.0f, 0.0f + texelUp, 0.0f);
-            Vec3Scalar(vertexOffsets[0][3], =, 0.0f, 0.0f + texelUp, 1.0f);
+            Vec3Scalar(vertexOffsets[0][0], =, 0.0f, 0.0f + texelUp, 0.0f);
+            Vec3Scalar(vertexOffsets[0][1], =, 0.0f, 0.0f + texelUp, 1.0f);
+            Vec3Scalar(vertexOffsets[0][2], =, 1.0f, 1.0f + texelUp, 1.0f);
+            Vec3Scalar(vertexOffsets[0][3], =, 1.0f, 1.0f + texelUp, 0.0f);
             break;
         case 3: // ascend west -x
             faceDir[0] = DIRECTION_HI_X_HI_Y;
@@ -16066,6 +19776,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
                 faceDir[faceCount++] = DIRECTION_BLOCK_TOP;
                 faceDir[faceCount++] = DIRECTION_BLOCK_BOTTOM;
                 assert(faceCount <= 10);
+                underBlockBill = billCount;
 
                 Vec3Scalar(vertexOffsets[billCount][0], =, 1.0f, 1.0f - ONE_PIXEL + shiftY, 1.0f);
                 Vec3Scalar(vertexOffsets[billCount][1], =, 1.0f, 1.0f - ONE_PIXEL + shiftY, 0.0f);
@@ -16080,6 +19791,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
                 faceDir[faceCount++] = DIRECTION_BLOCK_BOTTOM;
                 faceDir[faceCount++] = DIRECTION_BLOCK_TOP;
                 assert(faceCount <= 12);
+                overBlockBill = billCount;
 
                 Vec3Scalar(vertexOffsets[billCount][0], =, 1.0f, ONE_PIXEL - shiftY, 1.0f);
                 Vec3Scalar(vertexOffsets[billCount][1], =, 0.0f, ONE_PIXEL - shiftY, 1.0f);
@@ -16101,7 +19813,8 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
         // distanceOffset is used for silly case https://www.reddit.com/r/Minecraft/comments/c9r6qd/a_new_building_trick_that_might_come_in_handy
         // in which the lily pad is actually on top of a slab
         // Note that lily pads are officially 1.5/16 above still water: https://minecraft.wiki/w/Solid_block
-        distanceOffset *= 0.5f;
+        // Minecraft's lily_pad (and frogspawn) model is 0.25 pixel up.
+        distanceOffset *= 0.25f;
 
         // if it's a lily pad, we rotate the indices randomly
         rotateIndex = 0;
@@ -16277,8 +19990,9 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 
     // now output, if anything found (redstone wire may not actually have any sides)
     if (faceCount > 0) {
-        // get the four UV texture vertices, based on type of block
-        if (!saveTextureCorners(swatchLoc, type, uvIndices))
+        // get the four UV texture vertices, based on type of block; the sunflower top's half-height crossed planes show the bottom
+        // half of its texture
+        if (!(foundSunflowerTop ? saveRectangleTextureUVs(swatchLoc, type, 0.0f, 1.0f, 0.0f, 0.5f, uvIndices) : saveTextureCorners(swatchLoc, type, uvIndices)))
             return retCode | MW_WORLD_EXPORT_TOO_LARGE;
 
         bool normalUnknown = ((billboardType == BB_TORCH) || (billboardType == BB_FIRE) || foundSunflowerTop);
@@ -16312,6 +20026,21 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
                     // first half of billboard
                     startVertexCount = gModel.vertexCount;
 
+                    // A vine's or lichen's billboard under a block, or lichen's over a block, is a face turned by the blockstate's "x"
+                    // with "uvlock", so its UVs are not those of other billboards: seen from below (under a block), its front's are
+                    // flipped across one diagonal, and its back's across the other; seen from above (over a block), its front's are
+                    // flipped in U and its back's in V. This first face looks toward the block, so it is the back - but when it is the
+                    // only face output, its other side is the one seen, so it then gets the front's UVs.
+                    static const int sameUV[4] = { 0, 1, 2, 3 };
+                    static const int underBlockFrontUV[4] = { 2, 1, 0, 3 };
+                    static const int underBlockBackUV[4] = { 0, 3, 2, 1 };
+                    static const int overBlockFrontUV[4] = { 1, 0, 3, 2 };
+                    static const int overBlockBackUV[4] = { 3, 2, 1, 0 };
+                    const int* firstUV = sameUV;
+                    if (fc == underBlockBill)
+                        firstUV = singleSided ? underBlockBackUV : underBlockFrontUV;
+                    else if (fc == overBlockBill)
+                        firstUV = singleSided ? overBlockBackUV : overBlockFrontUV;
                     // get four face indices for the four corners of the billboard, and always create each
                     for (j = 0; j < 4; j++)
                     {
@@ -16328,7 +20057,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 
                         face->vertexIndex[j] = startVertexCount + j;
                         if (gModel.exportTexture)
-                            face->uvIndex[j] = (short)uvIndices[j];
+                            face->uvIndex[j] = (short)uvIndices[firstUV[j]];
 
                         gModel.vertexCount++;
                         assert(gModel.vertexCount <= gModel.vertexListSize);
@@ -16342,11 +20071,16 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
 
                     // use startVertexCount for the locations of the four vertices;
                     // these are always the same
+                    // a vine's or lichen's billboard under or over a block: this second face is the front (see above)
+                    static const int sameSecondUV[4] = { 0, 1, 2, 3 };
+                    static const int underBlockSecondUV[4] = { 2, 1, 0, 3 };
+                    static const int overBlockSecondUV[4] = { 1, 0, 3, 2 };
+                    const int* secondUV = (fc == underBlockBill) ? underBlockSecondUV : ((fc == overBlockBill) ? overBlockSecondUV : sameSecondUV);
                     for (j = 0; j < 4; j++)
                     {
                         face->vertexIndex[3 - j] = startVertexCount + j;
                         if (gModel.exportTexture)
-                            face->uvIndex[3 - j] = (short)uvIndices[j];
+                            face->uvIndex[3 - j] = (short)uvIndices[secondUV[j]];
                     }
                 }
 
@@ -16363,31 +20097,45 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     if (billboardType == BB_TORCH)
     {
         gUsingTransform = 1;
-        // sides of torches
-        // 11 high, 2x2 but extending out by 1 on each side
+        // Minecraft's template_torch (and template_torch_unlit and template_redstone_torch): a 2x2 stick, 10 pixels high. A stubby
+        // torch, on a repeater or comparator, is the stick's top part, with no bottom face.
         // dataVal of 0x10 means stubby torch (5.0), 0x20 means more stubby (7.0), 0x30 means one more stubby than that (8.0)
         float stubShift = (dataVal & 0x30) ? ((dataVal & 0x20) ? 5.0f + (float)((dataVal & 0x30) >> 4) : 5.0f) : 0.0f;
-        saveBoxGeometry(boxIndex, type, dataVal & 0xf, 1, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, 6, 10, stubShift, 11, 7, 9);
-        saveBoxGeometry(boxIndex, type, dataVal & 0xf, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, 7, 9, stubShift, 11, 6, 10);
-
-        // add a tip to the torch, shift it one texel in X
-        //saveBoxMultitileGeometry( boxIndex, type, swatchLoc, swatchLoc, swatchLoc, 0, DIR_LO_X_BIT|DIR_HI_X_BIT|DIR_LO_Z_BIT|DIR_HI_Z_BIT|DIR_BOTTOM_BIT, 0, 7,9, 10,10, 6,8);
-        int torchVertexCount = gModel.vertexCount;
-        saveBoxGeometry(boxIndex, type, dataVal & 0xf, 0, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT, 7, 9, stubShift, 10, 6, 8);
-        identityMtx(mtx);
-        translateToOriginMtx(mtx, boxIndex);
-        rotateMtx(mtx, 0.0f, 270.0f, 0.0f);
-        translateFromOriginMtx(mtx, boxIndex);
-        translateMtx(mtx, 1.0f / 16.0f, 0.0f, -1.0f / 16.0f);
-        transformVertices(gModel.vertexCount - torchVertexCount, mtx);
-        // torch bottom
-        saveBoxReuseGeometry(boxIndex, type, dataVal & 0xf, swatchLoc, DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_TOP_BIT, 0x0, 7, 9, stubShift, 10, 11, 13);
+        {
+            static const float tipUV[4] = { 7.0f, 6.0f, 9.0f, 8.0f };
+            static const float bottomUV[4] = { 7.0f, 13.0f, 9.0f, 15.0f };
+            float sideUV[4] = { 7.0f, 6.0f, 9.0f, 16.0f - stubShift };
+            static const int sideFace[4] = { DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
+            // a wall torch is made leaning toward +Z and then turned, while Minecraft's template_torch_wall leans toward +X, so turn
+            // the texture of the tip and bottom to match
+            bool wallTorch = ((dataVal & 0xf) != 5);
+            int startVertexIndex = saveBoxCustomUVVertices(boxIndex, 7.0f, 9.0f, stubShift, 10.0f, 7.0f, 9.0f);
+            if (startVertexIndex < 0)
+                return MW_WORLD_EXPORT_TOO_LARGE;
+            if (type == BLOCK_REDSTONE_TORCH_ON) {
+                // Minecraft's lit redstone torch adds a glow, six faces looking inward around the tip, which it sees only from inside
+                // (it culls back faces). Most renderers draw both sides, making a solid red cube, so instead the sides are wider and
+                // a pixel taller, showing the glow's texels around the stick as a flame.
+                saveBoxGeometry(boxIndex, type, dataVal & 0xf, (firstFace > 0), DIR_LO_X_BIT | DIR_HI_X_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, 6, 10, stubShift, 11, 7, 9);
+                saveBoxGeometry(boxIndex, type, dataVal & 0xf, 0, DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, 7, 9, stubShift, 11, 6, 10);
+            }
+            else {
+                for (int f = 0; f < 4; f++) {
+                    retCode |= saveBoxModelFace(startVertexIndex, type, dataVal & 0xf, sideFace[f], (f == 0) && (firstFace > 0), swatchLoc, sideUV, 0);
+                    if (retCode >= MW_BEGIN_ERRORS)
+                        return retCode;
+                }
+            }
+            retCode |= saveBoxModelFace(startVertexIndex, type, dataVal & 0xf, DIRECTION_BLOCK_TOP, 0, swatchLoc, tipUV, wallTorch ? 270 : 0);
+            if (retCode >= MW_BEGIN_ERRORS)
+                return retCode;
+            if (stubShift == 0.0f) {
+                retCode |= saveBoxModelFace(startVertexIndex, type, dataVal & 0xf, DIRECTION_BLOCK_BOTTOM, 0, swatchLoc, bottomUV, wallTorch ? 90 : 0);
+                if (retCode >= MW_BEGIN_ERRORS)
+                    return retCode;
+            }
+        }
         gUsingTransform = 0;
-
-        torchVertexCount = gModel.vertexCount - torchVertexCount;
-        identityMtx(mtx);
-        translateMtx(mtx, 0.0f, 0.0f, 1.0f / 16.0f);
-        transformVertices(torchVertexCount, mtx);
 
         if ((dataVal & 0xf) != 5)
         {
@@ -16471,51 +20219,32 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     // check for sunflower
     else if (foundSunflowerTop)
     {
-        // add sunflower head
+        // Add the sunflower head, as Minecraft's sunflower_top model has it: a flat element at X = 9.6 pixels, from -1 to 15 in Y and
+        // 1 to 15 in Z, with the back on its west face and the front on its east, turned 22.5 degrees about Z (tilting the front up
+        // toward the east), about the block's center, and then stretched in X and Y by "rescale". The two faces are 0.1 pixel apart,
+        // to avoid z-fighting. For the back, resource packs differ (Coterie Craft mirrors it to match the front, Doku doesn't); this
+        // is Minecraft's mapping. Some packs' front is see-through where the back doesn't cover it, so both faces are always output.
+        int backLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
+        ModelElement headElement[] = {
+            { { 9.55f, -1.0f, 1.0f }, { 9.65f, 15.0f, 15.0f }, 2, {
+                { DIRECTION_BLOCK_SIDE_LO_X, { 0.0f, 0.0f, 16.0f, 16.0f }, 0, 0, backLoc },
+                { DIRECTION_BLOCK_SIDE_HI_X, { 0.0f, 0.0f, 16.0f, 16.0f }, 0, 0, backLoc + 1 }
+            } },
+        };
         totalVertexCount = gModel.vertexCount;
-
-        // front of sunflower
-        swatchLocSet[DIRECTION_BLOCK_TOP] =
-            swatchLocSet[DIRECTION_BLOCK_BOTTOM] =
-            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] =
-            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] =
-            swatchLocSet[DIRECTION_BLOCK_SIDE_LO_Z] =
-            swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = (TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY) + 1);
-        // back of sunflower is before front
-        swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X]--;
-
         gUsingTransform = 1;
-        // displace faces a bit so that they don't z-fight. To be honest, I don't know why G3D makes
-        // these two primitives double-sided - perhaps because they are cutouts? G3D normally makes
-        // blocks single sided. Anyway, there's z-fighting, which looks bad and is confusing.
-        // For the back of the sunflower, Coterie Craft and Doku have differing opinions. Coterie's
-        // backface is mirrored so that it properly matches the front. Doku's is not mirrored. I think
-        // the right answer Coterie's, where you see it from the back. Happily doesn't matter for JG-RTX,
-        // which puts some leaves instead. Also doesn't matter for most other packs, as the front's outline
-        // is symmetrical. Anyway, whew, I've decided to not reverse the back, since it should be rendered
-        // as is.
-        // A USD subtlety is whether the front should be double-sided or not. For JG-RTX it should be, since
-        // the sunflower back does not cover the flower and so the flower would disappear from the rear view.
-        // But, the sunflower back itself could be made single-sided - I don't bother.
-        retCode |= saveBoxAlltileGeometry(boxIndex, type, dataVal, swatchLocSet, 0,
-            // DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT | (singleSided ? 0x0 : DIR_LO_X_BIT),
-            DIR_LO_Z_BIT | DIR_HI_Z_BIT | DIR_BOTTOM_BIT | DIR_TOP_BIT, // always include back side, esp. now that it's separated from the front (avoiding z-fighting)
-            0 /*FLIP_LO_X_FACE_VERTICALLY*/, 0, 7.95f, 8.05f, 0, 16, 0, 16);
+        retCode |= saveModelElements(boxIndex, type, dataVal, backLoc, headElement, 1, 0.0f);
         if (retCode > MW_BEGIN_ERRORS) return retCode;
-
         gUsingTransform = 0;
         totalVertexCount = gModel.vertexCount - totalVertexCount;
         identityMtx(mtx);
         translateToOriginMtx(mtx, boxIndex);
-        rotateMtx(mtx, 0.0f, 0.0f, -20.0f);
-        // maybe needs to get pushed out farther still - Doku's leaves poke through it.
-        translateMtx(mtx, 1.8f / 16.0f, 0.4f / 16.0f, 0.2f / 16.0f);
+        // a positive Z angle in rotateMtx turns the top of an upright piece toward +X, the opposite of Minecraft's element rotation
+        rotateMtx(mtx, 0.0f, 0.0f, -22.5f);
+        // Minecraft's "rescale" for 22.5 degrees: 1/cos(22.5 degrees)
+        scaleMtx(mtx, 1.0823922f, 1.0823922f, 1.0f);
         translateFromOriginMtx(mtx, boxIndex);
         transformVertices(totalVertexCount, mtx);
-        // A strange thing: only the bottom eight rows of the sunflower's top texture (not generated here, but further
-        // down as the FULL_CROSS) get used in the game.
-        // We use all 10 rows, as using less might confuse things for mods. But, it's a mismatch.
-        // And, sunflower stems do not extend into the ground, like grass does with yShift. So they will hover over hoe'd land.
     }
     else if (redstoneWireOnBottom) {
         switch (redstoneDirFlags)
@@ -16619,7 +20348,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
     //translateFromOriginMtx(mtx, boxIndex);
     //transformVertices(totalVertexCount,mtx);
 
-    gModel.billboardCount++;
+    // was gModel.billboardCount++; - shouldn't do it here, it will overcount minor things like stairs, etc., that have more than one box or billboard, etc.
 
     addBounds(anchor, &gModel.billboardBounds);
     VecScalar(anchor, +=, 1);
@@ -19682,9 +23411,10 @@ static int checkAndCreateFaces(int boxIndex, IPoint loc)
             // First write out any vertices that are needed (this may do nothing, if they're
             // already written out by previous faces doing output of the same vertices).
 
-            // check if we're rendering (always), or 3D printing & lesser, and exporting a fluid block.
+            // check if we're rendering (always), or 3D printing & lesser, and exporting a fluid block. Only water and lava themselves
+            // are lowered: a waterlogged full block, such as leaves, keeps its full faces.
             if ((!gModel.print3D || testPartial) &&
-                IS_FLUID(type, boxIndex) &&
+                (type >= BLOCK_WATER) && (type <= BLOCK_STATIONARY_LAVA) &&
                 (faceDirection != DIRECTION_BLOCK_BOTTOM))
             {
                 if (computeHeights)
@@ -19926,6 +23656,11 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
 {
     // we have partial blocks possible. Check if neighbor's type exists at all
     int type = gBoxData[neighborBoxIndex].type;
+    // A straw bed's or cushion's geometry is output, and its voxel cleared to air, before full blocks' faces are made; it still
+    // covers the top of the block below, so look at what was there. Without this, a 3D print would have the cushion's bottom removed
+    // (the block below covers it) but not the block's top, leaving the model not watertight.
+    if (type == BLOCK_AIR && (gBoxData[neighborBoxIndex].origType == BLOCK_STRAW_BED || gBoxData[neighborBoxIndex].origType == BLOCK_CUSHION))
+        type = gBoxData[neighborBoxIndex].origType;
     // not air?
     if (type > BLOCK_AIR)
     {
@@ -20087,13 +23822,12 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
             }
 
         case BLOCK_BED:						// lesserBlockCoversWholeFace
-            // top
-            if (!view3D)
-            {
-                // only the print version actually covers the top of the neighboring block
-                return (faceDirection == DIRECTION_BLOCK_TOP);
-            }
+            // on its legs, it doesn't cover the top of the block below
             break;
+
+        case BLOCK_STRAW_BED:				// lesserBlockCoversWholeFace
+            // no legs: the foot's base, and the head's base plus pillow, cover the whole top of the block below
+            return (faceDirection == DIRECTION_BLOCK_TOP);
 
         // if these are above, the bottom is always a full face
         case BLOCK_LAVA:
@@ -20114,6 +23848,10 @@ static int lesserBlockCoversWholeFace(int faceDirection, int neighborBoxIndex, i
         case BLOCK_SCULK_SHRIEKER:
             // blocks top of block below
             return (faceDirection == DIRECTION_BLOCK_TOP);
+
+        case BLOCK_CUSHION:						// lesserBlockCoversWholeFace
+            // blocks top of block below, unless it's lowered, when its bottom is in the block below, not on this block's floor
+            return (faceDirection == DIRECTION_BLOCK_TOP) && (CUSHION_DROP(neighborDataVal) == 0);
 
         case BLOCK_TRAPDOOR:						// lesserBlockCoversWholeFace
         case BLOCK_IRON_TRAPDOOR:
@@ -20269,7 +24007,8 @@ static int isFluidBlockFull(int boxIndex)
     return cornerHeights(boxIndex, heights);
 }
 
-// find heights at the four corners, x lo/z lo, x lo/z hi, etc.
+// Find the fluid's heights at the four corners of its top: x lo/z lo, x lo/z hi, x hi/z lo, x hi/z hi (i.e., NW, SW, NE, SE), as
+// Minecraft's LiquidBlockRenderer does. Returns true if all are 1.0, i.e., a full block.
 static int cornerHeights(int boxIndex, float heights[4])
 {
     // if block above is same fluid, all heights are 1.0 - quick out.
@@ -20277,106 +24016,218 @@ static int cornerHeights(int boxIndex, float heights[4])
     {
         return 1;
     }
-    else
-    {
-        // OK, compute heights.
-        int i;
-        // hmmmm, not sure what this was for, but dataHeight is no longer accessed...
-        //int dataHeight = gBoxData[boxIndex].data;
-        //if ( dataHeight >= 8 )
-        //{
-        //    dataHeight = 0;
-        //}
-        for (i = 0; i < 4; i++)
-        {
-            heights[i] = computeUpperCornerHeight(boxIndex, i >> 1, i % 2);
-        }
+    float height = fluidOwnHeight(boxIndex);
+    float heightN = fluidHeightAt(boxIndex, fluidNeighborIndex(boxIndex, 0, 0, -1));
+    float heightS = fluidHeightAt(boxIndex, fluidNeighborIndex(boxIndex, 0, 0, 1));
+    float heightW = fluidHeightAt(boxIndex, fluidNeighborIndex(boxIndex, -1, 0, 0));
+    float heightE = fluidHeightAt(boxIndex, fluidNeighborIndex(boxIndex, 1, 0, 0));
+    heights[0] = fluidCornerHeight(boxIndex, height, heightN, heightW, fluidNeighborIndex(boxIndex, -1, 0, -1));
+    heights[1] = fluidCornerHeight(boxIndex, height, heightS, heightW, fluidNeighborIndex(boxIndex, -1, 0, 1));
+    heights[2] = fluidCornerHeight(boxIndex, height, heightN, heightE, fluidNeighborIndex(boxIndex, 1, 0, -1));
+    heights[3] = fluidCornerHeight(boxIndex, height, heightS, heightE, fluidNeighborIndex(boxIndex, 1, 0, 1));
 
-        return ((heights[0] >= 1.0f) && (heights[1] >= 1.0f) && (heights[2] >= 1.0f) && (heights[3] >= 1.0f));
-    }
+    return ((heights[0] >= 1.0f) && (heights[1] >= 1.0f) && (heights[2] >= 1.0f) && (heights[3] >= 1.0f));
 }
 
-static float computeUpperCornerHeight(int boxIndex, int x, int z)
+// The neighbor dx, dy, dz away. Because we look at the corners of "border" blocks, we might look off the edge of the border.
+// Don't allow that! Clamp, instead. Doesn't matter along the borders if the "on border" neighbor height is wrong.
+static int fluidNeighborIndex(int boxIndex, int dx, int dy, int dz)
 {
-    // if any location above this corner is same fluid, height is 1.0
-    int i;
-    int neighbor[4];
-    float heightSum = 0.0f;
-    int weight = 0;
-
     IPoint loc;
     boxIndexToLoc(loc, boxIndex);
-
-    for (i = 0; i < 4; i++)
-    {
-        // Because we can now look at the corners of "border" blocks, we might access a block
-        // off the edge of the border. Don't allow that! Clamp, instead. Doesn't matter along the
-        // borders if the "on border" neighbor height is wrong.
-        int offx = x - 1 + (i >> 1);
-        int newx = clamp(loc[X] + offx, gAirBox.min[X], gAirBox.max[X]);
-        int offz = z - 1 + (i % 2);
-        int newz = clamp(loc[Z] + offz, gAirBox.min[Z], gAirBox.max[Z]);
-        neighbor[i] = BOX_INDEX(newx, loc[Y], newz);
-        // walk through neighbor above this corner
-        if (sameFluid(boxIndex,neighbor[i] + 1))
-            return 1.0f;
-    }
-
-    // look at neighbors and blend them in.
-    for (i = 0; i < 4; i++)
-    {
-        // is neighbor same fluid?
-        if (sameFluid(boxIndex, neighbor[i]))
-        {
-            // matches, so get neighbor's stored height
-            int neighborDataVal = gBoxData[neighbor[i]].data;
-
-            // if height is "full", add it times 10
-            if (neighborDataVal >= 8 || neighborDataVal == 0)
-            {
-                // full height: by adding it in 10 times, you get a more rounded look.
-                heightSum += getFluidHeightPercent(neighborDataVal) * 10.0f;
-                // i is normalizer. Basically, if you get here, this value is 10x more important in average
-                weight += 10;
-            }
-
-            // (par0 + 1) / 9F is fluid height percent formula.
-            // so 0 means 1/9, 7 means 8/9 - 0 is the highest level, 7 is the lowest!
-
-            // always just add it in, whatever height the water is
-            heightSum += getFluidHeightPercent(neighborDataVal);
-            weight++;
-        }
-        // if neighbor is not considered solid, add one more
-        else if ((gBoxData[neighbor[i]].origType == BLOCK_AIR) || (gBlockDefinitions[gBoxData[neighbor[i]].origType].flags & BLF_DNE_FLUID))
-        {
-            heightSum += 1.0f;
-            weight++;
-        }
-    }
-
-    if (weight == 0)
-    {
-        // should NEVER reach here - if we do, it means the type of this block being tested (at boxIndex in the calling routine) is somehow
-        // not water or lava. In other words, of the four neighbors, one must always be the water or lava itself.
-        assert(weight);
-        return 1.0f;
-    }
-
-    // now get the weighted average of the height for this corner
-    return 1.0F - heightSum / (float)weight;
+    return BOX_INDEX(clamp(loc[X] + dx, gAirBox.min[X], gAirBox.max[X]),
+        clamp(loc[Y] + dy, gAirBox.min[Y], gAirBox.max[Y]),
+        clamp(loc[Z] + dz, gAirBox.min[Z], gAirBox.max[Z]));
 }
 
-// name is misleading. More like "depth", as the value returned is essentially how far to move *down* from the corner.
-// 0 means full height water, 1/9th returned; 7 means shallow as possible, return 8/9ths
-static float getFluidHeightPercent(int dataVal)
+// Minecraft's FluidState.getOwnHeight(): a source or falling fluid (level 0, or 8 and up) is 8/9 of a block high, a flowing one
+// (8 - level)/9. A waterlogged block is a source.
+static float fluidOwnHeight(int boxIndex)
 {
-    if (dataVal >= 8)
-    {
-        dataVal = 0;
+    int type = gBoxData[boxIndex].origType;
+    if ((type >= BLOCK_WATER) && (type <= BLOCK_STATIONARY_LAVA)) {
+        int level = gBoxData[boxIndex].data & 0xf;
+        if ((level > 0) && (level < 8))
+            return (float)(8 - level) / 9.0f;
     }
+    return 8.0f / 9.0f;
+}
 
-    return (float)(dataVal + 1) / 9.0f;
+// Minecraft's LiquidBlockRenderer.getHeight(): the height of the fluid at boxIndex, which is 1.0 if the same fluid is above it; or,
+// if there's no fluid there, 0.0 if it's open (air, or something that doesn't block fluid) and -1.0 (not counted) if it's solid.
+static float fluidHeightAt(int fluidBoxIndex, int boxIndex)
+{
+    if (sameFluid(fluidBoxIndex, boxIndex))
+        return sameFluid(fluidBoxIndex, boxIndex + 1) ? 1.0f : fluidOwnHeight(boxIndex);
+    int type = gBoxData[boxIndex].origType;
+    return ((type == BLOCK_AIR) || (gBlockDefinitions[type].flags & BLF_DNE_FLUID)) ? 0.0f : -1.0f;
+}
+
+// Minecraft's LiquidBlockRenderer.addWeightedHeight(): heights near full count ten times as much
+static void addWeightedFluidHeight(float height, float& heightSum, float& weight)
+{
+    if (height >= 0.8f) {
+        heightSum += height * 10.0f;
+        weight += 10.0f;
+    }
+    else if (height >= 0.0f) {
+        heightSum += height;
+        weight += 1.0f;
+    }
+}
+
+// Minecraft's LiquidBlockRenderer.calculateAverageHeight(): the height of a corner of the fluid's top, from the fluid's own height,
+// the heights of the two neighbors on the corner's sides, and, if either of those has fluid, the diagonal neighbor's.
+static float fluidCornerHeight(int boxIndex, float height, float height1, float height2, int diagonalIndex)
+{
+    if ((height1 >= 1.0f) || (height2 >= 1.0f))
+        return 1.0f;
+    float heightSum = 0.0f;
+    float weight = 0.0f;
+    if ((height1 > 0.0f) || (height2 > 0.0f)) {
+        float heightDiagonal = fluidHeightAt(boxIndex, diagonalIndex);
+        if (heightDiagonal >= 1.0f)
+            return 1.0f;
+        addWeightedFluidHeight(heightDiagonal, heightSum, weight);
+    }
+    addWeightedFluidHeight(height, heightSum, weight);
+    addWeightedFluidHeight(height2, heightSum, weight);
+    addWeightedFluidHeight(height1, heightSum, weight);
+    return heightSum / weight;
+}
+
+// Minecraft's FlowingFluid.getFlow(), in X and Z: which way the fluid flows, toward lower neighbors of the same fluid, or over an
+// edge to the same fluid below. Returns false if it doesn't flow, e.g., a source with no lower fluid around it.
+static bool fluidFlow(int boxIndex, float* flowX, float* flowZ)
+{
+    static const int sideStep[4][2] = { { 0, -1 }, { 0, 1 }, { -1, 0 }, { 1, 0 } };
+    float height = fluidOwnHeight(boxIndex);
+    float dx = 0.0f;
+    float dz = 0.0f;
+    for (int side = 0; side < 4; side++) {
+        int neighborIndex = fluidNeighborIndex(boxIndex, sideStep[side][0], 0, sideStep[side][1]);
+        int neighborType = gBoxData[neighborIndex].origType;
+        bool same = sameFluid(boxIndex, neighborIndex) != 0;
+        // only a neighbor with no fluid, or the same fluid, affects the flow
+        if (!same && IS_FLUID(neighborType, neighborIndex))
+            continue;
+        float neighborHeight = same ? fluidOwnHeight(neighborIndex) : 0.0f;
+        float difference = 0.0f;
+        if (neighborHeight == 0.0f) {
+            // an open neighbor, with the same fluid below it: the fluid flows over the edge
+            if ((neighborType == BLOCK_AIR) || (gBlockDefinitions[neighborType].flags & BLF_DNE_FLUID)) {
+                int belowIndex = fluidNeighborIndex(boxIndex, sideStep[side][0], -1, sideStep[side][1]);
+                if (sameFluid(boxIndex, belowIndex))
+                    difference = height - (fluidOwnHeight(belowIndex) - 8.0f / 9.0f);
+            }
+        }
+        else {
+            difference = height - neighborHeight;
+        }
+        dx += (float)sideStep[side][0] * difference;
+        dz += (float)sideStep[side][1] * difference;
+    }
+    *flowX = dx;
+    *flowZ = dz;
+    return (dx != 0.0f) || (dz != 0.0f);
+}
+
+// The texture coordinates of a water or lava face's four corners, in the order of gFaceToVertexOffset, as Minecraft's
+// LiquidBlockRenderer makes them. heights are the top's corner heights (see cornerHeights()), or NULL if all are 1.0.
+// The top shows the still texture or, if the fluid flows (see fluidFlow()), the middle of the flowing texture, turned to the flow.
+// The bottom shows the still texture. A side shows the flowing texture's upper left quarter (Minecraft's flowing textures are twice
+// a block's size), with its bottom at the block's bottom, mirrored compared to other blocks' sides; next to glass, water's side
+// shows the water overlay instead. Returns -1 if out of room for texture coordinates.
+static int saveFluidFaceUVs(int boxIndex, int faceDirection, float heights[4], int uvIndices[4])
+{
+    int type = gBoxData[boxIndex].type;
+    bool isWater = IS_WATER(type, boxIndex);
+    int stillLoc = isWater ? TILE_TO_SWATCH(gBlockDefinitions[BLOCK_STATIONARY_WATER].txrX, gBlockDefinitions[BLOCK_STATIONARY_WATER].txrY) :
+        TILE_TO_SWATCH(gBlockDefinitions[BLOCK_STATIONARY_LAVA].txrX, gBlockDefinitions[BLOCK_STATIONARY_LAVA].txrY);
+    int flowLoc = isWater ? SWATCH_INDEX(8, 26) : SWATCH_INDEX(9, 26);
+    int swatchLoc = stillLoc;
+    // Minecraft's texture coordinates for each corner, 0 to 1 across the texture, with v going down
+    float u[4], v[4];
+    int i;
+
+    if (faceDirection == DIRECTION_BLOCK_TOP) {
+        // corners NW, SW, SE, NE, which are x lo/z lo, x lo/z hi, x hi/z hi, x hi/z lo
+        float cornerU[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
+        float cornerV[4] = { 0.0f, 1.0f, 1.0f, 0.0f };
+        float flowX, flowZ;
+        if (fluidFlow(boxIndex, &flowX, &flowZ)) {
+            float angle = (float)atan2((double)flowZ, (double)flowX) - (float)(90.0 * DEGREES_TO_RADIANS);
+            float s = (float)sin((double)angle) * 0.25f;
+            float c = (float)cos((double)angle) * 0.25f;
+            swatchLoc = flowLoc;
+            cornerU[0] = 0.5f - c - s;  cornerV[0] = 0.5f - c + s;
+            cornerU[1] = 0.5f - c + s;  cornerV[1] = 0.5f + c + s;
+            cornerU[2] = 0.5f + c + s;  cornerV[2] = 0.5f + c - s;
+            cornerU[3] = 0.5f + c - s;  cornerV[3] = 0.5f - c - s;
+        }
+        for (i = 0; i < 4; i++) {
+            int corner;
+            if (gFaceToVertexOffset[faceDirection][i][X] == 0)
+                corner = gFaceToVertexOffset[faceDirection][i][Z] ? 1 : 0;
+            else
+                corner = gFaceToVertexOffset[faceDirection][i][Z] ? 2 : 3;
+            u[i] = cornerU[corner];
+            v[i] = cornerV[corner];
+        }
+    }
+    else if (faceDirection == DIRECTION_BLOCK_BOTTOM) {
+        for (i = 0; i < 4; i++) {
+            u[i] = (float)gFaceToVertexOffset[faceDirection][i][X];
+            v[i] = (float)gFaceToVertexOffset[faceDirection][i][Z];
+        }
+    }
+    else {
+        swatchLoc = flowLoc;
+        if (isWater) {
+            int neighborType = gBoxData[boxIndex + gFaceOffset[faceDirection]].origType;
+            if ((neighborType == BLOCK_GLASS) || (neighborType == BLOCK_STAINED_GLASS))
+                swatchLoc = SWATCH_INDEX(15, 25);
+        }
+        for (i = 0; i < 4; i++) {
+            int ox = gFaceToVertexOffset[faceDirection][i][X];
+            int oz = gFaceToVertexOffset[faceDirection][i][Z];
+            // the texture's left edge is at the face's west end on the north side, east end on the south, south end on the west,
+            // north end on the east
+            bool leftEdge;
+            switch (faceDirection) {
+            default:
+                assert(0);
+            case DIRECTION_BLOCK_SIDE_LO_Z:
+                leftEdge = (ox == 0);
+                break;
+            case DIRECTION_BLOCK_SIDE_HI_Z:
+                leftEdge = (ox == 1);
+                break;
+            case DIRECTION_BLOCK_SIDE_LO_X:
+                leftEdge = (oz == 1);
+                break;
+            case DIRECTION_BLOCK_SIDE_HI_X:
+                leftEdge = (oz == 0);
+                break;
+            }
+            u[i] = leftEdge ? 0.0f : 0.5f;
+            if (gFaceToVertexOffset[faceDirection][i][Y]) {
+                float height = heights ? heights[2 * ox + oz] : 1.0f;
+                if (height > 1.0f)
+                    height = 1.0f;
+                v[i] = (1.0f - height) * 0.5f;
+            }
+            else {
+                v[i] = 0.5f;
+            }
+        }
+    }
+    for (i = 0; i < 4; i++) {
+        uvIndices[i] = saveTextureUV(swatchLoc, type, u[i], 1.0f - v[i]);
+        if (uvIndices[i] < 0)
+            return -1;
+    }
+    return 0;
 }
 
 // note: fluidType must be known to be either lava or water type
@@ -20575,78 +24426,6 @@ static int saveFaceLoop(int boxIndex, int faceDirection, float heights[4], int h
                 assert(heightIndices[heightLoc] != NO_INDEX_SET);
                 face->vertexIndex[i] = heightIndices[heightLoc];
 
-                // Since we're saving a special location, we also need a special UV index
-                // to go along with it and use later.
-                // Check the direction - top and bottom don't need these, sides do.
-                if (gModel.exportTexture && !computedSpecialUVs && (faceDirection != DIRECTION_BLOCK_BOTTOM) && (faceDirection != DIRECTION_BLOCK_TOP))
-                {
-                    int j;
-                    computedSpecialUVs = 1;
-
-                    // Add the new UV here, and save its index in an array that is then used
-                    // to replace the regular UV index array location.
-                    for (j = 0; j < 4; j++)
-                    {
-                        int type, swatchLoc;
-                        float u = ((j == 1) || (j == 2)) ? 1.0f : 0.0f;
-                        float v;
-                        if ((j == 2) || (j == 3))
-                        {
-                            switch (faceDirection)
-                            {
-                            case DIRECTION_BLOCK_SIDE_LO_X:
-                                v = (u == 0.0f) ? heights[0] : heights[1];
-                                break;
-                            case DIRECTION_BLOCK_SIDE_HI_X:
-                                v = (u == 0.0f) ? heights[3] : heights[2];
-                                break;
-                            case DIRECTION_BLOCK_SIDE_LO_Z:
-                                v = (u == 0.0f) ? heights[2] : heights[0];
-                                break;
-                            case DIRECTION_BLOCK_SIDE_HI_Z:
-                                v = (u == 0.0f) ? heights[1] : heights[3];
-                                break;
-                            default:
-                                v = 0.0f;
-                                assert(0);
-                            }
-                        }
-                        else
-                        {
-                            // bottom of fluid is always 0.0
-                            v = 0.0f;
-                        }
-
-                        type = gBoxData[boxIndex].type;
-                        if (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES)
-                            // we used to check if the block had no textures, but now all blocks have textures, or are invisible
-                            //    !( gBlockDefinitions[type].flags & BLF_IMAGE_TEXTURE) )
-                        {
-                            // use a solid color
-                            swatchLoc = type;
-                        }
-                        else
-                        {
-                            swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[type].txrX, gBlockDefinitions[type].txrY);
-                            // special: if type is lava, use flowing lava; if water, use flowing water or overlay water
-                            if (IS_WATER(type, boxIndex)) {
-                                if ((faceDirection != DIRECTION_BLOCK_BOTTOM) && (faceDirection != DIRECTION_BLOCK_TOP))
-                                {
-                                    int neighborType = gBoxData[boxIndex + gFaceOffset[faceDirection]].origType;
-                                    swatchLoc = ((neighborType == BLOCK_GLASS) || (neighborType == BLOCK_STAINED_GLASS)) ? SWATCH_INDEX(15, 25) : SWATCH_INDEX(8, 26);
-                                }
-                            }
-                            else if ((type == BLOCK_LAVA) || (type == BLOCK_STATIONARY_LAVA)) {
-                                swatchLoc = SWATCH_INDEX(9, 26);
-                            }
-                        }
-                        specialUVindices[j] = saveTextureUV(swatchLoc, type, u, v);
-                        if (specialUVindices[j] < 0) {
-                            freeFaceRecordToPool(face);
-                            return retCode | MW_WORLD_EXPORT_TOO_LARGE;
-                        }
-                    }
-                }
             }
         }
         else
@@ -20768,6 +24547,16 @@ static int saveFaceLoop(int boxIndex, int faceDirection, float heights[4], int h
 
     if (gModel.exportTexture)
     {
+        // a water or lava face (not one flattened onto it) has its own texture coordinates, as Minecraft makes them
+        if ((originalType >= BLOCK_WATER) && (originalType <= BLOCK_STATIONARY_LAVA) && (face->materialType == originalType) &&
+            !(gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES))
+        {
+            if (saveFluidFaceUVs(boxIndex, faceDirection, heights, specialUVindices) < 0) {
+                freeFaceRecordToPool(face);
+                return retCode | MW_WORLD_EXPORT_TOO_LARGE;
+            }
+            computedSpecialUVs = 1;
+        }
         // I guess we really don't need the swatch location returned; its
         // main effect is to set the proper indices in the texture map itself
         // and note that the swatch is being used
@@ -20939,11 +24728,40 @@ else													  \
 
 // Get the face of the full block in a given direction and rotate and flip it as needed.
 // note that, for flattops and sides, the dataVal passed in is indeed the data value of the neighboring flattop being merged
+// The angle a mob head is turned from facing north, clockwise seen from above: on the floor, 22.5 degrees per step of its rotation;
+// on a wall, so that it faces away from the wall.
+static float getHeadYAngle(int dataVal)
+{
+    if (dataVal & 0x80)
+        return 22.5f * (float)(dataVal & 0xf);
+    switch (dataVal & 0x7) {
+    default:
+        assert(0);
+    case 1:
+        // unused, but it's in some worlds, so this case ignores it instead of asserting.
+    case 2: // north
+        return 0.0f;
+    case 3: // south
+        return 180.0f;
+    case 4: // west
+        return 270.0f;
+    case 0:	// also seen
+    case 5: // east
+        return 90.0f;
+    }
+}
+
 static int getSwatch(int type, int dataVal, int faceDirection, int backgroundIndex, int uvIndices[4])
 {
     int swatchLoc;
     int angle = 0;  // cppcheck-suppress 398
     int localIndices[4] = { 0, 1, 2, 3 };
+    // A face can instead use a rectangle of a multi-tile image (e.g. straw_bed.png) anchored at swatchLoc, as if that
+    // rectangle were a whole tile: u1,v1 is its upper left and u2,v2 its lower right, in the 0-16 units of a block model
+    // JSON "uv" over the whole image (v going down). Mirrored when u1 > u2 or v1 > v2.
+    bool useSpanRect = false;
+    bool rotatedEnd = false;
+    float spanRect[4] = { 0.0f, 0.0f, 16.0f, 16.0f };
 
     // outputting swatches
     if (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES)
@@ -21012,9 +24830,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         // Outputting textured face
 
         int head, bottom, inside, outside, newFaceDirection, neighborType;  // cppcheck-suppress 398
-        int xoff, xstart, dir, dirBit, frontLoc, trimVal, xloc, yloc;  // cppcheck-suppress 398
-        // north is 0, east is 1, south is 2, west is 3
-        int faceRot[6] = { 0, 0, 1, 2, 0, 3 };  // cppcheck-suppress 398
+        int xoff, dir, dirBit, frontLoc, trimVal, xloc, yloc;  // cppcheck-suppress 398
 
         // use the textures:
         // use the txrX and txrY to find which to go to.
@@ -21083,6 +24899,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         case BLOCK_CAVE_VINES_LIT:
         case BLOCK_COPPER_BARS:
         case BLOCK_WAXED_COPPER_BARS:
+        case BLOCK_TRIPWIRE:
             // where compositing against black for 3d printing of cutouts is fine, i.e., leave it alone.
             // Case is needed so that the "default:" case assertion doesn't go off, and so we know we've thought about the block
             break;
@@ -21130,7 +24947,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case 2: // podzol
                 swatchLoc = SWATCH_INDEX(15, 17);
-                SWATCH_SWITCH_SIDE(faceDirection, 14, 17);
+                SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 14, 17, 2, 0);    // dirt bottom
                 // same as grass block: switch to snow covered look
                 // check if block above is snow (or flagged as "snowy"); if so, use snow side tile; note we
                 // check against the original type, since the snow block is likely to be flattened
@@ -21161,19 +24978,30 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 14, 56, 15, 56);
                 break;
             }
-            randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
+            // as in Minecraft, only dirt and (unless snowy) podzol are turned randomly
+            if (((dataVal & 0x7) == 0) || (((dataVal & 0x7) == 2) && !(gIs13orNewer ? (dataVal & SNOWY_BIT) : (gBoxData[backgroundIndex + 1].origType == BLOCK_SNOW)))) {
+                randomlyRotateTopAndBottomFace(faceDirection, backgroundIndex, localIndices);
+            }
             break;
 
         case BLOCK_CRYING_OBSIDIAN:
-            switch (dataVal & 0xf)
+            // bit 0x2 is sculk catalyst's "bloom," which has its own textures
+            switch (dataVal & 0x1)
             {
             default:
                 assert(0);
             case 0:
                 break;
             case 1: // Sculk Catalyst
-                swatchLoc = SWATCH_INDEX(2, 56);
-                SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 3, 56, 4, 56);
+                if (dataVal & 0x2) {
+                    // blooming: its own top and sides (the bottom stays the same)
+                    swatchLoc = SWATCH_INDEX(5, 56);
+                    SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 6, 56, 4, 56);
+                }
+                else {
+                    swatchLoc = SWATCH_INDEX(2, 56);
+                    SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 3, 56, 4, 56);
+                }
                 break;
             }
             break;
@@ -21228,9 +25056,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_NETHER_BRICKS].txrX, gBlockDefinitions[BLOCK_NETHER_BRICKS].txrY);
                 break;
             case 7:
-                // quartz with distinctive sides and bottom
+                // quartz with distinctive sides; as in Minecraft's quartz_slab and quartz_block (the double slab) models, the bottom
+                // is the top's texture
                 swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_QUARTZ_BLOCK].txrX, gBlockDefinitions[BLOCK_QUARTZ_BLOCK].txrY);
-                SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 6, 17, 1, 17);
+                SWATCH_SWITCH_SIDE(faceDirection, 6, 17);
                 break;
             case 8:
                 // smooth stone slab (double slab only)
@@ -21287,10 +25116,27 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             break;
         case BLOCK_SANDSTONE_STAIRS:						// getSwatch
-            SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 0, 12, 0, 13);
+        case BLOCK_RED_SANDSTONE_STAIRS:
+            // upside-down stairs are Minecraft's stairs model turned over (blockstate "x": 180), so the top shows its bottom texture
+            if (faceDirection == ((dataVal & 0x4) ? DIRECTION_BLOCK_BOTTOM : DIRECTION_BLOCK_TOP)) {
+                // the top texture, the block's own
+            }
+            else if (faceDirection == ((dataVal & 0x4) ? DIRECTION_BLOCK_TOP : DIRECTION_BLOCK_BOTTOM)) {
+                swatchLoc = (type == BLOCK_SANDSTONE_STAIRS) ? SWATCH_INDEX(0, 13) : SWATCH_INDEX(5, 8);
+            }
+            else {
+                swatchLoc = (type == BLOCK_SANDSTONE_STAIRS) ? SWATCH_INDEX(0, 12) : SWATCH_INDEX(14, 13);
+            }
             break;
-        case BLOCK_RED_SANDSTONE_STAIRS:						// getSwatch
-            SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 14, 13, 5, 8);
+        case BLOCK_QUARTZ_STAIRS:						// getSwatch
+            SWATCH_SWITCH_SIDE(faceDirection, 6, 17);
+            break;
+        case BLOCK_SMOOTH_QUARTZ_STAIRS:						// getSwatch
+            swatchLoc = SWATCH_INDEX(1, 17);
+            break;
+        case BLOCK_BLACKSTONE_STAIRS:						// getSwatch
+            swatchLoc = SWATCH_INDEX(0, 46);
+            SWATCH_SWITCH_SIDE(faceDirection, 1, 46);
             break;
         case BLOCK_ENDER_CHEST:						// getSwatch
             frontLoc = 1;	// is it a front or a side? (not top or bottom)
@@ -21456,6 +25302,21 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 // all faces are sides
                 newFaceDirection = DIRECTION_BLOCK_SIDE_LO_Z;
                 break;
+            }
+            // Minecraft's cherry_log_x and cherry_log_z models (also for the stripped log) are not the other logs' turned
+            // horizontal model: lying along X, the north face is turned half around; along Z, the west and bottom faces are
+            if (((type == BLOCK_MANGROVE_LOG) && !(dataVal & BIT_16) && ((dataVal & 0x3) == 1)) ||
+                ((type == BLOCK_STRIPPED_MANGROVE) && ((dataVal & 0x3) == 1))) {
+                if ((((dataVal & 0xC) == 0x4) && (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z)) ||
+                    (((dataVal & 0xC) == 0x8) && ((faceDirection == DIRECTION_BLOCK_SIDE_LO_X) || (faceDirection == DIRECTION_BLOCK_BOTTOM)))) {
+                    angle = (angle + 180) % 360;
+                }
+            }
+            // Minecraft's muddy_mangrove_roots lying along X or Z is its upright model turned by "x" (and "y"), which leaves the
+            // model's top face (now facing east or north) turned half around compared to the logs' horizontal model
+            if ((type == BLOCK_MUDDY_MANGROVE_ROOTS) &&
+                ((((dataVal & 0xC) == 0x4) && (faceDirection == DIRECTION_BLOCK_SIDE_HI_X)) || (((dataVal & 0xC) == 0x8) && (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z)))) {
+                angle = (angle + 180) % 360;
             }
             // use data to figure out which side
             switch (type) {
@@ -21709,10 +25570,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     SWATCH_SWITCH_SIDE(newFaceDirection, 12, 55);
                     break;
                 case 1: // Verdant - side, then top
-                    SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 14, 55, 13, 55);
+                    SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 0, 56, 15, 55);
                     break;
                 case 2: // Pearlescent - side, then top
-                    SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 0, 56, 15, 55);
+                    SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 14, 55, 13, 55);
                     break;
                 }
                 break;
@@ -21734,6 +25595,18 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             }
 
+            // A wood block (bark on all sides, e.g. oak wood or crimson hyphae) uses Minecraft's cube_column model, which, unlike a log's
+            // cube_column_horizontal, doesn't turn the face from the model's top by 180 degrees. So on its side, that face (east for
+            // east-west, north for north-south) is turned 180 degrees from a log's. Crimson and warped stems (subtypes 2 and 3 of
+            // these log types), stripped or not, also use cube_column.
+            if ((((dataVal & BIT_16) && ((type == BLOCK_LOG) || (type == BLOCK_AD_LOG) || (type == BLOCK_MANGROVE_LOG))) ||
+                (((type == BLOCK_AD_LOG) || (type == BLOCK_STRIPPED_ACACIA)) && ((dataVal & 0x3) >= 2)) ||
+                (type == BLOCK_STRIPPED_OAK_WOOD) || (type == BLOCK_STRIPPED_ACACIA_WOOD) || (type == BLOCK_STRIPPED_MANGROVE_WOOD)) &&
+                ((((dataVal & 0xC) == 0x4) && (faceDirection == DIRECTION_BLOCK_SIDE_HI_X)) ||
+                 (((dataVal & 0xC) == 0x8) && (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z))))
+            {
+                angle = (angle + 180) % 360;
+            }
             if (angle != 0 && uvIndices)
                 rotateIndices(localIndices, angle);
             // flip no longer needed
@@ -22112,6 +25985,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 {
                 case 0:	// dispenser/dropper facing down, can't be anything else
                     swatchLoc = SWATCH_INDEX(14, 3);
+                    // Minecraft turns the vertical model over, so the sides are upside down
+                    if (uvIndices) {
+                        rotateIndices(localIndices, 180);
+                    }
                     break;
                 case 1: // dispenser/dropper facing up, can't be anything else
                     swatchLoc = SWATCH_INDEX(14, 3);
@@ -22169,16 +26046,17 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                         rotateIndices(localIndices, 180);
                     }
                     break;
+                // the bottom turns the other way from the top, as Minecraft's blockstate "y" turns it
                 case 4: // West
                     if (uvIndices) {
-                        rotateIndices(localIndices, 270);
+                        rotateIndices(localIndices, (faceDirection == DIRECTION_BLOCK_BOTTOM) ? 90 : 270);
                     }
                     break;
                 default:
                     assert(0);
                 case 5: // East
                     if (uvIndices) {
-                        rotateIndices(localIndices, 90);
+                        rotateIndices(localIndices, (faceDirection == DIRECTION_BLOCK_BOTTOM) ? 270 : 90);
                     }
                     break;
                 }
@@ -22359,10 +26237,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 switch (faceDirection)
                 {
                 case DIRECTION_BLOCK_BOTTOM:
+                    // as Minecraft's template_glazed_terracotta turned by "y" (south 0, west 90, north 180, east 270)
                     switch (dataVal & 0x3) {
-                    case 0: rotateIndices(localIndices, 180); break;
+                    case 0: break;
                     case 1: rotateIndices(localIndices, 270); break;
-                    case 2: break;
+                    case 2: rotateIndices(localIndices, 180); break;
                     case 3: rotateIndices(localIndices, 90); break;
                     }
                     break;
@@ -22438,10 +26317,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 }
                 break;
             case BLOCK_ACTIVATOR_RAIL:
-                // by default, unactivated
-                if (dataVal & 0x8)
+                // by default, activated
+                if (!(dataVal & 0x8))
                 {
-                    // activated rail
+                    // unactivated rail
                     swatchLoc = SWATCH_INDEX(9, 17);
                 }
                 break;
@@ -22535,79 +26414,50 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             SWATCH_SWITCH_SIDE(faceDirection, 12, 8);	// was 10, 4 jukebox side, now is separate at 
             break;
         case BLOCK_BED:						// getSwatch
-            if ((faceDirection != DIRECTION_BLOCK_TOP) && (faceDirection != DIRECTION_BLOCK_BOTTOM))
+        {
+            // a full block (lesser blocks are off; the geometry is the true model): the model's textures, with the sides' 16x6 strips
+            // stretched to fill their tiles (see stretchSwatchToFill). The model faces north; bits 0x3 are the facing, 0 = south,
+            // 1 = west, 2 = north, 3 = east, each a quarter turn more, clockwise seen from above.
+            int bedColor = BED_COLOR(dataVal);
+            bool bedHead = (dataVal & 0x8) != 0;
+            int quarterTurns = ((dataVal & 0x3) + 2) % 4;
+            if (faceDirection == DIRECTION_BLOCK_TOP)
             {
-                // side of bed - head or foot?
-                if (dataVal & 0x8)
-                {
-                    // head of bed.
-                    xoff = 1;
-                    xstart = 7;
-                }
-                else
-                {
-                    xoff = -1;
-                    xstart = 6;
-                }
-
-                // dataVal gives which way it points 7,9 and 8,9 vs. 5,9, 6,9
-                switch (((dataVal & 0x3) - faceRot[faceDirection] + 4) % 4)
-                {
-                default:
-                    assert(0);
-                case 0: // south
-                    swatchLoc = SWATCH_INDEX(xstart, 9);
-                    break;
-                case 1:
-                    swatchLoc = SWATCH_INDEX(xoff + xstart, 9);
-                    if (uvIndices)
-                        flipIndicesLeftRight(localIndices); // actually needed - mirror bed side
-                    break;
-                case 2:
-                    swatchLoc = SWATCH_INDEX(xstart, 9);
-                    if (uvIndices)
-                        flipIndicesLeftRight(localIndices); // actually needed - mirror bed side
-                    break;
-                case 3:
-                    swatchLoc = SWATCH_INDEX(xoff + xstart, 9);
-                    break;
-                }
-            }
-            else if (faceDirection == DIRECTION_BLOCK_TOP)
-            {
-                // top surface of bed
-                // head or foot?
-                if (dataVal & 0x8)
-                {
-                    // head
-                    swatchLoc = SWATCH_INDEX(7, 8);
-                }
+                swatchLoc = BED_TILE(bedColor, bedHead ? BED_HEAD_UP : BED_FOOT_UP);
                 if (uvIndices)
-                {
-                    // rotate as needed (head and foot rotate the same)
-                    switch (dataVal & 0x3)
-                    {
-                    case 0: // south
-                        rotateIndices(localIndices, 90);
-                        break;
-                    case 1: // west
-                        rotateIndices(localIndices, 180);
-                        break;
-                    case 2: // north
-                        rotateIndices(localIndices, 270);
-                        break;
-                    case 3: // east
-                        rotateIndices(localIndices, 0);
-                        break;
-                    }
-                }
+                    rotateIndices(localIndices, 90 * quarterTurns);
+            }
+            else if (faceDirection == DIRECTION_BLOCK_BOTTOM)
+            {
+                swatchLoc = BED_DOWN_TILE;
             }
             else
             {
-                // bottom of bed is always wood
-                swatchLoc = SWATCH_INDEX(4, 0);
+                // the side in the model: north, east, south, west, 0-3, clockwise seen from above
+                int side;
+                switch (faceDirection)
+                {
+                case DIRECTION_BLOCK_SIDE_LO_Z: side = 0; break;
+                case DIRECTION_BLOCK_SIDE_HI_X: side = 1; break;
+                case DIRECTION_BLOCK_SIDE_HI_Z: side = 2; break;
+                default: side = 3; break;
+                }
+                switch ((side - quarterTurns + 4) % 4)
+                {
+                case 1:
+                    swatchLoc = BED_TILE(bedColor, bedHead ? BED_HEAD_EAST : BED_FOOT_EAST);
+                    break;
+                case 3:
+                    swatchLoc = BED_TILE(bedColor, bedHead ? BED_HEAD_WEST : BED_FOOT_WEST);
+                    break;
+                default:
+                    // the half's end, or where it meets the other half (normally hidden by it)
+                    swatchLoc = bedHead ? BED_HEAD_NORTH_TILE : BED_TILE(bedColor, BED_FOOT_SOUTH);
+                    break;
+                }
             }
-            break;
+        }
+        break;
         case BLOCK_STICKY_PISTON:						// getSwatch
         case BLOCK_PISTON:
             // TODO: should use the R texture pack to get these exactly right someday. They're fine for now.
@@ -22623,7 +26473,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 {
                     head = 1 - dir;
                     bottom = dir;
-                    angle = 180 * dir;
+                    angle = 180 * (1 - dir);
                 }
                 else if (faceDirection == DIRECTION_BLOCK_TOP)
                 {
@@ -22651,10 +26501,14 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     bottom = 1 - dirBit;
                 }
                 // else it's a side
-                else if ((faceDirection == DIRECTION_BLOCK_BOTTOM) ||
-                    (faceDirection == DIRECTION_BLOCK_TOP))
+                else if (faceDirection == DIRECTION_BLOCK_TOP)
                 {
                     angle = dirBit * 180;
+                }
+                else if (faceDirection == DIRECTION_BLOCK_BOTTOM)
+                {
+                    // Minecraft's piston model turns its bottom face 180 degrees
+                    angle = 180 - dirBit * 180;
                 }
                 else if (faceDirection == DIRECTION_BLOCK_SIDE_HI_X)
                 {
@@ -22839,7 +26693,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 rotateIndices(localIndices, angle);
             break;
         case BLOCK_TNT:						// getSwatch
-            switch (dataVal & 0xf)
+            // From 1.13 on, bit 0x2 is tnt's "unstable", which looks the same as any tnt
+            switch ((gIs13orNewer && !(dataVal & 0x1)) ? 0 : (dataVal & 0xf))
             {
             default:
                 assert(0);
@@ -23145,6 +27000,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     swatchLocSet[DIRECTION_BLOCK_SIDE_LO_X] = swatchLoc + 1;
                     swatchLocSet[DIRECTION_BLOCK_SIDE_HI_X] = swatchLoc + 1;
                     swatchLocSet[DIRECTION_BLOCK_SIDE_HI_Z] = swatchLoc + 2;	// front
+                    if (type == BLOCK_CHEST || type == BLOCK_TRAPPED_CHEST) {
+                        // there's no bottom tile (swatchLoc + 4 is the brown mushroom), so use the top, as double chests do
+                        swatchLocSet[DIRECTION_BLOCK_BOTTOM] = swatchLoc;
+                    }
                     break;
                 case 1:	// left
                     switch (type) {
@@ -23559,40 +27418,66 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             break;
         case BLOCK_PUMPKIN:						// getSwatch
         case BLOCK_JACK_O_LANTERN:
-        case BLOCK_HEAD:	// definitely wrong for heads, TODO - have tile entity, but now need all the dratted head textures...
-            SWATCH_SWITCH_SIDE(faceDirection, 6, 7);
-            xoff = (type == BLOCK_PUMPKIN) ? 7 : 8;
-            // if it's a head, we round the rotation found into a dataVal
-            if (type == BLOCK_HEAD) {
-                // TODO head type
-                // is head on floor or wall?
-                float yrot = 0.0f;
-                if (dataVal & 0x80) {
-                    // on floor
-                    yrot = 22.5f * (dataVal & 0xf);
+        case BLOCK_HEAD:
+            if (type == BLOCK_HEAD && ((dataVal >> 4) & 0x7) <= HEAD_TYPE_PIGLIN) {
+                // Used when the head is a full block, i.e., 3D printing without "Export lesser blocks". As for the straw bed, each face
+                // shows the matching face of the head model's head box (see saveBillboardOrGeometry) - for the piglin and the dragon,
+                // their biggest box - stretched to fill the block, with the head turned to the nearest 90 degrees. Rectangles are the
+                // model's "uv" values, indexed [face: 0 top, 1 bottom, 2 -Z (the face), 3 +Z, 4 -X, 5 +X]. The piglin's back is
+                // just its part in the top half of the image, as for a 3D printed piglin head model.
+                static const float skullUV[6][4] = {
+                    { 8.0f, 4.0f, 4.0f, 0.0f }, { 12.0f, 0.0f, 8.0f, 4.0f }, { 4.0f, 4.0f, 8.0f, 8.0f },
+                    { 12.0f, 4.0f, 16.0f, 8.0f }, { 8.0f, 4.0f, 12.0f, 8.0f }, { 0.0f, 4.0f, 4.0f, 8.0f } };
+                static const float piglinUV[6][4] = {
+                    { 9.0f, 4.0f, 4.0f, 0.0f }, { 14.0f, 0.0f, 9.0f, 4.0f }, { 4.0f, 4.0f, 9.0f, 8.0f },
+                    { 13.0f, 4.0f, 16.0f, 8.0f }, { 9.0f, 4.0f, 13.0f, 8.0f }, { 0.0f, 4.0f, 4.0f, 8.0f } };
+                static const float dragonUV[6][4] = {
+                    { DRAGON_UV(32), DRAGON_UV(16), DRAGON_UV(16), DRAGON_UV(0) }, { DRAGON_UV(48), DRAGON_UV(0), DRAGON_UV(32), DRAGON_UV(16) },
+                    { DRAGON_UV(16), DRAGON_UV(16), DRAGON_UV(32), DRAGON_UV(32) }, { DRAGON_UV(48), DRAGON_UV(16), DRAGON_UV(64), DRAGON_UV(32) },
+                    { DRAGON_UV(32), DRAGON_UV(16), DRAGON_UV(48), DRAGON_UV(32) }, { DRAGON_UV(0), DRAGON_UV(16), DRAGON_UV(16), DRAGON_UV(32) } };
+                int headType = (dataVal >> 4) & 0x7;
+                // quarter turns clockwise, seen from above, from facing north
+                int quarterTurns = ((int)((getHeadYAngle(dataVal) + 45.0f) / 90.0f)) % 4;
+                int modelFace = 0;
+                if (faceDirection == DIRECTION_BLOCK_TOP) {
+                    modelFace = 0;
+                }
+                else if (faceDirection == DIRECTION_BLOCK_BOTTOM) {
+                    modelFace = 1;
                 }
                 else {
-                    // on wall
-                    switch (dataVal & 0xf) {
-                    default:
-                        assert(0);
-                    case 1:
-                        // unused, but it's in some worlds, so this case ignores it instead of asserting.
-                    case 2: // north
-                        yrot = 0.0f;
-                        break;
-                    case 3: // south
-                        yrot = 180.0f;
-                        break;
-                    case 4: // east
-                        yrot = 270.0f;
-                        break;
-                    case 0:
-                    case 5: // west
-                        yrot = 90.0f;
-                        break;
-                    }
+                    // Undo the head's turn to find the model's face. Sides in turning order, each the next one clockwise seen from above.
+                    static const int sideOrder[4] = { DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_X, DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X };
+                    static const int sideModelFace[4] = { 2, 5, 3, 4 };
+                    int side = 0;
+                    while (side < 4 && sideOrder[side] != faceDirection)
+                        side++;
+                    modelFace = sideModelFace[(side - quarterTurns + 4) % 4];
                 }
+                const float* uv;
+                if (headType == HEAD_TYPE_DRAGON) {
+                    swatchLoc = DRAGON_HEAD_TEXTURE_ANCHOR;
+                    uv = dragonUV[modelFace];
+                }
+                else {
+                    swatchLoc = HEAD_TEXTURE_ANCHOR(headType);
+                    uv = (headType == HEAD_TYPE_PIGLIN) ? piglinUV[modelFace] : skullUV[modelFace];
+                }
+                useSpanRect = true;
+                for (int k = 0; k < 4; k++)
+                    spanRect[k] = uv[k];
+                // the top and bottom turn with the head, as for the straw bed
+                if ((faceDirection == DIRECTION_BLOCK_TOP || faceDirection == DIRECTION_BLOCK_BOTTOM) && uvIndices) {
+                    rotateIndices(localIndices, 90 * quarterTurns);
+                }
+                break;
+            }
+            // otherwise, a pumpkin
+            SWATCH_SWITCH_SIDE(faceDirection, 6, 7);
+            xoff = (type == BLOCK_PUMPKIN) ? 7 : 8;
+            // if it's an unknown head type, we round the rotation found into a dataVal
+            if (type == BLOCK_HEAD) {
+                float yrot = getHeadYAngle(dataVal);
                 if (yrot >= 45.0f && yrot < 135.0f)
                     dataVal = 3;
                 else if (yrot >= 135.0f && yrot < 225.0f)
@@ -23637,17 +27522,20 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             else
             {
-                if (uvIndices)
+                // as in Minecraft's carved_pumpkin model, the top and bottom turn with the front, the bottom the other way, seen
+                // from below; an uncarved pumpkin (cube_column) doesn't turn
+                if (uvIndices && ((dataVal & 0x7) != 4))
                 {
                     int iangle = (2 + (dataVal & 03)) * 90;
                     if (faceDirection == DIRECTION_BLOCK_BOTTOM)
-                        iangle += 270;
+                        iangle = 720 - iangle;
                     rotateIndices(localIndices, iangle % 360);
                 }
             }
             break;
         case BLOCK_JUKEBOX:						// getSwatch
-            SWATCH_SWITCH_SIDE(faceDirection, 10, 4);
+            // the bottom is the side texture, as in Minecraft's jukebox model
+            SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 10, 4, 10, 4);
             break;
         case BLOCK_CAKE:						// getSwatch
             SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 10, 7, 12, 7);
@@ -23848,7 +27736,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             break;
         case BLOCK_DANDELION:						// getSwatch
-            switch (dataVal & 0xf) {
+            // bit 0x8 is the sapling "stage" (pale oak and poplar saplings live here), which is non-graphical
+            switch (dataVal & 0x7) {
             default:
                 assert(0);
             case 0:
@@ -23971,6 +27860,14 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             break;
         case BLOCK_TALL_SEAGRASS:				// getSwatch
             swatchLoc = SWATCH_INDEX(14, 33);
+            swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
+            break;
+        case BLOCK_KELP:				// getSwatch
+            if (dataVal > 0)
+            {
+                // subtract 1 if needed to get to "kelp", the top of the plant (as in saveBillboardFacesExtraData)
+                swatchLoc = SWATCH_INDEX(11 - (dataVal & 0x1), 33);
+            }
             swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             break;
         case BLOCK_WEEPING_VINES:				// getSwatch
@@ -24216,6 +28113,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     break;
                 }
             }
+            // Minecraft's mushroom_block_inside model is a north face turned up or down by "x", without uvlock, so the pores on the
+            // top and bottom are upside down from the usual orientation
+            if ((swatchLoc == inside) && uvIndices && ((faceDirection == DIRECTION_BLOCK_TOP) || (faceDirection == DIRECTION_BLOCK_BOTTOM)))
+                rotateIndices(localIndices, 180);
             break;
         case BLOCK_MELON:						// getSwatch
             SWATCH_SWITCH_SIDE(faceDirection, 8, 8);
@@ -24272,7 +28173,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 }
                 break;
             default:
-                assert(0);
+                // sides are reached only when lesser blocks are off and the frame is output as a full block; no rotation needed
                 break;
             }
 
@@ -24386,6 +28287,15 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             }
             break;
+        case BLOCK_CUSHION:						// getSwatch
+            // the color's 32x32 image: the top is at its upper left tile, the bottom to its right, the sides below the top
+            swatchLoc = CUSHION_TEXTURE_ANCHOR(dataVal & 0xF);
+            if (faceDirection == DIRECTION_BLOCK_BOTTOM)
+                swatchLoc++;
+            else if (faceDirection != DIRECTION_BLOCK_TOP)
+                swatchLoc += 16;
+            break;
+
         case BLOCK_CARPET:						// getSwatch
             if (dataVal & 0x10) {
                 swatchLoc = SWATCH_INDEX(2, 52);
@@ -24423,6 +28333,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 SWATCH_SWITCH_SIDE_VERTICAL(faceDirection, 5, 17, 4, 17);
                 break;
             case 3: // pillar quartz block (east-west)
+                // as Minecraft's quartz_pillar_horizontal turned by "x" 90 and "y" 90: its west side, now facing north, is upside down
                 switch (faceDirection)
                 {
                 case DIRECTION_BLOCK_BOTTOM:
@@ -24435,7 +28346,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 case DIRECTION_BLOCK_SIDE_HI_Z:
                     swatchLoc = SWATCH_INDEX(5, 17);
                     if (uvIndices)
-                        rotateIndices(localIndices, 90);
+                        rotateIndices(localIndices, (faceDirection == DIRECTION_BLOCK_SIDE_LO_Z) ? 270 : 90);
                     break;
                 case DIRECTION_BLOCK_SIDE_LO_X:
                 case DIRECTION_BLOCK_SIDE_HI_X:
@@ -24444,17 +28355,21 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 }
                 break;
             case 4: // pillar quartz block (north-south)
+                // as Minecraft's quartz_pillar_horizontal turned by "x" 90: its west side and its north side, now facing down, are
+                // upside down
                 switch (faceDirection)
                 {
                 case DIRECTION_BLOCK_BOTTOM:
                 case DIRECTION_BLOCK_TOP:
                     swatchLoc = SWATCH_INDEX(5, 17);
+                    if (uvIndices && faceDirection == DIRECTION_BLOCK_BOTTOM)
+                        rotateIndices(localIndices, 180);
                     break;
                 case DIRECTION_BLOCK_SIDE_LO_X:
                 case DIRECTION_BLOCK_SIDE_HI_X:
                     swatchLoc = SWATCH_INDEX(5, 17);
                     if (uvIndices)
-                        rotateIndices(localIndices, 90);
+                        rotateIndices(localIndices, (faceDirection == DIRECTION_BLOCK_SIDE_LO_X) ? 270 : 90);
                     break;
                 case DIRECTION_BLOCK_SIDE_LO_Z:
                 case DIRECTION_BLOCK_SIDE_HI_Z:
@@ -24544,6 +28459,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 yloc = 24;
                 break;
             }
+            // Hay's and purpur's hay_block_horizontal and purpur_pillar_horizontal models turn their "up" end 180 degrees (the
+            // bamboo blocks' models don't). Turned by "x" 90 (and, east-west, "y" 90), as with the quartz pillar, a side and,
+            // north-south, the bottom are upside down.
+            rotatedEnd = (type == BLOCK_PURPUR_PILLAR) || ((dataVal & 0x3) == 0);
             // use data to figure out direction of pillar
             switch (dataVal & 0xc)  // bottom two bits are for different types of hay (bamboo)
             {
@@ -24565,7 +28484,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 case DIRECTION_BLOCK_SIDE_HI_Z:
                     swatchLoc = SWATCH_INDEX(xloc - 1, yloc);
                     if (uvIndices)
-                        rotateIndices(localIndices, 90);
+                        rotateIndices(localIndices, (rotatedEnd && faceDirection == DIRECTION_BLOCK_SIDE_LO_Z) ? 270 : 90);
                     break;
                 case DIRECTION_BLOCK_SIDE_LO_X:
                 case DIRECTION_BLOCK_SIDE_HI_X:
@@ -24579,12 +28498,14 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 case DIRECTION_BLOCK_BOTTOM:
                 case DIRECTION_BLOCK_TOP:
                     swatchLoc = SWATCH_INDEX(xloc - 1, yloc);
+                    if (uvIndices && rotatedEnd && faceDirection == DIRECTION_BLOCK_BOTTOM)
+                        rotateIndices(localIndices, 180);
                     break;
                 case DIRECTION_BLOCK_SIDE_LO_X:
                 case DIRECTION_BLOCK_SIDE_HI_X:
                     swatchLoc = SWATCH_INDEX(xloc - 1, yloc);
                     if (uvIndices)
-                        rotateIndices(localIndices, 90);
+                        rotateIndices(localIndices, (rotatedEnd && faceDirection == DIRECTION_BLOCK_SIDE_LO_X) ? 270 : 90);
                     break;
                 case DIRECTION_BLOCK_SIDE_LO_Z:
                 case DIRECTION_BLOCK_SIDE_HI_Z:
@@ -24645,6 +28566,28 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                         rotateIndices(localIndices, iangle);
                     }
                 }
+            }
+
+            // A command block facing up is Minecraft's command_block model turned by "x" 270, which leaves its front (on top) and
+            // back (on the bottom) upside down from facing down's
+            if ((type != BLOCK_JIGSAW) && ((dataVal & 0x7) == 1) && uvIndices &&
+                (faceDirection == DIRECTION_BLOCK_TOP || faceDirection == DIRECTION_BLOCK_BOTTOM)) {
+                rotateIndices(localIndices, 180);
+            }
+
+            // A jigsaw pointing up or down has a second direction, where its lock is (bits 0x18: 0 west, 0x8 south,
+            // 0x10 north, 0x18 east). The table above has the top and bottom textures' up pointing north; turn them to
+            // point toward the second direction, as Minecraft's blockstate y rotation does. (Command blocks have no
+            // second direction, so they are left as they were.)
+            if ((type == BLOCK_JIGSAW) && ((dataVal & 0x7) <= 1) && uvIndices &&
+                (faceDirection == DIRECTION_BLOCK_TOP || faceDirection == DIRECTION_BLOCK_BOTTOM)) {
+                // angle to turn from north, indexed by (dataVal & 0x18) >> 3: west, south, north, east
+                static const int topAngle[4] = { 270, 180, 0, 90 };
+                static const int bottomAngle[4] = { 90, 180, 0, 270 };
+                int second = (dataVal & 0x18) >> 3;
+                int iangle = (faceDirection == DIRECTION_BLOCK_TOP) ? topAngle[second] : bottomAngle[second];
+                if (iangle != 0)
+                    rotateIndices(localIndices, iangle);
             }
 
             // adjust swatch location
@@ -24793,13 +28736,15 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             case BIT_16: // infested deepslate
                 SWATCH_SWITCH_SIDE_VERTICAL(newFaceDirection, 5, 53, 4, 53);
                 // reflect and rotate 180 degrees, randomly, based on location
-                // see 1.20.4\assets\minecraft\blockstates\deepslate.json
+                // see 1.20.4\assets\minecraft\blockstates\deepslate.json: the reflection is the deepslate_mirrored model, and the
+                // turn is "y" 180, which only vertical deepslate has, and which turns just its top and bottom (its sides stay upright)
                 if (uvIndices) {
                     int rotref = (int)(4.0f * getRand3to1(backgroundIndex));
                     if (rotref >= 2) {
                         reflectIndices(localIndices);
                     }
-                    if ((rotref % 2) == 1) {
+                    if (((rotref % 2) == 1) && ((dataVal & 0xC) == 0) &&
+                        ((faceDirection == DIRECTION_BLOCK_TOP) || (faceDirection == DIRECTION_BLOCK_BOTTOM))) {
                         angle += 180;
                     }
                 }
@@ -25158,6 +29103,12 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 }
                 break;
             }
+            // Minecraft's barrel model (cube_bottom_top), turned by "x" 90 and "y" for a sideways barrel: its bottom ends up upside
+            // down from what's above, and, facing north or south, so does the side that's now underneath
+            if (type == BLOCK_BARREL && dir >= 2) {
+                if (bottom || (dir <= 3 && faceDirection == DIRECTION_BLOCK_BOTTOM))
+                    angle = (angle + 180) % 360;
+            }
             // ok, now we know head vs. bottom vs. side & angle
             if (head)
             {
@@ -25211,7 +29162,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             swatchLoc = TILE_TO_SWATCH(gBlockDefinitions[BLOCK_OF_GOLD].txrX, gBlockDefinitions[BLOCK_OF_GOLD].txrY);
             break;
         case BLOCK_SCAFFOLDING:						// getSwatch
-            SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 9, 40, 106, 40);
+            SWATCH_SWITCH_SIDE_BOTTOM(faceDirection, 9, 40, 10, 40);
             break;
         case BLOCK_BEE_NEST:						// getSwatch
             // establish top/side/bottom
@@ -25266,7 +29217,10 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             }
             else
             {
-                // top or bottom face - rotation? Not really sure if top of bee_nests rotate, but do it anyway
+                // top or bottom face, turned with the facing, as Minecraft's orientable model is by "y"; seen from below, the bottom
+                // turns the other way, so facing west or east it's upside down from the top
+                if (uvIndices && (faceDirection == DIRECTION_BLOCK_BOTTOM) && (((dataVal & 0x3) == 0) || ((dataVal & 0x3) == 2)))
+                    rotateIndices(localIndices, 180);
                 switch (dataVal & 0x3)
                 {
                 case 3: // North -Z
@@ -25429,6 +29383,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case 45: // Mud Bricks
                 swatchLoc = SWATCH_INDEX(7, 55);
+                // Minecraft's mud_bricks_north_west_mirrored model mirrors the north and west faces
+                if (uvIndices && ((faceDirection == DIRECTION_BLOCK_SIDE_LO_Z) || (faceDirection == DIRECTION_BLOCK_SIDE_LO_X)))
+                    reflectIndices(localIndices);
                 break;
             case 46: // Packed Mud
                 swatchLoc = SWATCH_INDEX(10, 55);
@@ -25650,12 +29607,16 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             {
                 int age = (dataVal & 0x7);
 
+                if ((dataVal & 0x8) && (age < 3)) {
+                    // upper block with age 0-2: only the Debug World has these. Not legal, so, as in saveBillboardOrGeometry,
+                    // don't output anything - -1 drops the face. Reached only when lesser blocks are off (output as a full block).
+                    swatchLoc = -1;
+                }
                 // if age > 1, there's a flower. Get the swatch to use, then output it
-                if (age > 0) {
+                else if (age > 0) {
                     // is this the upper or lower block?
                     if (dataVal & 0x8) {
-                        // upper. Check that the age is 3 or 4
-                        assert(age >= 3);
+                        // upper, age 3 or 4
                         swatchLoc = SWATCH_INDEX(1, 58) + age;
                     }
                     else {
@@ -25769,8 +29730,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 swatchLoc = SWATCH_INDEX(0, 65);
             }
             else if (faceDirection == DIRECTION_BLOCK_TOP) {
-                // top has ejecting
-                if (dataVal & (0x3 << 3))
+                // top has ejecting, used only when ejecting (Minecraft's vault_active and vault_unlocking models use vault_top)
+                if ((dataVal & (0x3 << 3)) == (0x3 << 3))
                 {
                     // ejecting
                     swatchLoc = SWATCH_INDEX(14, 65);
@@ -25823,6 +29784,13 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 // ominous
                 swatchLoc++;
             }
+            // Minecraft turns the vault model by "y" (without "uvlock"), so the top and bottom turn with the facing
+            if (uvIndices && ((faceDirection == DIRECTION_BLOCK_TOP) || (faceDirection == DIRECTION_BLOCK_BOTTOM))) {
+                int vaultAngle = (faceDirection == DIRECTION_BLOCK_TOP) ? 90 * (dataVal & 0x3) : (360 - 90 * (dataVal & 0x3)) % 360;
+                if (vaultAngle != 0) {
+                    rotateIndices(localIndices, vaultAngle);
+                }
+            }
             break;
 
         case BLOCK_CRAFTER:
@@ -25845,7 +29813,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 int crafterAngle[6 * 12] = {
                 //  s_u,w_u,n_u,e_u,u_s,u_w,u_n,u_e,d_s,d_w,d_n,d_e
                       0,  0,  0,  0, 90,180,270,180, 90,  0,270,  0,    // west
-                      0, 90,180,270,  0,270,180, 90,  0,270,180,270,    // bottom
+                    180, 90,  0,270,  0,270,180, 90,  0,270,180, 90,    // bottom
                       0,  0,  0,  0,180, 90,180,270,  0, 90,  0,270,    // north
                       0,  0,  0,  0,270,180, 90,180,270,  0, 90,  0,    // east
                       0, 90,180,270,180,270,  0, 90,180,270,  0, 90,    // top
@@ -25917,8 +29885,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                     break;
                 case DIRECTION_BLOCK_SIDE_HI_Z:
                     // south
-                    if (dataVal & BIT_32) {
-                        // triggered
+                    if (dataVal & (BIT_16 | BIT_32)) {
+                        // triggered, or crafting (Minecraft's crafter_crafting model uses crafter_south_triggered)
                         swatchLoc = SWATCH_INDEX(9, 62);
                     }
                     else {
@@ -25997,11 +29965,11 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 break;
             case 2: // weathered_copper_grate
             case 6:	// waxed_weathered_copper_grate
-                swatchLoc = SWATCH_INDEX(1, 64);
+                swatchLoc = SWATCH_INDEX(7, 66);
                 break;
             case 3: // oxidized_copper_grate
             case 7:	// waxed_oxidized_copper_grate
-                swatchLoc = SWATCH_INDEX(7, 66);
+                swatchLoc = SWATCH_INDEX(1, 64);
                 break;
             }
             break;
@@ -26024,14 +29992,12 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 swatchLoc += (dataVal & 0x2) ? 2 : 1;
                 break;
             case DIRECTION_BLOCK_BOTTOM:
-                // should never get used
-                assert(0);
-                break;
+                // used only when lesser blocks are off and the carpet is output as a full block; same as top
             case DIRECTION_BLOCK_TOP:
                 // no change, use default
                 break;
             }
-            if (faceDirection != DIRECTION_BLOCK_TOP) {
+            if (faceDirection != DIRECTION_BLOCK_TOP && faceDirection != DIRECTION_BLOCK_BOTTOM) {
                 // sides are semitransparent, so need a composite swatch
                 swatchLoc = getCompositeSwatch(swatchLoc, backgroundIndex, faceDirection, 0);
             }
@@ -26088,6 +30054,55 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
         }
         break;
 
+        case BLOCK_STRAW_BED:						// getSwatch
+        {
+            // Used when the straw bed is a full block, i.e., 3D printing without "Export lesser blocks". Like a regular
+            // bed there, each face shows the matching face of the bed model (see saveBillboardOrGeometry), with the
+            // sides stretched vertically to fill the block; the frills are ignored. Each face uses that face's
+            // rectangle of the 64x64 straw_bed.png image, a 4x4 span of tiles anchored at 28,0 (right half of the
+            // atlas, so TILE_TO_SWATCH, not SWATCH_INDEX). The model is for facing=south, head toward +Z; the head's top
+            // runs from its base's top to its pillow's top.
+            // Rectangles are the model JSON's "uv" values: indexed [part: 0 foot, 1 head][face: 0 top, 1 bottom,
+            // 2 -Z end, 3 +Z end, 4 -X side, 5 +X side].
+            static const float strawBedUV[2][6][4] = {
+                {   // foot: its +Z end is against the head, so reuse the -Z end's texture there
+                    { 8.0f, 10.25f, 4.0f, 6.25f }, { 12.0f, 6.25f, 8.0f, 10.25f }, { 4.0f, 10.25f, 8.0f, 11.25f },
+                    { 4.0f, 10.25f, 8.0f, 11.25f }, { 8.0f, 10.25f, 12.0f, 11.25f }, { 0.0f, 10.25f, 4.0f, 11.25f } },
+                {   // head: base top through pillow top; the +Z end is the pillow's; the sides are the base's
+                    { 6.0f, 5.25f, 2.0f, 0.0f }, { 10.0f, 3.25f, 6.0f, 5.25f }, { 2.0f, 5.25f, 6.0f, 6.25f },
+                    { 8.0f, 2.0f, 12.0f, 3.25f }, { 6.0f, 5.25f, 8.0f, 6.25f }, { 0.0f, 5.25f, 2.0f, 6.25f } }
+            };
+            int facing = dataVal & 0x3;     // SWNE, 0 = south, as for BED_PROP
+            int part = (dataVal & 0x8) ? 1 : 0;
+            int modelFace = 0;
+            if (faceDirection == DIRECTION_BLOCK_TOP) {
+                modelFace = 0;
+            }
+            else if (faceDirection == DIRECTION_BLOCK_BOTTOM) {
+                modelFace = 1;
+            }
+            else {
+                // Undo the bed's facing to find the model's face: the model is rotated from south by 90 degrees per
+                // facing step (south, west, north, east), taking its +Z to the facing direction. Sides in rotation
+                // order, each the next one clockwise seen from above: +Z, -X, -Z, +X.
+                static const int sideOrder[4] = { DIRECTION_BLOCK_SIDE_HI_Z, DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_X };
+                static const int sideModelFace[4] = { 3, 4, 2, 5 };
+                int s = 0;
+                while (s < 4 && sideOrder[s] != faceDirection)
+                    s++;
+                modelFace = sideModelFace[(s - facing + 4) % 4];
+            }
+            swatchLoc = TILE_TO_SWATCH(28, 0);
+            useSpanRect = true;
+            for (int k = 0; k < 4; k++)
+                spanRect[k] = strawBedUV[part][modelFace][k];
+            // the top and bottom turn with the bed, as for the dried ghast, which uses the same facing order
+            if ((faceDirection == DIRECTION_BLOCK_TOP || faceDirection == DIRECTION_BLOCK_BOTTOM) && uvIndices) {
+                rotateIndices(localIndices, 90 * facing);
+            }
+        }
+        break;
+
 
         //================================================================================================
         default:
@@ -26119,8 +30134,20 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
     if (swatchLoc >= 0 && uvIndices && gModel.exportTexture)
     {
         int standardCorners[4];
+        if (useSpanRect) {
+            // a rectangle of the multi-tile image anchored at swatchLoc stands in for the tile; same corner order as
+            // saveRectangleTextureUVs: lower left, lower right, upper right, upper left, with the span's v going up
+            float su1 = spanRect[0] / 16.0f, su2 = spanRect[2] / 16.0f;
+            float svTop = 1.0f - spanRect[1] / 16.0f, svBottom = 1.0f - spanRect[3] / 16.0f;
+            standardCorners[0] = saveSpanTextureUV(swatchLoc, type, su1, svBottom);
+            standardCorners[1] = saveSpanTextureUV(swatchLoc, type, su2, svBottom);
+            standardCorners[2] = saveSpanTextureUV(swatchLoc, type, su2, svTop);
+            standardCorners[3] = saveSpanTextureUV(swatchLoc, type, su1, svTop);
+            if (standardCorners[0] < 0 || standardCorners[1] < 0 || standardCorners[2] < 0 || standardCorners[3] < 0)
+                return -1;
+        }
         // get four UV texture vertices, based on type of block
-        if (!saveTextureCorners(swatchLoc, type, standardCorners))
+        else if (!saveTextureCorners(swatchLoc, type, standardCorners))
             return -1;
 
         // let the adjustments begin!
@@ -26159,6 +30186,12 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
 // Note that currently we don't rotate the background texture properly compared to the swatch itself - tough.
 static int getCompositeSwatch(int swatchLoc, int backgroundIndex, int faceDirection, int angle)
 {
+    if (gModel.exportTiles) {
+        // Individual textures are never composited: each face uses its own tile, cutouts and all, so that the tiles
+        // can be swapped later. With lesser blocks off, billboards and flattenables are output as full blocks, which
+        // then simply use their own (cutout) tile.
+        return swatchLoc;
+    }
     if (!CHECK_COMPOSITE_OVERLAY) {
         // something has gone very wrong - likely it's some illegal data, such as redstone wire hanging in midair.
         // Recover by returning -1 as an abort signal. See issue #150: https://github.com/erich666/Mineways/issues/150
@@ -26196,7 +30229,9 @@ static int getCompositeSwatch(int swatchLoc, int backgroundIndex, int faceDirect
         pSwatch = pSwatch->next;
     }
 
-    // can't find swatch, so see if we can make it
+    // can't find swatch, so see if we can make it - skipping any slots reserved for multi-tile images
+    while (gModel.swatchCount < gModel.swatchListSize && isSpanReservedSlot(gModel.swatchCount))
+        gModel.swatchCount++;
     if (gModel.swatchCount >= gModel.swatchListSize)
     {
         // no room for more swatches. Plan B: find the default swatch for this type
@@ -26414,12 +30449,100 @@ static int saveTextureUV(int swatchLoc, int type, float u, float v)
     gModel.uvIndexList[gModel.uvIndexCount].uc = (float)col * gModel.textureUVPerSwatch + u * gModel.textureUVPerTile + gModel.invTextureResolution;
     gModel.uvIndexList[gModel.uvIndexCount].vc = 1.0f - ((float)row * gModel.textureUVPerSwatch + (1.0f - v) * gModel.textureUVPerTile + gModel.invTextureResolution);
     gModel.uvIndexList[gModel.uvIndexCount].swatchLoc = swatchLoc;
+    gModel.uvIndexList[gModel.uvIndexCount].spanAnchor = -1;
+    // Individual tile export puts each UV on the tile's 17x17 grid of texel corners (see mosaicUVtoSeparateUV), which is all that
+    // most faces need. A UV between texel corners, e.g. on a water or lava face, is output exactly instead, as a multi-tile image's
+    // UV is: as if on an image of one tile, anchored at this swatch.
+    if (gModel.exportTiles && (swatchLoc < TOTAL_TILES) &&
+        ((fabs(u * 16.0f - floor(u * 16.0f + 0.5f)) > 0.001f) || (fabs(v * 16.0f - floor(v * 16.0f + 0.5f)) > 0.001f)))
+    {
+        gModel.uvIndexList[gModel.uvIndexCount].spanAnchor = swatchLoc;
+        gModel.uvIndexList[gModel.uvIndexCount].su = u;
+        gModel.uvIndexList[gModel.uvIndexCount].sv = v;
+        gModel.uvIndexList[gModel.uvIndexCount].outIndex = 0;
+    }
     gModel.uvIndexCount++;
 
     // also save what type is associated with this swatchLoc, to allow output of name in comments.
     // Multiple types can be associated with the same swatchLoc, we just save the last one (often the most
     // visible one) here. Could get fancier and also pass in and save dataVal and use RetrieveBlockSubname on output.
     gModel.uvSwatchToType[swatchLoc] = type;
+
+    return uvr->index;
+}
+
+// Save a UV on a whole multi-tile image, e.g. straw_bed.png, anchored at anchorLoc. su, sv are 0-1 over the whole image, with sv
+// going up. Returns the UV's index, as saveTextureUV does.
+static int saveSpanTextureUV(int anchorLoc, int type, float su, float sv)
+{
+    if (!gModel.exportTexture)
+        return 0;
+    if (!(gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES)) {
+        // solid colors: the swatch is the block type (see getSwatch) and the location on it doesn't matter
+        return saveTextureUV(type, type, su, sv);
+    }
+    SpanImage* pSpan = findSpanImage(anchorLoc);
+    assert(pSpan);
+    if (pSpan == NULL)
+        return -1;
+    // mosaic export needs the image's reserved block
+    assert(gModel.exportTiles || pSpan->blockCol >= 0);
+
+    // shared already?
+    UVRecord* uvr = pSpan->uvList.records;
+    for (int i = 0; i < pSpan->uvList.count; i++, uvr++) {
+        if ((uvr->u == su) && (uvr->v == sv))
+            return uvr->index;
+    }
+
+    // no, so add it
+    if (pSpan->uvList.count == pSpan->uvList.size) {
+        int newSize = (pSpan->uvList.size == 0) ? 64 : pSpan->uvList.size * 2;
+        UVRecord* records = (UVRecord*)realloc(pSpan->uvList.records, (size_t)newSize * sizeof(UVRecord));
+        if (records == NULL)
+            return -1;
+        pSpan->uvList.records = records;
+        pSpan->uvList.size = newSize;
+    }
+    if (gModel.uvIndexCount == gModel.uvIndexListSize) {
+        if (gModel.uvIndexListSize < 0 || gModel.uvIndexListSize > INT_MAX - gModel.uvIndexListSize / 2 - 1)
+            return -1;
+        int newSize = gModel.uvIndexListSize + gModel.uvIndexListSize / 2 + 1;
+        if ((size_t)newSize > (size_t)-1 / sizeof(UVOutput))
+            return -1;
+        UVOutput* output = (UVOutput*)realloc(gModel.uvIndexList, (size_t)newSize * sizeof(UVOutput));
+        if (output == NULL)
+            return -1;
+        gModel.uvIndexList = output;
+        gModel.uvIndexListSize = newSize;
+    }
+    uvr = &pSpan->uvList.records[pSpan->uvList.count++];
+    uvr->u = su;
+    uvr->v = sv;
+    uvr->index = gModel.uvIndexCount;
+
+    assert(su >= 0.0f && su <= 1.0f);
+    assert(sv >= 0.0f && sv <= 1.0f);
+    UVOutput* pOut = &gModel.uvIndexList[gModel.uvIndexCount];
+    pOut->swatchLoc = anchorLoc;
+    pOut->spanAnchor = anchorLoc;
+    pOut->su = su;
+    pOut->sv = sv;
+    pOut->outIndex = 0;
+    if (pSpan->blockCol >= 0) {
+        // location in the mosaic
+        int x0, y0;
+        getSpanBlockImageOrigin(pSpan, x0, y0);
+        float imageSize = (float)(pSpan->span * gModel.tileSize);
+        pOut->uc = ((float)x0 + su * imageSize) / (float)gModel.textureResolution;
+        pOut->vc = 1.0f - ((float)y0 + (1.0f - sv) * imageSize) / (float)gModel.textureResolution;
+    }
+    else {
+        pOut->uc = su;
+        pOut->vc = sv;
+    }
+    gModel.uvIndexCount++;
+    gModel.uvSwatchToType[anchorLoc] = type;
 
     return uvr->index;
 }
@@ -26453,6 +30576,7 @@ static void freeModel(Model* pModel)
             pModel->uvSwatches[i].records = NULL;
         }
     }
+    freeSpanImages();
 
     if (pModel->faceList)
     {
@@ -26667,6 +30791,8 @@ bool IsASubblock(int type, int dataVal)
     case BLOCK_STAINED_GLASS:
     case BLOCK_STAINED_GLASS_PANE:
     case BLOCK_CARPET:
+    case BLOCK_CUSHION:
+    case BLOCK_BED:
     case BLOCK_CONCRETE:
     case BLOCK_CONCRETE_POWDER:
         // Wool wants to be White Wool when it's a subblock, so the default block name is not OK
@@ -26739,7 +30865,8 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
     case BLOCK_CRYING_OBSIDIAN:
         emission = 10.0f;
         if (splitByBlockType) {
-            switch (dataVal & 0xf) {
+            // bit 0x2 is sculk catalyst's "bloom," which doesn't change its emission
+            switch (dataVal & 0x1) {
             default:
                 assert(0);
             case 0:
@@ -26753,15 +30880,13 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
         break;
     case BLOCK_LANTERN:
         if (splitByBlockType) {
-            switch (dataVal & 0x1f) {
-                // actually use default, as all the copper variants emit the same
-            default:
-                assert(0);
-            case 0:
-                // default: emission = 15.0f;
-                break;
-            case 0x2: // soul lantern
+            // bit 0x1 is "hanging"; bits 0x1e are the variant: 0 lantern, 1 soul lantern, 2-9 the copper lanterns
+            switch ((dataVal >> 1) & 0xf) {
+            case 1: // soul lantern
                 emission = 10.0f;
+                break;
+            default:
+                // lantern and all the copper variants: emission = 15.0f;
                 break;
             }
         }
@@ -26979,7 +31104,8 @@ static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float
 }
 
 // done for OBJ, when getting ready to export unified list of texture coordinates
-static int mosaicUVtoSeparateUV()
+// pUVOutputCount returns the number of "vt" lines written, needed for relative indices
+static int mosaicUVtoSeparateUV(int* pUVOutputCount)
 {
     int retCode = MW_NO_ERROR;
     int index;
@@ -26991,6 +31117,9 @@ static int mosaicUVtoSeparateUV()
     // Then as we go through the face list we translate again, find the loc, and in the array we find the new UV index to us
     for (int i = 0; i < gModel.uvIndexCount; i++)
     {
+        // UVs on multi-tile images are output separately, below
+        if (gModel.uvIndexList[i].spanAnchor >= 0)
+            continue;
         // Unscramble the eggs. Given a UV, multiply by the resolution of the map. This give 0-512 or whatever, really 1-511 for OBJ output, which starts counting at 1.
         // Modulo the swatchSize. This gives 0-18 inclusive (or whatever the swatch size is), really 1-17.
         // Subtract 1 to give 0-16 or whatever. Divide by tileSize and multiply by 16 to get the 0-16 index location
@@ -27039,6 +31168,20 @@ static int mosaicUVtoSeparateUV()
         }
     }
 
+    // UVs on multi-tile images, such as straw_bed.png, are over the whole image, which is output as a single file
+    for (int i = 0; i < gModel.uvIndexCount; i++)
+    {
+        if (gModel.uvIndexList[i].spanAnchor >= 0) {
+            gModel.uvIndexList[i].outIndex = ++indexID;
+            retCode |= writeOBJTextureUV(gModel.uvIndexList[i].su, gModel.uvIndexList[i].sv, false, 0);
+            if (retCode >= MW_BEGIN_ERRORS)
+                return retCode;
+        }
+    }
+
+    // indexID is now the total number of UVs output: grid, simplify-extended, and multi-tile
+    *pUVOutputCount = indexID;
+
     return retCode;
 }
 
@@ -27066,6 +31209,8 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
     FaceRecord* pFace;
 
     int vt[4];
+    // number of "vt" lines actually output, for relative indices; differs from uvIndexCount when exporting tiles
+    int uvOutputCount = gModel.uvIndexCount;
 
 #define OUTPUT_NORMALS
 #ifdef OUTPUT_NORMALS
@@ -27137,7 +31282,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
         if (gModel.exportTiles) {
             // go from the "UVs for one giant mosaic" to "UVs per tile" -
             // happily, all coordinates are powers of two, so this process is lossless
-            retCode = mosaicUVtoSeparateUV();
+            retCode = mosaicUVtoSeparateUV(&uvOutputCount);
             if (retCode >= MW_BEGIN_ERRORS)
                 goto Exit;
         }
@@ -27167,7 +31312,9 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
             UPDATE_STATUS(gProgress.start.output + gProgress.absolute.output * 0.5f * ((float)i / (float)gModel.vertexCount), statusString);
         }
 
-        sprintf_s(outputString, 256, "v %g %g %g\n", gModel.vertices[i][X], gModel.vertices[i][Y], gModel.vertices[i][Z]);
+        // 8 significant digits, a float's full precision: with %g's 6, a vertex at a world coordinate in the hundreds can be off
+        // by 1/100th of a pixel, which distorts the texturing of thin parts, such as a tripwire's half-pixel string
+        sprintf_s(outputString, 256, "v %.8g %.8g %.8g\n", gModel.vertices[i][X], gModel.vertices[i][Y], gModel.vertices[i][Z]);
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     }
 
@@ -27226,7 +31373,10 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                     // New material definitely found, so make a new one to be output.
                     prevType = gModel.faceList[i]->materialType;
                     prevDataVal = gModel.faceList[i]->materialDataVal;
-                    prevSwatchLoc = gModel.uvIndexList[gModel.faceList[i]->uvIndex[0]].swatchLoc;
+                    // only tile export uses the swatch; without textures (e.g. "solid material colors"), a face's
+                    // uvIndex[] is never set, so it must not be used to index uvIndexList
+                    if (gModel.exportTiles)
+                        prevSwatchLoc = gModel.uvIndexList[gModel.faceList[i]->uvIndex[0]].swatchLoc;
                     // New ID encountered, so output it: material name, and group.
                     // Group isn't really required, but can be useful.
                     // Output group only if we're not already using it for individual blocks.
@@ -27304,7 +31454,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                                 // there are materials with different typeData's but that actually have the same name,
                                 // such as Purpur Block, but these show up only in the test world, so don't bother.
                                 int curCount = (int)gMtlList.size() - 1;
-                                unsigned int typeData = prevType << 8 | prevDataVal;
+                                unsigned int typeData = MTL_LIST_ENTRY(prevType, prevDataVal);
                                 while (curCount >= 0) {
                                     if (gMtlList[curCount--] == typeData) {
                                         // found it; exit loop
@@ -27321,7 +31471,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                                 // note which material is to be output, if not output already
                                 if (outputMaterial[prevType] == 0)
                                 {
-                                    gMtlList.push_back((prevType << 8) | prevDataVal);
+                                    gMtlList.push_back(MTL_LIST_ENTRY(prevType, prevDataVal));
                                     outputMaterial[prevType] = 1;
                                 }
                             }
@@ -27362,7 +31512,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                             // new material per family
                             sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
                             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-                            gMtlList.push_back((prevType << 8) | prevDataVal);
+                            gMtlList.push_back(MTL_LIST_ENTRY(prevType, prevDataVal));
                         }
                         // else don't output material, there's only one for the whole scene
                     }
@@ -27430,7 +31580,11 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                 for (j = 0; j < 4; j++) {
                     // is it a swatch value, or a simplify extended value? [2] is always a non- [0,1] range UV index. So confusing... :)
                     // Negative indices means "negate and use this value-1 as an X & Y indexed location"
-                    if (pFace->uvIndex[j] >= 0) {
+                    if (pFace->uvIndex[j] >= 0 && gModel.uvIndexList[pFace->uvIndex[j]].spanAnchor >= 0) {
+                        // multi-tile image UV, output on its own
+                        vt[j] = gModel.uvIndexList[pFace->uvIndex[j]].outIndex;
+                    }
+                    else if (pFace->uvIndex[j] >= 0) {
                         index = (int)((((int)(gModel.uvIndexList[pFace->uvIndex[j]].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale) +
                             (NUM_UV_GRID_RESOLUTION + 1) * (int)(16 - ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale));
                         vt[j] = gModel.uvGridList[index];
@@ -27466,9 +31620,9 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                 else
                 {
                     sprintf_s(outputString, 256, "f %d/%d/%d %d/%d/%d %d/%d/%d\n",
-                        pFace->vertexIndex[0] - gModel.vertexCount, vt[0] - gModel.uvIndexCount - 1, outputFaceDirection,
-                        pFace->vertexIndex[1] - gModel.vertexCount, vt[1] - gModel.uvIndexCount - 1, outputFaceDirection,
-                        pFace->vertexIndex[2] - gModel.vertexCount, vt[2] - gModel.uvIndexCount - 1, outputFaceDirection
+                        pFace->vertexIndex[0] - gModel.vertexCount, vt[0] - uvOutputCount - 1, outputFaceDirection,
+                        pFace->vertexIndex[1] - gModel.vertexCount, vt[1] - uvOutputCount - 1, outputFaceDirection,
+                        pFace->vertexIndex[2] - gModel.vertexCount, vt[2] - uvOutputCount - 1, outputFaceDirection
                     );
                 }
             }
@@ -27495,10 +31649,10 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                 else
                 {
                     sprintf_s(outputString, 256, "f %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d\n",
-                        pFace->vertexIndex[offset] - gModel.vertexCount, vt[offset] - gModel.uvIndexCount - 1, outputFaceDirection,
-                        pFace->vertexIndex[offset + 1] - gModel.vertexCount, vt[offset + 1] - gModel.uvIndexCount - 1, outputFaceDirection,
-                        pFace->vertexIndex[offset + 2] - gModel.vertexCount, vt[offset + 2] - gModel.uvIndexCount - 1, outputFaceDirection,
-                        pFace->vertexIndex[(offset + 3) % 4] - gModel.vertexCount, vt[(offset + 3) % 4] - gModel.uvIndexCount - 1, outputFaceDirection
+                        pFace->vertexIndex[offset] - gModel.vertexCount, vt[offset] - uvOutputCount - 1, outputFaceDirection,
+                        pFace->vertexIndex[offset + 1] - gModel.vertexCount, vt[offset + 1] - uvOutputCount - 1, outputFaceDirection,
+                        pFace->vertexIndex[offset + 2] - gModel.vertexCount, vt[offset + 2] - uvOutputCount - 1, outputFaceDirection,
+                        pFace->vertexIndex[(offset + 3) % 4] - gModel.vertexCount, vt[(offset + 3) % 4] - uvOutputCount - 1, outputFaceDirection
                     );
                 }
             }
@@ -27518,9 +31672,9 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                 else
                 {
                     sprintf_s(outputString, 256, "f %d/%d %d/%d %d/%d\n",
-                        pFace->vertexIndex[0] - gModel.vertexCount, vt[0] - gModel.uvIndexCount - 1,
-                        pFace->vertexIndex[1] - gModel.vertexCount, vt[1] - gModel.uvIndexCount - 1,
-                        pFace->vertexIndex[2] - gModel.vertexCount, vt[2] - gModel.uvIndexCount - 1
+                        pFace->vertexIndex[0] - gModel.vertexCount, vt[0] - uvOutputCount - 1,
+                        pFace->vertexIndex[1] - gModel.vertexCount, vt[1] - uvOutputCount - 1,
+                        pFace->vertexIndex[2] - gModel.vertexCount, vt[2] - uvOutputCount - 1
                     );
                 }
             }
@@ -27538,10 +31692,10 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                 else
                 {
                     sprintf_s(outputString, 256, "f %d/%d %d/%d %d/%d %d/%d\n",
-                        pFace->vertexIndex[0] - gModel.vertexCount, vt[0] - gModel.uvIndexCount - 1,
-                        pFace->vertexIndex[1] - gModel.vertexCount, vt[1] - gModel.uvIndexCount - 1,
-                        pFace->vertexIndex[2] - gModel.vertexCount, vt[2] - gModel.uvIndexCount - 1,
-                        pFace->vertexIndex[3] - gModel.vertexCount, vt[3] - gModel.uvIndexCount - 1
+                        pFace->vertexIndex[0] - gModel.vertexCount, vt[0] - uvOutputCount - 1,
+                        pFace->vertexIndex[1] - gModel.vertexCount, vt[1] - uvOutputCount - 1,
+                        pFace->vertexIndex[2] - gModel.vertexCount, vt[2] - uvOutputCount - 1,
+                        pFace->vertexIndex[3] - gModel.vertexCount, vt[3] - uvOutputCount - 1
                     );
                 }
             }
@@ -27850,9 +32004,9 @@ static int writeOBJMtlFile()
 
                 bool subtypeMaterial = ((gModel.options->exportFlags & EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE) != 0x0);
 
-                type = gMtlList[i] >> 8;
+                type = MTL_LIST_TYPE(gMtlList[i]);
                 if (subtypeMaterial)
-                    dataVal = gMtlList[i] & 0xff;
+                    dataVal = MTL_LIST_DATAVAL(gMtlList[i]);
 
                 // print header: material name
                 strcpy_s(mtlName, 256, gBlockDefinitions[type].name);
@@ -29065,11 +33219,13 @@ static int createBaseMaterialTexture()
         // stretch only if we're exporting full blocks
         if (!gModel.options->pEFD->chkExportAll)
         {
-            // bed
-            stretchSwatchToFill(mainprog, SWATCH_INDEX(5, 9), 0, 7, 15, 15);
-            stretchSwatchToFill(mainprog, SWATCH_INDEX(6, 9), 0, 7, 15, 15);
-            stretchSwatchToFill(mainprog, SWATCH_INDEX(7, 9), 0, 7, 15, 15);
-            stretchSwatchToFill(mainprog, SWATCH_INDEX(8, 9), 0, 7, 15, 15);
+            // bed: each side's 16x6 strip, above the legs' textures, fills the side of the full block
+            static const int bedSides[5] = { BED_FOOT_EAST, BED_FOOT_SOUTH, BED_FOOT_WEST, BED_HEAD_EAST, BED_HEAD_WEST };
+            for (int bedColor = 0; bedColor < 16; bedColor++) {
+                for (int bedSide = 0; bedSide < 5; bedSide++)
+                    stretchSwatchToFill(mainprog, BED_TILE(bedColor, bedSides[bedSide]), 0, 7, 15, 12);
+            }
+            stretchSwatchToFill(mainprog, BED_HEAD_NORTH_TILE, 0, 7, 15, 12);
 
             // cake
             stretchSwatchToFill(mainprog, SWATCH_INDEX(9, 7), 1, 1, 14, 14);
@@ -29277,6 +33433,19 @@ static int createBaseMaterialTexture()
         }
     }
 
+    // Copy each multi-tile image whole into its reserved mosaic block (see reserveSpanBlocks), from its member tiles as processed above.
+    if (useTextureImage && !gModel.exportTiles) {
+        for (i = 0; i < gSpanImageCount; i++) {
+            const SpanImage* pSpan = &gSpanImages[i];
+            if (pSpan->blockCol >= 0) {
+                int x0, y0;
+                getSpanBlockImageOrigin(pSpan, x0, y0);
+                gatherSpanFromMaster(mainprog, x0, y0, mainprog, pSpan->anchorLoc, pSpan->span, gModel.swatchSize, gModel.swatchesPerRow);
+                clampImageBorder(mainprog, x0, y0, pSpan->span * gModel.tileSize, pSpan->span * SWATCH_BORDER, 4);
+            }
+        }
+    }
+
     // Create PBR mosaic textures (normals, metallic, emission, roughness) for mosaic export.
     // These mirror the RGBA mosaic layout but skip RGBA-specific post-processing.
     if (useTextureImage && !gModel.exportTiles) {
@@ -29301,8 +33470,9 @@ static int createBaseMaterialTexture()
             }
 
             // Copy terrain tiles into mosaic at same swatch positions as RGBA.
-            // NUM_BLOCKS_MAP is the starting swatch index for terrain tiles (after solid-color swatches).
-            int pbrSwatchCount = NUM_BLOCKS_MAP;
+            // In texture-image mode no solid-color swatches are made, so the RGBA copy above starts
+            // terrain tiles at swatch 0, matching TILE_TO_SWATCH(), which the UVs use.
+            int pbrSwatchCount = 0;
             for (int pbrRow = 0; pbrRow < (XTILES / 16) * VERTICAL_TILES; pbrRow++) {
                 for (int pbrCol = 0; pbrCol < 16; pbrCol++) {
                     int dstCol2, dstRow2;
@@ -29318,6 +33488,19 @@ static int createBaseMaterialTexture()
                     // extend borders for UV filtering
                     extendPBRSwatchBorder(pbrProg, dstCol2, dstRow2, gModel.swatchSize, gModel.tileSize, channels);
                     pbrSwatchCount++;
+                }
+            }
+
+            // multi-tile images, whole, into their reserved blocks
+            for (int s = 0; s < gSpanImageCount; s++) {
+                const SpanImage* pSpan = &gSpanImages[s];
+                if (pSpan->blockCol >= 0) {
+                    int x0, y0;
+                    int size = pSpan->span * gModel.tileSize;
+                    getSpanBlockImageOrigin(pSpan, x0, y0);
+                    copyPNGAreaChannels(pbrProg, x0, y0, size, size, gModel.pInputTerrainImage[cat],
+                        swatchToCol(pSpan->anchorLoc) * gModel.tileSize, swatchToRow(pSpan->anchorLoc) * gModel.tileSize, channels);
+                    clampImageBorder(pbrProg, x0, y0, size, pSpan->span * SWATCH_BORDER, channels);
                 }
             }
 
@@ -31204,7 +35387,12 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
             if (gModel.exportTiles) {
                 // is it a swatch value, or a simplify extended value?
                 // Negative indices means "negate and use this value-1 as an X & Y indexed location"
-                if (pFace->uvIndex[j] >= 0) {
+                if (pFace->uvIndex[j] >= 0 && gModel.uvIndexList[pFace->uvIndex[j]].spanAnchor >= 0) {
+                    // multi-tile image UV, over the whole image
+                    uc = gModel.uvIndexList[pFace->uvIndex[j]].su;
+                    vc = gModel.uvIndexList[pFace->uvIndex[j]].sv;
+                }
+                else if (pFace->uvIndex[j] >= 0) {
                     uc = (float)((((int)(gModel.uvIndexList[pFace->uvIndex[j]].uc * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale) / (float)NUM_UV_GRID_RESOLUTION;
                     vc = (float)(16 - ((((int)((1.0f - gModel.uvIndexList[pFace->uvIndex[j]].vc) * (float)gModel.textureResolution) % gModel.swatchSize) - 1.0f) * gModel.resScale)) / (float)NUM_UV_GRID_RESOLUTION;
                 }
@@ -33791,7 +37979,7 @@ static boolean findEndOfGroup(int startRun, int endCount, char* mtlName, int& ne
     else if (gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK)
     {
         // new material per family
-        gMtlList.push_back((prevType << 8) | prevDataVal);
+        gMtlList.push_back(MTL_LIST_ENTRY(prevType, prevDataVal));
     }
     // else don't output material, there's only one for the whole scene - TODOUSD
 
@@ -34509,6 +38697,36 @@ static int spongeBlockStateString(int type, int dataVal, char* out, size_t outSi
     return spongeBuildBlockStateString(type, dataVal, out, (int)outSize);
 }
 
+static bool isDoorType(int type)
+{
+    switch (type) {
+    case BLOCK_WOODEN_DOOR:
+    case BLOCK_IRON_DOOR:
+    case BLOCK_SPRUCE_DOOR:
+    case BLOCK_BIRCH_DOOR:
+    case BLOCK_JUNGLE_DOOR:
+    case BLOCK_DARK_OAK_DOOR:
+    case BLOCK_ACACIA_DOOR:
+    case BLOCK_PALE_OAK_DOOR:
+    case BLOCK_POPLAR_DOOR:
+    case BLOCK_CRIMSON_DOOR:
+    case BLOCK_WARPED_DOOR:
+    case BLOCK_MANGROVE_DOOR:
+    case BLOCK_CHERRY_DOOR:
+    case BLOCK_BAMBOO_DOOR:
+    case BLOCK_COPPER_DOOR:
+    case BLOCK_EXPOSED_COPPER_DOOR:
+    case BLOCK_WEATHERED_COPPER_DOOR:
+    case BLOCK_OXIDIZED_COPPER_DOOR:
+    case BLOCK_WAXED_COPPER_DOOR:
+    case BLOCK_WAXED_EXPOSED_COPPER_DOOR:
+    case BLOCK_WAXED_WEATHERED_COPPER_DOOR:
+    case BLOCK_WAXED_OXIDIZED_COPPER_DOOR:
+        return true;
+    }
+    return false;
+}
+
 // Writes a Sponge Schematic v3 (.schem) file. Spec:
 //   https://github.com/SpongePowered/Schematic-Specification/blob/master/versions/schematic-3.md
 // File is gzipped NBT, big-endian. Voxel index = x + z*Width + y*Width*Length.
@@ -34516,6 +38734,36 @@ static int spongeBlockStateString(int type, int dataVal, char* out, size_t outSi
 // inside an unnamed root compound; Palette/Data/BlockEntities are grouped under a "Blocks"
 // sub-compound; the v2 "BlockData" tag is renamed to "Data"; the v2 "PaletteMax" int is removed
 // (the palette size is implicit in the compound).
+// Which of a wall's connected sides are "tall" in Minecraft: those whose strip the block above covers at its bottom, as Minecraft's
+// WallBlock finds them. That's a full block, a bottom slab, stairs right side up, or a sculk sensor; or a wall, glass pane, fence,
+// or bars connected in that direction. Returns the sides, in the wall's dataVal bits (south 0x100, west 0x200, north 0x400, east 0x800).
+static int spongeWallTallSides(int dataVal, int aboveIndex)
+{
+    int sides = dataVal & 0xF00;
+    int aboveType = gBoxData[aboveIndex].type;
+    int aboveData = gBoxData[aboveIndex].data;
+    unsigned int flags = gBlockDefinitions[aboveType].flags;
+    if (aboveType == BLOCK_AIR)
+        return 0;
+    // the same bits as the wall's (see WALL_PROP and STAINED_PANE_PROP in nbt.cpp)
+    if (aboveType == BLOCK_COBBLESTONE_WALL || aboveType == BLOCK_STAINED_GLASS_PANE)
+        return sides & aboveData;
+    // FENCE_PROP's bits: south 0x1, west 0x2, north 0x4, east 0x8
+    if ((flags & BLF_FENCE) || aboveType == BLOCK_GLASS_PANE || aboveType == BLOCK_IRON_BARS ||
+        aboveType == BLOCK_COPPER_BARS || aboveType == BLOCK_WAXED_COPPER_BARS)
+        return sides & ((aboveData & 0xF) << 8);
+    if (flags & BLF_WHOLE)
+        return sides;
+    if (aboveType == BLOCK_SCULK_SENSOR)
+        return sides;
+    // a slab's bit 0x8 is the top half; stairs' bit 0x4 is upside down
+    if ((flags & BLF_HALF) && !(aboveData & 0x8))
+        return sides;
+    if ((flags & BLF_STAIRS) && !(aboveData & 0x4))
+        return sides;
+    return 0;
+}
+
 static int writeSpongeSchematicBox()
 {
     FILE* fptr;
@@ -34591,9 +38839,10 @@ static int writeSpongeSchematicBox()
     CHECK_SPONGE_QUIT(schematicWriteCompoundTag(gz, "Schematic"));
 
     CHECK_SPONGE_QUIT(schematicWriteIntTag(gz, "Version", 3));
-    // DataVersion = MC 1.20 (3463). A single pinned value keeps the writer self-contained;
-    // see plan risk note about DataVersion choice.
-    CHECK_SPONGE_QUIT(schematicWriteIntTag(gz, "DataVersion", 3463));
+    // DataVersion is the source world's, so that readers (Mineways for version-dependent rendering, WorldEdit for
+    // which block upgrades to apply) know where the blocks came from. The block states are always 1.13+ names,
+    // so never claim a version before 1.13 (data version 1519).
+    CHECK_SPONGE_QUIT(schematicWriteIntTag(gz, "DataVersion", (gMinecraftWorldVersion >= 1519) ? gMinecraftWorldVersion : 1519));
 
     CHECK_SPONGE_QUIT(schematicWriteShortTag(gz, "Width", (short)width));
     CHECK_SPONGE_QUIT(schematicWriteShortTag(gz, "Height", (short)height));
@@ -34619,13 +38868,16 @@ static int writeSpongeSchematicBox()
     //   1. (type, dataVal) -> palette index  : fast path, avoids rebuilding the state string
     //   2. string -> palette index           : dedupe across distinct (type, dataVal) sources
 
-    int* paletteIndexLookup = (int*)malloc((size_t)NUM_BLOCKS_DEFINED * 256 * sizeof(int));
+    // Keyed on the full 12-bit dataVal: some families (e.g. note block's instrument, bits 0x7C0) use bits
+    // above 0xFF, and an 8-bit key would make such blocks share the first-seen block's palette entry.
+    const int lookupDataVals = DATAVAL_MASK + 1;
+    int* paletteIndexLookup = (int*)malloc((size_t)NUM_BLOCKS_DEFINED * lookupDataVals * sizeof(int));
     if (paletteIndexLookup == NULL) {
         gzflush(gz, Z_FINISH);
         fclose(fptr);
         return retCode | MW_WORLD_EXPORT_TOO_LARGE;
     }
-    for (int i = 0; i < NUM_BLOCKS_DEFINED * 256; i++) paletteIndexLookup[i] = -1;
+    for (int i = 0; i < NUM_BLOCKS_DEFINED * lookupDataVals; i++) paletteIndexLookup[i] = -1;
 
     std::vector<std::string> paletteNames;
     paletteNames.reserve(256);
@@ -34655,8 +38907,33 @@ static int writeSpongeSchematicBox()
                 int type = (int)gBoxData[boxIndex].type;
                 int dataVal = (int)gBoxData[boxIndex].data;
 
-                int lookupKey = (type & 0xFFF) * 256 + (dataVal & 0xFF);
-                if (lookupKey < 0 || lookupKey >= NUM_BLOCKS_DEFINED * 256) {
+                // A door half holds only some of the door's properties (upper: hinge, powered; lower: facing, open),
+                // but Minecraft wants all of them on both halves. Add the other half's, if it's in the exported box.
+                if (isDoorType(type)) {
+                    int partnerY = (dataVal & 0x8) ? loc[Y] - 1 : loc[Y] + 1;
+                    if (partnerY >= gSolidBox.min[Y] && partnerY <= gSolidBox.max[Y]) {
+                        int partnerIndex = rotateQuarter
+                            ? BOX_INDEX(loc[Z], partnerY, loc[X])
+                            : BOX_INDEX(loc[X], partnerY, loc[Z]);
+                        int partnerData = (int)gBoxData[partnerIndex].data;
+                        if ((int)gBoxData[partnerIndex].type == type && ((partnerData ^ dataVal) & 0x8)) {
+                            dataVal = (dataVal & 0xF) | SPONGE_DOOR_PAIRED | ((partnerData & 0x7) << 4);
+                        }
+                    }
+                }
+
+                // A wall's connected sides are "low" or "tall", which Mineways doesn't keep (all twelve bits are used); Minecraft
+                // finds it from the block above, so do so here (see spongeWallTallSides()).
+                int wallTall = 0;
+                if ((type & 0xFFF) == BLOCK_COBBLESTONE_WALL && loc[Y] < gSolidBox.max[Y]) {
+                    int aboveIndex = rotateQuarter
+                        ? BOX_INDEX(loc[Z], loc[Y] + 1, loc[X])
+                        : BOX_INDEX(loc[X], loc[Y] + 1, loc[Z]);
+                    wallTall = spongeWallTallSides(dataVal, aboveIndex);
+                }
+
+                int lookupKey = (type & 0xFFF) * lookupDataVals + (dataVal & DATAVAL_MASK);
+                if (lookupKey < 0 || lookupKey >= NUM_BLOCKS_DEFINED * lookupDataVals) {
                     // unknown block — fall back to air, count it for the user-facing warning
                     type = 0;
                     dataVal = 0;
@@ -34664,12 +38941,23 @@ static int writeSpongeSchematicBox()
                     unknownBlockExports++;
                 }
 
-                int paletteIndex = paletteIndexLookup[lookupKey];
+                // a wall with tall sides isn't told apart by its dataVal, so it's looked up by its name
+                int paletteIndex = wallTall ? -1 : paletteIndexLookup[lookupKey];
                 if (paletteIndex < 0) {
                     int n = spongeBlockStateString(type, dataVal, nameBuf, sizeof(nameBuf));
                     if (n <= 0) {
                         // shouldn't happen with sensible block IDs, but be safe
                         snprintf(nameBuf, sizeof(nameBuf), "minecraft:air");
+                    }
+                    if (wallTall) {
+                        static const char* wallSides[4] = { "south=low", "west=low", "north=low", "east=low" };
+                        std::string state(nameBuf);
+                        for (int side = 0; side < 4; side++) {
+                            size_t at = state.find(wallSides[side]);
+                            if ((wallTall & (0x100 << side)) && at != std::string::npos)
+                                state.replace(at + strlen(wallSides[side]) - 3, 3, "tall");
+                        }
+                        strcpy_s(nameBuf, sizeof(nameBuf), state.c_str());
                     }
                     auto it = paletteByName.find(nameBuf);
                     if (it != paletteByName.end()) {
@@ -34680,7 +38968,8 @@ static int writeSpongeSchematicBox()
                         paletteNames.emplace_back(nameBuf);
                         paletteByName.emplace(paletteNames.back(), paletteIndex);
                     }
-                    paletteIndexLookup[lookupKey] = paletteIndex;
+                    if (!wallTall)
+                        paletteIndexLookup[lookupKey] = paletteIndex;
                 }
 
                 int nb = spongeWriteVarint(NULL, (unsigned int)paletteIndex, varintBytes);
@@ -34744,7 +39033,8 @@ static int writeEmissiveScaledTile(wchar_t* filename, int index)
     int numChannels = 3;
     unsigned char* imageDst, * imageDiffuseSrc, * imageEmitSrc;  // cppcheck-suppress 398
     progimage_info dst;
-    dst.height = dst.width = gModel.tileSize;
+    // a multi-tile image is output whole
+    dst.height = dst.width = gModel.tileSize * tileSpan(index);
     dst.image_data.resize(dst.height * dst.width * numChannels);
 
     imageDst = &dst.image_data[0];
@@ -34843,7 +39133,8 @@ static int writeTileFromCategoryInput(wchar_t *filename, int index, int category
     int numChannels = gCatChannels[category];
     unsigned char* imageDst, * imageSrc;  // cppcheck-suppress 398
     progimage_info dst;
-    dst.height = dst.width = gModel.tileSize;
+    // a multi-tile image is output whole
+    dst.height = dst.width = gModel.tileSize * tileSpan(index);
     dst.image_data.resize(dst.height * dst.width * numChannels);
 
     imageDst = &dst.image_data[0];
@@ -34921,8 +39212,8 @@ static boolean isTileValue(int category, int swatchLoc, boolean checkAllPixels, 
         int perRow = gModel.pInputTerrainImage[category]->width * numChannels;
         int tileStart = (swatchToRow(swatchLoc) * perRow * gModel.tileSize) +
             (swatchToCol(swatchLoc) * gModel.tileSize * numChannels);
-        // size of area to check in tile
-        int size = checkAllPixels ? gModel.tileSize : 1;
+        // size of area to check in tile - all of a multi-tile image
+        int size = checkAllPixels ? gModel.tileSize * tileSpan(swatchLoc) : 1;
         for (int row = 0; row < size; row++)
         {
             unsigned char* image_data = &(gModel.pInputTerrainImage[category]->image_data[tileStart + row * perRow]);
@@ -34949,8 +39240,8 @@ static boolean isTileValueConstant(int category, int swatchLoc, unsigned char &v
         int perRow = gModel.pInputTerrainImage[category]->width;
         int tileStart = (swatchToRow(swatchLoc) * perRow * gModel.tileSize) +
             (swatchToCol(swatchLoc) * gModel.tileSize);
-        // size of area to check in tile
-        int size = gModel.tileSize;
+        // size of area to check in tile - all of a multi-tile image
+        int size = gModel.tileSize * tileSpan(swatchLoc);
         unsigned char* image_data = &(gModel.pInputTerrainImage[category]->image_data[tileStart]);
         value = *image_data;
         for (int row = 0; row < size; row++)
@@ -34981,7 +39272,8 @@ static int tileAlphaStatus(int swatchLoc)
     int tileStart = (swatchToRow(swatchLoc) * perRow * gModel.tileSize) +
         (swatchToCol(swatchLoc) * gModel.tileSize * numChannels);
     int retCode = 0;    // assume opaque
-    for (int row = 0; row < gModel.tileSize; row++)
+    // all rows of a multi-tile image
+    for (int row = 0; row < gModel.tileSize * tileSpan(swatchLoc); row++)
     {
         // add 3 to get to alpha channel
         unsigned char* image_data = &(gModel.pInputTerrainImage[CATEGORY_RGBA]->image_data[tileStart + row * perRow + 3]);
@@ -35900,6 +40192,41 @@ static void extendPBRSwatchBorder(progimage_info* dst, int swatchCol, int swatch
     int botSrc = (botSrcY * dst->width + startX) * channels;
     int botDst = (botDstY * dst->width + startX) * channels;
     memcpy(&dst->image_data[botDst], &dst->image_data[botSrc], fullWidth * channels);
+}
+
+// Copy a multi-tile image, reassembled from its member tiles' swatch interiors in the mosaic src, into the RGBA image dst with its
+// upper left corner at dstX, dstY.
+static void gatherSpanFromMaster(progimage_info* dst, int dstX, int dstY, progimage_info* src, int anchorLoc, int span, int swatchSize, int swatchesPerRow)
+{
+    int tileSize = swatchSize - 2 * SWATCH_BORDER;
+    for (int dRow = 0; dRow < span; dRow++) {
+        for (int dCol = 0; dCol < span; dCol++) {
+            int memberLoc = TILE_TO_SWATCH(swatchToCol(anchorLoc) + dCol, swatchToRow(anchorLoc) + dRow);
+            copyPNGArea(dst, dstX + dCol * tileSize, dstY + dRow * tileSize, tileSize, tileSize, src,
+                (memberLoc % swatchesPerRow) * swatchSize + SWATCH_BORDER, (memberLoc / swatchesPerRow) * swatchSize + SWATCH_BORDER);
+        }
+    }
+}
+
+// Fill the border, "border" texels wide, around the size x size image at x0, y0 by extending (clamping) the image's edge texels outwards.
+static void clampImageBorder(progimage_info* img, int x0, int y0, int size, int border, int channels)
+{
+    for (int y = y0 - border; y < y0 + size + border; y++) {
+        int sy = min(max(y, y0), y0 + size - 1);
+        for (int x = x0 - border; x < x0 + size + border; x++) {
+            int sx = min(max(x, x0), x0 + size - 1);
+            if (sx != x || sy != y) {
+                memcpy(&img->image_data[(y * img->width + x) * channels], &img->image_data[(sy * img->width + sx) * channels], channels);
+            }
+        }
+    }
+}
+
+// Mosaic texel location of the upper left corner of a span image inside its reserved block, i.e., just inside the block's border
+static void getSpanBlockImageOrigin(const SpanImage* pSpan, int& x0, int& y0)
+{
+    x0 = pSpan->blockCol * gModel.swatchSize + pSpan->span * SWATCH_BORDER;
+    y0 = pSpan->blockRow * gModel.swatchSize + pSpan->span * SWATCH_BORDER;
 }
 
 static void setColorPNGArea(progimage_info* dst, int dst_x_min, int dst_y_min, int size_x, int size_y, unsigned int value)
@@ -36893,6 +41220,18 @@ static void convertAlphaToGrayscale(progimage_info* dst)
 static bool writeTileFromMasterOutput(wchar_t* filename, progimage_info* src, int swatchLoc, int swatchSize, int swatchesPerRow, bool makeGrayscale, int clampToBlack)
 {
     int rc = MW_NO_ERROR;
+    // A multi-tile image is output whole: gather it from its tiles into a single large "swatch" and output that
+    progimage_info spanSrc;
+    int span = tileSpan(swatchLoc);
+    if (span > 1) {
+        spanSrc.width = spanSrc.height = span * (swatchSize - 2) + 2;
+        spanSrc.image_data.resize(spanSrc.width * spanSrc.height * 4, 0);
+        gatherSpanFromMaster(&spanSrc, 1, 1, src, swatchLoc, span, swatchSize, swatchesPerRow);
+        src = &spanSrc;
+        swatchLoc = 0;
+        swatchSize = spanSrc.width;
+        swatchesPerRow = 1;
+    }
     // does the output need to have an alpha? Emitters don't
     bool usesAlpha = doesTileHaveAlpha(src, swatchLoc, swatchSize, swatchesPerRow);
     // TODO OK, this is a kludge
@@ -37652,6 +41991,12 @@ static bool faceCanTile(int faceId)
         return false;
     }
 
+    // faces textured with a multi-tile image, such as straw_bed.png, never tile
+    if (gModel.exportTexture && gModel.uvIndexList[pFace->uvIndex[0]].spanAnchor >= 0)
+    {
+        return false;
+    }
+
     int i;
 
     // Is the type forbidden, for whatever reason?
@@ -37730,11 +42075,6 @@ static bool faceCanTile(int faceId)
     case BLOCK_POPLAR_FENCE_GATE:
     case BLOCK_SIGN_POST:
     case BLOCK_WALL_SIGN:
-    case BLOCK_ACACIA_SIGN_POST:
-    case BLOCK_MANGROVE_SIGN_POST:
-    case BLOCK_POPLAR_SIGN_POST:
-    case BLOCK_MANGROVE_WALL_SIGN:
-    case BLOCK_POPLAR_WALL_SIGN:
     case BLOCK_TORCH:
     case BLOCK_COPPER_TORCH:
     case BLOCK_REDSTONE_TORCH_OFF:
@@ -37810,14 +42150,8 @@ static bool faceCanTile(int faceId)
     case BLOCK_SPORE_BLOSSOM:
     case BLOCK_FROGSPAWN:
     case BLOCK_SNIFFER_EGG:
-    case BLOCK_OAK_WALL_HANGING_SIGN:
-    case BLOCK_OAK_HANGING_SIGN:
-    case BLOCK_BIRCH_HANGING_SIGN:
-    case BLOCK_ACACIA_HANGING_SIGN:
-    case BLOCK_CRIMSON_HANGING_SIGN:
-    case BLOCK_MANGROVE_HANGING_SIGN:
-    case BLOCK_BAMBOO_HANGING_SIGN:
-    case BLOCK_POPLAR_HANGING_SIGN:
+    case BLOCK_WALL_HANGING_SIGN:
+    case BLOCK_HANGING_SIGN:
     case BLOCK_HEAVY_CORE:
     case BLOCK_PINK_PETALS:
     case BLOCK_DRIED_GHAST:

@@ -89,15 +89,16 @@ static struct {
     // own anchor, always has spanX >= 0 and spanY >= 0, so "either span field is negative" unambiguously flags a member cell (see resolveTileAnchor()
     // and getTileMaterialName() in ObjFileManip.cpp, which use this to recover a member cell's name/material info from its anchor when needed, e.g.
     // when a hand-authored .obj is imported with UVs that address a member cell directly). Leave both fields off (zero) for the normal case of one
-    // tile, or for a tile that's simply unused. Spans are in tiles, and the region must be square.
+    // tile, or for a tile that's simply unused. Spans are in tiles, and the region must be square. Exported models use the image whole, addressed by
+    // the anchor (see saveBoxModelFace() in ObjFileManip.cpp): individual texture export writes it as one file, e.g. straw_bed.png.
     int spanX;
     int spanY;
 
-    // Mineways uses a few special tiles for input, and for output. Tiles starting "MW_" are ones that are not (easily) found in Minecraft
-    // in the block textures and so are ones cobbled together to provide the effect: bed parts, end portal effect, shulker box side and bottom.
-    // Tiles starting "MWO_" are not required as inputs (though could be, if needed), but are output. These are chests and redstone wire,
-    // at this point, which the TileMaker normally reads specially from the chests directory and writes to these locations, or Mineways
-    // creates on the fly internally.
+    // Mineways uses a few special tiles for input, and for output.
+    // Tiles starting "MWO_" are not required as inputs (though could be, if needed), but are output. These are made from parts of Minecraft
+    // textures, not read as tiles: chests, decorated pots, cushions, mob heads, shulker box sides and bottoms, and the end portal, which
+    // TileMaker reads specially from the chest, decorated_pot, cushion, head, shulker, and end_portal directories and writes to these
+    // locations, and redstone wire, which Mineways creates on the fly internally.
     // TODO: someday, just read from the unzipped texture pack itself, using the proper paths.
     // NOTE! If you change anything here, you'll have to change faceCanTile's swatchLoc exception list.
 } gTilesTable[TOTAL_TILES] = {
@@ -245,22 +246,22 @@ static struct {
     { 13,  4, 110, 0, L"mycelium_side", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
     { 14,  4, 110, 0, L"mycelium_top", L"", SWATCH_REPEAT_ALL },
     { 15,  4,   6, 0, L"birch_sapling", L"sapling_birch", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    { 16,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 26,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 27,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 30,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 31,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16,  4,  63, 0, L"oak_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 16-17,4-5
+    { 17,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of oak_sign at 16,4
+    { 18,  4,  63, 0, L"spruce_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 18-19,4-5
+    { 19,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of spruce_sign at 18,4
+    { 20,  4,  63, 0, L"birch_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 20-21,4-5
+    { 21,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of birch_sign at 20,4
+    { 22,  4,  63, 0, L"jungle_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 22-23,4-5
+    { 23,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of jungle_sign at 22,4
+    { 24,  4,  63, 0, L"acacia_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 24-25,4-5
+    { 25,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of acacia_sign at 24,4
+    { 26,  4,  63, 0, L"dark_oak_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 26-27,4-5
+    { 27,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of dark_oak_sign at 26,4
+    { 28,  4,  63, 0, L"crimson_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 28-29,4-5
+    { 29,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of crimson_sign at 28,4
+    { 30,  4,  63, 0, L"warped_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 30-31,4-5
+    { 31,  4,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of warped_sign at 30,4
     {  0,  5,  50, 0, L"torch", L"torch_on", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  1,  5,  64, 0, L"oak_door_top", L"door_wood_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
     {  2,  5,  71, 0, L"iron_door_top", L"door_iron_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },
@@ -277,22 +278,22 @@ static struct {
     { 13,  5,  59, 0, L"wheat_stage5", L"wheat_stage_5", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 14,  5,  59, 0, L"wheat_stage6", L"wheat_stage_6", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 15,  5,  59, 0, L"wheat_stage7", L"wheat_stage_7", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    { 16,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 26,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 27,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 30,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 31,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of oak_sign at 16,4
+    { 17,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of oak_sign at 16,4
+    { 18,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of spruce_sign at 18,4
+    { 19,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of spruce_sign at 18,4
+    { 20,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of birch_sign at 20,4
+    { 21,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of birch_sign at 20,4
+    { 22,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of jungle_sign at 22,4
+    { 23,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of jungle_sign at 22,4
+    { 24,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of acacia_sign at 24,4
+    { 25,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of acacia_sign at 24,4
+    { 26,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of dark_oak_sign at 26,4
+    { 27,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of dark_oak_sign at 26,4
+    { 28,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of crimson_sign at 28,4
+    { 29,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of crimson_sign at 28,4
+    { 30,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of warped_sign at 30,4
+    { 31,  5,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of warped_sign at 30,4
     {  0,  6,  69, 0, L"lever", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  1,  6,  64, 0, L"oak_door_bottom", L"door_wood_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL }, // note: normally not a decal, but done for resource packs
     {  2,  6,  71, 0, L"iron_door_bottom", L"door_iron_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL }, // note: normally not a decal, but done for resource packs
@@ -309,16 +310,16 @@ static struct {
     { 13,  6,  34, 0, L"piston_bottom", L"", SWATCH_REPEAT_ALL },
     { 14,  6,  34, 0, L"piston_inner", L"", SWATCH_REPEAT_ALL },
     { 15,  6, 105, 0, L"melon_stem", L"melon_stem_disconnected", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYNTHESIZED },
-    { 16,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16,  6,  63, 0, L"mangrove_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 16-17,6-7
+    { 17,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of mangrove_sign at 16,6
+    { 18,  6,  63, 0, L"cherry_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 18-19,6-7
+    { 19,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of cherry_sign at 18,6
+    { 20,  6,  63, 0, L"bamboo_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 20-21,6-7
+    { 21,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of bamboo_sign at 20,6
+    { 22,  6,  63, 0, L"pale_oak_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 22-23,6-7
+    { 23,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of pale_oak_sign at 22,6
+    { 24,  6,  63, 0, L"poplar_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 24-25,6-7
+    { 25,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of poplar_sign at 24,6
     { 26,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 27,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 28,  6,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
@@ -341,16 +342,16 @@ static struct {
     { 13,  7, 100, 0, L"red_mushroom_block", L"mushroom_block_skin_red", SWATCH_REPEAT_ALL },
     { 14,  7,  99, 0, L"brown_mushroom_block", L"mushroom_block_skin_brown", SWATCH_REPEAT_ALL },
     { 15,  7, 105, 0, L"attached_melon_stem", L"melon_stem_connected", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYNTHESIZED },
-    { 16,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of mangrove_sign at 16,6
+    { 17,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of mangrove_sign at 16,6
+    { 18,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of cherry_sign at 18,6
+    { 19,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of cherry_sign at 18,6
+    { 20,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of bamboo_sign at 20,6
+    { 21,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of bamboo_sign at 20,6
+    { 22,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of pale_oak_sign at 22,6
+    { 23,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of pale_oak_sign at 22,6
+    { 24,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of poplar_sign at 24,6
+    { 25,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of poplar_sign at 24,6
     { 26,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 27,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 28,  7,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
@@ -363,8 +364,8 @@ static struct {
     {  3,  8,  93, 0, L"repeater", L"repeater_off", SWATCH_REPEAT_ALL },
     {  4,  8,  18, 0, L"spruce_leaves", L"leaves_spruce", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYNTHESIZED },
     {  5,  8, 179, 0, L"red_sandstone_bottom", L"", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
-    {  6,  8,  26, 0, L"MW_bed_feet_top", L"bed_feet_top", SWATCH_CLAMP_ALL },
-    {  7,  8,  26, 0, L"MW_bed_head_top", L"bed_head_top", SWATCH_CLAMP_ALL },
+    {  6,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },	// was MW_bed_feet_top; beds now use their block textures, rows 16-23, columns 16-31
+    {  7,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },	// was MW_bed_head_top; beds now use their block textures, rows 16-23, columns 16-31
     {  8,  8, 103, 0, L"melon_side", L"", SWATCH_REPEAT_ALL },
     {  9,  8, 103, 0, L"melon_top", L"", SWATCH_REPEAT_ALL },
     { 10,  8, 118, 0, L"cauldron_top", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
@@ -373,31 +374,31 @@ static struct {
     { 13,  8, 100, 0, L"mushroom_stem", L"mushroom_block_skin_stem", SWATCH_REPEAT_ALL },
     { 14,  8, 100, 0, L"mushroom_block_inside", L"", SWATCH_REPEAT_ALL },
     { 15,  8, 106, 0, L"vine", L"", SWATCH_TILE_BOTTOM_AND_TOP | SBIT_DECAL | SBIT_SYNTHESIZED },	// grayscale; just tops and bottoms match up
-    { 16,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 26,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 27,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 30,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 31,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16,  8, 459, 0, L"oak_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 16-17,8-9
+    { 17,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of oak_hanging_sign at 16,8
+    { 18,  8, 459, 0, L"spruce_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 18-19,8-9
+    { 19,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of spruce_hanging_sign at 18,8
+    { 20,  8, 459, 0, L"birch_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 20-21,8-9
+    { 21,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of birch_hanging_sign at 20,8
+    { 22,  8, 459, 0, L"jungle_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 22-23,8-9
+    { 23,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of jungle_hanging_sign at 22,8
+    { 24,  8, 459, 0, L"acacia_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 24-25,8-9
+    { 25,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of acacia_hanging_sign at 24,8
+    { 26,  8, 459, 0, L"dark_oak_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 26-27,8-9
+    { 27,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of dark_oak_hanging_sign at 26,8
+    { 28,  8, 459, 0, L"crimson_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 28-29,8-9
+    { 29,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of crimson_hanging_sign at 28,8
+    { 30,  8, 459, 0, L"warped_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 30-31,8-9
+    { 31,  8,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of warped_hanging_sign at 30,8
     {  0,  9,  22, 0, L"lapis_block", L"", SWATCH_REPEAT_ALL },
     {  1,  9,  35, 0, L"green_wool", L"wool_colored_green", SWATCH_REPEAT_ALL },
     {  2,  9,  35, 0, L"lime_wool", L"wool_colored_lime", SWATCH_REPEAT_ALL },
     {  3,  9,  94, 0, L"repeater_on", L"", SWATCH_REPEAT_ALL },
     {  4,  9, 102, 0, L"glass_pane_top", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
-    {  5,  9,  26, 0, L"MW_bed_feet_end", L"bed_feet_end", SWATCH_CLAMP_ALL_BUT_TOP | SBIT_CUTOUT_GEOMETRY },
-    {  6,  9,  26, 0, L"MW_bed_feet_side", L"bed_feet_side", SWATCH_CLAMP_ALL_BUT_TOP | SBIT_CUTOUT_GEOMETRY },
-    {  7,  9,  26, 0, L"MW_bed_head_side", L"bed_head_side", SWATCH_CLAMP_ALL_BUT_TOP | SBIT_CUTOUT_GEOMETRY },
-    {  8,  9,  26, 0, L"MW_bed_head_end", L"bed_head_end", SWATCH_CLAMP_ALL_BUT_TOP | SBIT_CUTOUT_GEOMETRY },
+    {  5,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },	// was MW_bed_feet_end; beds now use their block textures, rows 16-23, columns 16-31
+    {  6,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },	// was MW_bed_feet_side; beds now use their block textures, rows 16-23, columns 16-31
+    {  7,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },	// was MW_bed_head_side; beds now use their block textures, rows 16-23, columns 16-31
+    {  8,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },	// was MW_bed_head_end; beds now use their block textures, rows 16-23, columns 16-31
     {  9,  9,  17, 0, L"jungle_log", L"log_jungle", SWATCH_REPEAT_ALL },
     { 10,  9, 118, 0, L"cauldron_side", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_CUTOUT_GEOMETRY },
     { 11,  9, 118, 0, L"cauldron_bottom", L"", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
@@ -405,22 +406,22 @@ static struct {
     { 13,  9, 117, 0, L"brewing_stand", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 14,  9, 120, 0, L"end_portal_frame_top", L"endframe_top", SWATCH_REPEAT_ALL },
     { 15,  9, 120, 0, L"end_portal_frame_side", L"endframe_side", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
-    { 16,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 26,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 27,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 30,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 31,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of oak_hanging_sign at 16,8
+    { 17,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of oak_hanging_sign at 16,8
+    { 18,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of spruce_hanging_sign at 18,8
+    { 19,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of spruce_hanging_sign at 18,8
+    { 20,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of birch_hanging_sign at 20,8
+    { 21,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of birch_hanging_sign at 20,8
+    { 22,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of jungle_hanging_sign at 22,8
+    { 23,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of jungle_hanging_sign at 22,8
+    { 24,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of acacia_hanging_sign at 24,8
+    { 25,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of acacia_hanging_sign at 24,8
+    { 26,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of dark_oak_hanging_sign at 26,8
+    { 27,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of dark_oak_hanging_sign at 26,8
+    { 28,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of crimson_hanging_sign at 28,8
+    { 29,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of crimson_hanging_sign at 28,8
+    { 30,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of warped_hanging_sign at 30,8
+    { 31,  9,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of warped_hanging_sign at 30,8
     {  0, 10,  21, 0, L"lapis_ore", L"", SWATCH_REPEAT_ALL },
     {  1, 10,  35, 0, L"brown_wool", L"wool_colored_brown", SWATCH_REPEAT_ALL },
     {  2, 10,  35, 0, L"yellow_wool", L"wool_colored_yellow", SWATCH_REPEAT_ALL },
@@ -437,16 +438,16 @@ static struct {
     { 13, 10, 132, 0, L"tripwire", L"trip_wire", SWATCH_CLAMP_ALL | SBIT_DECAL },
     { 14, 10, 120, 0, L"end_portal_frame_eye", L"endframe_eye", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
     { 15, 10, 121, 0, L"end_stone", L"", SWATCH_REPEAT_ALL },
-    { 16, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 10, 459, 0, L"mangrove_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 16-17,10-11
+    { 17, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of mangrove_hanging_sign at 16,10
+    { 18, 10, 459, 0, L"cherry_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 18-19,10-11
+    { 19, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of cherry_hanging_sign at 18,10
+    { 20, 10, 459, 0, L"bamboo_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 20-21,10-11
+    { 21, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of bamboo_hanging_sign at 20,10
+    { 22, 10, 459, 0, L"pale_oak_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 22-23,10-11
+    { 23, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of pale_oak_hanging_sign at 22,10
+    { 24, 10, 459, 0, L"poplar_hanging_sign", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// 32x32 image (anchor), covers 24-25,10-11
+    { 25, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of poplar_hanging_sign at 24,10
     { 26, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 27, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 28, 10,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
@@ -461,7 +462,7 @@ static struct {
     {  5, 11,  17, 0, L"acacia_log", L"log_acacia", 0x0 },	// ADD-IN 1.7.2
     {  6, 11, 116, 0, L"enchanting_table_side", L"", SWATCH_CLAMP_ALL_BUT_TOP | SBIT_CUTOUT_GEOMETRY },
     {  7, 11, 116, 0, L"enchanting_table_bottom", L"", SWATCH_REPEAT_ALL },
-    {  8, 11, 119, 0, L"MW_end_portal", L"", SWATCH_REPEAT_ALL },    // custom - the 3D effect seen through the end portal - TODO: extract a small chunk from assets\minecraft\textures\entity
+    {  8, 11, 119, 0, L"MWO_end_portal", L"MW_end_portal", SWATCH_REPEAT_ALL },    // the effect seen through the end portal; TileMaker takes it from the center of assets\minecraft\textures\entity\end_portal\end_portal.png
     {  9, 11,  50, 0, L"MWO_flattened_soul_torch_top", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// MANUFACTURED used for flattened soul torch top; not used in rendering, but 3D printing uses for composites for torches from above
     { 10, 11, 140, 0, L"flower_pot", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 11, 11,  17, 0, L"birch_log_top", L"log_birch_top", SWATCH_REPEAT_ALL },	// ADD-IN
@@ -469,16 +470,16 @@ static struct {
     { 13, 11,  17, 0, L"jungle_log_top", L"log_jungle_top", SWATCH_REPEAT_ALL },	// ADD-IN
     { 14, 11, 104, 0, L"pumpkin_stem", L"pumpkin_stem_disconnected", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYNTHESIZED },	// ADD-IN
     { 15, 11, 104, 0, L"attached_pumpkin_stem", L"pumpkin_stem_connected", SBIT_CLAMP_BOTTOM | SBIT_DECAL | SBIT_SYNTHESIZED },	// ADD-IN
-    { 16, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of mangrove_hanging_sign at 16,10
+    { 17, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of mangrove_hanging_sign at 16,10
+    { 18, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of cherry_hanging_sign at 18,10
+    { 19, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of cherry_hanging_sign at 18,10
+    { 20, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of bamboo_hanging_sign at 20,10
+    { 21, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of bamboo_hanging_sign at 20,10
+    { 22, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of pale_oak_hanging_sign at 22,10
+    { 23, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of pale_oak_hanging_sign at 22,10
+    { 24, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of poplar_hanging_sign at 24,10
+    { 25, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of poplar_hanging_sign at 24,10
     { 26, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 27, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 28, 11,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
@@ -501,22 +502,22 @@ static struct {
     { 13, 12, 142, 0, L"potatoes_stage1", L"potatoes_stage_1", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 14, 12, 142, 0, L"potatoes_stage2", L"potatoes_stage_2", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 15, 12, 142, 0, L"potatoes_stage3", L"potatoes_stage_3", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    { 16, 12,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 12,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 12,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 12,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 12,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 12,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22, 12,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23, 12,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24, 12,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25, 12,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 26, 12,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 27, 12,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28, 12,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29, 12,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 30, 12,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 31, 12,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 12, 560, 0, L"MWO_white_cushion", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/cushion/white_cushion.png: top, bottom, four sides
+    { 17, 12,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_white_cushion at 16,12
+    { 18, 12, 560, 0, L"MWO_orange_cushion", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/cushion/orange_cushion.png: top, bottom, four sides
+    { 19, 12,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_orange_cushion at 18,12
+    { 20, 12, 560, 0, L"MWO_magenta_cushion", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/cushion/magenta_cushion.png: top, bottom, four sides
+    { 21, 12,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_magenta_cushion at 20,12
+    { 22, 12, 560, 0, L"MWO_light_blue_cushion", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/cushion/light_blue_cushion.png: top, bottom, four sides
+    { 23, 12,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_light_blue_cushion at 22,12
+    { 24, 12, 560, 0, L"MWO_yellow_cushion", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/cushion/yellow_cushion.png: top, bottom, four sides
+    { 25, 12,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_yellow_cushion at 24,12
+    { 26, 12, 560, 0, L"MWO_lime_cushion", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/cushion/lime_cushion.png: top, bottom, four sides
+    { 27, 12,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_lime_cushion at 26,12
+    { 28, 12, 560, 0, L"MWO_pink_cushion", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/cushion/pink_cushion.png: top, bottom, four sides
+    { 29, 12,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_pink_cushion at 28,12
+    { 30, 12, 560, 0, L"MWO_gray_cushion", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/cushion/gray_cushion.png: top, bottom, four sides
+    { 31, 12,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_gray_cushion at 30,12
     {  0, 13,  24, 0, L"sandstone_bottom", L"", SWATCH_REPEAT_ALL },
     {  1, 13,  35, 0, L"cyan_wool", L"wool_colored_cyan", SWATCH_REPEAT_ALL },
     {  2, 13,  35, 0, L"orange_wool", L"wool_colored_orange", SWATCH_REPEAT_ALL },
@@ -533,22 +534,22 @@ static struct {
     { 13, 13,  18, 0, L"birch_leaves", L"leaves_birch", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYNTHESIZED },	// ADD-IN
     { 14, 13, 179, 0, L"red_sandstone", L"red_sandstone_normal", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
     { 15, 13,   9, 0, L"water_still", L"water_still_grey", SWATCH_REPEAT_ALL | SBIT_SYNTHESIZED },   // we really want to use the "water_still_grey", but at least this gives a warning
-    { 16, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 26, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 27, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 30, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 31, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_white_cushion at 16,12
+    { 17, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_white_cushion at 16,12
+    { 18, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_orange_cushion at 18,12
+    { 19, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_orange_cushion at 18,12
+    { 20, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_magenta_cushion at 20,12
+    { 21, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_magenta_cushion at 20,12
+    { 22, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_light_blue_cushion at 22,12
+    { 23, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_light_blue_cushion at 22,12
+    { 24, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_yellow_cushion at 24,12
+    { 25, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_yellow_cushion at 24,12
+    { 26, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_lime_cushion at 26,12
+    { 27, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_lime_cushion at 26,12
+    { 28, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_pink_cushion at 28,12
+    { 29, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_pink_cushion at 28,12
+    { 30, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_gray_cushion at 30,12
+    { 31, 13,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_gray_cushion at 30,12
     {  0, 14, 112, 0, L"nether_bricks", L"nether_brick", SWATCH_REPEAT_ALL },
     {  1, 14,  35, 0, L"light_gray_wool", L"wool_colored_silver", SWATCH_REPEAT_ALL },
     {  2, 14, 115, 0, L"nether_wart_stage0", L"nether_wart_stage_0", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
@@ -565,22 +566,22 @@ static struct {
     { 13, 14, 173, 0, L"coal_block", L"", SWATCH_REPEAT_ALL },
     { 14, 14, 149, 0, L"comparator", L"comparator_off", SWATCH_REPEAT_ALL },
     { 15, 14, 150, 0, L"comparator_on", L"", SWATCH_REPEAT_ALL },
-    { 16, 14,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 14,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 14,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 14,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 14,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 14,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22, 14,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23, 14,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24, 14,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25, 14,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 26, 14,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 27, 14,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28, 14,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29, 14,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 30, 14,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 31, 14,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 14, 560, 0, L"MWO_light_gray_cushion", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/cushion/light_gray_cushion.png: top, bottom, four sides
+    { 17, 14,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_light_gray_cushion at 16,14
+    { 18, 14, 560, 0, L"MWO_cyan_cushion", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/cushion/cyan_cushion.png: top, bottom, four sides
+    { 19, 14,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_cyan_cushion at 18,14
+    { 20, 14, 560, 0, L"MWO_purple_cushion", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/cushion/purple_cushion.png: top, bottom, four sides
+    { 21, 14,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_purple_cushion at 20,14
+    { 22, 14, 560, 0, L"MWO_blue_cushion", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/cushion/blue_cushion.png: top, bottom, four sides
+    { 23, 14,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_blue_cushion at 22,14
+    { 24, 14, 560, 0, L"MWO_brown_cushion", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/cushion/brown_cushion.png: top, bottom, four sides
+    { 25, 14,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_brown_cushion at 24,14
+    { 26, 14, 560, 0, L"MWO_green_cushion", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/cushion/green_cushion.png: top, bottom, four sides
+    { 27, 14,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_green_cushion at 26,14
+    { 28, 14, 560, 0, L"MWO_red_cushion", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/cushion/red_cushion.png: top, bottom, four sides
+    { 29, 14,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_red_cushion at 28,14
+    { 30, 14, 560, 0, L"MWO_black_cushion", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/cushion/black_cushion.png: top, bottom, four sides
+    { 31, 14,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_black_cushion at 30,14
     {  0, 15,  50, 0, L"MWO_flattened_torch_top", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED used for flattened torch top; not used in rendering, but 3D printing uses for composites for torches from above
     {  1, 15,  76, 0, L"MWO_flattened_redstone_torch_top", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED used for flattened redstone torch top, on; not used in rendering, but 3D printing uses for composites for torches from above
     {  2, 15,  75, 0, L"MWO_flattened_redstone_torch_top_off", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// MANUFACTURED used for flattened redstone torch top, off; not used in rendering, but 3D printing uses for composites for torches from above
@@ -597,22 +598,22 @@ static struct {
     { 13, 15, 154, 0, L"hopper_top", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     { 14, 15, 152, 0, L"redstone_block", L"", SWATCH_REPEAT_ALL },
     { 15, 15,  11, 4, L"lava_still", L"", SWATCH_REPEAT_ALL },
-    { 16, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 26, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 27, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 30, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 31, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_light_gray_cushion at 16,14
+    { 17, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_light_gray_cushion at 16,14
+    { 18, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_cyan_cushion at 18,14
+    { 19, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_cyan_cushion at 18,14
+    { 20, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_purple_cushion at 20,14
+    { 21, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_purple_cushion at 20,14
+    { 22, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_blue_cushion at 22,14
+    { 23, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_blue_cushion at 22,14
+    { 24, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_brown_cushion at 24,14
+    { 25, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_brown_cushion at 24,14
+    { 26, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_green_cushion at 26,14
+    { 27, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_green_cushion at 26,14
+    { 28, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_red_cushion at 28,14
+    { 29, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_red_cushion at 28,14
+    { 30, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_black_cushion at 30,14
+    { 31, 15,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_black_cushion at 30,14
     {  0, 16, 159, 0, L"white_terracotta", L"hardened_clay_stained_white", SWATCH_REPEAT_ALL }, //** Brave new world, off the 256x256 edge
     {  1, 16, 159, 0, L"orange_terracotta", L"hardened_clay_stained_orange", SWATCH_REPEAT_ALL },
     {  2, 16, 159, 0, L"magenta_terracotta", L"hardened_clay_stained_magenta", SWATCH_REPEAT_ALL },
@@ -629,22 +630,22 @@ static struct {
     { 13, 16, 159, 0, L"green_terracotta", L"hardened_clay_stained_green", SWATCH_REPEAT_ALL },
     { 14, 16, 159, 0, L"red_terracotta", L"hardened_clay_stained_red", SWATCH_REPEAT_ALL },
     { 15, 16, 159, 0, L"black_terracotta", L"hardened_clay_stained_black", SWATCH_REPEAT_ALL },
-    { 16, 16,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 16,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 16,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 16,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 16,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 16,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22, 16,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23, 16,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24, 16,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25, 16,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 26, 16,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 27, 16,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28, 16,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29, 16,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 30, 16,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 31, 16,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 16,  26, 0, L"white_bed_foot_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 17, 16,  26, 0, L"orange_bed_foot_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 18, 16,  26, 0, L"magenta_bed_foot_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 19, 16,  26, 0, L"light_blue_bed_foot_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 20, 16,  26, 0, L"yellow_bed_foot_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 21, 16,  26, 0, L"lime_bed_foot_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 22, 16,  26, 0, L"pink_bed_foot_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 23, 16,  26, 0, L"gray_bed_foot_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 24, 16,  26, 0, L"light_gray_bed_foot_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 25, 16,  26, 0, L"cyan_bed_foot_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 26, 16,  26, 0, L"purple_bed_foot_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 27, 16,  26, 0, L"blue_bed_foot_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 28, 16,  26, 0, L"brown_bed_foot_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 29, 16,  26, 0, L"green_bed_foot_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 30, 16,  26, 0, L"red_bed_foot_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 31, 16,  26, 0, L"black_bed_foot_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     {  0, 17, 172, 0, L"terracotta", L"hardened_clay", SWATCH_REPEAT_ALL },
     {  1, 17, 155, 0, L"quartz_block_bottom", L"smooth_quartz", SWATCH_REPEAT_ALL },    // despite the name, this is used on all sides of the smooth quartz block and nothing else
     {  2, 17, 155, 0, L"chiseled_quartz_block_top", L"quartz_block_chiseled_top", SWATCH_REPEAT_ALL },
@@ -661,22 +662,22 @@ static struct {
     { 13, 17,  12, 0, L"red_sand", L"", SWATCH_REPEAT_ALL },
     { 14, 17,   3, 0, L"podzol_side", L"dirt_podzol_side", SWATCH_REPEAT_SIDES_ELSE_CLAMP },
     { 15, 17,   3, 0, L"podzol_top", L"dirt_podzol_top", SWATCH_REPEAT_ALL },
-    { 16, 17,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 17,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 17,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 17,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 17,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 17,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22, 17,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23, 17,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24, 17,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25, 17,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 26, 17,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 27, 17,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28, 17,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29, 17,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 30, 17,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 31, 17,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 17,  26, 0, L"white_bed_foot_south", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 17, 17,  26, 0, L"orange_bed_foot_south", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 18, 17,  26, 0, L"magenta_bed_foot_south", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 19, 17,  26, 0, L"light_blue_bed_foot_south", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 20, 17,  26, 0, L"yellow_bed_foot_south", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 21, 17,  26, 0, L"lime_bed_foot_south", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 22, 17,  26, 0, L"pink_bed_foot_south", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 23, 17,  26, 0, L"gray_bed_foot_south", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 24, 17,  26, 0, L"light_gray_bed_foot_south", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 25, 17,  26, 0, L"cyan_bed_foot_south", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 26, 17,  26, 0, L"purple_bed_foot_south", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 27, 17,  26, 0, L"blue_bed_foot_south", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 28, 17,  26, 0, L"brown_bed_foot_south", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 29, 17,  26, 0, L"green_bed_foot_south", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 30, 17,  26, 0, L"red_bed_foot_south", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 31, 17,  26, 0, L"black_bed_foot_south", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     {  0, 18, 175, 0, L"sunflower_back", L"double_plant_sunflower_back", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  1, 18, 175, 0, L"sunflower_front", L"double_plant_sunflower_front", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  2, 18, 175, 0, L"sunflower_bottom", L"double_plant_sunflower_bottom", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
@@ -693,22 +694,22 @@ static struct {
     { 13, 18, 175, 0, L"peony_top", L"double_plant_paeonia_top", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 14, 18,   6, 0, L"acacia_sapling", L"sapling_acacia", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     { 15, 18,   6, 0, L"dark_oak_sapling", L"sapling_roofed_oak", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// yes, "roofed"
-    { 16, 18,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 18,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 18,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 18,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 18,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 18,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22, 18,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23, 18,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24, 18,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25, 18,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 26, 18,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 27, 18,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28, 18,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29, 18,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 30, 18,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 31, 18,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 18,  26, 0, L"white_bed_foot_up", L"", SWATCH_CLAMP_ALL },
+    { 17, 18,  26, 0, L"orange_bed_foot_up", L"", SWATCH_CLAMP_ALL },
+    { 18, 18,  26, 0, L"magenta_bed_foot_up", L"", SWATCH_CLAMP_ALL },
+    { 19, 18,  26, 0, L"light_blue_bed_foot_up", L"", SWATCH_CLAMP_ALL },
+    { 20, 18,  26, 0, L"yellow_bed_foot_up", L"", SWATCH_CLAMP_ALL },
+    { 21, 18,  26, 0, L"lime_bed_foot_up", L"", SWATCH_CLAMP_ALL },
+    { 22, 18,  26, 0, L"pink_bed_foot_up", L"", SWATCH_CLAMP_ALL },
+    { 23, 18,  26, 0, L"gray_bed_foot_up", L"", SWATCH_CLAMP_ALL },
+    { 24, 18,  26, 0, L"light_gray_bed_foot_up", L"", SWATCH_CLAMP_ALL },
+    { 25, 18,  26, 0, L"cyan_bed_foot_up", L"", SWATCH_CLAMP_ALL },
+    { 26, 18,  26, 0, L"purple_bed_foot_up", L"", SWATCH_CLAMP_ALL },
+    { 27, 18,  26, 0, L"blue_bed_foot_up", L"", SWATCH_CLAMP_ALL },
+    { 28, 18,  26, 0, L"brown_bed_foot_up", L"", SWATCH_CLAMP_ALL },
+    { 29, 18,  26, 0, L"green_bed_foot_up", L"", SWATCH_CLAMP_ALL },
+    { 30, 18,  26, 0, L"red_bed_foot_up", L"", SWATCH_CLAMP_ALL },
+    { 31, 18,  26, 0, L"black_bed_foot_up", L"", SWATCH_CLAMP_ALL },
     {  0, 19,  38, 0, L"blue_orchid", L"flower_blue_orchid", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  1, 19,  38, 0, L"allium", L"flower_allium", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  2, 19,  38, 0, L"azure_bluet", L"flower_houstonia", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// azure bluet
@@ -717,7 +718,7 @@ static struct {
     {  5, 19,  38, 0, L"white_tulip", L"flower_tulip_white", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  6, 19,  38, 0, L"pink_tulip", L"flower_tulip_pink", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  7, 19,  38, 0, L"oxeye_daisy", L"flower_oxeye_daisy", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  8, 19, 310, 0, L"seagrass", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// 1.13 - was flower_paeonia - no longer used TODO
+    {  8, 19, 310, 0, L"seagrass", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },	// 1.13 - was flower_paeonia
     {  9, 19, 161, 0, L"acacia_leaves", L"leaves_acacia", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYNTHESIZED },	// ADD-IN 1.7.2
     { 10, 19, 179, 0, L"cut_red_sandstone", L"red_sandstone_smooth", SWATCH_REPEAT_ALL },	// ADD-IN 1.8
     { 11, 19, 161, 0, L"dark_oak_leaves", L"leaves_big_oak", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES | SBIT_SYNTHESIZED },	// ADD-IN 1.7.2
@@ -725,22 +726,22 @@ static struct {
     { 13, 19, 162, 0, L"acacia_log_top", L"log_acacia_top", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
     { 14, 19,  17, 0, L"dark_oak_log", L"log_big_oak", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
     { 15, 19,  17, 0, L"dark_oak_log_top", L"log_big_oak_top", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
-    { 16, 19,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 19,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 19,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 19,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 19,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 19,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22, 19,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23, 19,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24, 19,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25, 19,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 26, 19,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 27, 19,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28, 19,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29, 19,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 30, 19,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 31, 19,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 19,  26, 0, L"white_bed_foot_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 17, 19,  26, 0, L"orange_bed_foot_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 18, 19,  26, 0, L"magenta_bed_foot_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 19, 19,  26, 0, L"light_blue_bed_foot_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 20, 19,  26, 0, L"yellow_bed_foot_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 21, 19,  26, 0, L"lime_bed_foot_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 22, 19,  26, 0, L"pink_bed_foot_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 23, 19,  26, 0, L"gray_bed_foot_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 24, 19,  26, 0, L"light_gray_bed_foot_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 25, 19,  26, 0, L"cyan_bed_foot_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 26, 19,  26, 0, L"purple_bed_foot_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 27, 19,  26, 0, L"blue_bed_foot_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 28, 19,  26, 0, L"brown_bed_foot_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 29, 19,  26, 0, L"green_bed_foot_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 30, 19,  26, 0, L"red_bed_foot_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 31, 19,  26, 0, L"black_bed_foot_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     {  0, 20,  95, 0, L"white_stained_glass", L"glass_white", SWATCH_REPEAT_ALL },
     {  1, 20,  95, 0, L"orange_stained_glass", L"glass_orange", SWATCH_REPEAT_ALL },
     {  2, 20,  95, 0, L"magenta_stained_glass", L"glass_magenta", SWATCH_REPEAT_ALL },
@@ -757,22 +758,22 @@ static struct {
     { 13, 20,  95, 0, L"green_stained_glass", L"glass_green", SWATCH_REPEAT_ALL },
     { 14, 20,  95, 0, L"red_stained_glass", L"glass_red", SWATCH_REPEAT_ALL },
     { 15, 20,  95, 0, L"black_stained_glass", L"glass_black", SWATCH_REPEAT_ALL },
-    { 16, 20,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 20,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 20,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 20,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 20,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 20,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22, 20,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23, 20,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24, 20,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25, 20,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 26, 20,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 27, 20,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28, 20,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29, 20,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 30, 20,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 31, 20,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 20,  26, 0, L"white_bed_head_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 17, 20,  26, 0, L"orange_bed_head_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 18, 20,  26, 0, L"magenta_bed_head_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 19, 20,  26, 0, L"light_blue_bed_head_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 20, 20,  26, 0, L"yellow_bed_head_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 21, 20,  26, 0, L"lime_bed_head_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 22, 20,  26, 0, L"pink_bed_head_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 23, 20,  26, 0, L"gray_bed_head_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 24, 20,  26, 0, L"light_gray_bed_head_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 25, 20,  26, 0, L"cyan_bed_head_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 26, 20,  26, 0, L"purple_bed_head_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 27, 20,  26, 0, L"blue_bed_head_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 28, 20,  26, 0, L"brown_bed_head_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 29, 20,  26, 0, L"green_bed_head_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 30, 20,  26, 0, L"red_bed_head_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 31, 20,  26, 0, L"black_bed_head_east", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     {  0, 21,  95, 0, L"white_stained_glass_pane_top", L"glass_pane_top_white", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
     {  1, 21,  95, 0, L"orange_stained_glass_pane_top", L"glass_pane_top_orange", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
     {  2, 21,  95, 0, L"magenta_stained_glass_pane_top", L"glass_pane_top_magenta", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
@@ -789,22 +790,22 @@ static struct {
     { 13, 21,  95, 0, L"green_stained_glass_pane_top", L"glass_pane_top_green", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
     { 14, 21,  95, 0, L"red_stained_glass_pane_top", L"glass_pane_top_red", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
     { 15, 21,  95, 0, L"black_stained_glass_pane_top", L"glass_pane_top_black", SWATCH_REPEAT_ALL | SBIT_CUTOUT_GEOMETRY },
-    { 16, 21,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 21,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 21,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 21,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 21,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 21,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22, 21,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23, 21,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24, 21,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25, 21,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 26, 21,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 27, 21,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28, 21,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29, 21,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 30, 21,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 31, 21,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 21,  26, 0, L"white_bed_head_up", L"", SWATCH_CLAMP_ALL },
+    { 17, 21,  26, 0, L"orange_bed_head_up", L"", SWATCH_CLAMP_ALL },
+    { 18, 21,  26, 0, L"magenta_bed_head_up", L"", SWATCH_CLAMP_ALL },
+    { 19, 21,  26, 0, L"light_blue_bed_head_up", L"", SWATCH_CLAMP_ALL },
+    { 20, 21,  26, 0, L"yellow_bed_head_up", L"", SWATCH_CLAMP_ALL },
+    { 21, 21,  26, 0, L"lime_bed_head_up", L"", SWATCH_CLAMP_ALL },
+    { 22, 21,  26, 0, L"pink_bed_head_up", L"", SWATCH_CLAMP_ALL },
+    { 23, 21,  26, 0, L"gray_bed_head_up", L"", SWATCH_CLAMP_ALL },
+    { 24, 21,  26, 0, L"light_gray_bed_head_up", L"", SWATCH_CLAMP_ALL },
+    { 25, 21,  26, 0, L"cyan_bed_head_up", L"", SWATCH_CLAMP_ALL },
+    { 26, 21,  26, 0, L"purple_bed_head_up", L"", SWATCH_CLAMP_ALL },
+    { 27, 21,  26, 0, L"blue_bed_head_up", L"", SWATCH_CLAMP_ALL },
+    { 28, 21,  26, 0, L"brown_bed_head_up", L"", SWATCH_CLAMP_ALL },
+    { 29, 21,  26, 0, L"green_bed_head_up", L"", SWATCH_CLAMP_ALL },
+    { 30, 21,  26, 0, L"red_bed_head_up", L"", SWATCH_CLAMP_ALL },
+    { 31, 21,  26, 0, L"black_bed_head_up", L"", SWATCH_CLAMP_ALL },
     {  0, 22, 163, 0, L"acacia_planks", L"planks_acacia", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
     {  1, 22, 164, 0, L"dark_oak_planks", L"planks_big_oak", SWATCH_REPEAT_ALL },	// ADD-IN 1.7.2
     {  2, 22, 167, 0, L"iron_trapdoor", L"", SWATCH_REPEAT_ALL | SBIT_DECAL },	// 1.8
@@ -821,22 +822,22 @@ static struct {
     { 13, 22, 178, 0, L"daylight_detector_inverted_top", L"", SWATCH_REPEAT_ALL },
     { 14, 22, 169, 0, L"sea_lantern", L"", SWATCH_REPEAT_ALL },
     { 15, 22,  19, 0, L"wet_sponge", L"sponge_wet", SWATCH_REPEAT_ALL },
-    { 16, 22,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 22,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 22,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 22,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 22,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 22,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22, 22,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23, 22,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24, 22,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25, 22,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 26, 22,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 27, 22,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28, 22,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29, 22,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 30, 22,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 31, 22,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 22,  26, 0, L"white_bed_head_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 17, 22,  26, 0, L"orange_bed_head_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 18, 22,  26, 0, L"magenta_bed_head_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 19, 22,  26, 0, L"light_blue_bed_head_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 20, 22,  26, 0, L"yellow_bed_head_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 21, 22,  26, 0, L"lime_bed_head_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 22, 22,  26, 0, L"pink_bed_head_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 23, 22,  26, 0, L"gray_bed_head_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 24, 22,  26, 0, L"light_gray_bed_head_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 25, 22,  26, 0, L"cyan_bed_head_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 26, 22,  26, 0, L"purple_bed_head_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 27, 22,  26, 0, L"blue_bed_head_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 28, 22,  26, 0, L"brown_bed_head_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 29, 22,  26, 0, L"green_bed_head_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 30, 22,  26, 0, L"red_bed_head_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
+    { 31, 22,  26, 0, L"black_bed_head_west", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },
     {  0, 23, 193, 0, L"spruce_door_bottom", L"door_spruce_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },	// this particular one does not need SBIT_DECAL normally, but mods could use it
     {  1, 23, 193, 0, L"spruce_door_top", L"door_spruce_upper", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },	    // this particular one does not need SBIT_DECAL normally, but mods could use it
     {  2, 23, 194, 0, L"birch_door_bottom",  L"door_birch_lower", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_DECAL },	// this particular one does not need SBIT_DECAL normally, but mods could use it
@@ -853,8 +854,8 @@ static struct {
     { 13, 23, 199, 0, L"chorus_plant", L"", SWATCH_REPEAT_ALL },
     { 14, 23, 200, 0, L"chorus_flower", L"", SWATCH_REPEAT_ALL },
     { 15, 23, 200, 0, L"chorus_flower_dead", L"", SWATCH_REPEAT_ALL },
-    { 16, 23,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 23,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 23,  26, 0, L"bed_down", L"", SWATCH_CLAMP_ALL },	// all bed colors
+    { 17, 23,  26, 0, L"bed_head_north", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY },	// all bed colors
     { 18, 23,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 19, 23,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 20, 23,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
@@ -885,20 +886,20 @@ static struct {
     { 13, 24, 210, 0, L"command_block_conditional", L"", SWATCH_REPEAT_ALL },
     { 14, 24, 210, 0, L"repeating_command_block_front", L"", SWATCH_REPEAT_ALL },
     { 15, 24, 210, 0, L"repeating_command_block_back", L"", SWATCH_REPEAT_ALL },
-    { 16, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 24, 144, 0, L"MWO_skeleton_skull", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/skeleton/skeleton.png: head box above, hat box below
+    { 17, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_skeleton_skull at 16,24
+    { 18, 24, 144, 0, L"MWO_wither_skeleton_skull", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/skeleton/wither_skeleton.png: head box above, hat box below
+    { 19, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_wither_skeleton_skull at 18,24
+    { 20, 24, 144, 0, L"MWO_zombie_head", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/zombie/zombie.png: head box above, hat box below
+    { 21, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_zombie_head at 20,24
+    { 22, 24, 144, 0, L"MWO_player_head", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/player/wide/steve.png: head box above, hat box below
+    { 23, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_player_head at 22,24
+    { 24, 24, 144, 0, L"MWO_creeper_head", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/creeper/creeper.png: head box above, hat box below
+    { 25, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_creeper_head at 24,24
     { 26, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 27, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 28, 24, 144, 0, L"MWO_piglin_head", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 2, 2 },	// made by TileMaker from entity/piglin/piglin.png: head box, snout, tusks, and ears
+    { 29, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_piglin_head at 28,24
     { 30, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 31, 24,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     {  0, 25, 210, 0, L"repeating_command_block_side", L"", SWATCH_REPEAT_ALL },
@@ -917,20 +918,20 @@ static struct {
     { 13, 25, 255, 0, L"structure_block_save", L"", SWATCH_REPEAT_ALL },
     { 14, 25, 166, 0, L"barrier", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// TODO: extract more directly from .jar, as this is currently in assets\minecraft\textures\item
     { 15, 25,   9, 0, L"water_overlay", L"", SWATCH_REPEAT_ALL | SBIT_SYNTHESIZED },    // 1.9 - water looks like this through glass.
-    { 16, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 22, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 23, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 24, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 25, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_skeleton_skull at 16,24
+    { 17, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_skeleton_skull at 16,24
+    { 18, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_wither_skeleton_skull at 18,24
+    { 19, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_wither_skeleton_skull at 18,24
+    { 20, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_zombie_head at 20,24
+    { 21, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_zombie_head at 20,24
+    { 22, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_player_head at 22,24
+    { 23, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_player_head at 22,24
+    { 24, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_creeper_head at 24,24
+    { 25, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_creeper_head at 24,24
     { 26, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 27, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 28, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 29, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 28, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_piglin_head at 28,24
+    { 29, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_piglin_head at 28,24
     { 30, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 31, 25,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     {  0, 26, 213, 0, L"magma", L"", SWATCH_REPEAT_ALL },
@@ -949,12 +950,12 @@ static struct {
     { 13, 26,  55, 0, L"MWO_redstone_dust_angled_off", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_ANGLED_2_OFF
     { 14, 26,  55, 0, L"MWO_redstone_dust_three_way_off", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_3_OFF
     { 15, 26,  55, 0, L"MWO_redstone_dust_four_way_off", L"", SWATCH_CLAMP_ALL | SBIT_DECAL },	// MANUFACTURED REDSTONE_WIRE_4_OFF
-    { 16, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 26, 144, 0, L"MWO_dragon_head", L"", SWATCH_CLAMP_ALL | SBIT_CUTOUT_GEOMETRY, 6, 6 },	// made by TileMaker from entity/enderdragon/dragon.png: head box, upper lip, jaw, scale, nostril
+    { 17, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, 0 },	// member of MWO_dragon_head at 16,26
+    { 18, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -2, 0 },	// member of MWO_dragon_head at 16,26
+    { 19, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -3, 0 },	// member of MWO_dragon_head at 16,26
+    { 20, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -4, 0 },	// member of MWO_dragon_head at 16,26
+    { 21, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -5, 0 },	// member of MWO_dragon_head at 16,26
     { 22, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 23, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 24, 26,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
@@ -981,12 +982,12 @@ static struct {
     { 13, 27, 232, 0, L"green_shulker_box", L"shulker_top_green", SWATCH_REPEAT_ALL },
     { 14, 27, 233, 0, L"red_shulker_box", L"shulker_top_red", SWATCH_REPEAT_ALL },
     { 15, 27, 234, 0, L"black_shulker_box", L"shulker_top_black", SWATCH_REPEAT_ALL },
-    { 16, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -1 },	// member of MWO_dragon_head at 16,26
+    { 17, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -1 },	// member of MWO_dragon_head at 16,26
+    { 18, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -2, -1 },	// member of MWO_dragon_head at 16,26
+    { 19, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -3, -1 },	// member of MWO_dragon_head at 16,26
+    { 20, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -4, -1 },	// member of MWO_dragon_head at 16,26
+    { 21, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -5, -1 },	// member of MWO_dragon_head at 16,26
     { 22, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 23, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 24, 27,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
@@ -1013,12 +1014,12 @@ static struct {
     { 13, 28, 248, 0, L"green_glazed_terracotta", L"glazed_terracotta_green", SWATCH_REPEAT_ALL },
     { 14, 28, 249, 0, L"red_glazed_terracotta", L"glazed_terracotta_red", SWATCH_REPEAT_ALL },
     { 15, 28, 250, 0, L"black_glazed_terracotta", L"glazed_terracotta_black", SWATCH_REPEAT_ALL },
-    { 16, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -2 },	// member of MWO_dragon_head at 16,26
+    { 17, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -2 },	// member of MWO_dragon_head at 16,26
+    { 18, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -2, -2 },	// member of MWO_dragon_head at 16,26
+    { 19, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -3, -2 },	// member of MWO_dragon_head at 16,26
+    { 20, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -4, -2 },	// member of MWO_dragon_head at 16,26
+    { 21, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -5, -2 },	// member of MWO_dragon_head at 16,26
     { 22, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 23, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 24, 28,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
@@ -1045,12 +1046,12 @@ static struct {
     { 13, 29, 291, 0, L"green_concrete", L"concrete_green", SWATCH_REPEAT_ALL },
     { 14, 29, 292, 0, L"red_concrete", L"concrete_red", SWATCH_REPEAT_ALL },
     { 15, 29, 293, 0, L"black_concrete", L"concrete_black", SWATCH_REPEAT_ALL },
-    { 16, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -3 },	// member of MWO_dragon_head at 16,26
+    { 17, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -3 },	// member of MWO_dragon_head at 16,26
+    { 18, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -2, -3 },	// member of MWO_dragon_head at 16,26
+    { 19, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -3, -3 },	// member of MWO_dragon_head at 16,26
+    { 20, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -4, -3 },	// member of MWO_dragon_head at 16,26
+    { 21, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -5, -3 },	// member of MWO_dragon_head at 16,26
     { 22, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 23, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 24, 29,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
@@ -1077,12 +1078,12 @@ static struct {
     { 13, 30, 252, 0, L"green_concrete_powder", L"concrete_powder_green", SWATCH_REPEAT_ALL },
     { 14, 30, 252, 0, L"red_concrete_powder", L"concrete_powder_red", SWATCH_REPEAT_ALL },
     { 15, 30, 252, 0, L"black_concrete_powder", L"concrete_powder_black", SWATCH_REPEAT_ALL },
-    { 16, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    { 16, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -4 },	// member of MWO_dragon_head at 16,26
+    { 17, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -4 },	// member of MWO_dragon_head at 16,26
+    { 18, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -2, -4 },	// member of MWO_dragon_head at 16,26
+    { 19, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -3, -4 },	// member of MWO_dragon_head at 16,26
+    { 20, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -4, -4 },	// member of MWO_dragon_head at 16,26
+    { 21, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -5, -4 },	// member of MWO_dragon_head at 16,26
     { 22, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 23, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 24, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
@@ -1093,28 +1094,28 @@ static struct {
     { 29, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 30, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 31, 30,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    {  0, 31, 219, 0, L"shulker_side_white", L"", SWATCH_REPEAT_ALL },    // optional tiles - BD Craft has them, for example
-    {  1, 31, 220, 0, L"shulker_side_orange", L"", SWATCH_REPEAT_ALL },
-    {  2, 31, 221, 0, L"shulker_side_magenta", L"", SWATCH_REPEAT_ALL },
-    {  3, 31, 222, 0, L"shulker_side_light_blue", L"", SWATCH_REPEAT_ALL },
-    {  4, 31, 223, 0, L"shulker_side_yellow", L"", SWATCH_REPEAT_ALL },
-    {  5, 31, 224, 0, L"shulker_side_lime", L"", SWATCH_REPEAT_ALL },
-    {  6, 31, 225, 0, L"shulker_side_pink", L"", SWATCH_REPEAT_ALL },
-    {  7, 31, 226, 0, L"shulker_side_gray", L"", SWATCH_REPEAT_ALL },
-    {  8, 31, 227, 0, L"shulker_side_silver", L"", SWATCH_REPEAT_ALL },
-    {  9, 31, 228, 0, L"shulker_side_cyan", L"", SWATCH_REPEAT_ALL },
-    { 10, 31, 229, 0, L"shulker_side_purple", L"", SWATCH_REPEAT_ALL },
-    { 11, 31, 230, 0, L"shulker_side_blue", L"", SWATCH_REPEAT_ALL },
-    { 12, 31, 231, 0, L"shulker_side_brown", L"", SWATCH_REPEAT_ALL },
-    { 13, 31, 232, 0, L"shulker_side_green", L"", SWATCH_REPEAT_ALL },
-    { 14, 31, 233, 0, L"shulker_side_red", L"", SWATCH_REPEAT_ALL },
-    { 15, 31, 234, 0, L"shulker_side_black", L"", SWATCH_REPEAT_ALL },
-    { 16, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 17, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 18, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 19, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 20, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    { 21, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    {  0, 31, 219, 0, L"MWO_shulker_side_white", L"shulker_side_white", SWATCH_REPEAT_ALL },    // optional tiles - BD Craft has them, for example
+    {  1, 31, 220, 0, L"MWO_shulker_side_orange", L"shulker_side_orange", SWATCH_REPEAT_ALL },
+    {  2, 31, 221, 0, L"MWO_shulker_side_magenta", L"shulker_side_magenta", SWATCH_REPEAT_ALL },
+    {  3, 31, 222, 0, L"MWO_shulker_side_light_blue", L"shulker_side_light_blue", SWATCH_REPEAT_ALL },
+    {  4, 31, 223, 0, L"MWO_shulker_side_yellow", L"shulker_side_yellow", SWATCH_REPEAT_ALL },
+    {  5, 31, 224, 0, L"MWO_shulker_side_lime", L"shulker_side_lime", SWATCH_REPEAT_ALL },
+    {  6, 31, 225, 0, L"MWO_shulker_side_pink", L"shulker_side_pink", SWATCH_REPEAT_ALL },
+    {  7, 31, 226, 0, L"MWO_shulker_side_gray", L"shulker_side_gray", SWATCH_REPEAT_ALL },
+    {  8, 31, 227, 0, L"MWO_shulker_side_light_gray", L"shulker_side_silver", SWATCH_REPEAT_ALL },
+    {  9, 31, 228, 0, L"MWO_shulker_side_cyan", L"shulker_side_cyan", SWATCH_REPEAT_ALL },
+    { 10, 31, 229, 0, L"MWO_shulker_side_purple", L"shulker_side_purple", SWATCH_REPEAT_ALL },
+    { 11, 31, 230, 0, L"MWO_shulker_side_blue", L"shulker_side_blue", SWATCH_REPEAT_ALL },
+    { 12, 31, 231, 0, L"MWO_shulker_side_brown", L"shulker_side_brown", SWATCH_REPEAT_ALL },
+    { 13, 31, 232, 0, L"MWO_shulker_side_green", L"shulker_side_green", SWATCH_REPEAT_ALL },
+    { 14, 31, 233, 0, L"MWO_shulker_side_red", L"shulker_side_red", SWATCH_REPEAT_ALL },
+    { 15, 31, 234, 0, L"MWO_shulker_side_black", L"shulker_side_black", SWATCH_REPEAT_ALL },
+    { 16, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL, 0, -5 },	// member of MWO_dragon_head at 16,26
+    { 17, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -1, -5 },	// member of MWO_dragon_head at 16,26
+    { 18, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -2, -5 },	// member of MWO_dragon_head at 16,26
+    { 19, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -3, -5 },	// member of MWO_dragon_head at 16,26
+    { 20, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -4, -5 },	// member of MWO_dragon_head at 16,26
+    { 21, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL, -5, -5 },	// member of MWO_dragon_head at 16,26
     { 22, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 23, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 24, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
@@ -1125,22 +1126,22 @@ static struct {
     { 29, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 30, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 31, 31,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
-    {  0, 32, 219, 0, L"shulker_bottom_white", L"", SWATCH_REPEAT_ALL },    // optional tiles - BD Craft has them, for example
-    {  1, 32, 220, 0, L"shulker_bottom_orange", L"", SWATCH_REPEAT_ALL },
-    {  2, 32, 221, 0, L"shulker_bottom_magenta", L"", SWATCH_REPEAT_ALL },
-    {  3, 32, 222, 0, L"shulker_bottom_light_blue", L"", SWATCH_REPEAT_ALL },
-    {  4, 32, 223, 0, L"shulker_bottom_yellow", L"", SWATCH_REPEAT_ALL },
-    {  5, 32, 224, 0, L"shulker_bottom_lime", L"", SWATCH_REPEAT_ALL },
-    {  6, 32, 225, 0, L"shulker_bottom_pink", L"", SWATCH_REPEAT_ALL },
-    {  7, 32, 226, 0, L"shulker_bottom_gray", L"", SWATCH_REPEAT_ALL },
-    {  8, 32, 227, 0, L"shulker_bottom_silver", L"", SWATCH_REPEAT_ALL },
-    {  9, 32, 228, 0, L"shulker_bottom_cyan", L"", SWATCH_REPEAT_ALL },
-    { 10, 32, 229, 0, L"shulker_bottom_purple", L"", SWATCH_REPEAT_ALL },
-    { 11, 32, 230, 0, L"shulker_bottom_blue", L"", SWATCH_REPEAT_ALL },
-    { 12, 32, 231, 0, L"shulker_bottom_brown", L"", SWATCH_REPEAT_ALL },
-    { 13, 32, 232, 0, L"shulker_bottom_green", L"", SWATCH_REPEAT_ALL },
-    { 14, 32, 233, 0, L"shulker_bottom_red", L"", SWATCH_REPEAT_ALL },
-    { 15, 32, 234, 0, L"shulker_bottom_black", L"", SWATCH_REPEAT_ALL },
+    {  0, 32, 219, 0, L"MWO_shulker_bottom_white", L"shulker_bottom_white", SWATCH_REPEAT_ALL },    // optional tiles - BD Craft has them, for example
+    {  1, 32, 220, 0, L"MWO_shulker_bottom_orange", L"shulker_bottom_orange", SWATCH_REPEAT_ALL },
+    {  2, 32, 221, 0, L"MWO_shulker_bottom_magenta", L"shulker_bottom_magenta", SWATCH_REPEAT_ALL },
+    {  3, 32, 222, 0, L"MWO_shulker_bottom_light_blue", L"shulker_bottom_light_blue", SWATCH_REPEAT_ALL },
+    {  4, 32, 223, 0, L"MWO_shulker_bottom_yellow", L"shulker_bottom_yellow", SWATCH_REPEAT_ALL },
+    {  5, 32, 224, 0, L"MWO_shulker_bottom_lime", L"shulker_bottom_lime", SWATCH_REPEAT_ALL },
+    {  6, 32, 225, 0, L"MWO_shulker_bottom_pink", L"shulker_bottom_pink", SWATCH_REPEAT_ALL },
+    {  7, 32, 226, 0, L"MWO_shulker_bottom_gray", L"shulker_bottom_gray", SWATCH_REPEAT_ALL },
+    {  8, 32, 227, 0, L"MWO_shulker_bottom_light_gray", L"shulker_bottom_silver", SWATCH_REPEAT_ALL },
+    {  9, 32, 228, 0, L"MWO_shulker_bottom_cyan", L"shulker_bottom_cyan", SWATCH_REPEAT_ALL },
+    { 10, 32, 229, 0, L"MWO_shulker_bottom_purple", L"shulker_bottom_purple", SWATCH_REPEAT_ALL },
+    { 11, 32, 230, 0, L"MWO_shulker_bottom_blue", L"shulker_bottom_blue", SWATCH_REPEAT_ALL },
+    { 12, 32, 231, 0, L"MWO_shulker_bottom_brown", L"shulker_bottom_brown", SWATCH_REPEAT_ALL },
+    { 13, 32, 232, 0, L"MWO_shulker_bottom_green", L"shulker_bottom_green", SWATCH_REPEAT_ALL },
+    { 14, 32, 233, 0, L"MWO_shulker_bottom_red", L"shulker_bottom_red", SWATCH_REPEAT_ALL },
+    { 15, 32, 234, 0, L"MWO_shulker_bottom_black", L"shulker_bottom_black", SWATCH_REPEAT_ALL },
     { 16, 32,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 17, 32,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 18, 32,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
@@ -1162,8 +1163,8 @@ static struct {
     {  2, 33, 218, 0, L"observer_front", L"", SWATCH_REPEAT_ALL },
     {  3, 33, 218, 0, L"observer_side", L"", SWATCH_REPEAT_ALL },
     {  4, 33, 218, 0, L"observer_top", L"", SWATCH_REPEAT_ALL },   // alternate name is Sphax BD Craft
-    {  5, 33, 219, 0, L"MW_SHULKER_SIDE", L"MW_shulker_side", SWATCH_REPEAT_ALL },
-    {  6, 33, 219, 0, L"MW_SHULKER_BOTTOM", L"MW_shulker_bottom", SWATCH_REPEAT_ALL },
+    {  5, 33,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
+    {  6, 33,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     {  7, 33, 313, 0, L"dried_kelp_top", L"", SWATCH_REPEAT_ALL },  // 1.13 starts here
     {  8, 33, 313, 0, L"dried_kelp_side", L"dried_kelp_side_a", SWATCH_REPEAT_ALL },    // alt bedrock; there's also a side_b
     {  9, 33, 313, 0, L"dried_kelp_bottom", L"", SWATCH_REPEAT_ALL },
@@ -2054,10 +2055,10 @@ static struct {
     { 30, 60,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     { 31, 60,   0, 0, L"", L"", SWATCH_REPEAT_ALL },
     {  0, 61, 417, 0, L"decorated_pot_side", L"", SWATCH_REPEAT_SIDES_ELSE_CLAMP | SBIT_CUTOUT_GEOMETRY },
-    {  1, 61, 417, 0, L"MW_decorated_pot_base1", L"", SWATCH_REPEAT_ALL },
-    {  2, 61, 417, 0, L"MW_decorated_pot_base2", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  3, 61, 417, 0, L"MW_decorated_pot_base3", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
-    {  4, 61, 417, 0, L"MW_decorated_pot_base4", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  1, 61, 417, 0, L"MWO_decorated_pot_base1", L"MW_decorated_pot_base1", SWATCH_REPEAT_ALL },
+    {  2, 61, 417, 0, L"MWO_decorated_pot_base2", L"MW_decorated_pot_base2", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  3, 61, 417, 0, L"MWO_decorated_pot_base3", L"MW_decorated_pot_base3", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  4, 61, 417, 0, L"MWO_decorated_pot_base4", L"MW_decorated_pot_base4", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  5, 61, 170, 0, L"stripped_bamboo_block", L"", SWATCH_REPEAT_ALL },
     {  6, 61, 170, 0, L"stripped_bamboo_block_top", L"", SWATCH_REPEAT_ALL },
     {  7, 61,  47, 0, L"chiseled_bookshelf_top", L"", SWATCH_REPEAT_ALL },
@@ -2636,7 +2637,7 @@ static struct {
     {  4, 79, 390, 0, L"sulfur_spike_down_frustum", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
     {  5, 79, 390, 0, L"sulfur_spike_down_middle", L"", SBIT_CLAMP_TOP | SBIT_DECAL },
     {  6, 79, 390, 0, L"sulfur_spike_down_base", L"", SWATCH_CLAMP_BOTTOM_AND_TOP | SBIT_DECAL },
-    {  7, 79, 396, 0, L"red_shrub", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
+    {  7, 79, 559, 0, L"red_shrub", L"", SBIT_CLAMP_BOTTOM | SBIT_DECAL },
     {  8, 79, 437, 3, L"yellow_poplar_leaves", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES },
     {  9, 79, 437, 4, L"orange_poplar_leaves", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES },
     { 10, 79, 437, 5, L"red_poplar_leaves", L"", SWATCH_REPEAT_ALL | SBIT_DECAL | SBIT_LEAVES },

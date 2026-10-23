@@ -166,19 +166,33 @@ bool nbtGetValidatedSchematicVolume(int width, int height, int length, int* numB
 // the low 12 bits of *outData, and the block ID's bits 8-11 in *outData's top 4 bits (see
 // BLOCK_TYPE_FROM_GRID_DATA). State-string properties (axis, facing, …) are currently ignored —
 // only the base block name is recovered. Issue #40.
+// outDataVersion is the file's DataVersion, or 0 if it has none.
 int nbtGetSpongeSchematic(bfFile* pbf,
     int* outWidth, int* outHeight, int* outLength,
-    unsigned char** outBlocks, unsigned short** outData);
+    unsigned char** outBlocks, unsigned short** outData, int* outDataVersion);
 void nbtClose(bfFile* pbf);
+
+// Cushions are entities, stored in the "entities" region files, not the block "region" files. Each is at a block position.
+#define MAX_CUSHIONS_PER_CHUNK 1024
+typedef struct CushionEntity {
+    int x, y, z;    // world block position, "block_pos"
+    double posY;    // the cushion's bottom, "Pos" Y; above y when it rests on a partial block, such as a slab
+    int dataVal;    // BLOCK_CUSHION's dataVal: color in bits 0xF, facing in bits 0x30
+} CushionEntity;
+int nbtGetCushions(bfFile* pbf, CushionEntity* cushions, int maxCushions);
 
 int SlowFindIndexFromName(char* name);
 void SetModTranslations(TranslationTuple* mt);
+void nbtInitTables();
 
 // Sponge Schematic v3 export (issue #40): build the canonical Minecraft block-state string
 // for a Mineways internal (type, dataVal). Writes "minecraft:name[prop=val,...]" into `out`.
 // Properties are emitted in alphabetical order as required by the v2 spec. Returns the
 // number of bytes written (excluding the NUL), or -1 if the buffer was too small.
 int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize);
+// For a door half passed to spongeBuildBlockStateString: set when the door's other half was found, whose
+// data bits are then in 0x70 (see the DOOR_PROP case there), so all five door properties can be written.
+#define SPONGE_DOOR_PAIRED 0x100
 
 // ---- Small public surface over BlockTranslations[] for the Culling Schemes feature ----
 // The Culling editor needs to walk every Minecraft block-state name Mineways understands
