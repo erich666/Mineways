@@ -290,6 +290,8 @@ static wchar_t* gCustomCurrency = NULL;
 static int gSubError = 0;
 
 static int gOneTimeDrawError = true;
+// the 64-bit build explains the map's out-of-memory (dark gray) areas once a session, see largerMapMemoryAvailable()
+static bool gOutOfMemoryInfoShown = false;
 static int gOneTimeDrawWarning = NBT_WARNING_NAME_NOT_FOUND;
 static int gOneTimeWorldWarning = NBT_WARNING_DIRECTORY_NOT_FOUND;
 
@@ -487,6 +489,7 @@ static void saveRecentExportsToRegistry();
 static void addToRecentExports(const wchar_t* path);
 static void populateRecentExportsMenu(HWND hWnd);
 static int mapMemoryLimitMB();
+static bool largerMapMemoryAvailable();
 static void loadMapMemoryFromRegistry();
 static void saveMapMemoryToRegistry();
 static void applyMapMemory(HWND hWnd);
@@ -1891,9 +1894,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         // When the map memory doesn't hold the whole view, and everything that fits is done, mark the rest of the view
         // that hasn't been drawn as out of memory (solid gray), so it doesn't look like it's still to be loaded (white).
         if (maxRing < viewMaxRing && nBest == 0 && ringsScanned == maxRing) {
-            MarkOutOfMemoryChunks(gCurX, gCurZ, bitWidth, bitHeight, gCurScale, map,
+            int marked = MarkOutOfMemoryChunks(gCurX, gCurZ, bitWidth, bitHeight, gCurScale, map,
                 centerCX - maxRing, centerCZ - maxRing, centerCX + maxRing, centerCZ + maxRing);
             InvalidateRect(hWnd, NULL, FALSE);
+            // The first time this session that out-of-memory areas show, say what they are, if a larger map memory
+            // setting would help.
+            if (marked > 0 && !gOutOfMemoryInfoShown && largerMapMemoryAvailable()) {
+                gOutOfMemoryInfoShown = true;
+                // show the gray areas before the message
+                UpdateWindow(hWnd);
+                FilterMessageBox(hWnd, _T("The dark gray areas on the map are where Mineways has run out of memory for map display. To let Mineways use more memory for the map, choose a larger size with Help | Map memory."),
+                    _T("Informational"), MB_OK | MB_ICONINFORMATION);
+            }
         }
 
         // Show any error or warning from loading (each kind once, see checkMapDrawErrorCode), before queuing the next
@@ -4905,6 +4917,22 @@ static int mapMemoryLimitMB()
 #else
     return 1024;
 #endif
+}
+
+// Is there a larger Help > Map memory choice than the current one, below 16 GB, that this computer has the memory for?
+// A 32-bit build has just the one choice.
+static bool largerMapMemoryAvailable()
+{
+#ifdef MINEWAYS_X64
+    if (gMapMemoryMB >= 16384)
+        return false;
+    int limitMB = mapMemoryLimitMB();
+    for (int i = 0; i < NUM_MAP_MEMORY_CHOICES; i++) {
+        if (gMapMemoryChoicesMB[i] > gMapMemoryMB && gMapMemoryChoicesMB[i] <= limitMB)
+            return true;
+    }
+#endif
+    return false;
 }
 
 static void loadMapMemoryFromRegistry()

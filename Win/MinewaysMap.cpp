@@ -9040,14 +9040,15 @@ static bool isUnloadedChunkPixel(const unsigned char* pixel)
 // map memory, those in chunk box [minCX..maxCX] x [minCZ..maxCZ]. Mark the visible chunks outside it that nothing has been
 // drawn for, which would otherwise stay white, as if still to be loaded, with gOutOfMemoryTile, solid gray. Chunks already
 // marked are marked again, so their highlighting is current. Drawn chunks, e.g. ones still in the cache from earlier, are
-// left as they are. The position math is DrawMapStrips()'.
-void MarkOutOfMemoryChunks(double cx, double cz, int w, int h, double zoom, unsigned char* bits, int minCX, int minCZ, int maxCX, int maxCZ)
+// left as they are. The position math is DrawMapStrips()'. Returns the number of chunks marked.
+int MarkOutOfMemoryChunks(double cx, double cz, int w, int h, double zoom, unsigned char* bits, int minCX, int minCZ, int maxCX, int maxCZ)
 {
     if (!gColorsInited)
         initColors();
     int blockScale = (int)(16 * zoom);
     if (blockScale < 1)
-        return;
+        return 0;
+    int marked = 0;
     int hBlocks = (w + blockScale * 2) / blockScale;
     int vBlocks = (h + blockScale * 2) / blockScale;
 
@@ -9088,8 +9089,10 @@ void MarkOutOfMemoryChunks(double cx, double cz, int w, int h, double zoom, unsi
             if (!isUnloadedChunkPixel(bits + ((size_t)((y0 + y1) / 2) * w + (x0 + x1) / 2) * 4))
                 continue;
             blit(highlightTile(gOutOfMemoryTile, gOutOfMemoryHighlitTile, gOutOfMemoryTransitionTile, bx, bz), bits, px, py, zoom, w, h);
+            marked++;
         }
     }
+    return marked;
 }
 
 // Load chunk bx, bz into the cache, if it isn't there. Returns LoadBlock()'s code, as draw() does, so the caller can report

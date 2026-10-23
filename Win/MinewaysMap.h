@@ -150,7 +150,7 @@ void ChunkLoaderCancelRequests();
 bool ChunkLoaderBusy();
 int ChunkLoaderCollect(int* bx, int* bz, int maxChunks, int& retCode);
 void ChunkLoaderStop();
-void MarkOutOfMemoryChunks(double cx, double cz, int w, int h, double zoom, unsigned char* bits, int minCX, int minCZ, int maxCX, int maxCZ);
+int MarkOutOfMemoryChunks(double cx, double cz, int w, int h, double zoom, unsigned char* bits, int minCX, int minCZ, int maxCX, int maxCZ);
 char* MapUnknownBlockName();
 void ClearUnknownBlockNameString();
 void SetUnknownBlockID(int val);
