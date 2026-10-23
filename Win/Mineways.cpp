@@ -1659,10 +1659,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         if (!gLoaded)
             return 0;
 
-        int blockScale = (int)(16 * gCurScale);
-        if (blockScale < 1) blockScale = 1;
-        int hBlocks = (bitWidth + blockScale * 2) / blockScale;
-        int vBlocks = (bitHeight + blockScale * 2) / blockScale;
+        // about how many chunks across and down the view, plus 2 for partial chunks at the edges
+        int hBlocks = (int)ceil((double)bitWidth / (16.0 * gCurScale)) + 2;
+        int vBlocks = (int)ceil((double)bitHeight / (16.0 * gCurScale)) + 2;
 
         // Scan exactly the chunks visible in the viewport (plus a small margin).
         // This avoids wasting iterations on off-screen chunks while ensuring the
@@ -1839,22 +1838,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         // Targeted redraw: repaint only the pixel rectangles of chunks that
         // were loaded or need highlight refresh, instead of a full-screen
         // DrawMap (which at extreme zoom iterates millions of chunks).
-        // Compute pixel positions using the same math as DrawMapStrips so
-        // the clip rects align exactly — any truncation difference causes
-        // 1-pixel gaps (black lines).
-        int startxblock = (int)(startx / 16);
-        int startzblock = (int)(startz / 16);
-        int shiftx = (int)((startx - startxblock * 16) * gCurScale);
-        int shiftz = (int)((startz - startzblock * 16) * gCurScale);
-        if (shiftx < 0) { startxblock--; shiftx += blockScale; }
-        if (shiftz < 0) { startzblock--; shiftz += blockScale; }
+        // The rectangles are where DrawMapStrips puts the chunks, so they
+        // align exactly — any difference causes 1-pixel gaps (black lines).
 
         // paint one chunk's rectangle
         auto paintChunk = [&](int cx, int cz) {
-            int px = -shiftx + (cx - startxblock) * blockScale;
-            int pz = -shiftz + (cz - startzblock) * blockScale;
-            int px2 = px + blockScale;
-            int pz2 = pz + blockScale;
+            int px, pz, px2, pz2;
+            GetMapChunkRect(gCurX, gCurZ, bitWidth, bitHeight, gCurScale, cx, cz, &px, &pz, &px2, &pz2);
             // Clip to screen bounds
             if (px < 0) px = 0;
             if (pz < 0) pz = 0;
@@ -2906,7 +2896,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             case IDM_ZOOMOUTFURTHER:
                 gMinZoom = (gMinZoom < MINZOOM) ? MINZOOM : 0.0625f;
                 if (gMinZoom < MINZOOM) {
-                    FilterMessageBox(NULL, _T("Warning: you can now zoom out further with the mouse scroll wheel, up to 16 blocks wide per pixel. You can see your zoom factor displayed at the top of the program, in the title bar. However, this feature uses up lots of memory as you zoom out, so may cause Mineways to slow or lock up. Massive map display is not what Mineways is made for. You're on your own!"),
+                    FilterMessageBox(NULL, _T("Warning: you can now zoom out further with the mouse scroll wheel, up to 16 blocks wide per pixel. You can see your zoom factor displayed at the top of the program, in the title bar. However, this feature uses up lots of memory as you zoom out, so may cause Mineways to slow or lock up.  Massive map display is not what Mineways is made for. You're on your own!"),
                         _T("Warning"), MB_OK | MB_ICONWARNING);
                 }
                 CheckMenuItem(GetMenu(hWnd), wmId, (gMinZoom < MINZOOM) ? MF_CHECKED : MF_UNCHECKED);
@@ -4131,14 +4121,16 @@ static void drawTheMap()
             && curHighlightID == gLastDrawnHighlightID)
         {
             // Shift by exactly how far DrawMap() would move the chunks. That's not the view's move times the zoom: chunks
-            // are placed a whole number of pixels apart, (int)(16 * zoom), so when that's rounded, the map jumps a fraction
-            // of a pixel at each chunk boundary, and shifting by the zoom alone leaves the old pixels and the newly drawn
-            // strips out of line (doubled edges, and white gaps between them).
-            int oldOX, oldOZ, newOX, newOZ;
+            // are placed on whole pixels, so the map moves in whole pixels, and shifting by the zoom alone leaves the old
+            // pixels and the newly drawn strips out of line (doubled edges, and white gaps between them).
+            long long oldOX, oldOZ, newOX, newOZ;
             GetMapChunkOrigin(gLastDrawnCurX, gLastDrawnCurZ, bitWidth, bitHeight, gCurScale, &oldOX, &oldOZ);
             GetMapChunkOrigin(gCurX, gCurZ, bitWidth, bitHeight, gCurScale, &newOX, &newOZ);
-            int dx = newOX - oldOX;
-            int dy = newOZ - oldOZ;
+            // a move bigger than the view is a full redraw, below
+            long long dxLong = newOX - oldOX;
+            long long dyLong = newOZ - oldOZ;
+            int dx = (int)max(min(dxLong, (long long)INT_MAX / 2), (long long)INT_MIN / 2);
+            int dy = (int)max(min(dyLong, (long long)INT_MAX / 2), (long long)INT_MIN / 2);
 
             if (dx == 0 && dy == 0) {
                 // Sub-pixel pan, no visible change — skip the redraw entirely.
@@ -4215,8 +4207,8 @@ static void drawTheMap()
         // When the chunk count is too large, skip DrawMap entirely: clear the
         // buffer and let the prefetch system paint chunks in progressively.
         {
-            int bs = max(1, (int)(16 * gCurScale));
-            int visibleChunks = ((bitWidth + bs * 2) / bs) * ((bitHeight + bs * 2) / bs);
+            double chunkPixels = 16.0 * gCurScale;
+            int visibleChunks = ((int)ceil(bitWidth / chunkPixels) + 2) * ((int)ceil(bitHeight / chunkPixels) + 2);
             bool tooMany = (visibleChunks > gOptions.currentCacheSize / 2);
 
             ClearUnknownBlockNameString();
