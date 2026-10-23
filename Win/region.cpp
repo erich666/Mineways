@@ -61,6 +61,7 @@ deflated data is the chunk length - 1.
 */
 
 #include "stdafx.h"
+#include <limits.h>
 
 #define CHUNK_DEFLATE_MAX (1024 * 1024)  // 1MB limit for compressed chunks
 // had to kick this up due to F Seaworld 1.18 world test
@@ -81,7 +82,7 @@ typedef struct RegionFile {
     wchar_t name[256];
     bool used;
     bool exists;
-    HANDLE h;
+    PORTAFILE h;
     unsigned long long size;        // the file's size and last-written time when its table was read
     unsigned long long writeTime;
     DWORD checkedTick;              // when a missing file was last looked for
@@ -120,13 +121,21 @@ static RegionReader* getRegionReader()
 }
 
 // Get the file's size and last-written time, to tell if it has changed.
-static bool regionFileStamp(HANDLE h, unsigned long long* size, unsigned long long* writeTime)
+static bool regionFileStamp(PORTAFILE h, unsigned long long* size, unsigned long long* writeTime)
 {
+#ifdef WIN32
     BY_HANDLE_FILE_INFORMATION info;
     if (!GetFileInformationByHandle(h, &info))
         return false;
     *size = ((unsigned long long)info.nFileSizeHigh << 32) | info.nFileSizeLow;
     *writeTime = ((unsigned long long)info.ftLastWriteTime.dwHighDateTime << 32) | info.ftLastWriteTime.dwLowDateTime;
+#else
+    struct stat info;
+    if (fstat(fileno(h), &info) != 0)
+        return false;
+    *size = (unsigned long long)info.st_size;
+    *writeTime = (unsigned long long)info.st_mtimespec.tv_sec * 1000000000ULL + info.st_mtimespec.tv_nsec;
+#endif
     return true;
 }
 
@@ -134,7 +143,7 @@ static bool regionFileStamp(HANDLE h, unsigned long long* size, unsigned long lo
 static void readRegionTable(RegionFile* rf)
 {
     DWORD br = 0;
-    if (SetFilePointer(rf->h, 0, NULL, FILE_BEGIN) == INVALID_SET_FILE_POINTER ||
+    if (PortaSeek(rf->h, 0) ||
         !ReadFile(rf->h, rf->table, REGION_TABLE_SIZE, &br, NULL) || br < REGION_TABLE_SIZE)
         memset(rf->table, 0, REGION_TABLE_SIZE);
     if (!regionFileStamp(rf->h, &rf->size, &rf->writeTime))
@@ -144,7 +153,11 @@ static void readRegionTable(RegionFile* rf)
 static void openRegionFile(RegionFile* rf)
 {
     // FILE_SHARE_DELETE, too, so that the world can still be deleted or renamed while Mineways has the file open
+#ifdef WIN32
     rf->h = CreateFileW(rf->name, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, 0, NULL);
+#else
+    rf->h = PortaOpen(rf->name);
+#endif
     rf->exists = (rf->h != INVALID_HANDLE_VALUE);
     rf->checkedTick = GetTickCount();
     if (rf->exists)
@@ -168,7 +181,7 @@ static RegionFile* getRegionFile(RegionReader* rr, const wchar_t* filename)
     if (rf == NULL) {
         rf = victim;
         if (rf->used && rf->exists)
-            CloseHandle(rf->h);
+            PortaClose(rf->h);
         wcscpy_s(rf->name, 256, filename);
         rf->used = true;
         openRegionFile(rf);
@@ -201,7 +214,7 @@ static int regionPrepareBuffer(bfFile & bf, wchar_t* directory, const wchar_t* s
     z_stream& strm = rr->strm;
 
     // the .mca file for the chunk - note we get the new mca 1.2 file type here!
-    swprintf_s(filename, 256, L"%s%s/r.%d.%d.mca", directory, subdirectory, cx >> 5, cz >> 5);
+    swprintf_s(filename, 256, L"%ls%ls/r.%d.%d.mca", directory, subdirectory, cx >> 5, cz >> 5);
 
     RegionFile* rf = getRegionFile(rr, filename);
     // the .mca doesn't actually exist: no data -> nothing to do, but don't flag an error
@@ -233,7 +246,7 @@ static int regionPrepareBuffer(bfFile & bf, wchar_t* directory, const wchar_t* s
 
         // read the chunk in one shot. The last chunk in a file may not fill its last sector.
         DWORD br = 0;
-        if (SetFilePointer(rf->h, 4096 * offset, NULL, FILE_BEGIN) == INVALID_SET_FILE_POINTER ||
+        if (PortaSeek(rf->h, 4096LL * offset) ||
             !ReadFile(rf->h, buf, 4096 * sectorNumber, &br, NULL) || br < 5)
             continue;
 
@@ -331,7 +344,7 @@ void regionCleanup()
         return;
     for (int i = 0; i < REGION_FILE_CACHE_SIZE; i++) {
         if (rr->files[i].used && rr->files[i].exists)
-            CloseHandle(rr->files[i].h);
+            PortaClose(rr->files[i].h);
     }
     if (rr->strmInitialized)
         inflateEnd(&rr->strm);
@@ -340,4 +353,3 @@ void regionCleanup()
     free(rr);
     tReader = NULL;
 }
-

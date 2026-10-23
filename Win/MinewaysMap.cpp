@@ -8349,7 +8349,7 @@ static WorldBlock* loadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVers
         // if directory starts with /, this is [Block Test World], a synthetic test world
         // made by the testBlock() method.
         int x, z;
-        //int yoff = -ZERO_WORLD_HEIGHT(versionID, mcVersion);
+        // yoff converts surface world-Y (63) to a 0-based array index: array_idx = world_y - minHeight
         int yoff = -block->minHeight;
         int bedrockHeight = 60 + yoff;      // cppcheck-suppress 398
         int grassHeight = 62 + yoff;
@@ -8522,7 +8522,14 @@ static WorldBlock* loadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVers
             for (i = 0; i < 16 * 16 * (block->maxFilledHeight+1); i++, pBlockID++)
             {
                 assert((i >> 8) <= block->maxFilledHeight);
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wtautological-constant-out-of-range-compare"
+#endif
                 if ((*pBlockID >= NUM_BLOCKS_STANDARD) && (*pBlockID != BLOCK_STRUCTURE_BLOCK))
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
                 {
                     // some new version of Minecraft, block ID is unrecognized;
                     // turn this block into stone. dataVal will be ignored.
@@ -8613,9 +8620,9 @@ int createBlockFromSchematic(WorldGuide* pWorldGuide, int cx, int cz, WorldBlock
 {
     if (!pWorldGuide->sch.repeat) {
         // does block overlap the schematic?
-        if ((cx * 16 > pWorldGuide->sch.width) || (cx < 0))
+        if ((cx * 16 >= pWorldGuide->sch.width) || (cx < 0))
             return 0;
-        if ((cz * 16 > pWorldGuide->sch.length) || (cz < 0))
+        if ((cz * 16 >= pWorldGuide->sch.length) || (cz < 0))
             return 0;
     }
 
@@ -9110,7 +9117,11 @@ static bool gLoaderLockInited = false;
 static CRITICAL_SECTION gLoaderLock;
 static CONDITION_VARIABLE gLoaderJobReady;
 static int gLoaderNumThreads = 0;   // 0 when the threads aren't running
+#ifdef WIN32
 static HANDLE gLoaderThreads[CHUNK_LOADER_MAX_THREADS];
+#else
+static pthread_t gLoaderThreads[CHUNK_LOADER_MAX_THREADS];
+#endif
 static bool gLoaderQuit = false;
 static std::deque<long long> gLoaderJobs;               // chunks waiting to be loaded
 static std::unordered_set<long long> gLoaderPending;    // chunks asked for and not yet collected
@@ -9121,7 +9132,11 @@ static int gLoaderMcVersion = 0;
 static int gLoaderVersionID = 0;
 static int gLoaderUnknownBlockID = 0;
 
+#ifdef WIN32
 static DWORD WINAPI chunkLoaderThread(LPVOID)
+#else
+static void* chunkLoaderThread(void*)
+#endif
 {
     char unknownBlockName[MAX_PATH_AND_FILE];
     EnterCriticalSection(&gLoaderLock);
@@ -9170,9 +9185,14 @@ void ChunkLoaderStop()
     gLoaderJobs.clear();
     LeaveCriticalSection(&gLoaderLock);
     WakeAllConditionVariable(&gLoaderJobReady);
+#ifdef WIN32
     WaitForMultipleObjects(gLoaderNumThreads, gLoaderThreads, TRUE, INFINITE);
     for (int i = 0; i < gLoaderNumThreads; i++)
         CloseHandle(gLoaderThreads[i]);
+#else
+    for (int i = 0; i < gLoaderNumThreads; i++)
+        pthread_join(gLoaderThreads[i], NULL);
+#endif
     gLoaderNumThreads = 0;
     gLoaderQuit = false;
     for (ChunkLoadResult& result : gLoaderResults)
@@ -9195,7 +9215,11 @@ static bool startChunkLoader(WorldGuide* pWorldGuide, int mcVersion, int version
     gLoaderVersionID = versionID;
     gLoaderUnknownBlockID = gUnknownBlockID;
 
+#ifdef WIN32
     int numThreads = (int)GetActiveProcessorCount(ALL_PROCESSOR_GROUPS) / 2;
+#else
+    int numThreads = (int)sysconf(_SC_NPROCESSORS_ONLN) / 2;
+#endif
 #ifdef MINEWAYS_X64
     numThreads = min(numThreads, CHUNK_LOADER_MAX_THREADS);
 #else
@@ -9204,10 +9228,24 @@ static bool startChunkLoader(WorldGuide* pWorldGuide, int mcVersion, int version
 #endif
     numThreads = max(numThreads, 1);
     for (int i = 0; i < numThreads; i++) {
+#ifdef WIN32
         HANDLE h = CreateThread(NULL, CHUNK_LOADER_STACK_SIZE, chunkLoaderThread, NULL, STACK_SIZE_PARAM_IS_A_RESERVATION, NULL);
         if (h == NULL)
             break;
         gLoaderThreads[gLoaderNumThreads++] = h;
+#else
+        pthread_attr_t attributes;
+        if (pthread_attr_init(&attributes) != 0)
+            break;
+        int error = pthread_attr_setstacksize(&attributes, CHUNK_LOADER_STACK_SIZE);
+        pthread_t thread;
+        if (error == 0)
+            error = pthread_create(&thread, &attributes, chunkLoaderThread, NULL);
+        pthread_attr_destroy(&attributes);
+        if (error != 0)
+            break;
+        gLoaderThreads[gLoaderNumThreads++] = thread;
+#endif
     }
     return gLoaderNumThreads > 0;
 }
