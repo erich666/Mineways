@@ -3024,6 +3024,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
   <BR>
     <UL>
 	<LI>Fix zoom bug for extreme zoom values that were not powers of 2. The view was incorrectly centered for these.
+	<LI>Mesh simplification now plans each plane both by rows and by columns and keeps whichever gives fewer faces. That cuts total faces by 0.4-2.8% in (limited) testing while increasing export time by under 0.2%. The largest effect is for buildings. The code is still not optimal, but slightly better, at minimal cost. See <a href="https://github.com/erich666/Mineways/issues/173">issue 173</a>.
 	</UL>
 
 <LI>Version 14.02, 10/23/2026 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1402.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
