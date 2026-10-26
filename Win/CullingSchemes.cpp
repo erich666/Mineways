@@ -30,6 +30,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <assert.h>
 #include "Resource.h"
 #include "CullingSchemes.h"
+#include "DarkMode.h"
 #include "nbt.h"	// blockTransCount / blockTransNameAt / blockTransIndexFor
 #include "MinewaysMap.h"	// InvalidateMapRenderCache
 #include "blockInfo.h"	// BLOCK_BARRIER, BLOCK_STRUCTURE_VOID
@@ -230,6 +231,7 @@ INT_PTR CALLBACK CullingSchemes(HWND hDlg, UINT message, WPARAM wParam, LPARAM l
     {
     case WM_INITDIALOG:
     {
+        DarkModeApplyToDialog(hDlg);
         list = GetDlgItem(hDlg, IDC_CULL_SCHEMELIST);
         int id = cm.next(0, &cs);
         while (id)
@@ -461,6 +463,7 @@ INT_PTR CALLBACK CullingSchemeEdit(HWND hDlg, UINT message, WPARAM wParam, LPARA
     {
     case WM_INITDIALOG:
     {
+        DarkModeApplyToDialog(hDlg);
         // Snapshot for Cancel/X-close undo. Anything the user does in this session that
         // mutates curCS will be rolled back on Cancel by memcpy'ing this back into curCS.
         memcpy(&gPreEditCS, &curCS, sizeof(CullingScheme));

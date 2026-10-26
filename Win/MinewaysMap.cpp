@@ -70,6 +70,11 @@ static unsigned char gBlankTransitionTile[16 * 16 * 4];
 // looked at yet, e.g. it's still to be loaded in the background. Solid gray, gOutOfMemoryTile, means it won't be loaded,
 // as the map memory setting holds only the chunks around the center of a large view (see MarkOutOfMemoryChunks()).
 static unsigned char gPendingTile[16 * 16 * 4];
+// gPendingTile's color, BGR; white unless the dark theme is on (see SetMapPendingColor())
+static unsigned char gPendingColor[3] = { 255, 255, 255 };
+// gBlankTile is darker for the dark theme (see SetMapDarkBlankTiles())
+static bool gDarkBlankTiles = false;
+static void buildBlankTiles();
 static unsigned char gOutOfMemoryTile[16 * 16 * 4];
 static unsigned char gOutOfMemoryHighlitTile[16 * 16 * 4];
 static unsigned char gOutOfMemoryTransitionTile[16 * 16 * 4];
@@ -578,6 +583,10 @@ int DrawMapToArray(unsigned char* image, WorldGuide* pWorldGuide, int cx, int cz
     if (!gColorsInited)
         initColors();
 
+    // an exported map image is the same whatever the theme
+    bool darkBlankTiles = gDarkBlankTiles;
+    SetMapDarkBlankTiles(false);
+
     // x increases south, decreases north
     int iblockxstart, b2ix, iblockxend, iblockzstart, b2iz, iblockzend;
     for (z = 0, pz = -shifty; z < vBlocks; z++, pz += chunkSize)
@@ -681,6 +690,7 @@ int DrawMapToArray(unsigned char* image, WorldGuide* pWorldGuide, int cx, int cz
             }
         }
     }
+    SetMapDarkBlankTiles(darkBlankTiles);
     return sumRetCode;
 }
 
@@ -8961,6 +8971,33 @@ void InvalidateMapRenderCache(void)
     gColormap++;
 }
 
+// Use the darker checkerboard for missing chunks and empty columns, for the dark theme
+void SetMapDarkBlankTiles(bool dark)
+{
+    if (dark == gDarkBlankTiles)
+        return;
+    gDarkBlankTiles = dark;
+    if (gColorsInited)
+        buildBlankTiles();
+    // chunks drawn already have the old checkerboard in their empty columns
+    gColormap++;
+}
+
+// Set the color of chunks not looked at yet, which is also the color the map buffer is cleared to
+void SetMapPendingColor(unsigned char r, unsigned char g, unsigned char b)
+{
+    // BGR, as in the DIBSection
+    gPendingColor[0] = b;
+    gPendingColor[1] = g;
+    gPendingColor[2] = r;
+    for (int off = 0; off < 16 * 16 * 4; off += 4) {
+        gPendingTile[off] = b;
+        gPendingTile[off + 1] = g;
+        gPendingTile[off + 2] = r;
+        gPendingTile[off + 3] = (unsigned char)255;
+    }
+}
+
 unsigned short GetMapColormap(void)
 {
     return gColormap;
@@ -9325,6 +9362,31 @@ int ChunkLoaderCollect(int* bx, int* bz, int maxChunks, int& retCode)
     return n;
 }
 
+// The "missing tile" graphic, a gray checkerboard: darker for the dark theme, though not in map images exported
+static void buildBlankTiles()
+{
+    for (int rx = 0; rx < 16; ++rx)
+    {
+        for (int ry = 0; ry < 16; ++ry)
+        {
+            int off = (rx + ry * 16) * 4;
+            int tone = gDarkBlankTiles ? 58 : 150;
+            if ((rx / 4) % 2 ^ (ry / 4) % 2)
+                tone = gDarkBlankTiles ? 50 : 140;
+            gBlankTile[off] = (unsigned char)tone;
+            gBlankTile[off + 1] = (unsigned char)tone;
+            gBlankTile[off + 2] = (unsigned char)tone;
+            gBlankTile[off + 3] = (unsigned char)255;	// was 128 - why?
+
+            // fully inside highlight box (BGRA order to match DIBSection)
+            gBlankHighlitTile[off] = (unsigned char)((double)gBlankTile[off] * (1.0 - gHalpha) + gHalpha * (double)gHblue);
+            gBlankHighlitTile[off + 1] = (unsigned char)((double)gBlankTile[off + 1] * (1.0 - gHalpha) + gHalpha * (double)gHgreen);
+            gBlankHighlitTile[off + 2] = (unsigned char)((double)gBlankTile[off + 2] * (1.0 - gHalpha) + gHalpha * (double)gHred);
+            gBlankHighlitTile[off + 3] = (unsigned char)255;
+        }
+    }
+}
+
 // for each block color, calculate light levels 0-15
 static void initColors()
 {
@@ -9357,28 +9419,19 @@ static void initColors()
     gEmptyG = (unsigned char)((gBlockColors[15] >> 8) & 0xff);
     gEmptyB = (unsigned char)(gBlockColors[15] & 0xff);
 
-    // also initialize the "missing tile" unknown graphic, a gray and black checkerboard
+    // also initialize the "missing tile" unknown graphic, a gray checkerboard
+    buildBlankTiles();
     for (int rx = 0; rx < 16; ++rx)
     {
         for (int ry = 0; ry < 16; ++ry)
         {
             int off = (rx + ry * 16) * 4;
-            int tone = 150;
-            if ((rx / 4) % 2 ^ (ry / 4) % 2)
-                tone = 140;
-            gBlankTile[off] = (unsigned char)tone;
-            gBlankTile[off + 1] = (unsigned char)tone;
-            gBlankTile[off + 2] = (unsigned char)tone;
-            gBlankTile[off + 3] = (unsigned char)255;	// was 128 - why?
 
-            // fully inside highlight box (BGRA order to match DIBSection)
-            gBlankHighlitTile[off] = (unsigned char)((double)gBlankTile[off] * (1.0 - gHalpha) + gHalpha * (double)gHblue);
-            gBlankHighlitTile[off + 1] = (unsigned char)((double)gBlankTile[off + 1] * (1.0 - gHalpha) + gHalpha * (double)gHgreen);
-            gBlankHighlitTile[off + 2] = (unsigned char)((double)gBlankTile[off + 2] * (1.0 - gHalpha) + gHalpha * (double)gHred);
-            gBlankHighlitTile[off + 3] = (unsigned char)255;
-
-            // not looked at yet: white, the color the map buffer is cleared to
-            gPendingTile[off] = gPendingTile[off + 1] = gPendingTile[off + 2] = gPendingTile[off + 3] = (unsigned char)255;
+            // not looked at yet: white (or dark gray, for the dark theme), the color the map buffer is cleared to
+            gPendingTile[off] = gPendingColor[0];
+            gPendingTile[off + 1] = gPendingColor[1];
+            gPendingTile[off + 2] = gPendingColor[2];
+            gPendingTile[off + 3] = (unsigned char)255;
 
             // won't be loaded, as it's beyond the map memory: solid gray
             gOutOfMemoryTile[off] = gOutOfMemoryTile[off + 1] = gOutOfMemoryTile[off + 2] = (unsigned char)OUT_OF_MEMORY_TONE;

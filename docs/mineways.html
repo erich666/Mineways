@@ -3025,6 +3025,7 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
     <UL>
 	<LI>Fix zoom bug for extreme zoom values that were not powers of 2. The view was incorrectly centered for these.
 	<LI>Mesh simplification now tests each plane both by rows and by columns and keeps whichever gives fewer faces. This cuts total faces by 0.4-2.8% in (limited) testing, while increasing export time by under 0.2%. The largest effect is for buildings. The code is still not optimal, but slightly better, at minimal cost. See <a href="https://github.com/erich666/Mineways/issues/173">issue 173</a> for more details.
+	<LI>Dark mode: "View | Theme" lets you pick light, dark, or (the default) following the Windows setting for apps' light or dark mode. Dark mode darkens the title bar, menus, sliders, status bar, dialogs, and the map's background areas. A few parts of Windows itself, such as the file open and save dialogs, stay light - sorry. Map images exported are not affected. <I>(Thanks to ThemChaosCreatures for the suggestion.)</I>
 	</UL>
 
 <LI>Version 14.02, 10/23/2026 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1402.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.

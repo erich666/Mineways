@@ -139,6 +139,10 @@ void SetMapPremultipliedColors(int start);
 // cache key is gColormap, so without this the next drawTheMap() returns the stale
 // cached bitmap.
 void InvalidateMapRenderCache(void);
+// the color of chunks not looked at yet, and of the cleared map buffer: white, or dark gray for the dark theme
+void SetMapPendingColor(unsigned char r, unsigned char g, unsigned char b);
+// the darker checkerboard for missing chunks, for the dark theme; map images exported keep the usual one
+void SetMapDarkBlankTiles(bool dark);
 unsigned short GetMapColormap(void);
 int GetMapHighlightID(void);
 void SetNonBlockingDraw(bool on);

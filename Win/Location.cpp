@@ -31,6 +31,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <assert.h>
 #include "Resource.h"
 #include "Location.h"
+#include "DarkMode.h"
 
 Location::Location(void)
 {
@@ -74,6 +75,7 @@ INT_PTR CALLBACK Location(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     switch (message)
     {
     case WM_INITDIALOG:
+        DarkModeApplyToDialog(hDlg);
         gLocOK = 0;
         // set them up
         sprintf_s(xString, EP_FIELD_LENGTH, "%d", gX);

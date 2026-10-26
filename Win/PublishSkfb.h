@@ -105,6 +105,7 @@ INT_PTR CALLBACK manageUploadWindow(HWND hDlg,UINT message,WPARAM wParam,LPARAM 
     {
     case WM_INITDIALOG:
         {
+            DarkModeApplyToDialog(hDlg);
             uploadWindow = hDlg;
             uploadThreadHandle = CreateThread(NULL, 0, thread_func, NULL, 0, 0);
             break;
@@ -160,6 +161,7 @@ INT_PTR CALLBACK managePublishWindow(HWND hDlg,UINT message,WPARAM wParam,LPARAM
     {
     case WM_INITDIALOG:
         {
+            DarkModeApplyToDialog(hDlg);
             // to be decoded from UTF-8
             wchar_t tempName[SKFB_NAME_LIMIT + 1];
             wchar_t tempPassword[SKFB_PASSWORD_LIMIT + 1];
