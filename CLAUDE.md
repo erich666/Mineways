@@ -33,8 +33,9 @@ The Debug build uses AddressSanitizer, so to run it from a shell, the MSVC tools
   unrelated to anything we change. Ignore them.
 - If linking fails with `LNK1104: cannot open file '...Mineways.exe'` the running
   binary is locked:
-  `Get-Process Mineways -ErrorAction SilentlyContinue | Stop-Process -Force`.
-  Always kill it before rebuilding.
+  `Get-Process Mineways -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*Github\Mineways*' } | Stop-Process -Force`.
+  Always kill it before rebuilding. Only kill the copy built from this repo (output is `Win/x64/Release/Mineways.exe`):
+  the maintainer often has a released Mineways open with a world loaded.
 
 ### Headless scripting (the way to test)
 
@@ -330,6 +331,50 @@ in render code at MinewaysMap.cpp:362 and :447).
 
 `SetMapPalette` is gone from MinewaysMap.cpp; only `InvalidateMapRenderCache`
 remains for the Culling Scheme path to bump `gColormap`.
+
+---
+
+## Dark mode (Win/DarkMode.cpp/.h, View > Theme)
+
+Choices are Follow Windows setting (default, reads `AppsUseLightTheme`), Light and Dark, saved as the `Theme` DWORD
+(0/1/2 = `THEME_FOLLOW_WINDOWS`/`LIGHT`/`DARK`) in `HKCU\Software\Eric Haines\Mineways`. A Windows contrast theme
+forces light. Menu IDs `IDM_THEME_FOLLOWWINDOWS`..`IDM_THEME_DARK` (4045-4047) must stay in the `THEME_*` order: the
+handler does `wmId - IDM_THEME_FOLLOWWINDOWS`. In light mode every `DarkMode*` color/brush call returns the system
+color, so light looks exactly as it did before dark mode existed.
+
+**Mineways uses the classic common controls** (no comctl32 v6 manifest), which shapes everything:
+- Subclassing is classic `SetWindowLongPtr(GWLP_WNDPROC)` with the old proc in a window property (`subclassWindow`/
+  `callOldProc`), as `SetWindowSubclass` needs v6. `SetWindowTheme("DarkMode_Explorer")` does nothing here.
+- Classic controls honor `WM_CTLCOLOR*`, so text, edit fields, lists, check boxes and radio buttons just get colors.
+- Things that ignore those colors are drawn by DarkMode.cpp: push buttons (switched to `BS_OWNERDRAW` in
+  `themeDialogChild`, default noted first with `DM_SETDEFID`), trackbars (`NM_CUSTOMDRAW`), the status and progress
+  bars (`WM_PAINT`), static text (disabled text is otherwise drawn embossed white; a label with no font uses
+  `SYSTEM_FONT`), list headers (`NM_CUSTOMDRAW`), 3D borders of edits and lists (`WM_NCPAINT`), and the light band
+  behind message box buttons.
+- Still light: check box/radio squares, combo box arrow buttons, scroll bars, and the Open/Save file dialogs.
+- The menu bar is drawn with the undocumented `WM_UAHDRAWMENU`/`WM_UAHDRAWMENUITEM` messages (`DarkModeHandleMenuBar`,
+  called first in `WndProc`); popup menus and title bars use undocumented uxtheme ordinals 133/135/136/104 and
+  `DWMWA_USE_IMMERSIVE_DARK_MODE`, Windows 10 1809+ only.
+
+**Adding UI:**
+- A new dialog: call `DarkModeApplyToDialog(hDlg)` first thing in its `WM_INITDIALOG`.
+- A message box: use `FilterMessageBox` or `DarkModeMessageBox` (a CBT hook themes it), never plain `MessageBox`.
+- Main window controls: see `WM_CREATE` (`DarkModeApplyToLabel`, `DarkModeApplyToStatusBar`). On a live theme change,
+  `applyTheme()` repaints everything; trackbars keep their old background unless sent `WM_SYSCOLORCHANGE`.
+
+**Map:** chunks not drawn yet (and the cleared buffer: `fillMapPending()` replaced the `memset(0xff)`s) use
+`SetMapPendingColor`, dark gray instead of white; the empty-chunk checkerboard is darker via `SetMapDarkBlankTiles`,
+which bumps `gColormap` since cached chunk renders contain it. `DrawMapToArray` (File > Export Map) switches back to
+the light checkerboard while it runs, so exported map images don't depend on the theme. The out-of-memory gray (105)
+is unchanged.
+
+**Testing the GUI:** set the `Theme` registry value, launch the repo build with a script (e.g. `Minecraft world:
+[Block Test World]` plus a selection) to load a world, open things with `PostMessage(WM_COMMAND, IDM_...)`, and
+capture with `PrintWindow` rather than bringing windows to the front and sending keys, which disturbs the user's
+desktop. `PrintWindow` draws non-client areas itself, so the menu bar and edge painting don't show in it. Delete the
+`Theme` value afterwards if it wasn't there before. In the Culling Schemes list, Add, Copy and Remove write to the
+registry at once (OK and Cancel there don't), and so does OK in the scheme editor; to see the editor, select an
+existing scheme, press Edit, then Cancel or kill the test process.
 
 ---
 
