@@ -50,6 +50,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include <unordered_set>
 #include <cstdint>
+#include <limits>
+#include <stdexcept>
+#include <cmath>
 
 // Should really make a full-featured error system, a la https://www.softwariness.com/articles/assertions-in-cpp/, but this'll do for now.
 // trick so that there is not a warning that there's a constant value being tested by an "if"
@@ -222,7 +225,7 @@ static std::unordered_set<long long> gPaintedChunks;
 // When a prefetch scan runs out of time before finding anything to do, the next pass carries on from this ring, so that a
 // large view still gets finished. Any redraw starts it over at 0, as the view, and what's been drawn, may have changed.
 static int gPrefetchResumeRing = 0;
-#define PAINTED_CHUNK_KEY(cx, cz)   (((long long)(cx) << 32) | (unsigned int)(cz))
+#define PAINTED_CHUNK_KEY(cx, cz)   (((long long)(cx) * 0x100000000LL) | (unsigned int)(cz))
 
 // Map memory: the most memory the chunk cache may use, from Help > Map memory, kept in the registry
 // as HKCU\Software\Eric Haines\Mineways\MapMemoryMB. The cache holds as many chunks as fit at the
@@ -5827,15 +5830,19 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileNa
                 (*updateProgress)(0.90f + 0.10f * (float)i / (float)outputFileList.count, NULL);
             }
 
-            ZipAdd(hz, nameOnly, outputFileList.name[i], 0, ZIP_FILENAME);
-
-            // delete model files if not needed
-            if (!gpEFD->chkCreateModelFiles[gpEFD->fileType])
-            {
-                DeleteFile(outputFileList.name[i]);
+            if (ZipAdd(hz, nameOnly, outputFileList.name[i], 0, ZIP_FILENAME) != ZR_OK) {
+                errCode |= MW_CANNOT_WRITE_TO_FILE;
+                break;
             }
         }
-        CloseZip(hz);
+        if (CloseZip(hz) != ZR_OK)
+            errCode |= MW_CANNOT_WRITE_TO_FILE;
+
+        // Keep every source until the complete archive has been finalized.
+        if (errCode < MW_BEGIN_ERRORS && !gpEFD->chkCreateModelFiles[gpEFD->fileType]) {
+            for (int i = 0; i < outputFileList.count; i++)
+                DeleteFile(outputFileList.name[i]);
+        }
     }
 
     if (updateProgress != NULL)
@@ -5871,7 +5878,7 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileNa
 
     freeOutputFileList(outputFileList);
 
-    return 0;
+    return errCode >= MW_BEGIN_ERRORS ? 1 : 0;
 }
 
 static int publishToSketchfab(HWND hWnd, wchar_t* objFileName, wchar_t* terrainFileName, wchar_t* cullSchemeSelected)
@@ -6379,6 +6386,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
 
                 // if we are zipping tiles, it's a bit different
                 int i;
+                bool zipSucceeded = true;
 
                 // disassemble the directory of the first file
                 wchar_t path[MAX_PATH_AND_FILE];
@@ -6394,6 +6402,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                     // TODO - really should just export tiles needed, but this functionality is a bit tricky.
                     if (ZipAdd(hz, relativeFile, outputFileList.name[i], 0, ZIP_FILENAME) != ZR_OK)
                     {
+                        zipSucceeded = false;
                         retCode |= MW_CANNOT_WRITE_TO_FILE;
                         DWORD errorCode = GetLastError();
                         // if we need to get really fancy, include code at https://docs.microsoft.com/en-us/windows/win32/debug/retrieving-the-last-error-code
@@ -6403,11 +6412,6 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                         break;
                     }
 
-                    // delete model files if not needed
-                    if (!gpEFD->chkCreateModelFiles[gpEFD->fileType])
-                    {
-                        DeleteFile(outputFileList.name[i]);
-                    }
                     if (updateProgress != NULL)
                     {
                         (*updateProgress)(0.90f + 0.10f * (float)i / (float)outputFileList.count,NULL);
@@ -6416,19 +6420,30 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                     // was AddFolderContent(hz, path, piece );
                 }
 
-                CloseZip(hz);
+                if (CloseZip(hz) != ZR_OK) {
+                    zipSucceeded = false;
+                    retCode |= MW_CANNOT_WRITE_TO_FILE;
+                    FilterMessageBox(NULL, L"The ZIP file could not be finalized. The original files have been preserved.",
+                        _T("Internal ZIP error"), MB_OK | MB_ICONERROR);
+                }
 
-                // now delete subdirectories, if empty. Assumes subdirectories come after main directory files
-                wchar_t prevdelpath[MAX_PATH_AND_FILE];
-                prevdelpath[0] = (wchar_t)0;
-                for (i = outputFileList.count-1; i >= 0; i--) {
-                    relativeFile = RemoveGivenPath(outputFileList.name[i], path);
-                    wchar_t delpath[MAX_PATH_AND_FILE];
-                    StripLastString(relativeFile, delpath, filepathpiece);
-                    if (wcscmp(delpath, prevdelpath) != 0 && wcslen(delpath) > 0) {
-                        // we could be more clever here and try to remove the directory only if it
-                        RemoveDirectory(delpath);
-                        wcscpy_s(prevdelpath, MAX_PATH_AND_FILE, delpath);
+                // Keep every source until the complete archive has been finalized.
+                if (zipSucceeded && !gpEFD->chkCreateModelFiles[gpEFD->fileType]) {
+                    for (i = 0; i < outputFileList.count; i++)
+                        DeleteFile(outputFileList.name[i]);
+
+                    // now delete subdirectories, if empty. Assumes subdirectories come after main directory files
+                    wchar_t prevdelpath[MAX_PATH_AND_FILE];
+                    prevdelpath[0] = (wchar_t)0;
+                    for (i = outputFileList.count-1; i >= 0; i--) {
+                        relativeFile = RemoveGivenPath(outputFileList.name[i], path);
+                        wchar_t delpath[MAX_PATH_AND_FILE];
+                        StripLastString(relativeFile, delpath, filepathpiece);
+                        if (wcscmp(delpath, prevdelpath) != 0 && wcslen(delpath) > 0) {
+                            // we could be more clever here and try to remove the directory only if it
+                            RemoveDirectory(delpath);
+                            wcscpy_s(prevdelpath, MAX_PATH_AND_FILE, delpath);
+                        }
                     }
                 }
             }
@@ -11375,26 +11390,46 @@ static bool saveMapFile(int xmin, int zmin, int xmax, int ymax, int zmax, wchar_
         zmin = zmax;
         zmax = temp;
     }
-    int w = xmax - xmin + 1;
-    int h = zmax - zmin + 1;
-    int zoom = (int)(gCurScale + 0.5f);
+    int64_t widthBlocks = (int64_t)xmax - xmin + 1;
+    int64_t heightBlocks = (int64_t)zmax - zmin + 1;
+    if (widthBlocks > (std::numeric_limits<int>::max)() || heightBlocks > (std::numeric_limits<int>::max)() ||
+        !std::isfinite(gCurScale) || gCurScale < 0 || gCurScale > (std::numeric_limits<int>::max)() - 0.5) {
+        FilterMessageBox(NULL, L"The selected map dimensions are too large to export.",
+            L"Export Map failed", MB_OK | MB_ICONERROR);
+        return false;
+    }
+    int w = (int)widthBlocks;
+    int h = (int)heightBlocks;
+    int zoom = (int)(gCurScale + 0.5);
+    if (zoom < 1) zoom = 1;
+    size_t imageBytes;
+    if (!GetMapImageSize(w, h, zoom, imageBytes)) {
+        FilterMessageBox(NULL, L"The selected map would require more than 1 GiB of image memory. Reduce the selection size or zoom level.",
+            L"Export Map failed", MB_OK | MB_ICONERROR);
+        return false;
+    }
 
-    // first, can we even make such an image?
-    progimage_info* mapimage;
-    mapimage = new progimage_info();
-    mapimage->width = zoom * w;
-    mapimage->height = zoom * h;
-
-    // resize and clear
-    mapimage->image_data.resize(w * h * 3 * zoom * zoom * sizeof(unsigned char), 0x0);
-    unsigned char* imageDst = &mapimage->image_data[0];
+    progimage_info mapimage;
+    mapimage.width = zoom * w;
+    mapimage.height = zoom * h;
+    try {
+        mapimage.image_data.resize(imageBytes, 0x0);
+    } catch (const std::bad_alloc&) {
+        FilterMessageBox(NULL, L"Not enough memory is available to render the selected map.",
+            L"Export Map failed", MB_OK | MB_ICONERROR);
+        return false;
+    } catch (const std::length_error&) {
+        FilterMessageBox(NULL, L"The selected map dimensions are too large to export.",
+            L"Export Map failed", MB_OK | MB_ICONERROR);
+        return false;
+    }
 
     // turn off highlight for map draw
     SetHighlightState(0, xmin, gTargetDepth, zmin, xmax, ymax, zmax, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_IGNORE);
 
     ClearUnknownBlockNameString();
     checkMapDrawErrorCode(
-        DrawMapToArray(imageDst, &gWorldGuide, xmin, zmin, ymax - gMinHeight, gMaxHeight, w, h, zoom, &gOptions, gHitsFound, updateProgress, gMinecraftVersion, gVersionID)
+        DrawMapToArray(mapimage.image_data.data(), mapimage.image_data.size(), &gWorldGuide, xmin, zmin, ymax - gMinHeight, gMaxHeight, w, h, zoom, &gOptions, gHitsFound, updateProgress, gMinecraftVersion, gVersionID)
     );
 
     // check if map file has ".png" at the end - if not, add it.
@@ -11402,8 +11437,7 @@ static bool saveMapFile(int xmin, int zmin, int xmax, int ymax, int zmax, wchar_
     EnsureSuffix(mapFileNameSafe, mapFileName, L".png");
 
     // 0 means success. Currently we don't say what goes wrong otherwise.
-    retCode = writepng(mapimage, 3, mapFileNameSafe);
-    delete mapimage;
+    retCode = writepng(&mapimage, 3, mapFileNameSafe);
 
     // turn highlight back on, now that we're done
     SetHighlightState(gHighlightOn, xmin, gTargetDepth, zmin, xmax, gCurDepth, zmax, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_IGNORE);

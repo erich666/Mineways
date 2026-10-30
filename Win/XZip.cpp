@@ -2780,10 +2780,13 @@ ZRESULT TZip::Add(const char *odstzn, void *src,unsigned int len, DWORD flags)
 		return ZR_ENDED;
 
 	// zip has its own notion of what its names should look like: i.e. dir/file.stuff
-	char dstzn[MAX_PATH]; 
-	strcpy(dstzn, odstzn);
-	if (*dstzn == 0) 
+	char dstzn[MAX_PATH];
+	if (odstzn == NULL)
 		return ZR_ARGS;
+	size_t nameLength = strlen(odstzn);
+	if (nameLength == 0 || nameLength >= sizeof(dstzn))
+		return ZR_ARGS;
+	strcpy(dstzn, odstzn);
 	char *d=dstzn; 
 	while (*d != 0) 
 	{
@@ -2791,7 +2794,9 @@ ZRESULT TZip::Add(const char *odstzn, void *src,unsigned int len, DWORD flags)
 			*d = '/'; d++;
 	}
 	bool isdir = (flags==ZIP_FOLDER);
-	bool needs_trailing_slash = (isdir && dstzn[strlen(dstzn)-1]!='/');
+	bool needs_trailing_slash = (isdir && dstzn[nameLength-1]!='/');
+	if (needs_trailing_slash && nameLength >= sizeof(dstzn) - 1)
+		return ZR_ARGS;
 	int method=DEFLATE; 
 	if (isdir || HasZipSuffix(dstzn)) 
 		method=STORE;
@@ -3047,7 +3052,7 @@ HZIP CreateZipZ(void *z,unsigned int len,DWORD flags)
 
 ZRESULT ZipAdd(HZIP hz, const TCHAR *dstzn, void *src, unsigned int len, DWORD flags)
 { 
-	if (hz == 0) 
+	if (hz == 0 || dstzn == NULL)
 	{
 		lasterrorZ = ZR_ARGS;
 		return ZR_ARGS;
@@ -3077,8 +3082,10 @@ ZRESULT ZipAdd(HZIP hz, const TCHAR *dstzn, void *src, unsigned int len, DWORD f
 								NULL,					// default for unmappable chars
 								NULL);					// set when default char used
 		if (nActualChars == 0)
-			return ZR_ARGS; 
+			return lasterrorZ = ZR_ARGS;
 #else
+		if (strlen(dstzn) >= sizeof(szDest))
+			return lasterrorZ = ZR_ARGS;
 		strcpy(szDest, dstzn);
 #endif
 

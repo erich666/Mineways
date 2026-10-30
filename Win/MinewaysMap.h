@@ -28,6 +28,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
+#include <stddef.h>
 #include "tiles.h"
 #include "blockInfo.h"
 #include "biomes.h"
@@ -105,10 +106,12 @@ bool UndoHighlightExists();
 void UndoHighlight();
 void SetHighlightState(int on, int minx, int miny, int minz, int maxx, int maxy, int maxz, int mapMinHeight, int mapMaxHeight, int push);
 void GetHighlightState(int* on, int* minx, int* miny, int* minz, int* maxx, int* maxy, int* maxz, int mapMinHeight);
-int DrawMapToArray(unsigned char* image, WorldGuide* pWorldGuide, int cx, int cz, int topy, int mapMaxY, int w, int h, int zoom, Options* pOpts, int* hitsFound, ProgressCallback callback, int mcVersion, int versionID);
+bool GetMapImageSize(int w, int h, int zoom, size_t& imageBytes);
+int DrawMapToArray(unsigned char* image, size_t imageCapacity, WorldGuide* pWorldGuide, int cx, int cz, int topy, int mapMaxY, int w, int h, int zoom, Options* pOpts, int* hitsFound, ProgressCallback callback, int mcVersion, int versionID);
 int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int mapMaxY, int w, int h, double zoom, unsigned char* bits, Options* pOpts, int hitsFound[3], ProgressCallback callback, int mcVersion, int versionID);
 void GetMapChunkOrigin(double cx, double cz, int w, int h, double zoom, long long* ox, long long* oz);
 void GetMapChunkRect(double cx, double cz, int w, int h, double zoom, int bx, int bz, int* x0, int* y0, int* x1, int* y1);
+void GetMapChunkBounds(double cx, double cz, int w, int h, double zoom, int* minX, int* minZ, int* maxX, int* maxZ);
 int DrawMapStrips(WorldGuide* pWorldGuide, double cx, double cz, int topy, int mapMaxY, int w, int h, double zoom, unsigned char* bits, Options* pOpts, int hitsFound[3], ProgressCallback callback, int mcVersion, int versionID, int clipMinX, int clipMinY, int clipMaxX, int clipMaxY);
 const char* IDBlock(int bx, int by, double cx, double cz, int w, int h, int yOffset, double zoom, int* ox, int* oy, int* oz, int* type, int* dataVal, int* biome, bool schematic);
 const char* RetrieveBlockSubname(int type, int dataVal); //, WorldBlock* block = NULL, int xoff = 0, int y = 0, int zoff = 0);
