@@ -35,6 +35,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "biomes.h"
 #include "CullingSchemes.h"	// isBlockCulled() — skip culled voxels in the map render
 #include <assert.h>
+#include <limits.h>
 #include <string.h>
 #include <deque>
 #include <vector>
@@ -543,19 +544,37 @@ int DrawMapStrips(WorldGuide* pWorldGuide, double cx, double cz, int topy, int m
 //zoom = zoom amount (1.0 = 100%, 1 texel per pixel)
 //bits = byte array for output
 //opts = bitmasks of render options (see MinewaysMap.h)
-int DrawMapToArray(unsigned char* image, WorldGuide* pWorldGuide, int cx, int cz, int topy, int mapMaxY, int w, int h, int zoom, Options* pOpts, int* hitsFound, ProgressCallback callback, int mcVersion, int versionID)
+bool GetMapImageSize(int w, int h, int zoom, size_t& imageBytes)
+{
+    imageBytes = 0;
+    if (w <= 0 || h <= 0 || zoom <= 0 || w > INT_MAX / zoom || h > INT_MAX / zoom)
+        return false;
+    size_t pixelWidth = (size_t)w * zoom;
+    size_t pixelHeight = (size_t)h * zoom;
+    // Match the map export limit on both platforms, before multiplication or allocation.
+    const size_t maxImageBytes = (size_t)1024 * 1024 * 1024;
+    if (pixelWidth > maxImageBytes / 3 / pixelHeight)
+        return false;
+    imageBytes = pixelWidth * pixelHeight * 3;
+    return true;
+}
+
+int DrawMapToArray(unsigned char* image, size_t imageCapacity, WorldGuide* pWorldGuide, int cx, int cz, int topy, int mapMaxY, int w, int h, int zoom, Options* pOpts, int* hitsFound, ProgressCallback callback, int mcVersion, int versionID)
 {
     unsigned char* blockbits;
-    int z, x, px, pz;
+    int z, x;
     int chunkSize = 16;
     int sumRetCode = 0;
     int retCode;
 
-    assert(zoom >= 1);
+    size_t imageBytes;
+    if (!image || !GetMapImageSize(w, h, zoom, imageBytes) || imageCapacity < imageBytes ||
+        (long long)cx + w - 1 > INT_MAX || (long long)cz + h - 1 > INT_MAX)
+        return -1;
 
     // number of blocks to fill the screen, rounded up to nearest 16
-    int hBlocks = (int)floor((float)(cx + w - 1) / 16.0) - (int)floor((float)cx / 16.0) + 1;
-    int vBlocks = (int)floor((float)(cz + h - 1) / 16.0) - (int)floor((float)cz / 16.0) + 1;
+    int hBlocks = (int)floor(((double)cx + w - 1) / 16.0) - (int)floor((double)cx / 16.0) + 1;
+    int vBlocks = (int)floor(((double)cz + h - 1) / 16.0) - (int)floor((double)cz / 16.0) + 1;
 
     int startxblock = (int)(cx / chunkSize);
     int startzblock = (int)(cz / chunkSize);
@@ -580,23 +599,23 @@ int DrawMapToArray(unsigned char* image, WorldGuide* pWorldGuide, int cx, int cz
 
     // x increases south, decreases north
     int iblockxstart, b2ix, iblockxend, iblockzstart, b2iz, iblockzend;
-    for (z = 0, pz = -shifty; z < vBlocks; z++, pz += chunkSize)
+    for (z = 0; z < vBlocks; z++)
     {
-        int wblockzmin = (startzblock + z) * chunkSize;
-        int wblockzmax = wblockzmin + chunkSize;
+        long long wblockzmin = ((long long)startzblock + z) * chunkSize;
+        long long wblockzmax = wblockzmin + chunkSize;
 
         if (wblockzmin < cz) {
             // beginning of column
-            b2iz = wblockzmin - cz;
+            b2iz = (int)(wblockzmin - cz);
             iblockzstart = -b2iz;
         }
         else {
-            b2iz = ((int)(wblockzmin / chunkSize)) * chunkSize - cz;
-            iblockzstart = wblockzmin % chunkSize;
+            b2iz = (int)(wblockzmin - cz);
+            iblockzstart = (int)(wblockzmin % chunkSize);
         }
-        if (wblockzmax > cz + h) {
+        if (wblockzmax > ((long long)cz + h)) {
             // end of row, number from 1 to 16
-            iblockzend = cz + h - wblockzmax + chunkSize;
+            iblockzend = (int)(((long long)cz + h) - wblockzmax + chunkSize);
         }
         else {
             iblockzend = chunkSize;
@@ -605,31 +624,31 @@ int DrawMapToArray(unsigned char* image, WorldGuide* pWorldGuide, int cx, int cz
         assert(iblockzstart >= 0 && iblockzstart < chunkSize);
         assert(iblockzend > 0 && iblockzend <= chunkSize);
 
-        int nextLine = zoom * w * 3;
+        size_t nextLine = (size_t)zoom * w * 3;
 
         // z increases west, decreases east
         float pctprogress = 0.1f;
-        for (x = 0, px = -shiftx; x < hBlocks; x++, px += chunkSize)
+        for (x = 0; x < hBlocks; x++)
         {
-            blockbits = draw(pWorldGuide, startxblock + x, startzblock + z, topy, mapMaxY, pOpts, callback, (float)(z * hBlocks + x) / (float)(vBlocks * hBlocks), pctprogress, hitsFound, mcVersion, versionID, retCode);
+            blockbits = draw(pWorldGuide, startxblock + x, startzblock + z, topy, mapMaxY, pOpts, callback, ((float)z * hBlocks + x) / ((float)vBlocks * hBlocks), pctprogress, hitsFound, mcVersion, versionID, retCode);
             sumRetCode |= retCode;
 
             // world space of block:
-            int wblockxmin = (startxblock + x) * chunkSize;
-            int wblockxmax = wblockxmin + chunkSize;
+            long long wblockxmin = ((long long)startxblock + x) * chunkSize;
+            long long wblockxmax = wblockxmin + chunkSize;
 
             if (wblockxmin < cx) {
                 // beginning of row, number from 0 to 15
-                b2ix = wblockxmin - cx;
+                b2ix = (int)(wblockxmin - cx);
                 iblockxstart = -b2ix;
             }
             else {
-                b2ix = ((int)(wblockxmin / chunkSize)) * chunkSize - cx;
-                iblockxstart = wblockxmin % chunkSize;
+                b2ix = (int)(wblockxmin - cx);
+                iblockxstart = (int)(wblockxmin % chunkSize);
             }
-            if (wblockxmax > cx + w) {
+            if (wblockxmax > ((long long)cx + w)) {
                 // end of row, number from 1 to 16
-                iblockxend = cx + w - wblockxmax + chunkSize;
+                iblockxend = (int)(((long long)cx + w) - wblockxmax + chunkSize);
             }
             else {
                 iblockxend = chunkSize;
@@ -642,7 +661,7 @@ int DrawMapToArray(unsigned char* image, WorldGuide* pWorldGuide, int cx, int cz
 
             // copy over the data
             for (int iz = iblockzstart; iz < iblockzend; iz++) {
-                unsigned char* curImg = &image[((iz + b2iz) * zoom * w + (iblockxstart + b2ix)) * zoom * 3];
+                unsigned char* curImg = &image[((size_t)(iz + b2iz) * zoom * w + (size_t)(iblockxstart + b2ix)) * zoom * 3];
                 unsigned char* curBits = &blockbits[(iz * chunkSize + iblockxstart) * 4];
                 for (int ix = iblockxstart; ix < iblockxend; ix++) {
                     // make sure in range
@@ -672,10 +691,10 @@ int DrawMapToArray(unsigned char* image, WorldGuide* pWorldGuide, int cx, int cz
                                 *curImgLoc++ = b;
                                 //assert(curImgLoc - image <= zoom * zoom * w * h * 3);
                             }
-                            curImgLine += nextLine;
+                            if (imgz + 1 < zoom) curImgLine += nextLine;
                         }
                         // next pixel start location in line
-                        curImg += zoom * 3;
+                        curImg += (size_t)zoom * 3;
                     }
                 }
             }
@@ -8330,13 +8349,9 @@ static WorldBlock* loadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVers
         }
     }
 
-    // WorldBlock* block = block_alloc(MAX_ARRAY_HEIGHT(versionID, mcVersion));
-    WorldBlock* block;
-    if (pWorldGuide->type == WORLD_SCHEMATIC_TYPE) {
-        block = block_alloc(0, pWorldGuide->sch.height-1);
-    } else {
-        block = block_alloc(pWorldGuide->minHeight, pWorldGuide->maxHeight);
-    }
+    int allocationMin = pWorldGuide->type == WORLD_SCHEMATIC_TYPE ? 0 : pWorldGuide->minHeight;
+    int allocationMax = pWorldGuide->type == WORLD_SCHEMATIC_TYPE ? pWorldGuide->sch.height - 1 : pWorldGuide->maxHeight;
+    WorldBlock* block = block_alloc(allocationMin, allocationMax);
 
     // out of memory? If so, clear cache and cross fingers
     if (block == NULL)
@@ -8347,8 +8362,7 @@ static WorldBlock* loadBlock(WorldGuide* pWorldGuide, int cx, int cz, int mcVers
             return NULL;
         }
         Cache_Empty();
-        //block = block_alloc(MAX_ARRAY_HEIGHT(versionID, mcVersion));
-        block = block_alloc(pWorldGuide->minHeight, pWorldGuide->maxHeight);
+        block = block_alloc(allocationMin, allocationMax);
         if (block == NULL) {
             // oh well, out of luck
             return NULL;

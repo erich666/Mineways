@@ -1358,7 +1358,7 @@ void MinewaysFrame::OnExportMap(wxCommandEvent&)
     int64_t heightBlocks = (int64_t)maxz - minz + 1;
     if (widthBlocks <= 0 || heightBlocks <= 0 ||
         widthBlocks > (std::numeric_limits<int>::max)() || heightBlocks > (std::numeric_limits<int>::max)() ||
-        !std::isfinite(gCurScale) || gCurScale > (std::numeric_limits<int>::max)() - 0.5) {
+        !std::isfinite(gCurScale) || gCurScale < 0 || gCurScale > (std::numeric_limits<int>::max)() - 0.5) {
         wxMessageBox("The selected map dimensions are too large to export.",
                      "Export Map failed", wxOK | wxICON_ERROR, this);
         return;
@@ -1368,23 +1368,17 @@ void MinewaysFrame::OnExportMap(wxCommandEvent&)
     int zoom = (int)(gCurScale + 0.5);
     if (zoom < 1) zoom = 1;
 
-    size_t pixelWidth = (size_t)w * (size_t)zoom;
-    size_t pixelHeight = (size_t)h * (size_t)zoom;
-    constexpr size_t MAX_EXPORT_MAP_BYTES = (size_t)1024 * 1024 * 1024;
-    if (pixelWidth > (size_t)(std::numeric_limits<int>::max)() ||
-        pixelHeight > (size_t)(std::numeric_limits<int>::max)() ||
-        pixelWidth > SIZE_MAX / pixelHeight ||
-        pixelWidth * pixelHeight > MAX_EXPORT_MAP_BYTES / 3) {
+    size_t imageBytes;
+    if (!GetMapImageSize(w, h, zoom, imageBytes)) {
         wxMessageBox("The selected map would require more than 1 GiB of image memory. "
                      "Reduce the selection size or zoom level.",
                      "Export Map failed", wxOK | wxICON_ERROR, this);
         return;
     }
-    size_t imageBytes = pixelWidth * pixelHeight * 3;
 
     progimage_info mapimage;
-    mapimage.width = (int)pixelWidth;
-    mapimage.height = (int)pixelHeight;
+    mapimage.width = w * zoom;
+    mapimage.height = h * zoom;
     try {
         mapimage.image_data.resize(imageBytes, 0x0);
     } catch (const std::bad_alloc&) {
@@ -1400,7 +1394,7 @@ void MinewaysFrame::OnExportMap(wxCommandEvent&)
     // Suppress the selection-rectangle overlay while rendering to the array —
     // it's drawn from the same highlight state the interactive map uses.
     SetHighlightState(0, minx, gTargetDepth, minz, maxx, maxy, maxz, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_IGNORE);
-    int retCode = DrawMapToArray(mapimage.image_data.data(), &gWorldGuide, minx, minz,
+    int retCode = DrawMapToArray(mapimage.image_data.data(), mapimage.image_data.size(), &gWorldGuide, minx, minz,
                                  maxy - gMinHeight, gMaxHeight, w, h, zoom, &gOptions, gHitsFound,
                                  progressCB, gMinecraftVersion, gVersionID);
     SetHighlightState(gHighlightOn, minx, gTargetDepth, minz, maxx, gCurDepth, maxz,
