@@ -63,13 +63,28 @@ TARGET    := mineways
 APP_NAME  := Mineways.app
 APP_CONTENTS := $(APP_NAME)/Contents
 
-.PHONY: all app clean test FORCE
+.PHONY: all app clean test test-security FORCE
 
 all: $(TARGET)
 
 test: $(ALL_OBJS)
 	$(CXX) $(GUI_CXXFLAGS) tests/port_regressions.cpp $(filter-out MinewaysApp.o MinewaysFrame.o ImportSettings.o,$(ALL_OBJS)) $(LDFLAGS) $(LIBS) -o /tmp/mineways-port-regressions
 	/tmp/mineways-port-regressions
+
+# Override this directory when running the checks in an isolated workspace.
+SECURITY_TEST_DIR ?= /tmp/mineways-security-tests
+SANITIZER_FLAGS := -O1 -g -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer
+
+test-security: $(ALL_OBJS)
+	mkdir -p "$(SECURITY_TEST_DIR)"
+	$(CXX) $(CXXFLAGS) $(SANITIZER_FLAGS) tests/security_exports.cpp $(filter-out ObjFileManip.o,$(CORE_OBJS)) MacCullingSchemes.o $(LDFLAGS) $(LIBS) -o "$(SECURITY_TEST_DIR)/exports"
+	"$(SECURITY_TEST_DIR)/exports" "$(SECURITY_TEST_DIR)"
+	$(CXX) $(CXXFLAGS) $(SANITIZER_FLAGS) tests/security_nbt.cpp $(SRC_DIR)/nbt.cpp $(SRC_DIR)/blockInfo.cpp $(SRC_DIR)/biomes.cpp -lz -o "$(SECURITY_TEST_DIR)/nbt"
+	"$(SECURITY_TEST_DIR)/nbt" "$(SECURITY_TEST_DIR)"
+	TMPDIR="$(SECURITY_TEST_DIR)" python3 tests/security_textures.py
+	TMPDIR="$(SECURITY_TEST_DIR)" python3 tests/security_png.py
+	TMPDIR="$(SECURITY_TEST_DIR)" python3 tests/security_annotation.py
+	python3 tests/security_windows.py "$(SECURITY_TEST_DIR)/windows"
 
 $(TARGET): $(ALL_OBJS)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
