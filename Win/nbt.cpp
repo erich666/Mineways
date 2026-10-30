@@ -3848,24 +3848,26 @@ SectionsCode:
 int nbtGetCushions(bfFile* pbf, CushionEntity* cushions, int maxCushions)
 {
     int numCushions = 0;
+    int tagBudget = NBT_SKIP_TAG_BUDGET;
+    unsigned short len;
 
     // skip the root compound's type and name
-    if (bfseek(pbf, 1, SEEK_CUR) < 0)
-        return 0;
-    int len = readWord(pbf);
-    if (bfseek(pbf, len, SEEK_CUR) < 0)
+    if (bfseek(pbf, 1, SEEK_CUR) < 0 || !skipReadWord(pbf, &len) ||
+        bfseek(pbf, len, SEEK_CUR) < 0)
         return 0;
     if (nbtFindElement(pbf, (char*)"Entities") != 9)
         return 0;
     unsigned char elementType = 0;
-    if (bfread(pbf, &elementType, 1) < 0)
+    unsigned int count;
+    if (bfread(pbf, &elementType, 1) != 1 || !skipReadDword(pbf, &count) ||
+        count > (unsigned int)tagBudget)
         return 0;
-    int count = readInt(pbf);
     // an empty list may have the element type TAG_End
     if (elementType != 10)
         return 0;
+    tagBudget -= (int)count;
 
-    for (int i = 0; i < count; i++) {
+    for (unsigned int i = 0; i < count; i++) {
         bool isCushion = false;
         bool havePos = false;
         int color = 0;
@@ -3876,19 +3878,21 @@ int nbtGetCushions(bfFile* pbf, CushionEntity* cushions, int maxCushions)
         // read the entity's fields, in whatever order they come
         for (;;) {
             unsigned char type = 0;
-            if (bfread(pbf, &type, 1) < 0)
+            if (bfread(pbf, &type, 1) != 1)
                 return numCushions;
             if (type == 0)
                 break;
+            if (tagBudget-- <= 0)
+                return numCushions;
             char name[MAX_NAME_LENGTH];
-            len = readWord(pbf);
-            if (len >= MAX_NAME_LENGTH || bfread(pbf, name, len) < 0)
+            if (!skipReadWord(pbf, &len) || len >= MAX_NAME_LENGTH ||
+                bfread(pbf, name, len) != len)
                 return numCushions;
             name[len] = 0;
-            if (type == 8 && (strcmp(name, "id") == 0 || strcmp(name, "color") == 0)) {
+            if (strcmp(name, "id") == 0 || strcmp(name, "color") == 0) {
                 char value[MAX_NAME_LENGTH];
-                len = readWord(pbf);
-                if (len >= MAX_NAME_LENGTH || bfread(pbf, value, len) < 0)
+                if (type != 8 || !skipReadWord(pbf, &len) || len >= MAX_NAME_LENGTH ||
+                    bfread(pbf, value, len) != len)
                     return numCushions;
                 value[len] = 0;
                 if (name[0] == 'i') {
@@ -3901,52 +3905,43 @@ int nbtGetCushions(bfFile* pbf, CushionEntity* cushions, int maxCushions)
                     }
                 }
             }
-            else if (type == 11 && strcmp(name, "block_pos") == 0) {
-                int n = readInt(pbf);
-                for (int k = 0; k < n; k++) {
-                    int v = readInt(pbf);
-                    if (k < 3)
-                        pos[k] = v;
+            else if (strcmp(name, "block_pos") == 0) {
+                unsigned int n;
+                if (type != 11 || !skipReadDword(pbf, &n) || n != 3)
+                    return numCushions;
+                for (int k = 0; k < 3; k++) {
+                    unsigned int bits;
+                    if (!skipReadDword(pbf, &bits))
+                        return numCushions;
+                    memcpy(&pos[k], &bits, sizeof(int));
                 }
-                havePos = (n == 3);
+                havePos = true;
             }
-            else if (type == 9 && strcmp(name, "Pos") == 0) {
+            else if (strcmp(name, "Pos") == 0) {
                 // a list of doubles: x, y, z
-                unsigned char listType = 0;
-                if (bfread(pbf, &listType, 1) < 0)
+                unsigned char listType;
+                unsigned int n;
+                unsigned char values[24];
+                if (type != 9 || bfread(pbf, &listType, 1) != 1 || listType != 6 ||
+                    !skipReadDword(pbf, &n) || n != 3 || bfread(pbf, values, sizeof(values)) != sizeof(values))
                     return numCushions;
-                int n = readInt(pbf);
-                for (int k = 0; k < n; k++) {
-                    if (listType == 6) {
-                        double v = readDouble(pbf);
-                        if (k == 1) {
-                            posY = v;
-                            havePosY = true;
-                        }
-                    }
-                    else if (skipType(pbf, listType) < 0) {
-                        return numCushions;
-                    }
-                }
+                uint64_t bits = 0;
+                for (int k = 8; k < 16; k++)
+                    bits = (bits << 8) | values[k];
+                memcpy(&posY, &bits, sizeof(posY));
+                havePosY = true;
             }
-            else if (type == 9 && strcmp(name, "Rotation") == 0) {
+            else if (strcmp(name, "Rotation") == 0) {
                 // a list of floats: yaw, then pitch
-                unsigned char listType = 0;
-                if (bfread(pbf, &listType, 1) < 0)
+                unsigned char listType;
+                unsigned int n, yawBits, pitchBits;
+                if (type != 9 || bfread(pbf, &listType, 1) != 1 || listType != 5 ||
+                    !skipReadDword(pbf, &n) || n != 2 || !skipReadDword(pbf, &yawBits) ||
+                    !skipReadDword(pbf, &pitchBits))
                     return numCushions;
-                int n = readInt(pbf);
-                for (int k = 0; k < n; k++) {
-                    if (listType == 5) {
-                        unsigned int bits = readDword(pbf);
-                        if (k == 0)
-                            memcpy(&yaw, &bits, sizeof(float));
-                    }
-                    else if (skipType(pbf, listType) < 0) {
-                        return numCushions;
-                    }
-                }
+                memcpy(&yaw, &yawBits, sizeof(yaw));
             }
-            else if (skipType(pbf, type) < 0) {
+            else if (skipTypeDepth(pbf, type, 0, &tagBudget) < 0) {
                 return numCushions;
             }
         }
@@ -6637,98 +6632,80 @@ bool nbtGetValidatedSchematicVolume(int width, int height, int length, int* numB
 // return 1 on success
 int nbtGetSchematicBlocksAndData(bfFile* pbf, int numBlocks, unsigned char* schematicBlocks, unsigned short* schematicBlockData)
 {
-    int len;
-    //Data/version
-    if (bfseek(pbf, 1, SEEK_CUR) < 0)
-        return LINE_ERROR; //skip type
-    len = readWord(pbf); //name length
-    if (bfseek(pbf, len, SEEK_CUR) < 0)
-        return LINE_ERROR; //skip name ()
+    if (numBlocks <= 0 || schematicBlocks == NULL || schematicBlockData == NULL)
+        return LINE_ERROR;
+    unsigned short len;
+    if (bfseek(pbf, 1, SEEK_CUR) < 0 || !skipReadWord(pbf, &len) ||
+        bfseek(pbf, len, SEEK_CUR) < 0)
+        return LINE_ERROR;
 
-    int found = 0;
-    while (found < 2)
-    {
-        int ret = 0;
-        unsigned char type = 0;
-        if (bfread(pbf, &type, 1) < 0)
+    bool haveBlocks = false;
+    bool haveData = false;
+    for (;;) {
+        unsigned char type;
+        if (bfread(pbf, &type, 1) != 1)
             return LINE_ERROR;
         if (type == 0)
             break;
-        len = readWord(pbf);
         char thisName[MAX_NAME_LENGTH];
-        if (len >= MAX_NAME_LENGTH)
-            return LINE_ERROR;
-        if (bfread(pbf, thisName, len) < 0)
+        if (!skipReadWord(pbf, &len) || len >= MAX_NAME_LENGTH ||
+            bfread(pbf, thisName, len) != len)
             return LINE_ERROR;
         thisName[len] = 0;
-        if (strcmp(thisName, "Blocks") == 0)
-        {
-            //found++;
-            ret = 1;
-            len = readDword(pbf); //array length
-            // check that array is the right size
-            if (len != numBlocks)
-                return 0;
-            if (bfread(pbf, schematicBlocks, len) < 0)
+        if (strcmp(thisName, "Blocks") == 0 || strcmp(thisName, "Data") == 0) {
+            bool isBlocks = thisName[0] == 'B';
+            unsigned int arrayLength;
+            if (type != 7 || (isBlocks ? haveBlocks : haveData) ||
+                !skipReadDword(pbf, &arrayLength) || arrayLength != (unsigned int)numBlocks)
                 return LINE_ERROR;
-            found++;
-        }
-        else if (strcmp(thisName, "Data") == 0)
-        {
-            //found++;
-            ret = 1;
-            len = readDword(pbf); //array length
-            // check that array is the right size
-            if (len != numBlocks)
-                return 0;
-            // The legacy .schematic "Data" tag is a raw byte/block on disk (blockId here is always
-            // < 256 - no "AddBlocks" support - so there's no promotion flag to interpret: each byte
-            // is just dataVal, zero-extended into the wider schematicBlockData entry). Read into a
-            // scratch byte buffer first since bfread only ever writes 1 byte/element.
-            unsigned char* rawData = (unsigned char*)malloc((size_t)len);
-            if (rawData == NULL)
-                return LINE_ERROR;
-            if (bfread(pbf, rawData, len) < 0) {
-                free(rawData);
-                return LINE_ERROR;
+            if (isBlocks) {
+                if (bfread(pbf, schematicBlocks, numBlocks) != numBlocks)
+                    return LINE_ERROR;
+                haveBlocks = true;
             }
-            for (int i = 0; i < len; i++)
-                schematicBlockData[i] = rawData[i];
-            free(rawData);
-            found++;
+            else {
+                // Legacy Data bytes are dataVal only, not packed type-extension bits.
+                unsigned char* rawData = (unsigned char*)malloc((size_t)numBlocks);
+                if (rawData == NULL)
+                    return LINE_ERROR;
+                if (bfread(pbf, rawData, numBlocks) != numBlocks) {
+                    free(rawData);
+                    return LINE_ERROR;
+                }
+                for (int i = 0; i < numBlocks; i++)
+                    schematicBlockData[i] = rawData[i];
+                free(rawData);
+                haveData = true;
+            }
         }
-        if (!ret)
-            if (skipType(pbf, type) < 0)
-                return LINE_ERROR;
+        else if (skipType(pbf, type) < 0) {
+            return LINE_ERROR;
+        }
     }
-    // Did we find two things? If so, return 1, success
-    return ((found == 2) ? 1 : -8);
+    return (haveBlocks && haveData) ? 1 : -8;
 }
 
 
 // === Sponge Schematic v3 import support (issue #40) ===
 // Read a .schem file as a Mineways "world." Mirrors the writer in ObjFileManip.cpp.
 
-// Decode one unsigned LEB128 / Protobuf varint from a memory buffer. Returns the value;
-// advances *pos by however many bytes the varint took. Caller must guard against running
-// past `maxLen` (we just stop on the high bit going low, but a malformed file could overrun).
-static unsigned int spongeReadVarint(const unsigned char* buf, int* pos, int maxLen)
+// Decode one unsigned 32-bit LEB128 value, rejecting truncation and overflow.
+static bool spongeReadVarint(const unsigned char* buf, int* pos, int maxLen, unsigned int* value)
 {
     unsigned int result = 0;
-    int shift = 0;
-    while (*pos < maxLen) {
+    for (int shift = 0; shift < 35; shift += 7) {
+        if (*pos >= maxLen)
+            return false;
         unsigned char b = buf[(*pos)++];
+        if (shift == 28 && (b & 0xF0) != 0)
+            return false;
         result |= ((unsigned int)(b & 0x7F)) << shift;
         if ((b & 0x80) == 0) {
-            return result;
-        }
-        shift += 7;
-        if (shift >= 35) {
-            // varint too long; bail
-            break;
+            *value = result;
+            return true;
         }
     }
-    return result;
+    return false;
 }
 
 // Returns the SWNE-bits (0=south, 1=west, 2=north, 3=east) for a "facing" string.
@@ -8073,6 +8050,8 @@ int nbtGetSpongeSchematic(bfFile* pbf,
         if (palBlockIds) free(palBlockIds); \
         if (palDataVals) free(palDataVals); \
         if (dataBytes) free(dataBytes); \
+        free(*outBlocks); *outBlocks = NULL; \
+        free(*outData); *outData = NULL; \
         return 0; \
     } while (0)
 
@@ -8227,11 +8206,8 @@ int nbtGetSpongeSchematic(bfFile* pbf,
 
     *outBlocks = (unsigned char*)malloc((size_t)numBlocks);
     *outData = (unsigned short*)malloc((size_t)numBlocks * sizeof(unsigned short));
-    if (*outBlocks == NULL || *outData == NULL) {
-        if (*outBlocks) { free(*outBlocks); *outBlocks = NULL; }
-        if (*outData) { free(*outData); *outData = NULL; }
+    if (*outBlocks == NULL || *outData == NULL)
         SPONGE_FAIL();
-    }
 
     // Sponge voxel order: i = x + z*Width + y*Width*Length (X fastest, Y slowest), which is
     // identical to the legacy schematic format's order — createBlockFromSchematic uses
@@ -8242,21 +8218,12 @@ int nbtGetSpongeSchematic(bfFile* pbf,
     // type-extension nibble), the same format nbtGetBlocks produces for its palette.
     int pos = 0;
     for (int i = 0; i < numBlocks; i++) {
-        if (pos >= dataBytesLen) {
-            // Ran out of varint stream — unrecoverable, but fill rest with air so we don't
-            // leave the output buffer uninitialized.
-            for (; i < numBlocks; i++) { (*outBlocks)[i] = 0; (*outData)[i] = 0; }
-            break;
-        }
-        unsigned int idx = spongeReadVarint(dataBytes, &pos, dataBytesLen);
-        if ((int)idx >= palCount) {
-            (*outBlocks)[i] = 0; (*outData)[i] = 0;
-        }
-        else {
-            int fullType = palBlockIds[idx];
-            (*outBlocks)[i] = (unsigned char)(fullType & 0xFF);
-            (*outData)[i] = PACK_TYPE_EXT_AND_DATAVAL(fullType, palDataVals[idx]);
-        }
+        unsigned int idx;
+        if (!spongeReadVarint(dataBytes, &pos, dataBytesLen, &idx) || idx >= (unsigned int)palCount)
+            SPONGE_FAIL();
+        int fullType = palBlockIds[idx];
+        (*outBlocks)[i] = (unsigned char)(fullType & 0xFF);
+        (*outData)[i] = PACK_TYPE_EXT_AND_DATAVAL(fullType, palDataVals[idx]);
     }
 
     free(palBlockIds);
