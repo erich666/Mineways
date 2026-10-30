@@ -29,7 +29,6 @@ ImageIterator::ImageIterator(const Header& header, Image& image)
 bool ImageIterator::advance()
 {
   m_x += m_dx;
-  m_ptr += m_dx*m_image->bytesPerPixel;
 
   if ((m_dx < 0 && m_x < 0) ||
       (m_dx > 0 && m_x == m_w)) {
@@ -39,8 +38,8 @@ bool ImageIterator::advance()
         (m_dy > 0 && m_y == m_h)) {
       return true;
     }
-    calcPtr();
   }
+  calcPtr();
   return false;
 }
 
@@ -48,8 +47,8 @@ void ImageIterator::calcPtr()
 {
   m_ptr =
     m_image->pixels
-    + m_image->rowstride*m_y
-    + m_image->bytesPerPixel*m_x;
+    + size_t(m_image->rowstride)*m_y
+    + size_t(m_image->bytesPerPixel)*m_x;
 }
 
 } // namespace details
