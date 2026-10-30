@@ -38,6 +38,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <limits.h>
 #include <string.h>
 #include <math.h>
+#include <cmath>
 #include <time.h>
 
 #include <vector>
@@ -1190,6 +1191,46 @@ void ClearCache()
 //
 // Main code begins
 
+// This setting is one directory component, never a path supplied by an imported model.
+static bool validTextureDirectory(const char* directory)
+{
+    size_t length = 0;
+    while (length < MAX_PATH && directory[length] != '\0') {
+        unsigned char ch = (unsigned char)directory[length];
+        if (ch < 32 || strchr("<>|?*:/\\\"", ch) != NULL)
+            return false;
+        length++;
+    }
+    if (length == MAX_PATH)
+        return false;
+    return length == 0 || (directory[length - 1] != '.' && directory[length - 1] != ' ');
+}
+
+// Do not follow an existing texture/material directory link outside the export folder.
+static bool createExportDirectory(const wchar_t* directory)
+{
+    wchar_t path[MAX_PATH_AND_FILE];
+    wcscpy_s(path, MAX_PATH_AND_FILE, directory);
+    size_t length = wcslen(path);
+    while (length > 0 && (path[length - 1] == L'/' || path[length - 1] == L'\\'))
+        path[--length] = L'\0';
+    if (length == 0 || !(CreateDirectoryW(path, NULL) || GetLastError() == ERROR_ALREADY_EXISTS))
+        return false;
+#ifdef WIN32
+    DWORD attributes = GetFileAttributesW(path);
+    return attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY) &&
+        !(attributes & FILE_ATTRIBUTE_REPARSE_POINT);
+#else
+    char* localPath = _mwNormalizeWidePath(path);
+    if (localPath == NULL)
+        return false;
+    struct stat info;
+    bool result = lstat(localPath, &info) == 0 && S_ISDIR(info.st_mode);
+    free(localPath);
+    return result;
+#endif
+}
+
 //world = path to world saves
 //min* = minimum block location of box to save
 //max* = maximum block location of box to save
@@ -1212,6 +1253,15 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
 #ifdef _DEBUG
     gStartTimeStamp = gTimeStamp = clock();
 #endif
+
+    if (((options->exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES) || fileType == FILE_TYPE_USD) &&
+        !validTextureDirectory(options->pEFD->tileDirString))
+        return MW_CANNOT_CREATE_DIRECTORY;
+    if (options->exportFlags & EXPT_HOLLOW_BOTTOM) {
+        const float thickness = options->pEFD->hollowThicknessVal[options->pEFD->fileType];
+        if (!std::isfinite(thickness) || thickness <= 0.0f)
+            return MW_CANNOT_PARSE_IMPORT_FILE;
+    }
 
     IBox worldBox;
     IBox tightenedWorldBox;
@@ -1339,8 +1389,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
 
             concatFileName3(gMaterialDirectoryPath, gOutputFilePath, materialFileSubdir, gSeparator);
             // try to create it
-            if (!(CreateDirectoryW(gMaterialDirectoryPath, NULL) ||
-                ERROR_ALREADY_EXISTS == GetLastError()))
+            if (!createExportDirectory(gMaterialDirectoryPath))
             {
                 // Failed to create directory.
                 retCode |= MW_CANNOT_CREATE_DIRECTORY;
@@ -2080,8 +2129,7 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
                     //    // relative path
                     //    concatFileName4(gTextureDirectoryPath, gMaterialDirectoryPath, subpath, L"", L"");
                     //}
-                    if (!(CreateDirectoryW(gTextureDirectoryPath, NULL) ||
-                        ERROR_ALREADY_EXISTS == GetLastError()))
+                    if (!createExportDirectory(gTextureDirectoryPath))
                     {
                         // Failed to create directory.
                         retCode |= MW_CANNOT_CREATE_DIRECTORY;
@@ -2290,8 +2338,7 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
                     charToWchar(gModel.options->pEFD->tileDirString, subpath);
                     wcscat_s(subpath, MAX_PATH_AND_FILE, gSeparator);
                     concatFileName2(gTextureDirectoryPath, gMaterialDirectoryPath, subpath);
-                    if (!(CreateDirectoryW(gTextureDirectoryPath, NULL) ||
-                        ERROR_ALREADY_EXISTS == GetLastError()))
+                    if (!createExportDirectory(gTextureDirectoryPath))
                     {
                         retCode |= MW_CANNOT_CREATE_DIRECTORY;
                         return retCode;
@@ -3996,13 +4043,15 @@ static bool applyChangeBlockCommand(ChangeBlockCommand* pCBC)
                 bool modify = false;
                 if (pCBC->useFromArray) {
                     // apply array: see if bit for type is flagged
-                    if (pCBC->fromDataBitsArray[gBoxData[boxIndex].type] & (1 << gBoxData[boxIndex].data))
+                    if (gBoxData[boxIndex].type < 256 && gBoxData[boxIndex].data < 16 &&
+                        (pCBC->fromDataBitsArray[gBoxData[boxIndex].type] & (1U << gBoxData[boxIndex].data)))
                         modify = true;
                 }
                 else {
                     // apply range and bits
                     int fromType = gBoxData[boxIndex].type;
-                    if ((pCBC->simpleFromDataBits & (1 << gBoxData[boxIndex].data)) &&
+                    if (gBoxData[boxIndex].data < 16 &&
+                        (pCBC->simpleFromDataBits & (1U << gBoxData[boxIndex].data)) &&
                         (pCBC->simpleFromTypeBegin <= fromType) &&
                         (pCBC->simpleFromTypeEnd >= fromType)) {
                         modify = true;
@@ -22169,8 +22218,13 @@ static int determineScaleAndHollowAndMelt()
         scaleByCost();
     }
 
-    // now compute how many blocks are needed for a minimally-thick wall
-    gWallBlockThickness = (int)(ceil(gMtlCostTable[gPhysMtl].minWall / gModel.scale));
+    // Imported settings can bypass the export dialog's numeric checks.
+    if (!std::isfinite(gModel.scale) || gModel.scale <= 0.0f)
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+    const double wallThickness = ceil((double)gMtlCostTable[gPhysMtl].minWall / gModel.scale);
+    if (!std::isfinite(wallThickness) || wallThickness < 0.0 || wallThickness > INT_MAX)
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+    gWallBlockThickness = (int)wallThickness;
 
     // Remove unneeded material. While bubbles are illegal, it's fine to hollow out the base of any object, working from the
     //    bottom up. Option: delete a block at the base if it has neighboring blocks in all 8 positions on this level
@@ -22316,6 +22370,18 @@ static int hollowBottomOfModel()
     int listFound = 1;
     int survived, dir, neighborCount, neighborIndex;
     IPoint loc;
+    const double thickness = gModel.options->pEFD->hollowThicknessVal[gModel.options->pEFD->fileType];
+    if (!std::isfinite(thickness) || thickness <= 0.0 ||
+        !std::isfinite(gModel.scale) || gModel.scale <= 0.0f)
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+    const double blockThickness = ceil(thickness * MM_TO_METERS / gModel.scale);
+    const int spanX = gSolidBox.max[X] - gSolidBox.min[X];
+    const int spanZ = gSolidBox.max[Z] - gSolidBox.min[Z];
+    // A wall wider than the model leaves no interior to hollow. Check before narrowing.
+    if (blockThickness > spanX / 2 || blockThickness > spanZ / 2)
+        return MW_NO_ERROR;
+    gHollowBlockThickness = (int)blockThickness;
+
     // we could actually allocate less, but don't want to risk allocing 0 (or less than 0!)
     size_t hollowWidth = (size_t)(gSolidBox.max[X] - gSolidBox.min[X] + 1);
     size_t hollowLength = (size_t)(gSolidBox.max[Z] - gSolidBox.min[Z] + 1);
@@ -22337,11 +22403,8 @@ static int hollowBottomOfModel()
     }
     //memset(hollowDone, 0, hollowListSize);
 
-    assert(gModel.options->pEFD->hollowThicknessVal[gModel.options->pEFD->fileType] > 0.0f);
-    gHollowBlockThickness = (int)(ceil(gModel.options->pEFD->hollowThicknessVal[gModel.options->pEFD->fileType] * MM_TO_METERS / gModel.scale));
-
     // an arbitrary guess: if the box is long in one dimension or the other, add posts for support
-    addPost = (gSolidBox.max[X] > gSolidBox.min[X] + 8 + 2 * gHollowBlockThickness) || (gSolidBox.max[Z] > gSolidBox.min[Z] + 8 + 2 * gHollowBlockThickness);
+    addPost = (spanX - 2 * gHollowBlockThickness > 8) || (spanZ - 2 * gHollowBlockThickness > 8);
 
     // note that we test to the maximum, as we want the upper limit to be hit and so set the hollowDone for every location.
     for (y = gSolidBox.min[Y]; (y <= gSolidBox.max[Y]) && listFound; y++)
