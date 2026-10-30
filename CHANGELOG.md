@@ -7,7 +7,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 * Align macOS build versions and release tags with the integrated Windows/upstream version.
 * Incorporate upstream 14.03 map zoom centering and mesh simplification improvements.
-* Use Node.js 24 GitHub Actions and select release notes by the exact release tag.
+* Use macOS 15 runners and Node.js 24 GitHub Actions, and select release notes by the exact release tag.
 
 ### Fixed
 * Preserve macOS incremental map rendering across fractional zoom levels and large coordinate changes.
