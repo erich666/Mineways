@@ -34,21 +34,21 @@ bool MapRenderer::Render(WorldGuide* world, double x, double z, int depth, int m
         Reset();
         return false;
     }
-    const int scale = (int)(16 * zoom);
     const int colors = GetMapColormap(), highlight = GetMapHighlightID();
     bool sameStyle = m_valid && width == m_width && height == m_height && zoom == m_zoom &&
         depth == m_depth && maxY == m_maxY && world->type == m_type &&
         options->worldType == m_options && colors == m_colors && highlight == m_highlight &&
         options->currentCacheSize == m_cacheSize;
-    int originX, originZ;
+    long long originX, originZ;
     GetMapChunkOrigin(x, z, width, height, zoom, &originX, &originZ);
     if (!sameStyle || x != m_x || z != m_z) {
         ChunkLoaderCancelRequests();
-        int oldX = 0, oldZ = 0;
+        long long oldX = 0, oldZ = 0;
         if (sameStyle)
             GetMapChunkOrigin(m_x, m_z, width, height, zoom, &oldX, &oldZ);
-        m_dx = originX - oldX; m_dy = originZ - oldZ;
-        m_pan = sameStyle && std::abs(m_dx) < width && std::abs(m_dy) < height;
+        const long long dx = originX - oldX, dy = originZ - oldZ;
+        m_pan = sameStyle && std::abs(dx) < width && std::abs(dy) < height;
+        m_dx = m_pan ? (int)dx : 0; m_dy = m_pan ? (int)dy : 0;
         if (m_pan)
             shiftPixels(pixels, width, height, m_dx, m_dy);
         else
@@ -62,10 +62,8 @@ bool MapRenderer::Render(WorldGuide* world, double x, double z, int depth, int m
 
         const int centerX = (int)std::floor(x / 16), centerZ = (int)std::floor(z / 16);
         // Bound the plan by the cache, even when millions of chunks fit on screen.
-        const int viewMinX = (int)std::floor(-(double)originX / scale);
-        const int viewMinZ = (int)std::floor(-(double)originZ / scale);
-        const int viewMaxX = (int)std::floor(((double)width - 1 - originX) / scale);
-        const int viewMaxZ = (int)std::floor(((double)height - 1 - originZ) / scale);
+        int viewMinX, viewMinZ, viewMaxX, viewMaxZ;
+        GetMapChunkBounds(x, z, width, height, zoom, &viewMinX, &viewMinZ, &viewMaxX, &viewMaxZ);
         const int viewRadius = max(max(centerX - viewMinX, viewMaxX - centerX),
                                    max(centerZ - viewMinZ, viewMaxZ - centerZ));
         int radius = 0;
@@ -86,8 +84,11 @@ bool MapRenderer::Render(WorldGuide* world, double x, double z, int depth, int m
             const long long bx = (long long)b.x - centerX, bz = (long long)b.z - centerZ;
             return ax * ax + az * az < bx * bx + bz * bz;
         });
-        const int left = max(0, originX + minX * scale), right = min(width, originX + (maxX + 1) * scale);
-        const int top = max(0, originZ + minZ * scale), bottom = min(height, originZ + (maxZ + 1) * scale);
+        int left, top, right, bottom, unusedX, unusedZ;
+        GetMapChunkRect(x, z, width, height, zoom, minX, minZ, &left, &top, &unusedX, &unusedZ);
+        GetMapChunkRect(x, z, width, height, zoom, maxX, maxZ, &unusedX, &unusedZ, &right, &bottom);
+        left = clamp(left, 0, width); right = clamp(right, 0, width);
+        top = clamp(top, 0, height); bottom = clamp(bottom, 0, height);
         for (int row = 0; row < height; ++row) {
             unsigned char* target = pixels + (size_t)row * width * 4;
             if (row < top || row >= bottom) memset(target, 0x80, (size_t)width * 4);
@@ -99,8 +100,10 @@ bool MapRenderer::Render(WorldGuide* world, double x, double z, int depth, int m
     }
 
     auto paint = [&](int cx, int cz) {
-        const int left = max(0, originX + cx * scale), top = max(0, originZ + cz * scale);
-        const int right = min(width, originX + (cx + 1) * scale), bottom = min(height, originZ + (cz + 1) * scale);
+        int left, top, right, bottom;
+        GetMapChunkRect(x, z, width, height, zoom, cx, cz, &left, &top, &right, &bottom);
+        left = max(0, left); top = max(0, top);
+        right = min(width, right); bottom = min(height, bottom);
         if (left >= right || top >= bottom) return;
         int result = DrawMapStrips(world, x, z, depth, maxY, width, height, zoom,
             pixels, options, hits, nullptr, mcVersion, version, left, top, right, bottom);
@@ -122,9 +125,10 @@ bool MapRenderer::Render(WorldGuide* world, double x, double z, int depth, int m
         const Chunk& chunk = m_chunks[m_next];
         void* cached = nullptr;
         if (Cache_Find(chunk.x, chunk.z, &cached)) {
-            const int left = originX + chunk.x * scale, top = originZ + chunk.z * scale;
+            int left, top, right, bottom;
+            GetMapChunkRect(x, z, width, height, zoom, chunk.x, chunk.z, &left, &top, &right, &bottom);
             const bool preserved = m_pan && left >= max(0, m_dx) && top >= max(0, m_dy) &&
-                left + scale <= min(width, width + m_dx) && top + scale <= min(height, height + m_dy);
+                right <= min(width, width + m_dx) && bottom <= min(height, height + m_dy);
             if (!preserved) draw(chunk.x, chunk.z);
         } else if (ChunkLoaderUsable(world)) {
             if (!ChunkLoaderRequest(world, chunk.x, chunk.z, mcVersion, version, options->worldType)) {

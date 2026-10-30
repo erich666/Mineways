@@ -47,10 +47,13 @@ struct WorldGuide {};
 struct Options {};
 using ProgressCallback = void (*)(float, wchar_t*);
 static bool gColorsInited = false;
+static bool gDarkBlankTiles = false;
+static void SetMapDarkBlankTiles(bool dark) { gDarkBlankTiles = dark; }
 static int drawCalls, highlightCalls, writeCalls;
 static void initColors() { gColorsInited = true; }
 static unsigned char* draw(WorldGuide*, int, int, int, int, Options*, ProgressCallback,
                           float, float&, int*, int, int, int& result) {
+    assert(!gDarkBlankTiles);
     static unsigned char pixels[16 * 16 * 4];
     for (int i = 0; i < 16 * 16; ++i) {
         pixels[i * 4] = 7; pixels[i * 4 + 1] = 11; pixels[i * 4 + 2] = 13;
@@ -101,10 +104,13 @@ int main() {
     assert(drawCalls == before);
     for (int w : {1, 17, 33}) for (int h : {1, 19}) for (int zoom : {1, 2, 7}) {
         assert(GetMapImageSize(w, h, zoom, bytes));
+        for (bool dark : {false, true})
         for (int origin : {INT_MIN, -17, -16, -1, 0, 1, 15, 16, INT_MAX - 32}) {
+            gDarkBlankTiles = dark;
             std::vector<unsigned char> pixels(bytes + 32, 0xa5);
             assert(DrawMapToArray(pixels.data() + 16, bytes, &gWorldGuide, origin, origin,
                                  70, 255, w, h, zoom, &gOptions, gHitsFound, nullptr, 0, 0) == 0);
+            assert(gDarkBlankTiles == dark);
             for (size_t i = 0; i < bytes; ++i)
                 assert(pixels[i + 16] == (i % 3 == 0 ? 13 : i % 3 == 1 ? 11 : 7));
             for (int i = 0; i < 16; ++i)

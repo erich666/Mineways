@@ -217,22 +217,28 @@ static void checkMapPerformance()
     constexpr int width = 384, height = 128;
     std::vector<unsigned char> incremental(width * height * 4), reference(incremental.size());
     int hits[4] = {};
-    for (double zoom : { 0.5, 1.0, 1.1, 16.0 })
-    for (double center : { 8.0, 9.25, -0.75, -17.0, 40.5 }) {
+    auto checkView = [&](double x, double z, double zoom, int w, int h) {
+        incremental.resize(w * h * 4);
+        reference.resize(incremental.size());
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
         bool pending;
         do {
-            pending = renderer.Render(&stone, center, center, 383, 319, width, height, zoom,
+            pending = renderer.Render(&stone, x, z, 383, 319, w, h, zoom,
                 incremental.data(), &options, hits, mc, version, result);
             assert(result >= 0);
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         } while (pending && std::chrono::steady_clock::now() < deadline);
         assert(!pending);
-        assert(DrawMap(&stone, center, center, 383, 319, width, height, zoom,
+        assert(DrawMap(&stone, x, z, 383, 319, w, h, zoom,
             reference.data(), &options, hits, nullptr, mc, version) >= 0);
         assert(incremental == reference);
-    }
+    };
+    // Include alternating chunk widths, negative coordinates and pans exceeding INT_MAX pixels.
+    for (double zoom : { 0.0625, 0.07, 0.1, 0.3, 0.5, 1.0, 1.1, 16.0, 40.0 })
+    for (double center : { 8.0, 9.25, -0.75, -17.0, 40.5, 30000000.0, -30000000.0, -29999999.75 })
+        checkView(center, -center, zoom, zoom < 0.5 ? 31 : width, zoom < 0.5 ? 17 : height);
     // A style change must invalidate the retained pixels, too.
+    checkView(40.5, 40.5, 1.0, width, height);
     options.worldType = MAP_GRID;
     while (renderer.Render(&stone, 40.5, 40.5, 383, 319, width, height, 1.0,
                incremental.data(), &options, hits, mc, version, result)) {}

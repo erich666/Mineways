@@ -31,6 +31,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "CullingSchemes.h"
 #include "ExportPrint.h"
 #include "Location.h"
+#include "DarkMode.h"
 #include "nbt.h"    // just for SlowFindIndexFromName()
 #ifdef SKETCHFAB
 #include "publishSkfb.h"
@@ -224,7 +225,7 @@ static std::unordered_set<long long> gPaintedChunks;
 // When a prefetch scan runs out of time before finding anything to do, the next pass carries on from this ring, so that a
 // large view still gets finished. Any redraw starts it over at 0, as the view, and what's been drawn, may have changed.
 static int gPrefetchResumeRing = 0;
-#define PAINTED_CHUNK_KEY(cx, cz)   (((long long)(cx) << 32) | (unsigned int)(cz))
+#define PAINTED_CHUNK_KEY(cx, cz)   (((long long)(cx) * 0x100000000LL) | (unsigned int)(cz))
 
 // Map memory: the most memory the chunk cache may use, from Help > Map memory, kept in the registry
 // as HKCU\Software\Eric Haines\Mineways\MapMemoryMB. The cache holds as many chunks as fit at the
@@ -293,6 +294,8 @@ static wchar_t* gCustomCurrency = NULL;
 static int gSubError = 0;
 
 static int gOneTimeDrawError = true;
+// the 64-bit build explains the map's out-of-memory (dark gray) areas once a session, see largerMapMemoryAvailable()
+static bool gOutOfMemoryInfoShown = false;
 static int gOneTimeDrawWarning = NBT_WARNING_NAME_NOT_FOUND;
 static int gOneTimeWorldWarning = NBT_WARNING_DIRECTORY_NOT_FOUND;
 
@@ -483,6 +486,9 @@ static int setWorldPath(TCHAR* path);
 //static void homePathMac(TCHAR *path);
 static void enableBottomControl(int state, /* HWND hwndBottomSlider, HWND hwndBottomLabel, */ HWND hwndInfoBottomLabel);
 static void validateItems(HMENU menu);
+static void setMapThemeColors();
+static void checkThemeMenu(HMENU menu);
+static void applyTheme(HWND hWnd, HWND hwndStatus);
 static int loadWorldList(HMENU menu);
 static int loadTerrainList(HMENU menu);
 static void loadRecentExportsFromRegistry();
@@ -490,6 +496,7 @@ static void saveRecentExportsToRegistry();
 static void addToRecentExports(const wchar_t* path);
 static void populateRecentExportsMenu(HWND hWnd);
 static int mapMemoryLimitMB();
+static bool largerMapMemoryAvailable();
 static void loadMapMemoryFromRegistry();
 static void saveMapMemoryToRegistry();
 static void applyMapMemory(HWND hWnd);
@@ -749,6 +756,10 @@ int APIENTRY _tWinMain(
     LOG_INFO(gExecutionLogfile, "execute MyRegisterClass\n");
     MyRegisterClass(hInstance);
 
+    // light or dark theme, from View > Theme; needed before any window is made
+    DarkModeInit();
+    setMapThemeColors();
+
     // One-time initialization for mapping and object export
     // set the pcolors properly once. They'll change from color schemes.
     // Done before InitInstance: its WM_CREATE runs any scripts given on the command line, and their exports need these.
@@ -967,7 +978,6 @@ static int bitWidth = 0;
 static int bitHeight = 0;
 static HWND progressBar = NULL;
 static HWND statusWindow = NULL;
-static HBRUSH ctlBrush = NULL;
 // TODO: Warning	C6262	Function uses '16576' bytes of stack.Consider moving some data to heap.
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -1008,11 +1018,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     //    OutputDebugStringW( buf );
     //#endif
 
+    // the dark theme draws the menu bar itself
+    LRESULT menuBarResult;
+    if (DarkModeHandleMenuBar(hWnd, message, wParam, lParam, &menuBarResult))
+        return menuBarResult;
+
     switch (message)
     {
     case WM_CREATE:
     {
         gMainHWnd = hWnd;
+        DarkModeApplyToWindow(hWnd);
+        checkThemeMenu(GetMenu(hWnd));
         validateItems(GetMenu(hWnd));
 
         int val = getSuppressFromCommandLine(gArgList, gArgCount);
@@ -1112,8 +1129,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         loadMapMemoryFromRegistry();
         applyMapMemory(hWnd);
 
-        ctlBrush = CreateSolidBrush(GetSysColor(COLOR_WINDOW));
-
         ice.dwSize = sizeof(INITCOMMONCONTROLSEX);
         ice.dwICC = ICC_BAR_CLASSES;
         InitCommonControlsEx(&ice);
@@ -1181,6 +1196,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         SetWindowText(hwndInfoBottomLabel, L"Depth");
         EnableWindow(hwndInfoBottomLabel, FALSE);
 
+        // so that, while disabled, they're not drawn embossed in light colors in the dark theme
+        DarkModeApplyToLabel(hwndLabel);
+        DarkModeApplyToLabel(hwndBottomLabel);
+        DarkModeApplyToLabel(hwndInfoLabel);
+        DarkModeApplyToLabel(hwndInfoBottomLabel);
+
         statusWindow = hwndStatus = CreateWindowEx(
             0, STATUSCLASSNAME, NULL,
             WS_CHILD | WS_VISIBLE | WS_BORDER,
@@ -1198,6 +1219,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             MoveWindow(progressBar, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, TRUE);
             SendMessage(progressBar, PBM_SETSTEP, (WPARAM)5, 0);
             SendMessage(progressBar, PBM_SETPOS, 0, 0);
+            DarkModeApplyToStatusBar(hwndStatus, progressBar);
         }
 
         gWS.hWnd = hWnd;
@@ -1659,10 +1681,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         if (!gLoaded)
             return 0;
 
-        int blockScale = (int)(16 * gCurScale);
-        if (blockScale < 1) blockScale = 1;
-        int hBlocks = (bitWidth + blockScale * 2) / blockScale;
-        int vBlocks = (bitHeight + blockScale * 2) / blockScale;
+        // about how many chunks across and down the view, plus 2 for partial chunks at the edges
+        int hBlocks = (int)ceil((double)bitWidth / (16.0 * gCurScale)) + 2;
+        int vBlocks = (int)ceil((double)bitHeight / (16.0 * gCurScale)) + 2;
 
         // Scan exactly the chunks visible in the viewport (plus a small margin).
         // This avoids wasting iterations on off-screen chunks while ensuring the
@@ -1839,22 +1860,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         // Targeted redraw: repaint only the pixel rectangles of chunks that
         // were loaded or need highlight refresh, instead of a full-screen
         // DrawMap (which at extreme zoom iterates millions of chunks).
-        // Compute pixel positions using the same math as DrawMapStrips so
-        // the clip rects align exactly — any truncation difference causes
-        // 1-pixel gaps (black lines).
-        int startxblock = (int)(startx / 16);
-        int startzblock = (int)(startz / 16);
-        int shiftx = (int)((startx - startxblock * 16) * gCurScale);
-        int shiftz = (int)((startz - startzblock * 16) * gCurScale);
-        if (shiftx < 0) { startxblock--; shiftx += blockScale; }
-        if (shiftz < 0) { startzblock--; shiftz += blockScale; }
+        // The rectangles are where DrawMapStrips puts the chunks, so they
+        // align exactly — any difference causes 1-pixel gaps (black lines).
 
         // paint one chunk's rectangle
         auto paintChunk = [&](int cx, int cz) {
-            int px = -shiftx + (cx - startxblock) * blockScale;
-            int pz = -shiftz + (cz - startzblock) * blockScale;
-            int px2 = px + blockScale;
-            int pz2 = pz + blockScale;
+            int px, pz, px2, pz2;
+            GetMapChunkRect(gCurX, gCurZ, bitWidth, bitHeight, gCurScale, cx, cz, &px, &pz, &px2, &pz2);
             // Clip to screen bounds
             if (px < 0) px = 0;
             if (pz < 0) pz = 0;
@@ -1894,9 +1906,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         // When the map memory doesn't hold the whole view, and everything that fits is done, mark the rest of the view
         // that hasn't been drawn as out of memory (solid gray), so it doesn't look like it's still to be loaded (white).
         if (maxRing < viewMaxRing && nBest == 0 && ringsScanned == maxRing) {
-            MarkOutOfMemoryChunks(gCurX, gCurZ, bitWidth, bitHeight, gCurScale, map,
+            int marked = MarkOutOfMemoryChunks(gCurX, gCurZ, bitWidth, bitHeight, gCurScale, map,
                 centerCX - maxRing, centerCZ - maxRing, centerCX + maxRing, centerCZ + maxRing);
             InvalidateRect(hWnd, NULL, FALSE);
+            // The first time this session that out-of-memory areas show, say what they are, if a larger map memory
+            // setting would help.
+            if (marked > 0 && !gOutOfMemoryInfoShown && largerMapMemoryAvailable()) {
+                gOutOfMemoryInfoShown = true;
+                // show the gray areas before the message
+                UpdateWindow(hWnd);
+                FilterMessageBox(hWnd, _T("The dark gray areas on the map are where Mineways has run out of memory for map display. To let Mineways use more memory for the map, choose a larger size with Help | Map memory."),
+                    _T("Informational"), MB_OK | MB_ICONINFORMATION);
+            }
         }
 
         // Show any error or warning from loading (each kind once, see checkMapDrawErrorCode), before queuing the next
@@ -2258,11 +2279,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_CTLCOLORSTATIC: //color the label and the slider background
     {
         HDC hdcStatic = (HDC)wParam;
-        SetTextColor(hdcStatic, GetSysColor(COLOR_WINDOWTEXT));
-        SetBkColor(hdcStatic, GetSysColor(COLOR_WINDOW));
-        return (INT_PTR)ctlBrush;
+        SetTextColor(hdcStatic, DarkModeTextColor());
+        SetBkColor(hdcStatic, DarkModeWindowColor());
+        return (INT_PTR)DarkModeWindowBrush();
     }
     break;
+    case WM_NOTIFY:
+        // the dark theme draws the height and depth sliders itself
+        if (((LPNMHDR)lParam)->code == NM_CUSTOMDRAW &&
+            (((LPNMHDR)lParam)->idFrom == ID_LAYERSLIDER || ((LPNMHDR)lParam)->idFrom == ID_LAYERBOTTOMSLIDER))
+            return DarkModeTrackbarCustomDraw((LPNMCUSTOMDRAW)lParam);
+        return DefWindowProc(hWnd, message, wParam, lParam);
+    case WM_SETTINGCHANGE:
+        // Windows' light or dark mode for apps changed, or a contrast theme was turned on or off
+        if (DarkModeUpdateFromWindows())
+            applyTheme(hWnd, hwndStatus);
+        return DefWindowProc(hWnd, message, wParam, lParam);
     case WM_COMMAND:
         wmId = LOWORD(wParam);
         // set but not used: wmEvent = HIWORD(wParam);
@@ -2897,7 +2929,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             case IDM_ZOOMOUTFURTHER:
                 gMinZoom = (gMinZoom < MINZOOM) ? MINZOOM : 0.0625f;
                 if (gMinZoom < MINZOOM) {
-                    FilterMessageBox(NULL, _T("Warning: you can now zoom out further with the mouse scroll wheel, up to 16 blocks wide per pixel. You can see your zoom factor displayed at the top of the program, in the title bar. However, this feature uses up lots of memory as you zoom out, so may cause Mineways to slow or lock up. Massive map display is not what Mineways is made for. You're on your own!"),
+                    FilterMessageBox(NULL, _T("Warning: you can now zoom out further with the mouse scroll wheel, up to 16 blocks wide per pixel. You can see your zoom factor displayed at the top of the program, in the title bar. However, this feature uses up lots of memory as you zoom out, so may cause Mineways to slow or lock up.  Massive map display is not what Mineways is made for. You're on your own!"),
                         _T("Warning"), MB_OK | MB_ICONWARNING);
                 }
                 CheckMenuItem(GetMenu(hWnd), wmId, (gMinZoom < MINZOOM) ? MF_CHECKED : MF_UNCHECKED);
@@ -3037,6 +3069,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     }
                 }
                 break;
+            case IDM_THEME_FOLLOWWINDOWS:
+            case IDM_THEME_LIGHT:
+            case IDM_THEME_DARK:
+                if (DarkModeSetChoice(wmId - IDM_THEME_FOLLOWWINDOWS))
+                    applyTheme(hWnd, hwndStatus);
+                checkThemeMenu(GetMenu(hWnd));
+                break;
             default:
                 return DefWindowProc(hWnd, message, wParam, lParam);
             }
@@ -3050,9 +3089,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         hdc = (HDC)wParam;
         GetClipBox(hdc, &rect);
         rect.bottom = MAIN_WINDOW_TOP;
-        HBRUSH hb = CreateSolidBrush(GetSysColor(COLOR_WINDOW));
-        FillRect(hdc, &rect, hb);
-        DeleteObject(hb);
+        FillRect(hdc, &rect, DarkModeWindowBrush());
     }
     break;
     case WM_PAINT:
@@ -4057,10 +4094,21 @@ static void updateProgress(float progress, wchar_t* buf)
     }
 }
 
+// Fill pixels of the map buffer with the color of map areas not drawn yet: white, or dark gray for the dark theme
+static void fillMapPending(unsigned char* buf, size_t pixels)
+{
+    COLORREF pending = DarkModeMapPendingColor();
+    // BGRA, as in the DIBSection
+    uint32_t value = 0xff000000 | ((uint32_t)GetRValue(pending) << 16) | ((uint32_t)GetGValue(pending) << 8) | (uint32_t)GetBValue(pending);
+    uint32_t* pixel = (uint32_t*)buf;
+    for (size_t i = 0; i < pixels; i++)
+        pixel[i] = value;
+}
+
 // Shift the screen pixel buffer by (dx,dy) pixels. Positive dx shifts image right
 // (exposes left edge), positive dy shifts image down (exposes top edge). The newly
-// exposed strips are filled with 0xFF (white/opaque) so they're visible if not
-// overdrawn by DrawMapStrips.
+// exposed strips are filled with the "not drawn yet" color (see fillMapPending) so
+// they're visible if not overdrawn by DrawMapStrips.
 static void scrollMapBuffer(unsigned char* buf, int w, int h, int dx, int dy)
 {
     int rowBytes = w * 4;
@@ -4071,7 +4119,7 @@ static void scrollMapBuffer(unsigned char* buf, int w, int h, int dx, int dy)
         for (int row = h - 1; row >= dy; row--)
             memmove(buf + row * rowBytes, buf + (row - dy) * rowBytes, rowBytes);
         // clear top strip
-        memset(buf, 0xff, dy * rowBytes);
+        fillMapPending(buf, (size_t)dy * w);
     }
     else if (dy < 0) {
         int ady = -dy;
@@ -4079,7 +4127,7 @@ static void scrollMapBuffer(unsigned char* buf, int w, int h, int dx, int dy)
         for (int row = 0; row < h - ady; row++)
             memmove(buf + row * rowBytes, buf + (row + ady) * rowBytes, rowBytes);
         // clear bottom strip
-        memset(buf + (h - ady) * rowBytes, 0xff, ady * rowBytes);
+        fillMapPending(buf + (h - ady) * rowBytes, (size_t)ady * w);
     }
 
     // Horizontal shift: per-row memmove
@@ -4088,7 +4136,7 @@ static void scrollMapBuffer(unsigned char* buf, int w, int h, int dx, int dy)
         for (int row = 0; row < h; row++) {
             unsigned char* rowPtr = buf + row * rowBytes;
             memmove(rowPtr + dx * 4, rowPtr, copyBytes);
-            memset(rowPtr, 0xff, dx * 4);
+            fillMapPending(rowPtr, dx);
         }
     }
     else if (dx < 0) {
@@ -4097,7 +4145,7 @@ static void scrollMapBuffer(unsigned char* buf, int w, int h, int dx, int dy)
         for (int row = 0; row < h; row++) {
             unsigned char* rowPtr = buf + row * rowBytes;
             memmove(rowPtr, rowPtr + adx * 4, copyBytes);
-            memset(rowPtr + copyBytes, 0xff, adx * 4);
+            fillMapPending(rowPtr + copyBytes, adx);
         }
     }
 }
@@ -4122,14 +4170,16 @@ static void drawTheMap()
             && curHighlightID == gLastDrawnHighlightID)
         {
             // Shift by exactly how far DrawMap() would move the chunks. That's not the view's move times the zoom: chunks
-            // are placed a whole number of pixels apart, (int)(16 * zoom), so when that's rounded, the map jumps a fraction
-            // of a pixel at each chunk boundary, and shifting by the zoom alone leaves the old pixels and the newly drawn
-            // strips out of line (doubled edges, and white gaps between them).
-            int oldOX, oldOZ, newOX, newOZ;
+            // are placed on whole pixels, so the map moves in whole pixels, and shifting by the zoom alone leaves the old
+            // pixels and the newly drawn strips out of line (doubled edges, and white gaps between them).
+            long long oldOX, oldOZ, newOX, newOZ;
             GetMapChunkOrigin(gLastDrawnCurX, gLastDrawnCurZ, bitWidth, bitHeight, gCurScale, &oldOX, &oldOZ);
             GetMapChunkOrigin(gCurX, gCurZ, bitWidth, bitHeight, gCurScale, &newOX, &newOZ);
-            int dx = newOX - oldOX;
-            int dy = newOZ - oldOZ;
+            // a move bigger than the view is a full redraw, below
+            long long dxLong = newOX - oldOX;
+            long long dyLong = newOZ - oldOZ;
+            int dx = (int)max(min(dxLong, (long long)INT_MAX / 2), (long long)INT_MIN / 2);
+            int dy = (int)max(min(dyLong, (long long)INT_MAX / 2), (long long)INT_MIN / 2);
 
             if (dx == 0 && dy == 0) {
                 // Sub-pixel pan, no visible change — skip the redraw entirely.
@@ -4206,8 +4256,8 @@ static void drawTheMap()
         // When the chunk count is too large, skip DrawMap entirely: clear the
         // buffer and let the prefetch system paint chunks in progressively.
         {
-            int bs = max(1, (int)(16 * gCurScale));
-            int visibleChunks = ((bitWidth + bs * 2) / bs) * ((bitHeight + bs * 2) / bs);
+            double chunkPixels = 16.0 * gCurScale;
+            int visibleChunks = ((int)ceil(bitWidth / chunkPixels) + 2) * ((int)ceil(bitHeight / chunkPixels) + 2);
             bool tooMany = (visibleChunks > gOptions.currentCacheSize / 2);
 
             ClearUnknownBlockNameString();
@@ -4224,7 +4274,7 @@ static void drawTheMap()
 
                 if (!highlightOnly) {
                     // Major change — clear and rebuild from scratch
-                    memset(map, 0xff, (size_t)bitWidth * bitHeight * 4);
+                    fillMapPending(map, (size_t)bitWidth * bitHeight);
                     gMapBufferComplete = false;
                     gPaintedChunks.clear();
                 }
@@ -4263,7 +4313,7 @@ static void drawTheMap()
     } else {
         // avoid clearing nothing at all.
         if (bitWidth > 0 && bitHeight > 0)
-            memset(map, 0xff, bitWidth * bitHeight * 4);
+            fillMapPending(map, (size_t)bitWidth * bitHeight);
         else
             return;	// nothing to draw
         gScrollCacheValid = false;
@@ -4910,6 +4960,22 @@ static int mapMemoryLimitMB()
 #endif
 }
 
+// Is there a larger Help > Map memory choice than the current one, below 16 GB, that this computer has the memory for?
+// A 32-bit build has just the one choice.
+static bool largerMapMemoryAvailable()
+{
+#ifdef MINEWAYS_X64
+    if (gMapMemoryMB >= 16384)
+        return false;
+    int limitMB = mapMemoryLimitMB();
+    for (int i = 0; i < NUM_MAP_MEMORY_CHOICES; i++) {
+        if (gMapMemoryChoicesMB[i] > gMapMemoryMB && gMapMemoryChoicesMB[i] <= limitMB)
+            return true;
+    }
+#endif
+    return false;
+}
+
 static void loadMapMemoryFromRegistry()
 {
 #ifdef MINEWAYS_X64
@@ -5342,6 +5408,36 @@ static void enableBottomControl(int state, /* HWND hwndBottomSlider, HWND hwndBo
     }
 }
 
+
+// The map's colors for missing chunks and for areas not drawn yet, which are darker for the dark theme
+static void setMapThemeColors()
+{
+    COLORREF pending = DarkModeMapPendingColor();
+    SetMapPendingColor(GetRValue(pending), GetGValue(pending), GetBValue(pending));
+    SetMapDarkBlankTiles(DarkModeIsOn());
+}
+
+// check the View > Theme item chosen
+static void checkThemeMenu(HMENU menu)
+{
+    if (menu != NULL)
+        CheckMenuRadioItem(menu, IDM_THEME_FOLLOWWINDOWS, IDM_THEME_DARK, IDM_THEME_FOLLOWWINDOWS + DarkModeGetChoice(), MF_BYCOMMAND);
+}
+
+// The theme changed between light and dark: redraw everything in it
+static void applyTheme(HWND hWnd, HWND hwndStatus)
+{
+    DarkModeApplyToWindow(hWnd);
+    DarkModeApplyToStatusBar(hwndStatus, progressBar);
+    // the sliders keep the background they were first drawn with until told that colors changed
+    SendMessage(gWS.hwndSlider, WM_SYSCOLORCHANGE, 0, 0);
+    SendMessage(gWS.hwndBottomSlider, WM_SYSCOLORCHANGE, 0, 0);
+    // the map's missing and not-yet-drawn areas are in the old theme's colors, so draw the map again
+    setMapThemeColors();
+    InvalidateMapRenderCache();
+    drawTheMap();
+    RedrawWindow(hWnd, NULL, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_FRAME | RDW_ALLCHILDREN | RDW_UPDATENOW);
+}
 
 // validate menu items
 static void validateItems(HMENU menu)
@@ -6835,6 +6931,7 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     switch (message)
     {
     case WM_INITDIALOG:
+        DarkModeApplyToDialog(hDlg);
         return (INT_PTR)TRUE;
 
     case WM_COMMAND:
@@ -11389,7 +11486,7 @@ static int FilterMessageBox(HWND hWnd, LPCTSTR lpText, LPCTSTR lpCaption, UINT u
         return 1;
     }
     // note: we make all these message boxes system modal - they should always be in the user's face until dismissed.
-    return MessageBox(hWnd, lpText, lpCaption, uType | MB_TOPMOST);
+    return DarkModeMessageBox(hWnd, lpText, lpCaption, uType | MB_TOPMOST);
 }
 
 static void GoToBedrockHelpOnOK( int retcode )

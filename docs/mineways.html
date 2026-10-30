@@ -288,7 +288,7 @@ See the file "scripting/make_slice_maps.mwscript" for making a series of layers 
 <H3 id="memory">Out of memory?</H3> Under "Help", the "give more export memory" frees memory as possible while exporting. This option can allow you to export a large model you normally couldn't, at the cost of slower map update and export. What it does is unloads all stored world chunks (the 16x16x256 high pieces of your world) when exporting, reloading these after export. Also, the chunks loaded get reduced in size, which can help showing large maps on extremely limited machines (such as Windows 32). If that fails, you can <a href="scripting.html#uie">use scripting to export your world</a> as separate "hunks."
 
 <P>
-There is also "Map memory", where you can allocate up to 16 GB (with the 64-bit version of Mineways) for map caching. I suggest selecting this (the default), and lowering it if you find your system overall slowing down or other problems appear.
+There is also "Map memory", where you can allocate up to 16 GB (with the 64-bit version of Mineways) for map caching. If you see dark gray areas in the map display, I suggest increasing this setting, and lowering it if you find your system overall slowing down or other problems appear. See <a href="#reference.html#hm">this documentation</a> for more information.
 
 <P>
 <h3 id="g3d">Displaying with G3D</h3>
@@ -3020,16 +3020,23 @@ From newest to oldest. The very newest is sometimes unreleased work in progress,
 <P>
 <UL>
 
-
-<LI>Version 14.02, 10/*/2026 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1402.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+<LI>Version 14.03, */*/2026 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1403.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
   <BR>
     <UL>
-	<LI>Faster and more interactive map load, especially when zooming out via "View | Zoom out further", and faster model export by reducing file accesses. Memory size for map caching is <a href="#memory">now selectable</a>, under "Help | Map memory". Multithreading added for map loading, similar to Minutor. <I>(Thanks to Karel Koudelka for <a href="https://github.com/erich666/Mineways/pull/171">getting the ball rolling</a> on this.)</I>
+	<LI>Fix zoom bug for extreme zoom values that were not powers of 2. The view was incorrectly centered for these.
+	<LI>Mesh simplification now tests each plane both by rows and by columns and keeps whichever gives fewer faces. This cuts total faces by 0.4-2.8% in (limited) testing, while increasing export time by under 0.2%. The largest effect is for buildings. The code is still not optimal, but slightly better, at minimal cost. See <a href="https://github.com/erich666/Mineways/issues/173">issue 173</a> for more details.
+	<LI>Dark mode: "View | Theme" lets you pick light, dark, or (the default) following the Windows setting for apps' light or dark mode. Dark mode darkens the title bar, menus, sliders, status bar, dialogs, and the map's background areas. A few parts of Windows itself, such as the file open and save dialogs, stay light - sorry. Map images exported are not affected. <I>(Thanks to ThemChaosCreatures for the suggestion.)</I>
+	</UL>
+
+<LI>Version 14.02, 10/23/2026 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1402.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
+  <BR>
+    <UL>
+	<LI>Faster and more interactive map load, especially when using full-screen or zooming out via "View | Zoom out further", and faster model export by reducing file accesses. Memory size for map caching is <a href="reference.html#hm">now selectable</a>, under "Help | Map memory". Multithreading added for map loading, similar to Minutor. <I>(Thanks to Karel Koudelka for <a href="https://github.com/erich666/Mineways/pull/171">getting the ball rolling</a> on this.)</I>
 	<LI>Make bed, bell, and turtle eggs textures not be considered cutouts, so that they render better in Eevee and elsewhere.
-	<LI>Fixed ChannelMixer and TileMaker to properly find the barrier, decorated_pot_side, and shulker box sides and bottoms. Derive end_portal the way that Minecraft makes it. Other fixes, such as removing incorrect warnings. TileMaker updated to 3.32, ChannelMixer to 1.25.
+	<LI>Fixed ChannelMixer and TileMaker to properly find the barrier, decorated_pot_side, and shulker box sides and bottoms. Derive end_portal more the way that Minecraft makes it. Other fixes, such as removing incorrect warnings. TileMaker updated to 3.32, ChannelMixer to 1.25.
 	<LI>Track non-graphical attributes for .schem export and import. Things like fence gates and trapdoors and mob heads being powered, ages of kelp, various vines, mangrove propagule, and many others.
+	<LI>Remade custom texture terrain packs, fixing a few textures.
 	<LI>Documentation cleanup and link fixing.
-	<LI>Remade custom texture terrain packs.
 	</UL>
 
 <LI>Version 14.01, 10/3/2026 - <a href="https://erich.realtimerendering.com/minecraft/public/mineways/minewaysV1401.zip">exe</a>, <a href="https://github.com/erich666/Mineways/tags">source</a>.
@@ -4566,7 +4573,7 @@ The Mineways program is <a href="https://github.com/erich666/Mineways">open sour
 	<div id="footer">
 		<hr>
 		<p>Webmaster: <a href="mailto:erich@acm.org">Eric Haines</a>, erich@acm.org - visit the <a href="contact.html">support page</a>
-		<br id="lastUpdate">Last updated 10/3/2026</p>
+		<br id="lastUpdate">Last updated 10/23/2026</p>
 	</div>
 </div>
 

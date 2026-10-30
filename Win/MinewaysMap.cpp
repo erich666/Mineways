@@ -45,7 +45,10 @@ static void clearUndoHighlight();
 static void copyHighlightState(HighlightBox& destBox, HighlightBox& srcBox);
 static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int topy, int mapMaxY, Options* pOpts,
     ProgressCallback callback, float percent, float & pctprogress, int* hitsFound, int mcVersion, int versionID, int& retCode);
-static void blit(unsigned char* block, unsigned char* bits, int px, int py, double zoom, int w, int h);
+static void blit(unsigned char* block, unsigned char* bits, int px, int py, int cw, int ch, int w, int h);
+static long long mapEdge(int b, double zoom);
+static long long mapOrigin(double c, int size, double zoom);
+static int mapChunkAt(long long q, double zoom);
 static WorldBlock* determineMaxFilledHeight(WorldBlock* block);
 static void addCushions(wchar_t* directory, int cx, int cz, WorldBlock* block);
 static void saveBadChunkLocation(int bx, int bz);
@@ -68,6 +71,11 @@ static unsigned char gBlankTransitionTile[16 * 16 * 4];
 // looked at yet, e.g. it's still to be loaded in the background. Solid gray, gOutOfMemoryTile, means it won't be loaded,
 // as the map memory setting holds only the chunks around the center of a large view (see MarkOutOfMemoryChunks()).
 static unsigned char gPendingTile[16 * 16 * 4];
+// gPendingTile's color, BGR; white unless the dark theme is on (see SetMapPendingColor())
+static unsigned char gPendingColor[3] = { 255, 255, 255 };
+// gBlankTile is darker for the dark theme (see SetMapDarkBlankTiles())
+static bool gDarkBlankTiles = false;
+static void buildBlankTiles();
 static unsigned char gOutOfMemoryTile[16 * 16 * 4];
 static unsigned char gOutOfMemoryHighlitTile[16 * 16 * 4];
 static unsigned char gOutOfMemoryTransitionTile[16 * 16 * 4];
@@ -350,51 +358,33 @@ int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int mapMaxY
     }
 
     unsigned char* blockbits;
-    int z, x, px, py;
-    // TODO: zooming out by setting -zl gives a jumpy center point. I can make this smoother by
-    // turning a bunch of the things below to doubles (other than startxblock and startzblock),
-    // but then the edges don't draw well, and zooming > 1 gives incorrect leftover lines from
-    // previous draws. A minor thing, but it'd be nice to do right at some point.
-    int blockScale = (int)(16 * zoom);
-
-    // number of blocks to fill the screen (plus 2 blocks for floating point inaccuracy)
-    int hBlocks = (w + blockScale * 2) / blockScale;
-    int vBlocks = (h + blockScale * 2) / blockScale;
-
-    // cx/cz is the center, so find the upper left corner from that
-    double startx = cx - (double)w / (2 * zoom);
-    double startz = cz - (double)h / (2 * zoom);
-    int startxblock = (int)(startx / 16);
-    int startzblock = (int)(startz / 16);
-    int shiftx = (int)((startx - startxblock * 16) * zoom);
-    int shifty = (int)((startz - startzblock * 16) * zoom);
+    // where the chunks go: see mapEdge()
+    long long originX = mapOrigin(cx, w, zoom);
+    long long originZ = mapOrigin(cz, h, zoom);
+    int startxblock = mapChunkAt(originX, zoom);
+    int startzblock = mapChunkAt(originZ, zoom);
+    int endxblock = mapChunkAt(originX + w - 1, zoom);
+    int endzblock = mapChunkAt(originZ + h - 1, zoom);
+    int hBlocks = endxblock - startxblock + 1;
+    int vBlocks = endzblock - startzblock + 1;
 
     int retCode;
-
-    if (shiftx < 0)
-    {
-        // essentially the floor function
-        startxblock--;
-        shiftx += blockScale;
-    }
-    if (shifty < 0)
-    {
-        // essentially the floor function
-        startzblock--;
-        shifty += blockScale;
-    }
 
     if (!gColorsInited)
         initColors();
 
     float pctprogress = DRAW_PROGRESS_INCREMENT;
     // x increases south, decreases north
-    for (z = 0, py = -shifty; z <= vBlocks; z++, py += blockScale)
+    for (int bz = startzblock; bz <= endzblock; bz++)
     {
+        int py = (int)(mapEdge(bz, zoom) - originZ);
+        int ch = (int)(mapEdge(bz + 1, zoom) - mapEdge(bz, zoom));
         // z increases west, decreases east
-        for (x = 0, px = -shiftx; x <= hBlocks; x++, px += blockScale)
+        for (int bx = startxblock; bx <= endxblock; bx++)
         {
-            blockbits = draw(pWorldGuide, startxblock + x, startzblock + z, topy, mapMaxY, pOpts, callback, (float)(z * hBlocks + x) / (float)(vBlocks * hBlocks), pctprogress, hitsFound, mcVersion, versionID, retCode);
+            int px = (int)(mapEdge(bx, zoom) - originX);
+            int cw = (int)(mapEdge(bx + 1, zoom) - mapEdge(bx, zoom));
+            blockbits = draw(pWorldGuide, bx, bz, topy, mapMaxY, pOpts, callback, (float)((bz - startzblock) * hBlocks + bx - startxblock) / (float)(vBlocks * hBlocks), pctprogress, hitsFound, mcVersion, versionID, retCode);
             if (retCode < 0) {
                 // preserve the error code, which will (mysteriously) be displayed
                 sumRetCode = retCode;
@@ -404,7 +394,7 @@ int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int mapMaxY
                 // warnings can chained together
                 sumRetCode |= retCode;
             } // else sumRetCode has an error code, so don't touch it
-            blit(blockbits, bits, px, py, zoom, w, h);
+            blit(blockbits, bits, px, py, cw, ch, w, h);
         }
     }
     // clear dirty rectangle, if any
@@ -428,30 +418,63 @@ int DrawMap(WorldGuide* pWorldGuide, double cx, double cz, int topy, int mapMaxY
     return sumRetCode;
 }
 
-// The pixel position at which DrawMap() puts chunk 0,0's corner, for a view centered at cx, cz: chunk bx, bz is at
-// ox + bx * blockScale, oz + bz * blockScale, where blockScale is (int)(16 * zoom). Chunks are placed every blockScale pixels,
-// a whole number, but the view moves within a chunk at the true zoom, so when 16 * zoom isn't a whole number, the map doesn't
-// move evenly with the view. Moving the map's pixels by the change in this origin gives exactly what DrawMap() would draw.
-void GetMapChunkOrigin(double cx, double cz, int w, int h, double zoom, int* ox, int* oz)
+// Map layout: where DrawMap() and the others put each chunk. Chunk b's left (or top) edge is at pixel mapEdge(b) - origin, where
+// mapEdge(b) is floor(16 * b * zoom), and origin, from mapOrigin(), is floor(zoom * the world x (or z) at the view's left (or top)
+// edge). So each chunk is within a pixel of where the true zoom puts it, and is 16 * zoom pixels wide, give or take one, which keeps
+// the map centered at any zoom. (Chunks used to be placed every (int)(16 * zoom) pixels, which, e.g., at zoom 0.1 drew the map at
+// 1/1.6 its size, shrunk toward the upper left.) Moving the view moves every chunk by the same whole number of pixels, the change
+// in origin, so the map's pixels can be shifted when panning (see GetMapChunkOrigin()).
+static long long mapEdge(int b, double zoom)
 {
-    // the same math as DrawMap()
-    int blockScale = (int)(16 * zoom);
-    double startx = cx - (double)w / (2 * zoom);
-    double startz = cz - (double)h / (2 * zoom);
-    int startxblock = (int)(startx / 16);
-    int startzblock = (int)(startz / 16);
-    int shiftx = (int)((startx - startxblock * 16) * zoom);
-    int shifty = (int)((startz - startzblock * 16) * zoom);
-    if (shiftx < 0) {
-        startxblock--;
-        shiftx += blockScale;
-    }
-    if (shifty < 0) {
-        startzblock--;
-        shifty += blockScale;
-    }
-    *ox = -shiftx - startxblock * blockScale;
-    *oz = -shifty - startzblock * blockScale;
+    return (long long)floor((double)b * 16.0 * zoom);
+}
+
+// c is the view's center in world x (or z), size the view's width (or height) in pixels
+static long long mapOrigin(double c, int size, double zoom)
+{
+    return (long long)floor((c - (double)size / (2 * zoom)) * zoom);
+}
+
+// The chunk at q, a pixel position plus the origin: mapEdge(b) <= q < mapEdge(b + 1)
+static int mapChunkAt(long long q, double zoom)
+{
+    int b = (int)floor((double)q / (16.0 * zoom));
+    // floating point may be off by one
+    while (mapEdge(b, zoom) > q)
+        b--;
+    while (mapEdge(b + 1, zoom) <= q)
+        b++;
+    return b;
+}
+
+// The pixel position at which DrawMap() puts chunk 0,0's corner, for a view centered at cx, cz. When the view moves, the map's
+// pixels move by the change in this.
+void GetMapChunkOrigin(double cx, double cz, int w, int h, double zoom, long long* ox, long long* oz)
+{
+    *ox = -mapOrigin(cx, w, zoom);
+    *oz = -mapOrigin(cz, h, zoom);
+}
+
+// The pixels DrawMap() covers with chunk bx, bz: x from *x0 up to (not including) *x1, y from *y0 up to *y1. Not clipped to the view.
+void GetMapChunkRect(double cx, double cz, int w, int h, double zoom, int bx, int bz, int* x0, int* y0, int* x1, int* y1)
+{
+    long long originX = mapOrigin(cx, w, zoom);
+    long long originZ = mapOrigin(cz, h, zoom);
+    *x0 = (int)(mapEdge(bx, zoom) - originX);
+    *x1 = (int)(mapEdge(bx + 1, zoom) - originX);
+    *y0 = (int)(mapEdge(bz, zoom) - originZ);
+    *y1 = (int)(mapEdge(bz + 1, zoom) - originZ);
+}
+
+// Inclusive chunk bounds, using the same rounded pixel edges as DrawMap().
+void GetMapChunkBounds(double cx, double cz, int w, int h, double zoom, int* minX, int* minZ, int* maxX, int* maxZ)
+{
+    long long originX = mapOrigin(cx, w, zoom);
+    long long originZ = mapOrigin(cz, h, zoom);
+    *minX = mapChunkAt(originX, zoom);
+    *minZ = mapChunkAt(originZ, zoom);
+    *maxX = mapChunkAt(originX + w - 1, zoom);
+    *maxZ = mapChunkAt(originZ + h - 1, zoom);
 }
 
 // Like DrawMap but only renders chunks whose blitted pixel area overlaps the clip rectangle
@@ -469,55 +492,48 @@ int DrawMapStrips(WorldGuide* pWorldGuide, double cx, double cz, int topy, int m
     }
 
     unsigned char* blockbits;
-    int z, x, px, py;
-    int blockScale = (int)(16 * zoom);
-
-    int hBlocks = (w + blockScale * 2) / blockScale;
-    int vBlocks = (h + blockScale * 2) / blockScale;
-
-    double startx = cx - (double)w / (2 * zoom);
-    double startz = cz - (double)h / (2 * zoom);
-    int startxblock = (int)(startx / 16);
-    int startzblock = (int)(startz / 16);
-    int shiftx = (int)((startx - startxblock * 16) * zoom);
-    int shifty = (int)((startz - startzblock * 16) * zoom);
+    // where the chunks go: see mapEdge()
+    long long originX = mapOrigin(cx, w, zoom);
+    long long originZ = mapOrigin(cz, h, zoom);
+    int startxblock = mapChunkAt(originX, zoom);
+    int startzblock = mapChunkAt(originZ, zoom);
+    int hBlocks = mapChunkAt(originX + w - 1, zoom) - startxblock + 1;
+    int vBlocks = mapChunkAt(originZ + h - 1, zoom) - startzblock + 1;
 
     int retCode;
-
-    if (shiftx < 0) {
-        startxblock--;
-        shiftx += blockScale;
-    }
-    if (shifty < 0) {
-        startzblock--;
-        shifty += blockScale;
-    }
 
     if (!gColorsInited)
         initColors();
 
-    // Compute the z/x block range that intersects the clip rectangle, so we
-    // iterate only over the chunks we need instead of all hBlocks*vBlocks.
-    // py(z) = -shifty + z*blockScale; draw condition: py+blockScale > clipMinY && py < clipMaxY.
-    int zStart = max(0, (clipMinY + shifty) / blockScale);
-    int zEnd   = min(vBlocks, (clipMaxY + shifty - 1) / blockScale);
-    int xStart = max(0, (clipMinX + shiftx) / blockScale);
-    int xEnd   = min(hBlocks, (clipMaxX + shiftx - 1) / blockScale);
+    // the chunks that the clip rectangle, clipped to the view, overlaps
+    clipMinX = max(clipMinX, 0);
+    clipMinY = max(clipMinY, 0);
+    clipMaxX = min(clipMaxX, w);
+    clipMaxY = min(clipMaxY, h);
+    if (clipMinX < clipMaxX && clipMinY < clipMaxY) {
+        int xStart = mapChunkAt(originX + clipMinX, zoom);
+        int xEnd = mapChunkAt(originX + clipMaxX - 1, zoom);
+        int zStart = mapChunkAt(originZ + clipMinY, zoom);
+        int zEnd = mapChunkAt(originZ + clipMaxY - 1, zoom);
 
-    float pctprogress = DRAW_PROGRESS_INCREMENT;
-    for (z = zStart, py = -shifty + zStart * blockScale; z <= zEnd; z++, py += blockScale)
-    {
-        for (x = xStart, px = -shiftx + xStart * blockScale; x <= xEnd; x++, px += blockScale)
+        float pctprogress = DRAW_PROGRESS_INCREMENT;
+        for (int bz = zStart; bz <= zEnd; bz++)
         {
-
-            blockbits = draw(pWorldGuide, startxblock + x, startzblock + z, topy, mapMaxY, pOpts, callback, (float)(z * hBlocks + x) / (float)(vBlocks * hBlocks), pctprogress, hitsFound, mcVersion, versionID, retCode);
-            if (retCode < 0) {
-                sumRetCode = retCode;
+            int py = (int)(mapEdge(bz, zoom) - originZ);
+            int ch = (int)(mapEdge(bz + 1, zoom) - mapEdge(bz, zoom));
+            for (int bx = xStart; bx <= xEnd; bx++)
+            {
+                int px = (int)(mapEdge(bx, zoom) - originX);
+                int cw = (int)(mapEdge(bx + 1, zoom) - mapEdge(bx, zoom));
+                blockbits = draw(pWorldGuide, bx, bz, topy, mapMaxY, pOpts, callback, (float)((bz - startzblock) * hBlocks + bx - startxblock) / (float)(vBlocks * hBlocks), pctprogress, hitsFound, mcVersion, versionID, retCode);
+                if (retCode < 0) {
+                    sumRetCode = retCode;
+                }
+                else if (sumRetCode >= 0) {
+                    sumRetCode |= retCode;
+                }
+                blit(blockbits, bits, px, py, cw, ch, w, h);
             }
-            else if (sumRetCode >= 0) {
-                sumRetCode |= retCode;
-            }
-            blit(blockbits, bits, px, py, zoom, w, h);
         }
     }
 
@@ -596,6 +612,10 @@ int DrawMapToArray(unsigned char* image, size_t imageCapacity, WorldGuide* pWorl
 
     if (!gColorsInited)
         initColors();
+
+    // an exported map image is the same whatever the theme
+    bool darkBlankTiles = gDarkBlankTiles;
+    SetMapDarkBlankTiles(false);
 
     // x increases south, decreases north
     int iblockxstart, b2ix, iblockxend, iblockzstart, b2iz, iblockzend;
@@ -700,6 +720,7 @@ int DrawMapToArray(unsigned char* image, size_t imageCapacity, WorldGuide* pWorl
             }
         }
     }
+    SetMapDarkBlankTiles(darkBlankTiles);
     return sumRetCode;
 }
 
@@ -718,35 +739,16 @@ const char* IDBlock(int bx, int by, double cx, double cz, int w, int h, int yOff
 {
     //WARNING: keep this code in sync with draw()
     WorldBlock* block;
-    int x, y, z, px, py, xoff, zoff;
-    int blockScale = (int)(16 * zoom);
-
-    // cx/cz is the center, so find the upper left corner from that
-    double startx = cx - (double)w / (2 * zoom);
-    double startz = cz - (double)h / (2 * zoom);
-    // TODO: I suspect these want to be floors, not ints; int
-    // rounds towards 0, floor takes -4.5 and goes to -5.
-    int startxblock = (int)(startx / 16);
-    int startzblock = (int)(startz / 16);
-    int shiftx = (int)((startx - startxblock * 16) * zoom);
-    int shifty = (int)((startz - startzblock * 16) * zoom);
+    int y, xoff, zoff;
+    // where the chunks go: see mapEdge()
+    long long originX = mapOrigin(cx, w, zoom);
+    long long originZ = mapOrigin(cz, h, zoom);
     // someone could be more than 10000 blocks from spawn, so don't assert
     //assert(cz < 10000);
     //assert(cz > -10000);
 
     // initialize to "not set"
     *dataVal = 0;
-
-    if (shiftx < 0)
-    {
-        startxblock--;
-        shiftx += blockScale;
-    }
-    if (shifty < 0)
-    {
-        startzblock--;
-        shifty += blockScale;
-    }
 
     // Adjust bx and by so they can be negative.
     // Note that things are a bit weird with numbers here.
@@ -761,20 +763,20 @@ const char* IDBlock(int bx, int by, double cx, double cz, int w, int h, int yOff
     // Sean's fix, but makes the screen go empty if I scroll off top of window
     //if (by<0) return "";
 
-    x = (bx + shiftx) / blockScale;
-    px = x * blockScale - shiftx;
-    z = (by + shifty) / blockScale;
-    py = z * blockScale - shifty;
+    // the chunk at the mouse, and the block in it
+    int chunkX = mapChunkAt(originX + bx, zoom);
+    int chunkZ = mapChunkAt(originZ + by, zoom);
+    long long edgeX = mapEdge(chunkX, zoom);
+    long long edgeZ = mapEdge(chunkZ, zoom);
+    xoff = (int)((originX + bx - edgeX) * 16 / (mapEdge(chunkX + 1, zoom) - edgeX));
+    zoff = (int)((originZ + by - edgeZ) * 16 / (mapEdge(chunkZ + 1, zoom) - edgeZ));
 
-    xoff = (int)((bx - px) / zoom);
-    zoff = (int)((by - py) / zoom);
-
-    *ox = (startxblock + x) * 16 + xoff;
-    *oz = (startzblock + z) * 16 + zoff;
+    *ox = chunkX * 16 + xoff;
+    *oz = chunkZ * 16 + zoff;
 
     void* data;
     // note: found could be false, but we don't care - we assume everything visible is loaded
-    (void)Cache_Find(startxblock + x, startzblock + z, &data);
+    (void)Cache_Find(chunkX, chunkZ, &data);
     block = (WorldBlock*)data;
 
     // this is assumed OK, that we don't need to actually go retrieve the block if empty, as it should be visible and loaded already
@@ -3003,14 +3005,14 @@ const char* RetrieveBlockSubname(int type, int dataVal) // , WorldBlock* block),
     return gBlockDefinitions[type].name;
 }   // endend
 
-//copy block to bits at px,py at zoom.  bits is wxh
-static void blit(unsigned char* block, unsigned char* bits, int px, int py,
-    double zoom, int w, int h)
+// copy block, a 16x16 tile, to bits at px,py, scaled to cw x ch pixels. bits is w x h
+static void blit(unsigned char* block, unsigned char* bits, int px, int py, int cw, int ch, int w, int h)
 {
     int x, y, yofs, bitofs;
     int skipx = 0, skipy = 0;
-    int bw = (int)(16 * zoom);
-    int bh = (int)(16 * zoom);
+    int bw = cw;
+    int bh = ch;
+    if (bw <= 0 || bh <= 0) return;
     if (px < 0) skipx = -px;
     if (px + bw >= w) bw = w - px;
     if (bw <= 0) return;
@@ -3022,16 +3024,16 @@ static void blit(unsigned char* block, unsigned char* bits, int px, int py,
     for (y = 0; y < bh; y++, bits += (w << 2))
     {
         if (y < skipy) continue;
-        yofs = ((int)(y / zoom)) << 6;
+        yofs = (y * 16 / ch) << 6;
         bitofs = 0;
-        if (zoom == 1.0 && skipx == 0 && bw == 16) {
+        if (cw == 16 && skipx == 0 && bw == 16) {
             memcpy(bits + bitofs, block + yofs, 16 * 4);
         }
         else {
             for (x = 0; x < bw; x++, bitofs += 4)
             {
                 if (x < skipx) continue;
-                memcpy(bits + bitofs, block + yofs + (((int)(x / zoom)) << 2), 4);
+                memcpy(bits + bitofs, block + yofs + ((x * 16 / cw) << 2), 4);
             }
         }
     }
@@ -9001,6 +9003,33 @@ void InvalidateMapRenderCache(void)
     gColormap++;
 }
 
+// Use the darker checkerboard for missing chunks and empty columns, for the dark theme
+void SetMapDarkBlankTiles(bool dark)
+{
+    if (dark == gDarkBlankTiles)
+        return;
+    gDarkBlankTiles = dark;
+    if (gColorsInited)
+        buildBlankTiles();
+    // chunks drawn already have the old checkerboard in their empty columns
+    gColormap++;
+}
+
+// Set the color of chunks not looked at yet, which is also the color the map buffer is cleared to
+void SetMapPendingColor(unsigned char r, unsigned char g, unsigned char b)
+{
+    // BGR, as in the DIBSection
+    gPendingColor[0] = b;
+    gPendingColor[1] = g;
+    gPendingColor[2] = r;
+    for (int off = 0; off < 16 * 16 * 4; off += 4) {
+        gPendingTile[off] = b;
+        gPendingTile[off + 1] = g;
+        gPendingTile[off + 2] = r;
+        gPendingTile[off + 3] = (unsigned char)255;
+    }
+}
+
 unsigned short GetMapColormap(void)
 {
     return gColormap;
@@ -9061,56 +9090,47 @@ static bool isUnloadedChunkPixel(const unsigned char* pixel)
 // map memory, those in chunk box [minCX..maxCX] x [minCZ..maxCZ]. Mark the visible chunks outside it that nothing has been
 // drawn for, which would otherwise stay white, as if still to be loaded, with gOutOfMemoryTile, solid gray. Chunks already
 // marked are marked again, so their highlighting is current. Drawn chunks, e.g. ones still in the cache from earlier, are
-// left as they are. The position math is DrawMapStrips()'.
-void MarkOutOfMemoryChunks(double cx, double cz, int w, int h, double zoom, unsigned char* bits, int minCX, int minCZ, int maxCX, int maxCZ)
+// left as they are. The chunks are placed as DrawMap() places them (see mapEdge()). Returns the number of chunks marked.
+int MarkOutOfMemoryChunks(double cx, double cz, int w, int h, double zoom, unsigned char* bits, int minCX, int minCZ, int maxCX, int maxCZ)
 {
     if (!gColorsInited)
         initColors();
-    int blockScale = (int)(16 * zoom);
-    if (blockScale < 1)
-        return;
-    int hBlocks = (w + blockScale * 2) / blockScale;
-    int vBlocks = (h + blockScale * 2) / blockScale;
+    int marked = 0;
+    // where the chunks go: see mapEdge()
+    long long originX = mapOrigin(cx, w, zoom);
+    long long originZ = mapOrigin(cz, h, zoom);
+    int startxblock = mapChunkAt(originX, zoom);
+    int startzblock = mapChunkAt(originZ, zoom);
+    int endxblock = mapChunkAt(originX + w - 1, zoom);
+    int endzblock = mapChunkAt(originZ + h - 1, zoom);
 
-    double startx = cx - (double)w / (2 * zoom);
-    double startz = cz - (double)h / (2 * zoom);
-    int startxblock = (int)(startx / 16);
-    int startzblock = (int)(startz / 16);
-    int shiftx = (int)((startx - startxblock * 16) * zoom);
-    int shifty = (int)((startz - startzblock * 16) * zoom);
-    if (shiftx < 0) {
-        startxblock--;
-        shiftx += blockScale;
-    }
-    if (shifty < 0) {
-        startzblock--;
-        shifty += blockScale;
-    }
-
-    int z, x, px, py;
-    for (z = 0, py = -shifty; z <= vBlocks; z++, py += blockScale)
+    for (int bz = startzblock; bz <= endzblock; bz++)
     {
-        int bz = startzblock + z;
+        int py = (int)(mapEdge(bz, zoom) - originZ);
+        int ch = (int)(mapEdge(bz + 1, zoom) - mapEdge(bz, zoom));
         // the chunk's visible rows
         int y0 = max(py, 0);
-        int y1 = min(py + blockScale, h);
+        int y1 = min(py + ch, h);
         if (y0 >= y1)
             continue;
-        for (x = 0, px = -shiftx; x <= hBlocks; x++, px += blockScale)
+        for (int bx = startxblock; bx <= endxblock; bx++)
         {
-            int bx = startxblock + x;
             if (bx >= minCX && bx <= maxCX && bz >= minCZ && bz <= maxCZ)
                 continue;
+            int px = (int)(mapEdge(bx, zoom) - originX);
+            int cw = (int)(mapEdge(bx + 1, zoom) - mapEdge(bx, zoom));
             int x0 = max(px, 0);
-            int x1 = min(px + blockScale, w);
+            int x1 = min(px + cw, w);
             if (x0 >= x1)
                 continue;
             // look at the middle of what's visible of the chunk
             if (!isUnloadedChunkPixel(bits + ((size_t)((y0 + y1) / 2) * w + (x0 + x1) / 2) * 4))
                 continue;
-            blit(highlightTile(gOutOfMemoryTile, gOutOfMemoryHighlitTile, gOutOfMemoryTransitionTile, bx, bz), bits, px, py, zoom, w, h);
+            blit(highlightTile(gOutOfMemoryTile, gOutOfMemoryHighlitTile, gOutOfMemoryTransitionTile, bx, bz), bits, px, py, cw, ch, w, h);
+            marked++;
         }
     }
+    return marked;
 }
 
 // Load chunk bx, bz into the cache, if it isn't there. Returns LoadBlock()'s code, as draw() does, so the caller can report
@@ -9144,7 +9164,7 @@ int PrefetchBlock(WorldGuide* pWorldGuide, int bx, int bz, int mcVersion, int ve
 #define CHUNK_LOADER_JOBS_PER_THREAD    96
 // Each thread's stack holds a chunk's block entities, about 800 KB, in loadBlock().
 #define CHUNK_LOADER_STACK_SIZE (4 * 1024 * 1024)
-#define CHUNK_LOADER_KEY(bx, bz)    (((long long)(bx) << 32) | (unsigned int)(bz))
+#define CHUNK_LOADER_KEY(bx, bz)    (((long long)(bx) * 0x100000000LL) | (unsigned int)(bz))
 
 typedef struct ChunkLoadResult {
     int bx, bz;
@@ -9405,6 +9425,31 @@ int ChunkLoaderCollect(int* bx, int* bz, int maxChunks, int& retCode)
     return n;
 }
 
+// The "missing tile" graphic, a gray checkerboard: darker for the dark theme, though not in map images exported
+static void buildBlankTiles()
+{
+    for (int rx = 0; rx < 16; ++rx)
+    {
+        for (int ry = 0; ry < 16; ++ry)
+        {
+            int off = (rx + ry * 16) * 4;
+            int tone = gDarkBlankTiles ? 58 : 150;
+            if ((rx / 4) % 2 ^ (ry / 4) % 2)
+                tone = gDarkBlankTiles ? 50 : 140;
+            gBlankTile[off] = (unsigned char)tone;
+            gBlankTile[off + 1] = (unsigned char)tone;
+            gBlankTile[off + 2] = (unsigned char)tone;
+            gBlankTile[off + 3] = (unsigned char)255;	// was 128 - why?
+
+            // fully inside highlight box (BGRA order to match DIBSection)
+            gBlankHighlitTile[off] = (unsigned char)((double)gBlankTile[off] * (1.0 - gHalpha) + gHalpha * (double)gHblue);
+            gBlankHighlitTile[off + 1] = (unsigned char)((double)gBlankTile[off + 1] * (1.0 - gHalpha) + gHalpha * (double)gHgreen);
+            gBlankHighlitTile[off + 2] = (unsigned char)((double)gBlankTile[off + 2] * (1.0 - gHalpha) + gHalpha * (double)gHred);
+            gBlankHighlitTile[off + 3] = (unsigned char)255;
+        }
+    }
+}
+
 // for each block color, calculate light levels 0-15
 static void initColors()
 {
@@ -9437,28 +9482,19 @@ static void initColors()
     gEmptyG = (unsigned char)((gBlockColors[15] >> 8) & 0xff);
     gEmptyB = (unsigned char)(gBlockColors[15] & 0xff);
 
-    // also initialize the "missing tile" unknown graphic, a gray and black checkerboard
+    // also initialize the "missing tile" unknown graphic, a gray checkerboard
+    buildBlankTiles();
     for (int rx = 0; rx < 16; ++rx)
     {
         for (int ry = 0; ry < 16; ++ry)
         {
             int off = (rx + ry * 16) * 4;
-            int tone = 150;
-            if ((rx / 4) % 2 ^ (ry / 4) % 2)
-                tone = 140;
-            gBlankTile[off] = (unsigned char)tone;
-            gBlankTile[off + 1] = (unsigned char)tone;
-            gBlankTile[off + 2] = (unsigned char)tone;
-            gBlankTile[off + 3] = (unsigned char)255;	// was 128 - why?
 
-            // fully inside highlight box (BGRA order to match DIBSection)
-            gBlankHighlitTile[off] = (unsigned char)((double)gBlankTile[off] * (1.0 - gHalpha) + gHalpha * (double)gHblue);
-            gBlankHighlitTile[off + 1] = (unsigned char)((double)gBlankTile[off + 1] * (1.0 - gHalpha) + gHalpha * (double)gHgreen);
-            gBlankHighlitTile[off + 2] = (unsigned char)((double)gBlankTile[off + 2] * (1.0 - gHalpha) + gHalpha * (double)gHred);
-            gBlankHighlitTile[off + 3] = (unsigned char)255;
-
-            // not looked at yet: white, the color the map buffer is cleared to
-            gPendingTile[off] = gPendingTile[off + 1] = gPendingTile[off + 2] = gPendingTile[off + 3] = (unsigned char)255;
+            // not looked at yet: white (or dark gray, for the dark theme), the color the map buffer is cleared to
+            gPendingTile[off] = gPendingColor[0];
+            gPendingTile[off + 1] = gPendingColor[1];
+            gPendingTile[off + 2] = gPendingColor[2];
+            gPendingTile[off + 3] = (unsigned char)255;
 
             // won't be loaded, as it's beyond the map memory: solid gray
             gOutOfMemoryTile[off] = gOutOfMemoryTile[off + 1] = gOutOfMemoryTile[off + 2] = (unsigned char)OUT_OF_MEMORY_TONE;

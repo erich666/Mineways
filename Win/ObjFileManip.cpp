@@ -1167,6 +1167,15 @@ static void simplifyFaceSet(int faceCount, SimplifyFaceRecord** ppSFR);
 static int simplifyFaceCompareYminor(void* context, const void* str1, const void* str2);
 static int simplifyFaceCompareXminor(void* context, const void* str1, const void* str2);
 static void mergeSimplifySet(SimplifyFaceRecord** ppSFR, int faceCount);
+typedef struct SimplifyRect {
+    SimplifyFaceRecord* pCornerSFR;     // lowest X and Y
+    SimplifyFaceRecord* pLowerLeftSFR;  // lowest X, highest Y
+    SimplifyFaceRecord* pUpperRightSFR; // highest X, lowest Y
+    int xlen;
+    int ylen;
+} SimplifyRect;
+static int planSimplifyRects(SimplifyFaceRecord** ppSFR, int faceCount, bool yFirst, std::vector<SimplifyRect>& rects);
+static void mergeSimplifyRect(const SimplifyRect& rect);
 static short findUVinIndex(FaceRecord* pFace, float bx, float by);
 static int getVertexIDmatching(FaceRecord* pFace, float xnx, float yny);
 
@@ -41970,6 +41979,7 @@ static int decimateMesh()
             pSFR->normalDirection = pFace->normalIndex;
             pSFR->pXneighborSFR = NULL;
             pSFR->pYneighborSFR = NULL;
+            pSFR->planPass = 0;
             extractZXYfromNormalAndBounds(pFace, pSFR);
 
             // allocate a list of the proper size, or grow previous list
@@ -42495,13 +42505,17 @@ static void mergeSimplifySet(SimplifyFaceRecord** ppSFR, int faceCount)
         return;
     }
 
+    // The faces are now in column order, by X, then Y (see simplifyFaceSet()). Keep a copy of this order for planning by columns, below.
+    static std::vector<SimplifyFaceRecord*> colOrder;
+    colOrder.assign(ppSFR, ppSFR + faceCount);
+
     // Now sort again: ..., but then by *Y*, then by X. Now the Y's are connected (by the previous sort) and the X's are adjacent.
     // Note we know that the normals and normal distances match, so don't sort by them.
     qsort_s(ppSFR, faceCount, sizeof(SimplifyFaceRecord*), simplifyFaceCompareXminor, NULL);
 
     // We have to then link up the X's, as we'll walk from record to record (this is also easier to think about!).
     SimplifyFaceRecord* pCurSFR = ppSFR[0];
-    int i, j, k;
+    int i;
     for (i = 1; i < faceCount; i++) {
         SimplifyFaceRecord* pNextSFR = ppSFR[i];
         if (pCurSFR->yll == pNextSFR->yll) {
@@ -42513,211 +42527,262 @@ static void mergeSimplifySet(SimplifyFaceRecord** ppSFR, int faceCount)
         pCurSFR = pNextSFR;
     }
 
-    // Start walking groups that match in some way. If this quad has a neighbor, walk one in the X direction.
-    // Then alternate: look in Y direction, all along next row over. If they're all there, expand in Y.
-    // Keep alternating, stop when we either don't hit a filled row/column or we hit the maximum (say 32 total).
-    for (i = 0; i < faceCount; i++) {
-        SimplifyFaceRecord* pCornerSFR = ppSFR[i];
-        // All pFace get nulled out once a merge occurs, so skip when found in list that's left
-        if (pCornerSFR->pFace != NULL) {
-            bool testX = true;
-            bool testY = true;
-            int xlen = 1;
-            int ylen = 1;
-            // 0,0 is upper left, X increases right, Y goes down (mentally)
-            SimplifyFaceRecord* pUpperRightSFR = pCornerSFR;
-            // for extending in Y, we need the current record in the lower left
-            SimplifyFaceRecord* pLowerLeftSFR = pCornerSFR;
-
-            // Note: I tried some experiments, but they made things worse:
-            // 1) Skip this starting square if there's a neighbor at the corner but not neighbors on both edges. Lost 4% savings.
-            // 2) Alternate starting with X or Y based on x start location, y start location, or both added. Lost 0.17% savings.
-
-            // now walk in X and Y directions, alternating, growing the rectangle
-            do {
-                if (testX) {
-                    // Walk through all records in current column, see if all have X+1 neighbors.
-                    SimplifyFaceRecord* pColSFR = pUpperRightSFR;
-                    for (j = 0; j < ylen && testX; j++) {
-                        if (pColSFR->pXneighborSFR == NULL || pColSFR->pXneighborSFR->pFace == NULL) {
-                            // No +1 X-neighbor or X-neighbor face already deleted, so we can't extend further in the X direction
-                            testX = false;
-                        }
-                        else {
-                            // There is a Y neighbor, yll's should align
-                            assert(pColSFR->xll == pColSFR->pXneighborSFR->xll - 1);
-                            // go to next record (Y+1) in list and test (in next loop iteration) if it has a Y neighbor
-                            pColSFR = pColSFR->pYneighborSFR;
-                        }
-                    }
-                    // did we find all X neighbors? Then we can move the UpperRight corner over by one
-                    if (testX) {
-                        // all the neighbors in X matched up, so move X column limit over
-                        xlen++;
-                        // The new Y column is the next in X, since the X's were found above to be +1 different (neighbors)
-                        pUpperRightSFR = pUpperRightSFR->pXneighborSFR;
-                    }
-                }
-                // OK, done with expanding in X, try expanding in Y
-                if (testY) {
-                    // Walk through all records in current row, see if all have Y+1 neighbors.
-                    SimplifyFaceRecord* pRowSFR = pLowerLeftSFR;
-                    for (j = 0; j < xlen && testY; j++) {
-                        if (pRowSFR->pYneighborSFR == NULL || pRowSFR->pYneighborSFR->pFace == NULL) {
-                            // No +1 Y-neighbor or it's been deleted (already merged earlier), so we can't extend further in the Y direction
-                            testY = false;
-                        }
-                        else {
-                            // There is a Y neighbor, yll's should align
-                            assert(pRowSFR->yll == pRowSFR->pYneighborSFR->yll - 1);
-                            // go to next record (X+1) in list and test (in next loop iteration) if it has a Y neighbor
-                            pRowSFR = pRowSFR->pXneighborSFR;
-                        }
-                    }
-                    // did we find all Y neighbors? Then we can move the LowerLeft corner over by one
-                    if (testY) {
-                        // all the neighbors in Y matched up, so move Y row down
-                        ylen++;
-                        // The new Y column is the next in X, since the X's were found above to be +1 different (neighbors)
-                        pLowerLeftSFR = pLowerLeftSFR->pYneighborSFR;
-                    }
-                }
-
-            // continue until we find no matches in either direction, or we've hit the maximum resolution we're willing to go
-            } while ((testX || testY) && (xlen < SIMPLIFY_MAX_DIMENSION) && (ylen < SIMPLIFY_MAX_DIMENSION));
-
-            // So, did we find any group?
-            if (xlen > 1 || ylen > 1) {
-                // We did - celebrate!
-                // One TODO idea: instead of going all the way to 32 in length if it's a 1xM or Mx1 strip, and if the next neighbor
-                // in the main direction exists (i.e., the strip could have gone further), try going only until some
-                // fixed X or Y coordinate. In this way we might stop at (essentially) a chunk boundary. When searching further,
-                // we then might find areas that could make larger MxN rectangles instead of more Mx1 rectangles.
-                // However, experimenting, there really are not that many strips like this. In a semi-ocean scene, there were 14 xlen and 518 ylen strips
-                // that were "full" like this. So, at best, if we could have instead trimmed back and merged, we'd save 532 strips. Not significant,
-                // when there are 472,000 quads getting saved normall.
-                //if (ylen == 1 && xlen == SIMPLIFY_MAX_DIMENSION && pUpperRightSFR->pXneighborSFR != NULL && pUpperRightSFR->pXneighborSFR->pFace != NULL) {
-                //}
-                //if (xlen == 1 && ylen == SIMPLIFY_MAX_DIMENSION && pLowerLeftSFR->pYneighborSFR != NULL && pLowerLeftSFR->pYneighborSFR->pFace != NULL) {
-                //}
-
-                // We now have some extent that's all the same. Make a new entry, a new type of face, for this tile type, with the proper vertex indices (nothing new there),
-                // normal direction (nothing new), and texture coordinates (probably something new - mark in UV table). Mark the old faces as
-                // no longer needing output - probably set normal index to -1 or something...
-                SimplifyFaceRecord* pLowerRightSFR = pLowerLeftSFR;
-                for (j = 1; j < xlen; j++ ) {
-                    // walk over the exact amount to the lower right corner; was too tricksy to do above while searching
-                    pLowerRightSFR = pLowerRightSFR->pXneighborSFR;
-                }
-                assert(pCornerSFR);
-                assert(pLowerLeftSFR);
-                assert(pUpperRightSFR);
-                assert(pLowerRightSFR);
-
-                // Store away the new simplified face.
-                // Where we'll put the new merged face is the corner, since this face won't get revisited later in the loop
-                FaceRecord* pFace = pCornerSFR->pFace;
-
-                // Simply reuse the first record face we point at, no need to get a new one.
-                // Most of its fields are identical to the new merged quad. All that needs
-                // to change are the vertex indices and UV indices.
-                // Done locally, as otherwise the vertexIndex data we have could get wiped out
-                int vertexIndex[4];
-                // Typical vertex location order is 0,1 / 1,1 / 1,0 / 0,0 for X,Z looking down along Y
-                vertexIndex[0] = getVertexIDmatching(pLowerLeftSFR->pFace, pLowerLeftSFR->xll, pLowerLeftSFR->yll + 1.0f);
-                vertexIndex[1] = getVertexIDmatching(pLowerRightSFR->pFace, pLowerRightSFR->xll + 1.0f, pLowerRightSFR->yll + 1.0f);
-                vertexIndex[2] = getVertexIDmatching(pUpperRightSFR->pFace, pUpperRightSFR->xll + 1.0f, pUpperRightSFR->yll);
-                vertexIndex[3] = getVertexIDmatching(pCornerSFR->pFace, pCornerSFR->xll, pCornerSFR->yll);   // MUST do this one first, since it uses the vertexIndex of the original face!
-
-                // The new UV indices are 0,0 to xlen,ylen.
-                // Negative indices means "negate and use this value-1 as an X & Y indexed location"
-                // Typical UV order is 0,0 / 1,0 / 1,1 / 1,0 (basically, V = 1 - Y above in order
-                short uvIndex[4];
-                uvIndex[0] = findUVinIndex(pCornerSFR->pFace,0.0f,0.0f); // is always 0,0
-                if (xlen == 1) {
-                    uvIndex[1] = findUVinIndex(pCornerSFR->pFace, 1.0f, 0.0f);
-                } else {
-                    uvIndex[1] = (short)(-1 - xlen);
-                }
-                // this one cannot be 1,1:
-                uvIndex[2] = (short)(-1 - ylen * (SIMPLIFY_MAX_DIMENSION+1) - xlen);
-                if (ylen == 1) {
-                    uvIndex[3] = findUVinIndex(pCornerSFR->pFace, 0.0f, 1.0f);
-                } 
-                else {
-                    uvIndex[3] = (short)(-1 - ylen * (SIMPLIFY_MAX_DIMENSION + 1));
-                }
-
-                // all set, so copy them over
-                // key thing: uvIndex[0] must be 0,0 and never be moved around! It's used for retrieving the swatchLoc.
-                // flips are used to get the vertex order right for culling properly
-                switch (pFace->normalIndex) {
-                case DIRECTION_BLOCK_TOP:
-                    break;
-                case DIRECTION_BLOCK_BOTTOM:
-                    {
-                        // flip direction texture goes
-                        flipIndicesLeftRight(vertexIndex);
-                        rotateIndices(vertexIndex, 180);
-                        // used to do this flip - now not needed
-                        //short tmp = uvIndex[1];
-                        //uvIndex[1] = uvIndex[3];
-                        //uvIndex[3] = tmp;
-                    }
-                    break;
-                case DIRECTION_BLOCK_SIDE_LO_X:
-                case DIRECTION_BLOCK_SIDE_HI_Z:
-                    rotateIndices(vertexIndex, 180);
-                    flipIndicesLeftRight(vertexIndex);
-                    break;
-                case DIRECTION_BLOCK_SIDE_HI_X:
-                case DIRECTION_BLOCK_SIDE_LO_Z:
-                    rotateIndices(vertexIndex, 180);
-                    break;
-                }
-                for (j = 0; j < 4; j++) {
-                    pFace->vertexIndex[j] = vertexIndex[j];
-                    pFace->uvIndex[j] = uvIndex[j];
-                }
-
-                // record the four UV coordinates in the giant grid as being used (for OBJ unified output only)
-                if (gModel.simplifyUVGridList != NULL) {
-                    //gModel.simplifyUVGridList[0]++; - not needed, 0,0 is always available already
-                    if (xlen > 1)
-                        gModel.simplifyUVGridList[xlen]++;
-                    gModel.simplifyUVGridList[ylen * (SIMPLIFY_MAX_DIMENSION + 1) + xlen]++;
-                    if (ylen > 1)
-                        gModel.simplifyUVGridList[ylen * (SIMPLIFY_MAX_DIMENSION + 1)]++;
-                }
-
-                // not needed - we added it in place:
-                //gModel.faceList[gModel.faceCount++] = pFace;
-
-                // Delete the record faces that got "used up".
-                // For saving the last corner of the merged quad
-                SimplifyFaceRecord* pYSFR = pCornerSFR;
-                for (j = 0; j < ylen; j++) {
-                    SimplifyFaceRecord* pDelSFR = pYSFR;
-                    for (k = 0; k < xlen; k++) {
-                        // don't wipe out the one we just filled
-                        if (j > 0 || k > 0) {
-                            // mark records as "this one's now part of another record, so ignore it"
-                            pDelSFR->pFace->normalIndex = HAS_BEEN_MERGED_SO_IGNORE_IT;
-                            // done so that we ignore this face looking through the quads left to search
-                            pDelSFR->pFace = NULL;
-                        }
-                        pDelSFR = pDelSFR->pXneighborSFR;
-                    }
-                    pYSFR = pYSFR->pYneighborSFR;
-                }
-
-                // adjust statistics on count of quads - reduce it.
-                gModel.simplifyFaceSavings += xlen * ylen - 1;
-            }
-        }
+    // Plan the rectangles two ways, and keep the one that makes fewer of them. The first walks the faces row by row and grows each
+    // rectangle in X first; the second walks them column by column and grows each in Y first. A greedy walk in one direction can
+    // split a shape that the other direction covers with fewer rectangles, e.g. a T shape: walked one way it's two rectangles, the
+    // other way, three. (See issue #173.) Ties keep the first, the way this was always done.
+    static std::vector<SimplifyRect> rowRects, colRects;
+    rowRects.clear();
+    colRects.clear();
+    int rowSavings = planSimplifyRects(ppSFR, faceCount, false, rowRects);
+    int colSavings = 0;
+    if (rowSavings < faceCount - 1) {
+        colSavings = planSimplifyRects(colOrder.data(), faceCount, true, colRects);
+    }
+    std::vector<SimplifyRect>& rects = (colSavings > rowSavings) ? colRects : rowRects;
+    for (i = 0; i < (int)rects.size(); i++) {
+        mergeSimplifyRect(rects[i]);
     }
     // Once we've walked through all faces like this, we're done! We've made all the replacements we could, and marked ones that
     // are used along the way.
+}
+
+// Plan how to cover the faces of one plane, ppSFR, with rectangles, without changing anything. Walk the faces in the order given,
+// and from each face not yet in a rectangle, grow a rectangle in +X and +Y, alternating, as far as all the faces are there and not
+// yet in a rectangle. yFirst says to try growing in Y before X. Each rectangle of more than one face is added to rects. Returns
+// the number of faces the rectangles save, i.e., for each, its faces less one.
+static int planSimplifyRects(SimplifyFaceRecord** ppSFR, int faceCount, bool yFirst, std::vector<SimplifyRect>& rects)
+{
+    // A face is in a rectangle when its planPass is this pass. Each pass gets its own number, so no clearing is needed.
+    static int planPass = 0;
+    planPass++;
+    int savings = 0;
+    int i, j;
+    for (i = 0; i < faceCount; i++) {
+        SimplifyFaceRecord* pCornerSFR = ppSFR[i];
+        // skip faces already in a rectangle
+        if (pCornerSFR->planPass == planPass)
+            continue;
+        bool testX = true;
+        bool testY = true;
+        int xlen = 1;
+        int ylen = 1;
+        // 0,0 is upper left, X increases right, Y goes down (mentally)
+        SimplifyFaceRecord* pUpperRightSFR = pCornerSFR;
+        // for extending in Y, we need the current record in the lower left
+        SimplifyFaceRecord* pLowerLeftSFR = pCornerSFR;
+
+        // Note: I tried some experiments, but they made things worse:
+        // 1) Skip this starting square if there's a neighbor at the corner but not neighbors on both edges. Lost 4% savings.
+        // 2) Alternate starting with X or Y based on x start location, y start location, or both added. Lost 0.17% savings.
+
+        // now walk in X and Y directions, alternating, growing the rectangle
+        bool firstStep = true;
+        do {
+            // on the first step, with yFirst, Y is tried first
+            if (testX && !(firstStep && yFirst)) {
+                // Walk through all records in current column, see if all have X+1 neighbors.
+                SimplifyFaceRecord* pColSFR = pUpperRightSFR;
+                for (j = 0; j < ylen && testX; j++) {
+                    if (pColSFR->pXneighborSFR == NULL || pColSFR->pXneighborSFR->planPass == planPass) {
+                        // No +1 X-neighbor or X-neighbor already in a rectangle, so we can't extend further in the X direction
+                        testX = false;
+                    }
+                    else {
+                        // There is an X neighbor, xll's should align
+                        assert(pColSFR->xll == pColSFR->pXneighborSFR->xll - 1);
+                        // go to next record (Y+1) in list and test (in next loop iteration) if it has an X neighbor
+                        pColSFR = pColSFR->pYneighborSFR;
+                    }
+                }
+                // did we find all X neighbors? Then we can move the UpperRight corner over by one
+                if (testX) {
+                    // all the neighbors in X matched up, so move X column limit over
+                    xlen++;
+                    // The new Y column is the next in X, since the X's were found above to be +1 different (neighbors)
+                    pUpperRightSFR = pUpperRightSFR->pXneighborSFR;
+                }
+            }
+            // OK, done with expanding in X, try expanding in Y
+            if (testY) {
+                // Walk through all records in current row, see if all have Y+1 neighbors.
+                SimplifyFaceRecord* pRowSFR = pLowerLeftSFR;
+                for (j = 0; j < xlen && testY; j++) {
+                    if (pRowSFR->pYneighborSFR == NULL || pRowSFR->pYneighborSFR->planPass == planPass) {
+                        // No +1 Y-neighbor or it's already in a rectangle, so we can't extend further in the Y direction
+                        testY = false;
+                    }
+                    else {
+                        // There is a Y neighbor, yll's should align
+                        assert(pRowSFR->yll == pRowSFR->pYneighborSFR->yll - 1);
+                        // go to next record (X+1) in list and test (in next loop iteration) if it has a Y neighbor
+                        pRowSFR = pRowSFR->pXneighborSFR;
+                    }
+                }
+                // did we find all Y neighbors? Then we can move the LowerLeft corner over by one
+                if (testY) {
+                    // all the neighbors in Y matched up, so move Y row down
+                    ylen++;
+                    // The new Y column is the next in X, since the X's were found above to be +1 different (neighbors)
+                    pLowerLeftSFR = pLowerLeftSFR->pYneighborSFR;
+                }
+            }
+            firstStep = false;
+
+        // continue until we find no matches in either direction, or we've hit the maximum resolution we're willing to go
+        } while ((testX || testY) && (xlen < SIMPLIFY_MAX_DIMENSION) && (ylen < SIMPLIFY_MAX_DIMENSION));
+
+        // So, did we find any group?
+        if (xlen > 1 || ylen > 1) {
+            // We did - celebrate!
+            // One TODO idea: instead of going all the way to 32 in length if it's a 1xM or Mx1 strip, and if the next neighbor
+            // in the main direction exists (i.e., the strip could have gone further), try going only until some
+            // fixed X or Y coordinate. In this way we might stop at (essentially) a chunk boundary. When searching further,
+            // we then might find areas that could make larger MxN rectangles instead of more Mx1 rectangles.
+            // However, experimenting, there really are not that many strips like this. In a semi-ocean scene, there were 14 xlen and 518 ylen strips
+            // that were "full" like this. So, at best, if we could have instead trimmed back and merged, we'd save 532 strips. Not significant,
+            // when there are 472,000 quads getting saved normall.
+
+            // mark the rectangle's faces as used
+            SimplifyFaceRecord* pYSFR = pCornerSFR;
+            for (j = 0; j < ylen; j++) {
+                SimplifyFaceRecord* pMarkSFR = pYSFR;
+                for (int k = 0; k < xlen; k++) {
+                    pMarkSFR->planPass = planPass;
+                    pMarkSFR = pMarkSFR->pXneighborSFR;
+                }
+                pYSFR = pYSFR->pYneighborSFR;
+            }
+            SimplifyRect rect = { pCornerSFR, pLowerLeftSFR, pUpperRightSFR, xlen, ylen };
+            rects.push_back(rect);
+            savings += xlen * ylen - 1;
+        }
+    }
+    return savings;
+}
+
+// Merge the faces of a rectangle from planSimplifyRects() into one face, the corner's
+static void mergeSimplifyRect(const SimplifyRect& rect)
+{
+    SimplifyFaceRecord* pCornerSFR = rect.pCornerSFR;
+    SimplifyFaceRecord* pLowerLeftSFR = rect.pLowerLeftSFR;
+    SimplifyFaceRecord* pUpperRightSFR = rect.pUpperRightSFR;
+    int xlen = rect.xlen;
+    int ylen = rect.ylen;
+    int j, k;
+
+    // We now have some extent that's all the same. Make a new entry, a new type of face, for this tile type, with the proper vertex indices (nothing new there),
+    // normal direction (nothing new), and texture coordinates (probably something new - mark in UV table). Mark the old faces as
+    // no longer needing output - probably set normal index to -1 or something...
+    SimplifyFaceRecord* pLowerRightSFR = pLowerLeftSFR;
+    for (j = 1; j < xlen; j++ ) {
+        // walk over the exact amount to the lower right corner; was too tricksy to do above while searching
+        pLowerRightSFR = pLowerRightSFR->pXneighborSFR;
+    }
+    assert(pCornerSFR);
+    assert(pLowerLeftSFR);
+    assert(pUpperRightSFR);
+    assert(pLowerRightSFR);
+
+    // Store away the new simplified face.
+    // Where we'll put the new merged face is the corner, since this face won't get revisited later in the loop
+    FaceRecord* pFace = pCornerSFR->pFace;
+
+    // Simply reuse the first record face we point at, no need to get a new one.
+    // Most of its fields are identical to the new merged quad. All that needs
+    // to change are the vertex indices and UV indices.
+    // Done locally, as otherwise the vertexIndex data we have could get wiped out
+    int vertexIndex[4];
+    // Typical vertex location order is 0,1 / 1,1 / 1,0 / 0,0 for X,Z looking down along Y
+    vertexIndex[0] = getVertexIDmatching(pLowerLeftSFR->pFace, pLowerLeftSFR->xll, pLowerLeftSFR->yll + 1.0f);
+    vertexIndex[1] = getVertexIDmatching(pLowerRightSFR->pFace, pLowerRightSFR->xll + 1.0f, pLowerRightSFR->yll + 1.0f);
+    vertexIndex[2] = getVertexIDmatching(pUpperRightSFR->pFace, pUpperRightSFR->xll + 1.0f, pUpperRightSFR->yll);
+    vertexIndex[3] = getVertexIDmatching(pCornerSFR->pFace, pCornerSFR->xll, pCornerSFR->yll);   // MUST do this one first, since it uses the vertexIndex of the original face!
+
+    // The new UV indices are 0,0 to xlen,ylen.
+    // Negative indices means "negate and use this value-1 as an X & Y indexed location"
+    // Typical UV order is 0,0 / 1,0 / 1,1 / 1,0 (basically, V = 1 - Y above in order
+    short uvIndex[4];
+    uvIndex[0] = findUVinIndex(pCornerSFR->pFace,0.0f,0.0f); // is always 0,0
+    if (xlen == 1) {
+        uvIndex[1] = findUVinIndex(pCornerSFR->pFace, 1.0f, 0.0f);
+    } else {
+        uvIndex[1] = (short)(-1 - xlen);
+    }
+    // this one cannot be 1,1:
+    uvIndex[2] = (short)(-1 - ylen * (SIMPLIFY_MAX_DIMENSION+1) - xlen);
+    if (ylen == 1) {
+        uvIndex[3] = findUVinIndex(pCornerSFR->pFace, 0.0f, 1.0f);
+    }
+    else {
+        uvIndex[3] = (short)(-1 - ylen * (SIMPLIFY_MAX_DIMENSION + 1));
+    }
+
+    // all set, so copy them over
+    // key thing: uvIndex[0] must be 0,0 and never be moved around! It's used for retrieving the swatchLoc.
+    // flips are used to get the vertex order right for culling properly
+    switch (pFace->normalIndex) {
+    case DIRECTION_BLOCK_TOP:
+        break;
+    case DIRECTION_BLOCK_BOTTOM:
+        {
+            // flip direction texture goes
+            flipIndicesLeftRight(vertexIndex);
+            rotateIndices(vertexIndex, 180);
+            // used to do this flip - now not needed
+            //short tmp = uvIndex[1];
+            //uvIndex[1] = uvIndex[3];
+            //uvIndex[3] = tmp;
+        }
+        break;
+    case DIRECTION_BLOCK_SIDE_LO_X:
+    case DIRECTION_BLOCK_SIDE_HI_Z:
+        rotateIndices(vertexIndex, 180);
+        flipIndicesLeftRight(vertexIndex);
+        break;
+    case DIRECTION_BLOCK_SIDE_HI_X:
+    case DIRECTION_BLOCK_SIDE_LO_Z:
+        rotateIndices(vertexIndex, 180);
+        break;
+    }
+    for (j = 0; j < 4; j++) {
+        pFace->vertexIndex[j] = vertexIndex[j];
+        pFace->uvIndex[j] = uvIndex[j];
+    }
+
+    // record the four UV coordinates in the giant grid as being used (for OBJ unified output only)
+    if (gModel.simplifyUVGridList != NULL) {
+        //gModel.simplifyUVGridList[0]++; - not needed, 0,0 is always available already
+        if (xlen > 1)
+            gModel.simplifyUVGridList[xlen]++;
+        gModel.simplifyUVGridList[ylen * (SIMPLIFY_MAX_DIMENSION + 1) + xlen]++;
+        if (ylen > 1)
+            gModel.simplifyUVGridList[ylen * (SIMPLIFY_MAX_DIMENSION + 1)]++;
+    }
+
+    // not needed - we added it in place:
+    //gModel.faceList[gModel.faceCount++] = pFace;
+
+    // Delete the record faces that got "used up".
+    // For saving the last corner of the merged quad
+    SimplifyFaceRecord* pYSFR = pCornerSFR;
+    for (j = 0; j < ylen; j++) {
+        SimplifyFaceRecord* pDelSFR = pYSFR;
+        for (k = 0; k < xlen; k++) {
+            // don't wipe out the one we just filled
+            if (j > 0 || k > 0) {
+                // mark records as "this one's now part of another record, so ignore it"
+                pDelSFR->pFace->normalIndex = HAS_BEEN_MERGED_SO_IGNORE_IT;
+                // done so that we ignore this face looking through the quads left to search
+                pDelSFR->pFace = NULL;
+            }
+            pDelSFR = pDelSFR->pXneighborSFR;
+        }
+        pYSFR = pYSFR->pYneighborSFR;
+    }
+
+    // adjust statistics on count of quads - reduce it.
+    gModel.simplifyFaceSavings += xlen * ylen - 1;
 }
 
 static short findUVinIndex(FaceRecord* pFace, float bx, float by)

@@ -186,6 +186,7 @@
     <ClInclude Include="blockInfo.h" />
     <ClInclude Include="cache.h" />
     <ClInclude Include="CullingSchemes.h" />
+    <ClInclude Include="DarkMode.h" />
     <ClInclude Include="ExportPrint.h" />
     <ClInclude Include="Location.h" />
     <ClInclude Include="lodepng.h" />
@@ -213,6 +214,7 @@
     <ClCompile Include="blockInfo.cpp" />
     <ClCompile Include="cache.cpp" />
     <ClCompile Include="CullingSchemes.cpp" />
+    <ClCompile Include="DarkMode.cpp" />
     <ClCompile Include="ExportPrint.cpp" />
     <ClCompile Include="Location.cpp" />
     <ClCompile Include="lodepng.cpp">
