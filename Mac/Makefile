@@ -3,7 +3,12 @@
 
 CXX      := clang++
 
-MINEWAYS_VERSION ?= 13.0
+# Follow the Windows version in the upstream code included in this checkout.
+UPSTREAM_VERSION := $(shell awk '$$1 == "\#define" && $$2 == "MINEWAYS_MAJOR_VERSION" { major = $$3 } $$1 == "\#define" && $$2 == "MINEWAYS_MINOR_VERSION" { minor = $$3 } END { printf "%d.%02d", major, minor }' ../Win/stdafx.h)
+MINEWAYS_VERSION ?= $(UPSTREAM_VERSION)
+ifneq ($(MINEWAYS_VERSION),$(UPSTREAM_VERSION))
+$(error MINEWAYS_VERSION must match Windows/upstream $(UPSTREAM_VERSION), got $(MINEWAYS_VERSION))
+endif
 MINEWAYS_VERSION_MAJOR := $(word 1,$(subst ., ,$(MINEWAYS_VERSION)))
 MINEWAYS_VERSION_MINOR_RAW := $(word 2,$(subst ., ,$(MINEWAYS_VERSION)))
 MINEWAYS_VERSION_MINOR := $(shell echo $(MINEWAYS_VERSION_MINOR_RAW) | sed 's/^0*//;s/^$$/0/')
@@ -63,13 +68,16 @@ TARGET    := mineways
 APP_NAME  := Mineways.app
 APP_CONTENTS := $(APP_NAME)/Contents
 
-.PHONY: all app clean test test-security FORCE
+.PHONY: all app clean test test-version test-security FORCE
 
 all: $(TARGET)
 
-test: $(ALL_OBJS)
+test: test-version $(ALL_OBJS)
 	$(CXX) $(GUI_CXXFLAGS) tests/port_regressions.cpp $(filter-out MinewaysApp.o MinewaysFrame.o ImportSettings.o,$(ALL_OBJS)) $(LDFLAGS) $(LIBS) -o /tmp/mineways-port-regressions
 	/tmp/mineways-port-regressions
+
+test-version:
+	python3 tests/version_alignment.py
 
 # Override this directory when running the checks in an isolated workspace.
 SECURITY_TEST_DIR ?= /tmp/mineways-security-tests

@@ -600,8 +600,8 @@ slice, not a universal binary).
 
 `.github/workflows/macos-build.yml`: every push/PR touching `Mac/` or
 `Win/*.cpp`/`.h` builds `Mineways.app` and uploads it as a workflow
-artifact. Pushing a tag like `v13.00` additionally zips it and attaches it
-to a GitHub Release.
+artifact. Pushing a tag matching the Windows/upstream version (for example,
+`v14.02` for Windows 14.02) additionally zips it and attaches it to a GitHub Release.
 
 - Dependencies (wxWidgets dylibs) are bundled into `Contents/Frameworks`
   via `dylibbundler` so the `.app` doesn't require Homebrew on the end
@@ -616,11 +616,18 @@ to a GitHub Release.
   the user explicitly wants to pay for and set up a Developer ID cert +
   App Store Connect API key again — it was tried and deliberately dropped
   as not worth the setup cost for a hobby OSS build.
-- Version string (`Mac/Makefile`'s `MINEWAYS_VERSION_STRING`, `Info.plist`)
-  is pinned to match what's actually tagged/released, not necessarily
-  `Win/stdafx.h`'s `MINEWAYS_MAJOR/MINOR_VERSION` — the two can drift
-  since Mac releases are cut independently. Check with the user before
-  bumping one to match the other.
+- **The fork and all new releases must match the Windows/upstream version.**
+  Use `MINEWAYS_MAJOR_VERSION` and `MINEWAYS_MINOR_VERSION` in `Win/stdafx.h`
+  from the upstream revision included in the fork as the version source of truth.
+  Do not maintain an independent macOS version or label a build with a version
+  from upstream code that has not been integrated.
+- Align `Mac/Makefile`'s `MINEWAYS_VERSION`, `Mac/Info.plist`, the generated
+  version header, binary/About text, export headers, CI build metadata, release
+  title, and release tag with that version. Preserve upstream version formatting
+  (for example, `14.02` and `v14.02`). Treat this alignment as part of upstream
+  merges and release preparation. Verify the built app's version and the tag
+  against `Win/stdafx.h` before publishing. Do not rename historical releases
+  or move published tags merely to update their version numbers.
 - A release tag represents the final cumulative commit for that release; its
   ancestors are included automatically. After committing all changes intended
   for a named release, create the tag at that final commit or move an existing

@@ -1,6 +1,6 @@
 # Builds the wxWidgets macOS port (Mac/) into a self-contained Mineways.app.
 # - Every push/PR touching Mac/ or Win/ builds and uploads the app as a workflow artifact.
-# - Pushing a tag like "v13.1" additionally attaches the zipped app to a GitHub Release.
+# - A tag matching the Windows version, such as "v14.03", also publishes a GitHub Release.
 #
 # Ships unsigned (ad-hoc signed only, no Apple Developer account needed). Finder may
 # report the downloaded app as "damaged" due to the quarantine flag on unsigned code —
@@ -16,11 +16,14 @@ on:
       - 'Win/*.cpp'
       - 'Win/*.h'
       - '.github/workflows/macos-build.yml'
+      - 'CHANGELOG.md'
   pull_request:
     paths:
       - 'Mac/**'
       - 'Win/*.cpp'
       - 'Win/*.h'
+      - '.github/workflows/macos-build.yml'
+      - 'CHANGELOG.md'
   workflow_dispatch:
 
 permissions:
@@ -37,6 +40,7 @@ jobs:
 
       - name: Build app bundle
         run: |
+          make -C Mac test-version
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             make -C Mac MINEWAYS_VERSION="${GITHUB_REF#refs/tags/v}" app
           else
@@ -79,12 +83,21 @@ jobs:
           echo "---" >> release_body.md
           echo "### Release Notes" >> release_body.md
           echo "" >> release_body.md
-          # Extract the notes under the top-most ## [vX.Y] header until the next ## [ header
-          awk '/^## \[/{if (p) exit; p=1; next} p' CHANGELOG.md >> release_body.md
+          release_tag="${GITHUB_REF#refs/tags/}"
+          notes=$(awk -v tag="$release_tag" '
+            /^## \[/ { if (found) exit; found = index($0, "## [" tag "]") == 1; next }
+            found { print }
+          ' CHANGELOG.md)
+          if [[ ! "$notes" =~ [^[:space:]] ]]; then
+            echo "::error::Missing release notes for $release_tag in CHANGELOG.md"
+            exit 1
+          fi
+          printf '%s\n' "$notes" >> release_body.md
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v3
         with:
+          name: ${{ github.ref_name }}
           files: Mineways-macOS.zip
           body_path: release_body.md
