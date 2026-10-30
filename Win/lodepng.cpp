@@ -5012,7 +5012,16 @@ static void decodeGeneric(unsigned char** out, unsigned* w, unsigned* h,
       expected_size += lodepng_get_raw_size_idat((*w + 0), (*h + 0) >> 1, bpp);
     }
 
-    state->error = zlib_decompress(&scanlines, &scanlines_size, expected_size, idat, idatsize, &state->decoder.zlibsettings);
+    {
+      LodePNGDecompressSettings settings = state->decoder.zlibsettings;
+      if(settings.max_output_size && settings.max_output_size < expected_size) {
+        state->error = 109;
+      } else {
+        settings.max_output_size = expected_size;
+        state->error = zlib_decompress(&scanlines, &scanlines_size, expected_size, idat, idatsize, &settings);
+        if(!state->error && scanlines_size > settings.max_output_size) state->error = 109;
+      }
+    }
   }
   if(!state->error && scanlines_size != expected_size) state->error = 91; /*decompressed size doesn't match prediction*/
   lodepng_free(idat);

@@ -41,12 +41,28 @@ THE POSSIBILITY OF SUCH DAMAGE.
 // return 0 on success
 int readpng(progimage_info *im, wchar_t *filename, LodePNGColorType colortype)
 {
-    //char filename[MAX_PATH];
-    //dumb_wcharToChar(wfilename,filename);
-
-    //decode
-    unsigned int width, height;
-    unsigned int error = lodepng::decode(im->image_data, width, height, filename, colortype);
+    unsigned int width = 0, height = 0;
+    std::vector<unsigned char> buffer;
+    lodepng::State state;
+    state.info_raw.colortype = colortype;
+    state.info_raw.bitdepth = 8;
+    unsigned int error = lodepng::load_file(buffer, filename);
+    if (!error)
+        error = lodepng_inspect(&width, &height, &state, buffer.empty() ? 0 : &buffer[0], buffer.size());
+    if (!error) {
+        // Allow the largest supported terrain atlas while bounding each decoded image buffer.
+        const unsigned long long budget = 4ULL * 1024 * 1024 * 1024;
+        const unsigned long long pixels = (unsigned long long)width * height;
+        const unsigned sourceBytes = (lodepng_get_bpp(&state.info_png.color) + 7) / 8;
+        const unsigned outputBytes = (lodepng_get_bpp(&state.info_raw) + 7) / 8;
+        if (width > (unsigned int)(std::numeric_limits<int>::max)() ||
+            height > (unsigned int)(std::numeric_limits<int>::max)() ||
+            !sourceBytes || !outputBytes || pixels > budget / sourceBytes ||
+            pixels > budget / outputBytes || 7ULL * height > budget - pixels * sourceBytes)
+            error = 92;
+    }
+    if (!error)
+        error = lodepng::decode(im->image_data, width, height, state, buffer);
 
     //if there's an error, display it
     if (error)
