@@ -2182,6 +2182,17 @@ int SlowFindIndexFromName(char* name)
 
 // Build the block and biome name tables now, rather than on first use by nbtGetBlocks(), which isn't safe when chunks are
 // loaded on several threads at once.
+// Is name one of the ", "-separated names in list? Not just part of one: "zinc_ore" isn't in "deepslate_zinc_ore".
+bool NameInList(const char* list, const char* name)
+{
+    size_t len = strlen(name);
+    for (const char* found = strstr(list, name); found != NULL; found = strstr(found + 1, name)) {
+        if ((found == list || (found >= list + 2 && found[-2] == ',' && found[-1] == ' ')) && (found[len] == '\0' || found[len] == ','))
+            return true;
+    }
+    return false;
+}
+
 void makeBiomeHashTable();
 void nbtInitTables()
 {
@@ -3978,6 +3989,51 @@ static int readBlockData(bfFile* pbf, int& bigbufflen, unsigned char *bigbuff)
     return 0;
 }
 
+// A biome Mineways doesn't know, e.g. one from a mod or data pack, such as "terralith:arid_highlands": use a vanilla biome with
+// the same name, or one with a word in common, for grass, foliage, and water colors, else plains.
+static int similarBiomeIndex(const char* fullName)
+{
+    // the name past the namespace and any folders, e.g. "deep_caves" for "terralith:cave/deep_caves"
+    const char* name = strrchr(fullName, '/');
+    if (name == NULL)
+        name = strchr(fullName, ':');
+    name = (name == NULL) ? fullName : name + 1;
+    char lcName[MAX_NAME_LENGTH];
+    strncpy_s(lcName, MAX_NAME_LENGTH, name, _TRUNCATE);
+    _strlwr_s(lcName, MAX_NAME_LENGTH);
+    int index = findIndexFromBiomeName(lcName);
+    if (index >= 0 && index <= MAX_VALID_BIOME_ID)
+        return index;
+
+    // the first word found wins, so more specific words go first
+    static const char* similar[][2] = {
+        { "mangrove", "mangrove_swamp" }, { "swamp", "swamp" }, { "marsh", "swamp" }, { "bog", "swamp" },
+        { "badlands", "badlands" }, { "mesa", "badlands" }, { "canyon", "badlands" },
+        { "desert", "desert" }, { "dune", "desert" },
+        { "jungle", "jungle" }, { "tropic", "jungle" },
+        { "savanna", "savanna" }, { "arid", "savanna" }, { "shrub", "savanna" }, { "brush", "savanna" }, { "steppe", "savanna" },
+        { "frozen", "snowy_plains" }, { "snow", "snowy_plains" }, { "glacier", "snowy_plains" }, { "tundra", "snowy_plains" },
+        { "cherry", "cherry_grove" }, { "birch", "birch_forest" }, { "taiga", "taiga" }, { "spruce", "taiga" }, { "pine", "taiga" },
+        { "forest", "forest" }, { "wood", "forest" },
+        { "mushroom", "mushroom_fields" }, { "lush", "lush_caves" }, { "dripstone", "dripstone_caves" }, { "deep_dark", "deep_dark" },
+        { "ocean", "ocean" }, { "sea", "ocean" }, { "beach", "beach" }, { "shore", "beach" }, { "river", "river" }, { "lake", "river" },
+        { "meadow", "meadow" }, { "peak", "stony_peaks" }, { "mountain", "windswept_hills" },
+        { "crimson", "crimson_forest" }, { "warped", "warped_forest" }, { "basalt", "basalt_deltas" }, { "soul", "soul_sand_valley" },
+        { "nether", "nether_wastes" },
+    };
+    for (int i = 0; i < (int)(sizeof(similar) / sizeof(similar[0])); i++) {
+        if (strstr(lcName, similar[i][0]) != NULL) {
+            char vanilla[MAX_NAME_LENGTH];
+            strcpy_s(vanilla, MAX_NAME_LENGTH, similar[i][1]);
+            index = findIndexFromBiomeName(vanilla);
+            if (index >= 0)
+                return index;
+        }
+    }
+    // plains
+    return 1;
+}
+
 static int readBiomePalette(bfFile* pbf, unsigned char* paletteBiomeEntry, int& entryIndex)
 {
     int len;
@@ -4006,22 +4062,27 @@ static int readBiomePalette(bfFile* pbf, unsigned char* paletteBiomeEntry, int& 
     // go through entries in Palette
     while (nentries--) {
         len = readWord(pbf);
-        if (len <= 10 || len >= MAX_NAME_LENGTH)
+        if (len <= 0 || len >= MAX_NAME_LENGTH)
             return LINE_ERROR;  // really, should not reach here if the data's OK
         if (bfread(pbf, thisBiomeName, len) < 0)
             return LINE_ERROR;
         thisBiomeName[len] = 0;
-        if (strncmp(thisBiomeName, "minecraft:", 10) != 0)
-            return LINE_ERROR;
         // convert biome name to the proper index
-        // The +10 goes past the "minecraft:" part of the name in the palette
-        int index = findIndexFromBiomeName(thisBiomeName+10);
-        if (index < 0) {
-            // Name not found - fail!
-            assert(0);
-            index = 0;
+        int index;
+        if (strncmp(thisBiomeName, "minecraft:", 10) == 0) {
+            // The +10 goes past the "minecraft:" part of the name in the palette
+            index = findIndexFromBiomeName(thisBiomeName + 10);
+            if (index < 0) {
+                // Name not found - a biome newer than this version of Mineways?
+                assert(0);
+                index = similarBiomeIndex(thisBiomeName);
+            }
         }
-        else if (index > MAX_VALID_BIOME_ID) {
+        else {
+            // a biome from a mod or data pack, e.g. Terralith's
+            index = similarBiomeIndex(thisBiomeName);
+        }
+        if (index > MAX_VALID_BIOME_ID) {
             // possibly hit if some weirdness happens with Bedrock -> Classic conversion?
             assert(0);
             index = 0;
@@ -4293,6 +4354,10 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
         waterlogged = false;
         // set true if the block found is not known
         bool useData = true;
+#ifdef _DEBUG
+        // a property that isn't known, if any. The properties can come before the block's name, so this is checked once the block is known.
+        char unknownProperty[100] = "";
+#endif
 
         for (;;)
         {
@@ -4440,8 +4505,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
                         }
 
                         // Name not found for translation, so report an error and add it to the list
-                        // is name already in string? Yes, there could be names inside names, but this isn't meant to be thorough.
-                        if (strstr(unknownBlock, unknownName) == NULL) {
+                        // is name already in string?
+                        if (!NameInList(unknownBlock, unknownName)) {
                             // name is unique
                             size_t stringLength = strlen(unknownBlock);
                             if (stringLength + strlen(unknownName) + 8 < MAX_PATH_AND_FILE) {
@@ -5386,9 +5451,8 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
 
 #ifdef _DEBUG
                         else {
-                            // unknown property - look at token and value
-                            static int ignore = 0;
-                            assert(ignore);
+                            // unknown property - checked below
+                            strcpy_s(unknownProperty, sizeof(unknownProperty), token);
                         }
 #endif
                     }
@@ -5397,6 +5461,14 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             else if (skipType(pbf, type) < 0)
                 return LINE_ERROR;
         }
+#ifdef _DEBUG
+        {
+            // a property Mineways doesn't know, of a Minecraft block it does - look at entryName and unknownProperty. A block from a mod has
+            // properties of its own, which are ignored along with it.
+            static int ignore = 0;
+            assert(ignore || unknownProperty[0] == 0 || !useData || strncmp(entryName, "minecraft:", 10) != 0);
+        }
+#endif
         // done, so determine and fold in dataVal
         int tf = BlockTranslations[typeIndex].translateFlags;
         if (useData) {

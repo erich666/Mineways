@@ -9468,14 +9468,14 @@ static void addUnknownBlockNames(const char* names)
         if (len > 0 && len < MAX_PATH_AND_FILE) {
             memcpy(name, start, len);
             name[len] = '\0';
-            if (strcmp(name, "etc.") != 0 && strstr(gUnknownBlockName, name) == NULL) {
+            if (strcmp(name, "etc.") != 0 && !NameInList(gUnknownBlockName, name)) {
                 size_t stringLength = strlen(gUnknownBlockName);
                 if (stringLength + len + 8 < MAX_PATH_AND_FILE) {
                     if (stringLength > 0)
                         strcat_s(gUnknownBlockName, MAX_PATH_AND_FILE, ", ");
                     strcat_s(gUnknownBlockName, MAX_PATH_AND_FILE, name);
                 }
-                else if (stringLength + 6 < MAX_PATH_AND_FILE && strstr(gUnknownBlockName, ", etc.") == NULL) {
+                else if (stringLength + 6 < MAX_PATH_AND_FILE && !NameInList(gUnknownBlockName, "etc.")) {
                     strcat_s(gUnknownBlockName, MAX_PATH_AND_FILE, ", etc.");
                 }
             }
