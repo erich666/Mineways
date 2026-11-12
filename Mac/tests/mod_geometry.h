@@ -26,7 +26,7 @@ static std::vector<GeometryFace> readGeometryFaces(const std::filesystem::path& 
                 assert(p > 0 && (size_t)p <= positions.size() && t > 0 && (size_t)t <= uvs.size() && n > 0 && (size_t)n <= normals.size());
                 face.push_back({positions[p - 1], normals[n - 1], uvs[t - 1]});
             }
-            assert(face.size() == 4);
+            assert(face.size() == 3 || face.size() == 4);
             std::array<double, 3> a, b, cross;
             for (int axis = 0; axis < 3; ++axis) {
                 a[axis] = face[1].position[axis] - face[0].position[axis];

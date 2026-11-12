@@ -234,7 +234,8 @@ typedef struct Model {
     // next four are for diagonal billboards
     // next eight are for angled tracks
     // next eight are for the angled signs and banners. Whew.
-    Vector normals[NORMAL_LIST_SIZE];
+    Vector* normals;
+    int normalListCapacity;
     int normalListCount;
 
     Point* vertices;    // vertices to be output, in a given order

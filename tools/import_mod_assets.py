@@ -5,6 +5,8 @@ import argparse
 import binascii
 from collections import OrderedDict
 import itertools
+import importlib.util
+from types import SimpleNamespace
 import hashlib
 import json
 import math
@@ -18,6 +20,17 @@ import sys
 import tempfile
 import zipfile
 import zlib
+
+def _load_helper(name):
+    spec = importlib.util.spec_from_file_location('mineways_' + name, Path(__file__).with_name(name + '.py'))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_obj_module = _load_helper('mod_obj')
+_machine_module = _load_helper('mod_machine_models')
+_storage_module = _load_helper('mod_storage_models')
 
 MAX_FILE = 16 * 1024 * 1024
 MAX_TOTAL = 512 * 1024 * 1024
@@ -141,6 +154,7 @@ class Assets:
     @staticmethod
     def wanted(name):
         return bool(re.fullmatch(r'assets/[^/]+/(?:blockstates|models)/.+\.json', name)
+                    or re.fullmatch(r'assets/[^/]+/models/.+\.(?:obj(?:\.ie)?|mtl)', name)
                     or re.fullmatch(r'assets/[^/]+/textures/.+\.png(?:\.mcmeta)?', name)
                     or re.fullmatch(r'data/[^/]+/(?:dimension|dimension_type)/.+\.json', name))
 
@@ -435,7 +449,9 @@ class Compiler:
             raise ImportError('missing model: ' + name)
         if 'loader' in own and own['loader'] not in ('neoforge:composite', 'forge:composite', 'fusion:model', 'lootr:brushable',
                                                         'refinedstorage:cable', 'bibliocraft:bookcase',
-                                                        'bibliocraft:table', 'xycraft_core:connected_textures'):
+                                                        'bibliocraft:table', 'xycraft_core:connected_textures',
+                                                        'neoforge:obj', 'supplementaries:extra_rotation',
+                                                        *_machine_module.LOADERS):
             raise ImportError('custom model loader: ' + str(own['loader']))
         if own.get('loader') == 'fusion:model':
             if own.get('type', 'base') not in ('base', 'connecting', 'fusion:base', 'fusion:connecting'):
@@ -445,6 +461,10 @@ class Compiler:
         if not isinstance(own.get('textures', {}), dict):
             raise ImportError('model textures must be an object: ' + name)
         result['textures'] = {**parent.get('textures', {}), **own.get('textures', {})}
+        if 'visibility' in own or 'visibility' in parent:
+            if not isinstance(own.get('visibility', {}), dict) or not isinstance(parent.get('visibility', {}), dict):
+                raise ImportError('model visibility must be an object')
+            result['visibility'] = {**parent.get('visibility', {}), **own.get('visibility', {})}
         if not inline:
             self.models[name] = result
         return result
@@ -582,6 +602,28 @@ class Compiler:
     def custom_loader_adapter(self, name, model, selector):
         """Static asset-backed paths verified against the installed mod loader classes."""
         loader = model.get('loader')
+        if loader == 'supplementaries:extra_rotation':
+            elements = model.get('elements')
+            if not isinstance(elements, list) or not elements or len(elements) > MAX_ELEMENTS:
+                raise ImportError('extra-rotation model requires bounded elements')
+            adjusted = []
+            for element in elements:
+                if not isinstance(element, dict):
+                    raise ImportError('invalid extra-rotation element')
+                element = dict(element)
+                if 'extra_rotation' in element:
+                    rotation = element.get('rotation')
+                    if not isinstance(rotation, dict) or rotation.get('axis') not in ('x', 'y', 'z'):
+                        raise ImportError('extra rotation requires an element rotation axis')
+                    angle = number(rotation.get('angle', 0), -45, 45) - number(element.pop('extra_rotation'), -360, 360)
+                    angle = number(angle, -45, 45)
+                    if rotation.get('rescale', False) and abs(angle) not in (0, 22.5, 45):
+                        raise ImportError('nonstandard extra rotation with rescale is unsupported')
+                    # AwningModelLoader subtracts extra_rotation from the existing angle.
+                    element['rotation'] = {**rotation, 'angle': angle}
+                adjusted.append(element)
+            return {**{key: value for key, value in model.items() if key not in ('loader', 'parent')},
+                    'elements': adjusted}
         if loader not in ('refinedstorage:cable', 'bibliocraft:bookcase',
                           'bibliocraft:table', 'xycraft_core:connected_textures'):
             return None
@@ -724,10 +766,16 @@ class Compiler:
         if name == 'ae2:block/matrix_frame' and model == {'textures': {}}:
             return {'rotation': (x, y, int(uvlock)), 'elements': [], 'invisible': True}
         model = self.builtin_adapter(name, model)
+        if model.get('loader') == 'neoforge:obj':
+            return _obj_module.compile_obj(self, model, (x, y, int(uvlock)),
+                SimpleNamespace(ImportError=ImportError, resource=resource, decode_png=decode_png,
+                                encode_png=encode_png, MAX_COMPILED_ELEMENTS=MAX_COMPILED_ELEMENTS))
         if model.get('loader') == 'fusion:model':
             label = name if isinstance(name, str) else '<inline>'
             self.warnings.add(f'{label}: connected-texture neighbors are not evaluated')
-        adapted = self.custom_loader_adapter(name, model, selector)
+        adapted = _machine_module.adapt_machine_model(self, name, model, selector, ImportError)
+        if adapted is None:
+            adapted = self.custom_loader_adapter(name, model, selector)
         if adapted is not None:
             return self.compile_model({'model': adapted, 'x': x, 'y': y, 'uvlock': uvlock}, depth + 1, selector)
         if model.get('loader') == 'lootr:brushable':
@@ -740,19 +788,33 @@ class Compiler:
             self.warnings.add(f'{application["model"]}: Lootr uses dusted stage without player-opened appearance; player data is not in the block palette')
             return self.compile_model({'model': child, 'x': x, 'y': y, 'uvlock': uvlock}, depth + 1, selector)
         if model.get('loader') in ('neoforge:composite', 'forge:composite'):
-            if any(key in model for key in ('transform', 'visibility')):
-                raise ImportError('composite root transforms and visibility require explicit replacement models')
+            transform = _obj_module.model_transform(model.get('transform', {}), ImportError)
+            visibility = model.get('visibility', {})
+            if not isinstance(visibility, dict) or len(visibility) > 4096 or any(type(v) is not bool for v in visibility.values()):
+                raise ImportError('invalid composite visibility')
             children = model.get('children')
             if not isinstance(children, dict) or not children or len(children) > 256:
                 raise ImportError('invalid or excessive composite children')
             if not all(isinstance(child, dict) for child in children.values()):
                 raise ImportError('composite child must be an inline model object')
-            elements = []
-            for child in children.values():
-                elements.extend(self.compile_model({'model': child}, depth + 1, selector)['elements'])
+            elements, polygons = [], []
+            all_invisible = True
+            for child_name, child in children.items():
+                if not visibility.get(child_name, True):
+                    continue
+                compiled = self.compile_model({'model': child}, depth + 1, selector)
+                all_invisible = all_invisible and compiled.get('invisible', False)
+                elements.extend(compiled['elements'])
+                polygons.extend(compiled.get('polygons', []))
+            if not transform.is_identity:
+                if elements:
+                    raise ImportError('transformed composites with standard box elements are unsupported')
+                polygons = [{'texture': p['texture'], 'vertices': [(*transform(v[:3]), *v[3:]) for v in p['vertices']]} for p in polygons]
+            if len(polygons) > _obj_module.MAX_POLYGONS:
+                raise ImportError('composite polygon count exceeds limit')
             if len(elements) > MAX_ELEMENTS:
                 raise ImportError('composite element count exceeds limit')
-            return {'rotation': (x, y, int(uvlock)), 'elements': elements}
+            return {'rotation': (x, y, int(uvlock)), 'elements': elements, 'polygons': polygons, 'invisible': all_invisible}
         elements = model.get('elements')
         if not isinstance(elements, list) or not elements or len(elements) > MAX_ELEMENTS:
             raise ImportError('model needs 1..2048 standard elements: ' + str(application['model']))
@@ -810,6 +872,7 @@ class Compiler:
         return result
 
     def block(self, name, definition):
+        definition = _storage_module.expand_block(self, name, definition, ImportError)
         definition = self.fluid_definition(name, definition)
         selectors = []
         if 'variants' in definition:
@@ -877,10 +940,11 @@ class Compiler:
                     output.append((canonical(name, selector), [0, 0, 0], 0, []))
                     continue
                 faces = [face for model in models for element in model['elements'] for face in element['faces']]
-                if not faces:
+                polygons = [face for model in models for face in model.get('polygons', [])]
+                if not faces and not polygons:
                     raise ImportError('state has no standard model faces')
-                face = next((face for face in faces if face[0] == 'up'), faces[0])
-                _, color, alpha = self.textures[face[-2]]
+                texture = next((face[-2] for face in faces if face[0] == 'up'), faces[0][-2] if faces else polygons[0]['texture'])
+                _, color, alpha = self.textures[texture]
                 output.append((canonical(name, selector), color, alpha, models))
             except (ImportError, RecursionError) as error:
                 self.element_count = before_count
@@ -945,6 +1009,7 @@ def compile_pack(sources, destination, namespaces=None):
     dimensions, unsupported_dimensions = compile_dimensions(assets, namespaces)
     compiler = Compiler(assets)
     rejected, texture_ids, geometry_ids = [], {}, {}
+    polygon_count = 0
     block_count = selector_count = element_count = 0
     temporary = Path(tempfile.mkdtemp(prefix='.mineways-pack-', dir=destination.parent))
     try:
@@ -977,13 +1042,16 @@ def compile_pack(sources, destination, namespaces=None):
                     if not models:
                         state_stream.write('invisible\n')
                     for model in models:
-                        signature = hashlib.sha256(json.dumps(model['elements'], sort_keys=True, separators=(',', ':')).encode()).digest()
+                        signature = hashlib.sha256(json.dumps((model['elements'], model.get('polygons', [])), sort_keys=True, separators=(',', ':')).encode()).digest()
                         index = geometry_ids.get(signature)
                         if index is None:
                             index = len(geometry_ids)
                             element_count += len(model['elements'])
                             if index >= MAX_GEOMETRIES or element_count > MAX_COMPILED_ELEMENTS:
                                 raise ImportError('compiled shared geometry exceeds runtime limit')
+                            polygon_count += len(model.get('polygons', []))
+                            if polygon_count > 1000000:
+                                raise ImportError('compiled polygon catalog exceeds runtime limit')
                             geometry_ids[signature] = index
                             geometry_stream.write(f'geometry\t{index}\n')
                             for element in model['elements']:
@@ -996,6 +1064,15 @@ def compile_pack(sources, destination, namespaces=None):
                                         texture_ids[texture] = len(texture_ids)
                                     fields = (*face[:-2], texture_ids[texture], face[-1])
                                     geometry_stream.write('face\t' + '\t'.join(map(str, fields)) + '\n')
+                            for polygon in model.get('polygons', []):
+                                texture = polygon['texture']
+                                if texture not in texture_ids:
+                                    if len(texture_ids) >= MAX_TEXTURES:
+                                        raise ImportError('compiled texture catalog exceeds runtime limit')
+                                    texture_ids[texture] = len(texture_ids)
+                                fields = (texture_ids[texture], len(polygon['vertices']),
+                                          *(v for vertex in polygon['vertices'] for v in vertex))
+                                geometry_stream.write('polygon\t' + '\t'.join(map(str, fields)) + '\n')
                             geometry_stream.write('endgeometry\n')
                         state_stream.write('usemodel\t' + '\t'.join(map(str, (index, *model['rotation']))) + '\n')
                     state_stream.write('endstate\n')
@@ -1003,13 +1080,13 @@ def compile_pack(sources, destination, namespaces=None):
                     raise ImportError('compiled manifest exceeds runtime size limit')
         if not block_count and not dimensions:
             raise ImportError('no supported mod blocks or dimensions found' + (': ' + rejected[0]['reason'] if rejected else ''))
-        report = {'format': 2, 'blocks': block_count, 'selectors': selector_count,
+        report = {'format': 3 if polygon_count else 2, 'polygons': polygon_count, 'blocks': block_count, 'selectors': selector_count,
                   'textures': len(texture_ids), 'geometries': len(geometry_ids), 'elements': element_count,
                   'dimensions': len(dimensions), 'unsupported_dimensions': unsupported_dimensions,
                   'unsupported': rejected, 'unsupported_states': compiler.unsupported_states,
                   'warnings': sorted(compiler.warnings)}
         with (temporary / 'manifest.mwpack').open('w', encoding='utf-8', newline='\n') as manifest:
-            manifest.write('MINEWAYS_MOD_PACK\t2\n')
+            manifest.write(f'MINEWAYS_MOD_PACK\t{3 if polygon_count else 2}\n')
             for dimension in dimensions:
                 manifest.write('dimension\t' + '\t'.join(map(str, dimension)) + '\n')
             for name, index in texture_ids.items():

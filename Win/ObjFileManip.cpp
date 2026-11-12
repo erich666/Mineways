@@ -960,9 +960,11 @@ static std::vector<int> selectedModTextures()
             const int data = cell.data & DATAVAL_MASK;
             if (!states.insert(((unsigned)type << 12) | data).second) continue;
             const auto* state = GetModBlock(type, data);
-            if (state && state->definition) for (const auto& model : state->definition->models)
+            if (state && state->definition) for (const auto& model : state->definition->models) {
                 for (const auto& element : model.Elements()) for (const auto& face : element.faces)
                     textures.insert(face.texture);
+                for (const auto& face : model.Polygons()) textures.insert(face.texture);
+            }
         }
     }
     return std::vector<int>(textures.begin(), textures.end());
@@ -1021,6 +1023,8 @@ static void copyModTextures(progimage_info* dst, int category)
     }
 }
 
+static int saveModPolygons(int boxIndex, int type, int dataVal, const ModModel& model);
+
 static int saveModGeometry(int boxIndex, int type, int dataVal)
 {
     const ModBlockState* state = GetModBlock(type, dataVal);
@@ -1056,6 +1060,10 @@ static int saveModGeometry(int boxIndex, int type, int dataVal)
                 emittedFlat = emittedFlat || flat[axis];
             }
             if (element.faceCount) elements.push_back(element);
+        }
+        if (!sourceModel.Polygons().empty()) {
+            int code = saveModPolygons(boxIndex, type, dataVal, sourceModel);
+            if (code >= MW_BEGIN_ERRORS) return code;
         }
         if (!elements.empty()) {
             int code = saveRotatedModel(boxIndex, type, dataVal, 0, elements.data(), (int)elements.size(), sourceModel.x, sourceModel.y, sourceModel.uvlock);
@@ -1202,8 +1210,8 @@ static int saveTextureUV(int swatchLoc, int type, float u, float v);
 static void freeModel(Model* pModel);
 
 static int findMatchingNormal(FaceRecord* pFace, Vector normal, Vector* normalList, int normalListCount);
-static int addNormalToList(Vector normal, Vector* normalList, int* normalListCount, int normalListSize);
-static void resolveFaceNormals();
+static int addNormalToList(Vector normal);
+static int resolveFaceNormals();
 
 static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float power);
 
@@ -1921,7 +1929,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
 
     // create database from all full-sized blocks and compute statistics for output
     retCode |= generateBlockDataAndStatistics(&tightenedWorldBox, &worldBox);
-    if (retCode >= MW_BEGIN_ERRORS) return retCode;
+    if (retCode >= MW_BEGIN_ERRORS) goto Exit;
 
     UPDATE_STATUS(gProgress.start.output, L"Output files");
     // UPDATE_PROGRESS(gProgress.start.output);
@@ -18110,6 +18118,41 @@ static int saveRotatedModel(int boxIndex, int type, int dataVal, int anchorLoc, 
     return retCode;
 }
 
+// OBJ polygons already carry their winding and per-corner UVs. They do not use box UV inference.
+static int saveModPolygons(int boxIndex, int type, int dataVal, const ModModel& model)
+{
+    IPoint anchor;
+    boxIndexToLoc(anchor, gModel.instancing ? 0 : boxIndex);
+    bool first = true;
+    for (const auto& polygon : model.Polygons()) {
+        if (polygon.texture < 0 || (size_t)polygon.texture >= gModTextureSwatches.size()) return MW_CANNOT_PARSE_IMPORT_FILE;
+        const int start = gModel.vertexCount;
+        int indices[4] = {0, 1, 2, polygon.count == 3 ? 2 : 3};
+        int uvs[4] = {};
+        for (int i = 0; i < polygon.count; ++i) {
+            if (checkVertexListSize() >= MW_BEGIN_ERRORS) return MW_WORLD_EXPORT_TOO_LARGE;
+            float position[3];
+            for (int axis = 0; axis < 3; ++axis) position[axis] = polygon.vertices[i][axis] - 8.0f;
+            for (int q = 0; q < model.x / 90; ++q) { const float y = position[1]; position[1] = position[2]; position[2] = -y; }
+            for (int q = 0; q < model.y / 90; ++q) { const float x = position[0]; position[0] = -position[2]; position[2] = x; }
+            for (int axis = 0; axis < 3; ++axis) gModel.vertices[gModel.vertexCount][axis] = (float)anchor[axis] + (position[axis] + 8.0f) / 16.0f;
+            ++gModel.vertexCount;
+            if (gModel.exportTexture) {
+                const int swatch = (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) ? gModTextureSwatches[polygon.texture] : colorSwatch(type);
+                uvs[i] = saveTextureUV(swatch, type, polygon.vertices[i][3] / 16.0f, 1.0f - polygon.vertices[i][4] / 16.0f);
+                if (uvs[i] < 0) return MW_WORLD_EXPORT_TOO_LARGE;
+            }
+        }
+        if (polygon.count == 3) uvs[3] = uvs[2];
+        gUsingTransform = 1; // Compute the normal from the actual polygon, including rotation.
+        const int result = saveBoxFaceUVs(type, dataVal, DIRECTION_BLOCK_TOP, first ? 1 : 0, start, indices, uvs);
+        first = false;
+        gUsingTransform = 0;
+        if (result >= MW_BEGIN_ERRORS) return result;
+    }
+    return MW_NO_ERROR;
+}
+
 // Does a glass pane or bars connect to this neighbor? Panes, bars, walls, and whole blocks.
 static int paneConnects(int neighborType)
 {
@@ -23065,6 +23108,9 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
 
     // get the normals into their proper orientations.
     // We need only 6 when only blocks are exported.
+    gModel.normals = (Vector*)malloc(NORMAL_LIST_SIZE * sizeof(Vector));
+    if (!gModel.normals) return MW_WORLD_EXPORT_TOO_LARGE;
+    gModel.normalListCapacity = NORMAL_LIST_SIZE;
     gModel.normalListCount = gExportBillboards ? NUM_NORMALS_STORED : 6;
     for (i = 0; i < gModel.normalListCount; i++)
     {
@@ -23197,7 +23243,7 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
 
     // Ready the normals for direct output - any undefined (-1 index) get set now
     // It's possible the output format doesn't include normals, but this process is almost always needed (and easily missed)
-    resolveFaceNormals();
+    retCode |= resolveFaceNormals();
 
     return retCode;
 }
@@ -25066,6 +25112,8 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
                 if (texture < 0) texture = face.texture;
                 if (directions[face.direction] == faceDirection) texture = face.texture;
             }
+        if (texture < 0 && state && state->definition) for (const auto& model : state->definition->models)
+            if (!model.Polygons().empty()) { texture = model.Polygons()[0].texture; break; }
         return texture >= 0 && (size_t)texture < gModTextureSwatches.size() ? gModTextureSwatches[texture] : SWATCH_INDEX(1, 0);
     }
 
@@ -30858,6 +30906,10 @@ static void freeModel(Model* pModel)
 {
     int catIndex;
 
+    free(pModel->normals);
+    pModel->normals = NULL;
+    pModel->normalListCount = pModel->normalListCapacity = 0;
+
     if (pModel->vertices)
     {
         free(pModel->vertices);
@@ -31002,25 +31054,25 @@ static int findMatchingNormal(FaceRecord* pFace, Vector normal, Vector* normalLi
     return COMPUTE_NORMAL;
 }
 
-static int addNormalToList(Vector normal, Vector* normalList, int* normalListCount, int normalListSize)
+static int addNormalToList(Vector normal)
 {
-    if (*normalListCount == normalListSize)
+    if (gModel.normalListCount == gModel.normalListCapacity)
     {
-        // out of room! make normalList longer
-        assert(0);
-        // we return the last normal, since normally (hah) we'd run out only due to really complex water
-        // and lava top patterns. The last normal computed is probably fine for everything else...
-        return (*normalListCount) - 1;
+        // FaceRecord stores a signed short index. Grow within that representable range.
+        const int maxNormals = 32767;
+        if (gModel.normalListCapacity >= maxNormals) return -1;
+        const int capacity = min(gModel.normalListCapacity * 2, maxNormals);
+        Vector* normals = (Vector*)realloc(gModel.normals, (size_t)capacity * sizeof(Vector));
+        if (!normals) return -1;
+        gModel.normals = normals;
+        gModel.normalListCapacity = capacity;
     }
-    // add to end of list
-    Vec2Op(normalList[*normalListCount], =, normal);
-    (*normalListCount)++;
-
-    return (*normalListCount) - 1;
+    Vec2Op(gModel.normals[gModel.normalListCount], =, normal);
+    return gModel.normalListCount++;
 }
 
 // go through all face normals and, if not set, find the proper face normal (or add it to the list)
-static void resolveFaceNormals()
+static int resolveFaceNormals()
 {
     UPDATE_STATUS(-999.0f, L"Resolving face normals");
 
@@ -31033,6 +31085,16 @@ static void resolveFaceNormals()
 
         if (pFace->normalIndex == COMPUTE_NORMAL)
         {
+            if (IsModBlock(pFace->materialType)) {
+                // Valid source faces can collapse after float anchor/scale conversion.
+                // Reject that export before the legacy normal routine asserts or divides by zero.
+                Vector a, b, cross;
+                Vec3Op(a, =, gModel.vertices[pFace->vertexIndex[0]], -, gModel.vertices[pFace->vertexIndex[1]]);
+                Vec3Op(b, =, gModel.vertices[pFace->vertexIndex[0]], -, gModel.vertices[pFace->vertexIndex[2]]);
+                VecCross(cross, =, a, X, b);
+                const float lengthSquared = VecDot(cross, cross);
+                if (!(lengthSquared > 0.0f) || !std::isfinite(lengthSquared)) return MW_WORLD_EXPORT_TOO_LARGE;
+            }
             // Object may have undergone a transform that changes its normal, so we need to compute
             // the normal now. First try to retrieve it from the list, then add a new one if not found.
             Vector normal;
@@ -31041,7 +31103,9 @@ static void resolveFaceNormals()
             // Check if a good match was not found; need to save a new normal if not
             if (pFace->normalIndex == COMPUTE_NORMAL)
             {
-                pFace->normalIndex = (short)addNormalToList(normal, gModel.normals, &gModel.normalListCount, NORMAL_LIST_SIZE);
+                const int index = addNormalToList(normal);
+                if (index < 0) return MW_WORLD_EXPORT_TOO_LARGE;
+                pFace->normalIndex = (short)index;
             }
             assert(pFace->normalIndex != COMPUTE_NORMAL);
         }
@@ -31070,6 +31134,7 @@ static void resolveFaceNormals()
     // Really, some unused normals could still be output, but this cuts the number down a little.
     // Yikes, on second thought, don't do this - only works in _DEBUG! Left as a warning to my future self.
     //gModel.normalListCount = maxFaceNormalIndex + 1;
+    return MW_NO_ERROR;
 }
 
 // There are some blocks that have a "primary" name like "Wool" or "Coral Fan", but the real name is "White Wool" or "Tube Coral Fan".
@@ -34036,11 +34101,7 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
     // start to write file
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
-    char facetNormalString[NORMAL_LIST_SIZE][256];
-    for (i = 0; i < gModel.normalListCount; i++)
-    {
-        sprintf_s(facetNormalString[i], 256, "facet normal %e %e %e\n", gModel.normals[i][X], gModel.normals[i][Y], gModel.normals[i][Z]);
-    }
+    char facetNormalString[256];
 
     int noteProgress = 1 + (int)((float)gModel.faceCount / (gProgress.absolute.output / 0.04f));
 
@@ -34069,6 +34130,7 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
 
         assert(pFace->normalIndex >= 0);
         normalIndex = pFace->normalIndex;
+        sprintf_s(facetNormalString, 256, "facet normal %e %e %e\n", gModel.normals[normalIndex][X], gModel.normals[normalIndex][Y], gModel.normals[normalIndex][Z]);
 
         // typical output:
         //facet normal 0.000000e+000 -1.000000e+000 0.000000e+000
@@ -34091,7 +34153,7 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
 
         for (i = 0; i < faceTriCount; i++)
         {
-            WERROR_MODEL(PortaWrite(gModelFile, facetNormalString[normalIndex], strlen(facetNormalString[normalIndex])));
+            WERROR_MODEL(PortaWrite(gModelFile, facetNormalString, strlen(facetNormalString)));
             WERROR_MODEL(PortaWrite(gModelFile, "outer loop\n", strlen("outer loop\n")));
 
             // two triangles: 0 1 2 and 0 2 3 (or 1 2 3 and 1 3 0)
@@ -35031,7 +35093,7 @@ static bool findNextChunk(int startInstance, int& endInstance, char* chunkLocati
 
     // go through rest of list, look for a chunk change
     endInstance = startInstance + 1;
-    do {
+    while (endInstance < gModel.instanceLocCount) {
         pil = &gModel.instanceLoc[endInstance];
         if (chunk[Y] != (int)(pil->location[Y] / gModel.instanceChunkSize) ||
             chunk[X] != (int)(pil->location[X] / gModel.instanceChunkSize) ||
@@ -35040,7 +35102,7 @@ static bool findNextChunk(int startInstance, int& endInstance, char* chunkLocati
             return true;
         }
         endInstance++;
-    } while (endInstance < gModel.instanceLocCount); // if endInstance == the count then we're at the end of the last chunk
+    } // endInstance equal to the count is the end of the last chunk.
 
     return true;
 }

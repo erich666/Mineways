@@ -205,9 +205,23 @@ The largest remaining definition failures are missing textures (4,699), models w
 
 The tests sample exports rather than compare every selector visually with Minecraft. Print dimensions and material estimates use occupied voxel bounds, so large model overhangs can exceed those estimates. Scaling by block size preserves the supplied geometry.
 
+## Static custom renderer coverage
+
+The importer now reads NeoForge OBJ triangles and quads from supplied OBJ/MTL assets. It preserves polygon winding, per-corner UVs, blockstate rotations, inherited component visibility, and supported TRSR root transforms. Material diffuse colors are baked into bounded derived textures. Source vertex normals become flat face normals. Animation, ambient shading, biome tint, and neighbor culling remain explicit approximations. Missing texture resources still fail. Matrix and four-component quaternion transforms remain unsupported.
+
+Modern Industrialization machines use their asset-defined casings and overlays. The static default is north-facing and inactive. Actual block-entity orientation, active appearance, casing upgrades, and output/extraction configuration are not available. The `use_block_model` adapter accepts one unrotated generic model and rejects ambiguous defaults.
+
+Refined Storage and Cable Tiers disk interfaces retain direction and active-state selectors. Disk drives and ExtendedAE drives use their available base geometry. Inserted disks, cell chassis, and contents indicators require block-entity data and remain omitted. Reports name these limitations. Supplementaries slanted awnings apply the loader's extra rotation to the original elements and UVs.
+
+Polygon exports also required removing the legacy 456-entry normal-table limit. The exporter grows that table up to its signed-short index limit and reports capacity or allocation failures. Native regression tests exercise more than 456 distinct normals and repeated exports.
+
+The same full ATM10 snapshot now compiles 44,483 block definitions, 564,698 selectors, 31,388 textures, 88,162 shared geometries, 504,040 elements, 13,882 polygons, and 25 dimensions. This adds 307 block definitions and 3,305 selectors without losing any previously supported selector. All 136 slanted-awning selectors are recovered. The report lists 7,668 unsupported definitions, 2,727 unsupported state records, and 14,255 warnings. Remaining definition failures are led by missing textures (4,813), absent standard geometry (1,754), missing models (560), and custom loaders (400).
+
+The ARM64 macOS ASan/UBSan run activated all 44,483 supported names and checked 153 selected states, 9,316 faces, and 208 exported textures against source pixels. Repeated OBJ exports and exact Sponge geometry/state round trips passed. Synthetic tests cover triangle/quad winding and UVs, rotated meshes, mosaic/color exports, single-block USD, malformed v3 records, float precision failure, and 800 distinct normals. Testing also fixed an existing single-instance USD chunk iteration overrun.
+
 ## Compiled format
 
-The importer writes version 2. The runtime also reads existing version 1 packs. Both formats use UTF-8 text with tab-separated fields. Resource identifiers and selectors cannot contain control characters. Dimension records are optional. Texture and geometry indices each start at zero and increase by one. References must use earlier records.
+The importer writes version 3 when a catalog contains polygons and version 2 otherwise. The runtime reads versions 1, 2, and 3. All versions use UTF-8 text with tab-separated fields. Resource identifiers and selectors cannot contain control characters. Dimension records are optional. Texture and geometry indices each start at zero and increase by one. References must use earlier records.
 
 ```text
 MINEWAYS_MOD_PACK<TAB>2
@@ -222,7 +236,7 @@ usemodel<TAB>geometry_index<TAB>x_degrees<TAB>y_degrees<TAB>uvlock_0_or_1
 endstate
 ```
 
-A `geometry` record stores reusable elements and faces. Each `usemodel` references that geometry with its own blockstate rotations and UV-lock setting. A state can reference several models. `endgeometry` and `endstate` close their respective definitions. A new `element` record closes the previous element.
+A `geometry` record stores reusable elements and faces. Version 3 also permits `polygon<TAB>texture_index<TAB>vertex_count`, followed by five tab-separated numbers per vertex: `x y z u v`. A polygon has three or four vertices. Positions use pixels within -256..256, and UVs use 0..16 with V downward. Degenerate polygons are invalid. Polygon limits are 16,384 per geometry and 1,000,000 per catalog. Each `usemodel` references that geometry with its own blockstate rotations and UV-lock setting. A state can reference several models. `endgeometry` and `endstate` close their respective definitions. A new `element` record closes the previous element.
 
 Version 1 uses `model<TAB>x_degrees<TAB>y_degrees<TAB>uvlock_0_or_1` inside each state, followed by inline elements and faces. It does not use shared geometry records.
 

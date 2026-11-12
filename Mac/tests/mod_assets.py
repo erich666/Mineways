@@ -59,6 +59,41 @@ def adapter_assets(root):
     put(root, 'assets/allthemodium/textures/block/fluid/atm_molten_flow.png', mod.encode_png(2, 2, bytes((255, 100, 10, 255)) * 4))
 
 
+def obj_assets(source):
+    put(source, 'assets/fixture/blockstates/obj_mesh.json', {'variants': {
+        'orientation=plain': {'model': 'fixture:block/obj_mesh'},
+        'orientation=turned': {'model': 'fixture:block/obj_mesh', 'x': 90, 'y': 90}}})
+    put(source, 'assets/fixture/models/block/obj_mesh.json', {
+        'loader': 'neoforge:obj', 'model': 'fixture:models/block/obj_mesh.obj', 'flip_v': True,
+        'textures': {'pattern': 'fixture:block/obj_pattern'}})
+    pixels = bytes(c for y in range(16) for x in range(16) for c in (x*16, y*16, 128, 255))
+    put(source, 'assets/fixture/textures/block/obj_pattern.png', mod.encode_png(16, 16, pixels))
+    put(source, 'assets/fixture/models/block/obj_mesh.mtl', b'newmtl triangle\nKd 0.5 1 0.25\nmap_Kd #pattern\nnewmtl quad\nmap_Kd #pattern\n')
+    put(source, 'assets/fixture/models/block/obj_mesh.obj', b'''mtllib obj_mesh.mtl
+v -0.25 0 0
+v 0.75 0 0
+v 0.25 1 0.5
+v 0 0 1
+v 1 0 1
+v 1 0.5 1
+v 0 0.5 1
+vt 0.125 0.25
+vt 0.875 0.25
+vt 0.5 0.75
+vt 0 0
+vt 1 0
+vt 1 1
+vt 0 1
+vn 0 -0.4472136 0.8944272
+vn 0 0 1
+usemtl triangle
+f 1/1/1 2/2/1 3/3/1
+usemtl quad
+f -4/4/2 -3/5/2 -2/6/2 -1/7/2
+''')
+
+
+
 def build_fixture(root):
     """Create original assets for geometry/UV, alpha, state and schematic tests."""
     root = Path(root)
@@ -96,6 +131,7 @@ def build_fixture(root):
         archive.writestr(f'assets/fixture/blockstates/{long_name}.json', json.dumps({'variants': {'': {'model': 'fixture:block/cube'}}}))
     put(source, 'data/fixture/dimension/moon.json', {'type': {'min_y': -64, 'height': 384, 'coordinate_scale': 2}})
     adapter_assets(source)
+    obj_assets(source)
     geometry_faces = {direction: {'texture': 'fixture:block/' + direction,
                                  'uv': [1, 2, 14, 15], 'rotation': index % 4 * 90,
                                  'cullface': direction}

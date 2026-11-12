@@ -235,6 +235,8 @@ static std::vector<std::string> stateNames(const WorldGuide& world)
 }
 
 #include "mod_geometry.h"
+#include "mod_polygons.h"
+#include "mod_normals.h"
 
 int main(int argc, char** argv)
 {
@@ -290,8 +292,10 @@ int main(int argc, char** argv)
     assert(maps.size() == 7);
     for (const std::string& path : maps) assert(std::filesystem::is_regular_file(root / path));
     std::vector<int> usedTextures;
-    for (size_t i = 0; i < ModTextures().size(); ++i)
-        if (ModTextures()[i].name.compare(0, 8, "fixture:") == 0) usedTextures.push_back((int)i);
+    for (const auto& map : maps) {
+        const std::string stem = std::filesystem::path(map).stem().string();
+        if (stem.compare(0, 7, "mw_mod_") == 0) usedTextures.push_back(std::stoi(stem.substr(7)));
+    }
     assert(usedTextures.size() == 7);
     assert(EnsureModTextures(usedTextures, error));
     for (int i : usedTextures) {
@@ -428,6 +432,8 @@ int main(int argc, char** argv)
     ClearCache();
     free(invisibleRead.sch.blocks); free(invisibleRead.sch.data);
     free(mixedRead.sch.blocks); free(mixedRead.sch.data);
+    checkModPolygons(root);
+    checkModNormalCapacity(root);
     ClearModPack();
     checkExtendedModGeometry(root);
     puts("PASS: mod UVs/pixels, signed geometry/alpha, OBJ/USD modes, states above 255, long names, dimensions, and schematic round trip");

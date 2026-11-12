@@ -25,7 +25,7 @@ struct Pack {
     std::string path;
     std::vector<ModTexture> textures;
     std::vector<ModDimension> dimensions;
-    std::vector<std::shared_ptr<const std::vector<ModElement>>> geometries;
+    std::vector<std::shared_ptr<const ModGeometry>> geometries;
     std::map<std::string, std::unique_ptr<ModBlock>> blocks;
     std::vector<ModBlock*> byType;
     int typeLimit = NUM_BLOCKS_DEFINED;
@@ -112,16 +112,17 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
     std::string line;
     if (!std::getline(stream, line)) { error = "Cannot read manifest."; return false; }
     if (!line.empty() && line.back() == '\r') line.pop_back();
-    const bool sharedGeometry = line == "MINEWAYS_MOD_PACK\t2";
+    const bool polygonGeometry = line == "MINEWAYS_MOD_PACK\t3";
+    const bool sharedGeometry = polygonGeometry || line == "MINEWAYS_MOD_PACK\t2";
     if (!sharedGeometry && line != "MINEWAYS_MOD_PACK\t1") { error = "Unsupported mod pack format."; return false; }
-    std::shared_ptr<std::vector<ModElement>> geometry;
+    std::shared_ptr<ModGeometry> geometry;
     ModStateModel* def = nullptr;
     ModModel* model = nullptr;
     ModElement* element = nullptr;
-    size_t lineNumber = 1, elementCount = 0, definitionCount = 0;
+    size_t lineNumber = 1, elementCount = 0, definitionCount = 0, polygonCount = 0;
     std::set<std::string> selectors;
     std::vector<std::string> f;
-    f.reserve(13); // Reuse token storage; the largest valid record has thirteen fields.
+    f.reserve(23); // A four-corner polygon has twenty-three fields.
     while (std::getline(stream, line)) {
         ++lineNumber;
         if (!line.empty() && line.back() == '\r') line.pop_back();
@@ -190,12 +191,12 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
             int index;
             if (!sharedGeometry || def || geometry || f.size() != 2 ||
                 !integer(f[1], index, 0, 249999) || index != (int)next.geometries.size()) return fail();
-            geometry = std::make_shared<std::vector<ModElement>>();
+            geometry = std::make_shared<ModGeometry>();
             element = nullptr;
         }
         else if (f[0] == "endgeometry") {
-            if (!geometry || f.size() != 1 || geometry->empty()) return fail();
-            for (const auto& e : *geometry) if (e.faces.empty()) return fail();
+            if (!geometry || f.size() != 1 || (geometry->elements.empty() && geometry->polygons.empty())) return fail();
+            for (const auto& e : geometry->elements) if (e.faces.empty()) return fail();
             next.geometries.push_back(geometry);
             geometry.reset();
             element = nullptr;
@@ -244,10 +245,31 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
             int rescale;
             if (!integer(f[12], rescale, 0, 1)) return fail();
             e.rescale = rescale != 0;
-            auto& elements = geometry ? *geometry : model->elements;
+            auto& elements = geometry ? geometry->elements : model->elements;
             if (elements.size() >= 2048) return fail();
             elements.push_back(std::move(e));
             element = &elements.back();
+        }
+        else if (f[0] == "polygon") {
+            ModPolygon polygon;
+            if (!polygonGeometry || (!model && !geometry) || f.size() < 3 ||
+                !integer(f[1], polygon.texture, 0, (int)next.textures.size() - 1) ||
+                !integer(f[2], polygon.count, 3, 4) || f.size() != (size_t)(3 + polygon.count * 5) ||
+                ++polygonCount > 1000000) return fail();
+            for (int vertex = 0; vertex < polygon.count; ++vertex) for (int component = 0; component < 5; ++component) {
+                double value;
+                if (!number(f[3 + vertex * 5 + component], value, component < 3 ? -256 : 0, component < 3 ? 256 : 16)) return fail();
+                polygon.vertices[vertex][component] = (float)value;
+            }
+            // A degenerate leading triangle cannot produce a finite face normal.
+            double a[3], b[3], cross[3];
+            for (int i = 0; i < 3; ++i) { a[i] = (double)polygon.vertices[1][i] - polygon.vertices[0][i]; b[i] = (double)polygon.vertices[2][i] - polygon.vertices[0][i]; }
+            cross[0] = a[1]*b[2] - a[2]*b[1]; cross[1] = a[2]*b[0] - a[0]*b[2]; cross[2] = a[0]*b[1] - a[1]*b[0];
+            if (cross[0]*cross[0] + cross[1]*cross[1] + cross[2]*cross[2] < 1e-16) return fail();
+            auto& polygons = geometry ? geometry->polygons : model->polygons;
+            if (polygons.size() >= 16384) return fail();
+            polygons.push_back(polygon);
+            element = nullptr;
         }
         else if (f[0] == "face") {
             if (!element || f.size() != 9 || element->faces.size() >= 6) return fail();
@@ -265,7 +287,7 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
             for (const auto& m : def->models) {
                 // Shared geometry is immutable and already validated at endgeometry.
                 if (m.geometry) continue;
-                if (m.elements.empty()) return fail();
+                if (m.elements.empty() && m.polygons.empty()) return fail();
                 for (const auto& e : m.elements) if (e.faces.empty()) return fail();
             }
             def = nullptr; model = nullptr; element = nullptr;
@@ -290,7 +312,7 @@ static void initializeBlockDefinition(ModBlock& block) {
     d.flags = BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT;
     bool cube = true;
     for (const auto& definition : block.definitions) {
-        if (definition.models.size() != 1 || definition.models[0].Elements().size() != 1) { cube = false; break; }
+        if (definition.models.size() != 1 || definition.models[0].Elements().size() != 1 || !definition.models[0].Polygons().empty()) { cube = false; break; }
         const auto& element = definition.models[0].Elements()[0];
         if (element.angle != 0 || element.faces.size() != 6) { cube = false; break; }
         for (int axis = 0; axis < 3; ++axis)

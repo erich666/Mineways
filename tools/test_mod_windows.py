@@ -196,11 +196,11 @@ def run(executable, root, name, commands, expect_success=True, timeout=120):
         return details
 
 
-def check_obj(path, details):
+def check_obj(path, details, minimum_faces=6):
     if not path.exists():
         raise AssertionError(f'Missing export {path}\n{details}')
     lines = path.read_text(errors='replace').splitlines()
-    assert sum(line.startswith('f ') for line in lines) >= 6, 'Export contains no mod geometry'
+    assert sum(line.startswith('f ') for line in lines) >= minimum_faces, 'Export contains no mod geometry'
     vertices = [tuple(map(float, line.split()[1:4])) for line in lines if line.startswith('v ')]
     assert vertices and all(math.isfinite(v) for point in vertices for v in point)
     uv = [tuple(map(float, line.split()[1:3])) for line in lines if line.startswith('vt ')]
@@ -249,7 +249,7 @@ def exercise(executable, root):
     catalog_manifest, catalog_input, catalog_names = large_catalog(root)
     assert gzip.decompress(input_path.read_bytes()).startswith(b'\x0a')
     manifest_text = (pack / 'manifest.mwpack').read_text(encoding='utf-8')
-    assert manifest_text.splitlines()[0] in ('MINEWAYS_MOD_PACK\t1', 'MINEWAYS_MOD_PACK\t2')
+    assert manifest_text.splitlines()[0] in ('MINEWAYS_MOD_PACK\t1', 'MINEWAYS_MOD_PACK\t2', 'MINEWAYS_MOD_PACK\t3')
     selectors = {line.split('\t')[1] for line in manifest_text.splitlines() if line.startswith('state\t')}
     assert {'ae2:matrix_frame', 'ae2:drive[facing=north,spin=0]', 'ae2:quartz_glass',
             'ae2:spatial_pylon', 'allthemodium:molten_allthemodium_block[level=0]',
@@ -319,6 +319,36 @@ def exercise(executable, root):
         else:
             check_signed_geometry(output, lower, upper, inward)
         verify_schematic(restored, [state], details)
+    mesh_points = {(-.25, 0, 0), (.75, 0, 0), (.25, 1, .5),
+                   (0, 0, 1), (1, 0, 1), (1, .5, 1), (0, .5, 1)}
+    texture_sources = {int(parts[1]): pack / parts[3]
+                       for line in manifest_text.splitlines()
+                       if (parts := line.split('\t'))[0] == 'texture'}
+    for orientation in ('plain', 'turned'):
+        label = 'mesh-' + orientation
+        state = 'fixture:obj_mesh[orientation=' + orientation + ',retained=true]'
+        source, output, restored = [root / (label + suffix) for suffix in ('.schem', '.obj', '-roundtrip.schem')]
+        schematic(source, [state])
+        details = run(executable, root, label, [*common, 'Minecraft world: ' + str(source),
+                      'File type: Export individual textures to directory ' + label + 'tex',
+                      'Selection location min to max: 0, 0, 0 to 0, 0, 0',
+                      'Export for Rendering: ' + str(output), 'Export Schematic: ' + str(restored)])
+        check_obj(output, details, minimum_faces=2)
+        lines = output.read_text().splitlines()
+        vertices = {tuple(map(float, line.split()[1:4])) for line in lines if line.startswith('v ')}
+        expected = mesh_points if orientation == 'plain' else {(y, z, x) for x, y, z in mesh_points}
+        assert vertices == expected, 'OBJ polygon coordinates or blockstate rotation changed'
+        faces = [line.split()[1:] for line in lines if line.startswith('f ')]
+        assert sorted(map(len, faces)) == [3, 4], 'OBJ triangle/quad topology changed'
+        verify_schematic(restored, [state], details)
+        assert check_export_pixels(output, texture_sources) == 2
+        usd = root / (label + '.usda')
+        details = run(executable, root, label + '-usd', [*common, 'Minecraft world: ' + str(source),
+                      'Set render type: USD 1.0',
+                      'File type: Export individual textures to directory ' + label + 'usdtex',
+                      'Selection location min to max: 0, 0, 0 to 0, 0, 0',
+                      'Export for Rendering: ' + str(usd)])
+        assert usd.exists() and usd.stat().st_size > 100, details
     # Invisible models keep their state identity and leave neighboring cube faces intact.
     invisible_names = ['fixture:cube[custom=left]', 'ae2:matrix_frame[custom=retained]',
                        'fixture:cube[custom=right]']
@@ -442,7 +472,24 @@ def exercise_pack(executable, root, manifest):
                'bibliocraft:acacia_table', 'bibliocraft:acacia_bookcase',
                'xycraft_machines:machine_base', 'xycraft_override:smooth_polished_tuff',
                'advancedperipherals:block_reader', 'waystones:blackstone_waystone',
-               'refurbished_furniture:acacia_desk']
+               'refurbished_furniture:acacia_desk',
+               'modern_industrialization:assembler',
+               'modern_industrialization:bronze_furnace',
+               'modern_industrialization:configurable_tank',
+               'extended_industrialization:large_steel_crate',
+               'industrialization_overdrive:multi_processing_array',
+               'refinedstorage:disk_interface',
+               'refinedstorage:disk_drive',
+               'cabletiers:black_creative_disk_interface',
+               'extendedae:ex_drive',
+               'supplementaries:awning',
+               'supplementaries:awning_red',
+               'create:crushing_wheel',
+               'create:large_water_wheel',
+               'neovitae:raw_spiritus_crystal',
+               'xycraft_machines:collector',
+               'xycraft_machines:energy_selector',
+               'xycraft_machines:stake']
     targets += [name for name in blocks if name.startswith('allthemodium:molten_')]
     for block in targets:
         if block in by_block:
@@ -612,6 +659,61 @@ def exercise_limits(executable, root):
     assert not overflow.exists(), 'A 4097-texture selection bypassed its explicit budget'
     print('PASS: 64,975 active names, uint16 boundary IDs, 4096 texture pixels, explicit 4097 failure', flush=True)
 
+def exercise_normals(executable, root):
+    """Export 800 distinct mesh normals, beyond the former fixed table capacity."""
+    pack = root / 'normal-catalog'
+    pack.mkdir()
+    (pack / 'normal.png').write_bytes(FIXTURE.mod.encode_png(2, 2, bytes((128, 128, 128, 255)) * 4))
+    lines = ['MINEWAYS_MOD_PACK\t3', 'texture\t0\tfixture:normals\tnormal.png', 'geometry\t0']
+    expected = []
+    for i in range(800):
+        z = 1 - 2 * (i + .5) / 800
+        angle = i * 2.399963229728653
+        radius = math.sqrt(1-z*z)
+        expected.append((radius*math.cos(angle), radius*math.sin(angle), z))
+        a = (-math.sin(angle), math.cos(angle), 0)
+        b = (-z*math.cos(angle), -z*math.sin(angle), radius)
+        fields = ['polygon', '0', '3', '8', '8', '8', '0', '0']
+        for vertex in (a, b):
+            fields.extend(format(8+v*4, '.12g') for v in vertex)
+            fields.extend(('16', '16'))
+        lines.append('\t'.join(fields))
+    lines.extend(('endgeometry', 'state\tfixture:many_normals\t808080\t255',
+                  'usemodel\t0\t0\t0\t0', 'endstate'))
+    manifest = pack / 'manifest.mwpack'
+    manifest.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+    source = pack / 'input.schem'
+    schematic(source, ['fixture:many_normals'])
+    assert sum(line.startswith('polygon\t') for line in lines) == 800
+    if executable is None:
+        return
+    outputs = [root / ('normal-capacity-' + str(i) + '.obj') for i in range(2)]
+    commands = ['Mod pack: ' + str(manifest), 'Minecraft world: ' + str(source),
+                'Set render type: Wavefront OBJ absolute indices', 'Center model: NO',
+                'Export lesser blocks: YES', 'Individual blocks: YES',
+                'File type: Export individual textures to directory normaltex',
+                'Selection location min to max: 0, 0, 0 to 0, 0, 0']
+    details = run(executable, root, 'normal_capacity', [*commands,
+                  *['Export for Rendering: ' + str(path) for path in outputs]])
+    for output in outputs:
+        check_obj(output, details, minimum_faces=800)
+        normals, faces = [], []
+        for line in output.read_text().splitlines():
+            if line.startswith('vn '):
+                normals.append(tuple(map(float, line.split()[1:])))
+            elif line.startswith('f '):
+                faces.append(line.split()[1:])
+        assert len(normals) > 456 and len(faces) == 800, 'Mesh normal table did not grow'
+        for face, target in zip(faces, expected):
+            assert len(face) == 3
+            indices = {int(corner.split('/')[2]) for corner in face}
+            assert len(indices) == 1
+            index = indices.pop()
+            assert 1 <= index <= len(normals)
+            assert sum(a*b for a, b in zip(normals[index-1], target)) > .999, 'Incorrect mesh normal'
+    assert obj_geometry(outputs[0]) == obj_geometry(outputs[1]), 'Repeated mesh exports differ'
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('executable', nargs='?')
@@ -640,6 +742,7 @@ def main():
             raise AssertionError('Script-order check accepted a selection before world loading')
         exercise(executable, root)
         exercise_limits(executable, root)
+        exercise_normals(executable, root)
         if manifest:
             exercise_pack(executable, root, manifest)
         elif executable is None:

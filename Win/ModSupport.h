@@ -41,13 +41,27 @@ struct ModElement {
     std::vector<ModFace> faces;
 };
 
+struct ModPolygon {
+    int texture = 0;
+    int count = 0;
+    // Position in model pixels, then UV in texture pixels (v down).
+    float vertices[4][5] = {};
+};
+
+struct ModGeometry {
+    std::vector<ModElement> elements;
+    std::vector<ModPolygon> polygons;
+};
+
 struct ModModel {
     int x = 0;
     int y = 0;
     bool uvlock = false;
     std::vector<ModElement> elements;
-    std::shared_ptr<const std::vector<ModElement>> geometry;
-    const std::vector<ModElement>& Elements() const { return geometry ? *geometry : elements; }
+    std::vector<ModPolygon> polygons;
+    std::shared_ptr<const ModGeometry> geometry;
+    const std::vector<ModElement>& Elements() const { return geometry ? geometry->elements : elements; }
+    const std::vector<ModPolygon>& Polygons() const { return geometry ? geometry->polygons : polygons; }
 };
 
 struct ModStateModel {

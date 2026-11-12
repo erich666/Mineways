@@ -191,7 +191,24 @@ int main(int argc, char** argv)
         "bibliocraft:black_fancy_gold_lamp", "refinedstorage:cable", "cabletiers:black_creative_constructor",
         "bibliocraft:acacia_table", "bibliocraft:acacia_bookcase", "xycraft_machines:machine_base",
         "xycraft_override:smooth_polished_tuff", "advancedperipherals:block_reader",
-        "waystones:blackstone_waystone", "refurbished_furniture:acacia_desk"
+        "waystones:blackstone_waystone", "refurbished_furniture:acacia_desk",
+        "modern_industrialization:assembler",
+        "modern_industrialization:bronze_furnace",
+        "modern_industrialization:configurable_tank",
+        "extended_industrialization:large_steel_crate",
+        "industrialization_overdrive:multi_processing_array",
+        "refinedstorage:disk_interface",
+        "refinedstorage:disk_drive",
+        "cabletiers:black_creative_disk_interface",
+        "extendedae:ex_drive",
+        "supplementaries:awning",
+        "supplementaries:awning_red",
+        "create:crushing_wheel",
+        "create:large_water_wheel",
+        "neovitae:raw_spiritus_crystal",
+        "xycraft_machines:collector",
+        "xycraft_machines:energy_selector",
+        "xycraft_machines:stake"
     };
     for (const char* name : targets) {
         auto block = byBlock.find(name);
