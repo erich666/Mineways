@@ -38,6 +38,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 #include "XZip.h"
 #include "rwpng.h"
+#include "ModSupport.h"
 #include <assert.h>
 #include <ShlObj.h>
 #include <Shlwapi.h>
@@ -167,6 +168,7 @@ static BOOL gLeftIsRight = FALSE;
 
 static int gSpawnX, gSpawnY, gSpawnZ;
 static int gPlayerX, gPlayerY, gPlayerZ;
+static char gPlayerDimension[256] = "minecraft:overworld";
 
 // minimum depth output by default, sea level including water (or not, in 1.9; still, not a terrible start)
 // note: 51 this gets you to bedrock in deep lakes
@@ -394,6 +396,7 @@ typedef struct ImportedSet {
     char world[MAX_PATH_AND_FILE];
     char terrainFile[MAX_PATH_AND_FILE];
     char cullingScheme[MAX_PATH_AND_FILE];
+    char dimension[MAX_PATH_AND_FILE];
     wchar_t* importFile;
     int lineNumber;
     size_t errorMessagesStringSize;
@@ -506,6 +509,11 @@ static void drawTheMap();
 static void setUIOnLoadWorld(HWND hWnd, HWND hwndSlider, HWND hwndLabel, HWND hwndInfoLabel, HWND hwndBottomSlider, HWND hwndBottomLabel);
 static void updateCursor(LPARAM lParam, BOOL hdragging);
 static void gotoSurface(HWND hWnd, HWND hwndSlider, HWND hwndLabel);
+static bool switchToDimension(const wchar_t* id, WindowSet& ws);
+static const int IDM_DIMENSIONS = 49000;
+static const int IDM_LOAD_MOD_PACK = 49001;
+static const int IDM_CLEAR_MOD_PACK = 49002;
+static bool setModPack(const char* path, bool clear, std::string& error);
 static void updateStatus(int mx, int mz, int my, const char* blockLabel, int type, int dataVal, int biome, HWND hwndStatus);
 static void sendStatusMessage(HWND hwndStatus, wchar_t* buf);
 static void populateCullingSchemes(HMENU menu);
@@ -1029,6 +1037,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
         gMainHWnd = hWnd;
         DarkModeApplyToWindow(hWnd);
+        AppendMenuW(GetSubMenu(GetMenu(hWnd), 1), MF_STRING, IDM_DIMENSIONS, L"Dimensions...");
+        InsertMenuW(GetSubMenu(GetMenu(hWnd), 0), IDM_CLOSE, MF_BYCOMMAND | MF_STRING, IDM_LOAD_MOD_PACK, L"Load Mod Pack...");
+        InsertMenuW(GetSubMenu(GetMenu(hWnd), 0), IDM_CLOSE, MF_BYCOMMAND | MF_STRING, IDM_CLEAR_MOD_PACK, L"Clear Mod Pack");
         checkThemeMenu(GetMenu(hWnd));
         validateItems(GetMenu(hWnd));
 
@@ -2842,23 +2853,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 REDRAW_ALL;
                 break;
             case IDM_JUMPSPAWN:
-                gCurX = gSpawnX;
-                gCurZ = gSpawnZ;
-                if (gOptions.worldType & HELL)
-                {
-                    gCurX /= 8.0;
-                    gCurZ /= 8.0;
-                }
+                gCurX = ConvertDimensionCoordinate(gSpawnX, gWorldGuide.type == WORLD_LEVEL_TYPE ? DimensionCoordinateScale("minecraft:overworld") : 1.0, WorldDimensionScale(&gWorldGuide, gOptions.worldType));
+                gCurZ = ConvertDimensionCoordinate(gSpawnZ, gWorldGuide.type == WORLD_LEVEL_TYPE ? DimensionCoordinateScale("minecraft:overworld") : 1.0, WorldDimensionScale(&gWorldGuide, gOptions.worldType));
                 REDRAW_ALL;
                 break;
             case IDM_JUMPPLAYER:
-                gCurX = gPlayerX;
-                gCurZ = gPlayerZ;
-                if (gOptions.worldType & HELL)
-                {
-                    gCurX /= 8.0;
-                    gCurZ /= 8.0;
-                }
+                gCurX = ConvertDimensionCoordinate(gPlayerX, gWorldGuide.type == WORLD_LEVEL_TYPE ? DimensionCoordinateScale(gPlayerDimension) : 1.0, WorldDimensionScale(&gWorldGuide, gOptions.worldType));
+                gCurZ = ConvertDimensionCoordinate(gPlayerZ, gWorldGuide.type == WORLD_LEVEL_TYPE ? DimensionCoordinateScale(gPlayerDimension) : 1.0, WorldDimensionScale(&gWorldGuide, gOptions.worldType));
                 REDRAW_ALL;
                 break;
             case IDM_VIEW_JUMPTOMODEL: // F4
@@ -2874,11 +2875,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 {
                     gCurX = (minx + maxx) / 2;
                     gCurZ = (minz + maxz) / 2;
-                    if (gOptions.worldType & HELL)
-                    {
-                        gCurX /= 8.0;
-                        gCurZ /= 8.0;
-                    }
                     REDRAW_ALL;
                 }
                 break;
@@ -2939,6 +2935,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 // reload world, if loaded
                 if (gLoaded)
                 {
+                    std::wstring dimension = gWorldGuide.dimensionId;
+                    double oldX = gCurX, oldZ = gCurZ;
                     if (loadWorld(hWnd))
                     {
                         // world not loaded properly
@@ -2946,6 +2944,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                             _T("Read error"), MB_OK | MB_ICONERROR);
 
                         return 0;
+                    }
+                    if (!dimension.empty() && switchToDimension(dimension.c_str(), gWS)) {
+                        gCurX = oldX; gCurZ = oldZ;
                     }
                     // TODO: reload world list, too, so that new worlds added since now appear.
                     // Ignore any errors (non-Anvil), since these were already reported.
@@ -2958,87 +2959,67 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     FilterMessageBox(NULL, _T("You need to load a world first. Use 'Open World' or 'Open...' and find your level.dat file in %appdata%/.minecraft/saves."), _T("Informational"), MB_OK | MB_ICONINFORMATION);
                 }
                 break;
-            case IDM_HELL:
-                if (gWorldGuide.type == WORLD_LEVEL_TYPE) {
-                    if (!(gOptions.worldType & HELL))
-                    {
-                        CheckMenuItem(GetMenu(hWnd), IDM_HELL, MF_CHECKED);
-                        gOneTimeWorldWarning = NBT_WARNING_DIRECTORY_NOT_FOUND;
-                        gOptions.worldType |= HELL;
-                        CheckMenuItem(GetMenu(hWnd), IDM_END, MF_UNCHECKED);
-                        gOptions.worldType &= ~ENDER;
-                        // change scale as needed
-                        gCurX /= 8.0;
-                        gCurZ /= 8.0;
-                        // it's useless to view Nether from MAP_MAX_HEIGHT
-                        if (gCurDepth == gMaxHeight)
-                        {
-                            gCurDepth = 126;
-                            setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
-                        }
-                        gOverworldHideStatus = gOptions.worldType & HIDEOBSCURED;
-                        gOptions.worldType |= HIDEOBSCURED;
-                        //gTargetDepth=0;
-                        // semi-useful, I'm not sure: zoom in when going to nether
-                        //gCurScale *= 8.0;
-                        //gCurScale = clamp(gCurScale,gMinZoom,MAXZOOM);
-                        //formTitle(&gWorldGuide, hWnd);
-                    }
-                    else
-                    {
-                        // back to the overworld
-                        gotoSurface(hWnd, hwndSlider, hwndLabel);
-                    }
-                    CheckMenuItem(GetMenu(hWnd), IDM_OBSCURED, (gOptions.worldType & HIDEOBSCURED) ? MF_CHECKED : MF_UNCHECKED);
-                    CloseAll();
-                    // clear selection when you switch from somewhere else to The Nether, or vice versa
-                    gHighlightOn = FALSE;
-                    SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_CLEAR);
-                    enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
-
+            case IDM_LOAD_MOD_PACK:
+            case IDM_CLEAR_MOD_PACK:
+            {
+                bool clear = wmId == IDM_CLEAR_MOD_PACK;
+                std::string packPath;
+                if (!clear) {
+                    wchar_t selected[MAX_PATH_AND_FILE] = {};
+                    OPENFILENAMEW dialog = {};
+                    dialog.lStructSize = sizeof(dialog);
+                    dialog.hwndOwner = hWnd;
+                    dialog.lpstrFilter = L"Mod pack manifest (*.mwpack)\0*.mwpack\0\0";
+                    dialog.lpstrFile = selected;
+                    dialog.nMaxFile = MAX_PATH_AND_FILE;
+                    dialog.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+                    if (!GetOpenFileNameW(&dialog)) break;
+                    int bytes = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, selected, -1, NULL, 0, NULL, NULL);
+                    if (bytes <= 0) break;
+                    std::vector<char> utf8((size_t)bytes);
+                    if (!WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, selected, -1, utf8.data(), bytes, NULL, NULL)) break;
+                    packPath = utf8.data();
+                }
+                std::string error;
+                if (!setModPack(packPath.c_str(), clear, error)) {
+                    wchar_t message[2048];
+                    if (!MultiByteToWideChar(CP_UTF8, 0, error.c_str(), -1, message, 2048))
+                        wcscpy_s(message, 2048, L"Could not load the mod pack.");
+                    FilterMessageBox(hWnd, message, L"Mod pack", MB_OK | MB_ICONERROR);
+                }
+                REDRAW_ALL;
+                break;
+            }
+            case IDM_DIMENSIONS:
+            {
+                auto dimensions = DiscoverWorldDimensions(&gWorldGuide);
+                if (dimensions.empty()) {
+                    FilterMessageBox(hWnd, L"Load a world with region files first.", L"Dimensions", MB_OK | MB_ICONINFORMATION);
+                    break;
+                }
+                HMENU choices = CreatePopupMenu();
+                for (size_t i = 0; i < dimensions.size(); ++i)
+                    AppendMenuW(choices, MF_STRING | (dimensions[i].id == gWorldGuide.dimensionId ? MF_CHECKED : 0),
+                        (UINT_PTR)i + 1, dimensions[i].id.c_str());
+                POINT point;
+                GetCursorPos(&point);
+                UINT selected = TrackPopupMenu(choices, TPM_RETURNCMD | TPM_NONOTIFY, point.x, point.y, 0, hWnd, NULL);
+                DestroyMenu(choices);
+                if (selected && selected <= dimensions.size()) {
+                    if (!switchToDimension(dimensions[selected - 1].id.c_str(), gWS))
+                        FilterMessageBox(hWnd, L"The dimension directory is no longer available.", L"Dimensions", MB_OK | MB_ICONWARNING);
                     REDRAW_ALL;
                 }
-
                 break;
+            }
+            case IDM_HELL:
             case IDM_END:
                 if (gWorldGuide.type == WORLD_LEVEL_TYPE) {
-                    if (!(gOptions.worldType & ENDER))
-                    {
-                        // entering Ender, turn off hell if need be
-                        CheckMenuItem(GetMenu(hWnd), IDM_END, MF_CHECKED);
-                        gOneTimeWorldWarning = NBT_WARNING_DIRECTORY_NOT_FOUND;
-                        gOptions.worldType |= ENDER;
-                        if (gOptions.worldType & HELL)
-                        {
-                            // get out of hell zoom
-                            gCurX *= 8.0;
-                            gCurZ *= 8.0;
-                            // and undo other hell stuff
-                            if (gCurDepth == 126)
-                            {
-                                gCurDepth = gMaxHeight;
-                                setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
-                            }
-                            // turn off obscured, then restore overworld's obscured status
-                            gOptions.worldType &= ~HIDEOBSCURED;
-                            CheckMenuItem(GetMenu(hWnd), IDM_OBSCURED, MF_UNCHECKED);
-                            gOptions.worldType |= gOverworldHideStatus;
-                            // uncheck hell menu item
-                            CheckMenuItem(GetMenu(hWnd), IDM_HELL, MF_UNCHECKED);
-                            gOptions.worldType &= ~HELL;
-                        }
-                    }
-                    else
-                    {
-                        // exiting Ender, go back to overworld
-                        gotoSurface(hWnd, hwndSlider, hwndLabel);
-                    }
-                    CloseAll();
-                    // clear selection when you switch from somewhere else to The End, or vice versa
-                    gHighlightOn = FALSE;
-                    SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_CLEAR);
-                    enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
-
+                    const wchar_t* id = wmId == IDM_HELL ?
+                        ((gOptions.worldType & HELL) ? L"minecraft:overworld" : L"minecraft:the_nether") :
+                        ((gOptions.worldType & ENDER) ? L"minecraft:overworld" : L"minecraft:the_end");
+                    if (!switchToDimension(id, gWS))
+                        FilterMessageBox(hWnd, L"This dimension has no region directory.", L"Dimensions", MB_OK | MB_ICONINFORMATION);
                     REDRAW_ALL;
                 }
                 break;
@@ -3894,14 +3875,89 @@ static void updateCursor(LPARAM lParam, BOOL hdragging)
     }
 }
 
+static bool setModPack(const char* path, bool clear, std::string& error)
+{
+    if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE) {
+        error = "Open a world or the Block Test World before changing mod packs. Reload the schematic after the pack changes.";
+        return false;
+    }
+    ChunkLoaderStop();
+    if (!clear && !LoadModPack(path, error)) {
+        gPrefetchQueued = false;
+        gScrollCacheValid = false;
+        return false;
+    }
+    if (clear) ClearModPack();
+    CloseAll();
+    gPrefetchQueued = false;
+    gScrollCacheValid = false;
+    SetMapPremultipliedColors(0);
+    InvalidateMapRenderCache();
+    CheckUnknownBlock(true);
+    ClearBlockReadCheck();
+    if (gWorldGuide.type == WORLD_LEVEL_TYPE && gWorldGuide.dimensionId[0]) {
+        std::wstring id = gWorldGuide.dimensionId;
+        switchToDimension(id.c_str(), gWS);
+    }
+    return true;
+}
+
+static bool switchToDimension(const wchar_t* id, WindowSet& ws)
+{
+    bool wasNether = (gOptions.worldType & HELL) != 0;
+    double oldScale = WorldDimensionScale(&gWorldGuide, gOptions.worldType);
+    bool sameDimension = wcscmp(id, gWorldGuide.dimensionId) == 0;
+    if (!SelectWorldDimension(&gWorldGuide, id, &gOptions.worldType)) return false;
+    bool isNether = (gOptions.worldType & HELL) != 0;
+    if (!sameDimension) {
+        gCurX = ConvertDimensionCoordinate(gCurX, oldScale, gWorldGuide.dimensionScale);
+        gCurZ = ConvertDimensionCoordinate(gCurZ, oldScale, gWorldGuide.dimensionScale);
+    }
+    if (wasNether != isNether) {
+        if (isNether) {
+            gOverworldHideStatus = gOptions.worldType & HIDEOBSCURED;
+            gOptions.worldType |= HIDEOBSCURED;
+        } else {
+            gOptions.worldType = (gOptions.worldType & ~HIDEOBSCURED) | gOverworldHideStatus;
+        }
+    }
+    gMinHeight = gWorldGuide.minHeight;
+    gMaxHeight = gWorldGuide.maxHeight;
+    GetChunkHeights(&gWorldGuide, gMinHeight, gMaxHeight, gMinecraftVersion, (int)gCurX, (int)gCurZ);
+    gCurDepth = isNether ? (std::max)(gMinHeight, (std::min)(126, gMaxHeight)) : gMaxHeight;
+    gTargetDepth = gMinHeight;
+    gHighlightOn = FALSE;
+    SetHighlightState(0, 0, 0, 0, 0, 0, 0, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_CLEAR);
+    gPrefetchQueued = false;
+    gScrollCacheValid = false;
+    gOneTimeWorldWarning = NBT_WARNING_DIRECTORY_NOT_FOUND;
+    SendMessage(ws.hwndSlider, TBM_SETRANGE, TRUE, MAKELONG(0, gMaxHeight - gMinHeight));
+    SendMessage(ws.hwndBottomSlider, TBM_SETRANGE, TRUE, MAKELONG(0, gMaxHeight - gMinHeight));
+    setSlider(ws.hWnd, ws.hwndSlider, ws.hwndLabel, gCurDepth, false);
+    setSlider(ws.hWnd, ws.hwndBottomSlider, ws.hwndBottomLabel, gTargetDepth, false);
+    enableBottomControl(0, ws.hwndInfoBottomLabel);
+    CheckMenuItem(GetMenu(ws.hWnd), IDM_HELL, isNether ? MF_CHECKED : MF_UNCHECKED);
+    CheckMenuItem(GetMenu(ws.hWnd), IDM_END, (gOptions.worldType & ENDER) ? MF_CHECKED : MF_UNCHECKED);
+    CheckMenuItem(GetMenu(ws.hWnd), IDM_OBSCURED, (gOptions.worldType & HIDEOBSCURED) ? MF_CHECKED : MF_UNCHECKED);
+    return true;
+}
+
 // Note: don't change worldType before calling this method - it sets worldType to overworld itself.
 static void gotoSurface(HWND hWnd, HWND hwndSlider, HWND hwndLabel)
 {
+    double oldScale = WorldDimensionScale(&gWorldGuide, gOptions.worldType);
+    gCurX = ConvertDimensionCoordinate(gCurX, oldScale, DimensionCoordinateScale("minecraft:overworld"));
+    gCurZ = ConvertDimensionCoordinate(gCurZ, oldScale, DimensionCoordinateScale("minecraft:overworld"));
+    // A successful load already selected the overworld and its exact pack bounds.
+    if (wcscmp(gWorldGuide.dimensionId, L"minecraft:overworld") != 0) {
+        gWorldGuide.dimensionId[0] = 0;
+        gWorldGuide.dimensionPath[0] = 0;
+        gWorldGuide.dimensionScale = 0;
+        gWorldGuide.dimensionBoundsFromPack = false;
+    }
     if (gOptions.worldType & HELL)
     {
         // get out of hell zoom
-        gCurX *= 8.0;
-        gCurZ *= 8.0;
         // and undo other hell stuff
         if (gCurDepth == 126)
         {
@@ -3979,7 +4035,9 @@ static void updateStatus(int mx, int mz, int my, const char* blockLabel, int typ
         // In Nether, show corresponding overworld coordinates
         if (gOptions.worldType & HELL)
             //wsprintf(buf,L"%d,%d; y=%d[%d,%d] %S \t\tBtm %d",mx,mz,my,mx*8,mz*8,blockLabel,gTargetDepth);
-            swprintf_s(buf, _countof(buf), L"%d,%d,y=%d[%d,%d]; %S%S%S%S%S%S", mx, mz, my, mx * 8, mz * 8, 
+            swprintf_s(buf, _countof(buf), L"%d,%d,y=%d[%d,%d]; %S%S%S%S%S%S", mx, mz, my,
+                (int)ConvertDimensionCoordinate(mx, WorldDimensionScale(&gWorldGuide, gOptions.worldType), DimensionCoordinateScale("minecraft:overworld")),
+                (int)ConvertDimensionCoordinate(mz, WorldDimensionScale(&gWorldGuide, gOptions.worldType), DimensionCoordinateScale("minecraft:overworld")),
                 WATERLOGGED_LABEL(type, dataVal) ? "waterlogged " : "",
                 blockLabel, sbuftype, sbufbiome, sbufselect, sbufmap);	// char to wchar
         else
@@ -4451,6 +4509,16 @@ static void testWorldHeight(int& minHeight, int& maxHeight, int mcVersion, int s
 static int loadWorld(HWND hWnd)
 {
     CloseAll();
+    double oldScale = WorldDimensionScale(&gWorldGuide, gOptions.worldType);
+    gCurX = ConvertDimensionCoordinate(gCurX, oldScale, DimensionCoordinateScale("minecraft:overworld"));
+    gCurZ = ConvertDimensionCoordinate(gCurZ, oldScale, DimensionCoordinateScale("minecraft:overworld"));
+    if (gOptions.worldType & HELL)
+        gOptions.worldType = (gOptions.worldType & ~HIDEOBSCURED) | gOverworldHideStatus;
+    gOptions.worldType &= ~(HELL | ENDER);
+    gWorldGuide.dimensionId[0] = 0;
+    gWorldGuide.dimensionPath[0] = 0;
+    gWorldGuide.dimensionScale = 0;
+    gWorldGuide.dimensionBoundsFromPack = false;
     // the map buffer shows the old world, so the next draw can't just pan it
     gScrollCacheValid = false;
     // defaults
@@ -4523,7 +4591,8 @@ static int loadWorld(HWND hWnd)
             retcode = 3;
         }
         int dimension;
-        if (GetPlayer(gWorldGuide.world, &gPlayerX, &gPlayerY, &gPlayerZ, &dimension) != 0) {
+        strcpy_s(gPlayerDimension, sizeof(gPlayerDimension), "minecraft:overworld");
+        if (GetPlayer(gWorldGuide.world, &gPlayerX, &gPlayerY, &gPlayerZ, &dimension, gPlayerDimension, sizeof(gPlayerDimension)) != 0) {
             // if this fails, it's a server world, so set the values equal to the spawn location; return no error
             // from http://minecraft.wiki/w/Level_format
             // Player: The state of the Singleplayer player. This overrides the <player>.dat file with the same name as the
@@ -4531,34 +4600,23 @@ static int loadWorld(HWND hWnd)
             gPlayerX = gSpawnX;
             gPlayerY = gSpawnY;
             gPlayerZ = gSpawnZ;
+            strcpy_s(gPlayerDimension, sizeof(gPlayerDimension), "minecraft:overworld");
             gWorldGuide.isServerWorld = true;
-        }
-        else {
-            // use dimension to set world type viewed.
-            if (dimension == 1) {
-                // Nether
-                // could do this, but then we need to set a bunch of other options: 
-                // gOptions.worldType |= HELL;
-
-                // in Nether, so convert; for now, return overworld position, always
-                gPlayerX = gPlayerX * 8;
-                gPlayerZ = gPlayerZ * 8;
-            }
-            else if (dimension == 2) {
-                // End
-                //gOptions.worldType |= ENDER;
-            }
-            else {
-                // Overworld
-                //gOptions.worldType &= ~(HELL | ENDER);
-                assert(dimension == 0);
-            }
         }
         // This may or may not work, so we ignore errors.
         GetFileVersionId(gWorldGuide.world, &gVersionID);
         gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
         setHeightsFromVersionID();
-        testWorldHeight(gMinHeight, gMaxHeight, gMinecraftVersion, gSpawnX, gSpawnZ, gPlayerX, gPlayerZ);
+        {
+            int overworld = gOptions.worldType & ~(HELL | ENDER);
+            if (SelectWorldDimension(&gWorldGuide, L"minecraft:overworld", &overworld)) {
+                gMinHeight = gWorldGuide.minHeight;
+                gMaxHeight = gWorldGuide.maxHeight;
+            }
+            testWorldHeight(gMinHeight, gMaxHeight, gMinecraftVersion, gSpawnX, gSpawnZ,
+                (int)ConvertDimensionCoordinate(gPlayerX, DimensionCoordinateScale(gPlayerDimension), DimensionCoordinateScale("minecraft:overworld")),
+                (int)ConvertDimensionCoordinate(gPlayerZ, DimensionCoordinateScale(gPlayerDimension), DimensionCoordinateScale("minecraft:overworld")));
+        }
         break;
 
     case WORLD_SCHEMATIC_TYPE:
@@ -6467,7 +6525,12 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         }
 
         // show errors first
-        if (errCode != MW_NO_ERROR)
+        if (errCode == MW_CANNOT_PARSE_IMPORT_FILE && gpEFD->fileType == FILE_TYPE_SCHEMATIC &&
+            ModBlockTypeLimit() > NUM_BLOCKS_DEFINED) {
+            FilterMessageBox(NULL, L"Mod blocks need Sponge .schem to preserve names and states. Choose Sponge schematic or clear the mod pack.",
+                L"Export error", MB_OK | MB_ICONERROR);
+        }
+        else if (errCode != MW_NO_ERROR)
         {
             PopupErrorDialogs(errCode);
         }
@@ -6977,6 +7040,15 @@ static void runImportOrScript(wchar_t* importFile, WindowSet& ws, const char** p
             assert(is.nether == false);
             if (switchToTheEnd(is)) {
                 FilterMessageBox(NULL, L"Attempt to switch to The End failed", _T("Import warning"), MB_OK | MB_ICONWARNING);
+            }
+        }
+
+        if (is.dimension[0]) {
+            wchar_t id[MAX_PATH_AND_FILE];
+            if (!MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, is.dimension, -1, id, MAX_PATH_AND_FILE) ||
+                !switchToDimension(id, ws)) {
+                FilterMessageBox(NULL, L"The exported dimension was not found in this world.", L"Import warning", MB_OK | MB_ICONWARNING);
+                return;
             }
         }
 
@@ -7920,81 +7992,13 @@ static char* closeCommentBlock(char* line)
 // Return 0 if this executes properly. Else return code should be passed up chain.
 static int switchToNether(ImportedSet& is)
 {
-    if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE || gWorldGuide.type == WORLD_TEST_BLOCK_TYPE)
-    {
-        saveWarningMessage(is, L"attempt to switch to Nether but this world has none.");
-        return INTERPRETER_FOUND_ERROR;
-    }
-    gOneTimeWorldWarning = NBT_WARNING_DIRECTORY_NOT_FOUND;
-    gOptions.worldType |= HELL;
-    gOptions.worldType &= ~ENDER;
-    // change scale as needed
-    gCurX /= 8.0;
-    gCurZ /= 8.0;
-    // it's useless to view Nether from MAP_MAX_HEIGHT
-    if (gCurDepth == gMaxHeight)
-    {
-        gCurDepth = 126;
-        setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
-    }
-    gOverworldHideStatus = gOptions.worldType & HIDEOBSCURED;
-    gOptions.worldType |= HIDEOBSCURED;
-
-    CheckMenuItem(GetMenu(is.ws.hWnd), IDM_OBSCURED, (gOptions.worldType & HIDEOBSCURED) ? MF_CHECKED : MF_UNCHECKED);
-    CheckMenuItem(GetMenu(is.ws.hWnd), IDM_HELL, (gOptions.worldType & HELL) ? MF_CHECKED : MF_UNCHECKED);
-    if (gOptions.worldType & ENDER)
-    {
-        CheckMenuItem(GetMenu(is.ws.hWnd), IDM_END, MF_UNCHECKED);
-        gOptions.worldType &= ~ENDER;
-    }
-    CloseAll();
-    // clear selection when you switch from somewhere else to The Nether, or vice versa
-    gHighlightOn = FALSE;
-    SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_CLEAR);
-    enableBottomControl(gHighlightOn, /* is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, */ is.ws.hwndInfoBottomLabel);
-
-    return 0;
+    return switchToDimension(L"minecraft:the_nether", is.ws) ? 0 : INTERPRETER_FOUND_ERROR;
 }
 
 // Return 0 if this executes properly. Else return code should be passed up chain.
 static int switchToTheEnd(ImportedSet& is)
 {
-    if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE || gWorldGuide.type == WORLD_TEST_BLOCK_TYPE)
-    {
-        saveWarningMessage(is, L"attempt to switch to The End level but this world has none.");
-        return INTERPRETER_FOUND_ERROR;
-    }
-    gOneTimeWorldWarning = NBT_WARNING_DIRECTORY_NOT_FOUND;
-    CheckMenuItem(GetMenu(is.ws.hWnd), IDM_END, MF_CHECKED);
-    // entering Ender, turn off hell if need be
-    gOptions.worldType |= ENDER;
-    if (gOptions.worldType & HELL)
-    {
-        // get out of hell zoom
-        gCurX *= 8.0;
-        gCurZ *= 8.0;
-        // and undo other hell stuff
-        if (gCurDepth == 126)
-        {
-            gCurDepth = gMaxHeight;
-            setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
-        }
-        // turn off obscured, then restore overworld's obscured status
-        gOptions.worldType &= ~HIDEOBSCURED;
-        CheckMenuItem(GetMenu(is.ws.hWnd), IDM_OBSCURED, MF_UNCHECKED);
-        gOptions.worldType |= gOverworldHideStatus;
-        // uncheck hell menu item
-        CheckMenuItem(GetMenu(is.ws.hWnd), IDM_HELL, MF_UNCHECKED);
-        gOptions.worldType &= ~HELL;
-    }
-
-    CloseAll();
-    // clear selection when you switch from somewhere else to The End, or vice versa
-    gHighlightOn = FALSE;
-    SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_CLEAR);
-    enableBottomControl(gHighlightOn, /* is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, */ is.ws.hwndInfoBottomLabel);
-
-    return 0;
+    return switchToDimension(L"minecraft:the_end", is.ws) ? 0 : INTERPRETER_FOUND_ERROR;
 }
 
 static int interpretImportLine(char* line, ImportedSet& is)
@@ -8191,13 +8195,55 @@ static int interpretImportLine(char* line, ImportedSet& is)
         return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
     }
 
+    strPtr = findLineDataNoCase(line, "Mod pack:");
+    const char* clearData = findLineDataNoCase(line, "Clear mod pack");
+    bool clearModPack = clearData != NULL;
+    if (strPtr || clearModPack) {
+        if (clearModPack && *clearData) {
+            saveErrorMessage(is, L"Clear mod pack takes no arguments."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!clearModPack && !*strPtr) {
+            saveErrorMessage(is, L"no mod pack manifest given."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (is.processData && !is.readingModel) {
+            std::string detail;
+            if (!setModPack(clearModPack ? "" : strPtr, clearModPack, detail)) {
+                wchar_t message[2048];
+                if (!MultiByteToWideChar(CP_UTF8, 0, detail.c_str(), -1, message, 2048))
+                    wcscpy_s(message, 2048, L"Could not load the mod pack.");
+                saveErrorMessage(is, message); return INTERPRETER_FOUND_ERROR;
+            }
+        }
+        return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
+    }
+
+    strPtr = findLineDataNoCase(line, "Dimension:");
+    if (strPtr != NULL) {
+        if (!IsWorldDimensionId(strPtr)) {
+            saveErrorMessage(is, L"invalid dimension ID."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (is.processData) {
+            strcpy_s(is.dimension, MAX_PATH_AND_FILE, strPtr);
+            if (!is.readingModel) {
+                wchar_t id[MAX_PATH_AND_FILE];
+                if (!MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, strPtr, -1, id, MAX_PATH_AND_FILE) ||
+                    !switchToDimension(id, is.ws)) {
+                    saveErrorMessage(is, L"dimension not found in the loaded world."); return INTERPRETER_FOUND_ERROR;
+                }
+            }
+        }
+        return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
+    }
+
     strPtr = findLineDataNoCase(line, "View Overworld");
     if (strPtr != NULL) {
         if (is.processData) {
             // simply ignored if read inside a model, since overworld is the default
             if (!is.readingModel) {
                 if (gLoaded) {
-                    gotoSurface(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel);
+                    if (!switchToDimension(L"minecraft:overworld", is.ws)) {
+                        saveErrorMessage(is, L"Overworld dimension not found."); return INTERPRETER_FOUND_ERROR;
+                    }
                     CheckMenuItem(GetMenu(is.ws.hWnd), IDM_OBSCURED, (gOptions.worldType & HIDEOBSCURED) ? MF_CHECKED : MF_UNCHECKED);
                     if (gOptions.worldType & ENDER)
                     {
@@ -9341,13 +9387,8 @@ JumpToSpawn:
     if (strPtr != NULL) {
         if (is.processData) {
             if (gLoaded) {
-                gCurX = gSpawnX;
-                gCurZ = gSpawnZ;
-                if (gOptions.worldType & HELL)
-                {
-                    gCurX /= 8.0;
-                    gCurZ /= 8.0;
-                }
+                gCurX = ConvertDimensionCoordinate(gSpawnX, gWorldGuide.type == WORLD_LEVEL_TYPE ? DimensionCoordinateScale("minecraft:overworld") : 1.0, WorldDimensionScale(&gWorldGuide, gOptions.worldType));
+                gCurZ = ConvertDimensionCoordinate(gSpawnZ, gWorldGuide.type == WORLD_LEVEL_TYPE ? DimensionCoordinateScale("minecraft:overworld") : 1.0, WorldDimensionScale(&gWorldGuide, gOptions.worldType));
             }
             else {
                 saveErrorMessage(is, L"Jump to Spawn command failed, as no world has been loaded.");
@@ -9362,13 +9403,8 @@ JumpToSpawn:
     if (strPtr != NULL) {
         if (is.processData) {
             if (gLoaded) {
-                gCurX = gPlayerX;
-                gCurZ = gPlayerZ;
-                if (gOptions.worldType & HELL)
-                {
-                    gCurX /= 8.0;
-                    gCurZ /= 8.0;
-                }
+                gCurX = ConvertDimensionCoordinate(gPlayerX, gWorldGuide.type == WORLD_LEVEL_TYPE ? DimensionCoordinateScale(gPlayerDimension) : 1.0, WorldDimensionScale(&gWorldGuide, gOptions.worldType));
+                gCurZ = ConvertDimensionCoordinate(gPlayerZ, gWorldGuide.type == WORLD_LEVEL_TYPE ? DimensionCoordinateScale(gPlayerDimension) : 1.0, WorldDimensionScale(&gWorldGuide, gOptions.worldType));
             }
             else {
                 saveErrorMessage(is, L"Jump to Player command failed, as no world has been loaded.");
@@ -9394,11 +9430,6 @@ JumpToSpawn:
                 {
                     gCurX = (minx + maxx) / 2;
                     gCurZ = (minz + maxz) / 2;
-                    if (gOptions.worldType & HELL)
-                    {
-                        gCurX /= 8.0;
-                        gCurZ /= 8.0;
-                    }
                 }
                 else {
                     MY_ASSERT(gAlwaysFail);

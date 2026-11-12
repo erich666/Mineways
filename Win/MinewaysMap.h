@@ -29,6 +29,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 
 #include <stddef.h>
+#include <string>
+#include <vector>
 #include "tiles.h"
 #include "blockInfo.h"
 #include "biomes.h"
@@ -76,6 +78,10 @@ typedef struct WorldGuide {
     unsigned int type;
     wchar_t world[520];		// 2*MAX_PATH
     wchar_t directory[520];
+    wchar_t dimensionId[520];
+    wchar_t dimensionPath[520]; // relative to world, selected from discovered directories
+    double dimensionScale; // zero means the legacy scale for an unselected dimension
+    bool dimensionBoundsFromPack;
     Schematic sch;
     int nbtVersion;
     bool isServerWorld;
@@ -98,6 +104,21 @@ typedef struct HighlightBox {
 #define HIGHLIGHT_UNDO_IGNORE   0
 #define HIGHLIGHT_UNDO_PUSH     1
 #define HIGHLIGHT_UNDO_CLEAR    2
+
+struct WorldDimension {
+    std::wstring id;
+    std::wstring path;
+    int minHeight;
+    int maxHeight;
+    double coordinateScale;
+    bool boundsFromPack = false;
+};
+bool IsWorldDimensionId(const char* id);
+double DimensionCoordinateScale(const char* id);
+double WorldDimensionScale(const WorldGuide* world, int worldType);
+double ConvertDimensionCoordinate(double value, double sourceScale, double targetScale);
+std::vector<WorldDimension> DiscoverWorldDimensions(const WorldGuide* world);
+bool SelectWorldDimension(WorldGuide* world, const wchar_t* id, int* worldType);
 
 void SetSeparatorMap(const wchar_t* separator);
 void SetDimensionDirectory(WorldGuide* pWorldGuide, unsigned int worldType);
@@ -127,7 +148,7 @@ int GetFileVersion(const wchar_t* world, int* version, wchar_t* fileOpened, rsiz
 int GetFileVersionId(const wchar_t* world, int* versionId);
 // currently not used: int GetFileVersionName(const wchar_t* world, char* versionName, int stringLength);
 int GetLevelName(const wchar_t* world, char* levelName, int stringLength);
-int GetPlayer(const wchar_t* world, int* px, int* py, int* pz, int* dimension);
+int GetPlayer(const wchar_t* world, int* px, int* py, int* pz, int* dimension, char* dimensionId = nullptr, size_t capacity = 0);
 unsigned int GetBlockDataColor(int type, int dataVal);
 int GetSchematicWord(const wchar_t* schematic, char* field, int* word);
 int GetSchematicBlocksAndData(const wchar_t* schematic, int numBlocks, unsigned char* schematicBlocks, unsigned short* schematicBlockData);

@@ -86,3 +86,6 @@ Mac/.MinewaysVersion.h
 Mac/mineways
 Mac/Mineways.app/
 .DS_Store
+
+# Python importer and regression modules
+__pycache__/

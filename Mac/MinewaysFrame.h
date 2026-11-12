@@ -22,6 +22,8 @@ public:
     void RunExport(ExportFileData& efd, const wchar_t* outputPath);
     void RedrawMap();
     void SetTerrainFile(const wxString& path);
+    bool SetModPack(const wxString& path, bool clear, wxString& error);
+    bool SwitchToDimension(const wxString& id);
     bool SwitchToNether();   // false if this world has no Nether (schematic/test world)
     bool SwitchToTheEnd();   // false if this world has no End
     void JumpToSpawn();
@@ -52,6 +54,8 @@ private:
     void OnTestBlockWorld(wxCommandEvent&);
     void OnWorldMenuItem(wxCommandEvent&);  // dynamic world-list items
     void OnGoToLocation(wxCommandEvent&);
+    void OnLoadModPack(wxCommandEvent&);
+    void OnClearModPack(wxCommandEvent&);
     void OnChooseTerrainFile(wxCommandEvent&);
     void OnDefaultTerrain(wxCommandEvent&);
     void OnTerrainMenuItem(wxCommandEvent&);  // dynamic terrainExt*.png list items
@@ -66,6 +70,7 @@ private:
     void OnJumpPlayer(wxCommandEvent&);
     void OnJumpModel(wxCommandEvent&);
     void OnViewInformation(wxCommandEvent&);
+    void OnChooseDimension(wxCommandEvent&);
     void OnViewHell(wxCommandEvent&);
     void OnViewEnd(wxCommandEvent&);
     void OnToggleWorldTypeBit(wxCommandEvent&);   // Show all/biomes/elevation/lighting/cave/obscured/water/grid
@@ -93,6 +98,8 @@ enum {
     ID_OPEN_FILE,
     ID_TEST_BLOCK_WORLD,
     ID_CHOOSE_TERRAIN,
+    ID_LOAD_MOD_PACK,
+    ID_CLEAR_MOD_PACK,
     ID_DEFAULT_TERRAIN,
     ID_CULLING_SCHEMES,
     ID_EXPORT_OBJ,
@@ -107,6 +114,7 @@ enum {
     ID_VIEW_INFORMATION,
     ID_VIEW_HELL,
     ID_VIEW_END,
+    ID_CHOOSE_DIMENSION,
     ID_SHOWALL,
     ID_SHOWBIOMES,
     ID_ELEVATION_SHADING,

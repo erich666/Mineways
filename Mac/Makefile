@@ -42,6 +42,7 @@ CORE_SRCS := $(SRC_DIR)/blockInfo.cpp \
              $(SRC_DIR)/lodepng.cpp \
              $(SRC_DIR)/rwpng.cpp \
              $(SRC_DIR)/nbt.cpp \
+             $(SRC_DIR)/ModSupport.cpp \
              $(SRC_DIR)/region.cpp \
              $(SRC_DIR)/cache.cpp \
              $(SRC_DIR)/ObjFileManip.cpp \
@@ -87,7 +88,7 @@ test-security: $(ALL_OBJS)
 	mkdir -p "$(SECURITY_TEST_DIR)"
 	$(CXX) $(CXXFLAGS) $(SANITIZER_FLAGS) tests/security_exports.cpp $(filter-out ObjFileManip.o,$(CORE_OBJS)) MacCullingSchemes.o $(LDFLAGS) $(LIBS) -o "$(SECURITY_TEST_DIR)/exports"
 	"$(SECURITY_TEST_DIR)/exports" "$(SECURITY_TEST_DIR)"
-	$(CXX) $(CXXFLAGS) $(SANITIZER_FLAGS) tests/security_nbt.cpp $(SRC_DIR)/nbt.cpp $(SRC_DIR)/blockInfo.cpp $(SRC_DIR)/biomes.cpp -lz -o "$(SECURITY_TEST_DIR)/nbt"
+	$(CXX) $(CXXFLAGS) $(SANITIZER_FLAGS) tests/security_nbt.cpp $(SRC_DIR)/nbt.cpp $(SRC_DIR)/ModSupport.cpp $(SRC_DIR)/blockInfo.cpp $(SRC_DIR)/biomes.cpp $(SRC_DIR)/lodepng.cpp -lz -o "$(SECURITY_TEST_DIR)/nbt"
 	"$(SECURITY_TEST_DIR)/nbt" "$(SECURITY_TEST_DIR)"
 	TMPDIR="$(SECURITY_TEST_DIR)" python3 tests/security_textures.py
 	TMPDIR="$(SECURITY_TEST_DIR)" python3 tests/security_png.py
@@ -158,3 +159,15 @@ clean:
 	rm -f *.o *.d $(TARGET) $(VERSION_HEADER)
 
 -include $(ALL_DEPS)
+
+# Data-only importer and native registry checks. Each execution uses fresh fixtures.
+.PHONY: test-mods
+test-mods: $(ALL_OBJS)
+	python3 tests/mod_assets.py
+	$(CXX) $(CXXFLAGS) $(SANITIZER_FLAGS) tests/mod_support.cpp $(SRC_DIR)/ModSupport.cpp $(SRC_DIR)/blockInfo.cpp $(SRC_DIR)/biomes.cpp $(SRC_DIR)/lodepng.cpp -lz -o /tmp/mineways-mod-support
+	/tmp/mineways-mod-support "$$(mktemp -d /tmp/mineways-mod-support.XXXXXX)"
+
+	$(CXX) $(CXXFLAGS) $(SANITIZER_FLAGS) tests/mod_exports.cpp $(SRC_DIR)/ModSupport.cpp $(SRC_DIR)/nbt.cpp $(SRC_DIR)/MinewaysMap.cpp $(filter-out ObjFileManip.o ModSupport.o nbt.o MinewaysMap.o,$(CORE_OBJS)) MacCullingSchemes.o $(LDFLAGS) $(LIBS) -o /tmp/mineways-mod-exports
+	@mod_test_dir=$$(mktemp -d /tmp/mineways-mod-exports.XXXXXX); \
+	  python3 tests/mod_assets.py --fixture "$$mod_test_dir/fixture" && \
+	  /tmp/mineways-mod-exports "$$mod_test_dir/fixture/pack/manifest.mwpack" "$$mod_test_dir/output"

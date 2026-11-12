@@ -84,7 +84,7 @@ const SignWood gSignWoods[NUM_SIGN_WOODS] = {
     { "poplar", "Poplar Sign", "Poplar Wall Sign", "Poplar Hanging Sign", "Poplar Wall Hanging Sign", 0x978B80, 0xA5998C, 15, 79,  11, 79,  12, 79, 14, 79 },
 };
 
-BlockDefinition gBlockDefinitions[NUM_BLOCKS_DEFINED] = {
+BlockDefinition gBlockDefinitions[MAX_BLOCK_TYPES] = {
     // Ignore the premultiplied colors and alphas - these really are just placeholders, it's color * alpha that sets them when the program starts up.
     // name                               		read_color ralpha color     prem-clr  alpha,     txX,Y   mtl, flags
     { /*   0 */ "Air",                    		0x000000, 0.000f, 0xff7711, 0xff7711, 0.12345f,  13,14, 0x00, BLF_NONE},	//00

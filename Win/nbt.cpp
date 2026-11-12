@@ -31,6 +31,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <assert.h>
 #include <limits.h>
 #include <stdint.h>
+#include "ModSupport.h"
 
 // We know we won't run into names longer than 100 characters. The old code was
 // safe, but was also allocating strings all the time - seems slow.
@@ -4172,6 +4173,57 @@ static bool familyFacesNorthByDefault(int family)
     return false;
 }
 
+// Read mod states independently so vanilla property parsers never interpret mod-specific values.
+static int readModPaletteEntry(bfFile* pbf, int* outType, int* outData, std::string& unsupportedState)
+{
+    const int start = bftell(pbf);
+    if (start < 0) return -1;
+    std::string name;
+    std::map<std::string, std::string> properties;
+    auto readString = [&](std::string& value) {
+        const int length = readWord(pbf);
+        if (length < 0 || length > 1023) return false;
+        value.resize(length);
+        return length == 0 || bfread(pbf, &value[0], length) >= 0;
+    };
+    int tags = 0;
+    for (;;) {
+        unsigned char tag;
+        if (++tags > 256 || bfread(pbf, &tag, 1) < 0) return -1;
+        if (!tag) break;
+        std::string key;
+        if (!readString(key)) return -1;
+        if (tag == 8 && (key == "Name" || key == "id" || key.empty())) {
+            if (!name.empty() || !readString(name)) return -1;
+        }
+        else if (tag == 10 && (key == "Properties" || key == "properties")) {
+            for (;;) {
+                unsigned char propTag;
+                if (++tags > 256 || bfread(pbf, &propTag, 1) < 0) return -1;
+                if (!propTag) break;
+                std::string token, value;
+                if (!readString(token)) return -1;
+                if (propTag == 8) {
+                    if (!readString(value) || properties.size() >= 64 || !properties.emplace(token, value).second) return -1;
+                }
+                else if (skipType(pbf, propTag) < 0) return -1;
+            }
+        }
+        else if (skipType(pbf, tag) < 0) return -1;
+    }
+    if (HasModBlock(name)) {
+        std::string state = name;
+        for (const auto& prop : properties) state += (state == name ? "[" : ",") + prop.first + "=" + prop.second;
+        if (!properties.empty()) state += "]";
+        const int result = ResolveModState(state, outType, outData);
+        if (result != 0) return result;
+        // Keep unsupported states out of vanilla property parsing, but retain the rest of the chunk.
+        unsupportedState = state;
+        return 2;
+    }
+    return bfseek(pbf, start, SEEK_SET) < 0 ? -1 : 0;
+}
+
 static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned char *paletteBlockEntry, unsigned short *paletteDataEntry, int& entryIndex, char* unknownBlock, int unknownBlockID)
 {
     int dataVal, len;
@@ -4224,14 +4276,14 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
     if (nentries > MAX_PALETTE)
         return LINE_ERROR;
 
-    char thisBlockName[MAX_NAME_LENGTH];
-    char entryName[MAX_NAME_LENGTH];    // the block's name for the current entry, kept since thisBlockName gets reused for other things
+    char thisBlockName[1024];
+    char entryName[1024];    // the block's name for the current entry, kept since thisBlockName gets reused for other things
 
     // Each entry is read from pbf. For a list of strings, we instead make a compound for each entry in memory, so that both forms
     // are read by the same code. If an entry has no properties, we may also make up the properties of the default state in memory.
     bfFile* pbfList = pbf;
     bfFile memBf;
-    unsigned char memBuf[MAX_NAME_LENGTH * 8];
+    unsigned char memBuf[1024 * 8];
     memBf.type = BF_BUFFER;
     memBf.buf = memBuf;
     memBf.buflen = 0;
@@ -4264,7 +4316,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
         if (stringEntries) {
             // make a compound: string "Name" and then the end tag
             len = readWord(pbfList);
-            if (len >= MAX_NAME_LENGTH)
+            if (len >= (int)sizeof(thisBlockName))
                 return LINE_ERROR;
             if (bfread(pbfList, thisBlockName, len) < 0)
                 return LINE_ERROR;
@@ -4283,6 +4335,29 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             memBf.buflen = mp;
             memBf._offset = 0;
             pbf = &memBf;
+        }
+        if (ModBlockTypeLimit() > NUM_BLOCKS_DEFINED) {
+            int modType, modData;
+            std::string unsupportedState;
+            const int modResult = readModPaletteEntry(pbf, &modType, &modData, unsupportedState);
+            if (modResult < 0) return LINE_ERROR;
+            if (modResult == 2) {
+                modType = unknownBlockID;
+                modData = 0;
+                returnCode |= NBT_WARNING_NAME_NOT_FOUND;
+                if (unknownBlock != NULL && strstr(unknownBlock, unsupportedState.c_str()) == NULL) {
+                    const std::string diagnostic = (unknownBlock[0] ? ", " : "") + unsupportedState + " (unsupported state)";
+                    const size_t used = strlen(unknownBlock);
+                    const size_t count = (std::min)(diagnostic.size(), (size_t)MAX_PATH_AND_FILE - used - 1);
+                    memcpy(unknownBlock + used, diagnostic.data(), count);
+                    unknownBlock[used + count] = 0;
+                }
+            }
+            if (modResult > 0) {
+                paletteBlockEntry[entryIndex] = (unsigned char)(modType & 255);
+                paletteDataEntry[entryIndex++] = PACK_TYPE_EXT_AND_DATAVAL(modType, modData);
+                continue;
+            }
         }
         // avoid inheriting these properties, which are always folded in (false if not found in block, so does no harm)
         waterlogged = false;
@@ -6514,10 +6589,43 @@ int nbtGetPlayer(bfFile* pbf, int* px, int* py, int* pz)
     *pz = (int)readDouble(pbf);
     return 0;
 }
-int nbtGetDimension(bfFile * pbf, int* dimension)
+static int readDimensionValue(bfFile* pbf, int tag, int* dimension, char* dimensionId, size_t capacity)
+{
+    std::string name;
+    if (tag == 8) {
+        unsigned char size[2];
+        if (bfread(pbf, size, 2) < 0) return LINE_ERROR;
+        int length = (size[0] << 8) | size[1];
+        if (length <= 0 || length > 255) return LINE_ERROR;
+        name.resize(length);
+        if (bfread(pbf, &name[0], length) < 0) return LINE_ERROR;
+        std::string canonical;
+        if (!CanonicalModState(name, canonical) || canonical != name || name.find('[') != std::string::npos) return LINE_ERROR;
+    }
+    else if (tag == 3) {
+        unsigned char bytes[4];
+        if (bfread(pbf, bytes, 4) < 0) return LINE_ERROR;
+        const uint32_t value = ((uint32_t)bytes[0] << 24) | ((uint32_t)bytes[1] << 16) | ((uint32_t)bytes[2] << 8) | bytes[3];
+        if (value == 0) name = "minecraft:overworld";
+        else if (value == UINT32_MAX) name = "minecraft:the_nether";
+        else if (value == 1) name = "minecraft:the_end";
+        else return LINE_ERROR;
+    }
+    else return LINE_ERROR;
+    if (dimensionId) {
+        if (name.size() >= capacity) return LINE_ERROR;
+        memcpy(dimensionId, name.c_str(), name.size() + 1);
+    }
+    *dimension = name == "minecraft:the_nether" ? 1 : name == "minecraft:the_end" ? 2 : 0;
+    return 0;
+}
+
+int nbtGetDimension(bfFile * pbf, int* dimension, char* dimensionId, size_t capacity)
 {
     int len;
+    if (!dimension) return LINE_ERROR;
     *dimension = 0; // overworld
+    if (dimensionId && capacity) dimensionId[0] = 0;
     //Data/Player/Dimension
     if (bfseek(pbf, 1, SEEK_CUR) < 0)
         return LINE_ERROR; //skip type
@@ -6528,21 +6636,7 @@ int nbtGetDimension(bfFile * pbf, int* dimension)
         return LINE_ERROR;
     if (nbtFindElement(pbf, "Player") != 10)
         return LINE_ERROR;
-    if (nbtFindElement(pbf, "Dimension") != 8)
-        return LINE_ERROR;
-    len = readWord(pbf);
-    char dimension_string[256];
-    if (len >= (int)sizeof(dimension_string))
-        return LINE_ERROR;
-    if (bfread(pbf, dimension_string, len) < 0)
-        return LINE_ERROR;
-    // doesn't return a null-terminated string, so add one
-    dimension_string[len] = 0;
-    if (strstr(dimension_string, "nether") != NULL)
-        *dimension = 1;
-    else if (strstr(dimension_string, "end") != NULL)
-        *dimension = 2;
-    return 0;
+    return readDimensionValue(pbf, nbtFindElement(pbf, "Dimension"), dimension, dimensionId, capacity);
 }
 // For newer worlds (26.1+), Pos is directly in the player .dat file, not under Data/Player
 int nbtGetPlayerDirect(bfFile* pbf, int* px, int* py, int* pz)
@@ -6565,33 +6659,20 @@ int nbtGetPlayerDirect(bfFile* pbf, int* px, int* py, int* pz)
     return 0;
 }
 // For newer worlds (26.1+), Dimension is directly in the player .dat file
-int nbtGetDimensionDirect(bfFile* pbf, int* dimension)
+int nbtGetDimensionDirect(bfFile* pbf, int* dimension, char* dimensionId, size_t capacity)
 {
     int len;
+    if (!dimension) return LINE_ERROR;
     *dimension = 0; // overworld
+    if (dimensionId && capacity) dimensionId[0] = 0;
     //Dimension (directly in root compound)
     if (bfseek(pbf, 1, SEEK_CUR) < 0)
         return LINE_ERROR; //skip type
     len = readWord(pbf); //name length
     if (bfseek(pbf, len, SEEK_CUR) < 0)
         return LINE_ERROR; //skip name ()
-    if (nbtFindElement(pbf, "Dimension") != 8)
-        return LINE_ERROR;
-    len = readWord(pbf);
-    char dimension_string[256];
-    if (len >= (int)sizeof(dimension_string))
-        return LINE_ERROR;
-    if (bfread(pbf, dimension_string, len) < 0)
-        return LINE_ERROR;
-    // doesn't return a null-terminated string, so add one
-    dimension_string[len] = 0;
-    if (strstr(dimension_string, "nether") != NULL)
-        *dimension = 1;
-    else if (strstr(dimension_string, "end") != NULL)
-        *dimension = 2;
-    return 0;
+    return readDimensionValue(pbf, nbtFindElement(pbf, "Dimension"), dimension, dimensionId, capacity);
 }
-
 //////////// schematic
 //  http://minecraft.wiki/w/Schematic_file_format
 // return 0 if not found, 1 if all is well
@@ -6766,10 +6847,18 @@ static int spongeParsePropList(char* propsBuf, char** keys, char** values, int m
 // Mineways (blockId, dataVal) pair, inverting `spongeBuildBlockStateString`. Returns true if the
 // block name was recognised. On unknown blocks emits BLOCK_AIR and returns false. (issue #40)
 // Returns the full type (0-4095) in *outType and the 12-bit dataVal in *outDataVal.
-static bool spongeParseStateString(const char* str, int* outType, int* outDataVal)
+static bool spongeParseStateString(const char* str, int* outType, int* outDataVal, int* modStatus = NULL)
 {
     *outType = 0;
     *outDataVal = 0;
+    if (modStatus) *modStatus = 0;
+    if (ModBlockTypeLimit() > NUM_BLOCKS_DEFINED) {
+        const int modResult = ResolveModState(str, outType, outDataVal);
+        if (modStatus) *modStatus = modResult;
+        if (modResult != 0) return modResult > 0;
+        const std::string stateName(str);
+        if (HasModBlock(stateName.substr(0, stateName.find('[')))) return false;
+    }
 
     // Copy to a mutable buffer for in-place tokenization.
     char buf[256];
@@ -7936,8 +8025,8 @@ static bool spongeReadPalette(bfFile* pbf,
         if (ptype == 0) return true;    // TAG_End — done
 
         unsigned int pnameLen = readWord(pbf);
-        if (pnameLen >= 256) return false;
-        char pname[256];
+        if (pnameLen >= 1024) return false;
+        char pname[1024];
         if (bfread(pbf, pname, (int)pnameLen) < 0) return false;
         pname[pnameLen] = '\0';
 
@@ -7975,7 +8064,9 @@ static bool spongeReadPalette(bfFile* pbf,
             *palCapacity = newCap;
         }
         int type, dataVal;
-        spongeParseStateString(pname, &type, &dataVal);
+        int modStatus;
+        if (!spongeParseStateString(pname, &type, &dataVal, &modStatus) && modStatus < 0)
+            return false;
         (*palBlockIds)[idx] = type;
         (*palDataVals)[idx] = dataVal;
         if (idx + 1 > *palCount) *palCount = idx + 1;
@@ -8642,6 +8733,12 @@ int blockTransIndexFor(int type, int dataVal)
 int spongeBuildBlockStateString(int type, int dataVal, char* out, int outSize)
 {
     if (out == NULL || outSize <= 0) return -1;
+    if (IsModBlock(type)) {
+        const ModBlockState* state = GetModBlock(type, dataVal);
+        if (!state || state->canonical.size() >= (size_t)outSize) return -1;
+        memcpy(out, state->canonical.c_str(), state->canonical.size() + 1);
+        return (int)state->canonical.size();
+    }
     buildSpongeReverseIndex();
 
     // Capture the caller's original block id before any of the remaps below rewrite it. A few

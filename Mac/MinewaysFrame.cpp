@@ -2,6 +2,7 @@
 // Global state mirrors the static variables in Win/Mineways.cpp.
 #include <wx/wx.h>
 #include <wx/config.h>
+#include <wx/choicdlg.h>
 #include <wx/stdpaths.h>
 #include <wx/filename.h>
 #include <wx/progdlg.h>
@@ -11,6 +12,7 @@
 #include "ExportDialog.h"
 #include "MacCullingSchemes.h"
 #include "ImportSettings.h"
+#include "ModSupport.h"
 
 // Win32 shims + project headers (stdafx.h routes to compat.h on non-WIN32)
 #include "stdafx.h"
@@ -51,6 +53,7 @@ static wchar_t     gWorldPathDefault[MAX_PATH_AND_FILE];
 static wchar_t     gPreferredSeparatorString[2] = { L'/', 0 };
 static int         gSpawnX = 0, gSpawnY = 64, gSpawnZ = 0;
 static int         gPlayerX = 0, gPlayerY = 64, gPlayerZ = 0;
+static char gPlayerDimension[256] = "minecraft:overworld";
 static int         gOverworldHideStatus = 0;   // HIDEOBSCURED bit, saved across a Nether visit
 static float       gMinZoom         = MINZOOM;
 
@@ -189,6 +192,9 @@ static void ExportProgressCB(float progress, wchar_t* buf)
 static void ClearLoadedWorldData()
 {
     CloseAll();
+    if (gOptions.worldType & HELL)
+        gOptions.worldType = (gOptions.worldType & ~HIDEOBSCURED) | gOverworldHideStatus;
+    gOptions.worldType &= ~(HELL | ENDER);
     free(gWorldGuide.sch.blocks); gWorldGuide.sch.blocks = nullptr;
     free(gWorldGuide.sch.data);   gWorldGuide.sch.data   = nullptr;
     memset(&gWorldGuide, 0, sizeof(gWorldGuide));
@@ -292,6 +298,8 @@ wxBEGIN_EVENT_TABLE(MinewaysFrame, wxFrame)
     EVT_MENU(ID_OPEN_FILE,        MinewaysFrame::OnOpenFile)
     EVT_MENU(ID_TEST_BLOCK_WORLD, MinewaysFrame::OnTestBlockWorld)
     EVT_MENU(ID_GO_TO_LOCATION,   MinewaysFrame::OnGoToLocation)
+    EVT_MENU(ID_LOAD_MOD_PACK, MinewaysFrame::OnLoadModPack)
+    EVT_MENU(ID_CLEAR_MOD_PACK, MinewaysFrame::OnClearModPack)
     EVT_MENU(ID_CHOOSE_TERRAIN,   MinewaysFrame::OnChooseTerrainFile)
     EVT_MENU(ID_DEFAULT_TERRAIN,  MinewaysFrame::OnDefaultTerrain)
     EVT_MENU_RANGE(ID_TERRAIN_ITEM_BASE, ID_TERRAIN_ITEM_BASE + MAX_TERRAIN_FILES - 1,
@@ -309,6 +317,7 @@ wxBEGIN_EVENT_TABLE(MinewaysFrame, wxFrame)
     EVT_MENU(ID_VIEW_INFORMATION, MinewaysFrame::OnViewInformation)
     EVT_MENU(ID_VIEW_HELL,        MinewaysFrame::OnViewHell)
     EVT_MENU(ID_VIEW_END,         MinewaysFrame::OnViewEnd)
+    EVT_MENU(ID_CHOOSE_DIMENSION, MinewaysFrame::OnChooseDimension)
     EVT_MENU(ID_SHOWALL,          MinewaysFrame::OnToggleWorldTypeBit)
     EVT_MENU(ID_SHOWBIOMES,       MinewaysFrame::OnToggleWorldTypeBit)
     EVT_MENU(ID_ELEVATION_SHADING, MinewaysFrame::OnToggleWorldTypeBit)
@@ -582,6 +591,9 @@ void MinewaysFrame::BuildMenu()
     fileMenu->Append(ID_EXPORT_MAP, "Export Map...\tCtrl+M",
                      "Save the selected region of the 2D map as a PNG image");
     fileMenu->AppendSeparator();
+    fileMenu->Append(ID_LOAD_MOD_PACK, "Load Mod Pack...");
+    fileMenu->Append(ID_CLEAR_MOD_PACK, "Clear Mod Pack");
+    fileMenu->AppendSeparator();
     fileMenu->Append(wxID_EXIT, "Quit\tCtrl+Q");
 
     wxMenu* viewMenu = new wxMenu;
@@ -597,6 +609,7 @@ void MinewaysFrame::BuildMenu()
     viewMenu->AppendSeparator();
     viewMenu->AppendCheckItem(ID_VIEW_HELL, "View Nether\tF5");
     viewMenu->AppendCheckItem(ID_VIEW_END,  "View The End\tF6");
+    viewMenu->Append(ID_CHOOSE_DIMENSION, "Dimensions...");
     viewMenu->AppendSeparator();
     viewMenu->AppendCheckItem(ID_SHOWALL,    "Show all objects\tF7");
     viewMenu->AppendCheckItem(ID_SHOWBIOMES, "Show biomes\tF8");
@@ -1140,6 +1153,10 @@ void MinewaysFrame::RunExport(ExportFileData& efd, const wchar_t* outputPath)
         } else {
             AddToRecentExports(wxString(outputPath));
         }
+    } else if (errCode == MW_CANNOT_PARSE_IMPORT_FILE && efd.fileType == FILE_TYPE_SCHEMATIC &&
+               ModBlockTypeLimit() > NUM_BLOCKS_DEFINED) {
+        wxMessageBox("Mod blocks need Sponge .schem to preserve names and states. Choose Sponge schematic or clear the mod pack.",
+                     "Export error", wxOK | wxICON_ERROR, this);
     } else {
         // Show path even on failure so user can diagnose
         wxMessageBox(wxString::Format("Export failed (error %d).\nAttempted path: %s",
@@ -1308,7 +1325,13 @@ void MinewaysFrame::OnReloadWorld(wxCommandEvent&)
         wxMessageBox("You need to load a world first.", "No world loaded", wxOK | wxICON_INFORMATION, this);
         return;
     }
+    wxString dimension(gWorldGuide.dimensionId);
+    double oldX = gCurX, oldZ = gCurZ;
     wxString err = LoadWorldFromDir(wxString(gWorldGuide.world));
+    if (err.IsEmpty() && !dimension.IsEmpty() && SwitchToDimension(dimension)) {
+        gCurX = oldX; gCurZ = oldZ;
+        RedrawMap();
+    }
     if (!err.IsEmpty()) wxMessageBox(err, "Load error", wxOK | wxICON_ERROR, this);
 }
 
@@ -1501,16 +1524,16 @@ void MinewaysFrame::OnUndoSelection(wxCommandEvent&)
 void MinewaysFrame::JumpToSpawn()
 {
     if (!gLoaded) return;
-    gCurX = gSpawnX; gCurZ = gSpawnZ;
-    if (gOptions.worldType & HELL) { gCurX /= 8.0; gCurZ /= 8.0; }
+    gCurX = ConvertDimensionCoordinate(gSpawnX, gWorldGuide.type == WORLD_LEVEL_TYPE ? DimensionCoordinateScale("minecraft:overworld") : 1.0, WorldDimensionScale(&gWorldGuide, gOptions.worldType));
+                gCurZ = ConvertDimensionCoordinate(gSpawnZ, gWorldGuide.type == WORLD_LEVEL_TYPE ? DimensionCoordinateScale("minecraft:overworld") : 1.0, WorldDimensionScale(&gWorldGuide, gOptions.worldType));
     RedrawMap();
 }
 
 void MinewaysFrame::JumpToPlayer()
 {
     if (!gLoaded) return;
-    gCurX = gPlayerX; gCurZ = gPlayerZ;
-    if (gOptions.worldType & HELL) { gCurX /= 8.0; gCurZ /= 8.0; }
+    gCurX = ConvertDimensionCoordinate(gPlayerX, gWorldGuide.type == WORLD_LEVEL_TYPE ? DimensionCoordinateScale(gPlayerDimension) : 1.0, WorldDimensionScale(&gWorldGuide, gOptions.worldType));
+    gCurZ = ConvertDimensionCoordinate(gPlayerZ, gWorldGuide.type == WORLD_LEVEL_TYPE ? DimensionCoordinateScale(gPlayerDimension) : 1.0, WorldDimensionScale(&gWorldGuide, gOptions.worldType));
     RedrawMap();
 }
 
@@ -1525,7 +1548,6 @@ bool MinewaysFrame::JumpToModel()
     if (!on) return false;
     gCurX = (minx + maxx) / 2;
     gCurZ = (minz + maxz) / 2;
-    if (gOptions.worldType & HELL) { gCurX /= 8.0; gCurZ /= 8.0; }
     RedrawMap();
     return true;
 }
@@ -1575,72 +1597,126 @@ void MinewaysFrame::OnViewInformation(wxCommandEvent&)
     wxMessageBox(info, "World Information", wxOK | wxICON_INFORMATION, this);
 }
 
-// Both Nether and End views reuse the same world's chunk loader with the HELL/ENDER
-// worldType bits set — MinewaysMap.cpp's directory-building already picks the DIM-1/DIM1
-// subfolder from those bits, so this is state bookkeeping, not new chunk-loading logic.
-bool MinewaysFrame::SwitchToNether()
+bool MinewaysFrame::SetModPack(const wxString& path, bool clear, wxString& error)
 {
-    if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE || gWorldGuide.type == WORLD_TEST_BLOCK_TYPE) return false;
-    if (!(gOptions.worldType & HELL)) {
-        gOptions.worldType |= HELL;
-        gOptions.worldType &= ~ENDER;
-        gCurX /= 8.0; gCurZ /= 8.0;
-        if (gCurDepth == gMaxHeight) {
-            gCurDepth = 126;
-            if (m_sliderTop) { m_sliderTop->SetValue(gCurDepth); m_labelTop->SetLabel(wxString::Format("%d", gCurDepth)); }
-        }
-        gOverworldHideStatus = gOptions.worldType & HIDEOBSCURED;
-        gOptions.worldType |= HIDEOBSCURED;
-    } else {
-        gCurX *= 8.0; gCurZ *= 8.0;
-        if (gCurDepth == 126) {
-            gCurDepth = gMaxHeight;
-            if (m_sliderTop) { m_sliderTop->SetValue(gCurDepth); m_labelTop->SetLabel(wxString::Format("%d", gCurDepth)); }
-        }
-        gOptions.worldType &= ~HIDEOBSCURED;
-        gOptions.worldType |= gOverworldHideStatus;
-        gOptions.worldType &= ~HELL;
+    if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE) {
+        error = "Open a world or the Block Test World before changing mod packs. Reload the schematic after the pack changes.";
+        return false;
+    }
+    if (m_mapPanel) m_mapPanel->ResetMap();
+    ChunkLoaderStop();
+    std::string detail;
+    bool loaded = clear || LoadModPack(std::string(path.utf8_str()), detail);
+    if (clear) ClearModPack();
+    if (!loaded) {
+        error = wxString::FromUTF8(detail);
+        RedrawMap();
+        return false;
     }
     CloseAll();
+    SetMapPremultipliedColors(0);
+    InvalidateMapRenderCache();
+    CheckUnknownBlock(true);
+    ClearBlockReadCheck();
+    if (!(gWorldGuide.type == WORLD_LEVEL_TYPE && gWorldGuide.dimensionId[0] &&
+          SwitchToDimension(wxString(gWorldGuide.dimensionId))))
+        RedrawMap();
+    return true;
+}
+
+void MinewaysFrame::OnLoadModPack(wxCommandEvent&)
+{
+    wxFileDialog dialog(this, "Load Mod Pack", "", "", "Mod pack manifest (*.mwpack)|*.mwpack", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+    if (dialog.ShowModal() != wxID_OK) return;
+    wxString error;
+    if (!SetModPack(dialog.GetPath(), false, error))
+        wxMessageBox(error, "Mod pack", wxOK | wxICON_ERROR, this);
+    else
+        SetStatusText("Loaded mod pack: " + dialog.GetPath(), 0);
+}
+
+void MinewaysFrame::OnClearModPack(wxCommandEvent&)
+{
+    wxString error;
+    if (!SetModPack("", true, error))
+        wxMessageBox(error, "Mod pack", wxOK | wxICON_ERROR, this);
+    else
+        SetStatusText("Mod pack cleared", 0);
+}
+
+bool MinewaysFrame::SwitchToDimension(const wxString& id)
+{
+    if (!gLoaded || gWorldGuide.type != WORLD_LEVEL_TYPE) return false;
+    const bool wasNether = (gOptions.worldType & HELL) != 0;
+    double oldScale = WorldDimensionScale(&gWorldGuide, gOptions.worldType);
+    bool sameDimension = id == wxString(gWorldGuide.dimensionId);
+    if (!SelectWorldDimension(&gWorldGuide, id.wc_str(), &gOptions.worldType)) return false;
+    if (m_mapPanel) m_mapPanel->ResetMap();
+    const bool isNether = (gOptions.worldType & HELL) != 0;
+    if (!sameDimension) {
+        gCurX = ConvertDimensionCoordinate(gCurX, oldScale, gWorldGuide.dimensionScale);
+        gCurZ = ConvertDimensionCoordinate(gCurZ, oldScale, gWorldGuide.dimensionScale);
+    }
+    if (wasNether != isNether) {
+        if (isNether) {
+            gOverworldHideStatus = gOptions.worldType & HIDEOBSCURED;
+            gOptions.worldType |= HIDEOBSCURED;
+        } else {
+            gOptions.worldType = (gOptions.worldType & ~HIDEOBSCURED) | gOverworldHideStatus;
+        }
+    }
+    gMinHeight = gWorldGuide.minHeight;
+    gMaxHeight = gWorldGuide.maxHeight;
+    GetChunkHeights(&gWorldGuide, gMinHeight, gMaxHeight, gMinecraftVersion, (int)gCurX, (int)gCurZ);
+    gCurDepth = isNether ? (std::max)(gMinHeight, (std::min)(126, gMaxHeight)) : gMaxHeight;
+    gTargetDepth = gMinHeight;
     gHighlightOn = FALSE;
-    SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_CLEAR);
+    SetHighlightState(0, 0, 0, 0, 0, 0, 0, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_CLEAR);
+    if (m_sliderTop) {
+        m_sliderTop->SetRange(gMinHeight, gMaxHeight);
+        m_sliderTop->SetValue(gCurDepth);
+        m_labelTop->SetLabel(wxString::Format("%d", gCurDepth));
+        m_sliderBot->SetRange(gMinHeight, gMaxHeight);
+        m_sliderBot->SetValue(gTargetDepth);
+        m_labelBot->SetLabel(wxString::Format("%d", gTargetDepth));
+    }
     if (GetMenuBar()) {
-        GetMenuBar()->Check(ID_VIEW_HELL, (gOptions.worldType & HELL) != 0);
-        GetMenuBar()->Check(ID_VIEW_END,  (gOptions.worldType & ENDER) != 0);
+        GetMenuBar()->Check(ID_VIEW_HELL, isNether);
+        GetMenuBar()->Check(ID_VIEW_END, (gOptions.worldType & ENDER) != 0);
         GetMenuBar()->Check(ID_HIDEOBSCURED, (gOptions.worldType & HIDEOBSCURED) != 0);
     }
+    SetStatusText(wxString::Format("Dimension: %s", id), 0);
     RedrawMap();
     return true;
 }
 
+bool MinewaysFrame::SwitchToNether()
+{
+    return SwitchToDimension((gOptions.worldType & HELL) ? "minecraft:overworld" : "minecraft:the_nether");
+}
+
 bool MinewaysFrame::SwitchToTheEnd()
 {
-    if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE || gWorldGuide.type == WORLD_TEST_BLOCK_TYPE) return false;
-    if (!(gOptions.worldType & ENDER)) {
-        gOptions.worldType |= ENDER;
-        if (gOptions.worldType & HELL) {
-            gCurX *= 8.0; gCurZ *= 8.0;
-            if (gCurDepth == 126) {
-                gCurDepth = gMaxHeight;
-                if (m_sliderTop) { m_sliderTop->SetValue(gCurDepth); m_labelTop->SetLabel(wxString::Format("%d", gCurDepth)); }
-            }
-            gOptions.worldType &= ~HIDEOBSCURED;
-            gOptions.worldType |= gOverworldHideStatus;
-            gOptions.worldType &= ~HELL;
-        }
-    } else {
-        gOptions.worldType &= ~ENDER;
+    return SwitchToDimension((gOptions.worldType & ENDER) ? "minecraft:overworld" : "minecraft:the_end");
+}
+
+void MinewaysFrame::OnChooseDimension(wxCommandEvent&)
+{
+    auto dimensions = DiscoverWorldDimensions(&gWorldGuide);
+    if (dimensions.empty()) {
+        wxMessageBox("Load a world with region files first.", "Dimensions", wxOK | wxICON_INFORMATION, this);
+        return;
     }
-    CloseAll();
-    gHighlightOn = FALSE;
-    SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_CLEAR);
-    if (GetMenuBar()) {
-        GetMenuBar()->Check(ID_VIEW_HELL, (gOptions.worldType & HELL) != 0);
-        GetMenuBar()->Check(ID_VIEW_END,  (gOptions.worldType & ENDER) != 0);
-        GetMenuBar()->Check(ID_HIDEOBSCURED, (gOptions.worldType & HIDEOBSCURED) != 0);
+    wxArrayString names;
+    int current = 0;
+    for (const auto& dim : dimensions) {
+        if (dim.id == gWorldGuide.dimensionId) current = (int)names.size();
+        names.Add(wxString(dim.id));
     }
-    RedrawMap();
-    return true;
+    wxSingleChoiceDialog dialog(this, "Select a dimension", "Dimensions", names);
+    dialog.SetSelection(current);
+    if (dialog.ShowModal() == wxID_OK && !SwitchToDimension(dialog.GetStringSelection()))
+        wxMessageBox("The dimension directory is no longer available.", "Dimensions", wxOK | wxICON_ERROR, this);
 }
 
 void MinewaysFrame::OnViewHell(wxCommandEvent&)
@@ -1734,10 +1810,12 @@ wxString MinewaysFrame::LoadWorldFromDir(const wxString& dir)
     int spawnX = 0, spawnY = 64, spawnZ = 0;
     int playerX = 0, playerY = 64, playerZ = 0;
     int dimension = 0;
+    strcpy(gPlayerDimension, "minecraft:overworld");
     GetSpawn(wdir, &spawnX, &spawnY, &spawnZ);
-    if (GetPlayer(wdir, &playerX, &playerY, &playerZ, &dimension) != 0) {
+    if (GetPlayer(wdir, &playerX, &playerY, &playerZ, &dimension, gPlayerDimension, sizeof(gPlayerDimension)) != 0) {
         playerX = spawnX; playerY = spawnY; playerZ = spawnZ;
         gWorldGuide.isServerWorld = true;
+        strcpy(gPlayerDimension, "minecraft:overworld");
     }
     gSpawnX = spawnX; gSpawnY = spawnY; gSpawnZ = spawnZ;
     gPlayerX = playerX; gPlayerY = playerY; gPlayerZ = playerZ;
@@ -1749,6 +1827,11 @@ wxString MinewaysFrame::LoadWorldFromDir(const wxString& dir)
     gMaxHeight = MAX_WORLD_HEIGHT(gVersionID, gMinecraftVersion);
     gWorldGuide.minHeight = gMinHeight;
     gWorldGuide.maxHeight = gMaxHeight;
+
+    gOptions.worldType &= ~(HELL | ENDER);
+    SelectWorldDimension(&gWorldGuide, L"minecraft:overworld", &gOptions.worldType);
+    gMinHeight = gWorldGuide.minHeight;
+    gMaxHeight = gWorldGuide.maxHeight;
 
     // Center view on spawn
     gCurX = (double)spawnX;

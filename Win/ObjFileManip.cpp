@@ -31,6 +31,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "stdafx.h"
 #include "tiles.h"
+#include "ModSupport.h"
 #include "rwpng.h"
 #include "vector.h"
 #include "mdlFiles.h"
@@ -44,8 +45,28 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <type_traits>
 
 #include "CullingSchemes.h"	// isBlockCulled() — active Culling Scheme filter
+
+static std::string blockMaterialName(int type, int state = -1)
+{
+    const char* name = gBlockDefinitions[type].name;
+    if (!IsModBlock(type)) return name;
+    std::string result = "mod_";
+    for (size_t i = 0; name[i] && i < 96; ++i) {
+        char c = name[i];
+        result += (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' ? c : '_';
+    }
+    return result + "_" + std::to_string(type) + (state >= 0 ? "_state_" + std::to_string(state) : "");
+}
+
+static float blockDataAlpha(int type, int dataVal)
+{
+    if (const auto* state = GetModBlock(type, dataVal))
+        return (float)state->definition->alpha / 255.0f;
+    return gBlockDefinitions[type].alpha;
+}
 
 // Set to a tiny number to have front and back faces of billboards be separated a bit.
 // TODO: currently works only for those billboards made by using the various multitile calls,
@@ -669,7 +690,7 @@ ProgressValues gProgress;
 
 
 // objects that are waterlogged should be considered fully in water, as if the block was in water
-#define IS_WATERLOGGED(tval,bi) ((gBlockDefinitions[tval].flags & BLF_WATERLOG) || \
+#define IS_WATERLOGGED(tval,bi) (ModBlockWaterlogged(tval, gBoxData[bi].data) || (gBlockDefinitions[tval].flags & BLF_WATERLOG) || \
 								((gBlockDefinitions[tval].flags & BLF_MAYWATERLOG) && !(gBlockDefinitions[tval].flags & BLF_LAME_WATERLOG) && (gBoxData[bi].data & WATERLOGGED_BIT)))
 
 #define IS_FLUID(tval,bi)	(((tval) >= BLOCK_WATER && (tval) <= BLOCK_STATIONARY_LAVA) || IS_WATERLOGGED(tval,bi))
@@ -862,6 +883,7 @@ typedef struct ModelFace {
     int rotation;
     int billboardBack;
     int swatchLoc;  // the face's own 16x16 tile, e.g. a bed's, or 0 to use the model's whole (possibly multi-tile) image
+    int cullMode;   // 0 preserves built-in behavior, -1 disables culling, otherwise direction + 1
 } ModelFace;
 // One Minecraft block model JSON element: "from", "to" (in 0-16 pixel units) and its faces. An element may also have a "rotation":
 // rotAngle degrees, as in the JSON (so, about Y, negative turns clockwise, seen from above), about rotOrigin, in pixel units, about
@@ -882,6 +904,115 @@ static int saveRotatedModel(int boxIndex, int type, int dataVal, int anchorLoc, 
 // rows 8-11, eight woods (SIGN_WOOD(), the order of gSignWoods[]) to each pair of rows, from column 16.
 #define SIGN_TEXTURE_ANCHOR(wood, hanging) TILE_TO_SWATCH(16 + 2 * ((wood) % 8), ((hanging) ? 8 : 4) + 2 * ((wood) / 8))
 static int saveSignModel(int boxIndex, int type, int dataVal, bool hanging, const ModelElement* elements, int elementCount, float yAngle);
+
+static std::vector<int> gModTextureSwatches;
+static std::vector<std::wstring> gModTextureNames;
+typedef std::remove_reference<decltype(gTilesTable[0])>::type ModTileDefinition;
+static std::vector<std::pair<int, ModTileDefinition>> gModReplacedTiles;
+static void restoreModTextureSlots()
+{
+    for (const auto& old : gModReplacedTiles) gTilesTable[old.first] = old.second;
+    gModReplacedTiles.clear();
+}
+
+// Reuse vacant atlas cells so all existing texture output modes share one path.
+static bool prepareModTextures(int fileType)
+{
+    restoreModTextureSlots();
+    gModTextureSwatches.clear();
+    gModTextureNames.clear();
+    const auto& textures = ModTextures();
+    std::vector<int> vacant;
+    for (int i = 0; i < TOTAL_TILES; ++i) {
+        const auto& tile = gTilesTable[i];
+        if ((!tile.filename || !tile.filename[0]) && tile.spanX == 0 && tile.spanY == 0)
+            vacant.push_back(i);
+    }
+    if (textures.size() > vacant.size()) return false;
+    gModTextureNames.reserve(textures.size());
+    for (size_t i = 0; i < textures.size(); ++i) {
+        // Names use pack-local indices, avoiding filesystem characters in resource identifiers.
+        gModTextureNames.push_back(L"mw_mod_" + std::to_wstring(i));
+    }
+    for (size_t i = 0; i < textures.size(); ++i) {
+        int index = vacant[i], col = index % XTILES, row = index / XTILES;
+        gModReplacedTiles.push_back({index, gTilesTable[index]});
+        auto& tile = gTilesTable[index];
+        tile.txrX = col; tile.txrY = row;
+        tile.filename = gModTextureNames[i].c_str();
+        tile.altFilename = L"";
+        tile.typeForMtl = BLOCK_STONE;
+        tile.dataValForMtl = 0;
+        tile.flags = SWATCH_CLAMP_ALL;
+        gModTextureSwatches.push_back(TILE_TO_SWATCH(col, row));
+        const auto& source = textures[i];
+        for (int category = 0; category < gTotalInputTextures; ++category) {
+            progimage_info* atlas = gModel.pInputTerrainImage[category];
+            if (!atlas || atlas->image_data.empty()) continue;
+            int size = atlas->width / XTILES, channels = gCatChannels[category];
+            if (size <= 0 || (row + 1) * size > atlas->height) return false;
+            for (int y = 0; y < size; ++y) for (int x = 0; x < size; ++x) {
+                size_t dst = ((size_t)(row * size + y) * atlas->width + col * size + x) * channels;
+                size_t src = ((size_t)y * source.height / size * source.width + (size_t)x * source.width / size) * 4;
+                if (category == CATEGORY_RGBA) {
+                    memcpy(&atlas->image_data[dst], &source.rgba[src], 4);
+                } else {
+                    // Albedo-only packs need neutral PBR values, including in shared mosaics.
+                    const bool obj = fileType == FILE_TYPE_WAVEFRONT_REL_OBJ || fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ;
+                    for (int c = 0; c < channels; ++c) {
+                        atlas->image_data[dst + c] = category == CATEGORY_NORMALS ? (c == 2 ? 255 : 128) :
+                            category == CATEGORY_ROUGHNESS && !obj ? 255 : 0;
+                    }
+                }
+            }
+        }
+    }
+    return true;
+}
+
+static int saveModGeometry(int boxIndex, int type, int dataVal)
+{
+    const ModBlockState* state = GetModBlock(type, dataVal);
+    if (!state || !state->definition) return MW_CANNOT_PARSE_IMPORT_FILE;
+    const int directions[] = { DIRECTION_BLOCK_BOTTOM, DIRECTION_BLOCK_TOP,
+        DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z,
+        DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
+    for (const auto& sourceModel : state->definition->models) {
+        std::vector<ModelElement> elements;
+        for (const auto& source : sourceModel.elements) {
+            ModelElement element = {};
+            std::copy(source.from, source.from + 3, element.from);
+            std::copy(source.to, source.to + 3, element.to);
+            std::copy(source.origin, source.origin + 3, element.rotOrigin);
+            element.rotAxis = source.axis == 0 ? 1 : source.axis == 1 ? 0 : 2;
+            element.rotAngle = source.angle;
+            element.rescale = source.rescale;
+            bool flat[3] = { source.from[0] == source.to[0], source.from[1] == source.to[1], source.from[2] == source.to[2] };
+            bool emittedFlat = false;
+            for (const auto& face : source.faces) {
+                int axis = face.direction < 2 ? 1 : face.direction < 4 ? 2 : 0;
+                if (flat[(axis + 1) % 3] || flat[(axis + 2) % 3]) continue;
+                if (face.texture < 0 || (size_t)face.texture >= gModTextureSwatches.size())
+                    return MW_CANNOT_PARSE_IMPORT_FILE;
+                ModelFace& out = element.face[element.faceCount++];
+                out.faceDirection = directions[face.direction];
+                std::copy(face.uv, face.uv + 4, out.uv);
+                out.rotation = face.rotation;
+                out.swatchLoc = (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES) ? type : gModTextureSwatches[face.texture];
+                out.cullMode = face.cullface < 0 || source.angle != 0 ? -1 : directions[face.cullface] + 1;
+                out.billboardBack = flat[axis] && emittedFlat;
+                emittedFlat = emittedFlat || flat[axis];
+            }
+            if (element.faceCount) elements.push_back(element);
+        }
+        if (!elements.empty()) {
+            int code = saveRotatedModel(boxIndex, type, dataVal, 0, elements.data(), (int)elements.size(), sourceModel.x, sourceModel.y, sourceModel.uvlock);
+            if (code >= MW_BEGIN_ERRORS) return code;
+        }
+    }
+    return 1;
+}
+
 static int saveTurnedModel(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, float yAngle);
 static int paneConnects(int neighborType);
 static int saveFenceRails(int boxIndex, int type, int dataVal, int yAngle);
@@ -1106,7 +1237,7 @@ static void spacesToUnderlines(wchar_t* targetString);
 static void allJunkToUnderlines(char* targetString);
 static void changeCharToUnderline(char toReplace, char* targetString);
 
-static float retrieveMtlAlpha(int type);
+static float retrieveMtlAlpha(int type, int dataVal);
 static int createBaseMaterialTexture();
 
 static void copyPNGArea(progimage_info* dst, int dst_x_min, int dst_y_min, int size_x, int size_y, progimage_info* src, int src_x_min, int src_y_min);
@@ -1250,6 +1381,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     ProgressCallback callback, wchar_t* terrainFileName, wchar_t* cullSchemeSelected, FileList* outputFileList, int majorVersion, int minorVersion, int worldVersion, ChangeBlockCommand* pCBC, int instanceChunkSize,
     int& userSelectedBiome, int& biomeIndex, int& groupCount, int groupCountSize, int *groupCountArray)
 {
+    restoreModTextureSlots();
     // * Read the texture for the materials.
     // * populateBox:
     //  ** Read through the chunks once, only the data within the box specified. Keep track of the "solid box", the bounds where objects actually exist.
@@ -1569,6 +1701,11 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     UPDATE_STATUS(gProgress.start.readBlocks, L"Read selected blocks");
     //UPDATE_PROGRESS(gProgress.start.readBlocks);
 
+    if (!prepareModTextures(fileType)) {
+        retCode |= MW_CANNOT_PARSE_IMPORT_FILE;
+        goto Exit;
+    }
+
     tightenedWorldBox = worldBox;
 
     // Note that tightenedWorldBox will come back with the "solid" bounds, of where data was actually found.
@@ -1599,7 +1736,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
             // Use "noisy" colors, fixed 512 x 512 - we could actually make this texture quite small
             // Note this used to be 256 x 256, but that's only 14*14 = 196 materials, and we're now
             // at 198 or so...
-            gModel.textureResolution = 1024;    // was 512 for 1.16
+            gModel.textureResolution = ModBlockTypeLimit() > NUM_BLOCKS_DEFINED ? 2048 : 1024;
             // This number determines number of swatches per row. Make it 256, even though there's
             // no incoming image. This then ensures there's room for enough solid color images.
             gModel.terrainWidth = 16 * XTILES;    // really, no image, but act like there is
@@ -1774,6 +1911,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
 
     // done!
 Exit:
+    restoreModTextureSlots();
 
     //UPDATE_PROGRESS(gProgress.start.zip);
 
@@ -3225,7 +3363,7 @@ static void findChunkBounds(WorldGuide* pWorldGuide, int bx, int bz, IBox* world
                     // check if it's something not to be filtered out: in the output list and alpha > 0
                     // and not hidden by the active Culling Scheme (per-(type,dataVal) check).
                     if ((flags & gModel.options->saveFilterFlags) &&
-                        (gBlockDefinitions[blockID].alpha > 0.0) &&
+                        (blockDataAlpha(blockID, curDataVal) > 0.0f) &&
                         !isBlockCulled(blockID, curDataVal)) {
                         IPoint loc;
                         Vec3Scalar(loc, =, x, y, z);
@@ -3317,7 +3455,7 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
                 if (blockID == BLOCK_REDSTONE_WIRE && gModel.options->pEFD->fileType != FILE_TYPE_SCHEMATIC && gModel.options->pEFD->fileType != FILE_TYPE_SPONGE_SCHEMATIC)
                     gBoxData[boxIndex].data &= 0xF;
                 // if you hit this, something has gone odd with the type-extension nibble, which shouldn't happen.
-                assert(blockID < NUM_BLOCKS_DEFINED);
+                assert(blockID < ModBlockTypeLimit());
 
                 // tile entities needed if using old data format
                 if (!gIs13orNewer) {
@@ -3539,7 +3677,7 @@ static int filterBox(ChangeBlockCommand* pCBC)
                     // check if it's something to be filtered out: not in the output list,
                     // alpha is 0, or the active Culling Scheme hides this (type, dataVal).
                     if (!(flags & gModel.options->saveFilterFlags) ||
-                        gBlockDefinitions[gBoxData[boxIndex].type].alpha <= 0.0 ||
+                        blockDataAlpha(gBoxData[boxIndex].type, gBoxData[boxIndex].data) <= 0.0f ||
                         isBlockCulled(gBoxData[boxIndex].type, gBoxData[boxIndex].data)) {
                         // things that should not be saved should be gone, gone, gone, no trace left
                         gBoxData[boxIndex].type = gBoxData[boxIndex].origType = BLOCK_AIR;
@@ -3624,7 +3762,7 @@ static int filterBox(ChangeBlockCommand* pCBC)
                     type = gBoxData[boxIndex].type;
                     if (type != BLOCK_AIR)
                     {
-                        if (type >= NUM_BLOCKS_DEFINED) {
+                        if (type >= ModBlockTypeLimit()) {
                             // convert to bedrock, I guess...
                             // This check is more a symptom than a cure;
                             // there seems to be some error where data gets read and is too large, for some reason.
@@ -5237,6 +5375,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             return 1;
         }
     }
+
+    if (IsModBlock(type)) return saveModGeometry(boxIndex, type, dataVal);
 
     switch (type)
     {
@@ -17034,6 +17174,7 @@ static SimplifyFaceRecord* allocSimplifyFaceRecordFromPool()
 
 static unsigned short getSignificantMaterial(int type, int dataVal)
 {
+    if (IsModBlock(type)) return (unsigned short)(dataVal & DATAVAL_MASK);
     // Return only the "material-related" bits of the data value. That is, only those bits
     // that differentiate the various sub-materials. So, dirt has all low bits returned
     // (might as well account for future data values 0x3F - bit 0x40 is waterlogged, bit 0x80 is the extended object bit), ladders have none, since the
@@ -18126,7 +18267,7 @@ static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc,
                 continue;
             // a face on the block's side is hidden if the neighbor there covers it, e.g. a straw bed's bottom on a full opaque
             // block, or a shelf mushroom's back against its log (only tested for a model turned just about Y)
-            if ((xAngle == 0) && modelFaceIsCovered(boxIndex, pElem, pFace->faceDirection, yAngle))
+            if ((xAngle == 0) && pFace->cullMode != -1 && modelFaceIsCovered(boxIndex, pElem, pFace->cullMode > 0 ? pFace->cullMode - 1 : pFace->faceDirection, yAngle))
                 continue;
             retCode |= saveBoxModelFaceUVLock(startVertexIndex, type, dataVal, pFace->faceDirection, markFirstFace, pFace->swatchLoc ? pFace->swatchLoc : anchorLoc, pFace->uv, pFace->rotation,
                 uvlock ? xAngle : 0, uvlock ? (int)yAngle : 0);
@@ -24835,6 +24976,21 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
     bool rotatedEnd = false;
     float spanRect[4] = { 0.0f, 0.0f, 16.0f, 16.0f };
 
+    if (IsModBlock(type) && !(gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES)) {
+        if (uvIndices) for (int i = 0; i < 4; ++i) uvIndices[i] = i;
+        const auto* state = GetModBlock(type, dataVal);
+        const int directions[] = { DIRECTION_BLOCK_BOTTOM, DIRECTION_BLOCK_TOP,
+            DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z,
+            DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
+        int texture = -1;
+        if (state && state->definition) for (const auto& model : state->definition->models)
+            for (const auto& element : model.elements) for (const auto& face : element.faces) {
+                if (texture < 0) texture = face.texture;
+                if (directions[face.direction] == faceDirection) texture = face.texture;
+            }
+        return texture >= 0 && (size_t)texture < gModTextureSwatches.size() ? gModTextureSwatches[texture] : SWATCH_INDEX(1, 0);
+    }
+
     // outputting swatches
     if (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES)
     {
@@ -30182,9 +30338,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
 #ifdef _DEBUG
             {
                 static bool doInit = true;
-                static bool blockCutoutFound[NUM_BLOCKS_DEFINED];
+                static bool blockCutoutFound[MAX_BLOCK_TYPES];
                 if (doInit) {
-                    memset(blockCutoutFound, 0, NUM_BLOCKS_DEFINED * sizeof(bool));
+                    memset(blockCutoutFound, 0, sizeof(blockCutoutFound));
                     doInit = false;
                 }
                 if (!blockCutoutFound[type]) {
@@ -31271,7 +31427,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
 
     int i, j, groupCount, index;
 
-    unsigned char outputMaterial[NUM_BLOCKS];
+    unsigned char outputMaterial[MAX_BLOCK_TYPES];
 
     int retCode = MW_NO_ERROR;
 
@@ -31452,9 +31608,11 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                     // New ID encountered, so output it: material name, and group.
                     // Group isn't really required, but can be useful.
                     // Output group only if we're not already using it for individual blocks.
-                    strcpy_s(mtlName, 256, gBlockDefinitions[prevType].name);
+                    strcpy_s(mtlName, 256, blockMaterialName(prevType).c_str());
 
-                    if (subtypeMaterial && IsASubblock(prevType, prevDataVal)) {
+                    if (subtypeMaterial && IsModBlock(prevType)) {
+                    strcpy_s(mtlName, 256, blockMaterialName(prevType, prevDataVal).c_str());
+                } else if (subtypeMaterial && IsASubblock(prevType, prevDataVal)) {
                         // use subtype name or add a dataval suffix.
                         // If possible, turn these data values into the actual sub-material type names.
                         const char* subName = RetrieveBlockSubname(prevType, prevDataVal);
@@ -32081,11 +32239,13 @@ static int writeOBJMtlFile()
                     dataVal = MTL_LIST_DATAVAL(gMtlList[i]);
 
                 // print header: material name
-                strcpy_s(mtlName, 256, gBlockDefinitions[type].name);
+                strcpy_s(mtlName, 256, blockMaterialName(type).c_str());
 
                 // add a dataval suffix:
                 // If possible, turn these data values into the actual sub-material type names.
-                if (subtypeMaterial && IsASubblock(type, dataVal)) {
+                if (subtypeMaterial && IsModBlock(type)) {
+                    strcpy_s(mtlName, 256, blockMaterialName(type, dataVal).c_str());
+                } else if (subtypeMaterial && IsASubblock(type, dataVal)) {
                     // use subtype name or add a dataval suffix.
                     // If possible, turn these data values into the actual sub-material type names.
                     const char* subName = RetrieveBlockSubname(type, dataVal);
@@ -32171,7 +32331,7 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
     ka = 0.2;
     kd = 1.0;
     ks = 0.0;
-    alpha = retrieveMtlAlpha(type);
+    alpha = retrieveMtlAlpha(type, dataVal);
 
     if (alpha < 1.0f)
     {
@@ -32521,7 +32681,7 @@ static TypeTile multTable[MULT_TABLE_SIZE] = {
     { BLOCK_REDSTONE_WIRE /* REDSTONE_WIRE_DOT */, 4, 11, { 0, 0, 0 } },
 };
 
-static float retrieveMtlAlpha(int type)
+static float retrieveMtlAlpha(int type, int dataVal)
 {
     // 3d printers cannot print semitransparent surfaces, so set alpha to 1.0 so what you preview
     // is what you get. TODO Should we turn off alpha for textures, as the textures themselves will have alpha in them - this is
@@ -32531,7 +32691,7 @@ static float retrieveMtlAlpha(int type)
     //alpha = ( gModel.print3D || (gModel.exportTexture)) ? 1.0f : gBlockDefinitions[type].alpha;
     // Well, hmmm, alpha is useful in previewing (no textures displayed), at least for OBJ files
     // alpha = gModel.print3D ? 1.0f : gBlockDefinitions[type].alpha;
-    float alpha = gBlockDefinitions[type].alpha;
+    float alpha = blockDataAlpha(type, dataVal);
     if (gModel.options->exportFlags & EXPT_DEBUG_SHOW_GROUPS)
     {
         // if showing groups, make the alpha of the largest group transparent
@@ -32649,7 +32809,7 @@ static int createBaseMaterialTexture()
                 }
 
                 gModel.swatchCount++;
-                keepGoing = (gModel.swatchCount < NUM_BLOCKS_MAP);
+                keepGoing = (gModel.swatchCount < ModBlockTypeLimit());
             }
         }
         assert(keepGoing == 0);
@@ -34206,7 +34366,7 @@ static int writeVRMLAttributeShapeSplit(int type, int dataVal, char* mtlName, ch
     kd = 0.9f;
     ks = 0.1f;
     // not needed ke = 0.0f;
-    alpha = retrieveMtlAlpha(type);
+    alpha = retrieveMtlAlpha(type, dataVal);
 
     if (alpha < 1.0f)
     {
@@ -34799,7 +34959,7 @@ static bool findNextChunk(int startInstance, int& endInstance, char* chunkLocati
 static void nameFromHash(int hash, char* instanceNameString)
 {
     int type = hash >> 16;
-    int dataVal = hash & 0xff;
+    int dataVal = hash & 0xffff;
     //const char* subName = RetrieveBlockSubname(type, dataVal);
     // TODO much better here would be to access the map naming routine, but that's tricky - 
     // you have to get the name and mask out the data value (should be made part of that routine and shared)
@@ -35316,7 +35476,7 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary, boo
         for (i = 0; i < gModel.instanceCount; i++) {
             // different naming, etc.
             int type = gModel.instance[i].hash >> 16;
-            int dataVal = gModel.instance[i].hash & 0xff;
+            int dataVal = gModel.instance[i].hash & 0xffff;
             const char* subName = RetrieveBlockSubname(type, dataVal);
 
             sprintf_s(outputString, 256, "\n    def Xform \"Block_%d_%d\"\n    {\n", type, dataVal);
@@ -35325,7 +35485,7 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary, boo
             WERROR_MODEL(PortaWrite(blockFile, outputString, strlen(outputString)));
             sprintf_s(outputString, 256, "        int blockSubType = %d\n", dataVal);
             WERROR_MODEL(PortaWrite(blockFile, outputString, strlen(outputString)));
-            sprintf_s(outputString, 256, "        string typeName = \"%s\"\n", gBlockDefinitions[type].name);
+            sprintf_s(outputString, 256, "        string typeName = \"%s\"\n", blockMaterialName(type).c_str());
             WERROR_MODEL(PortaWrite(blockFile, outputString, strlen(outputString)));
             sprintf_s(outputString, 256, "        string subTypeName = \"%s\"\n", subName);
             WERROR_MODEL(PortaWrite(blockFile, outputString, strlen(outputString)));
@@ -36274,7 +36434,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
         // more for 3D printing than anything. This is all kind of half-baked, the paths are not quite right.
         bool isCutout = false;
         bool isSemitransparent = false;
-        float alpha = retrieveMtlAlpha(pFace->materialType);
+        float alpha = retrieveMtlAlpha(pFace->materialType, pFace->materialDataVal);
         // TODO: could key off of the alpha of the tile, e.g.,
         // TILES_ENTRY(resolveTileAnchor(swatchLoc)).flags & TILE_USES_ALPHA - not sure there's any gain
         if (!gModel.print3D &&
@@ -38019,9 +38179,11 @@ static boolean findEndOfGroup(int startRun, int endCount, char* mtlName, int& ne
     // New ID encountered, so output it: material name, and group.
     // Group isn't really required, but can be useful.
     // Output group only if we're not already using it for individual blocks.
-    strcpy_s(mtlName, 256, gBlockDefinitions[prevType].name);
+    strcpy_s(mtlName, 256, blockMaterialName(prevType).c_str());
 
-    if (subtypeMaterial && IsASubblock(prevType, prevDataVal)) {
+    if (subtypeMaterial && IsModBlock(prevType)) {
+                    strcpy_s(mtlName, 256, blockMaterialName(prevType, prevDataVal).c_str());
+                } else if (subtypeMaterial && IsASubblock(prevType, prevDataVal)) {
         // use subtype name or add a dataval suffix.
         // If possible, turn these data values into the actual sub-material type names.
         const char* subName = RetrieveBlockSubname(prevType, prevDataVal);
@@ -38297,6 +38459,12 @@ static int writeUSDTextures()
 //===============================================================================================
 static int writeSchematicBox()
 {
+    // Legacy numeric IDs cannot represent a portable mod identity. Use Sponge .schem.
+    for (int x = gSolidBox.min[X]; x <= gSolidBox.max[X]; ++x)
+        for (int y = gSolidBox.min[Y]; y <= gSolidBox.max[Y]; ++y)
+            for (int z = gSolidBox.min[Z]; z <= gSolidBox.max[Z]; ++z)
+                if (IsModBlock(gBoxData[BOX_INDEX(x, y, z)].type))
+                    return MW_CANNOT_PARSE_IMPORT_FILE;
     FILE* fptr;
     int err;
     gzFile gz;
@@ -38943,13 +39111,7 @@ static int writeSpongeSchematicBox()
     // Keyed on the full 12-bit dataVal: some families (e.g. note block's instrument, bits 0x7C0) use bits
     // above 0xFF, and an 8-bit key would make such blocks share the first-seen block's palette entry.
     const int lookupDataVals = DATAVAL_MASK + 1;
-    int* paletteIndexLookup = (int*)malloc((size_t)NUM_BLOCKS_DEFINED * lookupDataVals * sizeof(int));
-    if (paletteIndexLookup == NULL) {
-        gzflush(gz, Z_FINISH);
-        fclose(fptr);
-        return retCode | MW_WORLD_EXPORT_TOO_LARGE;
-    }
-    for (int i = 0; i < NUM_BLOCKS_DEFINED * lookupDataVals; i++) paletteIndexLookup[i] = -1;
+    std::unordered_map<int, int> paletteIndexLookup;
 
     std::vector<std::string> paletteNames;
     paletteNames.reserve(256);
@@ -38962,7 +39124,7 @@ static int writeSpongeSchematicBox()
     int totalSize = width * height * length;
 
     int unknownBlockExports = 0;
-    char nameBuf[256];
+    char nameBuf[1024];
     unsigned char varintBytes[5];
 
     IPoint loc;
@@ -39005,7 +39167,7 @@ static int writeSpongeSchematicBox()
                 }
 
                 int lookupKey = (type & 0xFFF) * lookupDataVals + (dataVal & DATAVAL_MASK);
-                if (lookupKey < 0 || lookupKey >= NUM_BLOCKS_DEFINED * lookupDataVals) {
+                if (lookupKey < 0 || lookupKey >= ModBlockTypeLimit() * lookupDataVals) {
                     // unknown block — fall back to air, count it for the user-facing warning
                     type = 0;
                     dataVal = 0;
@@ -39014,7 +39176,8 @@ static int writeSpongeSchematicBox()
                 }
 
                 // a wall with tall sides isn't told apart by its dataVal, so it's looked up by its name
-                int paletteIndex = wallTall ? -1 : paletteIndexLookup[lookupKey];
+                auto cachedPalette = paletteIndexLookup.find(lookupKey);
+                int paletteIndex = wallTall || cachedPalette == paletteIndexLookup.end() ? -1 : cachedPalette->second;
                 if (paletteIndex < 0) {
                     int n = spongeBlockStateString(type, dataVal, nameBuf, sizeof(nameBuf));
                     if (n <= 0) {
@@ -39050,7 +39213,6 @@ static int writeSpongeSchematicBox()
         }
     }
 
-    free(paletteIndexLookup);
     if (unknownBlockExports > 0) {
         retCode |= MW_UNKNOWN_BLOCK_TYPE_ENCOUNTERED;
     }
@@ -39507,6 +39669,16 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
         WRITE_STAT;
     }
 
+
+    if (pWorldGuide->dimensionId[0]) {
+        WcharToChar(pWorldGuide->dimensionId, outChar, MAX_PATH_AND_FILE);
+        std::string dimensionLine = std::string("# Dimension: ") + outChar + "\n";
+        if (printFunc) {
+            if ((*printFunc)(&dimensionLine[0])) return MW_CANNOT_WRITE_TO_FILE;
+        } else {
+            WERROR_FH(PortaWrite(fh, dimensionLine.c_str(), dimensionLine.size()));
+        }
+    }
 
     _time32(&aclock);   // Get time in seconds.
     _localtime32_s(&newtime, &aclock);   // Convert time to struct tm form.

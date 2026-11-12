@@ -1,0 +1,326 @@
+// Real exports through the shared core, with original synthetic mod assets.
+#include "../../Win/ObjFileManip.cpp"
+#include <filesystem>
+#include <fstream>
+#include <sstream>
+#include <set>
+#include <array>
+
+static void progress(float, wchar_t*) {}
+
+static std::string readText(const std::filesystem::path& path)
+{
+    std::ifstream stream(path);
+    assert(stream.good());
+    return std::string(std::istreambuf_iterator<char>(stream), {});
+}
+
+static int countLines(const std::string& text, const char* prefix)
+{
+    int count = 0;
+    std::istringstream stream(text);
+    std::string line;
+    while (std::getline(stream, line)) if (line.compare(0, strlen(prefix), prefix) == 0) ++count;
+    return count;
+}
+
+static std::wstring wide(const std::filesystem::path& path)
+{
+    wchar_t result[MAX_PATH_AND_FILE];
+    assert(_mwUtf8ToWideBuffer(path.u8string().c_str(), result, MAX_PATH_AND_FILE));
+    return result;
+}
+
+static void exportWorld(WorldGuide& world, const std::filesystem::path& path, int mode,
+                        bool detailed = true, bool doubled = false, bool printing = false, bool expectFailure = false)
+{
+    ExportFileData settings = {};
+    Options options = {};
+    const int fileType = path.extension() == ".schematic" ? FILE_TYPE_SCHEMATIC : path.extension() == ".schem" ? FILE_TYPE_SPONGE_SCHEMATIC : path.extension() == ".usda" ? FILE_TYPE_USD : FILE_TYPE_WAVEFRONT_ABS_OBJ;
+    settings.fileType = fileType;
+    settings.chkCreateModelFiles[fileType] = 1;
+    settings.chkIndividualBlocks[fileType] = 1;
+    settings.radioRotate0 = settings.radioScaleByBlock = 1;
+    settings.blockSizeVal[fileType] = 1000.0f;
+    settings.hollowThicknessVal[fileType] = 1000.0f;
+    settings.comboModelUnits[fileType] = UNITS_METER;
+    settings.chkExportAll = detailed;
+    settings.chkDoubledBillboards = doubled;
+    settings.chkBlockFacesAtBorders = 1;
+    settings.chkTextureRGBA = 1;
+    strcpy(settings.tileDirString, "tex");
+    options.pEFD = &settings;
+    options.saveFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER |
+                              BLF_BILLBOARD | BLF_PANE | BLF_FLATTEN | BLF_FLATTEN_SMALL |
+                              BLF_SMALL_MIDDLER | BLF_SMALL_BILLBOARD;
+    options.exportFlags = mode | EXPT_INDIVIDUAL_BLOCKS;
+    if (printing) options.exportFlags |= EXPT_3DPRINT;
+    if (fileType == FILE_TYPE_SPONGE_SCHEMATIC || fileType == FILE_TYPE_SCHEMATIC) options.exportFlags = 0;
+    FileList output = {};
+    int biome = -1, biomeIndex = 0, groups = 0;
+    std::wstring filename = wide(path), directory = wide(path.parent_path());
+    wchar_t terrain[] = L"";
+    wchar_t culling[] = L"Standard";
+    ClearCache();
+    const int result = SaveVolume(filename.data(), fileType, &options, &world, directory.c_str(),
+        0, 0, 0, world.sch.width - 1, world.sch.height - 1, world.sch.length - 1,
+        0, world.sch.height - 1, progress, terrain, culling, &output,
+        14, 3, 4189, nullptr, 16, biome, biomeIndex, groups, 0, nullptr);
+    for (int i = 0; i < output.count; ++i) free(output.name[i]);
+    if (expectFailure) {
+        assert(result >= MW_BEGIN_ERRORS);
+        assert(!std::filesystem::exists(path));
+        return;
+    }
+    if (result >= MW_BEGIN_NOTHING_TO_DO) {
+        fprintf(stderr, "Export %s returned %d\n", path.u8string().c_str(), result);
+        abort();
+    }
+    assert(std::filesystem::is_regular_file(path));
+}
+
+static void checkCubeUVs(const std::string& text)
+{
+    std::vector<std::array<double, 3>> vertices;
+    std::vector<std::array<double, 2>> uvs;
+    std::istringstream stream(text);
+    std::string line, material;
+    int checked = 0;
+    while (std::getline(stream, line)) {
+        std::istringstream fields(line);
+        std::string token; fields >> token;
+        if (token == "v") {
+            std::array<double, 3> point;
+            fields >> point[0] >> point[1] >> point[2];
+            vertices.push_back(point);
+        } else if (token == "vt") {
+            std::array<double, 2> uv;
+            fields >> uv[0] >> uv[1]; uvs.push_back(uv);
+        } else if (token == "usemtl") {
+            fields >> material;
+        } else if (token == "f") {
+            std::vector<std::pair<int, int>> indices;
+            bool cube = true;
+            while (fields >> token) {
+                int vertex, uv, normal;
+                assert(sscanf(token.c_str(), "%d/%d/%d", &vertex, &uv, &normal) == 3);
+                indices.push_back({vertex - 1, uv - 1});
+                if (vertices[vertex - 1][0] > 1.0) cube = false;
+            }
+            if (!cube) continue;
+            assert(indices.size() == 4);
+            int side = -1;
+            const int axes[] = {1, 1, 2, 2, 0, 0};
+            const double positions[] = {0, 1, 0, 1, 0, 1};
+            for (int candidate = 0; candidate < 6; ++candidate) {
+                bool onPlane = true;
+                for (const auto& index : indices)
+                    onPlane &= vertices[index.first][axes[candidate]] == positions[candidate];
+                if (onPlane) side = candidate;
+            }
+            assert(side >= 0);
+            const int textureIndices[] = {0, 5, 2, 4, 6, 1};
+            assert(material == "mw_mod_" + std::to_string(textureIndices[side]));
+            for (const auto& index : indices) {
+                const auto& p = vertices[index.first];
+                const auto& uv = uvs[index.second];
+                const double wantU[] = {p[0], p[0], 1 - p[0], p[0], p[2], 1 - p[2]};
+                const double wantV[] = {p[2], 1 - p[2], p[1], p[1], p[1], p[1]};
+                assert(fabs(uv[0] - wantU[side]) < 1e-7 && fabs(uv[1] - wantV[side]) < 1e-7);
+            }
+            ++checked;
+        }
+    }
+    assert(checked == 6);
+}
+
+static void checkNeutralPBR()
+{
+    progimage_info normal = {}, roughness = {};
+    normal.width = roughness.width = XTILES * 16;
+    normal.height = roughness.height = VERTICAL_TILES * 16;
+    for (int format : {FILE_TYPE_WAVEFRONT_ABS_OBJ, FILE_TYPE_USD}) {
+        normal.image_data.assign((size_t)normal.width * normal.height * 3, 17);
+        roughness.image_data.assign((size_t)roughness.width * roughness.height, 17);
+        memset(&gModel, 0, sizeof(gModel));
+        gModel.pInputTerrainImage[CATEGORY_NORMALS] = &normal;
+        gModel.pInputTerrainImage[CATEGORY_ROUGHNESS] = &roughness;
+        gTotalInputTextures = CATEGORY_ROUGHNESS + 1;
+        assert(prepareModTextures(format));
+        for (int swatch : gModTextureSwatches) {
+            const int left = swatchToCol(swatch) * 16, top = swatchToRow(swatch) * 16;
+            for (int y = 0; y < 16; ++y) for (int x = 0; x < 16; ++x) {
+                const size_t pixel = (size_t)(top + y) * normal.width + left + x;
+                assert(normal.image_data[pixel * 3] == 128 && normal.image_data[pixel * 3 + 1] == 128 && normal.image_data[pixel * 3 + 2] == 255);
+                assert(roughness.image_data[pixel] == (format == FILE_TYPE_USD ? 255 : 0));
+            }
+        }
+        restoreModTextureSlots();
+    }
+    memset(&gModel, 0, sizeof(gModel));
+    gTotalInputTextures = 1;
+}
+
+static WorldGuide readSchematic(const std::filesystem::path& path)
+{
+    WorldGuide world = {};
+    world.type = WORLD_SCHEMATIC_TYPE;
+    world.sch.isSponge = true;
+    std::wstring filename = wide(path);
+    int error = 0, version = 0;
+    bfFile nbt = newNBT(filename.c_str(), &error);
+    assert(!error);
+    assert(nbtGetSpongeSchematic(&nbt, &world.sch.width, &world.sch.height, &world.sch.length,
+                                &world.sch.blocks, &world.sch.data, &version) == 1);
+    nbtClose(&nbt);
+    world.sch.numBlocks = world.sch.width * world.sch.height * world.sch.length;
+    world.maxHeight = world.sch.height - 1;
+    return world;
+}
+
+static std::vector<std::string> stateNames(const WorldGuide& world)
+{
+    std::vector<std::string> states;
+    for (int i = 0; i < world.sch.numBlocks; ++i) {
+        int type = BLOCK_TYPE_FROM_GRID_DATA(world.sch.blocks[i], world.sch.data[i]);
+        int data = BLOCK_DATAVAL_FROM_DATA(world.sch.data[i]);
+        const auto* state = GetModBlock(type, data);
+        if (state) states.push_back(state->canonical);
+    }
+    return states;
+}
+
+int main(int argc, char** argv)
+{
+    assert(argc == 3);
+    const std::filesystem::path root(argv[2]);
+    std::filesystem::create_directories(root);
+    SetSeparatorObj(L"/");
+    SetSeparatorMap(L"/");
+    nbtInitTables();
+    SetMapPremultipliedColors(0);
+    std::string error;
+    assert(LoadModPack(argv[1], error));
+    assert(ModDimensions().size() == 1);
+    assert(ModDimensions()[0].id == "fixture:moon" && ModDimensions()[0].minY == -64);
+    assert(ModDimensions()[0].height == 384 && ModDimensions()[0].coordinateScale == 2.0);
+    checkNeutralPBR();
+    int lampType, off, on;
+    assert(ResolveModState("fixture:lamp[lit=false]", &lampType, &off) == 1);
+    assert(ResolveModState("fixture:lamp[lit=true]", &lampType, &on) == 1);
+    assert(GetBlockDataColor(lampType, off) == GetModBlock(lampType, off)->definition->color);
+    assert(GetBlockDataColor(lampType, on) == GetModBlock(lampType, on)->definition->color);
+    assert(GetBlockDataColor(lampType, off) != GetBlockDataColor(lampType, on));
+    assert(GetBlockDataColor(lampType, PACK_TYPE_EXT_AND_DATAVAL(lampType, on)) == GetModBlock(lampType, on)->definition->color);
+    int cube, cubeState, panel, panelState, wedge, wedgeState;
+    for (int i = 0; i <= 64; ++i) {
+        const std::string state = "fixture:cube[extra=" + std::to_string(i) + "]";
+        assert(ResolveModState(state, &cube, &cubeState) == 1);
+        if (cubeState == 64) break;
+    }
+    assert(cubeState == 64);
+    assert(!ModBlockWaterlogged(cube, cubeState));
+    int firstCubeState;
+    assert(ResolveModState("fixture:cube[extra=0]", &cube, &firstCubeState) == 1);
+    assert(ResolveModState("fixture:wedge[extra=retained,facing=east]", &wedge, &wedgeState) == 1);
+    assert(ResolveModState("fixture:panel", &panel, &panelState) == 1);
+    unsigned char blocks[7] = {(unsigned char)cube, 0, (unsigned char)wedge, 0, (unsigned char)panel, 0, (unsigned char)cube};
+    unsigned short data[7] = {PACK_TYPE_EXT_AND_DATAVAL(cube, firstCubeState), 0, PACK_TYPE_EXT_AND_DATAVAL(wedge, wedgeState), 0,
+                             PACK_TYPE_EXT_AND_DATAVAL(panel, panelState), 0, PACK_TYPE_EXT_AND_DATAVAL(cube, cubeState)};
+    WorldGuide world = {};
+    world.type = WORLD_SCHEMATIC_TYPE;
+    world.sch = {blocks, data, 7, 1, 1, 7, false, true};
+    world.minHeight = world.maxHeight = 0;
+    const int textures = EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE;
+    exportWorld(world, root / "individual.obj", textures | EXPT_OUTPUT_SEPARATE_TEXTURE_TILES);
+    const std::string individual = readText(root / "individual.obj");
+    assert(countLines(individual, "f ") == 19);
+    checkCubeUVs(individual);
+    const std::string materials = readText(root / "individual.mtl");
+    std::set<std::string> maps;
+    std::istringstream materialStream(materials);
+    std::string line;
+    while (std::getline(materialStream, line)) if (line.compare(0, 7, "map_Kd ") == 0) maps.insert(line.substr(7));
+    assert(maps.size() == 7);
+    for (const std::string& path : maps) assert(std::filesystem::is_regular_file(root / path));
+    for (size_t i = 0; i < ModTextures().size(); ++i) {
+        std::vector<unsigned char> image;
+        unsigned width, height;
+        const std::wstring file = wide(root / "tex" / ("mw_mod_" + std::to_string(i) + ".png"));
+        assert(lodepng::decode(image, width, height, file) == 0);
+        assert(width == 16 && height == 16);
+        const ModTexture& source = ModTextures()[i];
+        for (unsigned y = 0; y < height; ++y) for (unsigned x = 0; x < width; ++x)
+            for (int channel = 0; channel < 4; ++channel)
+                assert(image[(y * width + x) * 4 + channel] ==
+                    source.rgba[((y * source.height / height) * source.width + x * source.width / width) * 4 + channel]);
+    }
+    exportWorld(world, root / "mosaic.obj", textures);
+    assert(countLines(readText(root / "mosaic.obj"), "f ") == 19);
+    exportWorld(world, root / "plain.obj", 0);
+    assert(countLines(readText(root / "plain.obj"), "f ") == 19);
+    exportWorld(world, root / "solid.obj", EXPT_OUTPUT_MATERIALS);
+    assert(countLines(readText(root / "solid.obj"), "f ") == 19);
+    exportWorld(world, root / "double.obj", textures | EXPT_OUTPUT_SEPARATE_TEXTURE_TILES, true, true);
+    assert(countLines(readText(root / "double.obj"), "f ") == 20);
+    exportWorld(world, root / "coarse.obj", 0, false);
+    assert(countLines(readText(root / "coarse.obj"), "f ") > 0);
+    exportWorld(world, root / "printing.obj", 0, true, false, true);
+    assert(countLines(readText(root / "printing.obj"), "f ") == 18);
+    int wetType, wetState;
+    assert(ResolveModState("fixture:wedge[facing=east,waterlogged=true]", &wetType, &wetState) == 1);
+    assert(ModBlockWaterlogged(wetType, wetState));
+    unsigned char wetBlocks[] = {(unsigned char)wetType};
+    unsigned short wetData[] = {PACK_TYPE_EXT_AND_DATAVAL(wetType, wetState)};
+    WorldGuide wetWorld = world;
+    wetWorld.sch = {wetBlocks, wetData, 1, 1, 1, 1, false, true};
+    exportWorld(wetWorld, root / "waterlogged.obj", textures | EXPT_OUTPUT_SEPARATE_TEXTURE_TILES);
+    assert(countLines(readText(root / "waterlogged.obj"), "f ") > 6);
+    exportWorld(world, root / "legacy.schematic", 0, true, false, false, true);
+    exportWorld(world, root / "first.schem", 0);
+    WorldGuide first = readSchematic(root / "first.schem");
+    assert(stateNames(first) == stateNames(world));
+    exportWorld(first, root / "second.schem", 0);
+    WorldGuide second = readSchematic(root / "second.schem");
+    assert(stateNames(first) == stateNames(second));
+    assert(readText(root / "first.schem") == readText(root / "second.schem"));
+    for (int i = 65; cubeState <= 256; ++i) {
+        const std::string state = "fixture:cube[extra=" + std::to_string(i) + "]";
+        assert(ResolveModState(state, &cube, &cubeState) == 1);
+    }
+    assert(cubeState > 255);
+    data[6] = PACK_TYPE_EXT_AND_DATAVAL(cube, cubeState);
+    exportWorld(world, root / "instances.usda", textures | EXPT_OUTPUT_SEPARATE_TEXTURE_TILES);
+    const std::string usd = readText(root / "instances.usda");
+    assert(usd.find("#usda") != std::string::npos);
+    const std::string library = readText(root / "instances_materials" / "BlockLibrary.usda");
+    assert(library.find("def Xform \"Block_" + std::to_string(cube) + "_" + std::to_string(cubeState) + "\"") != std::string::npos);
+    assert(countLines(library, "    def Xform ") == 4);
+    std::string longName = "fixture:";
+    for (int i = 0; i < 60; ++i) longName += "long/";
+    longName += "cube[property=retained]";
+    int longType, longState;
+    assert(longName.size() > 256 && ResolveModState(longName, &longType, &longState) == 1);
+    unsigned char longBlock[] = {(unsigned char)longType};
+    unsigned short longData[] = {PACK_TYPE_EXT_AND_DATAVAL(longType, longState)};
+    WorldGuide longWorld = world;
+    longWorld.sch = {longBlock, longData, 1, 1, 1, 1, false, true};
+    exportWorld(longWorld, root / "long.obj", EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_OBJ_SEPARATE_TYPES | EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK | EXPT_OUTPUT_OBJ_MTL_PER_TYPE);
+    assert(countLines(readText(root / "long.obj"), "f ") == 6);
+    exportWorld(longWorld, root / "long.schem", 0);
+    WorldGuide longRead = readSchematic(root / "long.schem");
+    assert(stateNames(longRead) == stateNames(longWorld));
+    ClearCache();
+    free(longRead.sch.blocks); free(longRead.sch.data);
+    unsigned char lampBlocks[] = {(unsigned char)lampType, 0, (unsigned char)lampType};
+    unsigned short lampData[] = {PACK_TYPE_EXT_AND_DATAVAL(lampType, off), 0, PACK_TYPE_EXT_AND_DATAVAL(lampType, on)};
+    WorldGuide lampWorld = world;
+    lampWorld.sch = {lampBlocks, lampData, 3, 1, 1, 3, false, true};
+    exportWorld(lampWorld, root / "lamp.obj", EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_OBJ_SEPARATE_TYPES | EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK | EXPT_OUTPUT_OBJ_MTL_PER_TYPE | EXPT_OUTPUT_OBJ_SPLIT_BY_BLOCK_TYPE);
+    assert(countLines(readText(root / "lamp.mtl"), "newmtl ") == 2);
+    ClearCache();
+    free(first.sch.blocks); free(first.sch.data);
+    free(second.sch.blocks); free(second.sch.data);
+    ClearModPack();
+    puts("PASS: mod UVs/pixels, geometry/alpha, OBJ/USD modes, states above 255, long names, dimensions, and schematic round trip");
+}

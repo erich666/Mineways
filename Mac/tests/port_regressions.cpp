@@ -258,8 +258,11 @@ static void checkMapPerformance()
     std::filesystem::remove_all(root);
 }
 
+#include "dimension_regressions.h"
+
 int main()
 {
+    checkDimensionDiscovery();
     checkMapPerformance();
     checkSchematicBoundaries();
     checkOptions();

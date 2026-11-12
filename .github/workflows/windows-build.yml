@@ -1,0 +1,37 @@
+name: Windows Build
+
+on:
+  push:
+    branches: [master, 'codex/**']
+    paths: ['Win/**', 'tools/import_mod_assets.py', 'Mac/tests/mod_assets.py', 'tools/test_mod_windows.py', '.github/workflows/windows-build.yml']
+  pull_request:
+    paths: ['Win/**', 'tools/import_mod_assets.py', 'Mac/tests/mod_assets.py', 'tools/test_mod_windows.py', '.github/workflows/windows-build.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [Release, Debug]
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build native Windows application
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products '*' -requires Microsoft.Component.MSBuild -property installationPath
+          & "$vs\MSBuild\Current\Bin\MSBuild.exe" Win/Mineways.vcxproj -p:Configuration=${{ matrix.configuration }} -p:Platform=x64 -p:PlatformToolset=v143 -v:m -nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Test portable asset importer
+        run: python Mac/tests/mod_assets.py
+      - name: Test native mod exports
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products '*' -requires Microsoft.Component.MSBuild -property installationPath
+          $asan = Get-ChildItem "$vs\VC\Tools\MSVC\*\bin\Hostx64\x64\clang_rt.asan_dynamic-x86_64.dll" | Sort-Object FullName -Descending | Select-Object -First 1
+          if ($asan) { $env:PATH = "$($asan.DirectoryName);$env:PATH" }
+          python tools/test_mod_windows.py "Win/x64/${{ matrix.configuration }}/Mineways.exe"

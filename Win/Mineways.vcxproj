@@ -89,6 +89,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <PrecompiledHeader>Use</PrecompiledHeader>
+      <LanguageStandard>stdcpp17</LanguageStandard>
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -109,6 +110,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <PrecompiledHeader>Use</PrecompiledHeader>
+      <LanguageStandard>stdcpp17</LanguageStandard>
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;MINEWAYS_X64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -133,6 +135,7 @@
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
       <PrecompiledHeader>Use</PrecompiledHeader>
+      <LanguageStandard>stdcpp17</LanguageStandard>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -157,6 +160,7 @@
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
       <PrecompiledHeader>Use</PrecompiledHeader>
+      <LanguageStandard>stdcpp17</LanguageStandard>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -194,6 +198,7 @@
     <ClInclude Include="Mineways.h" />
     <ClInclude Include="MinewaysMap.h" />
     <ClInclude Include="nbt.h" />
+    <ClInclude Include="ModSupport.h" />
     <ClInclude Include="ObjFileManip.h" />
     <ClInclude Include="PublishSkfb.h" />
     <ClInclude Include="region.h" />
@@ -230,6 +235,7 @@
     <ClCompile Include="Mineways.cpp" />
     <ClCompile Include="MinewaysMap.cpp" />
     <ClCompile Include="nbt.cpp" />
+    <ClCompile Include="ModSupport.cpp" />
     <ClCompile Include="ObjFileManip.cpp" />
     <ClCompile Include="region.cpp" />
     <ClCompile Include="rwpng.cpp" />

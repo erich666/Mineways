@@ -16,6 +16,7 @@ on:
       - 'Win/*.cpp'
       - 'Win/*.h'
       - '.github/workflows/macos-build.yml'
+      - 'tools/import_mod_assets.py'
       - 'CHANGELOG.md'
   pull_request:
     paths:
@@ -23,6 +24,7 @@ on:
       - 'Win/*.cpp'
       - 'Win/*.h'
       - '.github/workflows/macos-build.yml'
+      - 'tools/import_mod_assets.py'
       - 'CHANGELOG.md'
   workflow_dispatch:
 
@@ -46,6 +48,9 @@ jobs:
           else
             make -C Mac app
           fi
+
+      - name: Test dimensions and mod support
+        run: make -C Mac test test-mods
 
       - name: Bundle dependencies (make app self-contained)
         run: |

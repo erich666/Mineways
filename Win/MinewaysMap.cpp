@@ -33,6 +33,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "stdafx.h"
 #include "biomes.h"
+#include "ModSupport.h"
 #include "CullingSchemes.h"	// isBlockCulled() — skip culled voxels in the map render
 #include <assert.h>
 #include <limits.h>
@@ -40,6 +41,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <deque>
 #include <vector>
 #include <unordered_set>
+#include <algorithm>
 
 static void clearUndoHighlight();
 static void copyHighlightState(HighlightBox& destBox, HighlightBox& srcBox);
@@ -61,7 +63,7 @@ static bool westHeightsAvailable(int bx, int bz, int topy, int worldType);
 
 
 static int gColorsInited = 0;
-static unsigned int gBlockColors[NUM_BLOCKS_DEFINED * 16];
+static unsigned int gBlockColors[MAX_BLOCK_TYPES * 16];
 static unsigned char gEmptyR, gEmptyG, gEmptyB;
 static unsigned char gBlankTile[16 * 16 * 4];
 static unsigned char gBlankHighlitTile[16 * 16 * 4];
@@ -131,29 +133,180 @@ void SetSeparatorMap(const wchar_t* separator)
     wcscpy_s(gSeparator, 3, separator);
 }
 
-// Builds the dimension-specific directory path into pWorldGuide->directory.
-// Uses the newFormat flag to determine old (DIM-1/DIM1) vs new (dimensions/minecraft/...) layout.
-void SetDimensionDirectory(WorldGuide* pWorldGuide, unsigned int worldType)
-{
-    wcsncpy_s(pWorldGuide->directory, MAX_PATH_AND_FILE, pWorldGuide->world, MAX_PATH_AND_FILE - 1);
-    wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, gSeparator);
+static bool DirectoryExists(const wchar_t* path);
 
-    if (pWorldGuide->newFormat) {
-        // New format (snapshot 25w02a+): dimensions/minecraft/{overworld,the_nether,the_end}/
-        if (worldType & HELL)
-            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"dimensions/minecraft/the_nether/");
-        else if (worldType & ENDER)
-            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"dimensions/minecraft/the_end/");
-        else
-            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"dimensions/minecraft/overworld/");
+static std::wstring dimensionDirectory(const wchar_t* world, const std::wstring& relative)
+{
+    std::wstring path(world);
+    path += L"/";
+    if (!relative.empty()) path += relative + L"/";
+    return path;
+}
+
+static bool dimensionExists(const wchar_t* world, const std::wstring& relative)
+{
+    std::wstring path = dimensionDirectory(world, relative) + L"region";
+    return path.size() < MAX_PATH_AND_FILE && DirectoryExists(path.c_str());
+}
+
+// Resolve each vanilla dimension separately: older worlds can also contain custom dimensions/ folders.
+void SetDimensionDirectory(WorldGuide* world, unsigned int worldType)
+{
+    std::wstring relative = world->dimensionPath;
+    if (relative.empty()) {
+        const wchar_t* legacy = (worldType & HELL) ? L"DIM-1" : (worldType & ENDER) ? L"DIM1" : L"";
+        const wchar_t* modern = (worldType & HELL) ? L"dimensions/minecraft/the_nether" :
+            (worldType & ENDER) ? L"dimensions/minecraft/the_end" : L"dimensions/minecraft/overworld";
+        relative = dimensionExists(world->world, legacy) ? legacy :
+            dimensionExists(world->world, modern) ? modern : world->newFormat ? modern : legacy;
     }
-    else {
-        // Old format: DIM-1/ or DIM1/ (overworld has no prefix)
-        if (worldType & HELL)
-            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM-1/");
-        else if (worldType & ENDER)
-            wcscat_s(pWorldGuide->directory, MAX_PATH_AND_FILE, L"DIM1/");
+    std::wstring directory = dimensionDirectory(world->world, relative == L"." ? L"" : relative);
+    if (directory.size() >= MAX_PATH_AND_FILE) {
+        world->directory[0] = 0;
+        return;
     }
+    wcscpy_s(world->directory, MAX_PATH_AND_FILE, directory.c_str());
+}
+
+bool IsWorldDimensionId(const char* id)
+{
+    if (!id || strlen(id) > 255) return false;
+    bool colon = false;
+    const char* component = id;
+    for (const char* p = id; ; ++p) {
+        if (*p == ':' || *p == '/' || !*p) {
+            const size_t size = (size_t)(p - component);
+            if (!size || (size == 1 && *component == '.') ||
+                (size == 2 && component[0] == '.' && component[1] == '.')) return false;
+            if (!*p) return colon;
+            if (*p == ':') { if (colon) return false; colon = true; }
+            else if (!colon) return false;
+            component = p + 1;
+        } else if (!((*p >= 'a' && *p <= 'z') || (*p >= '0' && *p <= '9') ||
+                     *p == '_' || *p == '-' || *p == '.')) return false;
+    }
+}
+
+double DimensionCoordinateScale(const char* id)
+{
+    for (const ModDimension& dim : ModDimensions()) if (dim.id == id) return dim.coordinateScale;
+    return strcmp(id, "minecraft:the_nether") == 0 ? 8.0 : 1.0;
+}
+
+double WorldDimensionScale(const WorldGuide* world, int worldType)
+{
+    if (world->type != WORLD_LEVEL_TYPE) return 1.0;
+    if (world->dimensionScale > 0) return world->dimensionScale;
+    return DimensionCoordinateScale((worldType & HELL) ? "minecraft:the_nether" :
+        (worldType & ENDER) ? "minecraft:the_end" : "minecraft:overworld");
+}
+
+double ConvertDimensionCoordinate(double value, double sourceScale, double targetScale)
+{
+    return (std::max)(-30000000.0, (std::min)(30000000.0, value * sourceScale / targetScale));
+}
+
+static bool dimensionComponent(const wchar_t* name)
+{
+    if (!*name || wcscmp(name, L".") == 0 || wcscmp(name, L"..") == 0) return false;
+    for (const wchar_t* p = name; *p; ++p)
+        if (!((*p >= L'a' && *p <= L'z') || (*p >= L'0' && *p <= L'9') || *p == L'_' || *p == L'-' || *p == L'.'))
+            return false;
+    return true;
+}
+
+static void discoverDimensionPaths(const WorldGuide* world, const std::wstring& relative,
+    const std::wstring& id, std::vector<WorldDimension>& found, int minHeight, int maxHeight,
+    int depth, int& visited)
+{
+    if (depth > 16 || ++visited > 4096 || found.size() >= 256) return;
+    const bool hasRegion = !id.empty() && id.back() != L':' && id.size() <= 255 && dimensionExists(world->world, relative);
+    if (hasRegion) {
+        bool duplicate = false;
+        for (const WorldDimension& dim : found) if (dim.id == id) duplicate = true;
+        if (!duplicate) found.push_back({ id, relative, minHeight, maxHeight, 1.0 });
+    }
+    std::wstring pattern = dimensionDirectory(world->world, relative) + L"*";
+    if (pattern.size() >= MAX_PATH_AND_FILE) return;
+    WIN32_FIND_DATA data;
+    HANDLE handle = FindFirstFileW(pattern.c_str(), &data);
+    if (handle == INVALID_HANDLE_VALUE) return;
+    do {
+        if (visited >= 4096 || found.size() >= 256) break;
+        if (!(data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) || !dimensionComponent(data.cFileName)) continue;
+        if (hasRegion && (wcscmp(data.cFileName, L"region") == 0 || wcscmp(data.cFileName, L"entities") == 0 ||
+            wcscmp(data.cFileName, L"poi") == 0)) continue;
+#ifdef WIN32
+        if (data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) continue;
+#else
+        std::wstring child = dimensionDirectory(world->world, relative) + data.cFileName;
+        char* utf8 = _mwWideToUtf8Alloc(child.c_str());
+        struct stat info;
+        bool symbolic = !utf8 || lstat(utf8, &info) != 0 || S_ISLNK(info.st_mode);
+        free(utf8);
+        if (symbolic) continue;
+#endif
+        std::wstring childId = id.empty() ? std::wstring(data.cFileName) + L":" :
+            id + (id.back() == L':' ? L"" : L"/") + data.cFileName;
+        discoverDimensionPaths(world, relative + L"/" + data.cFileName, childId,
+            found, minHeight, maxHeight, depth + 1, visited);
+    } while (FindNextFileW(handle, &data));
+    FindClose(handle);
+}
+
+std::vector<WorldDimension> DiscoverWorldDimensions(const WorldGuide* world)
+{
+    std::vector<WorldDimension> found;
+    if (!world || world->type != WORLD_LEVEL_TYPE) return found;
+    int version = 0;
+    GetFileVersionId(world->world, &version);
+    int mc = DATA_VERSION_TO_RELEASE_NUMBER(version);
+    int minHeight = ZERO_WORLD_HEIGHT(version, mc), maxHeight = MAX_WORLD_HEIGHT(version, mc);
+    const wchar_t* ids[] = { L"minecraft:overworld", L"minecraft:the_nether", L"minecraft:the_end" };
+    const wchar_t* oldPaths[] = { L"", L"DIM-1", L"DIM1" };
+    const wchar_t* newPaths[] = { L"dimensions/minecraft/overworld", L"dimensions/minecraft/the_nether", L"dimensions/minecraft/the_end" };
+    for (int i = 0; i < 3; ++i) {
+        std::wstring path = dimensionExists(world->world, oldPaths[i]) ? oldPaths[i] : newPaths[i];
+        if (dimensionExists(world->world, path))
+            found.push_back({ ids[i], path.empty() ? L"." : path,
+                i == 0 ? minHeight : 0, i == 0 ? maxHeight : 255, i == 1 ? 8.0 : 1.0 });
+    }
+    const size_t vanillaCount = found.size();
+    int visited = 0;
+    discoverDimensionPaths(world, L"dimensions", L"", found, minHeight, maxHeight, 0, visited);
+    std::sort(found.begin() + vanillaCount, found.end(), [](const WorldDimension& a, const WorldDimension& b) { return a.id < b.id; });
+    for (WorldDimension& dimension : found) {
+        for (const ModDimension& metadata : ModDimensions()) {
+            if (dimension.id != std::wstring(metadata.id.begin(), metadata.id.end())) continue;
+            dimension.minHeight = metadata.minY;
+            dimension.maxHeight = metadata.minY + metadata.height - 1;
+            dimension.coordinateScale = metadata.coordinateScale;
+            dimension.boundsFromPack = true;
+            break;
+        }
+    }
+    return found;
+}
+
+bool SelectWorldDimension(WorldGuide* world, const wchar_t* id, int* worldType)
+{
+    if (!world || !id || !worldType) return false;
+    for (const WorldDimension& dim : DiscoverWorldDimensions(world)) {
+        if (dim.id != id || dim.id.size() >= 520 || dim.path.size() >= 520) continue;
+        CloseAll();
+        wcscpy_s(world->dimensionId, 520, dim.id.c_str());
+        wcscpy_s(world->dimensionPath, 520, dim.path.c_str());
+        world->minHeight = dim.minHeight;
+        world->maxHeight = dim.maxHeight;
+        world->dimensionScale = dim.coordinateScale;
+        world->dimensionBoundsFromPack = dim.boundsFromPack;
+        *worldType &= ~(HELL | ENDER);
+        if (dim.id == L"minecraft:the_nether") *worldType |= HELL;
+        if (dim.id == L"minecraft:the_end") *worldType |= ENDER;
+        SetDimensionDirectory(world, *worldType);
+        return true;
+    }
+    return false;
 }
 
 // push - if true, save the previous selection away, for undo
@@ -3074,8 +3227,16 @@ static unsigned int scaleColor(unsigned int color, float scale)
 
 // Given a block type and dataVal, return the raw color (no light, biome, alpha premultiplication).
 // When dataVal is 0 or the type doesn't have special handling, returns gBlockDefinitions[type].color.
+static float blockStateAlpha(int type, int dataVal)
+{
+    const ModBlockState* state = GetModBlock(type, dataVal & DATAVAL_MASK);
+    return state ? (float)state->definition->alpha / 255.0f : gBlockDefinitions[type].alpha;
+}
+
 unsigned int GetBlockDataColor(int type, int dataVal)
 {
+    const ModBlockState* state = GetModBlock(type, dataVal & DATAVAL_MASK);
+    if (state) return state->definition->color;
     unsigned int color;
 
     switch (type)
@@ -4673,6 +4834,7 @@ unsigned int GetBlockDataColor(int type, int dataVal)
 
 static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel, unsigned short type, int light, char useBiome, char useElevation)
 {
+    const float stateAlpha = blockStateAlpha(type, block->data[voxel]);
     unsigned int color = 0xFFFFFF;
     unsigned int r, g, b;
     unsigned short dataVal;
@@ -4691,7 +4853,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
     case BLOCK_STAINED_GLASS_PANE:
         dataVal = block->data[voxel];
         color = GetBlockDataColor(type, dataVal);
-        if (color == gBlockDefinitions[type].color) {
+        if (!IsModBlock(type) && color == gBlockDefinitions[type].color) {
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
         }
@@ -4699,7 +4861,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         r = color >> 16;
         g = (color >> 8) & 0xff;
         b = color & 0xff;
-        alpha = gBlockDefinitions[type].alpha;
+        alpha = stateAlpha;
         r = (unsigned char)(r * alpha);
         g = (unsigned char)(g * alpha);
         b = (unsigned char)(b * alpha);
@@ -4724,7 +4886,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         dataVal = block->data[voxel];
         alphaComputed = true;
         color = GetBlockDataColor(type, dataVal);
-        if (color == gBlockDefinitions[type].color) {
+        if (!IsModBlock(type) && color == gBlockDefinitions[type].color) {
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
         }
@@ -4952,7 +5114,7 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
     // --- All other block types: use GetBlockDataColor ---
     default:
         color = GetBlockDataColor(type, block->data[voxel]);
-        if (color == gBlockDefinitions[type].color) {
+        if (!IsModBlock(type) && color == gBlockDefinitions[type].color) {
             // Base/default color for this block type — use precomputed lit version
             lightComputed = true;
             color = gBlockColors[type * 16 + light];
@@ -5035,12 +5197,12 @@ static unsigned int checkSpecialBlockColor(WorldBlock* block, unsigned int voxel
         // in other words, alpha is already folded in. If not, we need to multiply by alpha.
         // It is examined only when lightComputed is false; when lightComputed
         // is true, alpha is already folded in.
-        if (!alphaComputed && (gBlockDefinitions[type].alpha != 1.0))
+        if (!alphaComputed && (stateAlpha != 1.0))
         {
             r = (unsigned char)((color >> 16) & 0xff);
             g = (unsigned char)((color >> 8) & 0xff);
             b = (unsigned char)color & 0xff;
-            alpha = gBlockDefinitions[type].alpha;
+            alpha = stateAlpha;
             r = (unsigned char)(r * alpha); //premultiply alpha
             g = (unsigned char)(g * alpha);
             b = (unsigned char)(b * alpha);
@@ -5302,7 +5464,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
                 }
 
                 // special selection height: we want to be able to select water
-                float currentAlpha = gBlockDefinitions[type].alpha;
+                float currentAlpha = blockStateAlpha(type, block->data[voxel]);
                 // water is considered "solid"
                 blockSolid = (currentAlpha != 0.0f); // ((type<NUM_BLOCKS_MAP) || (type ==255)) && 
                 if ((showobscured || seenempty) && blockSolid)
@@ -5445,7 +5607,7 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
                         seenempty = 1;
                         continue;
                     }
-                    if (seenempty && gBlockDefinitions[type].alpha != 0.0) // ((type<NUM_BLOCKS_MAP) || (type ==255)) &&
+                    if (seenempty && blockStateAlpha(type, block->data[voxel]) != 0.0) // ((type<NUM_BLOCKS_MAP) || (type ==255)) &&
                     {
                         r = (unsigned char)(r * (prevy - i + 10) / 138);
                         g = (unsigned char)(g * (prevy - i + 10) / 138);
@@ -5585,6 +5747,11 @@ static unsigned char* draw(WorldGuide* pWorldGuide, int bx, int bz, int heightAl
 // if it fails, that's OK, it just does nothing
 void GetChunkHeights(WorldGuide* pWorldGuide, int& minHeight, int& maxHeight, int mcVersion, int mx, int mz)
 {
+    if (pWorldGuide->dimensionBoundsFromPack) {
+        minHeight = pWorldGuide->minHeight;
+        maxHeight = pWorldGuide->maxHeight;
+        return;
+    }
     // Always called for overworld during initial load, so worldType is 0 (no HELL/ENDER)
     SetDimensionDirectory(pWorldGuide, 0);
 
@@ -8865,7 +9032,7 @@ int GetLevelName(const wchar_t* world, char* levelName, int stringLength)
 //
 //}
 // 0 succeed, 1+ windows file open fail, -1 or less is some other read error from nbt
-int GetPlayer(const wchar_t* world, int* px, int* py, int* pz, int* dimension)
+int GetPlayer(const wchar_t* world, int* px, int* py, int* pz, int* dimension, char* dimensionId, size_t capacity)
 {
     *px = *py = *pz = *dimension = 0;   // just to be safe, in case some call below fails and initialization isn't done there
     bfFile bf;
@@ -8918,7 +9085,7 @@ int GetPlayer(const wchar_t* world, int* px, int* py, int* pz, int* dimension)
                     // Found player position, now get dimension from same file
                     bf = newNBT(playerFile, &err);
                     if (bf.gz != 0x0) {
-                        nbtGetDimensionDirect(&bf, dimension);
+                        nbtGetDimensionDirect(&bf, dimension, dimensionId, capacity);
                         nbtClose(&bf);
                     }
                     break;
@@ -8931,7 +9098,7 @@ int GetPlayer(const wchar_t* world, int* px, int* py, int* pz, int* dimension)
 
     bf = newNBT(filename, &err);
     if (bf.gz == 0x0) return err;
-    retval = nbtGetDimension(&bf, dimension);
+    retval = nbtGetDimension(&bf, dimension, dimensionId, capacity);
     nbtClose(&bf);
 
     return retval;
@@ -8981,8 +9148,9 @@ int GetSpongeSchematic(const wchar_t* schematic, int* width, int* height, int* l
 // done from the saved colors, not from the color scheme
 void SetMapPremultipliedColors(int start)
 {
-    for (int i = start; i < NUM_BLOCKS_DEFINED; i++)
+    for (int i = start; i < ModBlockTypeLimit(); i++)
     {
+        if (i >= NUM_BLOCKS_DEFINED && !IsModBlock(i)) continue;
         unsigned int color = gBlockDefinitions[i].color = gBlockDefinitions[i].read_color;
         unsigned char r = (unsigned char)((color >> 16) & 0xff);
         unsigned char g = (unsigned char)((color >> 8) & 0xff);
@@ -9000,6 +9168,7 @@ void SetMapPremultipliedColors(int start)
 
 void InvalidateMapRenderCache(void)
 {
+    gColorsInited = 0;
     gColormap++;
 }
 
@@ -9454,7 +9623,7 @@ static void buildBlankTiles()
 static void initColors()
 {
     gColorsInited = 1;
-    for (unsigned int i = 0; i < NUM_BLOCKS_DEFINED; i++)
+    for (unsigned int i = 0; i < (unsigned int)ModBlockTypeLimit(); i++)
     {
         unsigned int color = gBlockDefinitions[i].pcolor;
         unsigned int r = color >> 16;
