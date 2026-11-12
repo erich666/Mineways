@@ -27,13 +27,21 @@ on:
       - 'tools/import_mod_assets.py'
       - 'CHANGELOG.md'
   workflow_dispatch:
+    inputs:
+      runner:
+        description: 'macOS runner (Intel is available when Apple Silicon capacity is constrained)'
+        type: choice
+        default: macos-15
+        options:
+          - macos-15
+          - macos-15-intel
 
 permissions:
   contents: write
 
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: ${{ inputs.runner || 'macos-15' }}
     steps:
       - uses: actions/checkout@v5
 
