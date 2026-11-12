@@ -102,7 +102,7 @@ The importer limits input files, decompressed asset bytes, PNG pixels, model par
 
 ## Active storage and export capacity
 
-The wider block IDs and expanded export texture capacity are implemented. Local macOS ARM64 validation passed, including the full ATM10 catalog and capacity regressions. Windows Debug/Release and macOS Intel CI validation are pending.
+The wider block IDs and expanded export texture capacity are implemented. Native capacity tests passed on Windows x64 Debug/Release and macOS ARM64/Intel. Full ATM10 catalog tests also passed on Windows x64 Debug/Release and local macOS ARM64.
 
 | Resource | Implemented limit | Storage |
 | --- | --- | --- |
@@ -117,7 +117,7 @@ The grid, state, and lighting buffers use 4.5 bytes per voxel: two bytes each fo
 
 Imported textures have separate metadata and output slots. They do not replace vacant vanilla cells or alter the built-in terrain atlas. Mosaic dimensions and texture bookkeeping grow for the selected output. Composite swatches follow the imported slots. Solid-color exports retain the vanilla swatches and append compact swatches only for selected mod block types. A high block ID does not require that many color swatches.
 
-The regression suites cover IDs 4,095/4,096, 32,767/32,768, and 65,535, including zero-low-byte boundaries and exact schematic round trips. They also exercise USD instances, expanded material/UV indices, individual textures, mosaics, repeat exports, and rejection of a 4,097-texture selection. These checks must pass on Windows Debug/Release and macOS before the migration is considered validated. Earlier catalog-loading measurements below do not establish that result.
+The regression suites cover IDs 4,095/4,096, 32,767/32,768, and 65,535, including zero-low-byte boundaries and exact schematic round trips. They also exercise USD instances, expanded material/UV indices, individual textures, mosaics, repeat exports, and rejection of a 4,097-texture selection. These checks passed in [Windows Debug/Release CI](https://github.com/wbreiler/Mineways/actions/runs/43306755350), [macOS Intel CI](https://github.com/wbreiler/Mineways/actions/runs/43306776367), and local macOS ARM64 sanitizer runs. Windows also verifies that headless warning summaries finish without opening a dialog and that individual-texture USD exports do not trigger the mosaic warning.
 
 ## Test without a Minecraft installation
 
@@ -149,7 +149,9 @@ Build the corresponding native binaries first. The Debug executable also require
 
 In GitHub Actions, select **Windows Build > Run workflow**, choose the branch, and enable `full_atm`. Both Debug and Release jobs download the pinned assets, compile the complete catalog, and run the native tests. The full-pack command includes the synthetic and capacity tests, so the workflow runs them only once per job. Normal push and pull-request jobs do not download ATM10.
 
-Full-pack tests activate every catalog block name through a synthetic schematic palette, then sample actual states for exports. They verify texture pixels, repeat exports, and Sponge geometry/state round trips. They do not test every selector. Full-catalog and capacity invocations have ten-minute timeouts. Smaller fixture invocations have two-minute timeouts. Each workflow job has a one-hour limit. The workflow uploads no downloaded JARs, compiled texture assets, or exports. Full-pack Windows validation of the new limits is pending.
+Full-pack tests activate every catalog block name through a synthetic schematic palette, then sample actual states for exports. They verify texture pixels, repeat exports, and Sponge geometry/state round trips. They do not test every selector. Full-catalog and capacity invocations have ten-minute timeouts. Smaller fixture invocations have two-minute timeouts. Each workflow job has a one-hour limit. The workflow uploads no downloaded JARs, compiled texture assets, or exports.
+
+The [full-pack Windows Debug/Release run](https://github.com/wbreiler/Mineways/actions/runs/43306762306) passed on November 12, 2026. Each job verified all 496 pinned assets and compiled 42,629 block definitions, 538,059 selectors, and 30,228 textures. Both native builds activated all 42,629 block names and passed 114 sampled states, 131 texture pixel checks, repeat OBJ exports, and Sponge geometry/state round trips. The Release export and round trip took 8.109 and 7.719 seconds. Debug with AddressSanitizer took 454.094 and 445.218 seconds, within the unchanged ten-minute limits. Reusing manifest token storage and avoiding repeated validation of immutable shared geometry resolved the earlier Debug timeout.
 
 ## Test an installed mod pack
 
@@ -175,7 +177,7 @@ A separate actual-block regression verifies `justdirethings:goopatternblock[goos
 
 The complete compiled catalog contains 84,940 shared geometries, 475,456 elements, and 25 dimension records. Its report lists 9,522 unsupported block definitions, 9,467 unsupported selectors, and 13,230 warnings. Every installed mod JAR was indexed. Across the complete catalog, 192 AE2 orientations previously accepted with an incorrect Z rotation are now explicitly unsupported. Unsupported records remain explicit in the report.
 
-The latest full-catalog test passed with AddressSanitizer and UndefinedBehaviorSanitizer after the wider-ID migration. It activated all 42,629 block names before export, reaching internal ID 43,189. The 139 tested states included 37 explicit adapter and transparency regressions. All 136 imported texture pixel checks passed, as did repeated OBJ exports and exact Sponge state/geometry round trips. Catalog loading took 14.679 seconds with zero decoded texture pixels. The complete test took 20.833 seconds and exited successfully on the local macOS host. These results do not establish a Windows result or test every model selector.
+The latest full-catalog test passed with AddressSanitizer and UndefinedBehaviorSanitizer after the wider-ID migration. It activated all 42,629 block names before export, reaching internal ID 43,189. The 139 tested states included 37 explicit adapter and transparency regressions. All 136 imported texture pixel checks passed, as did repeated OBJ exports and exact Sponge state/geometry round trips. Catalog loading took 8.873 seconds with zero decoded texture pixels. The complete test took 15.002 seconds and exited successfully on the local macOS host. These ARM64 measurements are separate from the Windows results above. Neither suite tests every model selector.
 
 Catalog counts describe asset definitions, not the game's registered block types. Optional compatibility resources can refer to absent mods or models. The importer reports those missing resources explicitly. No third-party mod assets are included in the repository.
 
