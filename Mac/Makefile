@@ -1,7 +1,8 @@
-# Mineways macOS ARM64 build  (wxWidgets GUI)
+# Mineways native macOS build (wxWidgets GUI)
 # Usage: make -C Mac          (from repo root)
 
 CXX      := clang++
+ARCH     ?= $(shell uname -m)
 
 # Follow the Windows version in the upstream code included in this checkout.
 UPSTREAM_VERSION := $(shell awk '$$1 == "\#define" && $$2 == "MINEWAYS_MAJOR_VERSION" { major = $$3 } $$1 == "\#define" && $$2 == "MINEWAYS_MINOR_VERSION" { minor = $$3 } END { printf "%d.%02d", major, minor }' ../Win/stdafx.h)
@@ -17,7 +18,7 @@ VERSION_HEADER := .MinewaysVersion.h
 WX_CFLAGS := $(shell wx-config --cxxflags)
 WX_LIBS   := $(shell wx-config --libs)
 
-CXXFLAGS := -std=c++17 -arch arm64 -O2 -Wall \
+CXXFLAGS := -std=c++17 -arch $(ARCH) -O2 -Wall \
             -MMD -MP \
             -Wno-unused-function \
             -Wno-macro-redefined \
@@ -31,7 +32,7 @@ CXXFLAGS := -std=c++17 -arch arm64 -O2 -Wall \
 # GUI files need wxWidgets flags on top of the base flags
 GUI_CXXFLAGS := $(CXXFLAGS) $(WX_CFLAGS)
 
-LDFLAGS  := -arch arm64
+LDFLAGS  := -arch $(ARCH)
 LIBS     := -lz $(WX_LIBS)
 
 SRC_DIR  := ../Win
