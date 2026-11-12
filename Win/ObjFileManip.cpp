@@ -34118,7 +34118,7 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
         if (faceNo % noteProgress == 0) {
             prettifyNumber(faceNo + 1, numString1);
             swprintf_s(statusString, 1024, L"Writing %s of %s faces", numString1, numString2);
-            UPDATE_STATUS(gProgress.start.output + gProgress.absolute.output * ((float)i / (float)gModel.faceCount), statusString);
+            UPDATE_STATUS(gProgress.start.output + gProgress.absolute.output * ((float)faceNo / (float)gModel.faceCount), statusString);
         }
 
         pFace = gModel.faceList[faceNo];

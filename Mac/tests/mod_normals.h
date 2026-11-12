@@ -47,6 +47,33 @@ static void checkModNormalCapacity(const std::filesystem::path& root)
             assert(dot > .999);
         }
     }
+    // Exercise the ASCII writer independently: its former fixed string cache
+    // also assumed no more than 456 normals, unlike the OBJ path above.
+    const auto stl = root / "many-normals.stl";
+    exportWorld(world, stl, 0);
+    std::istringstream stream(readText(stl));
+    std::string line;
+    size_t facet = 0, vertices = 0;
+    std::set<std::array<double, 3>> directions;
+    while (std::getline(stream, line)) {
+        if (line.compare(0, 13, "facet normal ") == 0) {
+            assert(facet < expected.size());
+            std::array<double, 3> normal;
+            std::istringstream values(line.substr(13));
+            assert(values >> normal[0] >> normal[1] >> normal[2]);
+            double dot = 0;
+            for (int axis = 0; axis < 3; ++axis) {
+                assert(std::isfinite(normal[axis]));
+                dot += normal[axis] * expected[facet][axis];
+            }
+            assert(dot > .999);
+            directions.insert(normal);
+            ++facet;
+        } else if (line.compare(0, 7, "vertex ") == 0) {
+            ++vertices;
+        }
+    }
+    assert(facet == 800 && vertices == 2400 && directions.size() > 456);
     ClearCache();
     assert(LoadModPack(original, error));
 }

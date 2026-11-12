@@ -37,7 +37,7 @@ static void exportWorld(WorldGuide& world, const std::filesystem::path& path, in
 {
     ExportFileData settings = {};
     Options options = {};
-    const int fileType = path.extension() == ".schematic" ? FILE_TYPE_SCHEMATIC : path.extension() == ".schem" ? FILE_TYPE_SPONGE_SCHEMATIC : path.extension() == ".usda" ? FILE_TYPE_USD : FILE_TYPE_WAVEFRONT_ABS_OBJ;
+    const int fileType = path.extension() == ".schematic" ? FILE_TYPE_SCHEMATIC : path.extension() == ".schem" ? FILE_TYPE_SPONGE_SCHEMATIC : path.extension() == ".usda" ? FILE_TYPE_USD : path.extension() == ".stl" ? FILE_TYPE_ASCII_STL : FILE_TYPE_WAVEFRONT_ABS_OBJ;
     settings.fileType = fileType;
     settings.chkCreateModelFiles[fileType] = 1;
     settings.chkIndividualBlocks[fileType] = 1;
