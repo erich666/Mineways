@@ -78,10 +78,17 @@ def matches(path, entry):
 
 
 def download_file(entry, destination):
-    destination = Path(destination).resolve()
+    absolute_destination = Path(destination).absolute()
+    destination = absolute_destination.resolve()
     target = destination.joinpath(*entry['path'].split('/'))
-    if not target.resolve().is_relative_to(destination) or target.is_symlink():
-        raise ValueError('download path escapes destination')
+    resolved_target = target.resolve()
+    target_is_symlink = target.is_symlink()
+    if not resolved_target.is_relative_to(destination) or target_is_symlink:
+        raise ValueError(
+            f'download path escapes destination: entry={entry["path"]!r}, '
+            f'absolute_destination={str(absolute_destination)!r}, '
+            f'destination={str(destination)!r}, target={str(target)!r}, '
+            f'resolved_target={str(resolved_target)!r}, target_is_symlink={target_is_symlink}')
     target.parent.mkdir(parents=True, exist_ok=True)
     if matches(target, entry):
         return target

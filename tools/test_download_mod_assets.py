@@ -70,6 +70,26 @@ class DownloadTests(unittest.TestCase):
             self.assertEqual(target.read_bytes(), b'previous data')
             self.assertEqual(list(target.parent.glob('.download-*')), [])
 
+    def test_destination_escape_reports_paths(self):
+        destination = self.root.resolve()
+        outside = destination.parent / 'outside.jar'
+        target = destination / 'mods/fixture.jar'
+        original_resolve = Path.resolve
+
+        def resolve(path, *args, **kwargs):
+            return outside if path == target else original_resolve(path, *args, **kwargs)
+
+        with patch.object(Path, 'resolve', resolve):
+            with patch.object(mod.urllib.request, 'urlopen') as request:
+                with self.assertRaises(ValueError) as caught:
+                    mod.download_file(self.entry, destination)
+        message = str(caught.exception)
+        for detail in ['download path escapes destination', repr(self.entry['path']),
+                       repr(str(destination)), repr(str(target)), repr(str(outside))]:
+            self.assertIn(detail, message)
+        request.assert_not_called()
+        self.assertFalse(target.parent.exists())
+
     def test_retries_are_bounded(self):
         with patch.object(mod.urllib.request, 'urlopen', side_effect=urllib.error.URLError('offline')) as request:
             with patch.object(mod.time, 'sleep'):
