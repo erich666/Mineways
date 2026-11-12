@@ -331,5 +331,28 @@ int main(int argc, char** argv)
     free(first.sch.blocks); free(first.sch.data);
     free(second.sch.blocks); free(second.sch.data);
     ClearModPack();
+    // A transparent top/map color must not discard visible side geometry.
+    std::string zeroAlpha = readText(argv[1]);
+    const size_t stateStart = zeroAlpha.find("state\tfixture:cube\t");
+    assert(stateStart != std::string::npos);
+    const size_t stateEnd = zeroAlpha.find('\n', stateStart);
+    const size_t alphaStart = zeroAlpha.rfind('\t', stateEnd) + 1;
+    zeroAlpha.replace(alphaStart, stateEnd - alphaStart, "0");
+    const auto zeroPath = std::filesystem::path(argv[1]).parent_path() / "zero-map-alpha.mwpack";
+    { std::ofstream manifest(zeroPath, std::ios::binary); manifest << zeroAlpha; assert(manifest.good()); }
+    assert(LoadModPack(zeroPath.u8string(), error));
+    assert(ResolveModState("fixture:cube", &cube, &cubeState) == 1);
+    assert(GetModBlock(cube, cubeState)->definition->alpha == 0);
+    unsigned char zeroBlocks[] = {(unsigned char)cube};
+    unsigned short zeroData[] = {PACK_TYPE_EXT_AND_DATAVAL(cube, cubeState)};
+    WorldGuide zeroWorld = {};
+    zeroWorld.type = WORLD_SCHEMATIC_TYPE;
+    zeroWorld.sch = {zeroBlocks, zeroData, 1, 1, 1, 1, false, true};
+    exportWorld(zeroWorld, root / "zero-alpha-textured.obj", textures | EXPT_OUTPUT_SEPARATE_TEXTURE_TILES);
+    exportWorld(zeroWorld, root / "zero-alpha-plain.obj", 0);
+    exportWorld(zeroWorld, root / "zero-alpha-solid.obj", EXPT_OUTPUT_MATERIALS);
+    for (const char* filename : {"zero-alpha-textured.obj", "zero-alpha-plain.obj", "zero-alpha-solid.obj"})
+        assert(countLines(readText(root / filename), "f ") == 6);
+    ClearCache(); ClearModPack();
     puts("PASS: mod UVs/pixels, geometry/alpha, OBJ/USD modes, states above 255, long names, dimensions, and schematic round trip");
 }

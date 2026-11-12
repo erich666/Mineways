@@ -758,13 +758,24 @@ def compile_pack(sources, destination, namespaces=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('sources', nargs='+', help='asset directories or JAR/ZIP archives, later sources override earlier sources')
+    parser.add_argument('sources', nargs='*', help='asset directories or JAR/ZIP archives, later sources override earlier sources')
+    parser.add_argument('--sources-file', help='UTF-8 file with one unquoted source path per line; these sources precede positional sources')
     parser.add_argument('-o', '--output', required=True, help='new output directory (existing output is never overwritten)')
     parser.add_argument('--namespace', action='append', help='only import this namespace (repeatable, default: all non-minecraft namespaces)')
     args = parser.parse_args()
     try:
-        report = compile_pack(args.sources, args.output, args.namespace)
-    except (ImportError, OSError, zipfile.BadZipFile, RuntimeError) as error:
+        sources = []
+        if args.sources_file:
+            with Path(args.sources_file).open('rb') as source_file:
+                data = source_file.read(1024 * 1024 + 1)
+            if len(data) > 1024 * 1024:
+                raise ImportError('source list exceeds 1 MiB')
+            sources = [line for line in data.decode('utf-8-sig').splitlines() if line.strip()]
+        sources.extend(args.sources)
+        if not sources:
+            parser.error('provide a source path or a nonempty --sources-file')
+        report = compile_pack(sources, args.output, args.namespace)
+    except (ImportError, OSError, UnicodeError, zipfile.BadZipFile, RuntimeError) as error:
         parser.exit(1, f'Import failed: {error}\n')
     print(f'Created {args.output}: {report["blocks"]} blocks, {report["selectors"]} selectors, {report["textures"]} textures, {report["dimensions"]} dimensions')
     print(f'{len(report["unsupported"])} unsupported blocks; {len(report["unsupported_states"])} unsupported states; {len(report["unsupported_dimensions"])} incomplete dimensions; {len(report["warnings"])} warnings. Read report.json before use.')

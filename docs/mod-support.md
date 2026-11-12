@@ -14,6 +14,18 @@ python3 tools/import_mod_assets.py \
   --output /path/to/new-mineways-pack
 ```
 
+For a large modpack, use `--sources-file sources.txt` to avoid the Windows command-line length limit. The file contains one unquoted path per line in UTF-8, with or without a BOM. Blank lines are ignored. The file must be at most 1 MiB. Relative paths use the current working directory. Listed sources precede any positional sources, so a final positional resource pack can override them.
+
+This PowerShell example lists the Minecraft client first, then all installed mod JARs in filename order. Set the two input paths for your launcher:
+
+```powershell
+$clientJar = 'C:\path\to\minecraft-1.21.1-client.jar'
+$modsFolder = 'C:\path\to\instance\minecraft\mods'
+$sourcePaths = @($clientJar) + @(Get-ChildItem -LiteralPath $modsFolder -File -Filter '*.jar' | Sort-Object Name | ForEach-Object { $_.FullName })
+[IO.File]::WriteAllLines((Join-Path $PWD 'sources.txt'), $sourcePaths, [Text.UTF8Encoding]::new($false))
+python tools/import_mod_assets.py --sources-file sources.txt --output C:\path\to\new-mineways-pack
+```
+
 Sources appear in priority order. Later sources replace earlier files with the same resource path. The output directory must not exist. The importer never overwrites a previous pack.
 
 The Minecraft client JAR supplies vanilla parent models and textures. It is optional when a mod uses only its own assets or the built-in cube templates. The importer provides `cube`, `cube_all`, `cube_column`, and `cube_bottom_top` templates.
@@ -57,18 +69,22 @@ Incomplete dimension types appear in `report.json`. The application can still di
 
 The importer resolves standard JSON model parents and texture aliases. It supports box elements, face UVs, face rotations, element rotations, element rescale, blockstate X/Y rotations, and UV locking.
 
-Blockstate variants select a model. Multipart conditions expand into bounded property combinations. Boolean conditions include both `true` and `false`. Unconditional multipart geometry supplies a fallback for property values absent from the model definitions.
+Blockstate variants select a model. Multipart conditions expand into bounded property combinations. Boolean conditions include both `true` and `false`. Unconditional multipart geometry supplies a fallback only when all expanded states are supported. A failed specific selector cannot silently use a generic model.
+
+The Lootr brushable adapter maps `dusted=0..3` to the supplied model stages. Its report notes that player-specific opened or looted appearance is unavailable.
 
 The current implementation has these explicit limits:
 
-- A state with no matching model selector uses the unknown-block fallback (air by default). Chunk loading reports its namespaced state and continues. This includes modern palettes that omit default properties when a mod provides only explicit property selectors: JSON assets do not reveal Java-defined defaults, so Mineways does not guess them. Sponge imports also use air for these states. Unsupported states cannot retain their identity when exported.
+- A state with no matching model selector uses the configured unknown-block fallback (bedrock by default in the application). Chunk loading reports its namespaced state and continues. This includes modern palettes that omit default properties when a mod provides only explicit property selectors: JSON assets do not reveal Java-defined defaults, so Mineways does not guess them. Sponge imports also use air for these states. Unsupported states cannot retain their identity when exported.
 - Weighted alternatives use the first listed model. Animated textures use the first square frame. The report lists these approximations.
-- Custom Java renderers, custom model loaders, inverted elements, and UV coordinates outside 0–16 are unsupported. Biome and custom tints are reported but not applied.
-- PNG import supports non-interlaced 8-bit grayscale, RGB, indexed, grayscale-alpha, and RGBA images. The output always uses RGBA.
-- Imported textures use vacant atlas cells and are resampled to the selected terrain tile resolution. This release has 915 vacant cells. The importer rejects larger packs before writing output, and the runtime checks capacity again. Select fewer mods or namespaces when the pack exceeds this limit. Only albedo textures are imported.
-- The runtime has a finite 12-bit block type space and supports at most 4096 observed states per imported block. Exceeding a limit must produce an error.
+- Arbitrary Java renderers, unsupported custom model loaders, inverted elements, and UV coordinates outside 0–16 remain unsupported. The importer supports standard Forge/NeoForge composite children and Fusion base geometry. It reports approximations for connected textures and custom tints. It does not execute mod code.
+- PNG import supports non-interlaced 8-bit grayscale, RGB, indexed, grayscale-alpha, and RGBA images, plus 1-, 2-, and 4-bit grayscale and indexed images. The output always uses RGBA.
+- A pack catalog can contain more textures than the export atlas. A textured export uses only the textures needed by its selected blocks. This release permits 915 selected mod textures and 256 MiB of decoded mod texture pixels per export. Larger selections fail explicitly. Exports without textures and Sponge exports bypass these texture limits. Imported textures are resampled to the terrain tile resolution. Only albedo textures are imported.
+- Catalog definitions acquire internal block IDs only when a world or schematic uses them. One loaded-pack session can retain 3,522 distinct mod block names and 4,096 observed states per name. Reloading or clearing the pack resets these assignments. Exhausting this active ID space fails explicitly. It does not reject the larger catalog during pack loading.
 
-The importer limits input files, decompressed asset bytes, PNG pixels, model parent depth, multipart combinations, and compiled elements. It rejects unsafe archive paths, duplicate archive entries, archive symlinks, and source symlinks. The runtime separately validates the compiled manifest and texture paths.
+The importer indexes archive entries and reads selected assets when needed. Compiled packs share model geometry across state selectors. The runtime validates texture headers when it loads the catalog and decodes only selected export textures. It releases decoded pixels after each export.
+
+The importer limits input files, decompressed asset bytes, PNG pixels, model parent depth, multipart combinations, and compiled elements. It rejects unsafe archive paths, duplicate relevant asset entries, archive symlinks, and source symlinks. The runtime separately validates the compiled manifest and texture paths.
 
 ## Test without a Minecraft installation
 
@@ -98,24 +114,42 @@ On November 12, 2026, this test passed on macOS with assets from the installed A
 
 | Imported subset | Loaded blocks / selectors / textures | Tested states | Exported faces | Pixel-checked textures |
 | --- | --- | --- | --- | --- |
-| AllTheModium 3.2.1 | 99 / 993 / 95 | 78 | 784 | 47 |
-| AllTheModium 3.2.1, Applied Energistics 2 19.2.18, Iron Furnaces 4.3.2, Simply Light 1.5.3 | 340 / 4192 / 441 | 100 | 1264 | 82 |
+| AllTheModium 3.2.1, Applied Energistics 2 19.2.18, Iron Furnaces 4.3.2, Simply Light 1.5.3 | 370 / 4335 / 453 | 120 | 1731 | 98 |
+| All 495 installed ATM10 mod JARs, plus the matching client assets | 42620 / 538155 / 30213 | 101 | 3360 | 119 |
 
-Both runs used AddressSanitizer and UndefinedBehaviorSanitizer. The combined pack included three dimension metadata records. These tests checked block exports and did not navigate those dimensions. Its importer report identified 44 unsupported blocks and 64 approximation warnings. This is a tested subset of ATM10. Importing all 495 installed mod JARs exceeded the importer's archive-entry limit. No third-party mod assets are included in the repository.
+The four-mod run used AddressSanitizer and UndefinedBehaviorSanitizer and explicitly tested all four dusting stages of both Lootr brushable blocks. Its importer report lists 14 unsupported block definitions, 15 unsupported selectors, and 69 warnings. The initial importer rejected 44 block definitions in this subset. The pack includes three dimension metadata records. These checks tested block exports and did not navigate those dimensions.
+
+A separate actual-block regression verifies `justdirethings:goopatternblock[goostage=0]`. Its transparent top/map texture must not discard its visible side geometry. The native test checks its exported faces, texture pixels, and schematic round trip.
+
+The complete compiled catalog contains 84,905 shared geometries, 475,408 elements, and 25 dimension records. Its report lists 9,531 unsupported block definitions, 9,275 unsupported selectors, and 13,215 warnings. Every installed mod JAR was indexed. Unsupported records remain explicit in the report.
+
+The full native sanitizer smoke test loaded the catalog in 13.584 seconds with zero decoded texture pixels. The complete export test took 19.33 seconds and reached 1.89 GiB peak resident memory. That peak includes sanitizer and test-harness overhead. A separate optimized loader-only check took 4.215 seconds and reached about 547 MiB peak resident memory. No mod block IDs were allocated before selecting states. These measurements use the local macOS host.
+
+Catalog counts describe asset definitions, not the game's registered block types. Optional compatibility resources can refer to absent mods or models. The importer reports those missing resources explicitly. No third-party mod assets are included in the repository.
 
 ## Compiled format
 
-The manifest uses UTF-8 text with tab-separated fields. Resource identifiers and selectors cannot contain control characters. Dimension records are optional. All textures precede state definitions. Texture indices start at zero and increase by one.
+The importer writes version 2. The runtime also reads existing version 1 packs. Both formats use UTF-8 text with tab-separated fields. Resource identifiers and selectors cannot contain control characters. Dimension records are optional. Texture and geometry indices each start at zero and increase by one. References must use earlier records.
 
 ```text
-MINEWAYS_MOD_PACK<TAB>1
+MINEWAYS_MOD_PACK<TAB>2
 dimension<TAB>namespace:dimension<TAB>min_y<TAB>height<TAB>coordinate_scale
 texture<TAB>index<TAB>namespace:texture_path<TAB>textures/0000.png
-state<TAB>namespace:block[property=value]<TAB>RRGGBB<TAB>alpha_byte
-model<TAB>x_degrees<TAB>y_degrees<TAB>uvlock_0_or_1
+geometry<TAB>geometry_index
 element<TAB>from_x<TAB>from_y<TAB>from_z<TAB>to_x<TAB>to_y<TAB>to_z<TAB>axis<TAB>angle<TAB>origin_x<TAB>origin_y<TAB>origin_z<TAB>rescale_0_or_1
 face<TAB>direction<TAB>u0<TAB>v0<TAB>u1<TAB>v1<TAB>rotation<TAB>texture_index<TAB>cullface
+endgeometry
+state<TAB>namespace:block[property=value]<TAB>RRGGBB<TAB>alpha_byte
+usemodel<TAB>geometry_index<TAB>x_degrees<TAB>y_degrees<TAB>uvlock_0_or_1
 endstate
 ```
 
-A new `model` or `element` record closes the previous record of that kind. `endstate` closes the state definition. Axis values are `none`, `x`, `y`, or `z`. Face directions are `down`, `up`, `north`, `south`, `west`, or `east`. A cullface uses one of these directions or `-`. Properties appear in alphabetical order. Omit brackets for an empty selector.
+A `geometry` record stores reusable elements and faces. Each `usemodel` references that geometry with its own blockstate rotations and UV-lock setting. A state can reference several models. `endgeometry` and `endstate` close their respective definitions. A new `element` record closes the previous element.
+
+Version 1 uses `model<TAB>x_degrees<TAB>y_degrees<TAB>uvlock_0_or_1` inside each state, followed by inline elements and faces. It does not use shared geometry records.
+
+The state color and alpha describe the map sample. Exported model opacity comes from its face textures.
+
+Axis values are `none`, `x`, `y`, or `z`. Face directions are `down`, `up`, `north`, `south`, `west`, or `east`. A cullface uses one of these directions or `-`. Properties appear in alphabetical order. Omit brackets for an empty selector.
+
+Catalog limits are 100,000 block definitions, 1,000,000 selectors, 250,000 shared geometries, 4,000,000 elements, 131,072 textures, and a 512 MiB manifest. These are catalog limits. The active block IDs and selected export textures have the separate limits described above.

@@ -146,7 +146,7 @@ static ObjStats validateObj(const std::filesystem::path& path)
 
 int main(int argc, char** argv)
 {
-    if (argc != 3) { fprintf(stderr, "Usage: real-mod-pack manifest.mwpack output-directory\n"); return 2; }
+    if (argc < 3) { fprintf(stderr, "Usage: real-mod-pack manifest.mwpack output-directory [extra-state ...]\n"); return 2; }
     const std::filesystem::path output(argv[2]);
     // Refuse existing output to keep real asset tests separate from user data.
     assert(std::filesystem::create_directory(output));
@@ -177,6 +177,8 @@ int main(int argc, char** argv)
         selected.push_back(block.second.front());
         if (block.second.size() > 1) selected.push_back(block.second.back());
     }
+    for (int argument = 3; argument < argc; ++argument)
+        if (std::find(selected.begin(), selected.end(), argv[argument]) == selected.end()) selected.push_back(argv[argument]);
     const int width = (int)selected.size() * 2 - 1;
     std::vector<unsigned char> blocks(width, 0);
     std::vector<unsigned short> data(width, 0);

@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 import stat
 import struct
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -399,6 +400,31 @@ class ImportTests(unittest.TestCase):
         self.assertEqual(report['blocks'], 0)
         self.assertEqual(report['dimensions'], 1)
         self.assertEqual(list((out / 'textures').iterdir()), [])
+
+    def test_cli_source_file_preserves_unicode_spaces_and_override_order(self):
+        source = self.root / 'mod assets café'
+        simple(source)
+        override = self.root / 'resource override'
+        put(override, 'assets/sample/textures/block/stone.png', mod.encode_png(1, 1, bytes((0, 255, 0, 255))))
+        source_file = self.root / 'sources list.txt'
+        source_file.write_bytes(('\ufeff\n' + str(source) + '\n\n').encode('utf-8'))
+        output = self.root / 'cli output'
+        run = subprocess.run([sys.executable, str(SCRIPT), '--sources-file', str(source_file), str(override), '-o', str(output)],
+                             capture_output=True, text=True)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertIn('state\tsample:stone\t00ff00\t255', (output / 'manifest.mwpack').read_text())
+        source_file.write_bytes(bytes(1024 * 1024 + 1))
+        oversized = subprocess.run([sys.executable, str(SCRIPT), '--sources-file', str(source_file), '-o', str(self.root / 'too big')],
+                                   capture_output=True, text=True)
+        self.assertNotEqual(oversized.returncode, 0)
+        self.assertIn('exceeds 1 MiB', oversized.stderr)
+        self.assertFalse((self.root / 'too big').exists())
+
+    def test_cli_requires_at_least_one_source(self):
+        run = subprocess.run([sys.executable, str(SCRIPT), '-o', str(self.root / 'empty')], capture_output=True, text=True)
+        self.assertEqual(run.returncode, 2)
+        self.assertIn('provide a source path', run.stderr)
+        self.assertFalse((self.root / 'empty').exists())
 
     def test_output_is_never_overwritten(self):
         simple(self.source)
