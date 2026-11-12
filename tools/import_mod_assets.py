@@ -24,6 +24,8 @@ MAX_STATES = 4096
 MAX_ELEMENTS = 2048
 MAX_PIXELS = 4 * 1024 * 1024
 MAX_COMPILED_ELEMENTS = 65536
+# Match vacant cells in Win/tiles.h; the importer test checks this release budget.
+MAX_TEXTURES = 915
 RESOURCE = re.compile(r"^[a-z0-9_.-]+:[a-z0-9_./-]+$")
 PROPERTY = re.compile(r"^[a-z0-9_]+$")
 DIRECTIONS = ('down', 'up', 'north', 'south', 'west', 'east')
@@ -90,7 +92,9 @@ class Assets:
                         count += 1
                         if count > MAX_FILES:
                             raise ImportError('too many archive entries')
-                        name = safe_path(entry.filename)
+                        # ZipInfo normalizes separators on Windows and truncates NULs.
+                        # Validate the original archive spelling before using its normalized name.
+                        name = safe_path(entry.orig_filename)
                         if name in seen:
                             raise ImportError('duplicate archive entry: ' + name)
                         seen.add(name)
@@ -346,8 +350,9 @@ class Compiler:
         if not isinstance(application, dict) or 'model' not in application:
             raise ImportError('invalid model application')
         x, y = application.get('x', 0), application.get('y', 0)
-        if type(x) is not int or type(y) is not int or x not in (0, 90, 180, 270) or y not in (0, 90, 180, 270):
-            raise ImportError('blockstate rotations must be 0, 90, 180, or 270')
+        if any(type(angle) is not int or not -(2 ** 31) <= angle < 2 ** 31 or angle % 90 for angle in (x, y)):
+            raise ImportError('blockstate rotations must be signed 32-bit integer multiples of 90')
+        x, y = x % 360, y % 360
         uvlock = application.get('uvlock', False)
         if not isinstance(uvlock, bool):
             raise ImportError('uvlock must be boolean')
@@ -533,6 +538,8 @@ def compile_pack(sources, destination, namespaces=None):
     if not states and not dimensions:
         raise ImportError('no supported mod blocks or dimensions found' + (': ' + rejected[0]['reason'] if rejected else ''))
     used = sorted({face[-2] for _, _, _, models in states for model in models for element in model['elements'] for face in element['faces']})
+    if len(used) > MAX_TEXTURES:
+        raise ImportError(f'pack needs {len(used)} textures, but this Mineways release has {MAX_TEXTURES} vacant atlas cells; select fewer mods or namespaces')
     texture_ids = {name: index for index, name in enumerate(used)}
     lines = ['MINEWAYS_MOD_PACK\t1']
     for dimension in dimensions:

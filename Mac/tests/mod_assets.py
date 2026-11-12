@@ -1,6 +1,7 @@
 """End-to-end tests for data-only mod asset imports. No Minecraft install needed."""
 import importlib.util
 import json
+import re
 from pathlib import Path
 import stat
 import struct
@@ -142,10 +143,16 @@ class ImportTests(unittest.TestCase):
         self.assertTrue(any('Weighted' in w for w in report['warnings']))
 
     def test_rejects_unsafe_archives(self):
-        for index, name in enumerate(('../escape.json', '/absolute.png', 'assets\\bad.png', 'C:/evil.png')):
+        for index, name in enumerate(('../escape.json', '/absolute.png', 'assets\\bad.png', 'C:/evil.png', 'assets/bad\0.png')):
             jar = self.root / f'bad{index}.zip'
             with zipfile.ZipFile(jar, 'w') as archive:
-                archive.writestr(name, b'{}')
+                info = zipfile.ZipInfo('placeholder')
+                # Preserve the malicious spelling on disk on every OS. ZipInfo's
+                # constructor otherwise replaces backslashes on Windows.
+                info.filename = info.orig_filename = name
+                archive.writestr(info, b'{}')
+            with zipfile.ZipFile(jar) as archive:
+                self.assertEqual(archive.infolist()[0].orig_filename, name)
             with self.assertRaisesRegex(mod.ImportError, 'unsafe'):
                 self.compile(f'out{index}', [jar])
         jar = self.root / 'link.zip'
@@ -196,6 +203,38 @@ class ImportTests(unittest.TestCase):
         _, report = self.compile()
         self.assertEqual(len(report['unsupported']), 2)
         self.assertTrue(any('4096' in item['reason'] for item in report['unsupported']))
+
+    def test_quarter_turns_wrap_like_real_ae2_models(self):
+        simple(self.source)
+        put(self.source, 'assets/sample/blockstates/wrapped.json', {'variants': {
+            '': {'model': 'sample:block/stone', 'x': 360, 'y': -90}}})
+        out, report = self.compile()
+        self.assertEqual(report['unsupported'], [])
+        self.assertIn('model\t0\t270\t0', (out / 'manifest.mwpack').read_text())
+
+    def test_texture_budget_fails_before_output(self):
+        simple(self.source)
+        simple(self.source, 'other')
+        limit = mod.MAX_TEXTURES
+        try:
+            mod.MAX_TEXTURES = 1
+            with self.assertRaisesRegex(mod.ImportError, 'needs 2 textures.*1 vacant atlas'):
+                self.compile()
+        finally:
+            mod.MAX_TEXTURES = limit
+        self.assertFalse((self.root / 'out').exists())
+
+    def test_texture_budget_matches_native_atlas(self):
+        header = (ROOT / 'Win/tiles.h').read_text()
+        table = header.split('gTilesTable[TOTAL_TILES] = {', 1)[1].split('};', 1)[0]
+        table = re.sub(r'//[^\n]*|/\*.*?\*/', '', table, flags=re.S)
+        rows = [[field.strip() for field in row.split(',')] for row in re.findall(r'\{([^{}]*)\}', table)]
+        width = int(re.search(r'#define XTILES (\d+)', header)[1])
+        height = int(re.search(r'#define VERTICAL_TILES (\d+)', header)[1])
+        self.assertEqual(len(rows), width * height)
+        vacant = sum(row[4] in ('L""', 'nullptr', 'NULL', '0') and
+                     (len(row) == 7 or row[7:] == ['0', '0']) for row in rows)
+        self.assertEqual(mod.MAX_TEXTURES, vacant)
 
     def test_rejected_models_do_not_consume_later_geometry_budget(self):
         simple(self.source)

@@ -171,3 +171,11 @@ test-mods: $(ALL_OBJS)
 	@mod_test_dir=$$(mktemp -d /tmp/mineways-mod-exports.XXXXXX); \
 	  python3 tests/mod_assets.py --fixture "$$mod_test_dir/fixture" && \
 	  /tmp/mineways-mod-exports "$$mod_test_dir/fixture/pack/manifest.mwpack" "$$mod_test_dir/output"
+
+# Optional local integration test; the pack assets remain outside the repository.
+.PHONY: test-real-mods
+test-real-mods: $(VERSION_HEADER)
+	@test -n "$(MOD_PACK)" || { echo 'Set MOD_PACK=/path/to/manifest.mwpack'; exit 2; }
+	@real_mod_dir=$$(mktemp -d /tmp/mineways-real-mods.XXXXXX); \
+	  $(CXX) $(GUI_CXXFLAGS) $(SANITIZER_FLAGS) tests/real_mod_pack.cpp $(filter-out $(SRC_DIR)/ObjFileManip.cpp,$(CORE_SRCS)) MacCullingSchemes.cpp $(LDFLAGS) $(LIBS) -o "$$real_mod_dir/test" && \
+	  "$$real_mod_dir/test" "$(MOD_PACK)" "$$real_mod_dir/output"

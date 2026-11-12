@@ -65,7 +65,7 @@ The current implementation has these explicit limits:
 - Weighted alternatives use the first listed model. Animated textures use the first square frame. The report lists these approximations.
 - Custom Java renderers, custom model loaders, inverted elements, and UV coordinates outside 0–16 are unsupported. Biome and custom tints are reported but not applied.
 - PNG import supports non-interlaced 8-bit grayscale, RGB, indexed, grayscale-alpha, and RGBA images. The output always uses RGBA.
-- Imported textures use vacant atlas cells and are resampled to the selected terrain tile resolution. Atlas capacity is finite. Only albedo textures are imported.
+- Imported textures use vacant atlas cells and are resampled to the selected terrain tile resolution. This release has 915 vacant cells. The importer rejects larger packs before writing output, and the runtime checks capacity again. Select fewer mods or namespaces when the pack exceeds this limit. Only albedo textures are imported.
 - The runtime has a finite 12-bit block type space and supports at most 4096 observed states per imported block. Exceeding a limit must produce an error.
 
 The importer limits input files, decompressed asset bytes, PNG pixels, model parent depth, multipart combinations, and compiled elements. It rejects unsafe archive paths, duplicate archive entries, archive symlinks, and source symlinks. The runtime separately validates the compiled manifest and texture paths.
@@ -82,6 +82,26 @@ The fixture creates original test assets and `/tmp/mineways-mod-fixture/pack/man
 ## Native build checks
 
 The macOS `make -C Mac test-mods` target checks the importer, registry, and real export paths. The Windows CI workflow uses MSBuild for Debug and Release builds. Its mod test runner exercises the resulting native binaries. CI runs those checks on their respective operating systems. A local macOS run does not establish a Windows test result.
+
+## Test an installed mod pack
+
+Compile the assets into a pack first. The optional native smoke test selects actual model states and creates temporary exports. It does not open Minecraft or modify a saved world.
+
+```sh
+make -C Mac test-real-mods \
+  MOD_PACK=/path/to/compiled-pack/manifest.mwpack
+```
+
+This target compiles the shared native core with AddressSanitizer and UndefinedBehaviorSanitizer. It checks finite OBJ coordinates and valid face indices, exported texture pixels, repeat exports, and exact Sponge state and geometry round trips. It prints the temporary artifact directory. `selected-states.txt` lists the tested states. Model sampling is deterministic and does not validate every selector or provide a visual comparison with Minecraft.
+
+On November 12, 2026, this test passed on macOS with assets from the installed ATM10 8.3 instance and its Minecraft 1.21.1 client:
+
+| Imported subset | Loaded blocks / selectors / textures | Tested states | Exported faces | Pixel-checked textures |
+| --- | --- | --- | --- | --- |
+| AllTheModium 3.2.1 | 99 / 993 / 95 | 78 | 784 | 47 |
+| AllTheModium 3.2.1, Applied Energistics 2 19.2.18, Iron Furnaces 4.3.2, Simply Light 1.5.3 | 340 / 4192 / 441 | 100 | 1264 | 82 |
+
+Both runs used AddressSanitizer and UndefinedBehaviorSanitizer. The combined pack included three dimension metadata records. These tests checked block exports and did not navigate those dimensions. Its importer report identified 44 unsupported blocks and 64 approximation warnings. This is a tested subset of ATM10. Importing all 495 installed mod JARs exceeded the importer's archive-entry limit. No third-party mod assets are included in the repository.
 
 ## Compiled format
 
