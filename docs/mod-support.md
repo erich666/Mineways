@@ -73,6 +73,20 @@ Blockstate variants select a model. Multipart conditions expand into bounded pro
 
 The Lootr brushable adapter maps `dusted=0..3` to the supplied model stages. Its report notes that player-specific opened or looted appearance is unavailable.
 
+Narrow adapters for the inspected AE2 19.2.18 assets use the empty drive model, isolated quartz-glass appearance, and unlinked, unpowered spatial-pylon appearance. They do not reconstruct installed storage cells, activity indicators, or connections from block-entity data. `ae2:matrix_frame` is explicitly invisible, as in the mod. It produces no render geometry but retains its state through Sponge export and import. An empty model from another block does not automatically become invisible.
+
+The four Allthemodium 3.2.1 fluids use their actual still and flowing textures and the `level` property. Their flat surfaces approximate the fluid renderer. Neighbor slopes, vertical continuity, hidden internal faces, and emission are not reproduced. Reports identify these approximations. AE2's custom Z rotations are mapped to equivalent supported X/Y rotations when possible. Other orientations are reported as unsupported rather than silently using an incorrect orientation.
+
+Five definitions remain unsupported in the original four-mod subset:
+
+| Definition | Missing requirement |
+| --- | --- |
+| `ae2:paint` | The block entity's bounded `dots` payload supplies each decal's face, position, AEColor, and luminous flag. A palette state cannot identify those decals. |
+| `ae2:cable_bus` | The central cable and six directional part compounds identify cables, attachments, and facades. Connections and channel activity can also depend on neighboring blocks and runtime network state. |
+| `iceandfire:allthemodium_pile`, `iceandfire:unobtainium_pile`, `iceandfire:vibranium_pile` | Allthemodium ships blockstate references but no corresponding pile models. No installed JAR or local resource pack supplies them. The inspected Ice and Fire registry registers gold, silver, and copper piles, with no registration found for these three compatibility names. They appear to be stale compatibility resources. |
+
+Paint and cable support need a new modern block-entity data path. `nbtGetBlocks` currently retains only legacy `TileEntities` information, and `BlockEntity` holds four bytes. A bounded, position-keyed payload must survive chunk caching, reach the exporter, and round-trip through Sponge before those adapters can preserve actual block contents. Paint is the smaller first adapter. Cable rendering additionally needs versioned part parsers, facade models, and neighbor connections. Empty cable or paint proxy cubes would misrepresent the saved world.
+
 The current implementation has these explicit limits:
 
 - A state with no matching model selector uses the configured unknown-block fallback (bedrock by default in the application). Chunk loading reports its namespaced state and continues. This includes modern palettes that omit default properties when a mod provides only explicit property selectors: JSON assets do not reveal Java-defined defaults, so Mineways does not guess them. Sponge imports also use air for these states. Unsupported states cannot retain their identity when exported.
@@ -85,6 +99,21 @@ The current implementation has these explicit limits:
 The importer indexes archive entries and reads selected assets when needed. Compiled packs share model geometry across state selectors. The runtime validates texture headers when it loads the catalog and decodes only selected export textures. It releases decoded pixels after each export.
 
 The importer limits input files, decompressed asset bytes, PNG pixels, model parent depth, multipart combinations, and compiled elements. It rejects unsafe archive paths, duplicate relevant asset entries, archive symlinks, and source symlinks. The runtime separately validates the compiled manifest and texture paths.
+
+## Raising the active limits
+
+The catalog already holds the full installed ATM10 asset set. The remaining limits apply to observed blocks and selected export textures. Raising their constants alone would corrupt packed block IDs or overrun fixed texture tables. This pass assesses these migrations and retains the current limits.
+
+| Limit | Proposed next target | Required change |
+| --- | --- | --- |
+| 3,522 active mod block names | 64,975 mod names within 65,536 total type slots | Separate a 16-bit block type from the 16-bit state field throughout the chunk and schematic readers, cache, map, and exporters. |
+| 915 selected mod textures | Initially 4,096 selected mod textures | Allocate imported texture slots per export, independently of vacant vanilla terrain cells. Grow UV and material bookkeeping with those slots. |
+
+The block migration reaches `cache`, `nbt`, `region`, `MinewaysMap`, both platform shells, schematic buffers, instance hashes, and type-indexed tables. Instance hashes currently shift a signed type by 16 bits, so IDs above 32,767 also need unsigned hash storage and decoding. It must remove the type-extension nibble, byte casts, low-byte air checks, and hard-coded 12-bit type masks together. `BoxCell` already uses 16-bit types. The chunk grid does not. A 16-bit grid adds one byte per voxel: 96 KiB per full-height 384-block chunk, or about 562.5 MiB for 6,000 such cached chunks. A cache byte budget should accompany that change. State IDs can retain the present 4,096-per-block limit.
+
+The texture migration reaches `prepareModTextures`, swatch lookup, `Model::tileList`, UV lists, individual PNG writers, mosaics, PBR channels, and OBJ/USD/VRML material writers. `TOTAL_TILES` currently marks both the end of the vanilla table and the start of composite swatches. `NUM_MAX_SWATCHES` is also fixed at 4,096. Imported slots need their own metadata and a non-overlapping allocation range. Start with individual-image OBJ/USD exports, then add dynamic mosaic sizing and the remaining formats. Preserve the decoded-pixel budget and explicit allocation failures. Do not enlarge every terrain image or duplicate the full catalog's textures in memory.
+
+Required migration checks include active IDs at 4,095/4,096, 32,767/32,768, and 65,535, including low-byte-zero boundaries, exact schematic round trips, vanilla geometry parity, and one export with over 915 distinct selected textures. The existing large-catalog test selects only three textures and cannot establish that last property. Test individual images, mosaics, UV seams, PBR neutrality, repeat exports, and allocation failure on Windows Debug/Release and macOS sanitizers.
 
 ## Test without a Minecraft installation
 
@@ -114,10 +143,10 @@ On November 12, 2026, this test passed on macOS with assets from the installed A
 
 | Imported subset | Loaded blocks / selectors / textures | Tested states | Exported faces | Pixel-checked textures |
 | --- | --- | --- | --- | --- |
-| AllTheModium 3.2.1, Applied Energistics 2 19.2.18, Iron Furnaces 4.3.2, Simply Light 1.5.3 | 370 / 4335 / 453 | 120 | 1731 | 98 |
+| AllTheModium 3.2.1, Applied Energistics 2 19.2.18, Iron Furnaces 4.3.2, Simply Light 1.5.3 | 379 / 4343 / 469 | 146 | 2282 | 96 |
 | All 495 installed ATM10 mod JARs, plus the matching client assets | 42620 / 538155 / 30213 | 101 | 3360 | 119 |
 
-The four-mod run used AddressSanitizer and UndefinedBehaviorSanitizer and explicitly tested all four dusting stages of both Lootr brushable blocks. Its importer report lists 14 unsupported block definitions, 15 unsupported selectors, and 69 warnings. The initial importer rejected 44 block definitions in this subset. The pack includes three dimension metadata records. These checks tested block exports and did not navigate those dimensions.
+The latest four-mod run used AddressSanitizer and UndefinedBehaviorSanitizer. It explicitly tested 16 supported drive orientations, both quartz-glass blocks, the spatial pylon, invisible matrix-frame identity, and four levels of each fluid. Its importer report lists 5 unsupported block definitions, 103 unsupported selectors, and 84 warnings. The initial importer rejected 44 block definitions in this subset. The 103 unsupported selectors include 88 AE2 orientations that were previously accepted with an incorrect rotation. The other 15 were already unsupported. Earlier native tests also covered all four dusting stages of both Lootr brushable blocks. The pack includes three dimension metadata records. These checks tested block exports and did not navigate those dimensions.
 
 A separate actual-block regression verifies `justdirethings:goopatternblock[goostage=0]`. Its transparent top/map texture must not discard its visible side geometry. The native test checks its exported faces, texture pixels, and schematic round trip.
 
@@ -147,6 +176,8 @@ endstate
 A `geometry` record stores reusable elements and faces. Each `usemodel` references that geometry with its own blockstate rotations and UV-lock setting. A state can reference several models. `endgeometry` and `endstate` close their respective definitions. A new `element` record closes the previous element.
 
 Version 1 uses `model<TAB>x_degrees<TAB>y_degrees<TAB>uvlock_0_or_1` inside each state, followed by inline elements and faces. It does not use shared geometry records.
+
+Version 2 also permits an explicit `invisible` line between `state` and `endstate`. Such a state must have alpha zero and no models. It keeps a known block's schematic identity without rendering it. Unmarked empty states, mixed invisible/model states, and duplicate markers are invalid. Color and alpha otherwise describe the map sample, while face textures control exported opacity.
 
 The state color and alpha describe the map sample. Exported model opacity comes from its face textures.
 

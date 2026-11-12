@@ -65,8 +65,13 @@ static std::string blockMaterialName(int type, int state = -1)
 static float blockDataAlpha(int type, int dataVal)
 {
     // Imported map alpha describes one top face. Face textures supply export opacity.
-    if (GetModBlock(type, dataVal))
+    if (const auto* state = GetModBlock(type, dataVal)) {
+        const int fileType = gModel.options->pEFD->fileType;
+        // Invisible blocks still carry their identity in schematic exports.
+        if (state->definition->invisible && fileType != FILE_TYPE_SPONGE_SCHEMATIC && fileType != FILE_TYPE_SCHEMATIC)
+            return 0.0f;
         return 1.0f;
+    }
     return gBlockDefinitions[type].alpha;
 }
 

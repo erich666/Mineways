@@ -174,6 +174,58 @@ def exercise(executable, root):
     details = run(executable, root, 'roundtrip', [*common, 'Minecraft world: ' + str(exported),
                   'Selection location min to max: 0, 0, 0 to 2, 0, 0', 'Export Schematic: ' + str(second)])
     verify_schematic(second, names, details)
+    fluid_heights = []
+    for index, state in enumerate(['ae2:drive[facing=north,spin=0]',
+                                   'ae2:quartz_glass', 'ae2:spatial_pylon',
+                                   'allthemodium:molten_allthemodium_block[level=0]',
+                                   'allthemodium:molten_allthemodium_block[level=7]']):
+        label = f'adapter{index}'
+        source = root / (label + '.schem')
+        schematic(source, [state])
+        output = root / (label + '.obj')
+        roundtrip = root / (label + '-roundtrip.schem')
+        details = run(executable, root, label, [*common, 'Minecraft world: ' + str(source),
+                      'File type: Export individual textures to directory ' + label + 'tex',
+                      'Selection location min to max: 0, 0, 0 to 0, 0, 0',
+                      'Export for Rendering: ' + str(output), 'Export Schematic: ' + str(roundtrip)])
+        check_obj(output, details)
+        verify_schematic(roundtrip, [state], details)
+        assert list((root / (label + 'tex')).glob('*.png')), 'Adapter textures were not exported: ' + state
+        if '[level=' in state:
+            heights = [float(line.split()[2]) for line in output.read_text().splitlines()
+                       if line.startswith('v ')]
+            fluid_heights.append(max(heights) - min(heights))
+    assert fluid_heights[0] > fluid_heights[1] > 0, 'Fluid levels lost their distinct surface heights'
+    # Invisible models keep their state identity and leave neighboring cube faces intact.
+    invisible_names = ['fixture:cube[custom=left]', 'ae2:matrix_frame[custom=retained]',
+                       'fixture:cube[custom=right]']
+    invisible_input = root / 'invisible-input.schem'
+    schematic(invisible_input, invisible_names)
+    air_input = root / 'air-input.schem'
+    schematic(air_input, [invisible_names[0], 'minecraft:air', invisible_names[2]])
+    geometry = []
+    invisible_export = root / 'invisible-roundtrip.schem'
+    for label, source in [('invisible', invisible_input), ('air', air_input)]:
+        output = root / (label + '.obj')
+        commands = [*common, 'Minecraft world: ' + str(source),
+                    'File type: Export individual textures to directory ' + label + 'tex',
+                    'Selection location min to max: 0, 0, 0 to 2, 0, 0',
+                    'Export for Rendering: ' + str(output)]
+        if label == 'invisible':
+            commands.append('Export Schematic: ' + str(invisible_export))
+        details = run(executable, root, label, commands)
+        check_obj(output, details)
+        geometry.append([line for line in output.read_text().splitlines()
+                         if line.startswith(('v ', 'vn ', 'vt ', 'f '))])
+        if label == 'invisible':
+            verify_schematic(invisible_export, invisible_names, details)
+    assert geometry[0] == geometry[1], 'Invisible model changed visible geometry or occluded a neighbor'
+    invisible_second = root / 'invisible-roundtrip2.schem'
+    details = run(executable, root, 'invisible_roundtrip', [*common,
+                  'Minecraft world: ' + str(invisible_export),
+                  'Selection location min to max: 0, 0, 0 to 2, 0, 0',
+                  'Export Schematic: ' + str(invisible_second)])
+    verify_schematic(invisible_second, invisible_names, details)
     dim_obj = root / 'dimension.obj'
     details = run(executable, root, 'dimension', [*common, 'Minecraft world: ' + str(world_path),
                   'Dimension: fixture:moon', 'File type: Export individual textures to directory dimtex',
@@ -218,7 +270,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix='mineways mod windows ') as temporary:
         exercise(executable, Path(temporary))
     print('PASS: ' + ('portable Windows export fixtures' if executable is None else
-                     'native mod geometry, textures, schematic state round trips, custom dimensions, large catalogs, and syntax checks'))
+                     'native mod geometry, adapters, invisible states, textures, schematic round trips, custom dimensions, large catalogs, and syntax checks'))
 
 
 if __name__ == '__main__':

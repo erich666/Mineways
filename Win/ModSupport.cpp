@@ -197,10 +197,16 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
             geometry.reset();
             element = nullptr;
         }
+        else if (f[0] == "invisible") {
+            if (!sharedGeometry || !def || f.size() != 1 || def->invisible || !def->models.empty() || def->alpha != 0) return fail();
+            def->invisible = true;
+            model = nullptr;
+            element = nullptr;
+        }
         else if (f[0] == "usemodel") {
             ModModel m;
             int index, lock;
-            if (!sharedGeometry || !def || f.size() != 5 || def->models.size() >= 256 ||
+            if (!sharedGeometry || !def || def->invisible || f.size() != 5 || def->models.size() >= 256 ||
                 !integer(f[1], index, 0, (int)next.geometries.size() - 1) ||
                 !integer(f[2], m.x, 0, 270) || !integer(f[3], m.y, 0, 270) ||
                 m.x % 90 || m.y % 90 || !integer(f[4], lock, 0, 1)) return fail();
@@ -213,7 +219,7 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
         else if (f[0] == "model") {
             ModModel m;
             int lock;
-            if (!def || f.size() != 4 || def->models.size() >= 256 || !integer(f[1], m.x, 0, 270) || !integer(f[2], m.y, 0, 270) || m.x % 90 || m.y % 90 || !integer(f[3], lock, 0, 1)) return fail();
+            if (!def || def->invisible || f.size() != 4 || def->models.size() >= 256 || !integer(f[1], m.x, 0, 270) || !integer(f[2], m.y, 0, 270) || m.x % 90 || m.y % 90 || !integer(f[3], lock, 0, 1)) return fail();
             m.uvlock = lock != 0;
             def->models.push_back(std::move(m));
             model = &def->models.back();
@@ -253,7 +259,7 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
             element->faces.push_back(face);
         }
         else if (f[0] == "endstate") {
-            if (!def || f.size() != 1 || def->models.empty()) return fail();
+            if (!def || f.size() != 1 || (def->models.empty() && !def->invisible)) return fail();
             for (const auto& m : def->models) {
                 if (m.Elements().empty()) return fail();
                 for (const auto& e : m.Elements()) if (e.faces.empty()) return fail();

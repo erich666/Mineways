@@ -32,7 +32,8 @@ static std::wstring wide(const std::filesystem::path& path)
 }
 
 static void exportWorld(WorldGuide& world, const std::filesystem::path& path, int mode,
-                        bool detailed = true, bool doubled = false, bool printing = false, bool expectFailure = false)
+                        bool detailed = true, bool doubled = false, bool printing = false, bool expectFailure = false,
+                        bool expectEmpty = false)
 {
     ExportFileData settings = {};
     Options options = {};
@@ -67,6 +68,11 @@ static void exportWorld(WorldGuide& world, const std::filesystem::path& path, in
         0, world.sch.height - 1, progress, terrain, culling, &output,
         14, 3, 4189, nullptr, 16, biome, biomeIndex, groups, 0, nullptr);
     for (int i = 0; i < output.count; ++i) free(output.name[i]);
+    if (expectEmpty) {
+        assert(result == MW_NO_BLOCKS_FOUND);
+        assert(!std::filesystem::exists(path));
+        return;
+    }
     if (expectFailure) {
         assert(result >= MW_BEGIN_ERRORS);
         assert(!std::filesystem::exists(path));
@@ -250,9 +256,11 @@ int main(int argc, char** argv)
     assert(maps.size() == 7);
     for (const std::string& path : maps) assert(std::filesystem::is_regular_file(root / path));
     std::vector<int> usedTextures;
-    for (size_t i = 0; i < ModTextures().size(); ++i) usedTextures.push_back((int)i);
+    for (size_t i = 0; i < ModTextures().size(); ++i)
+        if (ModTextures()[i].name.compare(0, 8, "fixture:") == 0) usedTextures.push_back((int)i);
+    assert(usedTextures.size() == 7);
     assert(EnsureModTextures(usedTextures, error));
-    for (size_t i = 0; i < ModTextures().size(); ++i) {
+    for (int i : usedTextures) {
         std::vector<unsigned char> image;
         unsigned width, height;
         const std::wstring file = wide(root / "tex" / ("mw_mod_" + std::to_string(i) + ".png"));
@@ -354,5 +362,38 @@ int main(int argc, char** argv)
     for (const char* filename : {"zero-alpha-textured.obj", "zero-alpha-plain.obj", "zero-alpha-solid.obj"})
         assert(countLines(readText(root / filename), "f ") == 6);
     ClearCache(); ClearModPack();
+    // Invisible registered blocks survive Sponge round trips without adding render geometry or bounds.
+    const auto invisiblePath = std::filesystem::path(argv[1]).parent_path() / "invisible.mwpack";
+    { std::ofstream manifest(invisiblePath, std::ios::binary);
+      manifest << readText(argv[1]) << "state\tfixture:invisible\t000000\t0\ninvisible\nendstate\n";
+      assert(manifest.good()); }
+    assert(LoadModPack(invisiblePath.u8string(), error));
+    int invisibleType, invisibleState;
+    assert(ResolveModState("fixture:invisible[extra=retained]", &invisibleType, &invisibleState) == 1);
+    unsigned char invisibleBlocks[] = {(unsigned char)invisibleType};
+    unsigned short invisibleData[] = {PACK_TYPE_EXT_AND_DATAVAL(invisibleType, invisibleState)};
+    WorldGuide invisibleWorld = {};
+    invisibleWorld.type = WORLD_SCHEMATIC_TYPE;
+    invisibleWorld.sch = {invisibleBlocks, invisibleData, 1, 1, 1, 1, false, true};
+    exportWorld(invisibleWorld, root / "invisible.obj", 0, true, false, false, false, true);
+    exportWorld(invisibleWorld, root / "invisible.schem", 0);
+    WorldGuide invisibleRead = readSchematic(root / "invisible.schem");
+    assert(stateNames(invisibleRead) == stateNames(invisibleWorld));
+    exportWorld(invisibleRead, root / "invisible-roundtrip.obj", 0, true, false, false, false, true);
+    assert(ResolveModState("fixture:cube", &cube, &cubeState) == 1);
+    unsigned char mixedBlocks[] = {(unsigned char)invisibleType, 0, (unsigned char)cube};
+    unsigned short mixedData[] = {PACK_TYPE_EXT_AND_DATAVAL(invisibleType, invisibleState), 0,
+                                 PACK_TYPE_EXT_AND_DATAVAL(cube, cubeState)};
+    WorldGuide mixedWorld = invisibleWorld;
+    mixedWorld.sch = {mixedBlocks, mixedData, 3, 1, 1, 3, false, true};
+    exportWorld(mixedWorld, root / "invisible-mixed.obj", textures | EXPT_OUTPUT_SEPARATE_TEXTURE_TILES);
+    assert(countLines(readText(root / "invisible-mixed.obj"), "f ") == 6);
+    exportWorld(mixedWorld, root / "invisible-mixed.schem", 0);
+    WorldGuide mixedRead = readSchematic(root / "invisible-mixed.schem");
+    assert(stateNames(mixedRead) == stateNames(mixedWorld));
+    ClearCache();
+    free(invisibleRead.sch.blocks); free(invisibleRead.sch.data);
+    free(mixedRead.sch.blocks); free(mixedRead.sch.data);
+    ClearModPack();
     puts("PASS: mod UVs/pixels, geometry/alpha, OBJ/USD modes, states above 255, long names, dimensions, and schematic round trip");
 }

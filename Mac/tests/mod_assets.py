@@ -34,6 +34,31 @@ def simple(root, namespace='sample', color=(16, 64, 128, 255)):
     put(root, f'assets/{namespace}/blockstates/stone.json', {'variants': {'': {'model': f'{namespace}:block/stone'}}})
 
 
+def adapter_assets(root):
+    """Original test art with the exact resource identifiers used by verified adapters."""
+    for name in ('matrix_frame', 'drive', 'quartz_glass', 'quartz_vibrant_glass', 'spatial_pylon'):
+        model = 'quartz_glass' if name == 'quartz_vibrant_glass' else name
+        put(root, f'assets/ae2/models/block/{model}.json', {})
+        put(root, f'assets/ae2/blockstates/{name}.json', {'variants': {'': {'model': f'ae2:block/{model}'}}})
+    put(root, 'assets/ae2/textures/block/drive.png', mod.encode_png(2, 2, bytes((80, 100, 120, 255)) * 4))
+    put(root, 'assets/ae2/models/block/drive/drive_base.json', {'elements': [
+        {'from': [0, 0, 0], 'to': [12, 10, 16], 'faces': {side: {'texture': 'ae2:block/drive'} for side in mod.DIRECTIONS}}]})
+    put(root, 'assets/ae2/blockstates/drive.json', {'variants': {
+        'facing=north,spin=0': {'model': 'ae2:block/drive'},
+        'facing=north,spin=1': {'model': 'ae2:block/drive', 'ae2:z': 270},
+        'facing=north,spin=2': {'model': 'ae2:block/drive', 'ae2:z': 180}}})
+    put(root, 'assets/ae2/textures/block/glass/quartz_glass_a.png', mod.encode_png(4, 4, bytes((0, 0, 255, 128)) * 16))
+    frame = bytes(channel for y in range(4) for x in range(4)
+                  for channel in ((255, 0, 0, 255) if x in (0, 3) or y in (0, 3) else (0, 0, 0, 0)))
+    put(root, 'assets/ae2/textures/block/glass/quartz_glass_frame1111.png', mod.encode_png(4, 4, frame))
+    put(root, 'assets/ae2/textures/block/spatial_pylon/base.png', mod.encode_png(2, 2, bytes((128, 128, 128, 255)) * 4))
+    put(root, 'assets/ae2/textures/block/spatial_pylon/dim.png', mod.encode_png(2, 2, bytes((0, 0, 255, 128)) + bytes((0, 0, 0, 0)) * 3))
+    put(root, 'assets/allthemodium/models/block/fluid/molten.json', {'textures': {'particle': 'allthemodium:block/fluid/molten_still'}})
+    put(root, 'assets/allthemodium/blockstates/molten_allthemodium_block.json', {'variants': {'': {'model': 'allthemodium:block/fluid/molten'}}})
+    put(root, 'assets/allthemodium/textures/block/fluid/atm_molten_still.png', mod.encode_png(2, 2, bytes((255, 180, 10, 255)) * 4))
+    put(root, 'assets/allthemodium/textures/block/fluid/atm_molten_flow.png', mod.encode_png(2, 2, bytes((255, 100, 10, 255)) * 4))
+
+
 def build_fixture(root):
     """Create original assets for geometry/UV, alpha, state and schematic tests."""
     root = Path(root)
@@ -70,6 +95,7 @@ def build_fixture(root):
     with zipfile.ZipFile(long_archive, 'w') as archive:
         archive.writestr(f'assets/fixture/blockstates/{long_name}.json', json.dumps({'variants': {'': {'model': 'fixture:block/cube'}}}))
     put(source, 'data/fixture/dimension/moon.json', {'type': {'min_y': -64, 'height': 384, 'coordinate_scale': 2}})
+    adapter_assets(source)
     pack = root / 'pack'
     mod.compile_pack([source, long_archive], pack)
     return pack
@@ -425,6 +451,84 @@ class ImportTests(unittest.TestCase):
         self.assertEqual(run.returncode, 2)
         self.assertIn('provide a source path', run.stderr)
         self.assertFalse((self.root / 'empty').exists())
+
+    def test_verified_builtin_adapters_and_invisible_identity(self):
+        adapter_assets(self.source)
+        out, report = self.compile()
+        text = (out / 'manifest.mwpack').read_text()
+        self.assertIn('state\tae2:matrix_frame\t000000\t0\ninvisible\nendstate', text)
+        self.assertIn('element\t0\t0\t0\t12\t10\t16', text)
+        self.assertEqual(report['blocks'], 6)
+        self.assertEqual(report['unsupported'], [])
+        self.assertEqual(report['unsupported_states'][0]['state'], 'ae2:drive[facing=north,spin=1]')
+        self.assertTrue(any('empty-drive' in w for w in report['warnings']))
+        self.assertTrue(any('unpowered' in w for w in report['warnings']))
+        textures = {f[2]: out / f[3] for line in text.splitlines() if (f := line.split('\t'))[0] == 'texture'}
+        _, _, pixels = mod.decode_png(textures['mineways:ae2/quartz_glass_isolated'].read_bytes())
+        self.assertEqual(pixels[:4], bytes((255, 0, 0, 255)))
+        self.assertEqual(pixels[20:24], bytes((0, 0, 255, 128)))
+        _, _, pixels = mod.decode_png(textures['mineways:ae2/spatial_pylon_unlinked'].read_bytes())
+        self.assertEqual(pixels[:4], bytes((63, 63, 191, 255)))
+        self.assertEqual(pixels[4:8], bytes((128, 128, 128, 255)))
+        # A supplied standard override must take precedence over the curated adapter.
+        put(self.source, 'assets/ae2/models/block/matrix_frame.json', {'parent': 'minecraft:block/cube_all', 'textures': {'all': 'ae2:block/drive'}})
+        override, _ = self.compile('override')
+        state = (override / 'manifest.mwpack').read_text().split('state\tae2:matrix_frame\t', 1)[1].split('endstate', 1)[0]
+        self.assertIn('usemodel', state)
+        self.assertNotIn('invisible', state)
+
+    def test_fluid_levels_use_verified_textures_and_heights(self):
+        adapter_assets(self.source)
+        compiler = mod.Compiler(mod.Assets([self.source]))
+        states = compiler.block('allthemodium:molten_allthemodium_block',
+                                compiler.assets.json('assets/allthemodium/blockstates/molten_allthemodium_block.json'))
+        by_name = {state[0]: state[3][0]['elements'][0] for state in states}
+        for level in (0, 7, 8, 15):
+            element = by_name[f'allthemodium:molten_allthemodium_block[level={level}]']
+            self.assertAlmostEqual(element['coordinates'][4], 16 / 9 if level == 7 else 128 / 9)
+            faces = {face[0]: face for face in element['faces']}
+            self.assertEqual(faces['up'][-2], 'allthemodium:block/fluid/atm_molten_still')
+            self.assertEqual(faces['north'][-2], 'allthemodium:block/fluid/atm_molten_flow')
+            self.assertEqual(faces['north'][3:5], (8, 8))
+        self.assertEqual(len(states), 17)
+        compiler.assets.close()
+
+    def test_ae2_z_rotations_match_existing_axes_or_report_unsupported(self):
+        # Independent right-handed negative quarter turns from the verified JOML call.
+        self.assertEqual(mod.quarter_turn_orientation(90, 0), ((1, 0, 0), (0, 0, -1), (0, 1, 0)))
+        self.assertEqual(mod.quarter_turn_orientation(0, 90), ((0, 0, 1), (0, 1, 0), (-1, 0, 0)))
+        self.assertEqual(mod.quarter_turn_orientation(0, 0, 90), ((0, -1, 0), (1, 0, 0), (0, 0, 1)))
+        self.assertEqual(mod.quarter_turn_orientation(90, 90, 90), ((-1, 0, 0), (0, 0, 1), (0, 1, 0)))
+        simple(self.source)
+        compiler = mod.Compiler(mod.Assets([self.source]))
+        supported = unsupported = 0
+        for x in (0, 90, 180, 270):
+            for y in (0, 90, 180, 270):
+                for z in (0, 90, 180, 270):
+                    try:
+                        result = compiler.compile_model({'model': 'sample:block/stone', 'x': x, 'y': y, 'ae2:z': z})
+                    except mod.ImportError as error:
+                        self.assertIn('AE2 Z rotation', str(error))
+                        unsupported += 1
+                    else:
+                        a, b, _ = result['rotation']
+                        self.assertEqual(mod.quarter_turn_orientation(a, b), mod.quarter_turn_orientation(x, y, z))
+                        supported += 1
+        self.assertEqual((supported, unsupported), (48, 16))
+        self.assertEqual(compiler.compile_model({'model': 'sample:block/stone', 'ae2:z': 180})['rotation'][:2], (180, 180))
+        compiler.assets.close()
+
+    def test_standard_fluid_resource_override_takes_precedence(self):
+        adapter_assets(self.source)
+        put(self.source, 'assets/allthemodium/models/block/fluid/molten.json',
+            {'parent': 'minecraft:block/cube_all', 'textures': {'all': 'allthemodium:block/fluid/atm_molten_still'}})
+        compiler = mod.Compiler(mod.Assets([self.source]))
+        states = compiler.block('allthemodium:molten_allthemodium_block',
+                                compiler.assets.json('assets/allthemodium/blockstates/molten_allthemodium_block.json'))
+        self.assertEqual(len(states), 1)
+        self.assertEqual(states[0][3][0]['elements'][0]['coordinates'][4], 16)
+        self.assertFalse(any('flat fluid' in warning for warning in compiler.warnings))
+        compiler.assets.close()
 
     def test_output_is_never_overwritten(self):
         simple(self.source)

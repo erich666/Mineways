@@ -358,6 +358,25 @@ def cube_template(name):
                           'faces': {side: {'texture': texture, 'cullface': side} for side, texture in textures.items()}}]}
 
 
+def quarter_turn_orientation(x, y, z=0):
+    """AE2's verified Quaternion.rotateYXZ(-y, -x, -z), as exact integer axes."""
+    axes = []
+    for point in ((1, 0, 0), (0, 1, 0), (0, 0, 1)):
+        a, b, c = point
+        for _ in range(z // 90):
+            a, b = b, -a
+        for _ in range(x // 90):
+            b, c = c, -b
+        for _ in range(y // 90):
+            a, c = -c, a
+        axes.append((a, b, c))
+    return tuple(axes)
+
+
+def cube_model(texture):
+    return {'textures': {'all': texture}, **cube_template('minecraft:block/cube_all')}
+
+
 class Compiler:
     def __init__(self, assets):
         self.assets = assets
@@ -436,6 +455,80 @@ class Compiler:
             self.textures[name] = (encode_png(width, height, pixels), rgb, alpha)
         return name
 
+    def overlay_texture(self, name, base, overlay):
+        if name not in self.textures:
+            self.texture(base)
+            self.texture(overlay)
+            bw, _, bottom = decode_png(self.textures[base][0])
+            tw, _, top = decode_png(self.textures[overlay][0])
+            width = max(bw, tw)
+            pixels = bytearray()
+            for y in range(width):
+                for x in range(width):
+                    bi = ((y * bw // width) * bw + x * bw // width) * 4
+                    ti = ((y * tw // width) * tw + x * tw // width) * 4
+                    ba, ta = bottom[bi + 3], top[ti + 3]
+                    alpha = ta * 255 + ba * (255 - ta)
+                    pixels.extend((top[ti + c] * ta * 255 + bottom[bi + c] * ba * (255 - ta)) // max(1, alpha) for c in range(3))
+                    pixels.append((alpha + 127) // 255)
+            alpha_sum = sum(pixels[3::4])
+            rgb = [sum(pixels[i] * pixels[i + 3 - c] for i in range(c, len(pixels), 4)) // max(1, alpha_sum) for c in range(3)]
+            self.textures[name] = (encode_png(width, width, pixels), rgb, alpha_sum // (width * width))
+        return name
+
+    def builtin_adapter(self, name, model):
+        # These are narrow adapters for inspected AE2 19.2.18 built-in models.
+        # Never replace a supplied standard model with its static Java fallback.
+        if model != {'textures': {}}:
+            return model
+        if name == 'ae2:block/drive':
+            self.warnings.add('ae2:block/drive: empty-drive asset geometry; installed cells and activity lights require block-entity data')
+            return self.model('ae2:block/drive/drive_base')
+        if name == 'ae2:block/quartz_glass':
+            texture = self.overlay_texture('mineways:ae2/quartz_glass_isolated',
+                                           'ae2:block/glass/quartz_glass_a', 'ae2:block/glass/quartz_glass_frame1111')
+            self.warnings.add('ae2:block/quartz_glass: isolated glass frame with fixed pattern A; neighbor connections and random offsets are not evaluated')
+            return cube_model(texture)
+        if name == 'ae2:block/spatial_pylon':
+            texture = self.overlay_texture('mineways:ae2/spatial_pylon_unlinked',
+                                           'ae2:block/spatial_pylon/base', 'ae2:block/spatial_pylon/dim')
+            self.warnings.add('ae2:block/spatial_pylon: unlinked, unpowered appearance; connection and activity data require block-entity data')
+            return cube_model(texture)
+        return model
+
+    def fluid_definition(self, name, definition):
+        # Inspected Allthemodium 3.2.1 FluidType client extensions supply these
+        # actual still/flow textures. Particle textures in its JSON are generic.
+        prefixes = {'allthemodium:molten_allthemodium_block': 'atm_molten',
+                    'allthemodium:molten_vibranium_block': 'vibranium_molten',
+                    'allthemodium:molten_unobtainium_block': 'unobtainium_molten',
+                    'allthemodium:soul_lava_block': 'soul_lava'}
+        prefix = prefixes.get(name)
+        variants = definition.get('variants', {})
+        if not prefix or not isinstance(variants, dict) or len(variants) != 1 or '' not in variants:
+            return definition
+        expected = 'allthemodium:block/molten' if prefix == 'soul_lava' else 'allthemodium:block/fluid/molten'
+        if not isinstance(variants[''], dict) or variants[''].get('model') != expected:
+            return definition
+        original = self.model(expected)
+        if original.get('elements') or original.get('loader'):
+            return definition
+        variants = {}
+        for level in range(16):
+            # LiquidBlock uses source amount8, flowing amounts7..1, falling amount8.
+            # FlowingFluid.getOwnHeight is amount/9. Neighbor-height blending is omitted.
+            height = (8 if level == 0 or level >= 8 else 8 - level) * 16 / 9
+            faces = {side: {'texture': '#still' if side in ('up', 'down') else '#flow',
+                            'uv': [0, 0, 16, 16] if side in ('up', 'down') else [0, (16 - height) / 2, 8, 8]}
+                     for side in DIRECTIONS}
+            model = {'textures': {'still': f'allthemodium:block/fluid/{prefix}_still',
+                                  'flow': f'allthemodium:block/fluid/{prefix}_flow'},
+                     'elements': [{'from': [0, 0, 0], 'to': [16, height, 16], 'faces': faces}]}
+            variants[f'level={level}'] = {'model': model}
+        variants[''] = variants['level=0']
+        self.warnings.add(f'{name}: level-based flat fluid surface using actual still/flow textures; neighbor slopes, falling continuity, internal-face removal and light emission are not evaluated')
+        return {'variants': variants}
+
     def missing_texture(self, alias):
         name = 'mineways:missing_texture'
         self.warnings.add(f'{alias}: unresolved texture alias uses the Minecraft missing-texture checkerboard')
@@ -459,10 +552,24 @@ class Compiler:
         if any(type(angle) is not int or not -(2 ** 31) <= angle < 2 ** 31 or angle % 90 for angle in (x, y)):
             raise ImportError('blockstate rotations must be signed 32-bit integer multiples of 90')
         x, y = x % 360, y % 360
+        if 'ae2:z' in application:
+            z = application['ae2:z']
+            if type(z) is not int or z not in (0, 90, 180, 270):
+                raise ImportError('invalid AE2 Z rotation')
+            orientation = quarter_turn_orientation(x, y, z)
+            equivalent = next(((a, b) for a in (0, 90, 180, 270) for b in (0, 90, 180, 270)
+                               if quarter_turn_orientation(a, b) == orientation), None)
+            if equivalent is None:
+                raise ImportError('AE2 Z rotation cannot be represented by supported X/Y model rotations')
+            x, y = equivalent
         uvlock = application.get('uvlock', False)
         if not isinstance(uvlock, bool):
             raise ImportError('uvlock must be boolean')
         model = self.model(application['model'])
+        name = application['model']
+        if name == 'ae2:block/matrix_frame' and model == {'textures': {}}:
+            return {'rotation': (x, y, int(uvlock)), 'elements': [], 'invisible': True}
+        model = self.builtin_adapter(name, model)
         if model.get('loader') == 'lootr:brushable':
             stage = (selector or {}).get('dusted')
             if stage not in ('0', '1', '2', '3'):
@@ -543,6 +650,7 @@ class Compiler:
         return result
 
     def block(self, name, definition):
+        definition = self.fluid_definition(name, definition)
         selectors = []
         if 'variants' in definition:
             variants = definition['variants']
@@ -605,6 +713,9 @@ class Compiler:
                 if len(applications) > 256:
                     raise ImportError('state has more than 256 model applications')
                 models = [self.compile_model(value, selector=selector) for value in applications]
+                if models and all(model.get('invisible') for model in models):
+                    output.append((canonical(name, selector), [0, 0, 0], 0, []))
+                    continue
                 faces = [face for model in models for element in model['elements'] for face in element['faces']]
                 if not faces:
                     raise ImportError('state has no standard model faces')
@@ -703,6 +814,8 @@ def compile_pack(sources, destination, namespaces=None):
                 selector_count += len(block)
                 for selector, color, alpha, models in block:
                     state_stream.write(f'state\t{selector}\t' + ''.join(f'{c:02x}' for c in color) + f'\t{alpha}\n')
+                    if not models:
+                        state_stream.write('invisible\n')
                     for model in models:
                         signature = hashlib.sha256(json.dumps(model['elements'], sort_keys=True, separators=(',', ':')).encode()).digest()
                         index = geometry_ids.get(signature)

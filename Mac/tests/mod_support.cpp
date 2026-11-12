@@ -243,5 +243,25 @@ int main(int argc, char** argv) {
     writeFile(path, invalidReference);
     assert(!LoadModPack(path.u8string(), error) && GetModBlock(a, av));
     ClearModPack();
+    const std::string invisible = "MINEWAYS_MOD_PACK\t2\nstate\tae2:matrix_frame\t000000\t0\ninvisible\nendstate\n";
+    writeFile(path, invisible);
+    assert(LoadModPack(path.u8string(), error) && ModTextures().empty());
+    assert(ResolveModState("ae2:matrix_frame[retained=true]", &type2, &state2) == 1);
+    assert(GetModBlock(type2, state2)->definition->invisible && GetModBlock(type2, state2)->definition->models.empty());
+    assert(spongeBuildBlockStateString(type2, state2, canonical, sizeof(canonical)) > 0);
+    assert(std::string(canonical) == "ae2:matrix_frame[retained=true]");
+    assert(spongeParseStateString(canonical, &a, &av) && a == type2 && av == state2);
+    for (const std::string& invalid : {
+            std::string("MINEWAYS_MOD_PACK\t2\nstate\tlab:bad\t000000\t0\nendstate\n"),
+            std::string("MINEWAYS_MOD_PACK\t1\nstate\tlab:bad\t000000\t0\ninvisible\nendstate\n"),
+            std::string("MINEWAYS_MOD_PACK\t2\nstate\tlab:bad\t000000\t255\ninvisible\nendstate\n"),
+            std::string("MINEWAYS_MOD_PACK\t2\nstate\tlab:bad\t000000\t0\ninvisible\ninvisible\nendstate\n"),
+            std::string("MINEWAYS_MOD_PACK\t2\nstate\tlab:bad\t000000\t0\ninvisible\nmodel\t0\t0\t0\nendstate\n"),
+            sharedPrefix + "geometry\t0\n" + geometry + "endgeometry\nstate\tlab:bad\t000000\t0\ninvisible\nusemodel\t0\t0\t0\t0\nendstate\n",
+            sharedPrefix + "geometry\t0\n" + geometry + "endgeometry\nstate\tlab:bad\t000000\t0\nusemodel\t0\t0\t0\t0\ninvisible\nendstate\n"}) {
+        writeFile(path, invalid);
+        assert(!LoadModPack(path.u8string(), error) && GetModBlock(type2, state2)->definition->invisible);
+    }
+    ClearModPack();
     puts("PASS: mod pack validation, namespace isolation, chunk palettes, state round trips, concurrency and capacity");
 }

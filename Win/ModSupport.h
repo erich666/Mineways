@@ -55,6 +55,7 @@ struct ModStateModel {
     std::map<std::string, std::string> properties;
     unsigned color = 0;
     unsigned alpha = 255;
+    bool invisible = false;
     std::vector<ModModel> models;
 };
 
