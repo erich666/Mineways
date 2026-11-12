@@ -286,6 +286,34 @@ class ImportTests(unittest.TestCase):
         self.assertEqual(mod.decode_png((out / 'textures/0000.png').read_bytes()), (4, 4, bytes((255, 0, 0, 255)) * 16))
         self.assertTrue(any('unconnected tile' in w for w in report['warnings']))
 
+    def test_fusion_full_padded_sheet(self):
+        simple(self.source)
+        pixels = bytes((255, 0, 0, 255)) + bytes((0, 255, 0, 255)) * 63
+        put(self.source, 'assets/sample/textures/block/stone.png', mod.encode_png(8, 8, pixels))
+        put(self.source, 'assets/sample/textures/block/stone.png.mcmeta', {'fusion': {'type': 'connecting', 'layout': 'full'}})
+        out, report = self.compile()
+        self.assertEqual(mod.decode_png((out / 'textures/0000.png').read_bytes()), (1, 1, bytes((255, 0, 0, 255))))
+        self.assertEqual(report['blocks'], 1)
+        put(self.source, 'assets/sample/textures/block/stone.png.mcmeta', {'fusion': {'type': 'connecting', 'layout': 'full'}, 'animation': {}})
+        with self.assertRaisesRegex(mod.ImportError, 'cannot contain animation'):
+            self.compile('animated')
+
+    def test_lootr_preserves_each_dusted_stage(self):
+        simple(self.source)
+        model = {'loader': 'lootr:brushable', 'opened': {'parent': 'sample:absent_player_model'}}
+        for index in range(4):
+            put(self.source, f'assets/sample/textures/block/stage_{index}.png', mod.encode_png(1, 1, bytes((index * 60, 0, 0, 255))))
+            model[f'stage_{index}'] = {'parent': 'minecraft:block/cube_all', 'textures': {'all': f'sample:block/stage_{index}'}}
+        put(self.source, 'assets/sample/models/block/brushable.json', model)
+        put(self.source, 'assets/sample/blockstates/brushable.json', {'variants': {
+            f'dusted={index}': {'model': 'sample:block/brushable'} for index in range(4)}})
+        out, report = self.compile()
+        text = (out / 'manifest.mwpack').read_text()
+        for index in range(4):
+            self.assertIn(f'state\tsample:brushable[dusted={index}]\t{index * 60:02x}0000\t255', text)
+        self.assertTrue(any('player-opened' in warning for warning in report['warnings']))
+        self.assertEqual(report['unsupported'], [])
+
     def test_packed_png_and_trailing_bytes(self):
         def packed(depth, color, width, row, extra=b''):
             return (b'\x89PNG\r\n\x1a\n' + mod.png_chunk(b'IHDR', struct.pack('>IIBBBBB', width, 1, depth, color, 0, 0, 0))

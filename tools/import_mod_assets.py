@@ -380,7 +380,7 @@ class Compiler:
             own = self.assets.json(path) if path in self.assets.files else cube_template(name)
         if own is None:
             raise ImportError('missing model: ' + name)
-        if 'loader' in own and own['loader'] not in ('neoforge:composite', 'forge:composite', 'fusion:model'):
+        if 'loader' in own and own['loader'] not in ('neoforge:composite', 'forge:composite', 'fusion:model', 'lootr:brushable'):
             raise ImportError('custom model loader: ' + str(own['loader']))
         if own.get('loader') == 'fusion:model':
             if own.get('type', 'base') not in ('base', 'connecting', 'fusion:base', 'fusion:connecting'):
@@ -415,7 +415,12 @@ class Compiler:
                         raise ImportError('unsupported Fusion texture layout: ' + str(layout))
                     cols, rows = grids[layout]
                     tile = width // cols
-                    if width % cols or not tile or height % (rows * tile):
+                    sheet_height = height
+                    if layout == 'full' and width == height:
+                        if 'animation' in metadata:
+                            raise ImportError('padded full Fusion sheets cannot contain animation metadata: ' + name)
+                        sheet_height = height * 6 // 8
+                    if width % cols or not tile or sheet_height % (rows * tile):
                         raise ImportError('invalid Fusion texture sheet dimensions: ' + name)
                     pixels = b''.join(pixels[y * width * 4:(y * width + tile) * 4] for y in range(tile))
                     width = height = tile
@@ -440,7 +445,7 @@ class Compiler:
             self.textures[name] = (encode_png(16, 16, pixels), [127, 0, 127], 255)
         return name
 
-    def compile_model(self, application, depth=0):
+    def compile_model(self, application, depth=0, selector=None):
         if depth >= 64:
             raise ImportError('excessive composite model depth')
         if isinstance(application, list):
@@ -458,6 +463,15 @@ class Compiler:
         if not isinstance(uvlock, bool):
             raise ImportError('uvlock must be boolean')
         model = self.model(application['model'])
+        if model.get('loader') == 'lootr:brushable':
+            stage = (selector or {}).get('dusted')
+            if stage not in ('0', '1', '2', '3'):
+                raise ImportError('Lootr brushable model requires an explicit dusted=0..3 selector')
+            child = model.get('stage_' + stage)
+            if not isinstance(child, dict):
+                raise ImportError('missing Lootr brushable stage model: ' + stage)
+            self.warnings.add(f'{application["model"]}: Lootr uses dusted stage without player-opened appearance; player data is not in the block palette')
+            return self.compile_model({'model': child, 'x': x, 'y': y, 'uvlock': uvlock}, depth + 1, selector)
         if model.get('loader') in ('neoforge:composite', 'forge:composite'):
             if any(key in model for key in ('transform', 'visibility')):
                 raise ImportError('composite root transforms and visibility require explicit replacement models')
@@ -468,7 +482,7 @@ class Compiler:
                 raise ImportError('composite child must be an inline model object')
             elements = []
             for child in children.values():
-                elements.extend(self.compile_model({'model': child}, depth + 1)['elements'])
+                elements.extend(self.compile_model({'model': child}, depth + 1, selector)['elements'])
             if len(elements) > MAX_ELEMENTS:
                 raise ImportError('composite element count exceeds limit')
             return {'rotation': (x, y, int(uvlock)), 'elements': elements}
@@ -590,7 +604,7 @@ class Compiler:
             try:
                 if len(applications) > 256:
                     raise ImportError('state has more than 256 model applications')
-                models = [self.compile_model(value) for value in applications]
+                models = [self.compile_model(value, selector=selector) for value in applications]
                 faces = [face for model in models for element in model['elements'] for face in element['faces']]
                 if not faces:
                     raise ImportError('state has no standard model faces')
