@@ -64,8 +64,9 @@ static std::string blockMaterialName(int type, int state = -1)
 
 static float blockDataAlpha(int type, int dataVal)
 {
-    if (const auto* state = GetModBlock(type, dataVal))
-        return (float)state->definition->alpha / 255.0f;
+    // Imported map alpha describes one top face. Face textures supply export opacity.
+    if (GetModBlock(type, dataVal))
+        return 1.0f;
     return gBlockDefinitions[type].alpha;
 }
 

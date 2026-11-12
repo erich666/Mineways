@@ -65,7 +65,10 @@ def large_catalog(root):
         lines.append(f'texture\t{index}\tcatalog:texture_{index}\ttextures/{index}.png')
     for index in range(block_count):
         texture = (index - block_count + texture_count) % texture_count
-        lines.extend([f'state\tcatalog:block_{index}\t808080\t255',
+        # A transparent map sample must not remove a model whose face textures are visible.
+        # All selected blocks use alpha zero so dropping them cannot pass the geometry check.
+        alpha = 0 if index >= block_count - 3 else 255
+        lines.extend([f'state\tcatalog:block_{index}\t808080\t{alpha}',
                       'model\t0\t0\t0',
                       'element\t0\t0\t0\t16\t16\t16\tnone\t0\t8\t8\t8\t0'])
         for side in ['down', 'up', 'north', 'south', 'west', 'east']:
