@@ -25,6 +25,7 @@ struct Pack {
     std::string path;
     std::vector<ModTexture> textures;
     std::vector<ModDimension> dimensions;
+    std::vector<std::shared_ptr<const std::vector<ModElement>>> geometries;
     std::map<std::string, std::unique_ptr<ModBlock>> blocks;
     ModBlock* byType[MAX_BLOCK_TYPES] = {};
     int typeLimit = NUM_BLOCKS_DEFINED;
@@ -102,33 +103,22 @@ bool contained(const std::filesystem::path& root, const std::filesystem::path& f
     for (; a != root.end(); ++a, ++b) if (b == file.end() || *a != *b) return false;
     return b != file.end();
 }
-bool fullCube(const ModStateModel& def, const std::vector<ModTexture>& textures) {
-    if (def.alpha != 255 || def.models.size() != 1 || def.models[0].elements.size() != 1) return false;
-    const ModElement& element = def.models[0].elements[0];
-    if (element.angle != 0 || element.faces.size() != 6) return false;
-    for (int i = 0; i < 3; ++i) if (element.from[i] != 0 || element.to[i] != 16) return false;
-    for (const ModFace& face : element.faces) {
-        if (!textures[face.texture].opaque) return false;
-    }
-    return true;
-}
 bool readPack(const std::string& path, Pack& next, std::string& error) {
     const auto source = std::filesystem::canonical(std::filesystem::u8path(path));
     const auto root = source.parent_path();
-    if (!std::filesystem::is_regular_file(source) || std::filesystem::file_size(source) > 64 * 1024 * 1024) { error = "Manifest is missing or exceeds 64 MiB."; return false; }
+    if (!std::filesystem::is_regular_file(source) || std::filesystem::file_size(source) > 512 * 1024 * 1024) { error = "Manifest is missing or exceeds 512 MiB."; return false; }
     std::ifstream stream(source, std::ios::binary);
     std::string line;
     if (!std::getline(stream, line)) { error = "Cannot read manifest."; return false; }
     if (!line.empty() && line.back() == '\r') line.pop_back();
-    if (line != "MINEWAYS_MOD_PACK\t1") { error = "Unsupported mod pack format."; return false; }
+    const bool sharedGeometry = line == "MINEWAYS_MOD_PACK\t2";
+    if (!sharedGeometry && line != "MINEWAYS_MOD_PACK\t1") { error = "Unsupported mod pack format."; return false; }
+    std::shared_ptr<std::vector<ModElement>> geometry;
     ModStateModel* def = nullptr;
     ModModel* model = nullptr;
     ModElement* element = nullptr;
-    size_t lineNumber = 1, decodedBytes = 0, elementCount = 0, definitionCount = 0;
+    size_t lineNumber = 1, elementCount = 0, definitionCount = 0;
     std::set<std::string> selectors;
-    size_t textureCapacity = 0;
-    for (const auto& tile : gTilesTable)
-        if ((!tile.filename || !*tile.filename) && tile.spanX == 0 && tile.spanY == 0) ++textureCapacity;
     while (std::getline(stream, line)) {
         ++lineNumber;
         if (!line.empty() && line.back() == '\r') line.pop_back();
@@ -137,7 +127,7 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
         if (line.size() > 16384 || line.find('\0') != std::string::npos) return fail();
         const auto f = fields(line);
         if (f[0] == "dimension") {
-            if (def || f.size() != 5 || next.dimensions.size() >= 256) return fail();
+            if (def || geometry || f.size() != 5 || next.dimensions.size() >= 256) return fail();
             ModDimension dimension;
             std::string canonical;
             std::map<std::string, std::string> props;
@@ -150,8 +140,7 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
         }
         else if (f[0] == "texture") {
             int index;
-            if (def || f.size() != 4 || !integer(f[1], index, 0, 4095) || index != (int)next.textures.size()) return fail();
-            if (next.textures.size() >= textureCapacity) { error = "Mod pack exceeds the terrain atlas capacity of " + std::to_string(textureCapacity) + " additional textures."; return false; }
+            if (def || geometry || f.size() != 4 || !integer(f[1], index, 0, 131071) || index != (int)next.textures.size()) return fail();
             std::string name, canonical;
             std::map<std::string, std::string> props;
             if (!parseState(f[2], name, props, canonical) || !props.empty()) return fail();
@@ -160,22 +149,20 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
             const auto texturePath = std::filesystem::canonical(root / relative);
             if (!contained(root, texturePath) || !std::filesystem::is_regular_file(texturePath) || std::filesystem::file_size(texturePath) > 32 * 1024 * 1024) return fail();
             std::ifstream image(texturePath, std::ios::binary);
-            const std::vector<unsigned char> bytes((std::istreambuf_iterator<char>(image)), std::istreambuf_iterator<char>());
+            std::vector<unsigned char> bytes(33);
+            if (!image.read((char*)bytes.data(), (std::streamsize)bytes.size())) return fail();
             ModTexture texture;
             texture.name = f[2];
+            texture.sourcePath = texturePath.u8string();
             LodePNGState png;
             lodepng_state_init(&png);
             const unsigned inspect = lodepng_inspect(&texture.width, &texture.height, &png, bytes.data(), bytes.size());
             lodepng_state_cleanup(&png);
             if (inspect || !texture.width || texture.width > 4096 || texture.width != texture.height) { error = "Textures must be square PNGs, at most 4096 pixels wide."; return false; }
-            decodedBytes += (size_t)texture.width * texture.height * 4;
-            if (decodedBytes > 256 * 1024 * 1024) { error = "Decoded textures exceed 256 MiB."; return false; }
-            if (lodepng::decode(texture.rgba, texture.width, texture.height, bytes)) { error = "Invalid PNG texture."; return false; }
-            for (size_t i = 3; i < texture.rgba.size(); i += 4) if (texture.rgba[i] != 255) { texture.opaque = false; break; }
             next.textures.push_back(std::move(texture));
         }
         else if (f[0] == "state") {
-            if (def || f.size() != 4 || ++definitionCount > 65536) return fail();
+            if (def || geometry || f.size() != 4 || ++definitionCount > 1000000) return fail();
             ModStateModel d;
             std::string name;
             if (!parseState(f[1], name, d.properties, d.selector) || name.compare(0, 10, "minecraft:") == 0 || !selectors.insert(d.selector).second || f[2].size() != 6) return fail();
@@ -186,16 +173,40 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
             d.alpha = (unsigned)alpha;
             auto& block = next.blocks[name];
             if (!block) {
-                while ((next.typeLimit & 255) == 0) ++next.typeLimit;
-                if (next.typeLimit >= MAX_BLOCK_TYPES) { error = "Mod block count exceeds the 12-bit block capacity."; return false; }
+                if (next.blocks.size() > 100000) { error = "Mod catalog exceeds 100000 block definitions."; return false; }
                 block.reset(new ModBlock);
                 block->name = name;
                 block->displayName = name.size() > 96 ? name.substr(0, 77) + "..." + name.substr(name.size() - 16) : name;
-                block->type = next.typeLimit++;
-                next.byType[block->type] = block.get();
             }
             block->definitions.push_back(std::move(d));
             def = &block->definitions.back();
+            model = nullptr;
+            element = nullptr;
+        }
+        else if (f[0] == "geometry") {
+            int index;
+            if (!sharedGeometry || def || geometry || f.size() != 2 ||
+                !integer(f[1], index, 0, 249999) || index != (int)next.geometries.size()) return fail();
+            geometry = std::make_shared<std::vector<ModElement>>();
+            element = nullptr;
+        }
+        else if (f[0] == "endgeometry") {
+            if (!geometry || f.size() != 1 || geometry->empty()) return fail();
+            for (const auto& e : *geometry) if (e.faces.empty()) return fail();
+            next.geometries.push_back(geometry);
+            geometry.reset();
+            element = nullptr;
+        }
+        else if (f[0] == "usemodel") {
+            ModModel m;
+            int index, lock;
+            if (!sharedGeometry || !def || f.size() != 5 || def->models.size() >= 256 ||
+                !integer(f[1], index, 0, (int)next.geometries.size() - 1) ||
+                !integer(f[2], m.x, 0, 270) || !integer(f[3], m.y, 0, 270) ||
+                m.x % 90 || m.y % 90 || !integer(f[4], lock, 0, 1)) return fail();
+            m.geometry = next.geometries[index];
+            m.uvlock = lock != 0;
+            def->models.push_back(std::move(m));
             model = nullptr;
             element = nullptr;
         }
@@ -209,7 +220,7 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
             element = nullptr;
         }
         else if (f[0] == "element") {
-            if (!model || f.size() != 13 || ++elementCount > 65536) return fail();
+            if ((!model && !geometry) || f.size() != 13 || ++elementCount > 4000000) return fail();
             ModElement e;
             double value;
             for (int i = 0; i < 6; ++i) {
@@ -225,8 +236,10 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
             int rescale;
             if (!integer(f[12], rescale, 0, 1)) return fail();
             e.rescale = rescale != 0;
-            model->elements.push_back(std::move(e));
-            element = &model->elements.back();
+            auto& elements = geometry ? *geometry : model->elements;
+            if (elements.size() >= 2048) return fail();
+            elements.push_back(std::move(e));
+            element = &elements.back();
         }
         else if (f[0] == "face") {
             if (!element || f.size() != 9 || element->faces.size() >= 6) return fail();
@@ -242,30 +255,39 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
         else if (f[0] == "endstate") {
             if (!def || f.size() != 1 || def->models.empty()) return fail();
             for (const auto& m : def->models) {
-                if (m.elements.empty()) return fail();
-                for (const auto& e : m.elements) if (e.faces.empty()) return fail();
+                if (m.Elements().empty()) return fail();
+                for (const auto& e : m.Elements()) if (e.faces.empty()) return fail();
             }
             def = nullptr; model = nullptr; element = nullptr;
         }
         else return fail();
     }
-    if (stream.bad() || def || (next.blocks.empty() && next.dimensions.empty())) { error = "Incomplete or empty mod pack."; return false; }
+    if (stream.bad() || def || geometry || (next.blocks.empty() && next.dimensions.empty())) { error = "Incomplete or empty mod pack."; return false; }
     next.path = source.u8string();
-    for (auto& entry : next.blocks) {
-        ModBlock& block = *entry.second;
-        const ModStateModel& first = block.definitions.front();
-        std::unique_ptr<ModBlockState> initial(new ModBlockState);
-        initial->canonical = first.selector;
-        initial->definition = &first;
-        const auto waterlogged = first.properties.find("waterlogged");
-        initial->waterlogged = waterlogged != first.properties.end() && waterlogged->second == "true";
-        block.stateIds.emplace(first.selector, 0);
-        block.states.push_back(std::move(initial));
-        ++next.stateCount;
-        next.stateBytes += first.selector.size() * 2;
-    }
     return true;
 }
+}
+
+static void initializeBlockDefinition(ModBlock& block) {
+    const ModStateModel& first = block.definitions.front();
+    auto& d = gBlockDefinitions[block.type];
+    d.name = block.displayName.c_str();
+    d.read_color = d.color = first.color;
+    d.read_alpha = d.alpha = (float)first.alpha / 255.0f;
+    d.pcolor = ((unsigned)(((first.color >> 16) & 255) * d.alpha) << 16) | ((unsigned)(((first.color >> 8) & 255) * d.alpha) << 8) | (unsigned)((first.color & 255) * d.alpha);
+    d.txrX = 1; d.txrY = 0;
+    // Texture pixels are lazy. Conservative coverage avoids hiding neighbors before alpha is verified.
+    d.flags = BLF_ALMOST_WHOLE | BLF_TRUE_GEOMETRY | BLF_3D_BIT;
+    bool cube = true;
+    for (const auto& definition : block.definitions) {
+        if (definition.models.size() != 1 || definition.models[0].Elements().size() != 1) { cube = false; break; }
+        const auto& element = definition.models[0].Elements()[0];
+        if (element.angle != 0 || element.faces.size() != 6) { cube = false; break; }
+        for (int axis = 0; axis < 3; ++axis)
+            if (element.from[axis] != 0 || element.to[axis] != 16) cube = false;
+    }
+    // Neighbor connection geometry does not depend on whether alpha has been decoded.
+    if (cube) d.flags |= BLF_FENCE_NEIGHBOR;
 }
 
 bool CanonicalModState(const std::string& state, std::string& canonical) {
@@ -281,19 +303,6 @@ bool LoadModPack(const std::string& path, std::string& error) {
     std::lock_guard<std::mutex> lock(stateMutex);
     for (int i = NUM_BLOCKS_DEFINED; i < MAX_BLOCK_TYPES; ++i) gBlockDefinitions[i] = {};
     pack = std::move(next);
-    for (auto& entry : pack.blocks) {
-        ModBlock& block = *entry.second;
-        const ModStateModel& first = block.definitions.front();
-        auto& d = gBlockDefinitions[block.type];
-        d.name = block.displayName.c_str();
-        d.read_color = d.color = first.color;
-        d.read_alpha = d.alpha = (float)first.alpha / 255.0f;
-        d.pcolor = ((unsigned)(((first.color >> 16) & 255) * d.alpha) << 16) | ((unsigned)(((first.color >> 8) & 255) * d.alpha) << 8) | (unsigned)((first.color & 255) * d.alpha);
-        d.txrX = 1; d.txrY = 0;
-        bool whole = true;
-        for (const auto& definition : block.definitions) whole = whole && fullCube(definition, pack.textures);
-        d.flags = (whole ? BLF_WHOLE | BLF_FENCE_NEIGHBOR : BLF_ALMOST_WHOLE) | BLF_TRUE_GEOMETRY | BLF_3D_BIT;
-    }
     return true;
 }
 void ClearModPack() {
@@ -301,11 +310,12 @@ void ClearModPack() {
     pack = Pack();
     for (int i = NUM_BLOCKS_DEFINED; i < MAX_BLOCK_TYPES; ++i) gBlockDefinitions[i] = {};
 }
+bool ModPackLoaded() { return !pack.path.empty(); }
 const std::string& ModPackPath() { return pack.path; }
 const std::vector<ModTexture>& ModTextures() { return pack.textures; }
 const std::vector<ModDimension>& ModDimensions() { return pack.dimensions; }
-int ModBlockTypeLimit() { return pack.typeLimit; }
-bool IsModBlock(int type) { return type >= NUM_BLOCKS_DEFINED && type < MAX_BLOCK_TYPES && pack.byType[type] != nullptr; }
+int ModBlockTypeLimit() { std::lock_guard<std::mutex> lock(stateMutex); return pack.typeLimit; }
+bool IsModBlock(int type) { if (type < NUM_BLOCKS_DEFINED || type >= MAX_BLOCK_TYPES) return false; std::lock_guard<std::mutex> lock(stateMutex); return pack.byType[type] != nullptr; }
 bool HasModBlock(const std::string& name) { return pack.blocks.find(name) != pack.blocks.end(); }
 static int resolveModState(const std::string& state, int* type, int* dataVal) {
     if (!type || !dataVal) return -1;
@@ -328,6 +338,12 @@ static int resolveModState(const std::string& state, int* type, int* dataVal) {
         if (matches && (!selected || definition.properties.size() > selected->properties.size())) selected = &definition;
     }
     if (!selected) return 0;
+    int newType = block.type;
+    if (!newType) {
+        newType = pack.typeLimit;
+        while ((newType & 255) == 0) ++newType;
+        if (newType >= MAX_BLOCK_TYPES) return -1;
+    }
     // shortcut: the existing chunk format allows 4096 states per block; widen it before exceeding this limit.
     if (block.states.size() >= 4096 || pack.stateCount >= 131072 || pack.stateBytes + canonical.size() * 2 > 64 * 1024 * 1024) return -1;
     std::unique_ptr<ModBlockState> result(new ModBlockState);
@@ -341,6 +357,12 @@ static int resolveModState(const std::string& state, int* type, int* dataVal) {
     block.states.push_back(std::move(result));
     ++pack.stateCount;
     pack.stateBytes += canonical.size() * 2;
+    if (!block.type) {
+        block.type = newType;
+        initializeBlockDefinition(block);
+        pack.byType[newType] = &block;
+        pack.typeLimit = newType + 1;
+    }
     *type = block.type;
     *dataVal = index;
     return 1;
@@ -350,8 +372,9 @@ int ResolveModState(const std::string& state, int* type, int* dataVal) {
     catch (const std::bad_alloc&) { return -1; }
 }
 const ModBlockState* GetModBlock(int type, int dataVal) {
-    if (!IsModBlock(type) || dataVal < 0) return nullptr;
+    if (type < NUM_BLOCKS_DEFINED || type >= MAX_BLOCK_TYPES || dataVal < 0) return nullptr;
     std::lock_guard<std::mutex> lock(stateMutex);
+    if (!pack.byType[type]) return nullptr;
     const ModBlock& block = *pack.byType[type];
     return (size_t)dataVal < block.states.size() ? block.states[dataVal].get() : nullptr;
 }
@@ -359,4 +382,46 @@ const ModBlockState* GetModBlock(int type, int dataVal) {
 bool ModBlockWaterlogged(int type, int dataVal) {
     const ModBlockState* state = GetModBlock(type, dataVal & DATAVAL_MASK);
     return state && state->waterlogged;
+}
+
+bool EnsureModTextures(const std::vector<int>& indices, std::string& error) {
+    error.clear();
+    std::lock_guard<std::mutex> lock(stateMutex);
+    try {
+        std::map<int, std::vector<unsigned char>> decoded;
+        size_t decodedBytes = 0;
+        for (const auto& texture : pack.textures) decodedBytes += texture.rgba.size();
+        const auto root = std::filesystem::u8path(pack.path).parent_path();
+        for (int index : indices) {
+            if (index < 0 || (size_t)index >= pack.textures.size()) { error = "Invalid mod texture index."; return false; }
+            const auto& texture = pack.textures[index];
+            if (!texture.rgba.empty() || decoded.count(index)) continue;
+            decodedBytes += (size_t)texture.width * texture.height * 4;
+            if (decodedBytes > 256 * 1024 * 1024) { error = "Selected decoded mod textures exceed 256 MiB."; return false; }
+            const auto path = std::filesystem::canonical(std::filesystem::u8path(texture.sourcePath));
+            if (!contained(root, path) || !std::filesystem::is_regular_file(path) || std::filesystem::file_size(path) > 32 * 1024 * 1024) { error = "Mod texture path changed or exceeds the file limit."; return false; }
+            std::ifstream image(path, std::ios::binary);
+            const std::vector<unsigned char> bytes((std::istreambuf_iterator<char>(image)), std::istreambuf_iterator<char>());
+            unsigned width, height;
+            LodePNGState png;
+            lodepng_state_init(&png);
+            const unsigned inspect = lodepng_inspect(&width, &height, &png, bytes.data(), bytes.size());
+            lodepng_state_cleanup(&png);
+            if (inspect || width != texture.width || height != texture.height) { error = "Changed PNG texture dimensions: " + texture.name; return false; }
+            auto& rgba = decoded[index];
+            if (lodepng::decode(rgba, width, height, bytes) || width != texture.width || height != texture.height) { error = "Invalid or changed PNG texture: " + texture.name; return false; }
+        }
+        for (auto& entry : decoded) {
+            auto& texture = pack.textures[entry.first];
+            texture.rgba.swap(entry.second);
+            texture.opaque = true;
+            for (size_t i = 3; i < texture.rgba.size(); i += 4) if (texture.rgba[i] != 255) { texture.opaque = false; break; }
+        }
+        return true;
+    }
+    catch (const std::exception& e) { error = std::string("Cannot decode selected mod textures: ") + e.what(); return false; }
+}
+void ReleaseModTextures() {
+    std::lock_guard<std::mutex> lock(stateMutex);
+    for (auto& texture : pack.textures) std::vector<unsigned char>().swap(texture.rgba);
 }

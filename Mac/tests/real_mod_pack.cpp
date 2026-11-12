@@ -4,6 +4,7 @@
 #include <fstream>
 #include <sstream>
 #include <set>
+#include <chrono>
 
 static void progress(float, wchar_t*) {}
 
@@ -151,7 +152,11 @@ int main(int argc, char** argv)
     assert(std::filesystem::create_directory(output));
     SetSeparatorObj(L"/"); SetSeparatorMap(L"/"); nbtInitTables();
     std::string error;
+    const auto loadStart = std::chrono::steady_clock::now();
     if (!LoadModPack(argv[1], error)) { fprintf(stderr, "%s\n", error.c_str()); return 1; }
+    const double loadSeconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - loadStart).count();
+    for (const auto& texture : ModTextures()) assert(texture.rgba.empty());
+    printf("Catalog loaded in %.3f seconds with zero decoded textures.\n", loadSeconds);
     SetMapPremultipliedColors(0);
     std::map<std::string, std::vector<std::string>> byBlock;
     std::istringstream manifest(readText(argv[1]));
@@ -208,6 +213,7 @@ int main(int argc, char** argv)
         if (stem.compare(0, 7, "mw_mod_") != 0) continue;
         const size_t textureIndex = (size_t)std::stoul(stem.substr(7));
         assert(textureIndex < ModTextures().size());
+        assert(EnsureModTextures({(int)textureIndex}, error));
         const auto& original = ModTextures()[textureIndex];
         for (unsigned y = 0; y < h; ++y) for (unsigned x = 0; x < w; ++x)
             for (unsigned channel = 0; channel < 4; ++channel)

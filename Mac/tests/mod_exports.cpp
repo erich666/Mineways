@@ -119,8 +119,12 @@ static void checkCubeUVs(const std::string& text)
                 if (onPlane) side = candidate;
             }
             assert(side >= 0);
-            const int textureIndices[] = {0, 5, 2, 4, 6, 1};
-            assert(material == "mw_mod_" + std::to_string(textureIndices[side]));
+            const char* textureNames[] = {"down", "up", "north", "south", "west", "east"};
+            const std::string expectedTexture = std::string("fixture:block/") + textureNames[side];
+            size_t textureIndex = 0;
+            while (textureIndex < ModTextures().size() && ModTextures()[textureIndex].name != expectedTexture) ++textureIndex;
+            assert(textureIndex < ModTextures().size());
+            assert(material == "mw_mod_" + std::to_string(textureIndex));
             for (const auto& index : indices) {
                 const auto& p = vertices[index.first];
                 const auto& uv = uvs[index.second];
@@ -146,7 +150,9 @@ static void checkNeutralPBR()
         gModel.pInputTerrainImage[CATEGORY_NORMALS] = &normal;
         gModel.pInputTerrainImage[CATEGORY_ROUGHNESS] = &roughness;
         gTotalInputTextures = CATEGORY_ROUGHNESS + 1;
-        assert(prepareModTextures(format));
+        std::vector<int> used;
+        for (size_t i = 0; i < ModTextures().size(); ++i) used.push_back((int)i);
+        assert(prepareModTextures(format, used));
         for (int swatch : gModTextureSwatches) {
             const int left = swatchToCol(swatch) * 16, top = swatchToRow(swatch) * 16;
             for (int y = 0; y < 16; ++y) for (int x = 0; x < 16; ++x) {
@@ -243,6 +249,9 @@ int main(int argc, char** argv)
     while (std::getline(materialStream, line)) if (line.compare(0, 7, "map_Kd ") == 0) maps.insert(line.substr(7));
     assert(maps.size() == 7);
     for (const std::string& path : maps) assert(std::filesystem::is_regular_file(root / path));
+    std::vector<int> usedTextures;
+    for (size_t i = 0; i < ModTextures().size(); ++i) usedTextures.push_back((int)i);
+    assert(EnsureModTextures(usedTextures, error));
     for (size_t i = 0; i < ModTextures().size(); ++i) {
         std::vector<unsigned char> image;
         unsigned width, height;

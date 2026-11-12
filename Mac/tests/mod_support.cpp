@@ -36,13 +36,27 @@ int main(int argc, char** argv) {
     writeFile(path, manifest);
     std::string error;
     assert(LoadModPack(path.u8string(), error));
-    assert(error.empty() && ModTextures().size() == 1);
+    assert(error.empty() && ModTextures().size() == 1 && ModTextures()[0].rgba.empty());
+    assert(ModPackLoaded() && ModBlockTypeLimit() == NUM_BLOCKS_DEFINED);
+    assert(EnsureModTextures({0}, error) && !ModTextures()[0].rgba.empty());
+    const Bytes decoded = ModTextures()[0].rgba;
+    assert(!EnsureModTextures({1}, error) && ModTextures()[0].rgba == decoded);
+    ReleaseModTextures();
+    assert(ModTextures()[0].rgba.empty());
+    Bytes damaged = png;
+    damaged[damaged.size() / 2] ^= 0x80;
+    { std::ofstream image(dir / "textures/0.png", std::ios::binary); image.write((const char*)damaged.data(), damaged.size()); }
+    assert(!EnsureModTextures({0}, error) && ModTextures()[0].rgba.empty());
+    { std::ofstream image(dir / "textures/0.png", std::ios::binary); image.write((const char*)png.data(), png.size()); }
+    assert(EnsureModTextures({0}, error));
+    ReleaseModTextures();
     int stone, state, other, otherState;
     assert(ResolveModState("lab:stone[z=1,a=2]", &stone, &state) == 1);
     assert(ResolveModState("other:stone", &other, &otherState) == 1 && other != stone);
     assert(IsModBlock(stone) && !IsModBlock(1));
     assert(gBlockDefinitions[stone].read_color == 0xabcdef);
-    assert((gBlockDefinitions[stone].flags & BLF_WHOLE) != 0);
+    assert((gBlockDefinitions[stone].flags & BLF_ALMOST_WHOLE) != 0);
+    assert((gBlockDefinitions[stone].flags & BLF_FENCE_NEIGHBOR) != 0);
     char canonical[1024];
     assert(spongeBuildBlockStateString(stone, state, canonical, sizeof(canonical)) > 0);
     assert(std::string(canonical) == "lab:stone[a=2,z=1]");
@@ -158,11 +172,15 @@ int main(int argc, char** argv) {
     std::string tooManyTextures = "MINEWAYS_MOD_PACK\t1\n";
     for (size_t i = 0; i <= textureCapacity; ++i) tooManyTextures += "texture\t" + std::to_string(i) + "\tlab:texture_" + std::to_string(i) + "\ttextures/0.png\n";
     writeFile(path, tooManyTextures + cube("lab:new"));
-    assert(!LoadModPack(path.u8string(), error) && HasModBlock("lab:stone"));
-    assert(error.find("atlas capacity") != std::string::npos);
+    assert(LoadModPack(path.u8string(), error) && HasModBlock("lab:new"));
+    assert(ModTextures().size() > textureCapacity && ModTextures().back().rgba.empty());
+    assert(EnsureModTextures({(int)textureCapacity}, error));
+    assert(!ModTextures().back().rgba.empty() && ModTextures()[0].rgba.empty());
+    writeFile(path, manifest);
+    assert(LoadModPack(path.u8string(), error));
     int added = 0;
     for (; added < 5000; ++added) if (ResolveModState("lab:stone[limit=" + std::to_string(added) + "]", &type2, &state2) < 0) break;
-    assert(added < 4096);
+    assert(added == 4096);
     std::string many = prefix;
     for (int i = 0; i < 230; ++i) many += cube("lab:block_" + std::to_string(i));
     writeFile(path, many);
@@ -180,10 +198,19 @@ int main(int argc, char** argv) {
     }
     assert(aggregateRejected);
     many = prefix;
-    for (int i = 0; i < 3600; ++i) many += cube("lab:overflow_" + std::to_string(i));
+    for (int i = 0; i < 53000; ++i) many += cube("lab:overflow_" + std::to_string(i));
     writeFile(path, many);
-    assert(!LoadModPack(path.u8string(), error));
-    assert(HasModBlock("lab:block_229") && !HasModBlock("lab:overflow_0"));
+    assert(LoadModPack(path.u8string(), error));
+    assert(ModBlockTypeLimit() == NUM_BLOCKS_DEFINED && HasModBlock("lab:overflow_52999"));
+    assert(ResolveModState("lab:overflow_52999", &type2, &state2) == 1 && type2 == NUM_BLOCKS_DEFINED);
+    int active = 1;
+    for (int i = 0; i < 3600; ++i) {
+        if (ResolveModState("lab:overflow_" + std::to_string(i), &type2, &state2) < 0) break;
+        ++active;
+    }
+    assert(active == 3522);
+    assert(ResolveModState("lab:overflow_52999", &type2, &state2) == 1);
+    assert(ResolveModState("lab:overflow_52998", &type2, &state2) == -1);
     ClearModPack();
     assert(ModBlockTypeLimit() == NUM_BLOCKS_DEFINED && !IsModBlock(stone) && ModTextures().empty());
     writeFile(path, "MINEWAYS_MOD_PACK\t1\ndimension\tlab:moon\t-128\t512\t0.5\n");
@@ -196,5 +223,25 @@ int main(int argc, char** argv) {
     }
     ClearModPack();
     assert(ModDimensions().empty());
+    std::string sharedPrefix = prefix;
+    sharedPrefix.replace(sharedPrefix.find("\t1\n"), 3, "\t2\n");
+    const std::string full = cube("lab:template");
+    const std::string geometry = full.substr(full.find("element\t"), full.find("endstate") - full.find("element\t"));
+    const std::string shared = sharedPrefix + "geometry\t0\n" + geometry + "endgeometry\n" +
+        "state\tlab:shared_a\tabcdef\t255\nusemodel\t0\t0\t0\t0\nendstate\n" +
+        "state\tlab:shared_b\tabcdef\t255\nusemodel\t0\t90\t180\t1\nendstate\n";
+    writeFile(path, shared);
+    assert(LoadModPack(path.u8string(), error) && ModBlockTypeLimit() == NUM_BLOCKS_DEFINED);
+    int a, av, b, bv;
+    assert(ResolveModState("lab:shared_a", &a, &av) == 1 && ResolveModState("lab:shared_b", &b, &bv) == 1);
+    const auto& ma = GetModBlock(a, av)->definition->models[0];
+    const auto& mb = GetModBlock(b, bv)->definition->models[0];
+    assert(ma.geometry && ma.geometry == mb.geometry && ma.Elements().size() == 1 && ma.Elements()[0].faces.size() == 6);
+    assert(mb.x == 90 && mb.y == 180 && mb.uvlock);
+    std::string invalidReference = shared;
+    invalidReference.replace(invalidReference.find("usemodel\t0"), 10, "usemodel\t9");
+    writeFile(path, invalidReference);
+    assert(!LoadModPack(path.u8string(), error) && GetModBlock(a, av));
+    ClearModPack();
     puts("PASS: mod pack validation, namespace isolation, chunk palettes, state round trips, concurrency and capacity");
 }

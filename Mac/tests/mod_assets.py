@@ -134,7 +134,7 @@ class ImportTests(unittest.TestCase):
              'apply': [{'model': 'sample:block/child', 'x': 90, 'y': 270, 'uvlock': True}]}]})
         out, report = self.compile()
         text = (out / 'manifest.mwpack').read_text()
-        self.assertIn('model\t90\t270\t1', text)
+        self.assertRegex(text, r'usemodel\t\d+\t90\t270\t1')
         self.assertIn('element\t1\t2\t3\t9\t10\t11\tx\t22.5\t8\t8\t8\t1', text)
         self.assertIn('face\tnorth\t7\t6\t15\t14\t90', text)
         self.assertIn('sample:device[facing=north,powered=false]', text)
@@ -210,7 +210,8 @@ class ImportTests(unittest.TestCase):
             '': {'model': 'sample:block/stone', 'x': 360, 'y': -90}}})
         out, report = self.compile()
         self.assertEqual(report['unsupported'], [])
-        self.assertIn('model\t0\t270\t0', (out / 'manifest.mwpack').read_text())
+        self.assertIn('usemodel\t0\t0\t270\t0', (out / 'manifest.mwpack').read_text())
+        self.assertEqual(report['geometries'], 1)
 
     def test_texture_budget_fails_before_output(self):
         simple(self.source)
@@ -218,23 +219,113 @@ class ImportTests(unittest.TestCase):
         limit = mod.MAX_TEXTURES
         try:
             mod.MAX_TEXTURES = 1
-            with self.assertRaisesRegex(mod.ImportError, 'needs 2 textures.*1 vacant atlas'):
+            with self.assertRaisesRegex(mod.ImportError, 'texture catalog exceeds'):
                 self.compile()
         finally:
             mod.MAX_TEXTURES = limit
         self.assertFalse((self.root / 'out').exists())
 
-    def test_texture_budget_matches_native_atlas(self):
-        header = (ROOT / 'Win/tiles.h').read_text()
-        table = header.split('gTilesTable[TOTAL_TILES] = {', 1)[1].split('};', 1)[0]
-        table = re.sub(r'//[^\n]*|/\*.*?\*/', '', table, flags=re.S)
-        rows = [[field.strip() for field in row.split(',')] for row in re.findall(r'\{([^{}]*)\}', table)]
-        width = int(re.search(r'#define XTILES (\d+)', header)[1])
-        height = int(re.search(r'#define VERTICAL_TILES (\d+)', header)[1])
-        self.assertEqual(len(rows), width * height)
-        vacant = sum(row[4] in ('L""', 'nullptr', 'NULL', '0') and
-                     (len(row) == 7 or row[7:] == ['0', '0']) for row in rows)
-        self.assertEqual(mod.MAX_TEXTURES, vacant)
+    def test_catalog_exceeds_export_atlas_capacity(self):
+        for index in range(916):
+            simple(self.source, f'mod_{index}')
+        out, report = self.compile()
+        self.assertEqual(report['textures'], 916)
+        self.assertEqual(report['blocks'], 916)
+        self.assertEqual((out / 'manifest.mwpack').read_text().splitlines()[0], 'MINEWAYS_MOD_PACK\t2')
+
+    def test_composite_children_and_partial_states(self):
+        simple(self.source)
+        put(self.source, 'assets/sample/models/block/composite.json', {'loader': 'neoforge:composite', 'children': {
+            'solid': {'parent': 'sample:block/stone'}, 'glow': {'parent': 'sample:block/stone'}}})
+        put(self.source, 'assets/sample/models/block/custom.json', {'loader': 'sample:java'})
+        put(self.source, 'assets/sample/blockstates/composite.json', {'variants': {
+            'lit=true': {'model': 'sample:block/composite', 'x': 90},
+            'lit=false': {'model': 'sample:block/custom'}}})
+        out, report = self.compile()
+        self.assertEqual(report['blocks'], 2)
+        self.assertEqual(report['unsupported'], [])
+        self.assertEqual(report['unsupported_states'][0]['state'], 'sample:composite[lit=false]')
+        text = (out / 'manifest.mwpack').read_text()
+        self.assertRegex(text, r'usemodel\t\d+\t90\t0\t0')
+        self.assertEqual(report['elements'], 3)
+
+    def test_partial_failure_cannot_fall_through_generic_selector(self):
+        simple(self.source)
+        put(self.source, 'assets/sample/models/block/custom.json', {'loader': 'sample:java'})
+        put(self.source, 'assets/sample/blockstates/partial.json', {'variants': {
+            '': {'model': 'sample:block/stone'},
+            'facing=east': {'model': 'sample:block/custom'},
+            'facing=west': {'model': 'sample:block/stone'}}})
+        out, report = self.compile()
+        text = (out / 'manifest.mwpack').read_text()
+        self.assertIn('state\tsample:partial[facing=west]', text)
+        self.assertNotIn('state\tsample:partial\t', text)
+        self.assertEqual({r['state'] for r in report['unsupported_states']},
+                         {'sample:partial', 'sample:partial[facing=east]'})
+
+    def test_missing_alias_has_reported_checkerboard(self):
+        simple(self.source)
+        put(self.source, 'assets/sample/models/block/missing.json', {'elements': [
+            {'from': [0, 0, 0], 'to': [16, 16, 16], 'faces': {'up': {'texture': '#missing'}}}]})
+        put(self.source, 'assets/sample/blockstates/missing.json', {'variants': {'': {'model': 'sample:block/missing'}}})
+        out, report = self.compile()
+        self.assertEqual(report['blocks'], 2)
+        self.assertTrue(any('checkerboard' in warning for warning in report['warnings']))
+        self.assertIn('mineways:missing_texture', (out / 'manifest.mwpack').read_text())
+
+    def test_fusion_sheet_and_boolean_multipart(self):
+        simple(self.source)
+        pixels = bytes(c for y in range(4) for x in range(20) for c in ((255, 0, 0, 255) if x < 4 else (0, 255, 0, 255)))
+        put(self.source, 'assets/sample/textures/block/stone.png', mod.encode_png(20, 4, pixels))
+        put(self.source, 'assets/sample/textures/block/stone.png.mcmeta', {'fusion': {'type': 'connecting', 'layout': 'pieced'}})
+        put(self.source, 'assets/sample/blockstates/bool.json', {'multipart': [
+            {'when': {'north': True}, 'apply': {'model': 'sample:block/stone'}}]})
+        out, report = self.compile()
+        self.assertEqual(report['blocks'], 2)
+        self.assertIn('north=true', (out / 'manifest.mwpack').read_text())
+        self.assertEqual(mod.decode_png((out / 'textures/0000.png').read_bytes()), (4, 4, bytes((255, 0, 0, 255)) * 16))
+        self.assertTrue(any('unconnected tile' in w for w in report['warnings']))
+
+    def test_packed_png_and_trailing_bytes(self):
+        def packed(depth, color, width, row, extra=b''):
+            return (b'\x89PNG\r\n\x1a\n' + mod.png_chunk(b'IHDR', struct.pack('>IIBBBBB', width, 1, depth, color, 0, 0, 0))
+                    + extra + mod.png_chunk(b'IDAT', zlib.compress(b'\0' + row)) + mod.png_chunk(b'IEND', b''))
+        for depth, width, row, expected in ((1, 3, b'\xa0', [255, 0, 255]),
+                                          (2, 3, b'\x1c', [0, 85, 255]),
+                                          (4, 3, b'\x05\xf0', [0, 85, 255])):
+            rgba = mod.decode_png(packed(depth, 0, width, row))[2]
+            self.assertEqual(list(rgba[::4]), expected)
+        palette = mod.png_chunk(b'PLTE', bytes((255, 0, 0, 0, 255, 0, 0, 0, 255)))
+        rgba = mod.decode_png(packed(2, 3, 3, b'\x18', palette))[2]
+        self.assertEqual(rgba, bytes((255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255)))
+        original = mod.encode_png(1, 1, bytes((1, 2, 3, 255)))
+        seen = []
+        self.assertEqual(mod.decode_png(original + b'stale bytes', lambda: seen.append(True)), mod.decode_png(original))
+        self.assertEqual(seen, [True])
+        with self.assertRaisesRegex(mod.ImportError, 'trailing'):
+            mod.decode_png(original + b'stale bytes')
+
+    def test_lazy_assets_ignore_irrelevant_duplicate_metadata(self):
+        simple(self.source)
+        jar = self.root / 'metadata.jar'
+        with zipfile.ZipFile(jar, 'w') as archive:
+            archive.writestr('META-INF/LICENSE.txt', 'first')
+            with self.assertWarns(UserWarning):
+                archive.writestr('META-INF/LICENSE.txt', 'second')
+            for path in self.source.rglob('*'):
+                if path.is_file():
+                    archive.write(path, path.relative_to(self.source).as_posix())
+        assets = mod.Assets([jar])
+        self.assertEqual(len(assets.archives), 0)
+        self.assertNotIn('META-INF/LICENSE.txt', assets.files)
+        self.assertEqual(assets.json('assets/sample/blockstates/stone.json')['variants']['']['model'], 'sample:block/stone')
+        self.assertEqual(len(assets.archives), 1)
+        assets.close()
+        with zipfile.ZipFile(jar, 'a') as archive:
+            with self.assertWarns(UserWarning):
+                archive.writestr('assets/sample/blockstates/stone.json', '{}')
+        with self.assertRaisesRegex(mod.ImportError, 'duplicate archive entry'):
+            mod.Assets([jar])
 
     def test_rejected_models_do_not_consume_later_geometry_budget(self):
         simple(self.source)

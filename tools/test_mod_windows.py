@@ -36,16 +36,49 @@ def compound(name, body):
     return tag(10, name, body + b'\0')
 
 
-def schematic(path):
-    names = ['fixture:cube[custom=retained]', 'fixture:wedge[facing=east]', 'fixture:panel']
+def schematic(path, names=None):
+    if names is None:
+        names = ['fixture:cube[custom=retained]', 'fixture:wedge[facing=east]', 'fixture:panel']
+    assert 1 <= len(names) <= 127
     body = number('Version', 2) + number('DataVersion', 3953)
-    for name, value in [('Width', 3), ('Height', 1), ('Length', 1)]:
+    for name, value in [('Width', len(names)), ('Height', 1), ('Length', 1)]:
         body += tag(2, name, struct.pack('>h', value))
     body += number('PaletteMax', len(names))
     body += compound('Palette', b''.join(number(name, index) for index, name in enumerate(names)))
     body += tag(7, 'BlockData', struct.pack('>i', len(names)) + bytes(range(len(names))))
     path.write_bytes(gzip.compress(compound('Schematic', body)))
     return names
+
+
+
+def large_catalog(root):
+    """A catalog exceeds runtime slots while each selection needs only three IDs/textures."""
+    pack = root / 'large-catalog'
+    texture_dir = pack / 'textures'
+    texture_dir.mkdir(parents=True)
+    texture_count, block_count = 1200, 5000
+    lines = ['MINEWAYS_MOD_PACK\t1']
+    for index in range(texture_count):
+        # Every texture is distinct, so a content deduplication pass cannot hide the limit.
+        color = bytes((index & 255, index >> 8, 127, 255))
+        (texture_dir / f'{index}.png').write_bytes(FIXTURE.mod.encode_png(2, 2, color * 4))
+        lines.append(f'texture\t{index}\tcatalog:texture_{index}\ttextures/{index}.png')
+    for index in range(block_count):
+        texture = (index - block_count + texture_count) % texture_count
+        lines.extend([f'state\tcatalog:block_{index}\t808080\t255',
+                      'model\t0\t0\t0',
+                      'element\t0\t0\t0\t16\t16\t16\tnone\t0\t8\t8\t8\t0'])
+        for side in ['down', 'up', 'north', 'south', 'west', 'east']:
+            lines.append(f'face\t{side}\t0\t0\t16\t16\t0\t{texture}\t{side}')
+        lines.append('endstate')
+    manifest = pack / 'manifest.mwpack'
+    manifest.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+    names = [f'catalog:block_{index}[custom=retained]' for index in range(block_count - 3, block_count)]
+    input_path = root / 'large-input.schem'
+    schematic(input_path, names)
+    assert sum(line.startswith('state\t') for line in lines) == block_count
+    assert sum(line.startswith('texture\t') for line in lines) == texture_count
+    return manifest, input_path, names
 
 
 def region(path, name):
@@ -117,8 +150,9 @@ def exercise(executable, root):
     names = schematic(input_path)
     world_path = root / 'world'
     world(world_path)
+    catalog_manifest, catalog_input, catalog_names = large_catalog(root)
     assert gzip.decompress(input_path.read_bytes()).startswith(b'\x0a')
-    assert (pack / 'manifest.mwpack').read_text(encoding='utf-8').splitlines()[0] == 'MINEWAYS_MOD_PACK\t1'
+    assert (pack / 'manifest.mwpack').read_text(encoding='utf-8').splitlines()[0] in ('MINEWAYS_MOD_PACK\t1', 'MINEWAYS_MOD_PACK\t2')
     if executable is None:
         return
     common = ['Mod pack: ' + str(pack / 'manifest.mwpack'),
@@ -148,6 +182,24 @@ def exercise(executable, root):
     run(executable, root, 'invalid', [*common, 'Minecraft world: ' + str(world_path),
         'Dimension:', 'Export for Rendering: ' + str(bad_obj)], expect_success=False)
     assert not bad_obj.exists(), 'Invalid dimension command reached export'
+    catalog_obj = root / 'catalog.obj'
+    catalog_schematic = root / 'catalog.schem'
+    details = run(executable, root, 'large_catalog', [*common,
+        'Mod pack: ' + str(catalog_manifest), 'Minecraft world: ' + str(catalog_input),
+        'File type: Export individual textures to directory catalogtex',
+        'Selection location min to max: 0, 0, 0 to 2, 0, 0',
+        'Export for Rendering: ' + str(catalog_obj), 'Export Schematic: ' + str(catalog_schematic)])
+    check_obj(catalog_obj, details)
+    verify_schematic(catalog_schematic, catalog_names, details)
+    textures = list((root / 'catalogtex').glob('*.png'))
+    assert textures, 'Large catalog did not export selected textures'
+    observed_colors = set()
+    for texture in textures:
+        _, _, pixels = FIXTURE.mod.decode_png(texture.read_bytes())
+        observed_colors.update(tuple(pixels[i:i + 4]) for i in range(0, len(pixels), 4))
+    for index in range(1197, 1200):
+        assert (index & 255, index >> 8, 127, 255) in observed_colors, 'Late catalog texture was lost'
+
 
 
 def main():
@@ -163,7 +215,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix='mineways mod windows ') as temporary:
         exercise(executable, Path(temporary))
     print('PASS: ' + ('portable Windows export fixtures' if executable is None else
-                     'native mod geometry, textures, schematic state round trips, custom dimensions, and syntax checks'))
+                     'native mod geometry, textures, schematic state round trips, custom dimensions, large catalogs, and syntax checks'))
 
 
 if __name__ == '__main__':

@@ -45,6 +45,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <set>
 #include <type_traits>
 
 #include "CullingSchemes.h"	// isBlockCulled() — active Culling Scheme filter
@@ -915,36 +916,59 @@ static void restoreModTextureSlots()
     gModReplacedTiles.clear();
 }
 
-// Reuse vacant atlas cells so all existing texture output modes share one path.
-static bool prepareModTextures(int fileType)
+static std::vector<int> selectedModTextures()
+{
+    std::set<unsigned> states;
+    std::set<int> textures;
+    for (long long i = 0; i < gBoxSizeXYZ; ++i) {
+        const BoxCell& cell = gBoxData[i];
+        for (int type : {cell.type, cell.origType}) {
+            if (!IsModBlock(type)) continue;
+            const int data = cell.data & DATAVAL_MASK;
+            if (!states.insert(((unsigned)type << 12) | data).second) continue;
+            const auto* state = GetModBlock(type, data);
+            if (state && state->definition) for (const auto& model : state->definition->models)
+                for (const auto& element : model.Elements()) for (const auto& face : element.faces)
+                    textures.insert(face.texture);
+        }
+    }
+    return std::vector<int>(textures.begin(), textures.end());
+}
+
+// Only the selected blocks consume atlas cells; a pack can contain many more textures.
+static bool prepareModTextures(int fileType, const std::vector<int>& used)
 {
     restoreModTextureSlots();
-    gModTextureSwatches.clear();
     gModTextureNames.clear();
     const auto& textures = ModTextures();
+    gModTextureSwatches.assign(textures.size(), SWATCH_INDEX(1, 0));
+    if (used.empty()) return true;
     std::vector<int> vacant;
     for (int i = 0; i < TOTAL_TILES; ++i) {
         const auto& tile = gTilesTable[i];
         if ((!tile.filename || !tile.filename[0]) && tile.spanX == 0 && tile.spanY == 0)
             vacant.push_back(i);
     }
-    if (textures.size() > vacant.size()) return false;
-    gModTextureNames.reserve(textures.size());
-    for (size_t i = 0; i < textures.size(); ++i) {
+    if (used.size() > vacant.size()) return false;
+    std::string error;
+    if (!EnsureModTextures(used, error)) return false;
+    gModTextureNames.reserve(used.size());
+    for (int i : used) {
         // Names use pack-local indices, avoiding filesystem characters in resource identifiers.
         gModTextureNames.push_back(L"mw_mod_" + std::to_wstring(i));
     }
-    for (size_t i = 0; i < textures.size(); ++i) {
-        int index = vacant[i], col = index % XTILES, row = index / XTILES;
+    for (size_t slot = 0; slot < used.size(); ++slot) {
+        const int i = used[slot];
+        int index = vacant[slot], col = index % XTILES, row = index / XTILES;
         gModReplacedTiles.push_back({index, gTilesTable[index]});
         auto& tile = gTilesTable[index];
         tile.txrX = col; tile.txrY = row;
-        tile.filename = gModTextureNames[i].c_str();
+        tile.filename = gModTextureNames[slot].c_str();
         tile.altFilename = L"";
         tile.typeForMtl = BLOCK_STONE;
         tile.dataValForMtl = 0;
         tile.flags = SWATCH_CLAMP_ALL;
-        gModTextureSwatches.push_back(TILE_TO_SWATCH(col, row));
+        gModTextureSwatches[i] = TILE_TO_SWATCH(col, row);
         const auto& source = textures[i];
         for (int category = 0; category < gTotalInputTextures; ++category) {
             progimage_info* atlas = gModel.pInputTerrainImage[category];
@@ -979,7 +1003,7 @@ static int saveModGeometry(int boxIndex, int type, int dataVal)
         DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
     for (const auto& sourceModel : state->definition->models) {
         std::vector<ModelElement> elements;
-        for (const auto& source : sourceModel.elements) {
+        for (const auto& source : sourceModel.Elements()) {
             ModelElement element = {};
             std::copy(source.from, source.from + 3, element.from);
             std::copy(source.to, source.to + 3, element.to);
@@ -1701,11 +1725,6 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     UPDATE_STATUS(gProgress.start.readBlocks, L"Read selected blocks");
     //UPDATE_PROGRESS(gProgress.start.readBlocks);
 
-    if (!prepareModTextures(fileType)) {
-        retCode |= MW_CANNOT_PARSE_IMPORT_FILE;
-        goto Exit;
-    }
-
     tightenedWorldBox = worldBox;
 
     // Note that tightenedWorldBox will come back with the "solid" bounds, of where data was actually found.
@@ -1714,6 +1733,12 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     if (retCode >= MW_BEGIN_ERRORS || retCode >= MW_BEGIN_NOTHING_TO_DO)
     {
         // nothing in box, so end.
+        goto Exit;
+    }
+
+    if (!prepareModTextures(fileType, (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) ?
+        selectedModTextures() : std::vector<int>())) {
+        retCode |= MW_TEXTURE_TOO_LARGE;
         goto Exit;
     }
 
@@ -1912,6 +1937,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     // done!
 Exit:
     restoreModTextureSlots();
+    ReleaseModTextures();
 
     //UPDATE_PROGRESS(gProgress.start.zip);
 
@@ -24984,7 +25010,7 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
             DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
         int texture = -1;
         if (state && state->definition) for (const auto& model : state->definition->models)
-            for (const auto& element : model.elements) for (const auto& face : element.faces) {
+            for (const auto& element : model.Elements()) for (const auto& face : element.faces) {
                 if (texture < 0) texture = face.texture;
                 if (directions[face.direction] == faceDirection) texture = face.texture;
             }

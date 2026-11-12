@@ -4336,7 +4336,7 @@ static int readPalette(int& returnCode, bfFile* pbf, int mcVersion, unsigned cha
             memBf._offset = 0;
             pbf = &memBf;
         }
-        if (ModBlockTypeLimit() > NUM_BLOCKS_DEFINED) {
+        if (ModPackLoaded()) {
             int modType, modData;
             std::string unsupportedState;
             const int modResult = readModPaletteEntry(pbf, &modType, &modData, unsupportedState);
@@ -6852,7 +6852,7 @@ static bool spongeParseStateString(const char* str, int* outType, int* outDataVa
     *outType = 0;
     *outDataVal = 0;
     if (modStatus) *modStatus = 0;
-    if (ModBlockTypeLimit() > NUM_BLOCKS_DEFINED) {
+    if (ModPackLoaded()) {
         const int modResult = ResolveModState(str, outType, outDataVal);
         if (modStatus) *modStatus = modResult;
         if (modResult != 0) return modResult > 0;

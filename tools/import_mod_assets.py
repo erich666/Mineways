@@ -3,7 +3,9 @@
 
 import argparse
 import binascii
+from collections import OrderedDict
 import itertools
+import hashlib
 import json
 import math
 import os
@@ -19,13 +21,21 @@ import zlib
 
 MAX_FILE = 16 * 1024 * 1024
 MAX_TOTAL = 512 * 1024 * 1024
-MAX_FILES = 100000
+MAX_FILES = 1000000
+MAX_ARCHIVE_FILES = 100000
+MAX_ASSET_FILES = 400000
+MAX_SOURCES = 1024
+MAX_ARCHIVE_BYTES = 256 * 1024 * 1024
+MAX_SOURCE_BYTES = 2 * 1024 * 1024 * 1024
 MAX_STATES = 4096
 MAX_ELEMENTS = 2048
 MAX_PIXELS = 4 * 1024 * 1024
-MAX_COMPILED_ELEMENTS = 65536
-# Match vacant cells in Win/tiles.h; the importer test checks this release budget.
-MAX_TEXTURES = 915
+MAX_COMPILED_ELEMENTS = 4000000
+MAX_TEXTURES = 131072
+MAX_CATALOG_BLOCKS = 100000
+MAX_CATALOG_SELECTORS = 1000000
+MAX_GEOMETRIES = 250000
+MAX_MANIFEST = 512 * 1024 * 1024
 RESOURCE = re.compile(r"^[a-z0-9_.-]+:[a-z0-9_./-]+$")
 PROPERTY = re.compile(r"^[a-z0-9_]+$")
 DIRECTIONS = ('down', 'up', 'north', 'south', 'west', 'east')
@@ -59,16 +69,23 @@ def safe_path(name):
 
 
 class Assets:
+    """Index bounded source metadata; open and decompress only referenced assets."""
     def __init__(self, sources):
         self.files = {}
-        total = 0
-        count = 0
+        self.archives = OrderedDict()
+        self.archive_stamps = {}
+        total = count = asset_count = source_bytes = 0
+        if len(sources) > MAX_SOURCES:
+            raise ImportError('too many asset sources')
         for source in map(Path, sources):
             if source.is_symlink():
                 raise ImportError('source must not be a symbolic link: ' + str(source))
+            source = source.resolve()
+            entries = []
             if source.is_dir():
                 root = source.parent if source.name == 'assets' else source
                 for directory, dirs, files in os.walk(root, followlinks=False):
+                    dirs.sort()
                     for name in dirs + files:
                         if (Path(directory) / name).is_symlink():
                             raise ImportError('symbolic links are not accepted: ' + str(Path(directory) / name))
@@ -78,55 +95,93 @@ class Assets:
                         count += 1
                         if count > MAX_FILES:
                             raise ImportError('too many source files')
-                        if not self.wanted(relative):
-                            continue
-                        size = path.stat().st_size
-                        total += size
-                        if size > MAX_FILE or total > MAX_TOTAL:
-                            raise ImportError('source asset size limit exceeded')
-                        self.files[relative] = path.read_bytes()
+                        if self.wanted(relative):
+                            entries.append((relative, path, None, path.stat().st_size))
             elif source.is_file():
+                info = source.stat()
+                source_bytes += info.st_size
+                if info.st_size > MAX_ARCHIVE_BYTES or source_bytes > MAX_SOURCE_BYTES:
+                    raise ImportError('compressed source archive size limit exceeded')
+                self.archive_stamps[source] = (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns)
                 with zipfile.ZipFile(source) as archive:
+                    if len(archive.infolist()) > MAX_ARCHIVE_FILES:
+                        raise ImportError('too many entries in one archive')
                     seen = set()
                     for entry in archive.infolist():
                         count += 1
                         if count > MAX_FILES:
                             raise ImportError('too many archive entries')
-                        # ZipInfo normalizes separators on Windows and truncates NULs.
-                        # Validate the original archive spelling before using its normalized name.
+                        # Validate before ZipInfo separator normalization and NUL truncation.
                         name = safe_path(entry.orig_filename)
-                        if name in seen:
-                            raise ImportError('duplicate archive entry: ' + name)
-                        seen.add(name)
                         if stat.S_ISLNK(entry.external_attr >> 16):
                             raise ImportError('archive symbolic links are not accepted')
                         if not self.wanted(name) or entry.is_dir():
                             continue
-                        total += entry.file_size
-                        if entry.file_size > MAX_FILE or total > MAX_TOTAL:
-                            raise ImportError('archive asset size limit exceeded')
+                        if name in seen:
+                            raise ImportError('duplicate archive entry: ' + name)
+                        seen.add(name)
                         if entry.file_size > max(1024 * 1024, entry.compress_size * 1000):
                             raise ImportError('archive compression ratio limit exceeded')
-                        with archive.open(entry) as stream:
-                            data = stream.read(MAX_FILE + 1)
-                        if len(data) > MAX_FILE:
-                            raise ImportError('archive asset size limit exceeded')
-                        self.files[name] = data
+                        entries.append((name, source, entry.filename, entry.file_size))
             else:
                 raise ImportError('source does not exist: ' + str(source))
+            for name, path, member, size in entries:
+                asset_count += 1
+                total += size
+                if size > MAX_FILE or total > MAX_TOTAL:
+                    raise ImportError('source asset size limit exceeded')
+                if asset_count > MAX_ASSET_FILES:
+                    raise ImportError('too many relevant asset files')
+                self.files[name] = (path, member, size)
         if not any('/blockstates/' in key or '/dimension/' in key for key in self.files):
             raise ImportError('no blockstate assets or dimension definitions found')
 
     @staticmethod
     def wanted(name):
-        return ((name.startswith('assets/') and name.endswith(('.json', '.png')))
-                or (name.startswith('data/') and name.endswith('.json') and ('/dimension/' in name or '/dimension_type/' in name)))
+        return bool(re.fullmatch(r'assets/[^/]+/(?:blockstates|models)/.+\.json', name)
+                    or re.fullmatch(r'assets/[^/]+/textures/.+\.png(?:\.mcmeta)?', name)
+                    or re.fullmatch(r'data/[^/]+/(?:dimension|dimension_type)/.+\.json', name))
+
+    def close(self):
+        for archive in self.archives.values():
+            archive.close()
+        self.archives.clear()
+
+    def __del__(self):
+        self.close()
+
+    def read(self, name):
+        if name not in self.files:
+            raise ImportError('missing asset: ' + name)
+        path, member, size = self.files[name]
+        if member is None:
+            if path.is_symlink() or path.resolve() != path:
+                raise ImportError('source changed to a symbolic link: ' + str(path))
+            with path.open('rb') as stream:
+                data = stream.read(MAX_FILE + 1)
+        else:
+            info = path.stat()
+            if path.is_symlink() or path.resolve() != path or self.archive_stamps[path] != (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns):
+                raise ImportError('source archive changed while importing')
+            archive = self.archives.pop(path, None)
+            if archive is None:
+                if len(self.archives) >= 8:
+                    _, old = self.archives.popitem(last=False)
+                    old.close()
+                archive = zipfile.ZipFile(path)
+            self.archives[path] = archive
+            entry = archive.getinfo(member)
+            if entry.file_size != size:
+                raise ImportError('source archive changed while importing')
+            with archive.open(entry) as stream:
+                data = stream.read(MAX_FILE + 1)
+        if len(data) != size or len(data) > MAX_FILE:
+            raise ImportError('asset size changed or exceeds limit')
+        return data
 
     def json(self, path):
-        if path not in self.files:
-            raise ImportError('missing asset: ' + path)
         try:
-            value = json.loads(self.files[path], parse_constant=lambda s: (_ for _ in ()).throw(ImportError('nonfinite JSON number')))
+            value = json.loads(self.read(path), parse_constant=lambda s: (_ for _ in ()).throw(ImportError('nonfinite JSON number')))
         except (UnicodeError, ValueError, RecursionError) as error:
             raise ImportError(f'invalid JSON in {path}: {error}') from error
         if not isinstance(value, dict):
@@ -144,7 +199,7 @@ def encode_png(width, height, pixels):
             + png_chunk(b'IDAT', zlib.compress(raw, 9)) + png_chunk(b'IEND', b''))
 
 
-def decode_png(data):
+def decode_png(data, on_trailing=None):
     """Bounded decoder for the common non-interlaced 8-bit Minecraft PNG formats."""
     if not data.startswith(b'\x89PNG\r\n\x1a\n'):
         raise ImportError('invalid PNG signature')
@@ -169,8 +224,8 @@ def decode_png(data):
             channels = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}.get(color, 0)
             if not width or not height or width * height > MAX_PIXELS:
                 raise ImportError('PNG dimensions exceed limit')
-            if depth != 8 or not channels or comp or filt or interlace:
-                raise ImportError('PNG requires non-interlaced 8-bit pixels')
+            if not channels or comp or filt or interlace or (depth != 8 and not (color in (0, 3) and depth in (1, 2, 4))):
+                raise ImportError('PNG requires non-interlaced 8-bit or packed grayscale/indexed pixels')
         elif not width:
             raise ImportError('PNG IHDR must be first')
         elif kind == b'IDAT':
@@ -182,9 +237,15 @@ def decode_png(data):
         elif kind == b'IEND':
             ended = True
             break
-    if not ended or offset != len(data):
-        raise ImportError('missing PNG end or trailing data')
-    expected = height * (1 + width * channels)
+    if not ended:
+        raise ImportError('missing PNG end')
+    if offset != len(data):
+        if on_trailing is None:
+            raise ImportError('trailing data after PNG end')
+        on_trailing()
+    stride = (width * channels * depth + 7) // 8
+    pixel_bytes = max(1, (channels * depth + 7) // 8)
+    expected = height * (1 + stride)
     decoder = zlib.decompressobj()
     try:
         raw = decoder.decompress(compressed, expected + 1)
@@ -192,7 +253,7 @@ def decode_png(data):
         raise ImportError('invalid PNG compression') from error
     if len(raw) != expected or not decoder.eof or decoder.unused_data:
         raise ImportError('PNG decompressed size mismatch')
-    stride, output, previous = width * channels, bytearray(), bytearray(width * channels)
+    output, previous = bytearray(), bytearray(stride)
     for y in range(height):
         start = y * (stride + 1)
         filter_type = raw[start]
@@ -200,9 +261,9 @@ def decode_png(data):
         if filter_type > 4:
             raise ImportError('invalid PNG row filter')
         for i in range(stride):
-            a = row[i - channels] if i >= channels else 0
+            a = row[i - pixel_bytes] if i >= pixel_bytes else 0
             b = previous[i]
-            c = previous[i - channels] if i >= channels else 0
+            c = previous[i - pixel_bytes] if i >= pixel_bytes else 0
             if filter_type == 1:
                 row[i] = (row[i] + a) & 255
             elif filter_type == 2:
@@ -214,8 +275,9 @@ def decode_png(data):
                 distances = (abs(p - a), abs(p - b), abs(p - c))
                 row[i] = (row[i] + (a, b, c)[distances.index(min(distances))]) & 255
         previous = row
-        for i in range(0, stride, channels):
-            px = row[i:i + channels]
+        for x in range(width):
+            i = x * channels
+            px = row[i:i + channels] if depth == 8 else [(row[x * depth // 8] >> (8 - depth - (x * depth % 8))) & ((1 << depth) - 1)]
             if color == 6:
                 output.extend(px)
             elif color == 2:
@@ -223,7 +285,8 @@ def decode_png(data):
                 output.extend((*px, alpha))
             elif color == 0:
                 alpha = 0 if len(transparency) == 2 and px[0] == struct.unpack('>H', transparency)[0] else 255
-                output.extend((px[0], px[0], px[0], alpha))
+                gray = px[0] * 255 // ((1 << depth) - 1)
+                output.extend((gray, gray, gray, alpha))
             elif color == 4:
                 output.extend((px[0], px[0], px[0], px[1]))
             else:
@@ -302,25 +365,34 @@ class Compiler:
         self.textures = {}
         self.warnings = set()
         self.element_count = 0
+        self.unsupported_states = []
 
     def model(self, name, chain=()):
-        name = resource(name)
-        if name in chain or len(chain) >= 64:
+        inline = isinstance(name, dict)
+        own = name if inline else None
+        name = '<inline>' if inline else resource(name)
+        if (not inline and name in chain) or len(chain) >= 64:
             raise ImportError('cyclic or excessive model parents: ' + name)
-        if name in self.models:
+        if not inline and name in self.models:
             return self.models[name]
-        path = asset_path(name, 'models')
-        own = self.assets.json(path) if path in self.assets.files else cube_template(name)
+        if not inline:
+            path = asset_path(name, 'models')
+            own = self.assets.json(path) if path in self.assets.files else cube_template(name)
         if own is None:
             raise ImportError('missing model: ' + name)
-        if 'loader' in own:
+        if 'loader' in own and own['loader'] not in ('neoforge:composite', 'forge:composite', 'fusion:model'):
             raise ImportError('custom model loader: ' + str(own['loader']))
+        if own.get('loader') == 'fusion:model':
+            if own.get('type', 'base') not in ('base', 'connecting', 'fusion:base', 'fusion:connecting'):
+                raise ImportError('unsupported Fusion model type: ' + str(own.get('type')))
+            self.warnings.add(f'{name}: connected-texture neighbors are not evaluated')
         parent = self.model(own['parent'], chain + (name,)) if 'parent' in own else {}
         result = {**parent, **own}
         if not isinstance(own.get('textures', {}), dict):
             raise ImportError('model textures must be an object: ' + name)
         result['textures'] = {**parent.get('textures', {}), **own.get('textures', {})}
-        self.models[name] = result
+        if not inline:
+            self.models[name] = result
         return result
 
     def texture(self, name):
@@ -329,7 +401,25 @@ class Compiler:
             path = asset_path(name, 'textures', '.png')
             if path not in self.assets.files:
                 raise ImportError('missing texture: ' + name)
-            width, height, pixels = decode_png(self.assets.files[path])
+            width, height, pixels = decode_png(self.assets.read(path), lambda: self.warnings.add(f'{name}: discarded bytes after valid PNG end'))
+            if path + '.mcmeta' in self.assets.files:
+                metadata = self.assets.json(path + '.mcmeta')
+                fusion = metadata.get('fusion', {})
+                if fusion and not isinstance(fusion, dict):
+                    raise ImportError('invalid Fusion texture metadata: ' + name)
+                if fusion.get('type') in ('connecting', 'fusion:connecting'):
+                    layout = fusion.get('layout', 'full')
+                    grids = {'full': (8, 6), 'horizontal': (4, 1), 'vertical': (1, 4),
+                             'simple': (4, 4), 'compact': (5, 1), 'pieced': (5, 1)}
+                    if layout not in grids:
+                        raise ImportError('unsupported Fusion texture layout: ' + str(layout))
+                    cols, rows = grids[layout]
+                    tile = width // cols
+                    if width % cols or not tile or height % (rows * tile):
+                        raise ImportError('invalid Fusion texture sheet dimensions: ' + name)
+                    pixels = b''.join(pixels[y * width * 4:(y * width + tile) * 4] for y in range(tile))
+                    width = height = tile
+                    self.warnings.add(f'{name}: connected-texture sheet uses its unconnected tile')
             if height != width:
                 if height % width:
                     raise ImportError('texture must be square or a vertical animation: ' + name)
@@ -341,7 +431,18 @@ class Compiler:
             self.textures[name] = (encode_png(width, height, pixels), rgb, alpha)
         return name
 
-    def compile_model(self, application):
+    def missing_texture(self, alias):
+        name = 'mineways:missing_texture'
+        self.warnings.add(f'{alias}: unresolved texture alias uses the Minecraft missing-texture checkerboard')
+        if name not in self.textures:
+            pixels = bytes(channel for y in range(16) for x in range(16)
+                           for channel in ((255, 0, 255, 255) if (x < 8) != (y < 8) else (0, 0, 0, 255)))
+            self.textures[name] = (encode_png(16, 16, pixels), [127, 0, 127], 255)
+        return name
+
+    def compile_model(self, application, depth=0):
+        if depth >= 64:
+            raise ImportError('excessive composite model depth')
         if isinstance(application, list):
             if not application:
                 raise ImportError('empty model alternatives')
@@ -357,9 +458,23 @@ class Compiler:
         if not isinstance(uvlock, bool):
             raise ImportError('uvlock must be boolean')
         model = self.model(application['model'])
+        if model.get('loader') in ('neoforge:composite', 'forge:composite'):
+            if any(key in model for key in ('transform', 'visibility')):
+                raise ImportError('composite root transforms and visibility require explicit replacement models')
+            children = model.get('children')
+            if not isinstance(children, dict) or not children or len(children) > 256:
+                raise ImportError('invalid or excessive composite children')
+            if not all(isinstance(child, dict) for child in children.values()):
+                raise ImportError('composite child must be an inline model object')
+            elements = []
+            for child in children.values():
+                elements.extend(self.compile_model({'model': child}, depth + 1)['elements'])
+            if len(elements) > MAX_ELEMENTS:
+                raise ImportError('composite element count exceeds limit')
+            return {'rotation': (x, y, int(uvlock)), 'elements': elements}
         elements = model.get('elements')
         if not isinstance(elements, list) or not elements or len(elements) > MAX_ELEMENTS:
-            raise ImportError('model needs 1..2048 standard elements: ' + application['model'])
+            raise ImportError('model needs 1..2048 standard elements: ' + str(application['model']))
         self.element_count += len(elements)
         if self.element_count > MAX_COMPILED_ELEMENTS:
             raise ImportError('compiled element budget exceeded')
@@ -395,7 +510,10 @@ class Compiler:
                     if texture in seen or len(seen) >= 64:
                         raise ImportError('cyclic texture references')
                     seen.add(texture)
-                    texture = model['textures'].get(texture[1:], '')
+                    if texture[1:] not in model['textures']:
+                        texture = self.missing_texture(str(application['model']) + ':' + texture)
+                        break
+                    texture = model['textures'][texture[1:]]
                 texture = self.texture(texture)
                 uv = vector(face.get('uv', default_uv(side, start, end)), 4, 0, 16)
                 turn = face.get('rotation', 0)
@@ -432,6 +550,9 @@ class Compiler:
                         for child in value:
                             collect(child)
                     else:
+                        if isinstance(value, bool):
+                            value = 'true' if value else 'false'
+                            condition[key] = value
                         if not PROPERTY.fullmatch(key) or not isinstance(value, str):
                             raise ImportError('invalid multipart property')
                         values = value.split('|')
@@ -462,14 +583,39 @@ class Compiler:
         else:
             raise ImportError('blockstate needs variants or multipart')
         output = []
+        failures = []
         for selector, applications in selectors:
-            if len(applications) > 256:
-                raise ImportError('state has more than 256 model applications')
-            models = [self.compile_model(value) for value in applications]
-            faces = [face for model in models for element in model['elements'] for face in element['faces']]
-            face = next((face for face in faces if face[0] == 'up'), faces[0])
-            _, color, alpha = self.textures[face[-2]]
-            output.append((canonical(name, selector), color, alpha, models))
+            before_count, before_textures = self.element_count, len(self.textures)
+            before_warnings = self.warnings.copy()
+            try:
+                if len(applications) > 256:
+                    raise ImportError('state has more than 256 model applications')
+                models = [self.compile_model(value) for value in applications]
+                faces = [face for model in models for element in model['elements'] for face in element['faces']]
+                if not faces:
+                    raise ImportError('state has no standard model faces')
+                face = next((face for face in faces if face[0] == 'up'), faces[0])
+                _, color, alpha = self.textures[face[-2]]
+                output.append((canonical(name, selector), color, alpha, models))
+            except (ImportError, RecursionError) as error:
+                self.element_count = before_count
+                while len(self.textures) > before_textures:
+                    self.textures.popitem()
+                self.warnings = before_warnings
+                failures.append({'state': canonical(name, selector), 'reason': str(error)})
+        if failures:
+            bad_properties = [properties(item['state'].partition('[')[2][:-1]) for item in failures]
+            safe_output = []
+            for row in output:
+                good_properties = properties(row[0].partition('[')[2][:-1])
+                if any(all(bad.get(key) == value for key, value in good_properties.items()) for bad in bad_properties):
+                    failures.append({'state': row[0], 'reason': 'generic selector overlaps an unsupported state; fallback removed'})
+                else:
+                    safe_output.append(row)
+            output = safe_output
+        if not output:
+            raise ImportError(failures[0]['reason'] if failures else 'block has no supported states')
+        self.unsupported_states.extend(failures)
         return output
 
 
@@ -513,66 +659,88 @@ def compile_pack(sources, destination, namespaces=None):
     assets = Assets(sources)
     dimensions, unsupported_dimensions = compile_dimensions(assets, namespaces)
     compiler = Compiler(assets)
-    states, rejected = [], []
-    block_count = 0
-    for path in sorted(assets.files):
-        match = re.fullmatch(r'assets/([a-z0-9_.-]+)/blockstates/(.+)\.json', path)
-        if not match or (namespaces and match[1] not in namespaces) or (not namespaces and match[1] == 'minecraft'):
-            continue
-        name = resource(match[1] + ':' + match[2])
-        previous_elements = compiler.element_count
-        previous_textures = set(compiler.textures)
-        previous_warnings = compiler.warnings.copy()
-        try:
-            block = compiler.block(name, assets.json(path))
-            if len(states) + len(block) > 65536 or block_count >= 3522:
-                raise ImportError('compiled block or selector count exceeds runtime limit')
-            states.extend(block)
-            block_count += 1
-        except (ImportError, RecursionError) as error:
-            compiler.element_count = previous_elements
-            for texture in set(compiler.textures) - previous_textures:
-                del compiler.textures[texture]
-            compiler.warnings = previous_warnings
-            rejected.append({'block': name, 'reason': str(error)})
-    if not states and not dimensions:
-        raise ImportError('no supported mod blocks or dimensions found' + (': ' + rejected[0]['reason'] if rejected else ''))
-    used = sorted({face[-2] for _, _, _, models in states for model in models for element in model['elements'] for face in element['faces']})
-    if len(used) > MAX_TEXTURES:
-        raise ImportError(f'pack needs {len(used)} textures, but this Mineways release has {MAX_TEXTURES} vacant atlas cells; select fewer mods or namespaces')
-    texture_ids = {name: index for index, name in enumerate(used)}
-    lines = ['MINEWAYS_MOD_PACK\t1']
-    for dimension in dimensions:
-        lines.append('dimension\t' + '\t'.join(map(str, dimension)))
-    for name, index in texture_ids.items():
-        lines.append(f'texture\t{index}\t{name}\ttextures/{index:04}.png')
-    for selector, color, alpha, models in states:
-        lines.append(f'state\t{selector}\t' + ''.join(f'{c:02x}' for c in color) + f'\t{alpha}')
-        for model in models:
-            lines.append('model\t' + '\t'.join(map(str, model['rotation'])))
-            for element in model['elements']:
-                lines.append('element\t' + '\t'.join(map(str, element['coordinates'])))
-                for face in element['faces']:
-                    fields = (*face[:-2], texture_ids[face[-2]], face[-1])
-                    lines.append('face\t' + '\t'.join(map(str, fields)))
-        lines.append('endstate')
-    report = {'format': 1, 'blocks': len({state.split('[')[0] for state, *_ in states}),
-              'selectors': len(states), 'textures': len(used), 'dimensions': len(dimensions),
-              'unsupported_dimensions': unsupported_dimensions,
-              'unsupported': rejected, 'warnings': sorted(compiler.warnings)}
+    rejected, texture_ids, geometry_ids = [], {}, {}
+    block_count = selector_count = element_count = 0
     temporary = Path(tempfile.mkdtemp(prefix='.mineways-pack-', dir=destination.parent))
     try:
         (temporary / 'textures').mkdir()
-        for name, index in texture_ids.items():
-            (temporary / 'textures' / f'{index:04}.png').write_bytes(compiler.textures[name][0])
-        (temporary / 'manifest.mwpack').write_text('\n'.join(lines) + '\n', encoding='utf-8')
+        with (temporary / 'geometry.tmp').open('w', encoding='utf-8', newline='\n') as geometry_stream, \
+             (temporary / 'states.tmp').open('w', encoding='utf-8', newline='\n') as state_stream:
+            for path in sorted(assets.files):
+                match = re.fullmatch(r'assets/([a-z0-9_.-]+)/blockstates/(.+)\.json', path)
+                if not match or (namespaces and match[1] not in namespaces) or (not namespaces and match[1] == 'minecraft'):
+                    continue
+                name = resource(match[1] + ':' + match[2])
+                compiler.element_count = 0
+                before_textures, before_states = len(compiler.textures), len(compiler.unsupported_states)
+                before_warnings = compiler.warnings.copy()
+                try:
+                    block = compiler.block(name, assets.json(path))
+                except (ImportError, RecursionError) as error:
+                    while len(compiler.textures) > before_textures:
+                        compiler.textures.popitem()
+                    del compiler.unsupported_states[before_states:]
+                    compiler.warnings = before_warnings
+                    rejected.append({'block': name, 'reason': str(error)})
+                    continue
+                if selector_count + len(block) > MAX_CATALOG_SELECTORS or block_count >= MAX_CATALOG_BLOCKS:
+                    raise ImportError('compiled block or selector catalog exceeds runtime limit')
+                block_count += 1
+                selector_count += len(block)
+                for selector, color, alpha, models in block:
+                    state_stream.write(f'state\t{selector}\t' + ''.join(f'{c:02x}' for c in color) + f'\t{alpha}\n')
+                    for model in models:
+                        signature = hashlib.sha256(json.dumps(model['elements'], sort_keys=True, separators=(',', ':')).encode()).digest()
+                        index = geometry_ids.get(signature)
+                        if index is None:
+                            index = len(geometry_ids)
+                            element_count += len(model['elements'])
+                            if index >= MAX_GEOMETRIES or element_count > MAX_COMPILED_ELEMENTS:
+                                raise ImportError('compiled shared geometry exceeds runtime limit')
+                            geometry_ids[signature] = index
+                            geometry_stream.write(f'geometry\t{index}\n')
+                            for element in model['elements']:
+                                geometry_stream.write('element\t' + '\t'.join(map(str, element['coordinates'])) + '\n')
+                                for face in element['faces']:
+                                    texture = face[-2]
+                                    if texture not in texture_ids:
+                                        if len(texture_ids) >= MAX_TEXTURES:
+                                            raise ImportError('compiled texture catalog exceeds runtime limit')
+                                        texture_ids[texture] = len(texture_ids)
+                                    fields = (*face[:-2], texture_ids[texture], face[-1])
+                                    geometry_stream.write('face\t' + '\t'.join(map(str, fields)) + '\n')
+                            geometry_stream.write('endgeometry\n')
+                        state_stream.write('usemodel\t' + '\t'.join(map(str, (index, *model['rotation']))) + '\n')
+                    state_stream.write('endstate\n')
+                if geometry_stream.tell() + state_stream.tell() > MAX_MANIFEST:
+                    raise ImportError('compiled manifest exceeds runtime size limit')
+        if not block_count and not dimensions:
+            raise ImportError('no supported mod blocks or dimensions found' + (': ' + rejected[0]['reason'] if rejected else ''))
+        report = {'format': 2, 'blocks': block_count, 'selectors': selector_count,
+                  'textures': len(texture_ids), 'geometries': len(geometry_ids), 'elements': element_count,
+                  'dimensions': len(dimensions), 'unsupported_dimensions': unsupported_dimensions,
+                  'unsupported': rejected, 'unsupported_states': compiler.unsupported_states,
+                  'warnings': sorted(compiler.warnings)}
+        with (temporary / 'manifest.mwpack').open('w', encoding='utf-8', newline='\n') as manifest:
+            manifest.write('MINEWAYS_MOD_PACK\t2\n')
+            for dimension in dimensions:
+                manifest.write('dimension\t' + '\t'.join(map(str, dimension)) + '\n')
+            for name, index in texture_ids.items():
+                manifest.write(f'texture\t{index}\t{name}\ttextures/{index:04}.png\n')
+                (temporary / 'textures' / f'{index:04}.png').write_bytes(compiler.textures[name][0])
+            for spool in ('geometry.tmp', 'states.tmp'):
+                with (temporary / spool).open(encoding='utf-8') as source:
+                    shutil.copyfileobj(source, manifest)
+                (temporary / spool).unlink()
+        if (temporary / 'manifest.mwpack').stat().st_size > MAX_MANIFEST:
+            raise ImportError('compiled manifest exceeds runtime size limit')
         (temporary / 'report.json').write_text(json.dumps(report, indent=2, sort_keys=True) + '\n', encoding='utf-8')
         temporary.rename(destination)
     finally:
+        assets.close()
         if temporary.exists():
             shutil.rmtree(temporary)
     return report
-
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -585,7 +753,7 @@ def main():
     except (ImportError, OSError, zipfile.BadZipFile, RuntimeError) as error:
         parser.exit(1, f'Import failed: {error}\n')
     print(f'Created {args.output}: {report["blocks"]} blocks, {report["selectors"]} selectors, {report["textures"]} textures, {report["dimensions"]} dimensions')
-    print(f'{len(report["unsupported"])} unsupported blocks; {len(report["unsupported_dimensions"])} incomplete dimensions; {len(report["warnings"])} warnings. Read report.json before use.')
+    print(f'{len(report["unsupported"])} unsupported blocks; {len(report["unsupported_states"])} unsupported states; {len(report["unsupported_dimensions"])} incomplete dimensions; {len(report["warnings"])} warnings. Read report.json before use.')
 
 
 if __name__ == '__main__':

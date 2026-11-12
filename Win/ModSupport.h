@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <memory>
 
 struct ModDimension {
     std::string id;
@@ -15,7 +16,8 @@ struct ModTexture {
     std::string name;
     unsigned width = 0;
     unsigned height = 0;
-    bool opaque = true;
+    bool opaque = false;
+    std::string sourcePath;
     std::vector<unsigned char> rgba;
 };
 
@@ -44,6 +46,8 @@ struct ModModel {
     int y = 0;
     bool uvlock = false;
     std::vector<ModElement> elements;
+    std::shared_ptr<const std::vector<ModElement>> geometry;
+    const std::vector<ModElement>& Elements() const { return geometry ? *geometry : elements; }
 };
 
 struct ModStateModel {
@@ -64,6 +68,10 @@ struct ModBlockState {
 // Failed loads leave the current pack intact. Paths are UTF-8.
 bool LoadModPack(const std::string& manifestPath, std::string& error);
 void ClearModPack();
+bool ModPackLoaded();
+// Decode only the textures needed by an export. Failure leaves the decoded cache unchanged.
+bool EnsureModTextures(const std::vector<int>& indices, std::string& error);
+void ReleaseModTextures();
 const std::string& ModPackPath();
 const std::vector<ModTexture>& ModTextures();
 const std::vector<ModDimension>& ModDimensions();
