@@ -118,7 +118,7 @@ def exercise(executable, root):
     world_path = root / 'world'
     world(world_path)
     assert gzip.decompress(input_path.read_bytes()).startswith(b'\x0a')
-    assert (pack / 'manifest.mwpack').read_bytes().startswith(b'MINEWAYS_MOD_PACK\t1\n')
+    assert (pack / 'manifest.mwpack').read_text(encoding='utf-8').splitlines()[0] == 'MINEWAYS_MOD_PACK\t1'
     if executable is None:
         return
     common = ['Mod pack: ' + str(pack / 'manifest.mwpack'),
