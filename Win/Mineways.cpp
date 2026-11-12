@@ -2936,7 +2936,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 if (gLoaded)
                 {
                     std::wstring dimension = gWorldGuide.dimensionId;
-                    double oldX = gCurX, oldZ = gCurZ;
+                    double reloadX = gCurX, reloadZ = gCurZ;
                     if (loadWorld(hWnd))
                     {
                         // world not loaded properly
@@ -2946,7 +2946,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         return 0;
                     }
                     if (!dimension.empty() && switchToDimension(dimension.c_str(), gWS)) {
-                        gCurX = oldX; gCurZ = oldZ;
+                        gCurX = reloadX; gCurZ = reloadZ;
                     }
                     // TODO: reload world list, too, so that new worlds added since now appear.
                     // Ignore any errors (non-Anvil), since these were already reported.
@@ -2982,10 +2982,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 }
                 std::string error;
                 if (!setModPack(packPath.c_str(), clear, error)) {
-                    wchar_t message[2048];
-                    if (!MultiByteToWideChar(CP_UTF8, 0, error.c_str(), -1, message, 2048))
-                        wcscpy_s(message, 2048, L"Could not load the mod pack.");
-                    FilterMessageBox(hWnd, message, L"Mod pack", MB_OK | MB_ICONERROR);
+                    wchar_t packMessage[2048];
+                    if (!MultiByteToWideChar(CP_UTF8, 0, error.c_str(), -1, packMessage, 2048))
+                        wcscpy_s(packMessage, 2048, L"Could not load the mod pack.");
+                    FilterMessageBox(hWnd, packMessage, L"Mod pack", MB_OK | MB_ICONERROR);
                 }
                 REDRAW_ALL;
                 break;
@@ -5699,6 +5699,31 @@ static void copyOverExportPrintData(ExportFileData* pEFD)
     }
 }
 
+void initializeOutputFileList(FileList& outputFileList)
+{
+    outputFileList.count = 0;
+    for (int i = 0; i < MAX_OUTPUT_FILES; i++)
+    {
+        outputFileList.name[i] = NULL;
+    }
+    // we don't really need to alloc here, but this is a bit of future proofing, in case
+    // the output file list gets used by some method other than addOutputFilenameToList.
+    // If uncommented, outputFileList should then add an "allocated count" vs. a count of real file names on the list.
+    //for (int i = 0; i < 10; i++)
+    //{
+    //    outputFileList.name[i] = (wchar_t*)malloc(MAX_PATH_AND_FILE * sizeof(wchar_t));
+    //}
+}
+
+void freeOutputFileList(FileList& outputFileList)
+{
+    for (int i = 0; i < outputFileList.count; i++)
+    {
+        free(outputFileList.name[i]);
+    }
+    outputFileList.count = 0;
+}
+
 #ifdef SKETCHFAB
 
 static bool isSketchfabFieldSizeValid(char* field, int size, bool exact)
@@ -5821,31 +5846,6 @@ static LPTSTR prepareSketchfabExportFile(HWND hWnd)
     delete[] tempdir;
 
     return filepath;
-}
-
-void initializeOutputFileList(FileList& outputFileList)
-{
-    outputFileList.count = 0;
-    for (int i = 0; i < MAX_OUTPUT_FILES; i++)
-    {
-        outputFileList.name[i] = NULL;
-    }
-    // we don't really need to alloc here, but this is a bit of future proofing, in case
-    // the output file list gets used by some method other than addOutputFilenameToList.
-    // If uncommented, outputFileList should then add an "allocated count" vs. a count of real file names on the list.
-    //for (int i = 0; i < 10; i++)
-    //{
-    //    outputFileList.name[i] = (wchar_t*)malloc(MAX_PATH_AND_FILE * sizeof(wchar_t));
-    //}
-}
-
-void freeOutputFileList(FileList& outputFileList)
-{
-    for (int i = 0; i < outputFileList.count; i++)
-    {
-        free(outputFileList.name[i]);
-    }
-    outputFileList.count = 0;
 }
 
 // return a failure code (simply "1" at this point, since it pops up its own error) on failure, else return 0 on success.

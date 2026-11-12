@@ -89,6 +89,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #endif
 
+// Load C++17 algorithms before the legacy clamp macro.
+#include <algorithm>
+
 #define MINEWAYS_MAJOR_VERSION 14
 #define MINEWAYS_MINOR_VERSION 3
 
