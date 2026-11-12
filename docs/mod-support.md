@@ -109,7 +109,7 @@ The catalog already holds the full installed ATM10 asset set. The remaining limi
 | 3,522 active mod block names | 64,975 mod names within 65,536 total type slots | Separate a 16-bit block type from the 16-bit state field throughout the chunk and schematic readers, cache, map, and exporters. |
 | 915 selected mod textures | Initially 4,096 selected mod textures | Allocate imported texture slots per export, independently of vacant vanilla terrain cells. Grow UV and material bookkeeping with those slots. |
 
-The block migration reaches `cache`, `nbt`, `region`, `MinewaysMap`, both platform shells, schematic buffers, instance hashes, and type-indexed tables. Instance hashes currently shift a signed type by 16 bits, so IDs above 32,767 also need unsigned hash storage and decoding. It must remove the type-extension nibble, byte casts, low-byte air checks, and hard-coded 12-bit type masks together. `BoxCell` already uses 16-bit types. The chunk grid does not. A 16-bit grid adds one byte per voxel: 96 KiB per full-height 384-block chunk, or about 562.5 MiB for 6,000 such cached chunks. A cache byte budget should accompany that change. State IDs can retain the present 4,096-per-block limit.
+The block migration reaches `cache`, `nbt`, `region`, `MinewaysMap`, both platform shells, schematic buffers, instance hashes, and type-indexed tables. Instance hashes currently shift a signed type by 16 bits, so IDs above 32,767 also need unsigned hash storage and decoding. It must remove the type-extension nibble, byte casts, low-byte air checks, and hard-coded 12-bit type masks together. `BoxCell` already uses 16-bit types. The chunk grid does not. A 16-bit grid adds one byte per voxel: 96 KiB per full-height 384-block chunk, or about 562.5 MiB for 6,000 such cached chunks. Update the existing `Cache_BytesPerChunk` calculation with the new grid width so the map-memory budget reduces the cache entry count and holds the selected RAM budget constant. State IDs can retain the present 4,096-per-block limit.
 
 The texture migration reaches `prepareModTextures`, swatch lookup, `Model::tileList`, UV lists, individual PNG writers, mosaics, PBR channels, and OBJ/USD/VRML material writers. `TOTAL_TILES` currently marks both the end of the vanilla table and the start of composite swatches. `NUM_MAX_SWATCHES` is also fixed at 4,096. Imported slots need their own metadata and a non-overlapping allocation range. Start with individual-image OBJ/USD exports, then add dynamic mosaic sizing and the remaining formats. Preserve the decoded-pixel budget and explicit allocation failures. Do not enlarge every terrain image or duplicate the full catalog's textures in memory.
 
@@ -144,15 +144,15 @@ On November 12, 2026, this test passed on macOS with assets from the installed A
 | Imported subset | Loaded blocks / selectors / textures | Tested states | Exported faces | Pixel-checked textures |
 | --- | --- | --- | --- | --- |
 | AllTheModium 3.2.1, Applied Energistics 2 19.2.18, Iron Furnaces 4.3.2, Simply Light 1.5.3 | 379 / 4343 / 469 | 146 | 2282 | 96 |
-| All 495 installed ATM10 mod JARs, plus the matching client assets | 42620 / 538155 / 30213 | 101 | 3360 | 119 |
+| All 495 installed ATM10 mod JARs, plus the matching client assets | 42629 / 538059 / 30228 | 139 | 3860 | 136 |
 
 The latest four-mod run used AddressSanitizer and UndefinedBehaviorSanitizer. It explicitly tested 16 supported drive orientations, both quartz-glass blocks, the spatial pylon, invisible matrix-frame identity, and four levels of each fluid. Its importer report lists 5 unsupported block definitions, 103 unsupported selectors, and 84 warnings. The initial importer rejected 44 block definitions in this subset. The 103 unsupported selectors include 88 AE2 orientations that were previously accepted with an incorrect rotation. The other 15 were already unsupported. Earlier native tests also covered all four dusting stages of both Lootr brushable blocks. The pack includes three dimension metadata records. These checks tested block exports and did not navigate those dimensions.
 
 A separate actual-block regression verifies `justdirethings:goopatternblock[goostage=0]`. Its transparent top/map texture must not discard its visible side geometry. The native test checks its exported faces, texture pixels, and schematic round trip.
 
-The complete compiled catalog contains 84,905 shared geometries, 475,408 elements, and 25 dimension records. Its report lists 9,531 unsupported block definitions, 9,275 unsupported selectors, and 13,215 warnings. Every installed mod JAR was indexed. Unsupported records remain explicit in the report.
+The complete compiled catalog contains 84,940 shared geometries, 475,456 elements, and 25 dimension records. Its report lists 9,522 unsupported block definitions, 9,467 unsupported selectors, and 13,230 warnings. Every installed mod JAR was indexed. Across the complete catalog, 192 AE2 orientations previously accepted with an incorrect Z rotation are now explicitly unsupported. Unsupported records remain explicit in the report.
 
-The full native sanitizer smoke test loaded the catalog in 13.584 seconds with zero decoded texture pixels. The complete export test took 19.33 seconds and reached 1.89 GiB peak resident memory. That peak includes sanitizer and test-harness overhead. A separate optimized loader-only check took 4.215 seconds and reached about 547 MiB peak resident memory. No mod block IDs were allocated before selecting states. These measurements use the local macOS host.
+The full native sanitizer smoke test loaded the catalog in 13.828 seconds with zero decoded texture pixels. It included 37 explicit adapter and transparency regression states alongside the deterministic sample. The complete export test took 19.97 seconds and reached 1.64 GiB peak resident memory. That peak includes sanitizer and test-harness overhead. No mod block IDs were allocated before selecting states. These measurements use the local macOS host.
 
 Catalog counts describe asset definitions, not the game's registered block types. Optional compatibility resources can refer to absent mods or models. The importer reports those missing resources explicitly. No third-party mod assets are included in the repository.
 
@@ -177,7 +177,7 @@ A `geometry` record stores reusable elements and faces. Each `usemodel` referenc
 
 Version 1 uses `model<TAB>x_degrees<TAB>y_degrees<TAB>uvlock_0_or_1` inside each state, followed by inline elements and faces. It does not use shared geometry records.
 
-Version 2 also permits an explicit `invisible` line between `state` and `endstate`. Such a state must have alpha zero and no models. It keeps a known block's schematic identity without rendering it. Unmarked empty states, mixed invisible/model states, and duplicate markers are invalid. Color and alpha otherwise describe the map sample, while face textures control exported opacity.
+Version 2 also permits an explicit `invisible` line between `state` and `endstate`. Such a state must have alpha zero and no models. It keeps a known block's schematic identity without rendering it. Unmarked empty states, mixed invisible/model states, and duplicate markers are invalid.
 
 The state color and alpha describe the map sample. Exported model opacity comes from its face textures.
 

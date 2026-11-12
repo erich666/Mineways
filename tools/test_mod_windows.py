@@ -155,7 +155,13 @@ def exercise(executable, root):
     world(world_path)
     catalog_manifest, catalog_input, catalog_names = large_catalog(root)
     assert gzip.decompress(input_path.read_bytes()).startswith(b'\x0a')
-    assert (pack / 'manifest.mwpack').read_text(encoding='utf-8').splitlines()[0] in ('MINEWAYS_MOD_PACK\t1', 'MINEWAYS_MOD_PACK\t2')
+    manifest_text = (pack / 'manifest.mwpack').read_text(encoding='utf-8')
+    assert manifest_text.splitlines()[0] in ('MINEWAYS_MOD_PACK\t1', 'MINEWAYS_MOD_PACK\t2')
+    selectors = {line.split('\t')[1] for line in manifest_text.splitlines() if line.startswith('state\t')}
+    assert {'ae2:matrix_frame', 'ae2:drive[facing=north,spin=0]', 'ae2:quartz_glass',
+            'ae2:spatial_pylon', 'allthemodium:molten_allthemodium_block[level=0]',
+            'allthemodium:molten_allthemodium_block[level=7]'} <= selectors, 'Adapter fixture is incomplete'
+    assert '\ninvisible\n' in manifest_text, 'Invisible fixture marker is missing'
     if executable is None:
         return
     common = ['Mod pack: ' + str(pack / 'manifest.mwpack'),
