@@ -190,19 +190,35 @@ static void checkMapPerformance()
     assert(block && block->grid[64 * 256] == BLOCK_STONE);
     block_free(block);
     for (int cycle = 0; cycle < 8; ++cycle) {
-        for (int i = 0; i < 256; ++i)
-            assert(ChunkLoaderRequest(&stone, i % 16, i / 16, mc, version, 0));
+        const auto requestDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+        int requested = 0, completed = 0;
+        while (requested < 256) {
+            if (ChunkLoaderRequest(&stone, requested % 16, requested / 16, mc, version, 0)) {
+                ++requested;
+            }
+            else {
+                // The queue holds 96 pending chunks per worker, including uncollected results.
+                int x[64], z[64];
+                completed += ChunkLoaderCollect(x, z, 64, result);
+                assert(result >= 0 && completed <= requested);
+                assert(std::chrono::steady_clock::now() < requestDeadline);
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+        }
+        assert(ChunkLoaderBusy());
         // CloseAll must join running reads and discard all uncollected results.
         CloseAll();
         assert(!ChunkLoaderBusy());
         assert(ChunkLoaderRequest(&gold, 0, 0, mc, version, 0));
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+        completed = 0;
         while (ChunkLoaderBusy() && std::chrono::steady_clock::now() < deadline) {
             int x[64], z[64];
-            ChunkLoaderCollect(x, z, 64, result);
+            completed += ChunkLoaderCollect(x, z, 64, result);
+            assert(result >= 0);
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
-        assert(!ChunkLoaderBusy());
+        assert(!ChunkLoaderBusy() && completed == 1);
         void* cached = nullptr;
         assert(Cache_Find(0, 0, &cached) && cached);
         assert(((WorldBlock*)cached)->grid[64 * 256] == 41);
