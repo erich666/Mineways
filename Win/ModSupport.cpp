@@ -69,16 +69,16 @@ bool parseState(const std::string& input, std::string& name, std::map<std::strin
     if (!props.empty()) canonical += "]";
     return true;
 }
-std::vector<std::string> fields(const std::string& line) {
-    std::vector<std::string> result;
-    size_t start = 0;
+void fields(const std::string& line, std::vector<std::string>& result) {
+    size_t start = 0, count = 0;
     do {
         size_t end = line.find('\t', start);
-        result.push_back(line.substr(start, end - start));
+        if (count == result.size()) result.emplace_back();
+        result[count++].assign(line, start, end - start);
         if (end == std::string::npos) break;
         start = end + 1;
     } while (true);
-    return result;
+    result.resize(count);
 }
 bool number(const std::string& s, double& result, double low, double high) {
     if (s.empty()) return false;
@@ -120,13 +120,15 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
     ModElement* element = nullptr;
     size_t lineNumber = 1, elementCount = 0, definitionCount = 0;
     std::set<std::string> selectors;
+    std::vector<std::string> f;
+    f.reserve(13); // Reuse token storage; the largest valid record has thirteen fields.
     while (std::getline(stream, line)) {
         ++lineNumber;
         if (!line.empty() && line.back() == '\r') line.pop_back();
         auto fail = [&]() { error = "Invalid mod pack record at line " + std::to_string(lineNumber) + "."; return false; };
         if (line.empty()) continue;
         if (line.size() > 16384 || line.find('\0') != std::string::npos) return fail();
-        const auto f = fields(line);
+        fields(line, f);
         if (f[0] == "dimension") {
             if (def || geometry || f.size() != 5 || next.dimensions.size() >= 256) return fail();
             ModDimension dimension;
@@ -262,8 +264,10 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
         else if (f[0] == "endstate") {
             if (!def || f.size() != 1 || (def->models.empty() && !def->invisible)) return fail();
             for (const auto& m : def->models) {
-                if (m.Elements().empty()) return fail();
-                for (const auto& e : m.Elements()) if (e.faces.empty()) return fail();
+                // Shared geometry is immutable and already validated at endgeometry.
+                if (m.geometry) continue;
+                if (m.elements.empty()) return fail();
+                for (const auto& e : m.elements) if (e.faces.empty()) return fail();
             }
             def = nullptr; model = nullptr; element = nullptr;
         }

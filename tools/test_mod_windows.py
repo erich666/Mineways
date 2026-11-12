@@ -9,10 +9,12 @@ import argparse
 import gzip
 import importlib.util
 import math
+import os
 from pathlib import Path
 import struct
 import subprocess
 import tempfile
+import time
 import zlib
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -143,24 +145,55 @@ def write_script(root, name, commands):
     return script, log
 
 
+def process_cpu_summary(process):
+    if os.name != 'nt':
+        return 'CPU time unavailable on this platform'
+    import ctypes
+    from ctypes import wintypes
+    get_times = ctypes.WinDLL('kernel32', use_last_error=True).GetProcessTimes
+    get_times.argtypes = [wintypes.HANDLE] + [ctypes.POINTER(wintypes.FILETIME)] * 4
+    get_times.restype = wintypes.BOOL
+    created, exited, kernel, user = (wintypes.FILETIME() for _ in range(4))
+    if not get_times(wintypes.HANDLE(int(process._handle)), ctypes.byref(created),
+                     ctypes.byref(exited), ctypes.byref(kernel), ctypes.byref(user)):
+        return f'CPU time unavailable (GetProcessTimes error {ctypes.get_last_error()})'
+    kernel_seconds = ((kernel.dwHighDateTime << 32) | kernel.dwLowDateTime) / 10000000
+    user_seconds = ((user.dwHighDateTime << 32) | user.dwLowDateTime) / 10000000
+    return (f'CPU {kernel_seconds + user_seconds:.3f}s '
+            f'(user {user_seconds:.3f}s, kernel {kernel_seconds:.3f}s)')
+
+
 def run(executable, root, name, commands, expect_success=True, timeout=120):
     script, log = write_script(root, name, commands)
     print('Native export: ' + name, flush=True)
-    try:
-        result = subprocess.run([str(executable), '-headless', str(script)], cwd=ROOT,
-                                input='', capture_output=True, text=True, errors='replace', timeout=timeout)
-    except subprocess.TimeoutExpired as error:
-        details = log.read_text(encoding='utf-8', errors='replace') if log.exists() else ''
-        for captured in (error.stdout, error.stderr):
-            if captured:
-                details += captured.decode(errors='replace') if isinstance(captured, bytes) else captured
-        raise AssertionError('Native export timed out: ' + name + '\n' + details) from error
-    details = result.stdout + result.stderr
-    if log.exists():
-        details += log.read_text(encoding='utf-8', errors='replace')
-    if expect_success and result.returncode:
-        raise AssertionError(f'{name}: Mineways exited {result.returncode}\n{details}')
-    return details
+    started = time.monotonic()
+    with subprocess.Popen([str(executable), '-headless', str(script)], cwd=ROOT,
+                          stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                          text=True, errors='replace') as process:
+        try:
+            stdout, stderr = process.communicate(input='', timeout=timeout)
+        except subprocess.TimeoutExpired as error:
+            elapsed = time.monotonic() - started
+            # Inspect the live process before killing it. High CPU suggests active work,
+            # while low CPU is consistent with waiting (including a modal assertion).
+            try:
+                cpu = process_cpu_summary(process)
+            finally:
+                process.kill()
+                stdout, stderr = process.communicate()
+            details = stdout + stderr
+            if log.exists():
+                details += log.read_text(encoding='utf-8', errors='replace')
+            raise AssertionError(f'Native export timed out: {name} '
+                                 f'(wall {elapsed:.3f}s, {cpu})\n{details}') from error
+        print(f'Native export completed: {name} '
+              f'(wall {time.monotonic() - started:.3f}s, {process_cpu_summary(process)})', flush=True)
+        details = stdout + stderr
+        if log.exists():
+            details += log.read_text(encoding='utf-8', errors='replace')
+        if expect_success and process.returncode:
+            raise AssertionError(f'{name}: Mineways exited {process.returncode}\n{details}')
+        return details
 
 
 def check_obj(path, details):

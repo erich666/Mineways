@@ -292,6 +292,16 @@ int main(int argc, char** argv) {
     invalidReference.replace(invalidReference.find("usemodel\t0"), 10, "usemodel\t9");
     writeFile(path, invalidReference);
     assert(!LoadModPack(path.u8string(), error) && GetModBlock(a, av));
+    // Skipping repeated shared-geometry checks must retain both format validation paths.
+    const std::string facelessElement = geometry.substr(0, geometry.find("face\t"));
+    for (const std::string& invalid : {
+            sharedPrefix + "geometry\t0\nendgeometry\n" + cube("lab:invalid"),
+            sharedPrefix + "geometry\t0\n" + facelessElement + "endgeometry\n" + cube("lab:invalid"),
+            prefix + "state\tlab:invalid\tabcdef\t255\nmodel\t0\t0\t0\nendstate\n",
+            prefix + "state\tlab:invalid\tabcdef\t255\nmodel\t0\t0\t0\n" + facelessElement + "endstate\n"}) {
+        writeFile(path, invalid);
+        assert(!LoadModPack(path.u8string(), error) && GetModBlock(a, av));
+    }
     ClearModPack();
     const std::string invisible = "MINEWAYS_MOD_PACK\t2\nstate\tae2:matrix_frame\t000000\t0\ninvisible\nendstate\n";
     writeFile(path, invisible);
