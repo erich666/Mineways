@@ -249,7 +249,7 @@ def exercise(executable, root):
     catalog_manifest, catalog_input, catalog_names = large_catalog(root)
     assert gzip.decompress(input_path.read_bytes()).startswith(b'\x0a')
     manifest_text = (pack / 'manifest.mwpack').read_text(encoding='utf-8')
-    assert manifest_text.splitlines()[0] in ('MINEWAYS_MOD_PACK\t1', 'MINEWAYS_MOD_PACK\t2', 'MINEWAYS_MOD_PACK\t3')
+    assert manifest_text.splitlines()[0] in ('MINEWAYS_MOD_PACK\t1', 'MINEWAYS_MOD_PACK\t2', 'MINEWAYS_MOD_PACK\t3', 'MINEWAYS_MOD_PACK\t4')
     selectors = {line.split('\t')[1] for line in manifest_text.splitlines() if line.startswith('state\t')}
     assert {'ae2:matrix_frame', 'ae2:drive[facing=north,spin=0]', 'ae2:quartz_glass',
             'ae2:spatial_pylon', 'allthemodium:molten_allthemodium_block[level=0]',
@@ -277,6 +277,8 @@ def exercise(executable, root):
     verify_schematic(second, names, details)
     fluid_heights = []
     for index, state in enumerate(['ae2:drive[facing=north,spin=0]',
+                                   'ae2:drive[facing=north,spin=1]',
+                                   'ae2:drive[facing=east,spin=3]',
                                    'ae2:quartz_glass', 'ae2:spatial_pylon',
                                    'allthemodium:molten_allthemodium_block[level=0]',
                                    'allthemodium:molten_allthemodium_block[level=7]']):
@@ -290,6 +292,10 @@ def exercise(executable, root):
                       'Selection location min to max: 0, 0, 0 to 0, 0, 0',
                       'Export for Rendering: ' + str(output), 'Export Schematic: ' + str(roundtrip)])
         check_obj(output, details)
+        if state == 'ae2:drive[facing=north,spin=1]':
+            check_signed_geometry(output, (.375, 0, 0), (1, .75, 1), False)
+        elif state == 'ae2:drive[facing=east,spin=3]':
+            check_signed_geometry(output, (0, .25, 0), (1, 1, .625), False)
         verify_schematic(roundtrip, [state], details)
         assert list((root / (label + 'tex')).glob('*.png')), 'Adapter textures were not exported: ' + state
         if '[level=' in state:
@@ -442,6 +448,25 @@ def check_export_pixels(object_path, sources):
 
 def exercise_pack(executable, root, manifest):
     """Use an external compiled pack, never a user's live Minecraft world."""
+    rotation_blocks = {
+        'advanced_ae:quantum_crafter',
+        'ae2:charger',
+        'ae2:chest',
+        'ae2:drive',
+        'ae2:inscriber',
+        'ae2:io_port',
+        'ae2:spatial_io_port',
+        'ae2:vibration_chamber',
+        'expandedae:exp_io_port',
+        'extendedae:caner',
+        'extendedae:circuit_cutter',
+        'extendedae:crystal_assembler',
+        'extendedae:ex_charger',
+        'extendedae:ex_drive',
+        'extendedae:ex_inscriber',
+        'extendedae:ex_io_port',
+    }
+    rotation_states = []
     by_block, textures = {}, {}
     selectors = 0
     with manifest.open(encoding='utf-8') as stream:
@@ -451,13 +476,15 @@ def exercise_pack(executable, root, manifest):
                 state = fields[1]
                 block = state.split('[', 1)[0]
                 by_block.setdefault(block, [state, state])[1] = state
+                if block in rotation_blocks:
+                    rotation_states.append(state)
                 selectors += 1
             elif fields[0] == 'texture':
                 path = (manifest.parent / fields[3]).resolve()
                 assert manifest.parent.resolve() in path.parents, 'Texture escapes pack root'
                 textures[int(fields[1])] = path
     assert by_block and textures, 'External pack has no renderable catalog'
-    selected = []
+    selected = list(dict.fromkeys(rotation_states))
     blocks = sorted(by_block)
     step = max(1, (len(blocks) + 63) // 64)
     for block in blocks[::step]:

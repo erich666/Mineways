@@ -748,6 +748,7 @@ class Compiler:
         if any(type(angle) is not int or not -(2 ** 31) <= angle < 2 ** 31 or angle % 90 for angle in (x, y)):
             raise ImportError('blockstate rotations must be signed 32-bit integer multiples of 90')
         x, y = x % 360, y % 360
+        z = 0
         if 'ae2:z' in application:
             z = application['ae2:z']
             if type(z) is not int or z not in (0, 90, 180, 270):
@@ -755,19 +756,20 @@ class Compiler:
             orientation = quarter_turn_orientation(x, y, z)
             equivalent = next(((a, b) for a in (0, 90, 180, 270) for b in (0, 90, 180, 270)
                                if quarter_turn_orientation(a, b) == orientation), None)
-            if equivalent is None:
-                raise ImportError('AE2 Z rotation cannot be represented by supported X/Y model rotations')
-            x, y = equivalent
+            if equivalent is not None:
+                x, y = equivalent
+                z = 0
         uvlock = application.get('uvlock', False)
         if not isinstance(uvlock, bool):
             raise ImportError('uvlock must be boolean')
+        rotation = (x, y, int(uvlock), z) if z else (x, y, int(uvlock))
         model = self.model(application['model'])
         name = application['model']
         if name == 'ae2:block/matrix_frame' and model == {'textures': {}}:
-            return {'rotation': (x, y, int(uvlock)), 'elements': [], 'invisible': True}
+            return {'rotation': rotation, 'elements': [], 'invisible': True}
         model = self.builtin_adapter(name, model)
         if model.get('loader') == 'neoforge:obj':
-            return _obj_module.compile_obj(self, model, (x, y, int(uvlock)),
+            return _obj_module.compile_obj(self, model, rotation,
                 SimpleNamespace(ImportError=ImportError, resource=resource, decode_png=decode_png,
                                 encode_png=encode_png, MAX_COMPILED_ELEMENTS=MAX_COMPILED_ELEMENTS))
         if model.get('loader') == 'fusion:model':
@@ -777,7 +779,7 @@ class Compiler:
         if adapted is None:
             adapted = self.custom_loader_adapter(name, model, selector)
         if adapted is not None:
-            return self.compile_model({'model': adapted, 'x': x, 'y': y, 'uvlock': uvlock}, depth + 1, selector)
+            return self.compile_model({'model': adapted, 'x': x, 'y': y, 'uvlock': uvlock, 'ae2:z': z}, depth + 1, selector)
         if model.get('loader') == 'lootr:brushable':
             stage = (selector or {}).get('dusted')
             if stage not in ('0', '1', '2', '3'):
@@ -786,7 +788,7 @@ class Compiler:
             if not isinstance(child, dict):
                 raise ImportError('missing Lootr brushable stage model: ' + stage)
             self.warnings.add(f'{application["model"]}: Lootr uses dusted stage without player-opened appearance; player data is not in the block palette')
-            return self.compile_model({'model': child, 'x': x, 'y': y, 'uvlock': uvlock}, depth + 1, selector)
+            return self.compile_model({'model': child, 'x': x, 'y': y, 'uvlock': uvlock, 'ae2:z': z}, depth + 1, selector)
         if model.get('loader') in ('neoforge:composite', 'forge:composite'):
             transform = _obj_module.model_transform(model.get('transform', {}), ImportError)
             visibility = model.get('visibility', {})
@@ -814,14 +816,14 @@ class Compiler:
                 raise ImportError('composite polygon count exceeds limit')
             if len(elements) > MAX_ELEMENTS:
                 raise ImportError('composite element count exceeds limit')
-            return {'rotation': (x, y, int(uvlock)), 'elements': elements, 'polygons': polygons, 'invisible': all_invisible}
+            return {'rotation': rotation, 'elements': elements, 'polygons': polygons, 'invisible': all_invisible}
         elements = model.get('elements')
         if not isinstance(elements, list) or not elements or len(elements) > MAX_ELEMENTS:
             raise ImportError('model needs 1..2048 standard elements: ' + str(application['model']))
         self.element_count += len(elements)
         if self.element_count > MAX_COMPILED_ELEMENTS:
             raise ImportError('compiled element budget exceeded')
-        result = {'rotation': (x, y, int(uvlock)), 'elements': []}
+        result = {'rotation': rotation, 'elements': []}
         for element in elements:
             if not isinstance(element, dict):
                 raise ImportError('invalid model element')
@@ -1010,6 +1012,7 @@ def compile_pack(sources, destination, namespaces=None):
     compiler = Compiler(assets)
     rejected, texture_ids, geometry_ids = [], {}, {}
     polygon_count = 0
+    has_z_rotation = False
     block_count = selector_count = element_count = 0
     temporary = Path(tempfile.mkdtemp(prefix='.mineways-pack-', dir=destination.parent))
     try:
@@ -1042,6 +1045,7 @@ def compile_pack(sources, destination, namespaces=None):
                     if not models:
                         state_stream.write('invisible\n')
                     for model in models:
+                        has_z_rotation = has_z_rotation or len(model['rotation']) == 4
                         signature = hashlib.sha256(json.dumps((model['elements'], model.get('polygons', [])), sort_keys=True, separators=(',', ':')).encode()).digest()
                         index = geometry_ids.get(signature)
                         if index is None:
@@ -1080,13 +1084,14 @@ def compile_pack(sources, destination, namespaces=None):
                     raise ImportError('compiled manifest exceeds runtime size limit')
         if not block_count and not dimensions:
             raise ImportError('no supported mod blocks or dimensions found' + (': ' + rejected[0]['reason'] if rejected else ''))
-        report = {'format': 3 if polygon_count else 2, 'polygons': polygon_count, 'blocks': block_count, 'selectors': selector_count,
+        version = 4 if has_z_rotation else 3 if polygon_count else 2
+        report = {'format': version, 'polygons': polygon_count, 'blocks': block_count, 'selectors': selector_count,
                   'textures': len(texture_ids), 'geometries': len(geometry_ids), 'elements': element_count,
                   'dimensions': len(dimensions), 'unsupported_dimensions': unsupported_dimensions,
                   'unsupported': rejected, 'unsupported_states': compiler.unsupported_states,
                   'warnings': sorted(compiler.warnings)}
         with (temporary / 'manifest.mwpack').open('w', encoding='utf-8', newline='\n') as manifest:
-            manifest.write(f'MINEWAYS_MOD_PACK\t{3 if polygon_count else 2}\n')
+            manifest.write(f'MINEWAYS_MOD_PACK\t{version}\n')
             for dimension in dimensions:
                 manifest.write('dimension\t' + '\t'.join(map(str, dimension)) + '\n')
             for name, index in texture_ids.items():

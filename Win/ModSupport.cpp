@@ -112,7 +112,8 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
     std::string line;
     if (!std::getline(stream, line)) { error = "Cannot read manifest."; return false; }
     if (!line.empty() && line.back() == '\r') line.pop_back();
-    const bool polygonGeometry = line == "MINEWAYS_MOD_PACK\t3";
+    const bool zRotation = line == "MINEWAYS_MOD_PACK\t4";
+    const bool polygonGeometry = zRotation || line == "MINEWAYS_MOD_PACK\t3";
     const bool sharedGeometry = polygonGeometry || line == "MINEWAYS_MOD_PACK\t2";
     if (!sharedGeometry && line != "MINEWAYS_MOD_PACK\t1") { error = "Unsupported mod pack format."; return false; }
     std::shared_ptr<ModGeometry> geometry;
@@ -210,10 +211,11 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
         else if (f[0] == "usemodel") {
             ModModel m;
             int index, lock;
-            if (!sharedGeometry || !def || def->invisible || f.size() != 5 || def->models.size() >= 256 ||
+            if (!sharedGeometry || !def || def->invisible || (f.size() != 5 && !(zRotation && f.size() == 6)) || def->models.size() >= 256 ||
                 !integer(f[1], index, 0, (int)next.geometries.size() - 1) ||
                 !integer(f[2], m.x, 0, 270) || !integer(f[3], m.y, 0, 270) ||
-                m.x % 90 || m.y % 90 || !integer(f[4], lock, 0, 1)) return fail();
+                m.x % 90 || m.y % 90 || !integer(f[4], lock, 0, 1) ||
+                (f.size() == 6 && (!integer(f[5], m.z, 0, 270) || m.z % 90))) return fail();
             m.geometry = next.geometries[index];
             m.uvlock = lock != 0;
             def->models.push_back(std::move(m));
@@ -223,7 +225,8 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
         else if (f[0] == "model") {
             ModModel m;
             int lock;
-            if (!def || def->invisible || f.size() != 4 || def->models.size() >= 256 || !integer(f[1], m.x, 0, 270) || !integer(f[2], m.y, 0, 270) || m.x % 90 || m.y % 90 || !integer(f[3], lock, 0, 1)) return fail();
+            if (!def || def->invisible || (f.size() != 4 && !(zRotation && f.size() == 5)) || def->models.size() >= 256 || !integer(f[1], m.x, 0, 270) || !integer(f[2], m.y, 0, 270) || m.x % 90 || m.y % 90 || !integer(f[3], lock, 0, 1) ||
+                (f.size() == 5 && (!integer(f[4], m.z, 0, 270) || m.z % 90))) return fail();
             m.uvlock = lock != 0;
             def->models.push_back(std::move(m));
             model = &def->models.back();

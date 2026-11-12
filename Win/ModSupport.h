@@ -56,6 +56,7 @@ struct ModGeometry {
 struct ModModel {
     int x = 0;
     int y = 0;
+    int z = 0; // AE2 blockstate roll, applied before X and Y.
     bool uvlock = false;
     std::vector<ModElement> elements;
     std::vector<ModPolygon> polygons;

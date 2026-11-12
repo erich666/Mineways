@@ -83,7 +83,7 @@ Missing referenced models or textures still reject the affected definition or se
 
 Narrow adapters for the inspected AE2 19.2.18 assets use the empty drive model, isolated quartz-glass appearance, and unlinked, unpowered spatial-pylon appearance. They do not reconstruct installed storage cells, activity indicators, or connections from block-entity data. `ae2:matrix_frame` is explicitly invisible, as in the mod. It produces no render geometry but retains its state through Sponge export and import. An empty model from another block does not automatically become invisible.
 
-The four Allthemodium 3.2.1 fluids use their actual still and flowing textures and the `level` property. Their flat surfaces approximate the fluid renderer. Neighbor slopes, vertical continuity, hidden internal faces, and emission are not reproduced. Reports identify these approximations. AE2's custom Z rotations are mapped to equivalent supported X/Y rotations when possible. Other orientations are reported as unsupported rather than silently using an incorrect orientation.
+The four Allthemodium 3.2.1 fluids use their actual still and flowing textures and the `level` property. Their flat surfaces approximate the fluid renderer. Neighbor slopes, vertical continuity, hidden internal faces, and emission are not reproduced. Reports identify these approximations. AE2 custom Z rotations use equivalent X/Y rotations when possible. Other orientations use an explicit Z quarter-turn before X and Y. UV locking uses the same rotation order.
 
 Five definitions remain unsupported in the original four-mod subset:
 
@@ -221,9 +221,13 @@ The ARM64 macOS ASan/UBSan run activated all 44,483 supported names and checked 
 
 The [Windows Debug/Release fixture run](https://github.com/wbreiler/Mineways/actions/runs/43324160854) and [macOS Intel build](https://github.com/wbreiler/Mineways/actions/runs/43324197091) passed at `ade5fd7`. Both platforms passed all 76 importer tests. The [full-pack Windows run](https://github.com/wbreiler/Mineways/actions/runs/43324187486) compiled the same catalog counts. Both Debug and Release passed 165 sampled states, 221 texture pixel checks, repeated OBJ exports, and exact Sponge geometry/state round trips. Release completed the export and round trip in 10.031 and 9.547 seconds. Debug with AddressSanitizer completed them in 496.188 and 484.047 seconds, within the unchanged ten-minute process limits.
 
+## Further model compatibility
+
+AE2 Z rotation support recovers all 200 previously rejected selectors across 16 block types. The full catalog has 564,898 selectors after this change, with no prior selector lost. Native sanitizer tests cover all 24 cube orientations, element-local rotations, polygons, UV locking, neighbor culling, and OBJ/USD/mosaic/Sponge output. A full-pack macOS run exported all 200 recovered selectors alongside the baseline sample: 352 states, 14,818 faces, and 263 pixel-checked textures. Repeated OBJ exports and exact Sponge geometry/state round trips passed.
+
 ## Compiled format
 
-The importer writes version 3 when a catalog contains polygons and version 2 otherwise. The runtime reads versions 1, 2, and 3. All versions use UTF-8 text with tab-separated fields. Resource identifiers and selectors cannot contain control characters. Dimension records are optional. Texture and geometry indices each start at zero and increase by one. References must use earlier records.
+The importer writes version 4 when a catalog needs explicit Z rotations, version 3 for polygons, and version 2 otherwise. The runtime reads versions 1 through 4. All versions use UTF-8 text with tab-separated fields. Resource identifiers and selectors cannot contain control characters. Dimension records are optional. Texture and geometry indices each start at zero and increase by one. References must use earlier records.
 
 ```text
 MINEWAYS_MOD_PACK<TAB>2
@@ -239,6 +243,8 @@ endstate
 ```
 
 A `geometry` record stores reusable elements and faces. Version 3 also permits `polygon<TAB>texture_index<TAB>vertex_count`, followed by five tab-separated numbers per vertex: `x y z u v`. A polygon has three or four vertices. Positions use pixels within -256..256, and UVs use 0..16 with V downward. Degenerate polygons are invalid. Polygon limits are 16,384 per geometry and 1,000,000 per catalog. Each `usemodel` references that geometry with its own blockstate rotations and UV-lock setting. A state can reference several models. `endgeometry` and `endstate` close their respective definitions. A new `element` record closes the previous element.
+
+Version 4 permits an optional final `z_degrees` field on `usemodel` and inline `model` records. Omission means zero. X, Y, and Z must each be 0, 90, 180, or 270. Z applies first, then X, then Y, about the block center. Versions 1 through 3 reject the additional field.
 
 Version 1 uses `model<TAB>x_degrees<TAB>y_degrees<TAB>uvlock_0_or_1` inside each state, followed by inline elements and faces. It does not use shared geometry records.
 

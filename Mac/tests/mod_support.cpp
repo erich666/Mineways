@@ -302,6 +302,24 @@ int main(int argc, char** argv) {
         writeFile(path, invalid);
         assert(!LoadModPack(path.u8string(), error) && GetModBlock(a, av));
     }
+    for (int version : {1, 2, 3, 4}) {
+        for (const std::string& angle : {"90", "45", "360", "-90", "garbage"}) {
+            for (bool sharedModel : {false, true}) {
+                const std::string header = "MINEWAYS_MOD_PACK\t" + std::to_string(version) + "\ntexture\t0\tlab:block/stone\ttextures/0.png\n";
+                const std::string record = sharedModel ? "usemodel\t0\t0\t0\t1\t" : "model\t0\t0\t1\t";
+                const std::string content = header + (sharedModel ? "geometry\t0\n" + geometry + "endgeometry\n" : "") +
+                    "state\tlab:roll\tabcdef\t255\n" + record + angle + "\n" + (sharedModel ? "" : geometry) + "endstate\n";
+                writeFile(path, content);
+                const bool valid = version == 4 && angle == "90";
+                assert(LoadModPack(path.u8string(), error) == valid);
+                if (valid) {
+                    assert(ResolveModState("lab:roll", &a, &av) == 1);
+                    const auto& model = GetModBlock(a, av)->definition->models[0];
+                    assert(model.z == 90 && model.x == 0 && model.y == 0 && model.uvlock);
+                }
+            }
+        }
+    }
     ClearModPack();
     const std::string invisible = "MINEWAYS_MOD_PACK\t2\nstate\tae2:matrix_frame\t000000\t0\ninvisible\nendstate\n";
     writeFile(path, invisible);

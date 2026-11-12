@@ -46,6 +46,7 @@ def adapter_assets(root):
     put(root, 'assets/ae2/blockstates/drive.json', {'variants': {
         'facing=north,spin=0': {'model': 'ae2:block/drive'},
         'facing=north,spin=1': {'model': 'ae2:block/drive', 'ae2:z': 270},
+        'facing=east,spin=3': {'model': 'ae2:block/drive', 'y': 90, 'ae2:z': 90},
         'facing=north,spin=2': {'model': 'ae2:block/drive', 'ae2:z': 180}}})
     put(root, 'assets/ae2/textures/block/glass/quartz_glass_a.png', mod.encode_png(4, 4, bytes((0, 0, 255, 128)) * 16))
     frame = bytes(channel for y in range(4) for x in range(4)
@@ -147,6 +148,16 @@ def build_fixture(root):
         for y in range(8) for x in range(8)]})
     put(source, 'assets/fixture/blockstates/complex.json', {'variants': {
         '': {'model': 'fixture:block/complex', 'y': 90}}})
+    put(source, 'assets/fixture/blockstates/ae2_cull.json', {'variants': {
+        '': {'model': 'fixture:block/cube', 'ae2:z': 90}}})
+    put(source, 'assets/fixture/models/block/ae2_rotation.json', {'elements': [{
+        'from': [2, 3, 4], 'to': [13, 11, 15], 'faces': geometry_faces}]})
+    for name, model in (('ae2_rotation', 'ae2_rotation'), ('ae2_polygon', 'obj_mesh'), ('ae2_local', 'wedge')):
+        put(source, f'assets/fixture/blockstates/{name}.json', {'variants': {
+            f'locked={str(lock).lower()},x={x},y={y},z={z}': {
+                'model': 'fixture:block/' + model, 'x': x, 'y': y, 'ae2:z': z, 'uvlock': lock}
+            for x in (0, 90, 180, 270) for y in (0, 90, 180, 270)
+            for z in (0, 90, 180, 270) for lock in (False, True)}})
     pack = root / 'pack'
     mod.compile_pack([source, long_archive], pack)
     return pack
@@ -535,7 +546,8 @@ class ImportTests(unittest.TestCase):
         self.assertIn('element\t0\t0\t0\t12\t10\t16', text)
         self.assertEqual(report['blocks'], 6)
         self.assertEqual(report['unsupported'], [])
-        self.assertEqual(report['unsupported_states'][0]['state'], 'ae2:drive[facing=north,spin=1]')
+        self.assertEqual(report['unsupported_states'], [])
+        self.assertEqual(report['format'], 4)
         self.assertTrue(any('empty-drive' in w for w in report['warnings']))
         self.assertTrue(any('unpowered' in w for w in report['warnings']))
         textures = {f[2]: out / f[3] for line in text.splitlines() if (f := line.split('\t'))[0] == 'texture'}
@@ -568,30 +580,39 @@ class ImportTests(unittest.TestCase):
         self.assertEqual(len(states), 17)
         compiler.assets.close()
 
-    def test_ae2_z_rotations_match_existing_axes_or_report_unsupported(self):
+    def test_ae2_z_rotations_cover_all_cube_orientations(self):
         # Independent right-handed negative quarter turns from the verified JOML call.
-        self.assertEqual(mod.quarter_turn_orientation(90, 0), ((1, 0, 0), (0, 0, -1), (0, 1, 0)))
-        self.assertEqual(mod.quarter_turn_orientation(0, 90), ((0, 0, 1), (0, 1, 0), (-1, 0, 0)))
         self.assertEqual(mod.quarter_turn_orientation(0, 0, 90), ((0, -1, 0), (1, 0, 0), (0, 0, 1)))
         self.assertEqual(mod.quarter_turn_orientation(90, 90, 90), ((-1, 0, 0), (0, 0, 1), (0, 1, 0)))
         simple(self.source)
         compiler = mod.Compiler(mod.Assets([self.source]))
-        supported = unsupported = 0
+        orientations = set()
+        extended = 0
         for x in (0, 90, 180, 270):
             for y in (0, 90, 180, 270):
                 for z in (0, 90, 180, 270):
-                    try:
-                        result = compiler.compile_model({'model': 'sample:block/stone', 'x': x, 'y': y, 'ae2:z': z})
-                    except mod.ImportError as error:
-                        self.assertIn('AE2 Z rotation', str(error))
-                        unsupported += 1
-                    else:
-                        a, b, _ = result['rotation']
-                        self.assertEqual(mod.quarter_turn_orientation(a, b), mod.quarter_turn_orientation(x, y, z))
-                        supported += 1
-        self.assertEqual((supported, unsupported), (48, 16))
-        self.assertEqual(compiler.compile_model({'model': 'sample:block/stone', 'ae2:z': 180})['rotation'][:2], (180, 180))
+                    result = compiler.compile_model({'model': 'sample:block/stone', 'x': x, 'y': y, 'ae2:z': z, 'uvlock': True})
+                    a, b, lock, *roll = result['rotation']
+                    self.assertEqual(lock, 1)
+                    actual = mod.quarter_turn_orientation(a, b, roll[0] if roll else 0)
+                    self.assertEqual(actual, mod.quarter_turn_orientation(x, y, z))
+                    orientations.add(actual)
+                    extended += bool(roll)
+                    if z == 0:
+                        self.assertEqual(result['rotation'], (x, y, 1))
+        self.assertEqual((len(orientations), extended), (24, 16))
+        for z in (-90, 360, 45, True, '90', 10**400):
+            with self.assertRaises(mod.ImportError):
+                compiler.compile_model({'model': 'sample:block/stone', 'ae2:z': z})
         compiler.assets.close()
+        put(self.source, 'assets/sample/blockstates/stone.json', {'variants': {
+            'roll=false': {'model': 'sample:block/stone'},
+            'roll=true': {'model': 'sample:block/stone', 'ae2:z': 90}}})
+        out, report = self.compile()
+        self.assertEqual(report['format'], 4)
+        text = (out / 'manifest.mwpack').read_text()
+        self.assertIn('usemodel\t0\t0\t0\t0\t90', text)
+        self.assertEqual(report['geometries'], 1)
 
     def test_standard_fluid_resource_override_takes_precedence(self):
         adapter_assets(self.source)

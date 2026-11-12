@@ -33,14 +33,14 @@ static std::wstring wide(const std::filesystem::path& path)
 
 static void exportWorld(WorldGuide& world, const std::filesystem::path& path, int mode,
                         bool detailed = true, bool doubled = false, bool printing = false, bool expectFailure = false,
-                        bool expectEmpty = false, bool windowsUsdDefaults = false)
+                        bool expectEmpty = false, bool windowsUsdDefaults = false, bool individual = true)
 {
     ExportFileData settings = {};
     Options options = {};
     const int fileType = path.extension() == ".schematic" ? FILE_TYPE_SCHEMATIC : path.extension() == ".schem" ? FILE_TYPE_SPONGE_SCHEMATIC : path.extension() == ".usda" ? FILE_TYPE_USD : path.extension() == ".stl" ? FILE_TYPE_ASCII_STL : FILE_TYPE_WAVEFRONT_ABS_OBJ;
     settings.fileType = fileType;
     settings.chkCreateModelFiles[fileType] = 1;
-    settings.chkIndividualBlocks[fileType] = 1;
+    settings.chkIndividualBlocks[fileType] = individual;
     settings.radioRotate0 = settings.radioScaleByBlock = 1;
     settings.blockSizeVal[fileType] = 1000.0f;
     settings.hollowThicknessVal[fileType] = 1000.0f;
@@ -54,7 +54,7 @@ static void exportWorld(WorldGuide& world, const std::filesystem::path& path, in
     options.saveFilterFlags = BLF_WHOLE | BLF_ALMOST_WHOLE | BLF_STAIRS | BLF_HALF | BLF_MIDDLER |
                               BLF_BILLBOARD | BLF_PANE | BLF_FLATTEN | BLF_FLATTEN_SMALL |
                               BLF_SMALL_MIDDLER | BLF_SMALL_BILLBOARD;
-    options.exportFlags = mode | EXPT_INDIVIDUAL_BLOCKS;
+    options.exportFlags = mode | (individual ? EXPT_INDIVIDUAL_BLOCKS : 0);
     if (windowsUsdDefaults) {
         assert(fileType == FILE_TYPE_USD);
         settings.scaleLightsVal = 15.0f;
@@ -236,6 +236,7 @@ static std::vector<std::string> stateNames(const WorldGuide& world)
 
 #include "mod_geometry.h"
 #include "mod_polygons.h"
+#include "mod_rotations.h"
 #include "mod_normals.h"
 
 int main(int argc, char** argv)
@@ -433,6 +434,7 @@ int main(int argc, char** argv)
     free(invisibleRead.sch.blocks); free(invisibleRead.sch.data);
     free(mixedRead.sch.blocks); free(mixedRead.sch.data);
     checkModPolygons(root);
+    checkModRotations(root);
     checkModNormalCapacity(root);
     ClearModPack();
     checkExtendedModGeometry(root);

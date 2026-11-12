@@ -918,8 +918,8 @@ typedef struct ModelElement {
     int rotAxis;
     int rescale;
 } ModelElement;
-static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, float yAngle, int xAngle = 0, bool uvlock = false);
-static int saveRotatedModel(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, int xAngle, int yAngle, bool uvlock);
+static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, float yAngle, int xAngle = 0, bool uvlock = false, int zAngle = 0);
+static int saveRotatedModel(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, int xAngle, int yAngle, bool uvlock, int zAngle = 0);
 // The terrain tile anchor of a sign's 32x32 texture (see tiles.h): standing and wall signs in rows 4-7, hanging and wall hanging signs in
 // rows 8-11, eight woods (SIGN_WOOD(), the order of gSignWoods[]) to each pair of rows, from column 16.
 #define SIGN_TEXTURE_ANCHOR(wood, hanging) TILE_TO_SWATCH(16 + 2 * ((wood) % 8), ((hanging) ? 8 : 4) + 2 * ((wood) / 8))
@@ -1066,7 +1066,7 @@ static int saveModGeometry(int boxIndex, int type, int dataVal)
             if (code >= MW_BEGIN_ERRORS) return code;
         }
         if (!elements.empty()) {
-            int code = saveRotatedModel(boxIndex, type, dataVal, 0, elements.data(), (int)elements.size(), sourceModel.x, sourceModel.y, sourceModel.uvlock);
+            int code = saveRotatedModel(boxIndex, type, dataVal, 0, elements.data(), (int)elements.size(), sourceModel.x, sourceModel.y, sourceModel.uvlock, sourceModel.z);
             if (code >= MW_BEGIN_ERRORS) return code;
         }
     }
@@ -1106,7 +1106,7 @@ static float getHeadYAngle(int dataVal);
 #define BED_DOWN_TILE TILE_TO_SWATCH(16, 23)
 #define BED_HEAD_NORTH_TILE TILE_TO_SWATCH(17, 23)
 static int saveBoxModelFace(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int anchorLoc, const float uv[4], int rotation);
-static int saveBoxModelFaceUVLock(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int anchorLoc, const float uv[4], int rotation, int xAngle, int yAngle);
+static int saveBoxModelFaceUVLock(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int anchorLoc, const float uv[4], int rotation, int xAngle, int yAngle, int zAngle = 0);
 static int saveSpanTextureUV(int anchorLoc, int type, float su, float sv);
 static int findFaceDimensions(float rect[4], int faceDirection, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
 static int lesserNeighborCoversRectangle(int faceDirection, int boxIndex, float rect[4]);
@@ -17950,8 +17950,8 @@ static int saveBoxModelFace(int startVertexIndex, int type, int dataVal, int fac
 // texture coordinates are changed as Minecraft's BlockMath.getUVLockTransform does. Each is taken as a point on the side of the
 // block the face is on, by Minecraft's default mapping for that side, turned with the block, and mapped back to texture coordinates
 // by the default mapping of the side it's turned to. (So a side face turned about Y keeps its "uv".) The face itself is saved
-// unturned; the caller turns the vertices. With both angles 0, it's saveBoxModelFace.
-static int saveBoxModelFaceUVLock(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int anchorLoc, const float uv[4], int rotation, int xAngle, int yAngle)
+// unturned; the caller turns the vertices. With all angles 0, it's saveBoxModelFace.
+static int saveBoxModelFaceUVLock(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int anchorLoc, const float uv[4], int rotation, int xAngle, int yAngle, int zAngle)
 {
     // Minecraft's vertex order for each face direction (FaceInfo), as box corner bits: 0x4 X max, 0x2 Y max, 0x1 Z max. Counterclockwise
     // as seen from outside the box, as Mineways wants.
@@ -17974,7 +17974,7 @@ static int saveBoxModelFaceUVLock(int startVertexIndex, int type, int dataVal, i
             int shifted = (i + rotation / 90) % 4;
             float u = (shifted == 0 || shifted == 1) ? uv[0] : uv[2];
             float v = (shifted == 0 || shifted == 3) ? uv[1] : uv[3];
-            if (xAngle != 0 || yAngle != 0) {
+            if (xAngle != 0 || yAngle != 0 || zAngle != 0) {
                 // the point on the face's side of the block (pixels, from the block's center), and that side's direction
                 float pt[3], nrm[3];
                 switch (faceDirection) {
@@ -17998,6 +17998,10 @@ static int saveBoxModelFaceUVLock(int startVertexIndex, int type, int dataVal, i
                 case DIRECTION_BLOCK_SIDE_HI_X: nrm[X] = 1.0f; break;
                 case DIRECTION_BLOCK_TOP: nrm[Y] = 1.0f; break;
                 case DIRECTION_BLOCK_SIDE_HI_Z: nrm[Z] = 1.0f; break;
+                }
+                for (int q = 0; q < ((zAngle / 90) & 0x3); q++) {
+                    float t = pt[X]; pt[X] = pt[Y]; pt[Y] = -t;
+                    t = nrm[X]; nrm[X] = nrm[Y]; nrm[Y] = -t;
                 }
                 // "x" 90 takes up to north, (x,y,z) to (x,z,-y); "y" 90 takes north to east, (x,y,z) to (-z,y,x)
                 for (int q = 0; q < ((xAngle / 90) & 0x3); q++) {
@@ -18100,16 +18104,17 @@ static int saveFenceRails(int boxIndex, int type, int dataVal, int yAngle)
 }
 
 // Save a model, as given in Minecraft's JSON, textured by the (possibly multi-tile) image at anchorLoc, then turn it as a blockstate
-// does, by "x" and then "y" (multiples of 90 degrees), with "uvlock" if set.
-static int saveRotatedModel(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, int xAngle, int yAngle, bool uvlock)
+// does, by optional AE2 "z", then "x" and "y" (multiples of 90 degrees), with "uvlock" if set.
+static int saveRotatedModel(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, int xAngle, int yAngle, bool uvlock, int zAngle)
 {
     float mtx[4][4];
     int vertexCount = gModel.vertexCount;
     gUsingTransform = 1;
-    int retCode = saveModelElements(boxIndex, type, dataVal, anchorLoc, elements, elementCount, (float)yAngle, xAngle, uvlock);
+    int retCode = saveModelElements(boxIndex, type, dataVal, anchorLoc, elements, elementCount, (float)yAngle, xAngle, uvlock, zAngle);
     vertexCount = gModel.vertexCount - vertexCount;
     identityMtx(mtx);
     translateToOriginMtx(mtx, boxIndex);
+    if (zAngle != 0) rotateMtx(mtx, 0.0f, 0.0f, (float)zAngle);
     rotateMtx(mtx, (float)xAngle, 0.0f, 0.0f);
     rotateMtx(mtx, 0.0f, (float)yAngle, 0.0f);
     translateFromOriginMtx(mtx, boxIndex);
@@ -18133,6 +18138,7 @@ static int saveModPolygons(int boxIndex, int type, int dataVal, const ModModel& 
             if (checkVertexListSize() >= MW_BEGIN_ERRORS) return MW_WORLD_EXPORT_TOO_LARGE;
             float position[3];
             for (int axis = 0; axis < 3; ++axis) position[axis] = polygon.vertices[i][axis] - 8.0f;
+            for (int q = 0; q < model.z / 90; ++q) { const float x = position[0]; position[0] = position[1]; position[1] = -x; }
             for (int q = 0; q < model.x / 90; ++q) { const float y = position[1]; position[1] = position[2]; position[2] = -y; }
             for (int q = 0; q < model.y / 90; ++q) { const float x = position[0]; position[0] = -position[2]; position[2] = x; }
             for (int axis = 0; axis < 3; ++axis) gModel.vertices[gModel.vertexCount][axis] = (float)anchor[axis] + (position[axis] + 8.0f) / 16.0f;
@@ -18368,7 +18374,7 @@ static int modelFaceIsCovered(int boxIndex, const ModelElement* pElem, int faceD
 // yAngle is the rotation about Y the caller gives the model afterwards, used to find which faces are hidden by neighbors.
 // Elements with their own rotation are turned into place here, so the caller must have set gUsingTransform.
 // The first face saved is marked as the first face of the block.
-static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, float yAngle, int xAngle /*= 0*/, bool uvlock /*= false*/)
+static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, float yAngle, int xAngle /*= 0*/, bool uvlock /*= false*/, int zAngle /*= 0*/)
 {
     int retCode = MW_NO_ERROR;
     int markFirstFace = 1;
@@ -18388,10 +18394,10 @@ static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc,
                 continue;
             // a face on the block's side is hidden if the neighbor there covers it, e.g. a straw bed's bottom on a full opaque
             // block, or a shelf mushroom's back against its log (only tested for a model turned just about Y)
-            if ((xAngle == 0) && pFace->cullMode != -1 && modelFaceIsCovered(boxIndex, pElem, pFace->cullMode > 0 ? pFace->cullMode - 1 : pFace->faceDirection, yAngle))
+            if ((xAngle == 0) && (zAngle == 0) && pFace->cullMode != -1 && modelFaceIsCovered(boxIndex, pElem, pFace->cullMode > 0 ? pFace->cullMode - 1 : pFace->faceDirection, yAngle))
                 continue;
             retCode |= saveBoxModelFaceUVLock(startVertexIndex, type, dataVal, pFace->faceDirection, markFirstFace, pFace->swatchLoc ? pFace->swatchLoc : anchorLoc, pFace->uv, pFace->rotation,
-                uvlock ? xAngle : 0, uvlock ? (int)yAngle : 0);
+                uvlock ? xAngle : 0, uvlock ? (int)yAngle : 0, uvlock ? zAngle : 0);
             if (retCode >= MW_BEGIN_ERRORS)
                 return retCode;
             markFirstFace = 0;
