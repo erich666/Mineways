@@ -3,9 +3,9 @@ name: Windows Build
 on:
   push:
     branches: [master, 'codex/**']
-    paths: ['Win/**', 'tools/import_mod_assets.py', 'Mac/tests/mod_assets.py', 'tools/test_mod_windows.py', 'tools/download_mod_assets.py', 'tools/test_download_mod_assets.py', 'tools/fixtures/**', '.github/workflows/windows-build.yml']
+    paths: ['Win/**', 'tools/import_mod_assets.py', 'Mac/tests/mod_*.py', 'tools/test_mod_windows.py', 'tools/download_mod_assets.py', 'tools/test_download_mod_assets.py', 'tools/fixtures/**', '.github/workflows/windows-build.yml']
   pull_request:
-    paths: ['Win/**', 'tools/import_mod_assets.py', 'Mac/tests/mod_assets.py', 'tools/test_mod_windows.py', 'tools/download_mod_assets.py', 'tools/test_download_mod_assets.py', 'tools/fixtures/**', '.github/workflows/windows-build.yml']
+    paths: ['Win/**', 'tools/import_mod_assets.py', 'Mac/tests/mod_*.py', 'tools/test_mod_windows.py', 'tools/download_mod_assets.py', 'tools/test_download_mod_assets.py', 'tools/fixtures/**', '.github/workflows/windows-build.yml']
   workflow_dispatch:
     inputs:
       full_atm:
@@ -33,7 +33,7 @@ jobs:
           & "$vs\MSBuild\Current\Bin\MSBuild.exe" Win/Mineways.vcxproj -p:Configuration=${{ matrix.configuration }} -p:Platform=x64 -p:PlatformToolset=v143 -v:m -nologo
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Test portable asset importer
-        run: python Mac/tests/mod_assets.py
+        run: python -m unittest discover -s Mac/tests -p 'mod_*.py'
       - name: Test pinned asset downloader
         run: python tools/test_download_mod_assets.py
       - name: Test native mod exports

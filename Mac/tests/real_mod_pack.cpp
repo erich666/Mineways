@@ -186,6 +186,19 @@ int main(int argc, char** argv)
         selected.push_back(block.second.front());
         if (block.second.size() > 1) selected.push_back(block.second.back());
     }
+    const char* targets[] = {
+        "handcrafted:acacia_bench", "handcrafted:blue_bowl", "botanypots:black_concrete_botany_pot",
+        "bibliocraft:black_fancy_gold_lamp", "refinedstorage:cable", "cabletiers:black_creative_constructor",
+        "bibliocraft:acacia_table", "bibliocraft:acacia_bookcase", "xycraft_machines:machine_base",
+        "xycraft_override:smooth_polished_tuff", "advancedperipherals:block_reader",
+        "waystones:blackstone_waystone", "refurbished_furniture:acacia_desk"
+    };
+    for (const char* name : targets) {
+        auto block = byBlock.find(name);
+        if (block == byBlock.end()) continue;
+        for (const auto* state : {&block->second.front(), &block->second.back()})
+            if (std::find(selected.begin(), selected.end(), *state) == selected.end()) selected.push_back(*state);
+    }
     for (int argument = 3; argument < argc; ++argument)
         if (std::find(selected.begin(), selected.end(), argv[argument]) == selected.end()) selected.push_back(argv[argument]);
     const int width = (int)selected.size() * 2 - 1;

@@ -164,7 +164,7 @@ clean:
 # Data-only importer and native registry checks. Each execution uses fresh fixtures.
 .PHONY: test-mods
 test-mods: $(ALL_OBJS)
-	python3 tests/mod_assets.py
+	python3 -m unittest discover -s tests -p 'mod_*.py'
 	$(CXX) $(CXXFLAGS) $(SANITIZER_FLAGS) tests/mod_support.cpp $(SRC_DIR)/ModSupport.cpp $(SRC_DIR)/blockInfo.cpp $(SRC_DIR)/biomes.cpp $(SRC_DIR)/lodepng.cpp -lz -o /tmp/mineways-mod-support
 	/tmp/mineways-mod-support "$$(mktemp -d /tmp/mineways-mod-support.XXXXXX)"
 

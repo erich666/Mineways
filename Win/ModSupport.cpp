@@ -233,15 +233,14 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
             ModElement e;
             double value;
             for (int i = 0; i < 6; ++i) {
-                if (!number(f[i + 1], value, -16, 32)) return fail();
+                if (!number(f[i + 1], value, -256, 256)) return fail();
                 if (i < 3) e.from[i] = (float)value; else e.to[i - 3] = (float)value;
             }
-            for (int i = 0; i < 3; ++i) if (e.from[i] > e.to[i]) return fail();
             e.axis = f[7] == "none" ? -1 : f[7] == "x" ? 0 : f[7] == "y" ? 1 : f[7] == "z" ? 2 : -2;
             if (e.axis == -2 || !number(f[8], value, -45, 45)) return fail();
             e.angle = (float)value;
             if (e.axis == -1 && e.angle != 0) return fail();
-            for (int i = 0; i < 3; ++i) { if (!number(f[i + 9], value, -16, 32)) return fail(); e.origin[i] = (float)value; }
+            for (int i = 0; i < 3; ++i) { if (!number(f[i + 9], value, -256, 256)) return fail(); e.origin[i] = (float)value; }
             int rescale;
             if (!integer(f[12], rescale, 0, 1)) return fail();
             e.rescale = rescale != 0;

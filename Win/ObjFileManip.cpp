@@ -1039,6 +1039,7 @@ static int saveModGeometry(int boxIndex, int type, int dataVal)
             element.rotAngle = source.angle;
             element.rescale = source.rescale;
             bool flat[3] = { source.from[0] == source.to[0], source.from[1] == source.to[1], source.from[2] == source.to[2] };
+            const bool inverted = source.from[0] > source.to[0] || source.from[1] > source.to[1] || source.from[2] > source.to[2];
             bool emittedFlat = false;
             for (const auto& face : source.faces) {
                 int axis = face.direction < 2 ? 1 : face.direction < 4 ? 2 : 0;
@@ -1050,7 +1051,7 @@ static int saveModGeometry(int boxIndex, int type, int dataVal)
                 std::copy(face.uv, face.uv + 4, out.uv);
                 out.rotation = face.rotation;
                 out.swatchLoc = (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES) ? colorSwatch(type) : gModTextureSwatches[face.texture];
-                out.cullMode = face.cullface < 0 || source.angle != 0 ? -1 : directions[face.cullface] + 1;
+                out.cullMode = face.cullface < 0 || source.angle != 0 || inverted ? -1 : directions[face.cullface] + 1;
                 out.billboardBack = flat[axis] && emittedFlat;
                 emittedFlat = emittedFlat || flat[axis];
             }
@@ -5155,8 +5156,13 @@ static void shearMtx(float mtx[4][4], float shx, float shy)
 static void transformVertices(int count, float mtx[4][4])
 {
     int i, j, vert;
-    // If this number is large, it's likely that we sent the wrong value in
-    assert(count <= 400);
+    // Transform the appended range, which can contain thousands of vertices for imported models.
+    // Each vertex was allocated by checkVertexListSize(); validate the actual buffer bounds,
+    // rather than limiting model complexity to an arbitrary number of elements.
+    const bool validRange = count >= 0 && count <= gModel.vertexCount &&
+        gModel.vertexCount <= gModel.vertexListSize && (count == 0 || gModel.vertices != NULL);
+    assert(validRange);
+    if (!validRange) return;
     for (vert = gModel.vertexCount - count; vert < gModel.vertexCount; vert++)
     {
         Point resVertex;

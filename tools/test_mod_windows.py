@@ -217,6 +217,29 @@ def verify_schematic(path, names, details):
         assert name.encode() in data, 'Mod state lost in schematic export: ' + name
 
 
+def check_signed_geometry(path, lower, upper, inward):
+    vertices, faces = [], []
+    for line in path.read_text().splitlines():
+        fields = line.split()
+        if fields and fields[0] == 'v':
+            vertices.append(tuple(map(float, fields[1:4])))
+        elif fields and fields[0] == 'f':
+            faces.append([int(value.split('/')[0]) - 1 for value in fields[1:]])
+    assert len(faces) == 6 and all(len(face) == 4 for face in faces)
+    for axis in range(3):
+        assert math.isclose(min(v[axis] for v in vertices), lower[axis], abs_tol=1e-6)
+        assert math.isclose(max(v[axis] for v in vertices), upper[axis], abs_tol=1e-6)
+    center = [(a + b) / 2 for a, b in zip(lower, upper)]
+    for face in faces:
+        assert all(0 <= index < len(vertices) for index in face)
+        points = [vertices[index] for index in face]
+        a = [points[1][i] - points[0][i] for i in range(3)]
+        b = [points[2][i] - points[0][i] for i in range(3)]
+        cross = (a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0])
+        dot = sum(cross[i] * (points[0][i] - center[i]) for i in range(3))
+        assert dot < 0 if inward else dot > 0, 'Signed model face winding changed'
+
+
 def exercise(executable, root):
     pack = FIXTURE.build_fixture(root)
     input_path = root / 'input.schem'
@@ -274,6 +297,28 @@ def exercise(executable, root):
                        if line.startswith('v ')]
             fluid_heights.append(max(heights) - min(heights))
     assert fluid_heights[0] > fluid_heights[1] > 0, 'Fluid levels lost their distinct surface heights'
+    for label, lower, upper, inward in [
+            ('inverted', (2/16, 3/16, 4/16), (14/16, 13/16, 12/16), True),
+            ('extended', (-3, -2, -1), (3, 2.5, 2), False),
+            ('complex', None, None, False)]:
+        state = 'fixture:' + label + '[retained=true]'
+        source, output, restored = [root / (label + suffix) for suffix in ('.schem', '.obj', '-roundtrip.schem')]
+        schematic(source, [state])
+        details = run(executable, root, label, [*common, 'Minecraft world: ' + str(source),
+                      'File type: Export individual textures to directory ' + label + 'tex',
+                      'Selection location min to max: 0, 0, 0 to 0, 0, 0',
+                      'Export for Rendering: ' + str(output), 'Export Schematic: ' + str(restored)])
+        check_obj(output, details)
+        if label == 'complex':
+            lines = output.read_text().splitlines()
+            vertices = {tuple(map(float, line.split()[1:4])) for line in lines if line.startswith('v ')}
+            expected = {(1-z/16, (2*y+dy)/16, (2*x+dx)/16)
+                        for x in range(8) for y in range(8) for dx in (0, 1) for dy in (0, 1) for z in (2, 4)}
+            assert vertices == expected and len(vertices) == 512, 'Complex model rotation lost vertices'
+            assert sum(line.startswith('f ') for line in lines) == 384, 'Complex model lost faces'
+        else:
+            check_signed_geometry(output, lower, upper, inward)
+        verify_schematic(restored, [state], details)
     # Invisible models keep their state identity and leave neighboring cube faces intact.
     invisible_names = ['fixture:cube[custom=left]', 'ae2:matrix_frame[custom=retained]',
                        'fixture:cube[custom=right]']
@@ -390,7 +435,14 @@ def exercise_pack(executable, root, manifest):
             if state not in selected:
                 selected.append(state)
     targets = ['ae2:matrix_frame', 'ae2:drive', 'ae2:quartz_glass',
-               'ae2:quartz_vibrant_glass', 'ae2:spatial_pylon']
+               'ae2:quartz_vibrant_glass', 'ae2:spatial_pylon',
+               'handcrafted:acacia_bench', 'handcrafted:blue_bowl',
+               'botanypots:black_concrete_botany_pot', 'bibliocraft:black_fancy_gold_lamp',
+               'refinedstorage:cable', 'cabletiers:black_creative_constructor',
+               'bibliocraft:acacia_table', 'bibliocraft:acacia_bookcase',
+               'xycraft_machines:machine_base', 'xycraft_override:smooth_polished_tuff',
+               'advancedperipherals:block_reader', 'waystones:blackstone_waystone',
+               'refurbished_furniture:acacia_desk']
     targets += [name for name in blocks if name.startswith('allthemodium:molten_')]
     for block in targets:
         if block in by_block:

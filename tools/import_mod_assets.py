@@ -29,6 +29,8 @@ MAX_ARCHIVE_BYTES = 256 * 1024 * 1024
 MAX_SOURCE_BYTES = 2 * 1024 * 1024 * 1024
 MAX_STATES = 4096
 MAX_ELEMENTS = 2048
+MIN_MODEL_COORDINATE = -256
+MAX_MODEL_COORDINATE = 256
 MAX_PIXELS = 4 * 1024 * 1024
 MAX_COMPILED_ELEMENTS = 4000000
 MAX_TEXTURES = 131072
@@ -200,7 +202,7 @@ def encode_png(width, height, pixels):
 
 
 def decode_png(data, on_trailing=None):
-    """Bounded decoder for the common non-interlaced 8-bit Minecraft PNG formats."""
+    """Bounded PNG decoder, including Adam7 and 16-bit samples, returning RGBA8."""
     if not data.startswith(b'\x89PNG\r\n\x1a\n'):
         raise ImportError('invalid PNG signature')
     offset, compressed, palette, transparency = 8, bytearray(), b'', b''
@@ -224,8 +226,9 @@ def decode_png(data, on_trailing=None):
             channels = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}.get(color, 0)
             if not width or not height or width * height > MAX_PIXELS:
                 raise ImportError('PNG dimensions exceed limit')
-            if not channels or comp or filt or interlace or (depth != 8 and not (color in (0, 3) and depth in (1, 2, 4))):
-                raise ImportError('PNG requires non-interlaced 8-bit or packed grayscale/indexed pixels')
+            depths = {0: (1, 2, 4, 8, 16), 2: (8, 16), 3: (1, 2, 4, 8), 4: (8, 16), 6: (8, 16)}
+            if depth not in depths.get(color, ()) or comp or filt or interlace not in (0, 1):
+                raise ImportError('invalid PNG color type, depth, compression, filter, or interlace method')
         elif not width:
             raise ImportError('PNG IHDR must be first')
         elif kind == b'IDAT':
@@ -243,9 +246,20 @@ def decode_png(data, on_trailing=None):
         if on_trailing is None:
             raise ImportError('trailing data after PNG end')
         on_trailing()
-    stride = (width * channels * depth + 7) // 8
+    # Adam7 scanlines are filtered independently within each nonempty pass.
+    # Compute the exact decompressed bound before allocating or inflating data.
+    steps = ((0, 0, 1, 1),) if not interlace else (
+        (0, 0, 8, 8), (4, 0, 8, 8), (0, 4, 4, 8), (2, 0, 4, 4),
+        (0, 2, 2, 4), (1, 0, 2, 2), (0, 1, 1, 2))
+    passes = []
+    for x0, y0, dx, dy in steps:
+        pass_width = max(0, (width - x0 + dx - 1) // dx)
+        pass_height = max(0, (height - y0 + dy - 1) // dy)
+        if pass_width and pass_height:
+            stride = (pass_width * channels * depth + 7) // 8
+            passes.append((x0, y0, dx, dy, pass_width, pass_height, stride))
     pixel_bytes = max(1, (channels * depth + 7) // 8)
-    expected = height * (1 + stride)
+    expected = sum(pass_height * (1 + stride) for _, _, _, _, _, pass_height, stride in passes)
     decoder = zlib.decompressobj()
     try:
         raw = decoder.decompress(compressed, expected + 1)
@@ -253,47 +267,67 @@ def decode_png(data, on_trailing=None):
         raise ImportError('invalid PNG compression') from error
     if len(raw) != expected or not decoder.eof or decoder.unused_data:
         raise ImportError('PNG decompressed size mismatch')
-    output, previous = bytearray(), bytearray(stride)
-    for y in range(height):
-        start = y * (stride + 1)
-        filter_type = raw[start]
-        row = bytearray(raw[start + 1:start + 1 + stride])
-        if filter_type > 4:
-            raise ImportError('invalid PNG row filter')
-        for i in range(stride):
-            a = row[i - pixel_bytes] if i >= pixel_bytes else 0
-            b = previous[i]
-            c = previous[i - pixel_bytes] if i >= pixel_bytes else 0
-            if filter_type == 1:
-                row[i] = (row[i] + a) & 255
-            elif filter_type == 2:
-                row[i] = (row[i] + b) & 255
-            elif filter_type == 3:
-                row[i] = (row[i] + ((a + b) // 2)) & 255
-            elif filter_type == 4:
-                p = a + b - c
-                distances = (abs(p - a), abs(p - b), abs(p - c))
-                row[i] = (row[i] + (a, b, c)[distances.index(min(distances))]) & 255
-        previous = row
-        for x in range(width):
-            i = x * channels
-            px = row[i:i + channels] if depth == 8 else [(row[x * depth // 8] >> (8 - depth - (x * depth % 8))) & ((1 << depth) - 1)]
-            if color == 6:
-                output.extend(px)
-            elif color == 2:
-                alpha = 0 if len(transparency) == 6 and tuple(px) == struct.unpack('>3H', transparency) else 255
-                output.extend((*px, alpha))
-            elif color == 0:
-                alpha = 0 if len(transparency) == 2 and px[0] == struct.unpack('>H', transparency)[0] else 255
-                gray = px[0] * 255 // ((1 << depth) - 1)
-                output.extend((gray, gray, gray, alpha))
-            elif color == 4:
-                output.extend((px[0], px[0], px[0], px[1]))
+    transparent_rgb = struct.unpack('>3H', transparency) if color == 2 and len(transparency) == 6 else None
+    transparent_gray = struct.unpack('>H', transparency)[0] if color == 0 and len(transparency) == 2 else None
+    output, cursor = bytearray(width * height * 4), 0
+    for x0, y0, dx, dy, pass_width, pass_height, stride in passes:
+        previous = bytearray(stride)
+        for y in range(pass_height):
+            filter_type = raw[cursor]
+            row = bytearray(raw[cursor + 1:cursor + 1 + stride])
+            cursor += stride + 1
+            if filter_type > 4:
+                raise ImportError('invalid PNG row filter')
+            for i in range(stride):
+                a = row[i - pixel_bytes] if i >= pixel_bytes else 0
+                b = previous[i]
+                c = previous[i - pixel_bytes] if i >= pixel_bytes else 0
+                if filter_type == 1:
+                    row[i] = (row[i] + a) & 255
+                elif filter_type == 2:
+                    row[i] = (row[i] + b) & 255
+                elif filter_type == 3:
+                    row[i] = (row[i] + ((a + b) // 2)) & 255
+                elif filter_type == 4:
+                    p = a + b - c
+                    distances = (abs(p - a), abs(p - b), abs(p - c))
+                    row[i] = (row[i] + (a, b, c)[distances.index(min(distances))]) & 255
+            previous = row
+            rgba = bytearray()
+            for x in range(pass_width):
+                i = x * channels
+                if depth == 16:
+                    samples = struct.unpack_from('>' + 'H' * channels, row, i * 2)
+                    # Match Mineways' native PNG decoder: retain the high byte.
+                    px = [value >> 8 for value in samples]
+                elif depth == 8:
+                    samples = px = row[i:i + channels]
+                else:
+                    samples = px = [(row[x * depth // 8] >> (8 - depth - (x * depth % 8))) & ((1 << depth) - 1)]
+                if color == 6:
+                    rgba.extend(px)
+                elif color == 2:
+                    alpha = 0 if tuple(samples) == transparent_rgb else 255
+                    rgba.extend((*px, alpha))
+                elif color == 0:
+                    alpha = 0 if samples[0] == transparent_gray else 255
+                    gray = px[0] if depth == 16 else px[0] * 255 // ((1 << depth) - 1)
+                    rgba.extend((gray, gray, gray, alpha))
+                elif color == 4:
+                    rgba.extend((px[0], px[0], px[0], px[1]))
+                else:
+                    index = px[0]
+                    if index * 3 + 3 > len(palette):
+                        raise ImportError('invalid PNG palette index')
+                    rgba.extend((*palette[index * 3:index * 3 + 3], transparency[index] if index < len(transparency) else 255))
+            destination = ((y0 + y * dy) * width + x0) * 4
+            if dx == 1:
+                output[destination:destination + len(rgba)] = rgba
             else:
-                index = px[0]
-                if index * 3 + 3 > len(palette):
-                    raise ImportError('invalid PNG palette index')
-                output.extend((*palette[index * 3:index * 3 + 3], transparency[index] if index < len(transparency) else 255))
+                for x in range(pass_width):
+                    index = destination + x * dx * 4
+                    output[index:index + 4] = rgba[x * 4:x * 4 + 4]
+
     return width, height, bytes(output)
 
 
@@ -399,12 +433,13 @@ class Compiler:
             own = self.assets.json(path) if path in self.assets.files else cube_template(name)
         if own is None:
             raise ImportError('missing model: ' + name)
-        if 'loader' in own and own['loader'] not in ('neoforge:composite', 'forge:composite', 'fusion:model', 'lootr:brushable'):
+        if 'loader' in own and own['loader'] not in ('neoforge:composite', 'forge:composite', 'fusion:model', 'lootr:brushable',
+                                                        'refinedstorage:cable', 'bibliocraft:bookcase',
+                                                        'bibliocraft:table', 'xycraft_core:connected_textures'):
             raise ImportError('custom model loader: ' + str(own['loader']))
         if own.get('loader') == 'fusion:model':
             if own.get('type', 'base') not in ('base', 'connecting', 'fusion:base', 'fusion:connecting'):
                 raise ImportError('unsupported Fusion model type: ' + str(own.get('type')))
-            self.warnings.add(f'{name}: connected-texture neighbors are not evaluated')
         parent = self.model(own['parent'], chain + (name,)) if 'parent' in own else {}
         result = {**parent, **own}
         if not isinstance(own.get('textures', {}), dict):
@@ -421,10 +456,11 @@ class Compiler:
             if path not in self.assets.files:
                 raise ImportError('missing texture: ' + name)
             width, height, pixels = decode_png(self.assets.read(path), lambda: self.warnings.add(f'{name}: discarded bytes after valid PNG end'))
+            metadata = {}
             if path + '.mcmeta' in self.assets.files:
                 metadata = self.assets.json(path + '.mcmeta')
                 fusion = metadata.get('fusion', {})
-                if fusion and not isinstance(fusion, dict):
+                if not isinstance(fusion, dict):
                     raise ImportError('invalid Fusion texture metadata: ' + name)
                 if fusion.get('type') in ('connecting', 'fusion:connecting'):
                     layout = fusion.get('layout', 'full')
@@ -444,11 +480,65 @@ class Compiler:
                     pixels = b''.join(pixels[y * width * 4:(y * width + tile) * 4] for y in range(tile))
                     width = height = tile
                     self.warnings.add(f'{name}: connected-texture sheet uses its unconnected tile')
+            if 'animation' in metadata and fusion.get('type') not in ('connecting', 'fusion:connecting'):
+                animation = metadata['animation']
+                if not isinstance(animation, dict):
+                    raise ImportError('invalid animation metadata: ' + name)
+                frame_width, frame_height = animation.get('width', -1), animation.get('height', -1)
+                if any(type(n) is not int or (n != -1 and not 1 <= n <= 2147483647)
+                       for n in (frame_width, frame_height)):
+                    raise ImportError('invalid animation frame dimensions: ' + name)
+                if frame_width == -1 and frame_height == -1:
+                    frame_width = frame_height = min(width, height)
+                else:
+                    frame_width = width if frame_width == -1 else frame_width
+                    frame_height = height if frame_height == -1 else frame_height
+                if width % frame_width or height % frame_height:
+                    raise ImportError('invalid animation frame dimensions: ' + name)
+                def duration_ticks(value):
+                    # GsonHelper accepts numeric primitives and truncates fractional
+                    # durations toward zero. Keep bounds instead of Java overflow.
+                    if type(value) not in (int, float) or not 1 <= value < 2147483648:
+                        raise ImportError('invalid animation frame duration: ' + name)
+                    return int(value)
+                frame_time = duration_ticks(animation.get('frametime', 1))
+                frames = animation.get('frames', [])
+                if not isinstance(frames, list):
+                    raise ImportError('invalid animation frames: ' + name)
+                columns = width // frame_width
+                frame_count = columns * (height // frame_height)
+                indices = []
+                for frame in frames:
+                    index = frame.get('index') if isinstance(frame, dict) else frame
+                    duration = frame.get('time', frame_time) if isinstance(frame, dict) else frame_time
+                    if type(index) is not int or not 0 <= index < frame_count:
+                        raise ImportError('invalid animation frame index: ' + name)
+                    duration_ticks(duration)
+                    indices.append(index)
+                # Minecraft 1.21.1 creates no animation for a singleton sequence,
+                # then uploads the frame at the image origin, regardless of its index.
+                first = indices[0] if len(indices) > 1 else 0
+                left, top = first % columns * frame_width, first // columns * frame_height
+                pixels = b''.join(pixels[((top + y) * width + left) * 4:((top + y) * width + left + frame_width) * 4]
+                                  for y in range(frame_height))
+                width, height = frame_width, frame_height
+                if len(indices) == 1:
+                    self.warnings.add(f'{name}: singleton animation uses the image origin, matching Minecraft 1.21.1')
+                else:
+                    self.warnings.add(f'{name}: animation uses the first frame in its sequence')
             if height != width:
-                if height % width:
-                    raise ImportError('texture must be square or a vertical animation: ' + name)
-                self.warnings.add(f'{name}: animation uses the first frame')
-                height, pixels = width, pixels[:width * width * 4]
+                size = max(width, height)
+                if size * size > MAX_PIXELS:
+                    raise ImportError('square texture normalization exceeds pixel limit: ' + name)
+                # Preserve normalized UVs when the fixed-square export slots resample a rectangular image.
+                rows = []
+                for y in range(height):
+                    row = pixels[y * width * 4:(y + 1) * width * 4]
+                    rows.append(b''.join(row[(x * width // size) * 4:(x * width // size + 1) * 4]
+                                         for x in range(size)))
+                pixels = b''.join(rows[y * height // size] for y in range(size))
+                width = height = size
+                self.warnings.add(f'{name}: rectangular texture resampled to a square with normalized UVs preserved')
             alpha_sum = sum(pixels[3::4])
             rgb = [sum(pixels[i] * pixels[i + 3 - c] for i in range(c, len(pixels), 4)) // max(1, alpha_sum) for c in range(3)]
             alpha = alpha_sum // (width * height)
@@ -475,6 +565,70 @@ class Compiler:
             rgb = [sum(pixels[i] * pixels[i + 3 - c] for i in range(c, len(pixels), 4)) // max(1, alpha_sum) for c in range(3)]
             self.textures[name] = (encode_png(width, width, pixels), rgb, alpha_sum // (width * width))
         return name
+
+    def loader_texture(self, model, key):
+        """Resolve a required custom-loader texture without inventing a missing asset."""
+        texture = '#' + key
+        seen = set()
+        while isinstance(texture, str) and texture.startswith('#'):
+            if texture in seen or len(seen) >= 64:
+                raise ImportError('cyclic custom-loader texture references')
+            seen.add(texture)
+            if texture[1:] not in model['textures']:
+                raise ImportError('missing custom-loader texture: ' + texture)
+            texture = model['textures'][texture[1:]]
+        return resource(texture)
+
+    def custom_loader_adapter(self, name, model, selector):
+        """Static asset-backed paths verified against the installed mod loader classes."""
+        loader = model.get('loader')
+        if loader not in ('refinedstorage:cable', 'bibliocraft:bookcase',
+                          'bibliocraft:table', 'xycraft_core:connected_textures'):
+            return None
+        if any(key in model for key in ('transform', 'visibility')):
+            raise ImportError('custom-loader root transforms and visibility require explicit replacement models')
+        if loader == 'refinedstorage:cable':
+            # CableUnbakedGeometry bakes this core. CableBakedModel adds extensions
+            # only when its CABLE_CONNECTIONS ModelData supplies neighbor directions.
+            color = model.get('color')
+            if color not in ('white', 'orange', 'magenta', 'light_blue', 'yellow', 'lime',
+                             'pink', 'gray', 'light_gray', 'cyan', 'purple', 'blue',
+                             'brown', 'green', 'red', 'black'):
+                raise ImportError('invalid Refined Storage cable color')
+            self.warnings.add(f'{name}: isolated cable core from supplied assets; neighbor connections and cable extensions require model data')
+            return 'refinedstorage:block/cable/core/' + color
+        if loader == 'bibliocraft:table':
+            # TableModel.getQuads selects exactly this child from TableBlock.TYPE.
+            kind = (selector or {}).get('type', 'none')
+            if kind not in ('none', 'one', 'straight', 'curve', 'three', 'all'):
+                raise ImportError('invalid Bibliocraft table type selector')
+            child = model.get(kind)
+            if not isinstance(child, dict):
+                raise ImportError('missing Bibliocraft table child: ' + kind)
+            return child
+        if loader == 'bibliocraft:bookcase':
+            # The loader removes its own marker and deserializes the remaining
+            # ordinary BlockModel. Books are appended only by block-entity ModelData.
+            self.warnings.add(f'{name}: supplied bookcase base only; inventory books and seasonal book variants require block-entity data')
+            return {key: value for key, value in model.items() if key not in ('loader', 'parent')}
+        # Xycraft builds four standard quadrants per enabled cube face. NONE
+        # adjacency uses texture_single with unmodified UVs; merge the coplanar
+        # quadrants and optional base layer into equivalent isolated cube faces.
+        faces = model.get('faces', list(DIRECTIONS))
+        if not isinstance(faces, list) or not faces or len(faces) > 6 or any(side not in DIRECTIONS for side in faces):
+            raise ImportError('invalid Xycraft connected-texture face mask')
+        connection = model.get('connection_handler', 'delegate')
+        if not isinstance(connection, str) or (connection not in ('delegate', 'same_block') and not connection.startswith('#')):
+            raise ImportError('invalid Xycraft connection handler')
+        texture = self.loader_texture(model, 'texture_single')
+        if 'base' in model['textures']:
+            base = self.loader_texture(model, 'base')
+            digest = hashlib.sha256((base + '\n' + texture).encode()).hexdigest()[:24]
+            texture = self.overlay_texture('mineways:xycraft/isolated_' + digest, base, texture)
+        self.warnings.add(f'{name}: Xycraft isolated texture; neighbor connections, dynamic tint and light emission are not evaluated')
+        return {'elements': [{'from': [0, 0, 0], 'to': [16, 16, 16],
+                              'faces': {side: {'texture': texture, 'uv': [0, 0, 16, 16],
+                                               'cullface': side} for side in faces}}]}
 
     def builtin_adapter(self, name, model):
         # These are narrow adapters for inspected AE2 19.2.18 built-in models.
@@ -570,6 +724,12 @@ class Compiler:
         if name == 'ae2:block/matrix_frame' and model == {'textures': {}}:
             return {'rotation': (x, y, int(uvlock)), 'elements': [], 'invisible': True}
         model = self.builtin_adapter(name, model)
+        if model.get('loader') == 'fusion:model':
+            label = name if isinstance(name, str) else '<inline>'
+            self.warnings.add(f'{label}: connected-texture neighbors are not evaluated')
+        adapted = self.custom_loader_adapter(name, model, selector)
+        if adapted is not None:
+            return self.compile_model({'model': adapted, 'x': x, 'y': y, 'uvlock': uvlock}, depth + 1, selector)
         if model.get('loader') == 'lootr:brushable':
             stage = (selector or {}).get('dusted')
             if stage not in ('0', '1', '2', '3'):
@@ -603,10 +763,10 @@ class Compiler:
         for element in elements:
             if not isinstance(element, dict):
                 raise ImportError('invalid model element')
-            start = vector(element.get('from'), 3, -16, 32)
-            end = vector(element.get('to'), 3, -16, 32)
-            if any(a > b for a, b in zip(start, end)):
-                raise ImportError('inverted elements require an explicit replacement model')
+            start = vector(element.get('from'), 3, MIN_MODEL_COORDINATE, MAX_MODEL_COORDINATE)
+            end = vector(element.get('to'), 3, MIN_MODEL_COORDINATE, MAX_MODEL_COORDINATE)
+            # Preserve signed extents: the original face corner order and UV pairing
+            # determine the winding of inside-out and thin inverted elements.
             rotation = element.get('rotation', {})
             if not isinstance(rotation, dict):
                 raise ImportError('invalid element rotation')
@@ -614,7 +774,7 @@ class Compiler:
             angle = number(rotation.get('angle', 0), -45, 45)
             if axis not in ('none', 'x', 'y', 'z') or (axis == 'none' and angle != 0) or any(key in rotation for key in ('x', 'y', 'z')):
                 raise ImportError('unsupported element rotation')
-            origin = vector(rotation.get('origin', [8, 8, 8]), 3, -16, 32)
+            origin = vector(rotation.get('origin', [8, 8, 8]), 3, MIN_MODEL_COORDINATE, MAX_MODEL_COORDINATE)
             rescale = rotation.get('rescale', False)
             if not isinstance(rescale, bool):
                 raise ImportError('rescale must be boolean')

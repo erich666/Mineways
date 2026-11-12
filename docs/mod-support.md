@@ -67,11 +67,19 @@ Incomplete dimension types appear in `report.json`. The application can still di
 
 ## Supported models
 
-The importer resolves standard JSON model parents and texture aliases. It supports box elements, face UVs, face rotations, element rotations, element rescale, blockstate X/Y rotations, and UV locking.
+The importer resolves standard JSON model parents and texture aliases. It supports box elements, including inverted bounds and extended coordinates from -256 to 256 pixels, face UVs, face rotations, element rotations, element rescale, blockstate X/Y rotations, and UV locking.
 
 Blockstate variants select a model. Multipart conditions expand into bounded property combinations. Boolean conditions include both `true` and `false`. Unconditional multipart geometry supplies a fallback only when all expanded states are supported. A failed specific selector cannot silently use a generic model.
 
 The Lootr brushable adapter maps `dusted=0..3` to the supplied model stages. Its report notes that player-specific opened or looted appearance is unavailable.
+
+The additional ATM10 adapters use inspected asset data:
+
+- Refined Storage cable models use their supplied colored core geometry. Neighbor-dependent cable extensions are not reconstructed. This also supports Cable Tiers devices that include a cable core in a composite model.
+- Bibliocraft tables select the supplied child for the palette's `type` value (`none`, `one`, `straight`, `curve`, `three`, or `all`). Bookcases use their supplied base geometry. Inventory books and seasonal book variants require block-entity data and remain omitted.
+- Xycraft connected-texture models use their isolated texture and optional base layer, preserving the declared face mask. Neighbor connections, dynamic tint, and light emission remain approximations.
+
+Missing referenced models or textures still reject the affected definition or selector. These adapters do not substitute invented textures for absent compatibility assets.
 
 Narrow adapters for the inspected AE2 19.2.18 assets use the empty drive model, isolated quartz-glass appearance, and unlinked, unpowered spatial-pylon appearance. They do not reconstruct installed storage cells, activity indicators, or connections from block-entity data. `ae2:matrix_frame` is explicitly invisible, as in the mod. It produces no render geometry but retains its state through Sponge export and import. An empty model from another block does not automatically become invisible.
 
@@ -90,9 +98,9 @@ Paint and cable support need a new modern block-entity data path. `nbtGetBlocks`
 The current implementation has these explicit limits:
 
 - A state with no matching model selector uses the configured unknown-block fallback (bedrock by default in the application). Chunk loading reports its namespaced state and continues. This includes modern palettes that omit default properties when a mod provides only explicit property selectors: JSON assets do not reveal Java-defined defaults, so Mineways does not guess them. Sponge imports also use air for these states. Unsupported states cannot retain their identity when exported.
-- Weighted alternatives use the first listed model. Animated textures use the first square frame. The report lists these approximations.
-- Arbitrary Java renderers, unsupported custom model loaders, inverted elements, and UV coordinates outside 0–16 remain unsupported. The importer supports standard Forge/NeoForge composite children and Fusion base geometry. It reports approximations for connected textures and custom tints. It does not execute mod code.
-- PNG import supports non-interlaced 8-bit grayscale, RGB, indexed, grayscale-alpha, and RGBA images, plus 1-, 2-, and 4-bit grayscale and indexed images. The output always uses RGBA.
+- Weighted alternatives use the first listed model. Animated textures use the first rendered frame from their metadata. A singleton animation sequence uses the image origin, matching Minecraft 1.21.1. Static rectangular textures retain the entire image and are resampled to square export slots with normalized UVs preserved. The report lists these approximations.
+- Arbitrary Java renderers, unsupported custom model loaders and UV coordinates outside 0–16 remain unsupported. The importer supports standard Forge/NeoForge composite children and Fusion base geometry. It reports approximations for connected textures and custom tints. It does not execute mod code.
+- PNG import supports non-interlaced and Adam7 images, 8-bit grayscale, RGB, indexed, grayscale-alpha, and RGBA, 16-bit non-indexed formats, and 1-, 2-, and 4-bit grayscale and indexed images. The output always uses RGBA8. Sixteen-bit transparency keys are compared before reducing samples to eight bits.
 - A pack catalog can contain more textures than the export atlas. A textured export uses only the textures needed by its selected blocks. This implementation permits 4,096 selected mod textures and 256 MiB of decoded mod texture pixels per export. Larger selections fail explicitly. Exports without textures and Sponge exports bypass these texture limits. Imported textures are resampled to the terrain tile resolution. Only albedo textures are imported.
 - Catalog definitions acquire internal block IDs only when a world or schematic uses them. One loaded-pack session can retain 64,975 distinct mod block names, using IDs 561 through 65,535. Each name supports 4,096 observed states. Reloading or clearing the pack resets these assignments. Exhausting this active ID space fails explicitly. It does not reject the larger catalog during pack loading.
 
@@ -164,7 +172,7 @@ make -C Mac test-real-mods \
 
 This target compiles the shared native core with AddressSanitizer and UndefinedBehaviorSanitizer. It activates every imported block name before the render sample. It checks finite OBJ coordinates and valid face indices, exported texture pixels, repeat exports, and exact Sponge state and geometry round trips. It prints the temporary artifact directory. `selected-states.txt` lists the tested states. Model sampling is deterministic and does not validate every selector or provide a visual comparison with Minecraft.
 
-The following macOS tests used the installed ATM10 8.3 instance and its Minecraft 1.21.1 client on November 12, 2026. The four-mod result precedes the wider-ID migration. The complete catalog was retested after that migration:
+The capacity-migration baseline macOS tests used the installed ATM10 8.3 instance and its Minecraft 1.21.1 client on November 12, 2026. The four-mod result precedes the wider-ID migration. The complete catalog was retested after that migration:
 
 | Imported subset | Loaded blocks / selectors / textures | Tested states | Exported faces | Pixel-checked textures |
 | --- | --- | --- | --- | --- |
@@ -175,11 +183,25 @@ The latest four-mod run used AddressSanitizer and UndefinedBehaviorSanitizer. It
 
 A separate actual-block regression verifies `justdirethings:goopatternblock[goostage=0]`. Its transparent top/map texture must not discard its visible side geometry. The native test checks its exported faces, texture pixels, and schematic round trip.
 
-The complete compiled catalog contains 84,940 shared geometries, 475,456 elements, and 25 dimension records. Its report lists 9,522 unsupported block definitions, 9,467 unsupported selectors, and 13,230 warnings. Every installed mod JAR was indexed. Across the complete catalog, 192 AE2 orientations previously accepted with an incorrect Z rotation are now explicitly unsupported. Unsupported records remain explicit in the report.
+That baseline compiled catalog contains 84,940 shared geometries, 475,456 elements, and 25 dimension records. Its report lists 9,522 unsupported block definitions, 9,467 unsupported selectors, and 13,230 warnings. Every installed mod JAR was indexed. Across the complete catalog, 192 AE2 orientations previously accepted with an incorrect Z rotation are now explicitly unsupported. Unsupported records remain explicit in the report.
 
-The latest full-catalog test passed with AddressSanitizer and UndefinedBehaviorSanitizer after the wider-ID migration. It activated all 42,629 block names before export, reaching internal ID 43,189. The 139 tested states included 37 explicit adapter and transparency regressions. All 136 imported texture pixel checks passed, as did repeated OBJ exports and exact Sponge state/geometry round trips. Catalog loading took 8.873 seconds with zero decoded texture pixels. The complete test took 15.002 seconds and exited successfully on the local macOS host. These ARM64 measurements are separate from the Windows results above. Neither suite tests every model selector.
+The baseline full-catalog test passed with AddressSanitizer and UndefinedBehaviorSanitizer after the wider-ID migration. It activated all 42,629 block names before export, reaching internal ID 43,189. The 139 tested states included 37 explicit adapter and transparency regressions. All 136 imported texture pixel checks passed, as did repeated OBJ exports and exact Sponge state/geometry round trips. Catalog loading took 8.873 seconds with zero decoded texture pixels. The complete test took 15.002 seconds and exited successfully on the local macOS host. These ARM64 measurements are separate from the Windows results above. Neither suite tests every model selector.
 
 Catalog counts describe asset definitions, not the game's registered block types. Optional compatibility resources can refer to absent mods or models. The importer reports those missing resources explicitly. No third-party mod assets are included in the repository.
+
+## Additional ATM10 model coverage
+
+The next compatibility pass recovered 1,547 previously unsupported block definitions from the same 495-mod snapshot. The changes cover inverted and oversized JSON elements, rectangular textures, Adam7 and 16-bit PNGs, and the Refined Storage, Bibliocraft, and Xycraft loaders described above. All 325 inspected PNGs in the newly supported formats match Mineways' native decoder byte-for-byte after RGBA8 conversion.
+
+Real-pack testing also found a Debug-only assertion that limited one transformation to 400 vertices. A recovered Bibliocraft lamp has 464 vertices. The exporter now checks the actual allocated vertex range. Synthetic native tests verify all 512 transformed positions of a rotated 64-element model, plus 384 faces and Sponge identity. Windows tests include the same complex model, inverted winding, and extended bounds.
+
+The final catalog has 44,176 supported block definitions, 561,393 selectors, 31,167 textures, 87,768 shared geometries, 503,190 elements, and 25 dimensions. Unsupported definitions fell from 9,522 to 7,975. Unsupported state report entries fell from 9,467 to 2,894. All 538,059 previously supported selectors remain supported, with 23,334 additional selectors. The report contains 13,806 warnings.
+
+Local macOS ARM64 tests passed with AddressSanitizer and UndefinedBehaviorSanitizer. The full catalog activated every supported block name through ID 44,736. The export sample covered 214 states and 154 texture pixel checks, including all Acacia Bibliocraft table states and the Silent Gear animation regression. Repeated OBJ exports and exact Sponge state/geometry round trips passed. Catalog loading took 9.185 seconds. All 54 Python importer tests and the native capacity, security, and app-build checks passed. Windows and macOS Intel CI validation of this pass is pending.
+
+The largest remaining definition failures are missing textures (4,699), models without standard geometry (1,754), unsupported custom loaders (821), and missing models (560). Many missing resources belong to optional compatibility content. Remaining custom loaders and block-entity renderers require separate adapters rather than substitute cubes. Out-of-range UVs remain unsupported.
+
+The tests sample exports rather than compare every selector visually with Minecraft. Print dimensions and material estimates use occupied voxel bounds, so large model overhangs can exceed those estimates. Scaling by block size preserves the supplied geometry.
 
 ## Compiled format
 
@@ -205,6 +227,8 @@ Version 1 uses `model<TAB>x_degrees<TAB>y_degrees<TAB>uvlock_0_or_1` inside each
 Version 2 also permits an explicit `invisible` line between `state` and `endstate`. Such a state must have alpha zero and no models. It keeps a known block's schematic identity without rendering it. Unmarked empty states, mixed invisible/model states, and duplicate markers are invalid.
 
 The state color and alpha describe the map sample. Exported model opacity comes from its face textures.
+
+Element coordinates and rotation origins must be within -256..256 pixels. Inverted bounds preserve the original face winding and UV mapping.
 
 Axis values are `none`, `x`, `y`, or `z`. Face directions are `down`, `up`, `north`, `south`, `west`, or `east`. A cullface uses one of these directions or `-`. Properties appear in alphabetical order. Omit brackets for an empty selector.
 

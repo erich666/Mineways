@@ -96,6 +96,21 @@ def build_fixture(root):
         archive.writestr(f'assets/fixture/blockstates/{long_name}.json', json.dumps({'variants': {'': {'model': 'fixture:block/cube'}}}))
     put(source, 'data/fixture/dimension/moon.json', {'type': {'min_y': -64, 'height': 384, 'coordinate_scale': 2}})
     adapter_assets(source)
+    geometry_faces = {direction: {'texture': 'fixture:block/' + direction,
+                                 'uv': [1, 2, 14, 15], 'rotation': index % 4 * 90,
+                                 'cullface': direction}
+                      for index, direction in enumerate(mod.DIRECTIONS)}
+    for name, start, end in (('inverted', [14, 13, 12], [2, 3, 4]),
+                             ('extended', [-48, -32, -16], [48, 40, 32])):
+        put(source, f'assets/fixture/models/block/{name}.json', {'elements': [{
+            'from': start, 'to': end, 'faces': geometry_faces,
+            'rotation': {'axis': 'y', 'angle': 0, 'origin': [-144, 8, 8]}}]})
+        put(source, f'assets/fixture/blockstates/{name}.json', {'variants': {'': {'model': 'fixture:block/' + name}}})
+    put(source, 'assets/fixture/models/block/complex.json', {'elements': [
+        {'from': [2*x, 2*y, 2], 'to': [2*x+1, 2*y+1, 4], 'faces': geometry_faces}
+        for y in range(8) for x in range(8)]})
+    put(source, 'assets/fixture/blockstates/complex.json', {'variants': {
+        '': {'model': 'fixture:block/complex', 'y': 90}}})
     pack = root / 'pack'
     mod.compile_pack([source, long_archive], pack)
     return pack
@@ -563,6 +578,38 @@ class ImportTests(unittest.TestCase):
             self.compile()
         self.assertEqual(sentinel.read_bytes(), before)
 
+    def test_extended_and_inverted_element_coordinates(self):
+        simple(self.source)
+        faces = {side: {'texture': 'sample:block/stone', 'uv': [1, 2, 14, 15],
+                        'rotation': index % 4 * 90}
+                 for index, side in enumerate(mod.DIRECTIONS)}
+        elements = []
+        for mask in range(8):
+            start = [14 if mask & (1 << axis) else 2 for axis in range(3)]
+            end = [2 if mask & (1 << axis) else 14 for axis in range(3)]
+            elements.append({'from': start, 'to': end, 'faces': faces})
+        elements.append({'from': [-256, -48, -32], 'to': [256, 40, 32], 'faces': faces,
+                         'rotation': {'axis': 'y', 'angle': 22.5, 'origin': [-144, 8, 8]}})
+        put(self.source, 'assets/sample/models/block/geometry.json', {'elements': elements})
+        compiler = mod.Compiler(mod.Assets([self.source]))
+        result = compiler.compile_model({'model': 'sample:block/geometry'})
+        self.assertEqual(len(result['elements']), 9)
+        for original, compiled in zip(elements, result['elements']):
+            self.assertEqual(compiled['coordinates'][:6], (*original['from'], *original['to']))
+            self.assertEqual(len(compiled['faces']), 6)
+            for face in compiled['faces']:
+                self.assertEqual(face[1:5], (1, 2, 14, 15))
+                self.assertEqual(face[5], faces[face[0]]['rotation'])
+        self.assertEqual(result['elements'][-1]['coordinates'][8:11], (-144, 8, 8))
+        for key in ('from', 'to', 'origin'):
+            for value in (-256.01, 256.01, float('inf'), float('nan')):
+                with self.subTest(key=key, value=value):
+                    element = {'from': [0, 0, 0], 'to': [16, 16, 16], 'faces': faces}
+                    target = element if key != 'origin' else element.setdefault('rotation', {'axis': 'y', 'angle': 0})
+                    target[key] = [value, 0, 0]
+                    with self.assertRaises(mod.ImportError):
+                        compiler.compile_model({'model': {'elements': [element]}})
+
     def test_png_filters_palette_and_grayscale(self):
         first = bytes((10, 20, 30, 40, 50, 60))
         expected = bytes((10, 20, 30, 255, 40, 50, 60, 255, 70, 80, 90, 255, 100, 110, 120, 255))
@@ -585,6 +632,7 @@ class ImportTests(unittest.TestCase):
         self.assertEqual(mod.decode_png(png), (1, 2, bytes((255, 0, 0, 255, 0, 255, 0, 255))))
         simple(self.source)
         put(self.source, 'assets/sample/textures/block/stone.png', png)
+        put(self.source, 'assets/sample/textures/block/stone.png.mcmeta', {'animation': {}})
         out, report = self.compile()
         self.assertTrue(any('first frame' in w for w in report['warnings']))
         self.assertEqual(mod.decode_png((out / 'textures/0000.png').read_bytes())[0:2], (1, 1))

@@ -234,6 +234,8 @@ static std::vector<std::string> stateNames(const WorldGuide& world)
     return states;
 }
 
+#include "mod_geometry.h"
+
 int main(int argc, char** argv)
 {
     assert(argc == 3);
@@ -427,6 +429,7 @@ int main(int argc, char** argv)
     free(invisibleRead.sch.blocks); free(invisibleRead.sch.data);
     free(mixedRead.sch.blocks); free(mixedRead.sch.data);
     ClearModPack();
-    puts("PASS: mod UVs/pixels, geometry/alpha, OBJ/USD modes, states above 255, long names, dimensions, and schematic round trip");
+    checkExtendedModGeometry(root);
+    puts("PASS: mod UVs/pixels, signed geometry/alpha, OBJ/USD modes, states above 255, long names, dimensions, and schematic round trip");
     return 0;
 }
