@@ -123,12 +123,28 @@ def world(path):
     (path / 'level.dat').write_bytes(gzip.compress(compound('', compound('Data', data))))
 
 
-def run(executable, root, name, commands, expect_success=True, timeout=120):
+def check_script_world_order(commands):
+    loaded = False
+    for line_number, line in enumerate(commands, 1):
+        command = line.partition(':')[0].strip().lower()
+        if command == 'minecraft world':
+            loaded = True
+        elif command == 'selection location min to max' and not loaded:
+            raise AssertionError(f'Selection precedes world loading at command {line_number}')
+
+
+def write_script(root, name, commands):
+    check_script_world_order(commands)
     script = root / (name + '.mwscript')
     log = root / (name + '.log')
     script.write_text('\n'.join([
         'Show informational: script', 'Show warning: script', 'Show error: script',
         'Save log file: ' + str(log), *commands, 'Close', '']), encoding='utf-8')
+    return script, log
+
+
+def run(executable, root, name, commands, expect_success=True, timeout=120):
+    script, log = write_script(root, name, commands)
     print('Native export: ' + name, flush=True)
     try:
         result = subprocess.run([str(executable), '-headless', str(script)], cwd=ROOT,
@@ -366,24 +382,29 @@ def exercise_pack(executable, root, manifest):
     schematic(source, palette, indices, (width, 1, length))
     (root / 'selected-states.txt').write_text('\n'.join(selected) + '\n', encoding='utf-8')
     print(f'External catalog: {len(blocks)} blocks, {selectors} selectors, {len(textures)} textures; {len(selected)} sampled states', flush=True)
-    if executable is None:
-        return
     common = ['Mod pack: ' + str(manifest),
               'Set render type: Wavefront OBJ absolute indices', 'Center model: NO',
               'Export lesser blocks: YES', 'Individual blocks: YES',
-              'File type: Export individual textures to directory actualtex',
-              f'Selection location min to max: 0, 0, 0 to {len(names) - 1}, 0, 0']
+              'File type: Export individual textures to directory actualtex']
+    selection = f'Selection location min to max: 0, 0, 0 to {len(names) - 1}, 0, 0'
     obj, repeated, roundtrip = [root / name for name in ['actual.obj', 'actual-repeat.obj', 'actual.schem']]
-    details = run(executable, root, 'actual', [*common, 'Minecraft world: ' + str(source),
-                  'Export for Rendering: ' + str(obj), 'Export for Rendering: ' + str(repeated),
-                  'Export Schematic: ' + str(roundtrip)], timeout=600)
+    after = root / 'actual-roundtrip.obj'
+    actual_commands = [*common, 'Minecraft world: ' + str(source), selection,
+                       'Export for Rendering: ' + str(obj), 'Export for Rendering: ' + str(repeated),
+                       'Export Schematic: ' + str(roundtrip)]
+    roundtrip_commands = [*common, 'Minecraft world: ' + str(roundtrip), selection,
+                          'Export for Rendering: ' + str(after)]
+    if executable is None:
+        # Build and validate the same scripts as the native route before skipping execution.
+        write_script(root, 'actual', actual_commands)
+        write_script(root, 'actual_roundtrip', roundtrip_commands)
+        return
+    details = run(executable, root, 'actual', actual_commands, timeout=600)
     check_obj(obj, details)
     verify_schematic(roundtrip, selected, details)
     assert obj_geometry(obj) == obj_geometry(repeated), 'Repeated real-pack export changed geometry'
     checked = check_export_pixels(obj, textures)
-    after = root / 'actual-roundtrip.obj'
-    details = run(executable, root, 'actual_roundtrip', [*common, 'Minecraft world: ' + str(roundtrip),
-                  'Export for Rendering: ' + str(after)], timeout=600)
+    details = run(executable, root, 'actual_roundtrip', roundtrip_commands, timeout=600)
     check_obj(after, details)
     assert obj_geometry(obj) == obj_geometry(after), 'Real-pack Sponge roundtrip changed geometry'
     print(f'PASS: external pack, {len(selected)} sampled states, {checked} pixel-checked textures, repeated OBJ and Sponge geometry', flush=True)
@@ -524,10 +545,20 @@ def main():
     if manifest and not manifest.is_file():
         parser.error('compiled manifest does not exist: ' + str(manifest))
     def execute(root):
+        # Preserve the exact ordering regression even when no real pack is supplied.
+        try:
+            check_script_world_order(['Selection location min to max: 0, 0, 0 to 0, 0, 0',
+                                      'Minecraft world: fixture.schem'])
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError('Script-order check accepted a selection before world loading')
         exercise(executable, root)
         exercise_limits(executable, root)
         if manifest:
             exercise_pack(executable, root, manifest)
+        elif executable is None:
+            exercise_pack(None, root, root / 'pack' / 'manifest.mwpack')
     if args.output:
         args.output.mkdir(parents=True, exist_ok=False)
         execute(args.output.resolve())
