@@ -168,6 +168,15 @@ int main(int argc, char** argv)
         ++selectors;
     }
     assert(!byBlock.empty());
+    // Activate the complete installed catalog, not just the later render sample. This
+    // exercises IDs above 4095 and 32767 with actual assets before any export.
+    int expectedType = NUM_BLOCKS_DEFINED;
+    for (const auto& block : byBlock) {
+        int type = 0, state = -1;
+        assert(ResolveModState(block.second.front(), &type, &state) == 1);
+        assert(type == expectedType++ && state == 0);
+    }
+    printf("Activated %zu actual block names; highest internal ID %d.\n", byBlock.size(), expectedType - 1);
     std::vector<std::string> selected;
     // Sample across the complete pack, with two variants for each selected block.
     const size_t step = (byBlock.size() + 63) / 64;
@@ -180,13 +189,13 @@ int main(int argc, char** argv)
     for (int argument = 3; argument < argc; ++argument)
         if (std::find(selected.begin(), selected.end(), argv[argument]) == selected.end()) selected.push_back(argv[argument]);
     const int width = (int)selected.size() * 2 - 1;
-    std::vector<unsigned char> blocks(width, 0);
+    std::vector<unsigned short> blocks(width, 0);
     std::vector<unsigned short> data(width, 0);
     std::ofstream selection(output / "selected-states.txt");
     for (size_t i = 0; i < selected.size(); ++i) {
         int type, state;
         assert(ResolveModState(selected[i], &type, &state) == 1);
-        blocks[i * 2] = (unsigned char)(type & 255);
+        blocks[i * 2] = (unsigned short)type;
         data[i * 2] = PACK_TYPE_EXT_AND_DATAVAL(type, state);
         selection << GetModBlock(type, state)->canonical << '\n';
     }
@@ -235,4 +244,5 @@ int main(int argc, char** argv)
            byBlock.size(), selectors, ModTextures().size(), selected.size(), geometry.vertices, geometry.faces, checkedTextures);
     printf("Artifacts: %s\n", output.u8string().c_str());
     ClearCache(); free(roundtrip.sch.blocks); free(roundtrip.sch.data); ClearModPack();
+    return 0;
 }

@@ -88,7 +88,8 @@ static void checkChangeBlocks()
 {
     for (bool arrayMode : { false, true })
     for (unsigned short type : { (unsigned short)BLOCK_STONE, (unsigned short)255,
-                                 (unsigned short)256, (unsigned short)513, (unsigned short)4095 })
+                                 (unsigned short)256, (unsigned short)513, (unsigned short)4095,
+                                 (unsigned short)4096, (unsigned short)32768, (unsigned short)65535 })
     for (unsigned short data : { (unsigned short)0, (unsigned short)15, (unsigned short)16,
                                  (unsigned short)31, (unsigned short)32, (unsigned short)4095 }) {
         resetModel();
@@ -96,17 +97,27 @@ static void checkChangeBlocks()
         BoxCell& cell = cells[BOX_INDEX(1, 1, 1)];
         cell.type = type;
         cell.data = data;
-        unsigned short mask[256];
-        for (auto& bits : mask) bits = 0xffff;
+        std::vector<unsigned short> mask(MAX_BLOCK_TYPES, 0xffff);
         ChangeBlockCommand command = {};
         command.useFromArray = arrayMode;
-        command.fromDataBitsArray = mask;
+        command.fromDataBitsArray = mask.data();
         command.simpleFromTypeEnd = 255;
         command.simpleFromDataBits = 0xffff;
         command.intoType = BLOCK_AIR;
         assert(applyChangeBlockCommand(&command));
-        assert(cell.type == (type < 256 && data < 16 ? BLOCK_AIR : type));
+        assert(cell.type == ((arrayMode || type < 256) && data < 16 ? BLOCK_AIR : type));
     }
+    resetModel();
+    gSolidBox.max[X] = gSolidBox.max[Y] = gSolidBox.max[Z] = 1;
+    BoxCell& cell = cells[BOX_INDEX(1, 1, 1)];
+    cell.type = 65535;
+    cell.data = 15;
+    ChangeBlockCommand command = {};
+    command.simpleFromTypeBegin = command.simpleFromTypeEnd = 65535;
+    command.simpleFromDataBits = 0x8000;
+    command.intoType = BLOCK_STONE;
+    assert(applyChangeBlockCommand(&command));
+    assert(cell.type == BLOCK_STONE);
 }
 
 static void checkDirectoryLinks(const char* tempDirectory)

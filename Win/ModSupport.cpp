@@ -27,7 +27,7 @@ struct Pack {
     std::vector<ModDimension> dimensions;
     std::vector<std::shared_ptr<const std::vector<ModElement>>> geometries;
     std::map<std::string, std::unique_ptr<ModBlock>> blocks;
-    ModBlock* byType[MAX_BLOCK_TYPES] = {};
+    std::vector<ModBlock*> byType;
     int typeLimit = NUM_BLOCKS_DEFINED;
     size_t stateCount = 0;
     size_t stateBytes = 0;
@@ -104,6 +104,7 @@ bool contained(const std::filesystem::path& root, const std::filesystem::path& f
     return b != file.end();
 }
 bool readPack(const std::string& path, Pack& next, std::string& error) {
+    next.byType.resize(MAX_BLOCK_TYPES, nullptr);
     const auto source = std::filesystem::canonical(std::filesystem::u8path(path));
     const auto root = source.parent_path();
     if (!std::filesystem::is_regular_file(source) || std::filesystem::file_size(source) > 512 * 1024 * 1024) { error = "Manifest is missing or exceeds 512 MiB."; return false; }
@@ -321,7 +322,7 @@ const std::string& ModPackPath() { return pack.path; }
 const std::vector<ModTexture>& ModTextures() { return pack.textures; }
 const std::vector<ModDimension>& ModDimensions() { return pack.dimensions; }
 int ModBlockTypeLimit() { std::lock_guard<std::mutex> lock(stateMutex); return pack.typeLimit; }
-bool IsModBlock(int type) { if (type < NUM_BLOCKS_DEFINED || type >= MAX_BLOCK_TYPES) return false; std::lock_guard<std::mutex> lock(stateMutex); return pack.byType[type] != nullptr; }
+bool IsModBlock(int type) { if (type < NUM_BLOCKS_DEFINED || type >= MAX_BLOCK_TYPES) return false; std::lock_guard<std::mutex> lock(stateMutex); return type < pack.typeLimit && pack.byType[type] != nullptr; }
 bool HasModBlock(const std::string& name) { return pack.blocks.find(name) != pack.blocks.end(); }
 static int resolveModState(const std::string& state, int* type, int* dataVal) {
     if (!type || !dataVal) return -1;
@@ -347,7 +348,6 @@ static int resolveModState(const std::string& state, int* type, int* dataVal) {
     int newType = block.type;
     if (!newType) {
         newType = pack.typeLimit;
-        while ((newType & 255) == 0) ++newType;
         if (newType >= MAX_BLOCK_TYPES) return -1;
     }
     // shortcut: the existing chunk format allows 4096 states per block; widen it before exceeding this limit.
@@ -380,7 +380,7 @@ int ResolveModState(const std::string& state, int* type, int* dataVal) {
 const ModBlockState* GetModBlock(int type, int dataVal) {
     if (type < NUM_BLOCKS_DEFINED || type >= MAX_BLOCK_TYPES || dataVal < 0) return nullptr;
     std::lock_guard<std::mutex> lock(stateMutex);
-    if (!pack.byType[type]) return nullptr;
+    if (type >= pack.typeLimit || !pack.byType[type]) return nullptr;
     const ModBlock& block = *pack.byType[type];
     return (size_t)dataVal < block.states.size() ? block.states[dataVal].get() : nullptr;
 }

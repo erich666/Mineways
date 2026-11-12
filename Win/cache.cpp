@@ -129,7 +129,7 @@ size_t Cache_BytesPerChunk(int height)
     if (height < 1)
         height = 1;
     return sizeof(WorldBlock) + sizeof(block_entry) + sizeof(IPoint2) +
-        16 * 16 * (size_t)height * (sizeof(unsigned char) + sizeof(unsigned short)) + 16 * 16 * (size_t)height / 2;
+        16 * 16 * (size_t)height * (2 * sizeof(unsigned short)) + 16 * 16 * (size_t)height / 2;
 }
 
 // How many chunks fit in budgetMB megabytes, for a world "height" blocks tall.
@@ -338,9 +338,9 @@ WorldBlock* block_alloc(int minHeight, int maxHeight)
     int height = (int)requestedHeight;
     if ((size_t)height > SIZE_MAX / (16 * 16 * sizeof(unsigned short)))
         return NULL;
-    size_t gridSize = 16 * 16 * (size_t)height * sizeof(unsigned char);
+    size_t gridSize = 16 * 16 * (size_t)height * sizeof(unsigned short);
     size_t dataSize = 16 * 16 * (size_t)height * sizeof(unsigned short);
-    size_t lightSize = gridSize / 2;
+    size_t lightSize = 16 * 16 * (size_t)height / 2;
     WorldBlock* ret = NULL;
     // is a freed block available?
     WorldBlock* saved = NULL;
@@ -374,7 +374,7 @@ WorldBlock* block_alloc(int minHeight, int maxHeight)
         ret = (WorldBlock*)calloc(1, sizeof(WorldBlock));
         if (ret == NULL)
             return NULL;
-        ret->grid = (unsigned char*)malloc(gridSize);
+        ret->grid = (unsigned short*)malloc(gridSize);
         if (ret->grid == NULL) {
             block_force_free(ret);
             return NULL;
@@ -472,10 +472,10 @@ void block_realloc(WorldBlock* block)
             if (heightAlloc <= 0 || block->grid == NULL || block->data == NULL || block->light == NULL)
                 return;
 
-            size_t gridSize = 256 * (size_t)heightAlloc;
-            size_t dataSize = gridSize * sizeof(unsigned short);
+            size_t gridSize = 256 * (size_t)heightAlloc * sizeof(unsigned short);
+            size_t dataSize = gridSize;
             size_t lightSize = 128 * (size_t)heightAlloc;
-            unsigned char* grid = (unsigned char*)malloc(gridSize);
+            unsigned short* grid = (unsigned short*)malloc(gridSize);
             unsigned short* data = (unsigned short*)malloc(dataSize);
             unsigned char* light = (unsigned char*)malloc(lightSize);
             if (grid == NULL || data == NULL || light == NULL) {

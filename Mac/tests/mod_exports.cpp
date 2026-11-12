@@ -144,28 +144,48 @@ static void checkCubeUVs(const std::string& text)
     assert(checked == 6);
 }
 
-static void checkNeutralPBR()
+static void checkNeutralPBR(size_t selectedCount = SIZE_MAX, const std::filesystem::path& output = {})
 {
-    progimage_info normal = {}, roughness = {};
-    normal.width = roughness.width = XTILES * 16;
-    normal.height = roughness.height = VERTICAL_TILES * 16;
     for (int format : {FILE_TYPE_WAVEFRONT_ABS_OBJ, FILE_TYPE_USD}) {
+        memset(&gModel, 0, sizeof(gModel));
+        gModel.tileSize = 16;
+        gModel.swatchSize = 18;
+        gModel.swatchesPerRow = 64;
+        std::vector<int> used;
+        for (size_t i = 0; i < ModTextures().size() && i < selectedCount; ++i) used.push_back((int)i);
+        assert(prepareModTextures(format, used));
+        progimage_info normal = {}, roughness = {};
+        normal.width = roughness.width = gModel.swatchesPerRow * gModel.swatchSize;
+        normal.height = roughness.height = ((exportTileCount() + gModel.swatchesPerRow - 1) / gModel.swatchesPerRow) * gModel.swatchSize;
         normal.image_data.assign((size_t)normal.width * normal.height * 3, 17);
         roughness.image_data.assign((size_t)roughness.width * roughness.height, 17);
-        memset(&gModel, 0, sizeof(gModel));
-        gModel.pInputTerrainImage[CATEGORY_NORMALS] = &normal;
-        gModel.pInputTerrainImage[CATEGORY_ROUGHNESS] = &roughness;
-        gTotalInputTextures = CATEGORY_ROUGHNESS + 1;
-        std::vector<int> used;
-        for (size_t i = 0; i < ModTextures().size(); ++i) used.push_back((int)i);
-        assert(prepareModTextures(format, used));
-        for (int swatch : gModTextureSwatches) {
-            const int left = swatchToCol(swatch) * 16, top = swatchToRow(swatch) * 16;
-            for (int y = 0; y < 16; ++y) for (int x = 0; x < 16; ++x) {
+        copyModTextures(&normal, CATEGORY_NORMALS);
+        copyModTextures(&roughness, CATEGORY_ROUGHNESS);
+        for (int index : used) {
+            const int swatch = gModTextureSwatches[index];
+            const int left = (swatch % gModel.swatchesPerRow) * gModel.swatchSize;
+            const int top = (swatch / gModel.swatchesPerRow) * gModel.swatchSize;
+            // Include the clamped borders, which mosaic UVs can sample.
+            for (int y = 0; y < gModel.swatchSize; ++y) for (int x = 0; x < gModel.swatchSize; ++x) {
                 const size_t pixel = (size_t)(top + y) * normal.width + left + x;
                 assert(normal.image_data[pixel * 3] == 128 && normal.image_data[pixel * 3 + 1] == 128 && normal.image_data[pixel * 3 + 2] == 255);
                 assert(roughness.image_data[pixel] == (format == FILE_TYPE_USD ? 255 : 0));
             }
+        }
+        if (!output.empty()) {
+            const auto file = output / ("neutral-normal-" + std::to_string(format) + ".png");
+            std::wstring filename = wide(file);
+            FileList files = {};
+            gOutputFileList = &files;
+            assert(writeTileFromCategoryInput(filename.data(), TOTAL_TILES, CATEGORY_NORMALS) == 0);
+            assert(files.count == 1 && filename == files.name[0]);
+            free(files.name[0]);
+            gOutputFileList = nullptr;
+            std::vector<unsigned char> pixels; unsigned width, height;
+            assert(lodepng::decode(pixels, width, height, filename) == 0);
+            assert(width == 16 && height == 16);
+            for (size_t i = 0; i < pixels.size(); i += 4)
+                assert(pixels[i] == 128 && pixels[i + 1] == 128 && pixels[i + 2] == 255 && pixels[i + 3] == 255);
         }
         restoreModTextureSlots();
     }
@@ -216,7 +236,7 @@ int main(int argc, char** argv)
     assert(ModDimensions().size() == 1);
     assert(ModDimensions()[0].id == "fixture:moon" && ModDimensions()[0].minY == -64);
     assert(ModDimensions()[0].height == 384 && ModDimensions()[0].coordinateScale == 2.0);
-    checkNeutralPBR();
+    checkNeutralPBR(SIZE_MAX, root);
     int lampType, off, on;
     assert(ResolveModState("fixture:lamp[lit=false]", &lampType, &off) == 1);
     assert(ResolveModState("fixture:lamp[lit=true]", &lampType, &on) == 1);
@@ -236,7 +256,7 @@ int main(int argc, char** argv)
     assert(ResolveModState("fixture:cube[extra=0]", &cube, &firstCubeState) == 1);
     assert(ResolveModState("fixture:wedge[extra=retained,facing=east]", &wedge, &wedgeState) == 1);
     assert(ResolveModState("fixture:panel", &panel, &panelState) == 1);
-    unsigned char blocks[7] = {(unsigned char)cube, 0, (unsigned char)wedge, 0, (unsigned char)panel, 0, (unsigned char)cube};
+    unsigned short blocks[7] = {(unsigned short)cube, 0, (unsigned short)wedge, 0, (unsigned short)panel, 0, (unsigned short)cube};
     unsigned short data[7] = {PACK_TYPE_EXT_AND_DATAVAL(cube, firstCubeState), 0, PACK_TYPE_EXT_AND_DATAVAL(wedge, wedgeState), 0,
                              PACK_TYPE_EXT_AND_DATAVAL(panel, panelState), 0, PACK_TYPE_EXT_AND_DATAVAL(cube, cubeState)};
     WorldGuide world = {};
@@ -287,7 +307,7 @@ int main(int argc, char** argv)
     int wetType, wetState;
     assert(ResolveModState("fixture:wedge[facing=east,waterlogged=true]", &wetType, &wetState) == 1);
     assert(ModBlockWaterlogged(wetType, wetState));
-    unsigned char wetBlocks[] = {(unsigned char)wetType};
+    unsigned short wetBlocks[] = {(unsigned short)wetType};
     unsigned short wetData[] = {PACK_TYPE_EXT_AND_DATAVAL(wetType, wetState)};
     WorldGuide wetWorld = world;
     wetWorld.sch = {wetBlocks, wetData, 1, 1, 1, 1, false, true};
@@ -318,7 +338,7 @@ int main(int argc, char** argv)
     longName += "cube[property=retained]";
     int longType, longState;
     assert(longName.size() > 256 && ResolveModState(longName, &longType, &longState) == 1);
-    unsigned char longBlock[] = {(unsigned char)longType};
+    unsigned short longBlock[] = {(unsigned short)longType};
     unsigned short longData[] = {PACK_TYPE_EXT_AND_DATAVAL(longType, longState)};
     WorldGuide longWorld = world;
     longWorld.sch = {longBlock, longData, 1, 1, 1, 1, false, true};
@@ -329,7 +349,7 @@ int main(int argc, char** argv)
     assert(stateNames(longRead) == stateNames(longWorld));
     ClearCache();
     free(longRead.sch.blocks); free(longRead.sch.data);
-    unsigned char lampBlocks[] = {(unsigned char)lampType, 0, (unsigned char)lampType};
+    unsigned short lampBlocks[] = {(unsigned short)lampType, 0, (unsigned short)lampType};
     unsigned short lampData[] = {PACK_TYPE_EXT_AND_DATAVAL(lampType, off), 0, PACK_TYPE_EXT_AND_DATAVAL(lampType, on)};
     WorldGuide lampWorld = world;
     lampWorld.sch = {lampBlocks, lampData, 3, 1, 1, 3, false, true};
@@ -351,7 +371,7 @@ int main(int argc, char** argv)
     assert(LoadModPack(zeroPath.u8string(), error));
     assert(ResolveModState("fixture:cube", &cube, &cubeState) == 1);
     assert(GetModBlock(cube, cubeState)->definition->alpha == 0);
-    unsigned char zeroBlocks[] = {(unsigned char)cube};
+    unsigned short zeroBlocks[] = {(unsigned short)cube};
     unsigned short zeroData[] = {PACK_TYPE_EXT_AND_DATAVAL(cube, cubeState)};
     WorldGuide zeroWorld = {};
     zeroWorld.type = WORLD_SCHEMATIC_TYPE;
@@ -370,7 +390,7 @@ int main(int argc, char** argv)
     assert(LoadModPack(invisiblePath.u8string(), error));
     int invisibleType, invisibleState;
     assert(ResolveModState("fixture:invisible[extra=retained]", &invisibleType, &invisibleState) == 1);
-    unsigned char invisibleBlocks[] = {(unsigned char)invisibleType};
+    unsigned short invisibleBlocks[] = {(unsigned short)invisibleType};
     unsigned short invisibleData[] = {PACK_TYPE_EXT_AND_DATAVAL(invisibleType, invisibleState)};
     WorldGuide invisibleWorld = {};
     invisibleWorld.type = WORLD_SCHEMATIC_TYPE;
@@ -381,7 +401,7 @@ int main(int argc, char** argv)
     assert(stateNames(invisibleRead) == stateNames(invisibleWorld));
     exportWorld(invisibleRead, root / "invisible-roundtrip.obj", 0, true, false, false, false, true);
     assert(ResolveModState("fixture:cube", &cube, &cubeState) == 1);
-    unsigned char mixedBlocks[] = {(unsigned char)invisibleType, 0, (unsigned char)cube};
+    unsigned short mixedBlocks[] = {(unsigned short)invisibleType, 0, (unsigned short)cube};
     unsigned short mixedData[] = {PACK_TYPE_EXT_AND_DATAVAL(invisibleType, invisibleState), 0,
                                  PACK_TYPE_EXT_AND_DATAVAL(cube, cubeState)};
     WorldGuide mixedWorld = invisibleWorld;
@@ -396,4 +416,5 @@ int main(int argc, char** argv)
     free(mixedRead.sch.blocks); free(mixedRead.sch.data);
     ClearModPack();
     puts("PASS: mod UVs/pixels, geometry/alpha, OBJ/USD modes, states above 255, long names, dimensions, and schematic round trip");
+    return 0;
 }

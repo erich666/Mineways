@@ -209,15 +209,15 @@ allocation_source = common + r'''
 constexpr int WORLD_UNLOADED_TYPE = 0, WORLD_LEVEL_TYPE = 1, WORLD_TEST_BLOCK_TYPE = 2;
 constexpr int WORLD_SCHEMATIC_TYPE = 3, NUM_BLOCKS_DEFINED = 561;
 struct Schematic {
-    unsigned char* blocks; unsigned short* data;
+    unsigned short* blocks; unsigned short* data;
     int width, height, length, numBlocks; bool repeat;
 };
 struct WorldGuide { int type, minHeight, maxHeight; Schematic sch; };
 struct WorldBlock {
-    unsigned char* grid; unsigned short* data; unsigned char* light;
+    unsigned short* grid; unsigned short* data; unsigned char* light;
     unsigned char biome[256]; int heightAlloc, maxFilledSectionHeight, maxFilledHeight;
     explicit WorldBlock(int height) : heightAlloc(height) {
-        grid = new unsigned char[height * 256];
+        grid = new unsigned short[height * 256];
         data = new unsigned short[height * 256];
         light = new unsigned char[height * 128];
     }
@@ -237,7 +237,7 @@ allocation_source += allocation_prefix.split("// always set")[0] + "return block
 allocation_source += body("Win/MinewaysMap.cpp", "int createBlockFromSchematic(WorldGuide* pWorldGuide, int cx, int cz, WorldBlock* block)\n{")
 allocation_source += r'''
 int main() {
-    std::vector<unsigned char> blocks(600, 1);
+    std::vector<unsigned short> blocks(600, 1);
     std::vector<unsigned short> data(600, 2);
     WorldGuide guide{WORLD_SCHEMATIC_TYPE, 0, 255, {blocks.data(), data.data(), 1, 600, 1, 600, false}};
     int result;

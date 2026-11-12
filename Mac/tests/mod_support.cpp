@@ -24,6 +24,7 @@ static std::string cube(const std::string& selector, const std::string& color = 
 static void writeFile(const std::filesystem::path& path, const std::string& text) { std::ofstream file(path, std::ios::binary); file << text; assert(file.good()); }
 int main(int argc, char** argv) {
     assert(argc == 2);
+    nbtInitTables();
     const auto dir = std::filesystem::u8path(argv[1]);
     std::filesystem::create_directories(dir / "textures");
     Bytes png, pixels(16 * 16 * 4, 255);
@@ -98,6 +99,34 @@ int main(int argc, char** argv) {
         assert(nbtGetDimensionDirect(&input, &dimension, actual, sizeof(actual)) == 0);
         assert(dimension == (legacy == -1 ? 1 : legacy == 1 ? 2 : 0));
     }
+    // Historical translation promotion is decoded into the type, never into state.
+    for (const char* name : {"minecraft:stone", "minecraft:prismarine_stairs", "minecraft:poplar_button", "minecraft:player_head", "minecraft:potted_cactus", "minecraft:potted_bamboo"}) {
+        Bytes palette = {10, 0, 0, 0, 1}; stringTag(palette, "Name", name); palette.push_back(0);
+        bfFile input = buffer(palette); input.offset = &input._offset;
+        unsigned short grid = 0, value = 0; int count = 0, status = 0;
+        assert(readPalette(status, &input, 26, &grid, &value, count, nullptr, 0) == 0 && count == 1);
+        const int translator = findIndexFromName((char*)name);
+        assert(translator >= 0 && grid == translatorFullType(&BlockTranslations[translator]));
+        assert((value & ~DATAVAL_MASK) == 0);
+        if (strcmp(name, "minecraft:player_head") == 0 || strcmp(name, "minecraft:potted_bamboo") == 0)
+            assert((value & 0x80) != 0);
+    }
+    {
+        Bytes chunk = {10, 0, 0, 10}; stringValue(chunk, "Level");
+        chunk.push_back(7); stringValue(chunk, "Biomes"); chunk.insert(chunk.end(), {0, 0, 1, 0}); chunk.insert(chunk.end(), 256, 0);
+        chunk.push_back(9); stringValue(chunk, "Sections"); chunk.insert(chunk.end(), {10, 0, 0, 0, 1, 1}); stringValue(chunk, "Y"); chunk.push_back(0);
+        chunk.push_back(7); stringValue(chunk, "Blocks"); chunk.insert(chunk.end(), {0, 0, 16, 0});
+        for (int i = 0; i < 4096; ++i) chunk.push_back((unsigned char)i);
+        chunk.push_back(7); stringValue(chunk, "Data"); chunk.insert(chunk.end(), {0, 0, 8, 0}); chunk.insert(chunk.end(), 2048, 0xa5);
+        chunk.push_back(7); stringValue(chunk, "BlockLight"); chunk.insert(chunk.end(), {0, 0, 8, 0}); chunk.insert(chunk.end(), 2048, 0x6f);
+        chunk.insert(chunk.end(), {0, 0, 0});
+        bfFile input = buffer(chunk); input.offset = &input._offset;
+        std::vector<unsigned short> grid(4096, 0xdead), values(4096, 0xdead);
+        Bytes light(2048, 0), biome(256, 0); int entities = 0, filled = -1;
+        assert(nbtGetBlocks(&input, grid.data(), values.data(), light.data(), biome.data(), nullptr, &entities, 12, 0, 15, filled, nullptr, 0) >= 0);
+        for (int i = 0; i < 4096; ++i) assert(grid[i] == (i & 255) && values[i] == ((i & 1) ? 10 : 5));
+        for (unsigned char byte : light) assert(byte == 0x6f);
+    }
     for (bool propsFirst : { false, true }) {
         Bytes palette = { 10, 0, 0, 0, 1 };
         auto properties = [&]() { palette.push_back(10); stringValue(palette, "Properties"); stringTag(palette, "facing", "mod_specific_value"); stringTag(palette, "foo", "bar"); palette.push_back(0); };
@@ -106,7 +135,7 @@ int main(int argc, char** argv) {
         if (!propsFirst) properties();
         palette.push_back(0);
         bfFile file = buffer(palette); file.offset = &file._offset;
-        unsigned char types[1]; unsigned short data[1]; int entries = 0, result = 0;
+        unsigned short types[1]; unsigned short data[1]; int entries = 0, result = 0;
         assert(readPalette(result, &file, 21, types, data, entries, nullptr, 0) == 0);
         assert(entries == 1 && result == 0 && BLOCK_TYPE_FROM_GRID_DATA(types[0], data[0]) == stone);
         assert(spongeBuildBlockStateString(stone, BLOCK_DATAVAL_FROM_DATA(data[0]), canonical, sizeof(canonical)) > 0);
@@ -114,7 +143,7 @@ int main(int argc, char** argv) {
     }
     Bytes strings = { 8, 0, 0, 0, 1 }; stringValue(strings, "lab:stone");
     bfFile file = buffer(strings); file.offset = &file._offset;
-    unsigned char types[1]; unsigned short data[1]; int entries = 0, result = 0;
+    unsigned short types[1]; unsigned short data[1]; int entries = 0, result = 0;
     assert(readPalette(result, &file, 26, types, data, entries, nullptr, 0) == 0 && entries == 1);
     // Omitted default properties and unsupported selectors use the unknown fallback,
     // without guessing a model or losing neighboring supported entries.
@@ -131,7 +160,7 @@ int main(int argc, char** argv) {
             stringTag(mixed, "Name", "lab:stone"); mixed.push_back(0);
         }
         bfFile input = buffer(mixed); input.offset = &input._offset;
-        unsigned char mixedTypes[2]; unsigned short mixedData[2];
+        unsigned short mixedTypes[2]; unsigned short mixedData[2];
         int count = 0, status = 0; char unknown[MAX_PATH_AND_FILE] = {};
         assert(readPalette(status, &input, 26, mixedTypes, mixedData, count, unknown, 1) == 0);
         assert(count == 2 && (status & NBT_WARNING_NAME_NOT_FOUND));
@@ -155,7 +184,7 @@ int main(int argc, char** argv) {
         const std::string input = "lab:stone[n=" + std::to_string(i) + "]";
         assert(ResolveModState(input, &type2, &state2) == 1);
         const auto packed = PACK_TYPE_EXT_AND_DATAVAL(type2, state2);
-        assert(BLOCK_TYPE_FROM_GRID_DATA(type2 & 255, packed) == type2);
+        assert(BLOCK_TYPE_FROM_GRID_DATA(type2, packed) == type2);
         assert(!ModBlockWaterlogged(type2, packed));
         assert(spongeBuildBlockStateString(type2, BLOCK_DATAVAL_FROM_DATA(packed), canonical, sizeof(canonical)) > 0 && input == canonical);
     }
@@ -187,9 +216,9 @@ int main(int argc, char** argv) {
     assert(LoadModPack(path.u8string(), error));
     for (int i = 0; i < 230; ++i) {
         assert(ResolveModState("lab:block_" + std::to_string(i), &type2, &state2) == 1);
-        assert((type2 & 255) != 0);
+        assert(type2 == NUM_BLOCKS_DEFINED + i);
     }
-    assert(type2 > 768 && !IsModBlock(768));
+    assert(type2 > 768 && IsModBlock(768));
     bool aggregateRejected = false;
     for (int i = 0; i < 230 && !aggregateRejected; ++i) {
         for (int j = 0; j < 600; ++j) {
@@ -198,19 +227,40 @@ int main(int argc, char** argv) {
     }
     assert(aggregateRejected);
     many = prefix;
-    for (int i = 0; i < 53000; ++i) many += cube("lab:overflow_" + std::to_string(i));
+    for (int i = 0; i < 65000; ++i) many += cube("lab:overflow_" + std::to_string(i));
     writeFile(path, many);
     assert(LoadModPack(path.u8string(), error));
-    assert(ModBlockTypeLimit() == NUM_BLOCKS_DEFINED && HasModBlock("lab:overflow_52999"));
-    assert(ResolveModState("lab:overflow_52999", &type2, &state2) == 1 && type2 == NUM_BLOCKS_DEFINED);
+    assert(ModBlockTypeLimit() == NUM_BLOCKS_DEFINED && HasModBlock("lab:overflow_64999"));
+    assert(ResolveModState("lab:overflow_64999", &type2, &state2) == 1 && type2 == NUM_BLOCKS_DEFINED);
     int active = 1;
-    for (int i = 0; i < 3600; ++i) {
+    for (int i = 0; i < 65000; ++i) {
         if (ResolveModState("lab:overflow_" + std::to_string(i), &type2, &state2) < 0) break;
         ++active;
     }
-    assert(active == 3522);
-    assert(ResolveModState("lab:overflow_52999", &type2, &state2) == 1);
-    assert(ResolveModState("lab:overflow_52998", &type2, &state2) == -1);
+    assert(active == MAX_BLOCK_TYPES - NUM_BLOCKS_DEFINED && type2 == 65535);
+    assert(ResolveModState("lab:overflow_64999", &type2, &state2) == 1);
+    assert(ResolveModState("lab:overflow_64998", &type2, &state2) == -1);
+    for (int wanted : {4095, 4096, 32767, 32768, 65535}) {
+        const std::string name = "lab:overflow_" + std::to_string(wanted - NUM_BLOCKS_DEFINED - 1);
+        assert(ResolveModState(name, &type2, &state2) == 1 && type2 == wanted);
+        assert(BLOCK_TYPE_FROM_GRID_DATA(type2, PACK_TYPE_EXT_AND_DATAVAL(type2, 0x8c0)) == wanted);
+        assert(PACK_TYPE_EXT_AND_DATAVAL(type2, 0x8c0) == 0x8c0);
+        assert(blockTransIndexFor(type2, 0) == -1);
+        assert(spongeBuildBlockStateString(type2, state2, canonical, sizeof(canonical)) > 0 && canonical == name);
+        int restoredType, restoredState;
+        assert(spongeParseStateString(canonical, &restoredType, &restoredState) && restoredType == wanted && restoredState == state2);
+        // A homogeneous modern section exercises the word fill, including low-byte-zero IDs.
+        Bytes chunk = {10, 0, 0, 9}; stringValue(chunk, "sections");
+        chunk.insert(chunk.end(), {10, 0, 0, 0, 1, 1}); stringValue(chunk, "Y"); chunk.push_back(0);
+        chunk.push_back(10); stringValue(chunk, "block_states");
+        chunk.push_back(9); stringValue(chunk, "palette"); chunk.insert(chunk.end(), {8, 0, 0, 0, 1}); stringValue(chunk, name);
+        chunk.insert(chunk.end(), {0, 0, 0});
+        bfFile input = buffer(chunk); input.offset = &input._offset;
+        std::vector<unsigned short> grid(4096, 0xdead), values(4096, 0xdead);
+        Bytes light(2048, 0xff), biome(256, 0xff); int entities = 0, filled = -1;
+        assert(nbtGetBlocks(&input, grid.data(), values.data(), light.data(), biome.data(), nullptr, &entities, 26, 0, 15, filled, nullptr, 0) >= 0);
+        for (int i = 0; i < 4096; ++i) assert(grid[i] == wanted && values[i] == state2);
+    }
     ClearModPack();
     assert(ModBlockTypeLimit() == NUM_BLOCKS_DEFINED && !IsModBlock(stone) && ModTextures().empty());
     writeFile(path, "MINEWAYS_MOD_PACK\t1\ndimension\tlab:moon\t-128\t512\t0.5\n");

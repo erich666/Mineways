@@ -58,7 +58,7 @@ jobs:
           fi
 
       - name: Test dimensions and mod support
-        run: make -C Mac test test-mods
+        run: make -C Mac test test-mods test-mod-limits
 
       - name: Bundle dependencies (make app self-contained)
         run: |

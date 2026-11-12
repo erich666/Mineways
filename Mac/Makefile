@@ -180,3 +180,11 @@ test-real-mods: $(VERSION_HEADER)
 	@real_mod_dir=$$(mktemp -d /tmp/mineways-real-mods.XXXXXX); \
 	  $(CXX) $(GUI_CXXFLAGS) $(SANITIZER_FLAGS) tests/real_mod_pack.cpp $(filter-out $(SRC_DIR)/ObjFileManip.cpp,$(CORE_SRCS)) MacCullingSchemes.cpp $(LDFLAGS) $(LIBS) -o "$$real_mod_dir/test" && \
 	  "$$real_mod_dir/test" "$(MOD_PACK)" "$$real_mod_dir/output"
+
+# All uint16 block IDs and the selected imported texture budget. Assets are synthetic.
+.PHONY: test-mod-limits
+test-mod-limits: $(VERSION_HEADER)
+	@mod_limit_dir=$$(mktemp -d /tmp/mineways-mod-limits.XXXXXX); \
+	  python3 tests/mod_assets.py --limits-fixture "$$mod_limit_dir/fixture" && \
+	  $(CXX) $(GUI_CXXFLAGS) $(SANITIZER_FLAGS) tests/mod_limits.cpp $(filter-out $(SRC_DIR)/ObjFileManip.cpp,$(CORE_SRCS)) MacCullingSchemes.cpp $(LDFLAGS) $(LIBS) -o "$$mod_limit_dir/test" && \
+	  "$$mod_limit_dir/test" "$$mod_limit_dir/fixture/pack/manifest.mwpack" "$$mod_limit_dir/output"

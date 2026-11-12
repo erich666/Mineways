@@ -99,7 +99,7 @@ static void checkSponge(const std::string& directory)
         for (bool deferred : { false, true }) {
             readers(sponge(version, { 0 }, deferred), directory, [](bfFile* input) {
                 int width, height, length, dataVersion;
-                unsigned char* blocks;
+                unsigned short* blocks;
                 unsigned short* data;
                 assert(nbtGetSpongeSchematic(input, &width, &height, &length, &blocks, &data, &dataVersion) == 1);
                 assert(width == 1 && height == 1 && length == 1);
@@ -112,7 +112,7 @@ static void checkSponge(const std::string& directory)
                 Bytes{ 0x80, 0x80, 0x80, 0x80, 0x10 }, Bytes{ 0x80, 0x80, 0x80, 0x80, 0x80 } }) {
                 readers(sponge(version, invalid, deferred), directory, [](bfFile* input) {
                     int width, height, length, dataVersion;
-                    unsigned char* blocks = nullptr;
+                    unsigned short* blocks = nullptr;
                     unsigned short* data = nullptr;
                     assert(nbtGetSpongeSchematic(input, &width, &height, &length, &blocks, &data, &dataVersion) == 0);
                     assert(blocks == nullptr && data == nullptr);
@@ -124,7 +124,7 @@ static void checkSponge(const std::string& directory)
         for (int i = 0; i < 129; i++) { multibyte.push_back(0x80); multibyte.push_back(1); }
         readers(sponge(version, multibyte, false, 129, 128), directory, [](bfFile* input) {
             int width, height, length, dataVersion;
-            unsigned char* blocks;
+            unsigned short* blocks;
             unsigned short* data;
             assert(nbtGetSpongeSchematic(input, &width, &height, &length, &blocks, &data, &dataVersion) == 1);
             assert(width == 129 && height == 1 && length == 1);
@@ -134,7 +134,7 @@ static void checkSponge(const std::string& directory)
         // Two encoded bytes do not suffice for two voxels if the first varint takes both.
         readers(sponge(version, { 0x80, 0 }, false, 2), directory, [](bfFile* input) {
             int width, height, length, dataVersion;
-            unsigned char* blocks;
+            unsigned short* blocks;
             unsigned short* data;
             assert(nbtGetSpongeSchematic(input, &width, &height, &length, &blocks, &data, &dataVersion) == 0);
             assert(!blocks && !data);
@@ -159,7 +159,7 @@ static void checkLegacy(const std::string& directory)
     for (const auto& fields : { std::vector<std::string>{ "Blocks", "Data" },
         std::vector<std::string>{ "Data", "Blocks" } }) {
         readers(legacy(fields), directory, [](bfFile* input) {
-            unsigned char blocks = 0xaa;
+            unsigned short blocks = 0xaa;
             unsigned short data = 0xffff;
             assert(nbtGetSchematicBlocksAndData(input, 1, &blocks, &data) == 1);
             assert(blocks == BLOCK_STONE && data == 0x80);
@@ -169,20 +169,20 @@ static void checkLegacy(const std::string& directory)
         std::vector<std::string>{ "Data", "Data" }, std::vector<std::string>{ "Blocks" },
         std::vector<std::string>{ "Data" }, std::vector<std::string>{ "Blocks", "Data", "Blocks" } }) {
         readers(legacy(fields), directory, [](bfFile* input) {
-            unsigned char blocks;
+            unsigned short blocks;
             unsigned short data;
             assert(nbtGetSchematicBlocksAndData(input, 1, &blocks, &data) != 1);
         });
     }
     readers(legacy({ "Blocks", "Data" }, 3), directory, [](bfFile* input) {
-        unsigned char blocks;
+        unsigned short blocks;
         unsigned short data;
         assert(nbtGetSchematicBlocksAndData(input, 1, &blocks, &data) != 1);
     });
     Bytes truncated = legacy({ "Blocks", "Data" });
     truncated.resize(truncated.size() - 2);
     readers(truncated, directory, [](bfFile* input) {
-        unsigned char blocks;
+        unsigned short blocks;
         unsigned short data;
         assert(nbtGetSchematicBlocksAndData(input, 1, &blocks, &data) != 1);
     });

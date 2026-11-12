@@ -105,7 +105,7 @@ static void checkSchematicBoundaries()
         guide.sch.width = guide.sch.length = size;
         guide.sch.height = 8;
         guide.sch.numBlocks = size * size * 8;
-        std::vector<unsigned char> blocks(guide.sch.numBlocks, BLOCK_STONE);
+        std::vector<unsigned short> blocks(guide.sch.numBlocks, BLOCK_STONE);
         std::vector<unsigned short> data(guide.sch.numBlocks, 0);
         guide.sch.blocks = blocks.data();
         guide.sch.data = data.data();

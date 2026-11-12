@@ -101,6 +101,30 @@ def build_fixture(root):
     return pack
 
 
+def build_limits_fixture(root):
+    """Original colors and a full uint16 block catalog for native boundary tests."""
+    root = Path(root)
+    pack = root / 'pack'
+    (pack / 'textures').mkdir(parents=True)
+    texture_count = 4097
+    with (pack / 'manifest.mwpack').open('w', encoding='utf-8', newline='\n') as out:
+        out.write('MINEWAYS_MOD_PACK\t2\n')
+        for index in range(texture_count):
+            color = bytes((index & 255, index >> 8, 73, 255))
+            (pack / 'textures' / f'{index}.png').write_bytes(mod.encode_png(1, 1, color))
+            out.write(f'texture\t{index}\twide:texture_{index}\ttextures/{index}.png\n')
+        for index in range(texture_count):
+            out.write(f'geometry\t{index}\nelement\t0\t0\t0\t16\t16\t16\tnone\t0\t8\t8\t8\t0\n')
+            # Distinct face rectangles exercise UV indices beyond signed 16-bit range.
+            for face, side in enumerate(mod.DIRECTIONS):
+                low, high = face / 8, 16 - face / 8
+                out.write(f'face\t{side}\t{low}\t{low}\t{high}\t{high}\t0\t{index}\t{side}\n')
+            out.write('endgeometry\n')
+        for index in range(65536 - 561):
+            out.write(f'state\twide:block_{index}\t808080\t255\nusemodel\t{index % texture_count}\t0\t0\t0\nendstate\n')
+    return pack
+
+
 class ImportTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix='mineways-mod-assets-')
@@ -577,5 +601,7 @@ class ImportTests(unittest.TestCase):
 if __name__ == '__main__':
     if len(sys.argv) == 3 and sys.argv[1] == '--fixture':
         print(build_fixture(sys.argv[2]))
+    elif len(sys.argv) == 3 and sys.argv[1] == '--limits-fixture':
+        print(build_limits_fixture(sys.argv[2]))
     else:
         unittest.main()

@@ -87,11 +87,11 @@ THE POSSIBILITY OF SUCH DAMAGE.
 typedef struct ChangeBlockCommand {
     // from range
     bool hasFrom;
-    unsigned char simpleFromTypeBegin;
-    unsigned char simpleFromTypeEnd;
+    unsigned short simpleFromTypeBegin;
+    unsigned short simpleFromTypeEnd;
     unsigned short simpleFromDataBits;
     bool useFromArray;
-    // if useFromArray is true, fromDataBits contains 256 entry array of bits of blocks to change
+    // if useFromArray is true, fromDataBits contains MAX_BLOCK_TYPES entries.
     unsigned short* fromDataBitsArray;
 
     // to location - there is always only one
@@ -168,10 +168,10 @@ typedef struct UVOutput
 typedef struct FaceRecord {
     int faceIndex;	// tie breaker, so that faces get near each other in location
     int vertexIndex[4];
-    short materialType;	// block id; note we use negatives for some things
+    int materialType;	// full block id; negatives are used for markers
     unsigned short materialDataVal;	// extended data value, identifying unique block materials
     short normalIndex;    // always the same! normals all the same for the face - shared, so need only around 335
-    short uvIndex[4];	// around 3800 unique values, since we use sharing.
+    int uvIndex[4];	// imported textures can require more than 32767 UVs
 } FaceRecord;
 
 #define FACE_RECORD_POOL_SIZE 10000
@@ -214,7 +214,7 @@ typedef struct SwatchComposite {
 } SwatchComposite;
 
 typedef struct BlockInstance {
-    int hash;
+    unsigned int hash;
     int faceNumber; // first face in list of faces
     int numFaces;   // in theory not needed if we don't sort the list, but could be useful
     int startingLocation;
@@ -249,7 +249,8 @@ typedef struct Model {
 
     // One for each SwatchLoc - each UVList potentially contains a list of UVs associated with this particular swatch.
 
-    UVList uvSwatches[NUM_MAX_SWATCHES];
+    UVList* uvSwatches;
+    int swatchCapacity;
     int uvIndexCount;
     // points into uv Records actually stored at the swatch locations
     UVOutput* uvIndexList;
@@ -259,7 +260,7 @@ typedef struct Model {
     int uvIndexListSize;
     // For each swatchLoc there is some type (often more than one, but we save just the last one).
     // This lets us export the type as a comment.
-    int uvSwatchToType[NUM_MAX_SWATCHES];
+    int* uvSwatchToType;
 
     int billboardCount;
     IBox billboardBounds;
@@ -274,9 +275,10 @@ typedef struct Model {
     // Hmmm, bug: if gModel.options->exportFlags & EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK, the number of materials
     // generated for exporting the whole of BlockWorld (the test world) is quite large: 3242. So, make this 4000.
 //#define NUM_SUBMATERIALS	4000
-    bool tileList[TOTAL_CATEGORIES][TOTAL_TILES];
+    bool* tileList[TOTAL_CATEGORIES];
+    int tileCapacity;
     int tileListCount; // number of tiles actually used in tileList
-    bool tileEmissionNeeded[TOTAL_TILES];
+    bool* tileEmissionNeeded;
     int mtlCount;
 
     progimage_info* pInputTerrainImage[TOTAL_CATEGORIES];

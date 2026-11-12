@@ -93,27 +93,31 @@ The current implementation has these explicit limits:
 - Weighted alternatives use the first listed model. Animated textures use the first square frame. The report lists these approximations.
 - Arbitrary Java renderers, unsupported custom model loaders, inverted elements, and UV coordinates outside 0–16 remain unsupported. The importer supports standard Forge/NeoForge composite children and Fusion base geometry. It reports approximations for connected textures and custom tints. It does not execute mod code.
 - PNG import supports non-interlaced 8-bit grayscale, RGB, indexed, grayscale-alpha, and RGBA images, plus 1-, 2-, and 4-bit grayscale and indexed images. The output always uses RGBA.
-- A pack catalog can contain more textures than the export atlas. A textured export uses only the textures needed by its selected blocks. This release permits 915 selected mod textures and 256 MiB of decoded mod texture pixels per export. Larger selections fail explicitly. Exports without textures and Sponge exports bypass these texture limits. Imported textures are resampled to the terrain tile resolution. Only albedo textures are imported.
-- Catalog definitions acquire internal block IDs only when a world or schematic uses them. One loaded-pack session can retain 3,522 distinct mod block names and 4,096 observed states per name. Reloading or clearing the pack resets these assignments. Exhausting this active ID space fails explicitly. It does not reject the larger catalog during pack loading.
+- A pack catalog can contain more textures than the export atlas. A textured export uses only the textures needed by its selected blocks. This implementation permits 4,096 selected mod textures and 256 MiB of decoded mod texture pixels per export. Larger selections fail explicitly. Exports without textures and Sponge exports bypass these texture limits. Imported textures are resampled to the terrain tile resolution. Only albedo textures are imported.
+- Catalog definitions acquire internal block IDs only when a world or schematic uses them. One loaded-pack session can retain 64,975 distinct mod block names, using IDs 561 through 65,535. Each name supports 4,096 observed states. Reloading or clearing the pack resets these assignments. Exhausting this active ID space fails explicitly. It does not reject the larger catalog during pack loading.
 
 The importer indexes archive entries and reads selected assets when needed. Compiled packs share model geometry across state selectors. The runtime validates texture headers when it loads the catalog and decodes only selected export textures. It releases decoded pixels after each export.
 
 The importer limits input files, decompressed asset bytes, PNG pixels, model parent depth, multipart combinations, and compiled elements. It rejects unsafe archive paths, duplicate relevant asset entries, archive symlinks, and source symlinks. The runtime separately validates the compiled manifest and texture paths.
 
-## Raising the active limits
+## Active storage and export capacity
 
-The catalog already holds the full installed ATM10 asset set. The remaining limits apply to observed blocks and selected export textures. Raising their constants alone would corrupt packed block IDs or overrun fixed texture tables. This pass assesses these migrations and retains the current limits.
+The wider block IDs and expanded export texture capacity are implemented. Local macOS ARM64 validation passed, including the full ATM10 catalog and capacity regressions. Windows Debug/Release and macOS Intel CI validation are pending.
 
-| Limit | Proposed next target | Required change |
+| Resource | Implemented limit | Storage |
 | --- | --- | --- |
-| 3,522 active mod block names | 64,975 mod names within 65,536 total type slots | Separate a 16-bit block type from the 16-bit state field throughout the chunk and schematic readers, cache, map, and exporters. |
-| 915 selected mod textures | Initially 4,096 selected mod textures | Allocate imported texture slots per export, independently of vacant vanilla terrain cells. Grow UV and material bookkeeping with those slots. |
+| Active mod block names | 64,975 per loaded-pack session | IDs 561–65,535 in a 16-bit block grid |
+| Observed states per block name | 4,096 | Independent 16-bit field with 12 state bits |
+| Selected mod textures | 4,096 per textured export | Export slots appended after the built-in terrain slots |
+| Decoded mod texture pixels | 256 MiB per export | Only selected textures are decoded |
 
-The block migration reaches `cache`, `nbt`, `region`, `MinewaysMap`, both platform shells, schematic buffers, instance hashes, and type-indexed tables. Instance hashes currently shift a signed type by 16 bits, so IDs above 32,767 also need unsigned hash storage and decoding. It must remove the type-extension nibble, byte casts, low-byte air checks, and hard-coded 12-bit type masks together. `BoxCell` already uses 16-bit types. The chunk grid does not. A 16-bit grid adds one byte per voxel: 96 KiB per full-height 384-block chunk, or about 562.5 MiB for 6,000 such cached chunks. Update the existing `Cache_BytesPerChunk` calculation with the new grid width so the map-memory budget reduces the cache entry count and holds the selected RAM budget constant. State IDs can retain the present 4,096-per-block limit.
+Chunk readers, schematic readers, caches, map rendering, and exporters keep the full block ID separately from its state. IDs with a zero low byte remain real blocks. State flags for heads and flower pots retain their meanings. Instance hashes use unsigned storage, and material and UV indices can represent the expanded output.
 
-The texture migration reaches `prepareModTextures`, swatch lookup, `Model::tileList`, UV lists, individual PNG writers, mosaics, PBR channels, and OBJ/USD/VRML material writers. `TOTAL_TILES` currently marks both the end of the vanilla table and the start of composite swatches. `NUM_MAX_SWATCHES` is also fixed at 4,096. Imported slots need their own metadata and a non-overlapping allocation range. Start with individual-image OBJ/USD exports, then add dynamic mosaic sizing and the remaining formats. Preserve the decoded-pixel budget and explicit allocation failures. Do not enlarge every terrain image or duplicate the full catalog's textures in memory.
+The grid, state, and lighting buffers use 4.5 bytes per voxel: two bytes each for type and state, plus half a byte for light. A full 384-level chunk needs 432 KiB for those buffers, excluding chunk metadata. The grid change adds 96 KiB per full chunk. `Cache_BytesPerChunk` includes the new width, so the selected map-memory budget permits fewer cached chunks instead of increasing that budget.
 
-Required migration checks include active IDs at 4,095/4,096, 32,767/32,768, and 65,535, including low-byte-zero boundaries, exact schematic round trips, vanilla geometry parity, and one export with over 915 distinct selected textures. The existing large-catalog test selects only three textures and cannot establish that last property. Test individual images, mosaics, UV seams, PBR neutrality, repeat exports, and allocation failure on Windows Debug/Release and macOS sanitizers.
+Imported textures have separate metadata and output slots. They do not replace vacant vanilla cells or alter the built-in terrain atlas. Mosaic dimensions and texture bookkeeping grow for the selected output. Composite swatches follow the imported slots. Solid-color exports retain the vanilla swatches and append compact swatches only for selected mod block types. A high block ID does not require that many color swatches.
+
+The regression suites cover IDs 4,095/4,096, 32,767/32,768, and 65,535, including zero-low-byte boundaries and exact schematic round trips. They also exercise USD instances, expanded material/UV indices, individual textures, mosaics, repeat exports, and rejection of a 4,097-texture selection. These checks must pass on Windows Debug/Release and macOS before the migration is considered validated. Earlier catalog-loading measurements below do not establish that result.
 
 ## Test without a Minecraft installation
 
@@ -126,7 +130,26 @@ The fixture creates original test assets and `/tmp/mineways-mod-fixture/pack/man
 
 ## Native build checks
 
-The macOS `make -C Mac test-mods` target checks the importer, registry, and real export paths. The Windows CI workflow uses MSBuild for Debug and Release builds. Its mod test runner exercises the resulting native binaries. CI runs those checks on their respective operating systems. A local macOS run does not establish a Windows test result.
+The macOS `make -C Mac test-mods` target checks the importer, registry, and real export paths. `make -C Mac test-mod-limits` checks the complete 16-bit ID range and the 4,096-texture export boundary with original synthetic assets. The Windows CI workflow uses MSBuild for Debug and Release builds. Its mod test runner exercises the resulting native binaries. CI runs those checks on their respective operating systems. A local macOS run does not establish a Windows test result.
+
+## Test the pinned ATM10 catalog on Windows
+
+`tools/fixtures/atm10-1.21.1.json` pins 495 mod JARs and the official Minecraft 1.21.1 client. It records public URLs, file sizes, SHA-1 hashes, and CurseForge project/file IDs. It contains no third-party assets or local installation paths. The November 12, 2026 snapshot requires approximately 1.5 GB of downloads.
+
+The separate downloader verifies every file before creating the importer's source list. It preserves source order: Minecraft client first, then mod JARs sorted by filename. Downloads use HTTPS, bounded retries, streaming size checks, and temporary files. A failed download does not replace a previous file. Existing files are reused only after their size and hash match.
+
+```powershell
+python tools/download_mod_assets.py tools/fixtures/atm10-1.21.1.json C:\temp\atm10-assets
+python tools/import_mod_assets.py --sources-file C:\temp\atm10-assets\sources.txt --output C:\temp\atm10-pack
+python tools/test_mod_windows.py Win\x64\Release\Mineways.exe --pack C:\temp\atm10-pack\manifest.mwpack
+python tools/test_mod_windows.py Win\x64\Debug\Mineways.exe --pack C:\temp\atm10-pack\manifest.mwpack
+```
+
+Build the corresponding native binaries first. The Debug executable also requires the MSVC AddressSanitizer DLL directory on `PATH`.
+
+In GitHub Actions, select **Windows Build > Run workflow**, choose the branch, and enable `full_atm`. Both Debug and Release jobs download the pinned assets, compile the complete catalog, and run the native tests. The full-pack command includes the synthetic and capacity tests, so the workflow runs them only once per job. Normal push and pull-request jobs do not download ATM10.
+
+Full-pack tests activate every catalog block name through a synthetic schematic palette, then sample actual states for exports. They verify texture pixels, repeat exports, and Sponge geometry/state round trips. They do not test every selector. Full-catalog and capacity invocations have ten-minute timeouts. Smaller fixture invocations have two-minute timeouts. Each workflow job has a one-hour limit. The workflow uploads no downloaded JARs, compiled texture assets, or exports. Full-pack Windows validation of the new limits is pending.
 
 ## Test an installed mod pack
 
@@ -137,9 +160,9 @@ make -C Mac test-real-mods \
   MOD_PACK=/path/to/compiled-pack/manifest.mwpack
 ```
 
-This target compiles the shared native core with AddressSanitizer and UndefinedBehaviorSanitizer. It checks finite OBJ coordinates and valid face indices, exported texture pixels, repeat exports, and exact Sponge state and geometry round trips. It prints the temporary artifact directory. `selected-states.txt` lists the tested states. Model sampling is deterministic and does not validate every selector or provide a visual comparison with Minecraft.
+This target compiles the shared native core with AddressSanitizer and UndefinedBehaviorSanitizer. It activates every imported block name before the render sample. It checks finite OBJ coordinates and valid face indices, exported texture pixels, repeat exports, and exact Sponge state and geometry round trips. It prints the temporary artifact directory. `selected-states.txt` lists the tested states. Model sampling is deterministic and does not validate every selector or provide a visual comparison with Minecraft.
 
-On November 12, 2026, this test passed on macOS with assets from the installed ATM10 8.3 instance and its Minecraft 1.21.1 client:
+The following macOS tests used the installed ATM10 8.3 instance and its Minecraft 1.21.1 client on November 12, 2026. The four-mod result precedes the wider-ID migration. The complete catalog was retested after that migration:
 
 | Imported subset | Loaded blocks / selectors / textures | Tested states | Exported faces | Pixel-checked textures |
 | --- | --- | --- | --- | --- |
@@ -152,7 +175,7 @@ A separate actual-block regression verifies `justdirethings:goopatternblock[goos
 
 The complete compiled catalog contains 84,940 shared geometries, 475,456 elements, and 25 dimension records. Its report lists 9,522 unsupported block definitions, 9,467 unsupported selectors, and 13,230 warnings. Every installed mod JAR was indexed. Across the complete catalog, 192 AE2 orientations previously accepted with an incorrect Z rotation are now explicitly unsupported. Unsupported records remain explicit in the report.
 
-The full native sanitizer smoke test loaded the catalog in 13.828 seconds with zero decoded texture pixels. It included 37 explicit adapter and transparency regression states alongside the deterministic sample. The complete export test took 19.97 seconds and reached 1.64 GiB peak resident memory. That peak includes sanitizer and test-harness overhead. No mod block IDs were allocated before selecting states. These measurements use the local macOS host.
+The latest full-catalog test passed with AddressSanitizer and UndefinedBehaviorSanitizer after the wider-ID migration. It activated all 42,629 block names before export, reaching internal ID 43,189. The 139 tested states included 37 explicit adapter and transparency regressions. All 136 imported texture pixel checks passed, as did repeated OBJ exports and exact Sponge state/geometry round trips. Catalog loading took 14.679 seconds with zero decoded texture pixels. The complete test took 20.833 seconds and exited successfully on the local macOS host. These results do not establish a Windows result or test every model selector.
 
 Catalog counts describe asset definitions, not the game's registered block types. Optional compatibility resources can refer to absent mods or models. The importer reports those missing resources explicitly. No third-party mod assets are included in the repository.
 

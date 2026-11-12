@@ -207,7 +207,7 @@ static int LoadSchematicFile(const wchar_t* pathAndFile, bool isSponge)
 {
     if (isSponge) {
         int w = 0, h = 0, l = 0;
-        unsigned char* blocks = nullptr;
+        unsigned short* blocks = nullptr;
         unsigned short* data  = nullptr;
         int dataVersion = 0;
         int rv = GetSpongeSchematic(pathAndFile, &w, &h, &l, &blocks, &data, &dataVersion);
@@ -225,7 +225,7 @@ static int LoadSchematicFile(const wchar_t* pathAndFile, bool isSponge)
         if (GetSchematicWord(pathAndFile, "Length", &gWorldGuide.sch.length) != 1) return 103;
         if (!nbtGetValidatedSchematicVolume(gWorldGuide.sch.width, gWorldGuide.sch.height,
                                             gWorldGuide.sch.length, &gWorldGuide.sch.numBlocks)) return 104;
-        gWorldGuide.sch.blocks = (unsigned char*)malloc(gWorldGuide.sch.numBlocks);
+        gWorldGuide.sch.blocks = (unsigned short*)malloc((size_t)gWorldGuide.sch.numBlocks * sizeof(*gWorldGuide.sch.blocks));
         gWorldGuide.sch.data   = (unsigned short*)malloc(gWorldGuide.sch.numBlocks * sizeof(*gWorldGuide.sch.data));
         if (!gWorldGuide.sch.blocks || !gWorldGuide.sch.data) {
             free(gWorldGuide.sch.blocks); gWorldGuide.sch.blocks = nullptr;

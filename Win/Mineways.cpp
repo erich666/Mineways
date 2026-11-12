@@ -560,8 +560,8 @@ static char* findBlockTypeAndData(char* line, int* pType, int* pData, unsigned s
 static char* compareLCAndSkip(char* a, char const* b);
 static char* skipPastUnsignedInteger(char* strPtr);
 static bool createCB(ImportedSet& is);
-static bool addFromRangeToCB(ChangeBlockCommand* pCBC, unsigned char fromType, unsigned char fromEndType, unsigned short fromDataBits);
-static void setDefaultFromRangeToCB(ChangeBlockCommand* pCBC, unsigned char fromType, unsigned char fromEndType, unsigned short fromDataBits);
+static bool addFromRangeToCB(ChangeBlockCommand* pCBC, unsigned short fromType, unsigned short fromEndType, unsigned short fromDataBits);
+static void setDefaultFromRangeToCB(ChangeBlockCommand* pCBC, unsigned short fromType, unsigned short fromEndType, unsigned short fromDataBits);
 static void addRangeToDataBitsArray(ChangeBlockCommand* pCBC, int fromType, int fromEndType, unsigned short fromDataBits);
 static void saveCBinto(ChangeBlockCommand* pCBC, int intoType, int intoData);
 static bool addDataBitsArray(ChangeBlockCommand* pCBC);
@@ -4389,7 +4389,7 @@ static int loadSpongeSchematic(wchar_t* pathAndFile)
     CloseAll();
 
     int width = 0, height = 0, length = 0;
-    unsigned char* blocks = NULL;
+    unsigned short* blocks = NULL;
     unsigned short* data = NULL;
     int dataVersion = 0;
     int retval = GetSpongeSchematic(pathAndFile, &width, &height, &length, &blocks, &data, &dataVersion);
@@ -4419,12 +4419,9 @@ static int loadSpongeSchematic(wchar_t* pathAndFile)
     //      which uses gWorldGuide.minHeight=0 from loadWorld), not the -64..319 of 1.18 and newer
     //      worlds, so Ctrl-A / Select-All highlights line up with where the blocks live. So the
     //      heights are set directly here, not from the version.
-    //   2. gMcVersion >= 13 so gIs13orNewer = true. .schem palettes carry 1.13+ block IDs whose
-    //      high bits (>255) Mineways packs into the top nibble of dataVal (see nbt.h); a wrong
-    //      gMcVersion here doesn't affect that unpacking (BLOCK_TYPE_FROM_GRID_DATA in
-    //      ObjFileManip.cpp/MinewaysMap.cpp applies unconditionally), but gIs13orNewer still
-    //      gates other 1.13+-only parsing paths (e.g. tile-entity handling), so it must be set
-    //      for modern blocks like the copper golem statues at IDs 502/503 to come through intact.
+    //   2. gMcVersion >= 13 so gIs13orNewer = true. Sponge palettes contain modern blocks.
+    //      Their full IDs are independent of the state field, but gIs13orNewer still controls
+    //      version-specific parsing paths such as tile-entity handling.
     //      A file without a DataVersion (or with one from before 1.13, data version 1519, which a
     //      Sponge schematic can't really be) is taken to be from 1.16.5, data version 2586.
     gVersionID = (dataVersion >= 1519) ? dataVersion : 2586;
@@ -4456,7 +4453,7 @@ static int loadSchematic(wchar_t* pathAndFile)
         gWorldGuide.sch.length, &gWorldGuide.sch.numBlocks))
         return 100 + 4;
 
-    gWorldGuide.sch.blocks = (unsigned char*)malloc(gWorldGuide.sch.numBlocks);
+    gWorldGuide.sch.blocks = (unsigned short*)malloc((size_t)gWorldGuide.sch.numBlocks * sizeof(*gWorldGuide.sch.blocks));
     gWorldGuide.sch.data = (unsigned short*)malloc((size_t)gWorldGuide.sch.numBlocks * sizeof(unsigned short));
     if (gWorldGuide.sch.blocks == NULL || gWorldGuide.sch.data == NULL) {
         free(gWorldGuide.sch.blocks);
@@ -10162,7 +10159,7 @@ static bool testChangeBlockCommand(char* line, ImportedSet& is, int* pRetCode)
                 }
                 if (is.processData) {
                     if (fromType <= fromEndType) {
-                        if (!addFromRangeToCB(is.pCBClast, (unsigned char)fromType, (unsigned char)fromEndType, fromDataBits)) {
+                        if (!addFromRangeToCB(is.pCBClast, (unsigned short)fromType, (unsigned short)fromEndType, fromDataBits)) {
                             saveErrorMessage(is, L"out of memory while storing Change blocks ranges.");
                             *pRetCode = INTERPRETER_FOUND_ERROR;
                             return true;
@@ -10171,7 +10168,7 @@ static bool testChangeBlockCommand(char* line, ImportedSet& is, int* pRetCode)
                     else {
                         // allowed, since it could be block name to block name
                         saveWarningMessage(is, L"the from range is saved from high to low; accepted as a range, but it's better to go low to high.");
-                        if (!addFromRangeToCB(is.pCBClast, (unsigned char)fromEndType, (unsigned char)fromType, fromDataBits)) {
+                        if (!addFromRangeToCB(is.pCBClast, (unsigned short)fromEndType, (unsigned short)fromType, fromDataBits)) {
                             saveErrorMessage(is, L"out of memory while storing Change blocks ranges.");
                             *pRetCode = INTERPRETER_FOUND_ERROR;
                             return true;
@@ -10336,7 +10333,7 @@ static bool createCB(ImportedSet& is)
     return true;
 }
 
-static bool addFromRangeToCB(ChangeBlockCommand* pCBC, unsigned char fromType, unsigned char fromEndType, unsigned short fromDataBits)
+static bool addFromRangeToCB(ChangeBlockCommand* pCBC, unsigned short fromType, unsigned short fromEndType, unsigned short fromDataBits)
 {
     // two ways to store data:
     // one is a simple range: 5-50, say, and the data bits must all be the same, e.g. 0xffff (all data)
@@ -10387,7 +10384,7 @@ static bool addFromRangeToCB(ChangeBlockCommand* pCBC, unsigned char fromType, u
     return true;
 }
 
-static void setDefaultFromRangeToCB(ChangeBlockCommand* pCBC, unsigned char fromType, unsigned char fromEndType, unsigned short fromDataBits)
+static void setDefaultFromRangeToCB(ChangeBlockCommand* pCBC, unsigned short fromType, unsigned short fromEndType, unsigned short fromDataBits)
 {
     //pCBC->hasFrom = false; - default, should already be set as such
     pCBC->simpleFromTypeBegin = fromType;
@@ -10418,9 +10415,8 @@ static void saveCBinto(ChangeBlockCommand* pCBC, int intoType, int intoData)
 
 static bool addDataBitsArray(ChangeBlockCommand* pCBC)
 {
-    pCBC->fromDataBitsArray = (unsigned short*)calloc(256, sizeof(unsigned short));
+    pCBC->fromDataBitsArray = (unsigned short*)calloc(MAX_BLOCK_TYPES, sizeof(unsigned short));
     return pCBC->fromDataBitsArray != NULL;
-    //memset(pCBC->fromDataBitsArray, 0, 256 * sizeof(unsigned short));
 }
 
 static void saveCBlocation(ChangeBlockCommand* pCBC, int v[6])

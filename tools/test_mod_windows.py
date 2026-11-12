@@ -2,6 +2,8 @@
 """Exercise native Windows mod/dimension exports. Usage: python tools/test_mod_windows.py Mineways.exe.
 
 --fixtures-only validates fixture generation on any host without running Mineways.
+--pack manifest.mwpack additionally tests external real assets without using a live world.
+--output new-directory retains generated fixtures, logs, and exports for local diagnosis.
 """
 import argparse
 import gzip
@@ -36,16 +38,30 @@ def compound(name, body):
     return tag(10, name, body + b'\0')
 
 
-def schematic(path, names=None):
+def schematic(path, names=None, indices=None, dimensions=None):
     if names is None:
         names = ['fixture:cube[custom=retained]', 'fixture:wedge[facing=east]', 'fixture:panel']
-    assert 1 <= len(names) <= 127
+    assert 1 <= len(names) <= 100000
+    if indices is None:
+        indices = list(range(len(names)))
+    if dimensions is None:
+        dimensions = (len(indices), 1, 1)
+    assert all(1 <= value <= 32767 for value in dimensions)
+    assert math.prod(dimensions) == len(indices)
+    assert len(names) <= len(indices) <= 16 * 1024 * 1024
+    payload = bytearray()
+    for value in indices:
+        assert 0 <= value < len(names)
+        while value >= 128:
+            payload.append((value & 127) | 128)
+            value >>= 7
+        payload.append(value)
     body = number('Version', 2) + number('DataVersion', 3953)
-    for name, value in [('Width', len(names)), ('Height', 1), ('Length', 1)]:
+    for name, value in zip(('Width', 'Height', 'Length'), dimensions):
         body += tag(2, name, struct.pack('>h', value))
     body += number('PaletteMax', len(names))
     body += compound('Palette', b''.join(number(name, index) for index, name in enumerate(names)))
-    body += tag(7, 'BlockData', struct.pack('>i', len(names)) + bytes(range(len(names))))
+    body += tag(7, 'BlockData', struct.pack('>i', len(payload)) + payload)
     path.write_bytes(gzip.compress(compound('Schematic', body)))
     return names
 
@@ -107,7 +123,7 @@ def world(path):
     (path / 'level.dat').write_bytes(gzip.compress(compound('', compound('Data', data))))
 
 
-def run(executable, root, name, commands, expect_success=True):
+def run(executable, root, name, commands, expect_success=True, timeout=120):
     script = root / (name + '.mwscript')
     log = root / (name + '.log')
     script.write_text('\n'.join([
@@ -115,7 +131,7 @@ def run(executable, root, name, commands, expect_success=True):
         'Save log file: ' + str(log), *commands, 'Close', '']), encoding='utf-8')
     try:
         result = subprocess.run([str(executable), '-headless', str(script)], cwd=ROOT,
-                                input='', capture_output=True, text=True, errors='replace', timeout=120)
+                                input='', capture_output=True, text=True, errors='replace', timeout=timeout)
     except subprocess.TimeoutExpired as error:
         raise AssertionError('Native export timed out, possibly a Debug assertion dialog: ' + name) from error
     details = result.stdout + result.stderr
@@ -263,20 +279,255 @@ def exercise(executable, root):
 
 
 
+
+def obj_geometry(path):
+    return [line for line in path.read_text(errors='replace').splitlines()
+            if line.startswith(('v ', 'vt ', 'vn ', 'f ', 'usemtl '))]
+
+
+def check_export_pixels(object_path, sources):
+    """Compare every exported imported texel with its source's nearest-neighbor sample."""
+    material = object_path.with_suffix('.mtl')
+    checked = set()
+    for line in material.read_text(errors='replace').splitlines():
+        if not line.startswith('map_Kd '):
+            continue
+        path = object_path.parent / line[7:].replace('\\', '/')
+        if not path.stem.startswith('mw_mod_') or path in checked:
+            continue
+        index = int(path.stem[7:])
+        assert index in sources, 'Export references an absent texture: ' + str(index)
+        width, height, actual = FIXTURE.mod.decode_png(path.read_bytes())
+        sw, sh, original = FIXTURE.mod.decode_png(sources[index].read_bytes())
+        for y in range(height):
+            for x in range(width):
+                target = (y * width + x) * 4
+                source = ((y * sh // height) * sw + x * sw // width) * 4
+                assert actual[target:target + 4] == original[source:source + 4], str(path)
+        checked.add(path)
+    assert checked, 'No imported texture pixels were checked'
+    return len(checked)
+
+
+def exercise_pack(executable, root, manifest):
+    """Use an external compiled pack, never a user's live Minecraft world."""
+    by_block, textures = {}, {}
+    selectors = 0
+    with manifest.open(encoding='utf-8') as stream:
+        for line in stream:
+            fields = line.rstrip('\r\n').split('\t')
+            if fields[0] == 'state':
+                state = fields[1]
+                block = state.split('[', 1)[0]
+                by_block.setdefault(block, [state, state])[1] = state
+                selectors += 1
+            elif fields[0] == 'texture':
+                path = (manifest.parent / fields[3]).resolve()
+                assert manifest.parent.resolve() in path.parents, 'Texture escapes pack root'
+                textures[int(fields[1])] = path
+    assert by_block and textures, 'External pack has no renderable catalog'
+    selected = []
+    blocks = sorted(by_block)
+    step = max(1, (len(blocks) + 63) // 64)
+    for block in blocks[::step]:
+        for state in by_block[block]:
+            if state not in selected:
+                selected.append(state)
+    targets = ['ae2:matrix_frame', 'ae2:drive', 'ae2:quartz_glass',
+               'ae2:quartz_vibrant_glass', 'ae2:spatial_pylon']
+    targets += [name for name in blocks if name.startswith('allthemodium:molten_')]
+    for block in targets:
+        if block in by_block:
+            for state in by_block[block]:
+                if state not in selected:
+                    selected.append(state)
+    names = []
+    for state in selected:
+        if names:
+            names.append('minecraft:air')
+        names.append(state)
+    source = root / 'actual-input.schem'
+    # Activate every installed block name through the palette, then render a bounded sample.
+    # Place the sample in the first row; all other voxels are air. No live world is opened.
+    palette = list(dict.fromkeys([by_block[block][0] for block in blocks] + names))
+    assert len(palette) <= 65536, 'Full-pack test exceeds the Sponge palette limit'
+    palette_index = {name: index for index, name in enumerate(palette)}
+    width = max(512, len(names))
+    length = (max(len(palette), len(names)) + width - 1) // width
+    indices = [palette_index[name] for name in names]
+    indices += [palette_index['minecraft:air']] * (width * length - len(indices))
+    schematic(source, palette, indices, (width, 1, length))
+    (root / 'selected-states.txt').write_text('\n'.join(selected) + '\n', encoding='utf-8')
+    print(f'External catalog: {len(blocks)} blocks, {selectors} selectors, {len(textures)} textures; {len(selected)} sampled states', flush=True)
+    if executable is None:
+        return
+    common = ['Mod pack: ' + str(manifest),
+              'Set render type: Wavefront OBJ absolute indices', 'Center model: NO',
+              'Export lesser blocks: YES', 'Individual blocks: YES',
+              'File type: Export individual textures to directory actualtex',
+              f'Selection location min to max: 0, 0, 0 to {len(names) - 1}, 0, 0']
+    obj, repeated, roundtrip = [root / name for name in ['actual.obj', 'actual-repeat.obj', 'actual.schem']]
+    details = run(executable, root, 'actual', [*common, 'Minecraft world: ' + str(source),
+                  'Export for Rendering: ' + str(obj), 'Export for Rendering: ' + str(repeated),
+                  'Export Schematic: ' + str(roundtrip)], timeout=600)
+    check_obj(obj, details)
+    verify_schematic(roundtrip, selected, details)
+    assert obj_geometry(obj) == obj_geometry(repeated), 'Repeated real-pack export changed geometry'
+    checked = check_export_pixels(obj, textures)
+    after = root / 'actual-roundtrip.obj'
+    details = run(executable, root, 'actual_roundtrip', [*common, 'Minecraft world: ' + str(roundtrip),
+                  'Export for Rendering: ' + str(after)], timeout=600)
+    check_obj(after, details)
+    assert obj_geometry(obj) == obj_geometry(after), 'Real-pack Sponge roundtrip changed geometry'
+    print(f'PASS: external pack, {len(selected)} sampled states, {checked} pixel-checked textures, repeated OBJ and Sponge geometry', flush=True)
+
+
+def check_mosaic(path, expected_blocks):
+    material = path.with_suffix('.mtl').read_text(errors='replace').splitlines()
+    image_name = next(line[7:] for line in material if line.startswith('map_Kd '))
+    width, height, pixels = FIXTURE.mod.decode_png((path.parent / image_name.replace('\\', '/')).read_bytes())
+    vertices, uv = [], []
+    faces = 0
+    for line in path.read_text(errors='replace').splitlines():
+        fields = line.split()
+        if not fields:
+            continue
+        if fields[0] == 'v':
+            vertices.append(tuple(map(float, fields[1:4])))
+        elif fields[0] == 'vt':
+            uv.append(tuple(map(float, fields[1:3])))
+        elif fields[0] == 'f':
+            indices = [tuple(map(int, entry.split('/'))) for entry in fields[1:]]
+            assert len(indices) == 4
+            block = math.floor(sum(vertices[vertex - 1][0] for vertex, _, _ in indices) / 8)
+            assert 0 <= block < expected_blocks
+            u = sum(uv[texture - 1][0] for _, texture, _ in indices) / 4
+            v = sum(uv[texture - 1][1] for _, texture, _ in indices) / 4
+            x, y = min(width - 1, int(u * width)), min(height - 1, int((1 - v) * height))
+            offset = (y * width + x) * 4
+            assert pixels[offset:offset + 4] == bytes((block & 255, block >> 8, 73, 255)), (block, x, y)
+            faces += 1
+    assert faces == expected_blocks * 6
+
+
+def exercise_limits(executable, root):
+    pack = FIXTURE.build_limits_fixture(root / 'limits')
+    manifest = pack / 'manifest.mwpack'
+    # Resolve every palette entry, even entries unused by these five voxels. This activates all IDs.
+    palette = [f'wide:block_{index}' for index in range(65536 - 561)]
+    boundaries = [4095, 4096, 32767, 32768, 65535]
+    palette += [f'wide:block_64974[extra={state}]' for state in range(1, 258)]
+    palette.append('minecraft:air')
+    indices = []
+    for block in boundaries:
+        if indices:
+            indices.append(len(palette) - 1)
+        indices.append(block - 561)
+    source = root / 'wide-input.schem'
+    indices[-1] = len(palette) - 2
+    # The NBT reader bounds palette entries by voxel count. Fill unused space with air.
+    indices += [len(palette) - 1] * (65536 - len(indices))
+    schematic(source, palette, indices, (256, 1, 256))
+    # Separated cubes avoid making culling correctness part of the texture capacity test.
+    selected = ['minecraft:air'] + [f'wide:block_{i}' for i in range(4097)]
+    voxels = []
+    for i in range(1, 4097):
+        if voxels:
+            voxels.append(0)
+        voxels.append(i)
+    texture_source = root / '4096-input.schem'
+    schematic(texture_source, selected[:-1], voxels)
+    overflow_source = root / '4097-input.schem'
+    schematic(overflow_source, selected, voxels + [0, 4097])
+    if executable is None:
+        return
+    common = ['Mod pack: ' + str(manifest),
+              'Set render type: Wavefront OBJ absolute indices', 'Center model: NO',
+              'Export lesser blocks: YES', 'Individual blocks: YES',
+              'File type: Export individual textures to directory widetex']
+    obj, exported = root / 'wide.obj', root / 'wide.schem'
+    details = run(executable, root, 'wide', [*common, 'Minecraft world: ' + str(source),
+                  'Selection location min to max: 0, 0, 0 to 8, 0, 0',
+                  'Export for Rendering: ' + str(obj), 'Export Schematic: ' + str(exported)], timeout=600)
+    check_obj(obj, details)
+    assert sum(line.startswith('f ') for line in obj.read_text().splitlines()) == 30
+    expected = [f'wide:block_{i - 561}' for i in boundaries[:-1]] + ['wide:block_64974[extra=257]']
+    verify_schematic(exported, expected, details)
+    usd = root / 'wide.usda'
+    details = run(executable, root, 'wide_usd', [*common, 'Minecraft world: ' + str(source),
+                  'Set render type: USD 1.0', 'Individual blocks: YES',
+                  'File type: Export individual textures to directory wideusdtex',
+                  'Selection location min to max: 0, 0, 0 to 8, 0, 0',
+                  'Export for Rendering: ' + str(usd)], timeout=600)
+    assert usd.exists(), details
+    library = root / 'wide_materials' / 'BlockLibrary.usda'
+    content = library.read_text(errors='replace')
+    for block in boundaries:
+        state = 257 if block == 65535 else 0
+        assert f'def Xform "Block_{block}_{state}"' in content, 'USD instance type/state truncated'
+    assert content.count('    def Xform ') == 5
+    tiles, repeat, sponge = root / '4096.obj', root / '4096-repeat.obj', root / '4096.schem'
+    details = run(executable, root, '4096', [*common, 'Minecraft world: ' + str(texture_source),
+                  'Selection location min to max: 0, 0, 0 to 8190, 0, 0',
+                  'Export for Rendering: ' + str(tiles), 'Export for Rendering: ' + str(repeat),
+                  'Export Schematic: ' + str(sponge)], timeout=600)
+    check_obj(tiles, details)
+    assert sum(line.startswith('f ') for line in tiles.read_text().splitlines()) == 4096 * 6
+    assert obj_geometry(tiles) == obj_geometry(repeat)
+    assert sum(line.startswith('vt ') for line in tiles.read_text().splitlines()) > 32767
+    verify_schematic(sponge, selected[1:4097], details)
+    sources = {i: pack / 'textures' / f'{i}.png' for i in range(4097)}
+    assert check_export_pixels(tiles, sources) == 4096
+    restored = root / '4096-roundtrip.obj'
+    details = run(executable, root, '4096_roundtrip', [*common, 'Minecraft world: ' + str(sponge),
+                  'Selection location min to max: 0, 0, 0 to 8190, 0, 0',
+                  'Export for Rendering: ' + str(restored)], timeout=600)
+    check_obj(restored, details)
+    assert obj_geometry(tiles) == obj_geometry(restored), '4096-texture Sponge roundtrip changed geometry'
+    mosaic = root / '4096-mosaic.obj'
+    details = run(executable, root, '4096_mosaic', [*common, 'Minecraft world: ' + str(texture_source),
+                  'File type: Export full color texture patterns',
+                  'Selection location min to max: 0, 0, 0 to 8190, 0, 0',
+                  'Export for Rendering: ' + str(mosaic)], timeout=600)
+    check_obj(mosaic, details)
+    check_mosaic(mosaic, 4096)
+    overflow = root / '4097.obj'
+    run(executable, root, '4097', [*common, 'Minecraft world: ' + str(overflow_source),
+        'Selection location min to max: 0, 0, 0 to 8192, 0, 0',
+        'Export for Rendering: ' + str(overflow)], expect_success=False, timeout=600)
+    assert not overflow.exists(), 'A 4097-texture selection bypassed its explicit budget'
+    print('PASS: 64,975 active names, uint16 boundary IDs, 4096 texture pixels, explicit 4097 failure', flush=True)
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('executable', nargs='?')
     parser.add_argument('--fixtures-only', action='store_true')
+    parser.add_argument('--pack', type=Path, help='also test this externally compiled manifest (or pack directory)')
+    parser.add_argument('--output', type=Path, help='retain fixtures, logs, and exports in a new directory')
     args = parser.parse_args()
     if not args.fixtures_only and not args.executable:
         parser.error('provide a Mineways executable or --fixtures-only')
     executable = Path(args.executable).resolve() if not args.fixtures_only else None
     if executable and not executable.is_file():
         parser.error('Mineways executable does not exist: ' + str(executable))
-    with tempfile.TemporaryDirectory(prefix='mineways mod windows ') as temporary:
-        exercise(executable, Path(temporary))
+    manifest = args.pack.resolve() if args.pack else None
+    if manifest and manifest.is_dir():
+        manifest /= 'manifest.mwpack'
+    if manifest and not manifest.is_file():
+        parser.error('compiled manifest does not exist: ' + str(manifest))
+    def execute(root):
+        exercise(executable, root)
+        exercise_limits(executable, root)
+        if manifest:
+            exercise_pack(executable, root, manifest)
+    if args.output:
+        args.output.mkdir(parents=True, exist_ok=False)
+        execute(args.output.resolve())
+    else:
+        with tempfile.TemporaryDirectory(prefix='mineways mod windows ') as temporary:
+            execute(Path(temporary))
     print('PASS: ' + ('portable Windows export fixtures' if executable is None else
-                     'native mod geometry, adapters, invisible states, textures, schematic round trips, custom dimensions, large catalogs, and syntax checks'))
+                     'native mod geometry, adapters, invisible states, textures, schematic round trips, dimensions, uint16 IDs, 4096 texture limits, and syntax checks'))
 
 
 if __name__ == '__main__':
