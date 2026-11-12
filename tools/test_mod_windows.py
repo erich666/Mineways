@@ -185,6 +185,8 @@ def exercise(executable, root):
     assert '\ninvisible\n' in manifest_text, 'Invisible fixture marker is missing'
     if executable is None:
         return
+    warning = run(executable, root, 'warning_summary', ['Center model: NO'])
+    assert 'Warnings found in script file' in warning, 'Headless warning summary was not reported'
     common = ['Mod pack: ' + str(pack / 'manifest.mwpack'),
               'Set render type: Wavefront OBJ absolute indices',
               'Center model: NO', 'Export lesser blocks: YES', 'Individual blocks: YES']
@@ -465,6 +467,7 @@ def exercise_limits(executable, root):
                   'Selection location min to max: 0, 0, 0 to 8, 0, 0',
                   'Export for Rendering: ' + str(usd)], timeout=600)
     assert usd.exists(), details
+    assert 'three-texture output option' not in details, 'Individual USD textures produced a mosaic warning'
     library = root / 'wide_materials' / 'BlockLibrary.usda'
     content = library.read_text(errors='replace')
     for block in boundaries:

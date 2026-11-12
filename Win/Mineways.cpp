@@ -40,7 +40,6 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "rwpng.h"
 #include "ModSupport.h"
 #include <assert.h>
-#include <crtdbg.h>
 #include <ShlObj.h>
 #include <Shlwapi.h>
 #include <CommDlg.h>
@@ -668,14 +667,6 @@ int APIENTRY _tWinMain(
         }
     }
     if (gHeadless) {
-        // Diagnostic: report native failures instead of waiting for a modal dialog.
-        SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
-        _set_error_mode(_OUT_TO_STDERR);
-        _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
-        _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
-        _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
-        _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
-        _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
         // Set up CRT stdout/stderr so printf/fprintf work for responses and status messages.
         // stdin is read via raw Win32 ReadFile (see runStdinLoop) so no CRT setup is needed for it.
         // stdout/stderr may each be independently redirected (pipe from subprocess.Popen, file via >)
@@ -6525,7 +6516,8 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         }
 
         // check if exporting to USD and using the 3-texture format. TODO bug to fix some century in the future. See https://github.com/erich666/Mineways/issues/146
-        if (gModel.instancing && (gpEFD->fileType == FILE_TYPE_USD) && (gOptions.exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES)) {
+        if (gModel.instancing && (gpEFD->fileType == FILE_TYPE_USD) && (gOptions.exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) &&
+            !(gOptions.exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES)) {
             FilterMessageBox(NULL, _T("Warning: Exporting to USD using the three-texture output option along with the Export individual blocks option is likely to give you Meshes with identical names. Sorry, it's a bug, and for an obscure combination of options that would take me a long while to fix. I suggest exporting to individual textures instead. GitHub issue #146."),
                 _T("Export limitation"), MB_OK | MB_ICONWARNING);
         }
@@ -11520,6 +11512,16 @@ static int FilterMessageBox(HWND hWnd, LPCTSTR lpText, LPCTSTR lpCaption, UINT u
             saveSuppressedMessage(*gpIS, 2, lpText);
         }
         return 1;
+    }
+    // Script completion can restore message preferences before reporting its summary.
+    if (gHeadless) {
+        fwprintf(stderr, L"%ls: %ls\n", lpCaption ? lpCaption : L"Mineways", lpText);
+        switch (uType & MB_TYPEMASK) {
+        case MB_ABORTRETRYIGNORE: return IDABORT;
+        case MB_YESNO: case MB_YESNOCANCEL: return IDNO;
+        case MB_OKCANCEL: case MB_RETRYCANCEL: case MB_CANCELTRYCONTINUE: return IDCANCEL;
+        default: return IDOK;
+        }
     }
     // note: we make all these message boxes system modal - they should always be in the user's face until dismissed.
     return DarkModeMessageBox(hWnd, lpText, lpCaption, uType | MB_TOPMOST);

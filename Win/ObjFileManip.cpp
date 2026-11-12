@@ -23554,7 +23554,7 @@ static int instanceUSDCompare(void* context, const void* str1, const void* str2)
     f1 = (BlockInstance*)str1;
     f2 = (BlockInstance*)str2;
 
-    return ((f1->hash < f2->hash) ? -1 : 1);
+    return f1->hash < f2->hash ? -1 : f1->hash > f2->hash ? 1 : 0;
 }
 
 // return 0 if nothing solid in box

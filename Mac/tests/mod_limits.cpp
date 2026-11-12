@@ -122,6 +122,10 @@ int main(int argc, char** argv)
     assert(std::filesystem::create_directory(root));
     SetSeparatorObj(L"/"); SetSeparatorMap(L"/"); nbtInitTables(); SetMapPremultipliedColors(0);
     checkWideCache();
+    BlockInstance low = {}, high = {};
+    low.hash = makeInstanceHash(32767, 0); high.hash = makeInstanceHash(65535, 257);
+    assert(instanceUSDCompare(nullptr, &low, &low) == 0);
+    assert(instanceUSDCompare(nullptr, &low, &high) < 0 && instanceUSDCompare(nullptr, &high, &low) > 0);
     static_assert(MAX_OUTPUT_FILES >= 6 + 5 * (TOTAL_TILES + 4096), "Output list must fit all selected texture channels");
     std::string error;
     assert(LoadModPack(argv[1], error));
@@ -152,6 +156,15 @@ int main(int argc, char** argv)
         assert(library.find("def Xform \"Block_" + std::to_string(boundaries[i]) + "_" +
                            std::to_string(i == 4 ? 257 : 0) + "\"") != std::string::npos);
     assert(countLines(library, "    def Xform ") == 5);
+    fprintf(stderr, "Boundary USD: Windows individual-texture defaults begin\n");
+    exportWorld(world, root / "wide-windows.usda", textured | EXPT_OUTPUT_SEPARATE_TEXTURE_TILES,
+                true, false, false, false, false, true);
+    fprintf(stderr, "Boundary USD: Windows individual-texture defaults complete\n");
+    const std::string windowsLibrary = readText(root / "wide-windows_materials" / "BlockLibrary.usda");
+    assert(countLines(windowsLibrary, "    def Xform ") == 5);
+    for (int i = 0; i < 5; ++i)
+        assert(windowsLibrary.find("def Xform \"Block_" + std::to_string(boundaries[i]) + "_" +
+                                  std::to_string(i == 4 ? 257 : 0) + "\"") != std::string::npos);
     exportWorld(world, root / "wide.schem", 0);
     WorldGuide roundtrip = readSchematic(root / "wide.schem");
     assert(stateNames(world) == stateNames(roundtrip));

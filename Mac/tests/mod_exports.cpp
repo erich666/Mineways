@@ -33,7 +33,7 @@ static std::wstring wide(const std::filesystem::path& path)
 
 static void exportWorld(WorldGuide& world, const std::filesystem::path& path, int mode,
                         bool detailed = true, bool doubled = false, bool printing = false, bool expectFailure = false,
-                        bool expectEmpty = false)
+                        bool expectEmpty = false, bool windowsUsdDefaults = false)
 {
     ExportFileData settings = {};
     Options options = {};
@@ -55,6 +55,18 @@ static void exportWorld(WorldGuide& world, const std::filesystem::path& path, in
                               BLF_BILLBOARD | BLF_PANE | BLF_FLATTEN | BLF_FLATTEN_SMALL |
                               BLF_SMALL_MIDDLER | BLF_SMALL_BILLBOARD;
     options.exportFlags = mode | EXPT_INDIVIDUAL_BLOCKS;
+    if (windowsUsdDefaults) {
+        assert(fileType == FILE_TYPE_USD);
+        settings.scaleLightsVal = 15.0f;
+        settings.scaleEmittersVal = 20.0f;
+        settings.chkTextureRGB = settings.chkTextureA = settings.chkTextureRGBA = 1;
+        settings.chkMaterialPerFamily = settings.chkMakeGroupsObjects = settings.chkSplitByBlockType = 1;
+        settings.radioExportTileTextures[fileType] = 1;
+        settings.comboPhysicalMaterial[fileType] = PRINT_MATERIAL_FULL_COLOR_SANDSTONE;
+        // initializeViewExportData leaves custom material and MDL disabled for USD.
+        options.exportFlags |= EXPT_OUTPUT_OBJ_SEPARATE_TYPES | EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK |
+                               EXPT_OUTPUT_EACH_BLOCK_A_GROUP;
+    }
     if (printing) options.exportFlags |= EXPT_3DPRINT;
     if (fileType == FILE_TYPE_SPONGE_SCHEMATIC || fileType == FILE_TYPE_SCHEMATIC) options.exportFlags = 0;
     FileList output = {};
