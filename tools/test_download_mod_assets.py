@@ -3,7 +3,7 @@ import hashlib
 import importlib.util
 import io
 import json
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -56,6 +56,15 @@ class DownloadTests(unittest.TestCase):
             mod.download_manifest(self.manifest(), self.root / 'output', workers=1)
             self.assertEqual(request.call_count, 1)
 
+    def test_concurrent_catalog_paths(self):
+        catalog = mod.read_manifest(Path(__file__).parent / 'fixtures/atm10-1.21.1.json')
+        files = [dict(self.entry, path=entry['path']) for entry in catalog]
+        with patch.object(mod.urllib.request, 'urlopen', side_effect=lambda *args, **kwargs: Response(self.payload)):
+            sources = mod.download_manifest(self.manifest(files), self.root / 'output')
+        self.assertEqual(len(sources.read_text().splitlines()), len(files))
+        for entry in files:
+            self.assertEqual((self.root / 'output' / entry['path']).read_bytes(), self.payload)
+
     def test_invalid_download_preserves_previous_file(self):
         target = self.root / 'mods/fixture.jar'
         target.parent.mkdir()
@@ -69,6 +78,32 @@ class DownloadTests(unittest.TestCase):
                     mod.download_file(self.entry, self.root)
             self.assertEqual(target.read_bytes(), b'previous data')
             self.assertEqual(list(target.parent.glob('.download-*')), [])
+
+    def test_windows_extended_path_containment(self):
+        drive = PureWindowsPath(r'D:\a\_temp\atm10-assets')
+        extended_drive = PureWindowsPath(r'\\?\D:\a\_temp\atm10-assets')
+        target = r'\mods\Ad-Astra-Giselle-Addon-neoforge-1.21.1-8.6.jar'
+        for base in [drive, extended_drive]:
+            for prefix in [str(drive), str(extended_drive), str(drive).lower()]:
+                with self.subTest(base=base, prefix=prefix):
+                    self.assertTrue(mod.path_is_within(PureWindowsPath(prefix + target), base))
+            for outside in [r'\\?\D:\a\_temp\atm10-assets-other\asset.jar',
+                            r'\\?\E:\a\_temp\atm10-assets\asset.jar',
+                            r'\\.\D:\a\_temp\atm10-assets\asset.jar',
+                            r'\\?\GLOBALROOT\Device\HarddiskVolume1\asset.jar',
+                            r'\\?\Volume{1234}\asset.jar']:
+                with self.subTest(outside=outside):
+                    self.assertFalse(mod.path_is_within(PureWindowsPath(outside), base))
+        unc = PureWindowsPath(r'\\server\share\assets')
+        extended_unc = PureWindowsPath(r'\\?\UNC\server\share\assets')
+        for base in [unc, extended_unc]:
+            for prefix in [str(unc), str(extended_unc)]:
+                self.assertTrue(mod.path_is_within(PureWindowsPath(prefix + target), base))
+            for outside in [r'\\?\UNC\server\other\assets\asset.jar',
+                            r'\\?\UNC\other\share\assets\asset.jar',
+                            r'\\?\UNC\server\share\assets-other\asset.jar']:
+                self.assertFalse(mod.path_is_within(PureWindowsPath(outside), base))
+        self.assertIsNone(mod.windows_comparison_path(PureWindowsPath(r'\\?\UNC\server')))
 
     def test_destination_escape_reports_paths(self):
         destination = self.root.resolve()

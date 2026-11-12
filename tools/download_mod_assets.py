@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import hashlib
 import json
 import os
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import re
 import tempfile
 import time
@@ -77,13 +77,41 @@ def matches(path, entry):
     return digest.hexdigest() == entry['sha1']
 
 
+def windows_comparison_path(path):
+    """Compare Win32 and extended-length spellings of the same drive/UNC path."""
+    value = str(path)
+    if value.startswith('\\\\?\\'):
+        if re.match(r'^\\\\\?\\[A-Za-z]:\\', value):
+            value = value[4:]
+        elif value[:8].lower() == '\\\\?\\unc\\':
+            value = '\\\\' + value[8:]
+            # A UNC path needs both a server and a share.
+            if not PureWindowsPath(value).root:
+                return None
+        else:
+            # Do not interpret device namespaces or volume GUIDs as drive paths.
+            return None
+    elif value.startswith('\\\\.\\'):
+        return None
+    return PureWindowsPath(value)
+
+
+def path_is_within(target, destination):
+    if isinstance(target, PureWindowsPath) and isinstance(destination, PureWindowsPath):
+        target = windows_comparison_path(target)
+        destination = windows_comparison_path(destination)
+        if target is None or destination is None:
+            return False
+    return target.is_relative_to(destination)
+
+
 def download_file(entry, destination):
     absolute_destination = Path(destination).absolute()
     destination = absolute_destination.resolve()
     target = destination.joinpath(*entry['path'].split('/'))
     resolved_target = target.resolve()
     target_is_symlink = target.is_symlink()
-    if not resolved_target.is_relative_to(destination) or target_is_symlink:
+    if not path_is_within(resolved_target, destination) or target_is_symlink:
         raise ValueError(
             f'download path escapes destination: entry={entry["path"]!r}, '
             f'absolute_destination={str(absolute_destination)!r}, '
