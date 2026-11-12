@@ -129,11 +129,16 @@ def run(executable, root, name, commands, expect_success=True, timeout=120):
     script.write_text('\n'.join([
         'Show informational: script', 'Show warning: script', 'Show error: script',
         'Save log file: ' + str(log), *commands, 'Close', '']), encoding='utf-8')
+    print('Native export: ' + name, flush=True)
     try:
         result = subprocess.run([str(executable), '-headless', str(script)], cwd=ROOT,
                                 input='', capture_output=True, text=True, errors='replace', timeout=timeout)
     except subprocess.TimeoutExpired as error:
-        raise AssertionError('Native export timed out, possibly a Debug assertion dialog: ' + name) from error
+        details = log.read_text(encoding='utf-8', errors='replace') if log.exists() else ''
+        for captured in (error.stdout, error.stderr):
+            if captured:
+                details += captured.decode(errors='replace') if isinstance(captured, bytes) else captured
+        raise AssertionError('Native export timed out: ' + name + '\n' + details) from error
     details = result.stdout + result.stderr
     if log.exists():
         details += log.read_text(encoding='utf-8', errors='replace')
