@@ -163,7 +163,7 @@ static void checkAnalyticModelExports(const std::filesystem::path& folder,
                 for(int triangle=1;triangle<3;++triangle)for(const auto& weights:{std::array<double,3>{.17,.31,.52},std::array<double,3>{.57,.29,.14},std::array<double,3>{.23,.58,.19}}) {
                     const int corners[]={0,triangle,triangle+1};double u=0,v=0,ru=0,rv=0;
                     for(int k=0;k<3;++k){u+=face[corners[k]].uv[0]*weights[k];v+=face[corners[k]].uv[1]*weights[k];ru+=expected.uv[ids[corners[k]]][0]*weights[k];rv+=expected.uv[ids[corners[k]]][1]*weights[k];}
-                    if(expected.image<6&&(fabs(ru-round(ru))<1e-5||fabs(rv-round(rv))<1e-5))continue;
+                    if(fabs(ru-round(ru))<1e-5||fabs(rv-round(rv))<1e-5)continue;
                     const int x=(int)floor(u*width),y=(int)floor((1-v)*height);assert(x>=0&&x<(int)width&&y>=0&&y<(int)height);
                     const Color color=samplePixel(expected.image,(int)floor(ru),(int)floor(rv));
                     for(int channel=0;channel<4;++channel)if(pixels[((size_t)y*width+x)*4+channel]!=color[channel]) {

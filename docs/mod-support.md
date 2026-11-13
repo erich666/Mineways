@@ -362,6 +362,18 @@ This pass adds 76 definitions and 959 selectors without changing any prior selec
 
 All 303 Python importer tests and ten downloader tests passed. Twenty new native macOS ASan/UBSan cases check exact geometry, UVs, pixels, both texture modes, and Sponge identity. The Windows assertions passed against those native outputs. Portable Windows fixtures cover 1,594 states. Full-pack native exports checked all 959 new selectors. The baseline checked 928 states and 812 textures, with repeated OBJ output and exact Sponge geometry/state round trips.
 
+## XyCraft pipe caps and closed storage chests
+
+XyCraft pipes now export the verified cache-zero appearance: supplied core geometry plus six caps. The core retains application turns and UV lock. Caps retain their independent direction rotations with UV lock disabled. Original OBJ/composite visibility and texture scopes remain intact. Cull hints are removed because the shipped renderer collects all child face lists. Reports identify omitted live insert, extract, and transfer connections.
+
+Sophisticated Storage chests now export exact closed single, left, and right meshes with saved facing and chest type. Each double-chest cell emits its own half. Propertyless and partial states use verified north/single defaults. Body and lid use the acacia base with the selected tier overlay; the latch uses the tier texture alone. Saved wood, dyes, tier hiding, opening animation, packing, displayed items, locks, upgrades, and inventory remain unavailable.
+
+The asset index now includes `storage_texture_definitions` JSON. Chest materials follow their separate parent hierarchy with per-material overrides. Ambiguous acacia definitions, unsupported ancestor material types, and fractional-alpha cutout replacements fail explicitly. Resource-pack PNG and definition overrides retain normal source precedence.
+
+This pass adds 11 definitions and 128 selectors without changing existing geometry, rotations, colors, or texture data. The full catalog contains 45,396 definitions, 590,331 selectors, 32,155 textures, 92,375 geometries, 563,546 elements, 37,280 polygons, and 25 dimensions. Remaining unsupported totals are 6,757 definitions and 5,011 states.
+
+All 320 importer tests passed. Native macOS ASan/UBSan checks cover 24 new single-cell cases plus a double-chest pair, including exact geometry, UVs, winding, pixels, both texture modes, and Sponge identity. The pair verifies a 30-pixel body width and touching latch halves. Windows assertions passed against those outputs. Full-pack native exports checked all 128 new selectors; the baseline checked 945 states and 830 textures. Portable Windows fixtures cover 1,611 states.
+
 ## Compiled format
 
 The importer writes version 6 for split models. Otherwise, it writes version 5 for repeated UVs, version 4 for Z rotations, version 3 for polygons, or version 2. The runtime reads versions 1 through 6. All versions use UTF-8 text with tab-separated fields. Resource identifiers and selectors cannot contain control characters. Dimension records are optional. Texture and geometry indices each start at zero and increase by one. References must use earlier records.

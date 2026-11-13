@@ -473,6 +473,7 @@ def exercise(executable, root):
     exercise_dynamic_models(executable, root, common, texture_sources)
     exercise_renderer_models(executable, root, common, texture_sources)
     exercise_data_models(executable, root, common, texture_sources)
+    exercise_chest_pipe_models(executable, root, common, texture_sources)
     for orientation in ('plain', 'turned'):
         label = 'mesh-' + orientation
         state = 'fixture:obj_mesh[orientation=' + orientation + ',retained=true]'
@@ -682,17 +683,17 @@ def read_textured_faces(path):
 
 
 def exercise_renderer_models(executable, root, common, texture_sources):
-    samples = [(f'tube-{pose}', f'fixture:pressure_tube[pose={pose}]', 12)
+    samples = [(f'tube-{pose}', f'fixture:pressure_tube[pose={pose}]', 12, 1)
                for pose in ('plain', 'turned', 'rolled')]
     for tier in ('base', 'copper', 'netherite'):
         block = 'sophisticatedstorage:' + (tier + '_' if tier != 'base' else '') + 'shulker_box'
-        samples += [(f'shulker-{tier}-{facing}', block + (f'[facing={facing}]' if facing != 'default' else ''), 12)
+        samples += [(f'shulker-{tier}-{facing}', block + (f'[facing={facing}]' if facing != 'default' else ''), 12, 1)
                     for facing in ('default', 'down', 'up', 'north', 'south', 'west', 'east')]
     exercise_renderer_samples(executable, root, common, texture_sources, samples)
 
 
 def exercise_data_models(executable, root, common, texture_sources):
-    samples = [(f'qio-{kind}-{facing}', f'fixturedata:qio[active={active},facing={facing}]', 6)
+    samples = [(f'qio-{kind}-{facing}', f'fixturedata:qio[active={active},facing={facing}]', 6, 1)
                for kind, active in (('offline', 'false'), ('online', 'true'))
                for facing in ('up', 'down', 'north', 'south', 'east', 'west')]
     for label, block, properties in (
@@ -704,28 +705,46 @@ def exercise_data_models(executable, root, common, texture_sources):
             ('creative-active-west', 'creative_portable_grid', 'active=true,facing=west'),
             ('partial-active', 'portable_grid', 'active=true'),
             ('partial-facing', 'portable_grid', 'facing=east')):
-        samples.append(('portable-' + label, 'refinedstorage:' + block + ('[' + properties + ']' if properties else ''), 6))
+        samples.append(('portable-' + label, 'refinedstorage:' + block + ('[' + properties + ']' if properties else ''), 6, 1))
+    exercise_renderer_samples(executable, root, common, texture_sources, samples)
+
+
+def exercise_chest_pipe_models(executable, root, common, texture_sources):
+    samples = [(f'xycraft-pipe-{pose}', f'fixture:xycraft_pipe[pose={pose}]', 14, 2)
+               for pose in ('plain', 'turned', 'rolled')]
+    samples.append(('xycraft-pipe-obj', 'fixture:xycraft_pipe_obj', 8, 2))
+    for shape in ('single', 'left', 'right'):
+        samples += [(f'chest-wood-{shape}-{facing}', f'sophisticatedstorage:chest[facing={facing},type={shape}]', 18, 2)
+                    for facing in ('north', 'east', 'south', 'west')]
+    for tier in ('wood', 'copper', 'iron', 'gold', 'diamond', 'netherite'):
+        block = 'sophisticatedstorage:' + (tier + '_' if tier != 'wood' else '') + 'chest'
+        samples.append((f'chest-{tier}-default', block, 18, 2))
+    samples += [('chest-partial-facing', 'sophisticatedstorage:chest[facing=east]', 18, 2),
+                ('chest-partial-type', 'sophisticatedstorage:chest[type=left]', 18, 2),
+                ('chest-double-south', ['sophisticatedstorage:chest[facing=south,type=right]',
+                                        'sophisticatedstorage:chest[facing=south,type=left]'], 36, 4)]
     exercise_renderer_samples(executable, root, common, texture_sources, samples)
 
 
 def exercise_renderer_samples(executable, root, common, texture_sources, samples):
-    for label, state, count in samples:
+    for label, state, count, texture_count in samples:
         source, restored = root / (label + '.schem'), root / (label + '-restored.schem')
-        schematic(source, [state])
+        states = [state] if isinstance(state, str) else state
+        schematic(source, states)
         reference = None
         for mosaic in (False, True):
             name = label + ('-mosaic' if mosaic else '')
             output = root / (name + '.obj')
             mode = 'Export full color texture patterns' if mosaic else 'Export individual textures to directory ' + name + 'tex'
             details = run(executable, root, name, [*common, 'Minecraft world: ' + str(source),
-                          'File type: ' + mode, 'Selection location min to max: 0, 0, 0 to 0, 0, 0',
+                          'File type: ' + mode, f'Selection location min to max: 0, 0, 0 to {len(states)-1}, 0, 0',
                           'Export for Rendering: ' + str(output), 'Export Schematic: ' + str(restored)])
             check_obj(output, details, minimum_faces=count)
-            verify_schematic(restored, [state], details)
+            verify_schematic(restored, states, details)
             faces = read_textured_faces(output)
             assert len(faces) == count, name
             if not mosaic:
-                assert check_export_pixels(output, texture_sources) == 1, name
+                assert check_export_pixels(output, texture_sources) == texture_count, name
             signature = []
             for corners, (width, height, pixels) in faces:
                 colors = []
@@ -744,6 +763,34 @@ def exercise_renderer_samples(executable, root, common, texture_sources, samples
                 assert signature == reference, 'Mosaic changed renderer geometry or UV pixels: ' + name
             else:
                 reference = signature
+            if label == 'chest-double-south':
+                points = [point for corners, _ in faces for point, _ in corners]
+                assert abs(min(p[0] for p in points)-1/16) < 1e-6 and abs(max(p[0] for p in points)-31/16) < 1e-6
+                seams = []
+                for corners, _ in faces:
+                    points = [p for p, _ in corners]
+                    if (all(abs(p[0]-1) < 1e-6 for p in points)
+                            and {p[1] for p in points} == {7/16, 11/16}
+                            and {p[2] for p in points} == {15/16, 1}):
+                        a, b, c = points[:3]
+                        cross = (b[1]-a[1])*(c[2]-a[2])-(b[2]-a[2])*(c[1]-a[1])
+                        seams.append(1 if cross > 0 else -1)
+                assert sorted(seams) == [-1, 1], 'Double chest latch halves do not meet'
+            elif label.startswith('chest-'):
+                properties = dict(field.split('=') for field in state.partition('[')[2].rstrip(']').split(',') if field)
+                facing, shape = properties.get('facing', 'north'), properties.get('type', 'single')
+                left, right = (1, 15) if shape == 'single' else (0, 15) if shape == 'left' else (1, 16)
+                lock_left, lock_right = (7, 9) if shape == 'single' else (0, 1) if shape == 'left' else (15, 16)
+                boxes = [((left, 0, 1), (right, 10, 15)), ((left, 9, 1), (right, 14, 15)),
+                         ((lock_left, 7, 15), (lock_right, 11, 16))]
+                expected = [(x, y, z) for low, high in boxes for x in (low[0], high[0])
+                            for y in (low[1], high[1]) for z in (low[2], high[2])]
+                for corners, _ in faces:
+                    for point, _ in corners:
+                        x, y, z = (p*16 for p in point)
+                        source_point = {'north': (16-x,y,16-z), 'east': (16-z,y,x),
+                                        'south': (x,y,z), 'west': (z,y,16-x)}[facing]
+                        assert any(all(abs(a-b) < 1e-5 for a,b in zip(source_point,want)) for want in expected), (name,point)
             if label.startswith('shulker-'):
                 facing = label.rsplit('-', 1)[1]
                 facing = 'down' if facing == 'default' else facing
@@ -1038,6 +1085,17 @@ def exercise_pack(executable, root, manifest):
             if state not in selected:
                 selected.append(state)
     targets = [
+               'sophisticatedstorage:chest',
+               'sophisticatedstorage:copper_chest',
+               'sophisticatedstorage:diamond_chest',
+               'sophisticatedstorage:gold_chest',
+               'sophisticatedstorage:iron_chest',
+               'sophisticatedstorage:netherite_chest',
+               'xycraft_machines:pipe_energy',
+               'xycraft_machines:pipe_fluid',
+               'xycraft_machines:pipe_item',
+               'xycraft_machines:pipe_item_color_shifter',
+               'xycraft_machines:pipe_item_resistive',
                'framedblocks:framed_glowing_cube',
                'framedblocks:framed_glowing_item_frame',
                'framedblocks:framed_item_frame',

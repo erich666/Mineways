@@ -44,6 +44,8 @@ _ie_sides_module = _load_helper('mod_ie_sides')
 _power_module = _load_helper('mod_power_models')
 _backpack_module = _load_helper('mod_backpack_models')
 _shulker_module = _load_helper('mod_shulker_models')
+_chest_module = _load_helper('mod_chest_models')
+_xycraft_pipe_module = _load_helper('mod_xycraft_pipe_models')
 _pressure_tube_module = _load_helper('mod_pressure_tube_models')
 _twilight_module = _load_helper('mod_twilight_models')
 _cloudfx_module = _load_helper('mod_cloudfx')
@@ -64,6 +66,7 @@ LOADER_GEOMETRY_FIELDS = {
     _ie_sides_module.LOADER: ('base_name', 'type'),
     _power_module.PIPE_LOADER: ('pipeType', 'transparent'),
     _pressure_tube_module.LOADER: ('prefix',),
+    _xycraft_pipe_module.LOADER: _xycraft_pipe_module.FIELDS,
     _power_module.CUBE_LOADER: _power_module.CUBE_FIELDS,
     _twilight_module.CONNECTED: ('base', 'connected_texture', 'connectable_blocks'),
     _twilight_module.FORCE_FIELD: ('elements',),
@@ -211,7 +214,7 @@ class Assets:
     @staticmethod
     def wanted(name):
         return bool(name == 'assets/minecraft/atlases/blocks.json'
-                    or re.fullmatch(r'assets/[^/]+/(?:blockstates|models)/.+\.json', name)
+                    or re.fullmatch(r'assets/[^/]+/(?:blockstates|models|storage_texture_definitions)/.+\.json', name)
                     or re.fullmatch(r'assets/[^/]+/models/.+\.(?:obj(?:\.(?:ie|mek))?|mtl)', name)
                     or re.fullmatch(r'assets/[^/]+/textures/.+\.png(?:\.mcmeta)?', name)
                     or re.fullmatch(r'data/[^/]+/(?:dimension|dimension_type)/.+\.json', name))
@@ -535,7 +538,7 @@ class Compiler:
                                                         _framework_module.LOADER, *_wire_module.LOADERS,
                                                         _custom_defaults.FRAMED_LOADER, _custom_defaults.MICROCHIP_LOADER,
                                                         _lantern_module.LOADER, _ie_sides_module.LOADER, *_power_module.LOADERS,
-                                                        _backpack_module.LOADER, _shulker_module.LOADER, _pressure_tube_module.LOADER, *_twilight_module.LOADERS,
+                                                        _backpack_module.LOADER, _shulker_module.LOADER, _chest_module.LOADER, _xycraft_pipe_module.LOADER, _pressure_tube_module.LOADER, *_twilight_module.LOADERS,
                                                         *_machine_module.LOADERS):
             raise ImportError('custom model loader: ' + str(own['loader']))
         if own.get('loader') == 'fusion:model':
@@ -943,6 +946,10 @@ class Compiler:
             return _mekanism_module.compile_data_based(self, name, model, rotation, selector, depth, ImportError, block_name)
         if model.get('loader') == _storage_module.PORTABLE_LOADER:
             return _storage_module.compile_portable_grid(self, name, model, rotation, selector, depth, ImportError, block_name)
+        if model.get('loader') == _chest_module.LOADER:
+            return _chest_module.compile_chest(self, name, model, rotation, selector, depth, ImportError, block_name, decode_png)
+        if model.get('loader') == _xycraft_pipe_module.LOADER:
+            return _xycraft_pipe_module.compile_pipe(self, name, model, rotation, selector, depth, ImportError, block_name)
         if model.get('loader') == _shulker_module.LOADER:
             return _shulker_module.compile_shulker(self, name, model, rotation, selector, depth, ImportError, block_name, decode_png)
         if model.get('loader') == _pressure_tube_module.LOADER:
@@ -1138,6 +1145,7 @@ class Compiler:
         return result
 
     def block(self, name, definition):
+        definition = _chest_module.expand_chest(self, name, definition, ImportError)
         definition = _storage_module.expand_portable_grid(self, name, definition, ImportError)
         definition = _shulker_module.expand_shulker(self, name, definition, ImportError)
         for loader, flags in PALETTE_FLAGS.items():
