@@ -247,6 +247,7 @@ static std::vector<std::string> stateNames(const WorldGuide& world)
 #include "mod_owned_exports.h"
 #include "mod_next_exports.h"
 #include "mod_renderer_exports.h"
+#include "mod_data_exports.h"
 #include "mod_polygons.h"
 #include "mod_precision.h"
 #include "mod_rotations.h"
@@ -453,6 +454,7 @@ int main(int argc, char** argv)
     checkOwnedGeometryExports(root);
     checkNextDefaultExports(root);
     checkRendererDefaultExports(root);
+    checkDataDefaultExports(root);
     checkSplitModExports(root);
     checkModPolygons(root);
     checkModPrecision(root);

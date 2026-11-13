@@ -16,12 +16,13 @@ python3 tools/import_mod_assets.py \
 
 For a large modpack, use `--sources-file sources.txt` to avoid the Windows command-line length limit. The file contains one unquoted path per line in UTF-8, with or without a BOM. Blank lines are ignored. The file must be at most 1 MiB. Relative paths use the current working directory. Listed sources precede any positional sources, so a final positional resource pack can override them.
 
-This PowerShell example lists the Minecraft client first, then all installed mod JARs in filename order. Set the two input paths for your launcher:
+This NeoForge example lists the Minecraft client, the matching NeoForge universal JAR, then installed mods in filename order. Set the three input paths for your launcher:
 
 ```powershell
 $clientJar = 'C:\path\to\minecraft-1.21.1-client.jar'
+$loaderJar = 'C:\path\to\neoforge-21.1.259-universal.jar'
 $modsFolder = 'C:\path\to\instance\minecraft\mods'
-$sourcePaths = @($clientJar) + @(Get-ChildItem -LiteralPath $modsFolder -File -Filter '*.jar' | Sort-Object Name | ForEach-Object { $_.FullName })
+$sourcePaths = @($clientJar, $loaderJar) + @(Get-ChildItem -LiteralPath $modsFolder -File -Filter '*.jar' | Sort-Object Name | ForEach-Object { $_.FullName })
 [IO.File]::WriteAllLines((Join-Path $PWD 'sources.txt'), $sourcePaths, [Text.UTF8Encoding]::new($false))
 python tools/import_mod_assets.py --sources-file sources.txt --output C:\path\to\new-mineways-pack
 ```
@@ -144,9 +145,9 @@ The macOS `make -C Mac test-mods` target checks the importer, registry, and real
 
 ## Test the pinned ATM10 catalog on Windows
 
-`tools/fixtures/atm10-1.21.1.json` pins 495 mod JARs and the official Minecraft 1.21.1 client. It records public URLs, file sizes, SHA-1 hashes, and CurseForge project/file IDs. It contains no third-party assets or local installation paths. The November 12, 2026 snapshot requires approximately 1.5 GB of downloads.
+`tools/fixtures/atm10-1.21.1.json` pins 495 mod JARs, the official Minecraft 1.21.1 client, and the matching NeoForge 21.1.259 universal JAR. It records public URLs, file sizes, SHA-1 hashes, and CurseForge project/file IDs. It contains no third-party assets or local installation paths. The November 12, 2026 snapshot requires approximately 1.5 GB of downloads.
 
-The separate downloader verifies every file before creating the importer's source list. It preserves source order: Minecraft client first, then mod JARs sorted by filename. Downloads use HTTPS, bounded retries, streaming size checks, and temporary files. A failed download does not replace a previous file. Existing files are reused only after their size and hash match.
+The separate downloader verifies every file before creating the importer's source list. It preserves source order: Minecraft client first, then NeoForge runtime assets, then mod JARs sorted by filename. Downloads use HTTPS, bounded retries, streaming size checks, and temporary files. A failed download does not replace a previous file. Existing files are reused only after their size and hash match.
 
 ```powershell
 python tools/download_mod_assets.py tools/fixtures/atm10-1.21.1.json C:\temp\atm10-assets
@@ -348,6 +349,18 @@ Composite root transforms now reject fixed renderer geometry, just as composite 
 This pass adds nine definitions and 45 selectors without changing any existing selector's geometry, rotation, color, or texture data. The full ATM10 8.3 catalog contains 45,309 definitions, 589,244 selectors, 32,058 textures, 92,213 geometries, 562,789 elements, 35,260 polygons, and 25 dimensions. Remaining unsupported totals are 6,842 definitions and 5,017 states.
 
 All 294 Python tests passed. Twenty-four new native macOS ASan/UBSan cases check analytic geometry, winding, source UVs, both texture modes, tier pixels after nearest-neighbor resampling, and Sponge identity. Full-pack native exports checked all 45 new selectors. The baseline checked 788 states and 749 textures. Portable Windows fixtures cover 1,454 states. Windows assertions also passed against the native renderer outputs. macOS app, capacity, and security checks passed.
+
+## Runtime assets, QIO state fallback, and portable grids
+
+The pinned ATM10 input now includes its matching NeoForge 21.1.259 universal JAR between vanilla and mod assets. Its supplied model parents restore ten FramedBlocks definitions and 64 PneumaticCraft definitions. Downloads remain hash-pinned, and later mod/resource-pack inputs retain precedence. The two loader example blockstates remain unsupported. This corrects an incomplete input set rather than fabricating replacement resources.
+
+Mekanism data-based models now use their supplied `no_data` resource when emitting-redstone ModelData is unavailable. This restores six active QIO adapter states while preserving child textures, rotations, and UV lock. Palette `active=true` does not imply an emitting model. Loader declarations own their `no_data` and `emitting` resource fields.
+
+Refined Storage portable and creative portable grids now retain supplied base geometry, palette activity, and all twelve directions through a verified empty-disk approximation. Partial states preserve supplied properties and use north/inactive defaults for omissions. The renderer replaces application turns with palette facing but retains UV lock. Installed disks, inventory, and separate indicators remain unavailable. Composite children with retained rotations fail explicitly because flattening them would discard their orientation.
+
+This pass adds 76 definitions and 959 selectors without changing any prior selector's geometry, rotations, colors, or texture data. The full catalog contains 45,385 definitions, 590,203 selectors, 32,112 textures, 92,292 geometries, 563,546 elements, 35,260 polygons, and 25 dimensions. Unsupported totals are 6,768 definitions and 5,011 states. These include missing compatibility resources and the newly indexed loader examples.
+
+All 303 Python importer tests and ten downloader tests passed. Twenty new native macOS ASan/UBSan cases check exact geometry, UVs, pixels, both texture modes, and Sponge identity. The Windows assertions passed against those native outputs. Portable Windows fixtures cover 1,594 states. Full-pack native exports checked all 959 new selectors. The baseline checked 928 states and 812 textures, with repeated OBJ output and exact Sponge geometry/state round trips.
 
 ## Compiled format
 

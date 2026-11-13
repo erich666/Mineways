@@ -281,6 +281,7 @@ def build_fixture(root):
                                ('mod_machine_fixtures.py', 'machine_assets'),
                                ('mod_power_fixtures.py', 'power_assets'),
                                ('mod_shulker_fixtures.py', 'shulker_assets'),
+                               ('mod_data_storage_fixtures.py', 'data_storage_assets'),
                                ('mod_pressure_tube_fixtures.py', 'pressure_tube_assets'),
                                ('mod_twilight_fixtures.py', 'twilight_assets'),
                                ('mod_dynamic_storage_fixtures.py', 'dynamic_storage_assets')):

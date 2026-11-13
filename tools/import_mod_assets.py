@@ -56,6 +56,7 @@ LOADER_GEOMETRY_FIELDS = {
     'forge:composite': ('children', 'item_render_order'),
     'neoforge:obj': OBJ_GEOMETRY_FIELDS,
     _mekanism_module.LOADER: OBJ_GEOMETRY_FIELDS + ('glass',),
+    _mekanism_module.DATA_LOADER: ('no_data', 'emitting'),
     'immersiveengineering:ie_obj': ('model', 'callbacks', 'dynamic', 'layers'),
     _framework_module.LOADER: ('components',),
     _custom_defaults.FRAMED_LOADER: ('children', 'parts', 'item_render_order'),
@@ -530,7 +531,7 @@ class Compiler:
                                                         'bibliocraft:table', 'xycraft_core:connected_textures',
                                                         'neoforge:obj', 'immersiveengineering:ie_obj', 'immersiveengineering:basic_split', 'supplementaries:extra_rotation',
                                                         _storage_module.SIMPLE_MATERIAL_LOADER, _storage_module.LIMITED_BARREL_LOADER, _storage_module.BARREL_LOADER,
-                                                        _material_module.DOMUM_LOADER, _mekanism_module.LOADER, _enderio_module.IO_OVERLAY_LOADER,
+                                                        _material_module.DOMUM_LOADER, _mekanism_module.LOADER, _mekanism_module.DATA_LOADER, _storage_module.PORTABLE_LOADER, _enderio_module.IO_OVERLAY_LOADER,
                                                         _framework_module.LOADER, *_wire_module.LOADERS,
                                                         _custom_defaults.FRAMED_LOADER, _custom_defaults.MICROCHIP_LOADER,
                                                         _lantern_module.LOADER, _ie_sides_module.LOADER, *_power_module.LOADERS,
@@ -938,6 +939,10 @@ class Compiler:
         model = self.builtin_adapter(name, model)
         if depth and any(flag not in (selector or {}) for flag in PALETTE_FLAGS.get(model.get('loader'), ())):
             raise ImportError('nested dynamic model requires explicit palette flags')
+        if model.get('loader') == _mekanism_module.DATA_LOADER:
+            return _mekanism_module.compile_data_based(self, name, model, rotation, selector, depth, ImportError, block_name)
+        if model.get('loader') == _storage_module.PORTABLE_LOADER:
+            return _storage_module.compile_portable_grid(self, name, model, rotation, selector, depth, ImportError, block_name)
         if model.get('loader') == _shulker_module.LOADER:
             return _shulker_module.compile_shulker(self, name, model, rotation, selector, depth, ImportError, block_name, decode_png)
         if model.get('loader') == _pressure_tube_module.LOADER:
@@ -1034,6 +1039,9 @@ class Compiler:
                 compiled = self.compile_model({'model': child}, depth + 1, selector, block_name)
                 if 'split_models' in compiled or 'split_policy' in compiled:
                     raise ImportError('nested split model geometry requires an explicit replacement model')
+                child_rotation = compiled.get('rotation', (0, 0, 0))
+                if child_rotation[0] or child_rotation[1] or (len(child_rotation) > 3 and child_rotation[3]):
+                    raise ImportError('composite child rotation requires an explicit replacement model')
                 fixed_rotation = fixed_rotation or compiled.get('fixed_rotation', False)
                 if fixed_rotation and (rotation[0] or rotation[1] or (len(rotation) > 3 and rotation[3]) or not transform.is_identity):
                     raise ImportError('rotated composite contains fixed-rotation geometry')
@@ -1130,6 +1138,7 @@ class Compiler:
         return result
 
     def block(self, name, definition):
+        definition = _storage_module.expand_portable_grid(self, name, definition, ImportError)
         definition = _shulker_module.expand_shulker(self, name, definition, ImportError)
         for loader, flags in PALETTE_FLAGS.items():
             definition = _storage_module.expand_loader_flags(self, name, definition, loader, flags, ImportError)

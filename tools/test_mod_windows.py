@@ -472,6 +472,7 @@ def exercise(executable, root):
     exercise_owned_models(executable, root, common, texture_sources)
     exercise_dynamic_models(executable, root, common, texture_sources)
     exercise_renderer_models(executable, root, common, texture_sources)
+    exercise_data_models(executable, root, common, texture_sources)
     for orientation in ('plain', 'turned'):
         label = 'mesh-' + orientation
         state = 'fixture:obj_mesh[orientation=' + orientation + ',retained=true]'
@@ -687,6 +688,27 @@ def exercise_renderer_models(executable, root, common, texture_sources):
         block = 'sophisticatedstorage:' + (tier + '_' if tier != 'base' else '') + 'shulker_box'
         samples += [(f'shulker-{tier}-{facing}', block + (f'[facing={facing}]' if facing != 'default' else ''), 12)
                     for facing in ('default', 'down', 'up', 'north', 'south', 'west', 'east')]
+    exercise_renderer_samples(executable, root, common, texture_sources, samples)
+
+
+def exercise_data_models(executable, root, common, texture_sources):
+    samples = [(f'qio-{kind}-{facing}', f'fixturedata:qio[active={active},facing={facing}]', 6)
+               for kind, active in (('offline', 'false'), ('online', 'true'))
+               for facing in ('up', 'down', 'north', 'south', 'east', 'west')]
+    for label, block, properties in (
+            ('default', 'portable_grid', ''),
+            ('active-north', 'portable_grid', 'active=true,facing=north'),
+            ('inactive-east', 'portable_grid', 'active=false,facing=east'),
+            ('active-up-west', 'portable_grid', 'active=true,facing=up_west'),
+            ('inactive-down-east', 'portable_grid', 'active=false,facing=down_east'),
+            ('creative-active-west', 'creative_portable_grid', 'active=true,facing=west'),
+            ('partial-active', 'portable_grid', 'active=true'),
+            ('partial-facing', 'portable_grid', 'facing=east')):
+        samples.append(('portable-' + label, 'refinedstorage:' + block + ('[' + properties + ']' if properties else ''), 6))
+    exercise_renderer_samples(executable, root, common, texture_sources, samples)
+
+
+def exercise_renderer_samples(executable, root, common, texture_sources, samples):
     for label, state, count in samples:
         source, restored = root / (label + '.schem'), root / (label + '-restored.schem')
         schematic(source, [state])
@@ -1016,6 +1038,83 @@ def exercise_pack(executable, root, manifest):
             if state not in selected:
                 selected.append(state)
     targets = [
+               'framedblocks:framed_glowing_cube',
+               'framedblocks:framed_glowing_item_frame',
+               'framedblocks:framed_item_frame',
+               'framedblocks:framed_lever',
+               'framedblocks:framed_redstone_torch',
+               'framedblocks:framed_redstone_wall_torch',
+               'framedblocks:framed_soul_torch',
+               'framedblocks:framed_soul_wall_torch',
+               'framedblocks:framed_torch',
+               'framedblocks:framed_wall_torch',
+               'mekanism:qio_redstone_adapter',
+               'pneumaticcraft:advanced_liquid_compressor',
+               'pneumaticcraft:assembly_platform',
+               'pneumaticcraft:charging_station',
+               'pneumaticcraft:creative_compressor',
+               'pneumaticcraft:display_shelf',
+               'pneumaticcraft:display_table',
+               'pneumaticcraft:drill_pipe',
+               'pneumaticcraft:electrostatic_compressor',
+               'pneumaticcraft:elevator_base',
+               'pneumaticcraft:etching_tank',
+               'pneumaticcraft:fluid_mixer',
+               'pneumaticcraft:flux_compressor',
+               'pneumaticcraft:gas_lift',
+               'pneumaticcraft:heat_pipe',
+               'pneumaticcraft:heat_sink',
+               'pneumaticcraft:huge_tank',
+               'pneumaticcraft:kerosene_lamp',
+               'pneumaticcraft:large_tank',
+               'pneumaticcraft:liquid_compressor',
+               'pneumaticcraft:medium_tank',
+               'pneumaticcraft:plastic_brick_black',
+               'pneumaticcraft:plastic_brick_blue',
+               'pneumaticcraft:plastic_brick_brown',
+               'pneumaticcraft:plastic_brick_cyan',
+               'pneumaticcraft:plastic_brick_gray',
+               'pneumaticcraft:plastic_brick_green',
+               'pneumaticcraft:plastic_brick_light_blue',
+               'pneumaticcraft:plastic_brick_light_gray',
+               'pneumaticcraft:plastic_brick_lime',
+               'pneumaticcraft:plastic_brick_magenta',
+               'pneumaticcraft:plastic_brick_orange',
+               'pneumaticcraft:plastic_brick_pink',
+               'pneumaticcraft:plastic_brick_purple',
+               'pneumaticcraft:plastic_brick_red',
+               'pneumaticcraft:plastic_brick_white',
+               'pneumaticcraft:plastic_brick_yellow',
+               'pneumaticcraft:pneumatic_door_base',
+               'pneumaticcraft:pneumatic_dynamo',
+               'pneumaticcraft:refinery',
+               'pneumaticcraft:refinery_output',
+               'pneumaticcraft:reinforced_chest',
+               'pneumaticcraft:small_tank',
+               'pneumaticcraft:smart_chest',
+               'pneumaticcraft:smooth_plastic_brick_black',
+               'pneumaticcraft:smooth_plastic_brick_blue',
+               'pneumaticcraft:smooth_plastic_brick_brown',
+               'pneumaticcraft:smooth_plastic_brick_cyan',
+               'pneumaticcraft:smooth_plastic_brick_gray',
+               'pneumaticcraft:smooth_plastic_brick_green',
+               'pneumaticcraft:smooth_plastic_brick_light_blue',
+               'pneumaticcraft:smooth_plastic_brick_light_gray',
+               'pneumaticcraft:smooth_plastic_brick_lime',
+               'pneumaticcraft:smooth_plastic_brick_magenta',
+               'pneumaticcraft:smooth_plastic_brick_orange',
+               'pneumaticcraft:smooth_plastic_brick_pink',
+               'pneumaticcraft:smooth_plastic_brick_purple',
+               'pneumaticcraft:smooth_plastic_brick_red',
+               'pneumaticcraft:smooth_plastic_brick_white',
+               'pneumaticcraft:smooth_plastic_brick_yellow',
+               'pneumaticcraft:tag_workbench',
+               'pneumaticcraft:thermopneumatic_processing_plant',
+               'pneumaticcraft:uv_light_box',
+               'pneumaticcraft:vacuum_pump',
+               'pneumaticcraft:vacuum_trap',
+               'refinedstorage:creative_portable_grid',
+               'refinedstorage:portable_grid',
                'pneumaticcraft:advanced_pressure_tube',
                'pneumaticcraft:pressure_tube',
                'pneumaticcraft:reinforced_pressure_tube',

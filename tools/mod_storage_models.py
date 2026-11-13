@@ -420,3 +420,79 @@ def expand_loader_flags(compiler, name, definition, loader, properties, error_ty
             if len(expanded) > MAX_VARIANTS:
                 raise error_type('dynamic model expansion exceeds 4096 selectors')
     return {**definition, 'variants': expanded} if changed else definition
+
+
+PORTABLE_LOADER = 'refinedstorage:portable_grid'
+
+
+def expand_portable_grid(compiler, name, definition, error_type):
+    """Preserve full and partial palette states with NORTH/inactive defaults."""
+    def matches(application):
+        selected = application[0] if isinstance(application, list) and application else application
+        if not isinstance(selected, dict) or 'model' not in selected:
+            return False
+        try:
+            return compiler.model(selected['model']).get('loader') == PORTABLE_LOADER
+        except error_type:
+            return False
+    variants = definition.get('variants')
+    if not isinstance(variants, dict):
+        multipart = definition.get('multipart', [])
+        if isinstance(multipart, list) and any(isinstance(part, dict) and matches(part.get('apply')) for part in multipart):
+            raise error_type('portable grid states require variants, not multipart applications')
+        return definition
+    if len(variants) > MAX_VARIANTS:
+        return definition
+    expanded, changed = {}, False
+    for selector, application in variants.items():
+        if not matches(application):
+            if selector in expanded and expanded[selector] != application:
+                raise error_type('overlapping portable grid state selectors')
+            expanded[selector] = application
+            continue
+        state = _properties(selector, error_type)
+        if state.get('facing', 'north') not in DIRECTIONS or state.get('active', 'false') not in ('false', 'true'):
+            raise error_type('invalid portable grid facing or active state')
+        facings = (state['facing'],) if 'facing' in state else (None, *DIRECTIONS)
+        active = (state['active'],) if 'active' in state else (None, 'false', 'true')
+        changed = True
+        for facing, enabled in itertools.product(facings, active):
+            values = dict(state)
+            if facing is not None:
+                values['facing'] = facing
+            if enabled is not None:
+                values['active'] = enabled
+            key = ','.join(f'{key}={values[key]}' for key in sorted(values))
+            if key in expanded and expanded[key] != application:
+                raise error_type('overlapping portable grid state selectors')
+            expanded[key] = application
+            if len(expanded) > MAX_VARIANTS:
+                raise error_type('portable grid expansion exceeds 4096 selectors')
+    return {**definition, 'variants': expanded} if changed else definition
+
+
+def compile_portable_grid(compiler, name, model, rotation, selector, depth, error_type, block_name=None):
+    """Use the verified synchronized empty-disk base, including palette activity.
+
+    RotationTranslationModelBaker substitutes BiDirection for the application
+    rotation, but retains its UV-lock flag. This is not the literal absent-data
+    fallback, which cannot preserve a placed grid's direction or active state.
+    """
+    state = selector or {}
+    if depth and any(key not in state for key in ('facing', 'active')):
+        raise error_type('nested portable grid requires explicit facing and active palette properties')
+    facing, active = state.get('facing', 'north'), state.get('active', 'false')
+    if facing not in DIRECTIONS or active not in ('false', 'true'):
+        raise error_type('invalid portable grid facing or active state')
+    reference = 'refinedstorage:block/portable_grid/' + ('active' if active == 'true' else 'inactive')
+    if compiler.model(reference).get('transform', {}) != {}:
+        raise error_type('portable grid child root transforms require an explicit replacement model')
+    x, y = DIRECTIONS[facing]
+    result = compiler.compile_model({'model': reference, 'x': x, 'y': y, 'uvlock': bool(rotation[2])},
+                                    depth + 1, selector, block_name)
+    result = {**result, 'fixed_rotation': True}
+    label = name if isinstance(name, str) else '<inline>'
+    compiler.warnings.add(f'{label}: empty-disk portable grid appearance; installed disks, content indicators and saved inventory are not evaluated')
+    if rotation[0] or rotation[1] or (len(rotation) == 4 and rotation[3]) or model.get('transform', {}):
+        compiler.warnings.add(f'{label}: supplied application rotations and outer root transforms are replaced by the portable grid palette facing')
+    return result

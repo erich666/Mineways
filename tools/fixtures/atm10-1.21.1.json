@@ -11,6 +11,12 @@
       "size": 26836906
     },
     {
+      "path": "runtime/neoforge-21.1.259-universal.jar",
+      "url": "https://maven.neoforged.net/releases/net/neoforged/neoforge/21.1.259/neoforge-21.1.259-universal.jar",
+      "sha1": "134fd9049bb11dbff14712ea055fc44affa32efc",
+      "size": 3552792
+    },
+    {
       "path": "mods/AE2NetworkAnalyzer-1.21-2.1.5-neoforge.jar",
       "url": "https://mediafilez.forgecdn.net/files/7622/554/AE2NetworkAnalyzer-1.21-2.1.5-neoforge.jar",
       "sha1": "c6cb26a2031687d801bf1763dc0c75cd92f3715c",

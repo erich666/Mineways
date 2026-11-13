@@ -42,10 +42,12 @@ class DownloadTests(unittest.TestCase):
 
     def test_pinned_public_catalog(self):
         files = mod.read_manifest(Path(__file__).parent / 'fixtures/atm10-1.21.1.json')
-        self.assertEqual(len(files), 496)
+        self.assertEqual(len(files), 497)
         self.assertEqual(sum('curseforge_file_id' in entry for entry in files), 495)
         self.assertTrue(files[0]['url'].startswith('https://piston-data.mojang.com/'))
-        self.assertEqual(sum(entry['size'] for entry in files), 1466394488)
+        self.assertEqual(sum(entry['size'] for entry in files), 1469947280)
+        self.assertEqual(files[1]['path'], 'runtime/neoforge-21.1.259-universal.jar')
+        self.assertTrue(all(entry['path'].startswith('mods/') for entry in files[2:]))
 
     def test_download_hash_and_reuse(self):
         with patch.object(mod.urllib.request, 'urlopen', return_value=Response(self.payload, length=len(self.payload))) as request:
