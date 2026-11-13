@@ -15,6 +15,8 @@ This repository contains the source for the independent fork. Use this fork's [R
 
 For experimental mod support, select the mod support preview on this fork's [Releases](https://github.com/wbreiler/Mineways/releases) page. Download the ZIP for your platform. Follow the [preview quickstart](docs/preview-quickstart.md) for the included demo. The demo does not require Python.
 
+Use `macos-arm64` for native Apple Silicon support without Rosetta on macOS 26 or later. The separate `macos-x86_64` package supports Intel Macs on macOS 15 or later.
+
 The older `v14.03` release predates mod support. Upstream Windows downloads also do not contain this fork's mod support. For upstream Windows releases, [visit the project homepage](https://www.realtimerendering.com/erich/minecraft/public/mineways/).
 
 Documentation links, credits, etc are also available on the homepage.

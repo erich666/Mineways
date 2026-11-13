@@ -31,6 +31,8 @@ jobs:
             platform: windows-x64
           - runner: macos-15-intel
             platform: macos-x86_64
+          - runner: macos-26
+            platform: macos-arm64
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:
@@ -56,7 +58,7 @@ jobs:
           dylibbundler -od -b -x Mac/Mineways.app/Contents/MacOS/mineways -d Mac/Mineways.app/Contents/Frameworks -p @executable_path/../Frameworks
           codesign --force --deep --sign - Mac/Mineways.app
           codesign --verify --deep --strict Mac/Mineways.app
-          python tools/package_preview.py --platform macos-x86_64 --app Mac/Mineways.app --output Mineways-preview-macos-x86_64.zip --source-revision "$(git rev-parse HEAD)"
+          python tools/package_preview.py --platform ${{ matrix.platform }} --app Mac/Mineways.app --output Mineways-preview-${{ matrix.platform }}.zip --source-revision "$(git rev-parse HEAD)"
       - name: Test package tooling
         shell: bash
         run: |
@@ -78,6 +80,8 @@ jobs:
             platform: windows-x64
           - runner: macos-15-intel
             platform: macos-x86_64
+          - runner: macos-26
+            platform: macos-arm64
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:

@@ -31,11 +31,12 @@ on:
   workflow_dispatch:
     inputs:
       runner:
-        description: 'macOS runner (Intel is available when Apple Silicon capacity is constrained)'
+        description: 'Native Apple Silicon runner (Intel is an optional compatibility build)'
         type: choice
-        default: macos-15-intel
+        default: macos-26
         options:
           - macos-15
+          - macos-26
           - macos-15-intel
 
 permissions:
@@ -43,7 +44,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ${{ inputs.runner || 'macos-15-intel' }}
+    runs-on: ${{ inputs.runner || 'macos-26' }}
     steps:
       - uses: actions/checkout@v5
 
