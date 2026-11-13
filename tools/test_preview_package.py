@@ -60,7 +60,7 @@ def extract_package(archive_path, destination):
 def app_environment():
     env = os.environ.copy()
     if os.name == 'nt':
-        system = Path(env['SystemRoot'])
+        system = Path(os.environ['SystemRoot'])
         env['PATH'] = str(system / 'System32') + os.pathsep + str(system)
     else:
         env['PATH'] = '/usr/bin:/bin:/usr/sbin:/sbin'
@@ -198,6 +198,14 @@ def smoke(archive, destination):
 
 
 class ArchiveTests(unittest.TestCase):
+    def test_app_environment(self):
+        env = app_environment()
+        self.assertNotIn('DYLD_LIBRARY_PATH', env)
+        if os.name == 'nt':
+            self.assertIn(str(Path(os.environ['SystemRoot']) / 'System32'), env['PATH'])
+        else:
+            self.assertEqual(env['PATH'], '/usr/bin:/bin:/usr/sbin:/sbin')
+
     def test_reject_path_traversal(self):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary)

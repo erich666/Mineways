@@ -26,7 +26,9 @@ public:
             frame->Show();
             if (argc == 2 && !wxString(argv[1]).StartsWith("-")) {
                 wxString message;
-                if (!ImportSettingsFile(frame, wxString(argv[1]), message) || !message.empty())
+                bool ok = ImportSettingsFile(frame, wxString(argv[1]), message);
+                if (ok) frame->RedrawMap();
+                if (!ok || !message.empty())
                     wxMessageBox(message, "Import Settings", wxOK | wxICON_INFORMATION, frame);
             }
         }

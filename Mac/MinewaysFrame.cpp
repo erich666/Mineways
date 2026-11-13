@@ -1753,6 +1753,11 @@ void MinewaysFrame::OnViewEnd(wxCommandEvent&)
 void MinewaysFrame::RedrawMap()
 {
     ApplyMapMemory();
+    if (m_sliderTop) {
+        m_sliderTop->SetValue(gCurDepth);
+        m_labelTop->SetLabel(wxString::Format("%d", gCurDepth));
+    }
+    UpdateBottomSlider(gTargetDepth);
     if (m_mapPanel) m_mapPanel->RedrawMap();
 }
 
