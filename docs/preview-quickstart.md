@@ -9,17 +9,16 @@ Use the mod support preview on the [fork releases page](https://github.com/wbrei
 Choose the ZIP for your platform. Extract the complete ZIP into a writable folder. Keep its files together.
 
 - `windows-x64`: Windows x64, with `Mineways.exe` at the package root.
-- `macos-x86_64`: Intel Mac, macOS 15 or later, with `Mineways.app` at the package root.
-- `macos-arm64`: Native Apple Silicon, macOS 26 or later, with `Mineways.app` at the package root. Rosetta is not required.
+- `macos-universal`: macOS 26 or later, with `Mineways.app` at the package root.
 
-Use the native `macos-arm64` package on Apple Silicon. The preview supplies separate Intel and Apple Silicon packages.
+The single macOS package runs natively on Apple Silicon and Intel Macs. Rosetta is not required.
 
 Each macOS package uses an ad-hoc signature. It is not notarized. The release notes identify the tested architectures.
 
 If macOS rejects the downloaded app as damaged, remove its quarantine attribute after you verify the download source:
 
 ```sh
-xattr -cr "/path/to/Mineways-preview-macos-arm64/Mineways.app"
+xattr -cr "/path/to/Mineways-preview-macos-universal/Mineways.app"
 ```
 
 Use your extracted app path. Then open `Mineways.app`. On Windows, open `Mineways.exe`.

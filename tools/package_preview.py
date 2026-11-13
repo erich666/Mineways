@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import re
+import plistlib
 from pathlib import Path
 import shutil
 import stat
@@ -14,7 +15,25 @@ import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PLATFORMS = ('windows-x64', 'macos-x86_64', 'macos-arm64')
+PLATFORMS = ('windows-x64', 'macos-x86_64', 'macos-arm64', 'macos-universal')
+MAC_CPUS = {'arm64': 0x100000c, 'x86_64': 0x1000007}
+
+
+def macho_cpus(path):
+    with path.open('rb') as stream:
+        header = stream.read(8)
+        if header[:4] == b'\xcf\xfa\xed\xfe' and len(header) == 8:
+            return {struct.unpack_from('<I', header, 4)[0]}
+        if header[:4] in (b'\xca\xfe\xba\xbe', b'\xca\xfe\xba\xbf') and len(header) == 8:
+            count = struct.unpack_from('>I', header, 4)[0]
+            if not 1 <= count <= 16:
+                raise ValueError('Invalid universal Mach-O architecture count')
+            size = 32 if header[:4] == b'\xca\xfe\xba\xbf' else 20
+            entries = stream.read(count * size)
+            if len(entries) != count * size:
+                raise ValueError('Truncated universal Mach-O header')
+            return {struct.unpack_from('>I', entries, i * size)[0] for i in range(count)}
+    return None
 
 
 def digest(path):
@@ -32,10 +51,19 @@ def check_architecture(app, platform):
             stream.seek(struct.unpack_from('<I', header, 60)[0])
             if stream.read(6) != b'PE\0\0\x64\x86':
                 raise ValueError('Expected a Windows x64 executable')
-        else:
-            expected_cpu = 0x100000c if platform == 'macos-arm64' else 0x1000007
-            if header[:4] != b'\xcf\xfa\xed\xfe' or struct.unpack_from('<I', header, 4)[0] != expected_cpu:
-                raise ValueError('App architecture does not match ' + platform)
+    if platform.startswith('macos-'):
+        expected = set(MAC_CPUS.values()) if platform == 'macos-universal' else {MAC_CPUS[platform[6:]]}
+        if macho_cpus(binary) != expected:
+            raise ValueError('App architecture does not match ' + platform)
+        if platform == 'macos-universal':
+            for path in app.rglob('*'):
+                if path.is_file() and not path.is_symlink():
+                    cpus = macho_cpus(path)
+                    if cpus is not None and cpus != expected:
+                        raise ValueError('Bundled Mach-O lacks both architectures: ' + str(path))
+            info = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
+            if info.get('LSMinimumSystemVersion') != '26.0':
+                raise ValueError('Universal preview must declare macOS 26.0 minimum')
 
 
 def package(app, platform, output, revision, root=ROOT):
@@ -64,6 +92,8 @@ def package(app, platform, output, revision, root=ROOT):
         metadata = {'repository': 'wbreiler/Mineways', 'source_revision': revision,
                     'upstream_version': f'{major}.{minor:02d}',
                     'platform': platform, 'configuration': 'Release', 'preview': True}
+        if platform == 'macos-universal':
+            metadata.update(architectures=['arm64', 'x86_64'], minimum_macos='26.0')
         (stage / 'BUILD-METADATA.json').write_text(json.dumps(metadata, indent=2) + '\n', encoding='utf-8')
         paths = sorted(path for path in stage.rglob('*') if path.is_symlink() or path.is_file())
         checksums = ''.join(digest(path) + '  ' + path.relative_to(stage).as_posix() + '\n' for path in paths)

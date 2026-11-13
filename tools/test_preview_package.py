@@ -6,6 +6,7 @@ import hashlib
 import json
 import math
 import os
+import platform
 from pathlib import Path, PurePosixPath
 import stat
 import subprocess
@@ -77,6 +78,11 @@ def run(command, cwd, env=None):
     return result.stdout + result.stderr
 
 
+def app_command(executable, script):
+    prefix = ['/usr/bin/arch', '-' + platform.machine()] if sys.platform == 'darwin' else []
+    return [*prefix, str(executable), '-headless', str(script)]
+
+
 def export(executable, root, name, world, selection, dimension=None, schematic=False, minimum_faces=6, mosaic=False):
     output = root / 'smoke output'
     output.mkdir(exist_ok=True)
@@ -97,7 +103,7 @@ def export(executable, root, name, world, selection, dimension=None, schematic=F
     commands.append('Close')
     script = output / (name + '.mwscript')
     script.write_text('\n'.join(commands) + '\n', encoding='utf-8')
-    run([str(executable), '-headless', str(script)], root, env=app_environment())
+    run(app_command(executable, script), root, env=app_environment())
     text = obj.read_text(encoding='utf-8', errors='replace')
     faces = [line for line in text.splitlines() if line.startswith('f ')]
     vertices = [tuple(map(float, line.split()[1:4])) for line in text.splitlines() if line.startswith('v ')]
@@ -154,7 +160,7 @@ def check_mac_cli_failures(executable, root, selection):
         'Export for Rendering: ' + str(output / 'missing directory/model.obj'),
         'Close', '']), encoding='utf-8')
     for script in (output / 'missing-script.mwscript', unknown, failed_export):
-        result = subprocess.run([str(executable), '-headless', str(script)], cwd=root,
+        result = subprocess.run(app_command(executable, script), cwd=root,
                                 stdin=subprocess.DEVNULL, capture_output=True,
                                 text=True, errors='replace', timeout=20, env=app_environment())
         if result.returncode != 1 or not (result.stdout + result.stderr).strip():

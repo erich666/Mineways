@@ -29,7 +29,7 @@ jobs:
         include:
           - runner: windows-2022
             platform: windows-x64
-          - runner: macos-15-intel
+          - runner: macos-26-intel
             platform: macos-x86_64
           - runner: macos-26
             platform: macos-arm64
@@ -64,24 +64,59 @@ jobs:
         run: |
           python tools/test_preview_demo.py
           python tools/test_preview_package.py --self-test
+          python tools/test_preview_universal.py
       - uses: actions/upload-artifact@v6
         with:
           name: preview-${{ matrix.platform }}
           path: Mineways-preview-${{ matrix.platform }}.zip
           if-no-files-found: error
 
-  test-download:
+  universal:
     needs: package
+    runs-on: macos-26-intel
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v8
+        with:
+          name: preview-macos-arm64
+          path: native
+      - uses: actions/download-artifact@v8
+        with:
+          name: preview-macos-x86_64
+          path: native
+      - name: Merge and verify universal app
+        run: |
+          python tools/merge_preview_macos.py --arm-package native/Mineways-preview-macos-arm64.zip --intel-package native/Mineways-preview-macos-x86_64.zip --output-app Mineways.app --source-revision "$(git rev-parse HEAD)"
+          python tools/package_preview.py --platform macos-universal --app Mineways.app --output Mineways-preview-macos-universal.zip --source-revision "$(git rev-parse HEAD)"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: preview-macos-universal
+          path: Mineways-preview-macos-universal.zip
+          if-no-files-found: error
+
+  test-download:
+    needs: [package, universal]
     strategy:
       fail-fast: false
       matrix:
         include:
           - runner: windows-2022
             platform: windows-x64
-          - runner: macos-15-intel
+            package: windows-x64
+          - runner: macos-26-intel
             platform: macos-x86_64
+            package: macos-universal
+            architecture: x86_64
           - runner: macos-26
             platform: macos-arm64
+            package: macos-universal
+            architecture: arm64
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:
@@ -93,10 +128,15 @@ jobs:
           python-version: '3.11'
       - uses: actions/download-artifact@v8
         with:
-          name: preview-${{ matrix.platform }}
+          name: preview-${{ matrix.package }}
           path: downloaded
+      - name: Verify native macOS test runner
+        if: runner.os == 'macOS'
+        run: |
+          test "$(uname -m)" = "${{ matrix.architecture }}"
+          python -c 'import platform; assert platform.machine() == "${{ matrix.architecture }}"'
       - name: Test downloaded package without build dependencies
-        run: python tools/test_preview_package.py downloaded/Mineways-preview-${{ matrix.platform }}.zip --output preview-test
+        run: python tools/test_preview_package.py downloaded/Mineways-preview-${{ matrix.package }}.zip --output preview-test
       - name: Test Windows GUI startup and map
         if: runner.os == 'Windows'
         shell: pwsh
