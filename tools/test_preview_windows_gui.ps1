@@ -40,7 +40,7 @@ try {
         $process.Refresh()
         if ($process.HasExited) { throw "Packaged GUI exited: $($process.ExitCode)" }
         $window = $process.MainWindowHandle
-        $ready = $window -ne [IntPtr]::Zero -and $process.MainWindowTitle -match 'Mineways: world.*Zoom 16'
+        $ready = $window -ne [IntPtr]::Zero -and $process.MainWindowTitle -match '^Mineways: world \(1\.'
     } until ($ready -or [DateTime]::UtcNow -ge $deadline)
     if (-not $ready) { throw "Packaged GUI did not load the demo: $($process.MainWindowTitle)" }
     $result = [UIntPtr]::Zero
