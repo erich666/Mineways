@@ -53,11 +53,7 @@ jobs:
       - name: Build and bundle macOS Release
         if: runner.os == 'macOS'
         run: |
-          brew install wxwidgets dylibbundler
-          make -C Mac app
-          dylibbundler -od -b -x Mac/Mineways.app/Contents/MacOS/mineways -d Mac/Mineways.app/Contents/Frameworks -p @executable_path/../Frameworks
-          codesign --force --deep --sign - Mac/Mineways.app
-          codesign --verify --deep --strict Mac/Mineways.app
+          bash tools/build_preview_macos.sh
           python tools/package_preview.py --platform ${{ matrix.platform }} --app Mac/Mineways.app --output Mineways-preview-${{ matrix.platform }}.zip --source-revision "$(git rev-parse HEAD)"
       - name: Test package tooling
         shell: bash
