@@ -61,6 +61,10 @@ jobs:
         shell: bash
         run: |
           python tools/test_preview_demo.py
+          python tools/test_atm10_showcase_generator.py
+          python tools/test_prepare_atm10_showcase.py
+          python tools/test_showcase_launchers.py
+          python tools/test_atm10_showcase.py --self-test
           python tools/test_preview_package.py --self-test
           python tools/test_preview_universal.py
       - uses: actions/upload-artifact@v6

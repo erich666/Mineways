@@ -15,17 +15,25 @@ The single macOS package runs natively on Apple Silicon and Intel Macs. Rosetta 
 
 Each macOS package uses an ad-hoc signature. It is not notarized. The release notes identify the tested architectures.
 
-If macOS rejects the downloaded app as damaged, remove its quarantine attribute after you verify the download source:
+If macOS blocks the app or showcase launcher, remove the extracted folder's quarantine attribute after you verify the download source:
 
 ```sh
-xattr -cr "/path/to/Mineways-preview-macos-universal/Mineways.app"
+xattr -cr "/path/to/Mineways-preview-macos-universal"
 ```
 
-Use your extracted app path. Then open `Mineways.app`. On Windows, open `Mineways.exe`.
+Use your extracted folder path. Then open the app or showcase launcher. On Windows, open `Mineways.exe` for ordinary use.
 
 If Windows reports that it cannot find a Minecraft saves folder, select **OK**. The included demo still works. Follow the load order below.
 
 `BUILD-METADATA.json` identifies the source commit and platform. `SHA256SUMS` lists package file hashes.
+
+## Try real ATM10 blocks
+
+Double-click **Open ATM10 Showcase.cmd** on Windows or **Open ATM10 Showcase.command** on Mac.
+
+The first launch downloads the required assets and prepares them automatically. It then opens a small world with 24 real ATM10 blocks, already selected for export. Later launches reuse the prepared files and work offline.
+
+You do not need to install Minecraft or Python, or find any mod files yourself. See **ATM10-SHOWCASE.md** for the short export instructions and download details.
 
 ## Load the included demo
 

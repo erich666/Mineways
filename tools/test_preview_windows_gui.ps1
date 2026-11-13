@@ -1,7 +1,8 @@
 # Run only on a disposable Windows runner: Mineways saves GUI preferences to HKCU.
 param(
     [Parameter(Mandatory = $true)][string]$PackageRoot,
-    [Parameter(Mandatory = $true)][string]$Screenshot
+    [Parameter(Mandatory = $true)][string]$Screenshot,
+    [switch]$Atm10Showcase
 )
 $ErrorActionPreference = 'Stop'
 $PackageRoot = (Resolve-Path -LiteralPath $PackageRoot).Path
@@ -19,30 +20,55 @@ public static class PreviewWindow {
         UIntPtr wParam, IntPtr lParam, uint flags, uint timeout, out UIntPtr result);
 }
 '@
-$script = Join-Path ([IO.Path]::GetDirectoryName($Screenshot)) 'gui-smoke.mwscript'
-@(
-    'Show informational: script'
-    'Show warning: script'
-    'Show error: script'
-    "Mod pack: $(Join-Path $PackageRoot 'demo/manifest.mwpack')"
-    "Minecraft world: $(Join-Path $PackageRoot 'demo/world')"
-    'Selection location min to max: 0, 64, 0 to 15, 67, 15'
-    'Focus view: 8, 8'
-    'Zoom: 16'
-) | Set-Content -LiteralPath $script -Encoding utf8
+if (-not $Atm10Showcase) {
+    $script = Join-Path ([IO.Path]::GetDirectoryName($Screenshot)) 'gui-smoke.mwscript'
+    @(
+        'Show informational: script'
+        'Show warning: script'
+        'Show error: script'
+        "Mod pack: $(Join-Path $PackageRoot 'demo/manifest.mwpack')"
+        "Minecraft world: $(Join-Path $PackageRoot 'demo/world')"
+        'Selection location min to max: 0, 64, 0 to 15, 67, 15'
+        'Focus view: 8, 8'
+        'Zoom: 16'
+    ) | Set-Content -LiteralPath $script -Encoding utf8
+}
+$executable = Join-Path $PackageRoot 'Mineways.exe'
+$subject = if ($Atm10Showcase) { 'ATM10 showcase' } else { 'demo' }
 $process = $null
+$launcher = $null
 try {
-    $process = Start-Process -FilePath (Join-Path $PackageRoot 'Mineways.exe') `
-        -ArgumentList ('-s none "' + $script + '"') -WorkingDirectory $PackageRoot -PassThru
+    $started = [DateTime]::UtcNow
+    if ($Atm10Showcase) {
+        $launchPath = Join-Path $PackageRoot 'Open ATM10 Showcase.cmd'
+        $launcher = Start-Process -FilePath $env:ComSpec `
+            -ArgumentList ('/d /s /c ""' + $launchPath + '""') -WorkingDirectory $PackageRoot -PassThru
+    } else {
+        $process = Start-Process -FilePath $executable `
+            -ArgumentList ('-s none "' + $script + '"') -WorkingDirectory $PackageRoot -PassThru
+    }
     $deadline = [DateTime]::UtcNow.AddSeconds(45)
+    $ready = $false
     do {
         Start-Sleep -Milliseconds 250
+        if ($Atm10Showcase -and $null -eq $process) {
+            $process = Get-Process -Name Mineways -ErrorAction SilentlyContinue | Where-Object {
+                $_.Path -eq $executable -and $_.StartTime.ToUniversalTime() -ge $started
+            } | Sort-Object StartTime | Select-Object -First 1
+            if ($null -eq $process) {
+                $launcher.Refresh()
+                if ($launcher.HasExited -and $launcher.ExitCode -ne 0) {
+                    throw "Showcase launcher exited: $($launcher.ExitCode)"
+                }
+                continue
+            }
+        }
         $process.Refresh()
         if ($process.HasExited) { throw "Packaged GUI exited: $($process.ExitCode)" }
         $window = $process.MainWindowHandle
         $ready = $window -ne [IntPtr]::Zero -and $process.MainWindowTitle -match '^Mineways: world \(1\.'
     } until ($ready -or [DateTime]::UtcNow -ge $deadline)
-    if (-not $ready) { throw "Packaged GUI did not load the demo: $($process.MainWindowTitle)" }
+    if (-not $ready) { throw "Packaged GUI did not load the ${subject}: $($process.MainWindowTitle)" }
     $result = [UIntPtr]::Zero
     if ([PreviewWindow]::SendMessageTimeout($window, 0, [UIntPtr]::Zero, [IntPtr]::Zero, 2, 5000, [ref]$result) -eq [IntPtr]::Zero) {
         throw 'Packaged GUI did not respond to WM_NULL'
@@ -72,11 +98,12 @@ try {
         $graphics.Dispose()
         $bitmap.Dispose()
     }
-    Write-Output "Packaged GUI loaded the demo and responded. PrintWindow capture: $Screenshot"
+    Write-Output "Packaged GUI loaded the $subject and responded. PrintWindow capture: $Screenshot"
 } finally {
     if ($null -ne $process) {
         $process.Refresh()
         if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
         $process.Dispose()
     }
+    if ($null -ne $launcher) { $launcher.Dispose() }
 }

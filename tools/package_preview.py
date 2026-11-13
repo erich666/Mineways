@@ -71,6 +71,7 @@ def package(app, platform, output, revision, root=ROOT):
     if output.exists():
         raise FileExistsError('Refusing to overwrite ' + str(output))
     from make_preview_demo import make_demo
+    from make_atm10_showcase import make_showcase
     with tempfile.TemporaryDirectory(prefix='mineways-package-') as temporary:
         stage = Path(temporary) / ('Mineways-preview-' + platform)
         stage.mkdir()
@@ -80,12 +81,25 @@ def package(app, platform, output, revision, root=ROOT):
             shutil.copytree(app, stage / 'Mineways.app', symlinks=True)
         tools = stage / 'tools'
         tools.mkdir()
-        for source in [root / 'tools/import_mod_assets.py', *sorted((root / 'tools').glob('mod_*.py'))]:
+        for source in [root / 'tools/import_mod_assets.py', root / 'tools/download_mod_assets.py',
+                       root / 'tools/prepare_atm10_showcase.py', root / 'tools/showcase_runtime_pins.json',
+                       *sorted((root / 'tools').glob('mod_*.py'))]:
             shutil.copy2(source, tools / source.name)
+        (tools / 'fixtures').mkdir()
+        shutil.copy2(root / 'tools/fixtures/atm10-showcase-1.21.1.json', tools / 'fixtures')
+        if platform == 'windows-x64':
+            shutil.copy2(root / 'tools/Open ATM10 Showcase.cmd', stage)
+            shutil.copy2(root / 'tools/launch_atm10_windows.ps1', tools)
+        else:
+            launcher = stage / 'Open ATM10 Showcase.command'
+            shutil.copy2(root / 'tools/Open ATM10 Showcase.command', launcher)
+            launcher.chmod(0o755)
         shutil.copy2(root / 'docs/preview-quickstart.md', stage / 'QUICKSTART.md')
+        shutil.copy2(root / 'docs/atm10-showcase.md', stage / 'ATM10-SHOWCASE.md')
         shutil.copy2(root / 'docs/mod-support.md', stage / 'mod-support.md')
         shutil.copy2(root / 'license.txt', stage / 'license.txt')
         make_demo(stage / 'demo')
+        make_showcase(stage / 'atm10-showcase')
         version_source = (root / 'Win/stdafx.h').read_text(encoding='latin-1')
         major = int(re.search(r'#define MINEWAYS_MAJOR_VERSION (\d+)', version_source).group(1))
         minor = int(re.search(r'#define MINEWAYS_MINOR_VERSION (\d+)', version_source).group(1))

@@ -53,6 +53,13 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
+      - name: Test showcase tooling
+        shell: bash
+        run: |
+          python tools/test_atm10_showcase_generator.py
+          python tools/test_prepare_atm10_showcase.py
+          python tools/test_showcase_launchers.py
+          python tools/test_atm10_showcase.py --self-test
       - name: Download exact release assets from this repository
         shell: bash
         env:
@@ -92,6 +99,32 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: tools/test_preview_windows_gui.ps1 -PackageRoot "preview-test/extracted preview with spaces/Mineways-preview-windows-x64" -Screenshot "preview-test/windows-gui.png"
+      - name: Prepare showcase through the shipped Windows launcher without system Python
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $package = (Resolve-Path -LiteralPath 'preview-test/extracted preview with spaces/Mineways-preview-windows-x64').Path
+          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+          & "$package/Open ATM10 Showcase.cmd" --prepare-only
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:HTTPS_PROXY = 'http://127.0.0.1:9'
+          $env:HTTP_PROXY = 'http://127.0.0.1:9'
+          & "$package/Open ATM10 Showcase.cmd" --prepare-only
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Prepare showcase through the shipped native Mac launcher without system Python
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          launcher="$PWD/preview-test/extracted preview with spaces/Mineways-preview-macos-universal/Open ATM10 Showcase.command"
+          PATH=/usr/bin:/bin:/usr/sbin:/sbin "$launcher" --prepare-only
+          HTTPS_PROXY=http://127.0.0.1:9 HTTP_PROXY=http://127.0.0.1:9 PATH=/usr/bin:/bin:/usr/sbin:/sbin "$launcher" --prepare-only
+      - name: Test shipped ATM10 showcase exports and schematics
+        shell: bash
+        run: python tools/test_atm10_showcase.py "preview-test/extracted preview with spaces/Mineways-preview-${{ matrix.package }}" --output showcase-test
+      - name: Test the Windows showcase launcher opens the GUI
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: tools/test_preview_windows_gui.ps1 -PackageRoot "preview-test/extracted preview with spaces/Mineways-preview-windows-x64" -Screenshot "preview-test/showcase-gui.png" -Atm10Showcase
       - name: Test exact package with full ATM10 catalog
         if: inputs.full_atm
         shell: bash
@@ -108,4 +141,6 @@ jobs:
           path: |
             preview-test/**/smoke output/**
             preview-test/windows-gui.png
+            preview-test/showcase-gui.png
+            showcase-test/validation.json
           if-no-files-found: warn

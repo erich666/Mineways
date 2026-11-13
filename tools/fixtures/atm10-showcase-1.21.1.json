@@ -1,0 +1,100 @@
+{
+  "format": 1,
+  "name": "ATM10 showcase asset subset",
+  "minecraft": "1.21.1",
+  "snapshot_date": "2026-11-12",
+  "files": [
+    {
+      "path": "client/minecraft-1.21.1-client.jar",
+      "url": "https://piston-data.mojang.com/v1/objects/30c73b1c5da787909b2f73340419fdf13b9def88/client.jar",
+      "sha1": "30c73b1c5da787909b2f73340419fdf13b9def88",
+      "size": 26836906
+    },
+    {
+      "path": "runtime/neoforge-21.1.259-universal.jar",
+      "url": "https://maven.neoforged.net/releases/net/neoforged/neoforge/21.1.259/neoforge-21.1.259-universal.jar",
+      "sha1": "134fd9049bb11dbff14712ea055fc44affa32efc",
+      "size": 3552792
+    },
+    {
+      "path": "mods/FarmersDelight-1.21.1-1.3.4.jar",
+      "url": "https://mediafilez.forgecdn.net/files/8765/184/FarmersDelight-1.21.1-1.3.4.jar",
+      "sha1": "27675ddfcb8cc37e6ea1ab6c15051c7949d94657",
+      "size": 3160490,
+      "curseforge_project_id": 398521,
+      "curseforge_file_id": 8765184
+    },
+    {
+      "path": "mods/ImmersiveEngineering-1.21.1-12.4.2-194.jar",
+      "url": "https://mediafilez.forgecdn.net/files/6733/669/ImmersiveEngineering-1.21.1-12.4.2-194.jar",
+      "sha1": "a4e90c2df8009040f6d022433c5d76635944dd59",
+      "size": 14232121,
+      "curseforge_project_id": 231951,
+      "curseforge_file_id": 6733669
+    },
+    {
+      "path": "mods/Mekanism-1.21.1-10.7.19.85.jar",
+      "url": "https://mediafilez.forgecdn.net/files/7904/58/Mekanism-1.21.1-10.7.19.85.jar",
+      "sha1": "b78945c40cfe7640408f3fd1e44da385a8c8b805",
+      "size": 11976009,
+      "curseforge_project_id": 268560,
+      "curseforge_file_id": 7904058
+    },
+    {
+      "path": "mods/appliedenergistics2-19.2.18.jar",
+      "url": "https://mediafilez.forgecdn.net/files/8992/605/appliedenergistics2-19.2.18.jar",
+      "sha1": "bcd04bc7f181b2ffa314625f284c8eca6fee7fe4",
+      "size": 8236552,
+      "curseforge_project_id": 223794,
+      "curseforge_file_id": 8992605
+    },
+    {
+      "path": "mods/sophisticatedcore-1.21.1-1.5.12.2400.jar",
+      "url": "https://mediafilez.forgecdn.net/files/9166/63/sophisticatedcore-1.21.1-1.5.12.2400.jar",
+      "sha1": "49bd3e09b3407155d91c079f3b35479cef6a9a0f",
+      "size": 1818115,
+      "curseforge_project_id": 618298,
+      "curseforge_file_id": 9166063
+    },
+    {
+      "path": "mods/sophisticatedstorage-1.21.1-1.6.6.2181.jar",
+      "url": "https://mediafilez.forgecdn.net/files/9166/168/sophisticatedstorage-1.21.1-1.6.6.2181.jar",
+      "sha1": "927b8cf24b48fe9012748cc60eb560282152f13b",
+      "size": 1929979,
+      "curseforge_project_id": 619320,
+      "curseforge_file_id": 9166168
+    },
+    {
+      "path": "mods/twilightforest-1.21.1-4.8.3345-universal.jar",
+      "url": "https://mediafilez.forgecdn.net/files/7797/302/twilightforest-1.21.1-4.8.3345-universal.jar",
+      "sha1": "9cfd4154928433e2f1f6cfc3deb48c284debb580",
+      "size": 27154121,
+      "curseforge_project_id": 227639,
+      "curseforge_file_id": 7797302
+    },
+    {
+      "path": "mods/xycraft_core-0.7.53-all.jar",
+      "url": "https://mediafilez.forgecdn.net/files/6872/525/xycraft_core-0.7.53-all.jar",
+      "sha1": "c734345c9c5eff8f50551a344fff6b5f1c14c6e7",
+      "size": 2327963,
+      "curseforge_project_id": 653786,
+      "curseforge_file_id": 6872525
+    },
+    {
+      "path": "mods/xycraft_machines-0.7.53.jar",
+      "url": "https://mediafilez.forgecdn.net/files/6872/530/xycraft_machines-0.7.53.jar",
+      "sha1": "db40db00830c67a33ac48c1dd9617f67069b22b4",
+      "size": 3056398,
+      "curseforge_project_id": 653791,
+      "curseforge_file_id": 6872530
+    },
+    {
+      "path": "mods/xycraft_world-0.7.53.jar",
+      "url": "https://mediafilez.forgecdn.net/files/6872/532/xycraft_world-0.7.53.jar",
+      "sha1": "100aed4d7cc9f10aa21f3571d9c367a4bd44cf6f",
+      "size": 1224337,
+      "curseforge_project_id": 653789,
+      "curseforge_file_id": 6872532
+    }
+  ]
+}
