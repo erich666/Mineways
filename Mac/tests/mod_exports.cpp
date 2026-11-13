@@ -237,6 +237,7 @@ static std::vector<std::string> stateNames(const WorldGuide& world)
 #include "mod_geometry.h"
 #include "mod_polygons.h"
 #include "mod_rotations.h"
+#include "mod_repeated_uv.h"
 #include "mod_normals.h"
 
 int main(int argc, char** argv)
@@ -435,6 +436,7 @@ int main(int argc, char** argv)
     free(mixedRead.sch.blocks); free(mixedRead.sch.data);
     checkModPolygons(root);
     checkModRotations(root);
+    checkRepeatedModUV(root);
     checkModNormalCapacity(root);
     ClearModPack();
     checkExtendedModGeometry(root);

@@ -46,6 +46,12 @@ MIN_MODEL_COORDINATE = -256
 MAX_MODEL_COORDINATE = 256
 MAX_PIXELS = 4 * 1024 * 1024
 MAX_COMPILED_ELEMENTS = 4000000
+MIN_MODEL_UV = -256
+MAX_MODEL_UV = 256
+MAX_UV_CELLS = 256
+REPEATED_UV_WARNING = (
+    "out-of-range UVs repeat the source texture; this approximates Minecraft atlas "
+    "extrapolation because neighboring atlas sprites are unavailable")
 MAX_TEXTURES = 131072
 MAX_CATALOG_BLOCKS = 100000
 MAX_CATALOG_SELECTORS = 1000000
@@ -346,7 +352,7 @@ def decode_png(data, on_trailing=None):
 
 
 def number(value, low, high):
-    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not low <= value <= high:
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not low <= value <= high or not math.isfinite(value):
         raise ImportError(f'number outside {low}..{high}: {value!r}')
     return value
 
@@ -355,6 +361,20 @@ def vector(value, length, low, high):
     if not isinstance(value, list) or len(value) != length:
         raise ImportError(f'expected {length} coordinates')
     return [number(v, low, high) for v in value]
+
+
+
+def expanded_uv(points):
+    """Validate source UVs and bound the native repeated-texture subdivision work."""
+    us = [number(point[0], MIN_MODEL_UV, MAX_MODEL_UV) for point in points]
+    vs = [number(point[1], MIN_MODEL_UV, MAX_MODEL_UV) for point in points]
+    expanded = any(value < 0 or value > 16 for value in (*us, *vs))
+    if expanded:
+        cells = math.prod(max(1, math.ceil(max(axis) / 16) - math.floor(min(axis) / 16))
+                          if min(axis) != max(axis) else 1 for axis in (us, vs))
+        if cells > MAX_UV_CELLS:
+            raise ImportError('UV subdivision exceeds 256 texture cells per face')
+    return expanded
 
 
 def properties(selector):
@@ -771,7 +791,8 @@ class Compiler:
         if model.get('loader') == 'neoforge:obj':
             return _obj_module.compile_obj(self, model, rotation,
                 SimpleNamespace(ImportError=ImportError, resource=resource, decode_png=decode_png,
-                                encode_png=encode_png, MAX_COMPILED_ELEMENTS=MAX_COMPILED_ELEMENTS))
+                                encode_png=encode_png, MAX_COMPILED_ELEMENTS=MAX_COMPILED_ELEMENTS,
+                                number=number, expanded_uv=expanded_uv, REPEATED_UV_WARNING=REPEATED_UV_WARNING))
         if model.get('loader') == 'fusion:model':
             label = name if isinstance(name, str) else '<inline>'
             self.warnings.add(f'{label}: connected-texture neighbors are not evaluated')
@@ -820,9 +841,6 @@ class Compiler:
         elements = model.get('elements')
         if not isinstance(elements, list) or not elements or len(elements) > MAX_ELEMENTS:
             raise ImportError('model needs 1..2048 standard elements: ' + str(application['model']))
-        self.element_count += len(elements)
-        if self.element_count > MAX_COMPILED_ELEMENTS:
-            raise ImportError('compiled element budget exceeded')
         result = {'rotation': rotation, 'elements': []}
         for element in elements:
             if not isinstance(element, dict):
@@ -849,6 +867,11 @@ class Compiler:
             for side, face in sorted(faces.items()):
                 if side not in DIRECTIONS or not isinstance(face, dict):
                     raise ImportError('invalid element face')
+                normal_axis = {'down': 1, 'up': 1, 'north': 2, 'south': 2, 'west': 0, 'east': 0}[side]
+                # Match saveModGeometry: these faces have no geometric area even
+                # after element rotations. Their textures and UVs are never used.
+                if any(start[i] == end[i] for i in range(3) if i != normal_axis):
+                    continue
                 texture = face.get('texture', '')
                 seen = set()
                 while isinstance(texture, str) and texture.startswith('#'):
@@ -860,7 +883,10 @@ class Compiler:
                         break
                     texture = model['textures'][texture[1:]]
                 texture = self.texture(texture)
-                uv = vector(face.get('uv', default_uv(side, start, end)), 4, 0, 16)
+                uv = vector(face.get('uv', default_uv(side, start, end)), 4, MIN_MODEL_UV, MAX_MODEL_UV)
+                if expanded_uv(((uv[0], uv[1]), (uv[2], uv[3]))):
+                    label = '<inline model>' if isinstance(application['model'], dict) else application['model']
+                    self.warnings.add(f'{label}: {REPEATED_UV_WARNING}')
                 turn = face.get('rotation', 0)
                 if type(turn) is not int or turn not in (0, 90, 180, 270):
                     raise ImportError('invalid face rotation')
@@ -870,7 +896,13 @@ class Compiler:
                 if face.get('tintindex', -1) != -1:
                     self.warnings.add(f'{application["model"]}: biome/custom tint is not applied')
                 compiled['faces'].append((side, *uv, turn, texture, cull))
-            result['elements'].append(compiled)
+            if compiled['faces']:
+                self.element_count += 1
+                if self.element_count > MAX_COMPILED_ELEMENTS:
+                    raise ImportError('compiled element budget exceeded')
+                result['elements'].append(compiled)
+        if not result['elements']:
+            raise ImportError('model has no nonzero-area faces: ' + str(application['model']))
         return result
 
     def block(self, name, definition):
@@ -1013,6 +1045,7 @@ def compile_pack(sources, destination, namespaces=None):
     rejected, texture_ids, geometry_ids = [], {}, {}
     polygon_count = 0
     has_z_rotation = False
+    has_expanded_uv = False
     block_count = selector_count = element_count = 0
     temporary = Path(tempfile.mkdtemp(prefix='.mineways-pack-', dir=destination.parent))
     try:
@@ -1061,6 +1094,7 @@ def compile_pack(sources, destination, namespaces=None):
                             for element in model['elements']:
                                 geometry_stream.write('element\t' + '\t'.join(map(str, element['coordinates'])) + '\n')
                                 for face in element['faces']:
+                                    has_expanded_uv = has_expanded_uv or any(v < 0 or v > 16 for v in face[1:5])
                                     texture = face[-2]
                                     if texture not in texture_ids:
                                         if len(texture_ids) >= MAX_TEXTURES:
@@ -1069,6 +1103,7 @@ def compile_pack(sources, destination, namespaces=None):
                                     fields = (*face[:-2], texture_ids[texture], face[-1])
                                     geometry_stream.write('face\t' + '\t'.join(map(str, fields)) + '\n')
                             for polygon in model.get('polygons', []):
+                                has_expanded_uv = has_expanded_uv or any(v < 0 or v > 16 for vertex in polygon['vertices'] for v in vertex[3:])
                                 texture = polygon['texture']
                                 if texture not in texture_ids:
                                     if len(texture_ids) >= MAX_TEXTURES:
@@ -1084,7 +1119,7 @@ def compile_pack(sources, destination, namespaces=None):
                     raise ImportError('compiled manifest exceeds runtime size limit')
         if not block_count and not dimensions:
             raise ImportError('no supported mod blocks or dimensions found' + (': ' + rejected[0]['reason'] if rejected else ''))
-        version = 4 if has_z_rotation else 3 if polygon_count else 2
+        version = 5 if has_expanded_uv else 4 if has_z_rotation else 3 if polygon_count else 2
         report = {'format': version, 'polygons': polygon_count, 'blocks': block_count, 'selectors': selector_count,
                   'textures': len(texture_ids), 'geometries': len(geometry_ids), 'elements': element_count,
                   'dimensions': len(dimensions), 'unsupported_dimensions': unsupported_dimensions,

@@ -103,6 +103,14 @@ bool contained(const std::filesystem::path& root, const std::filesystem::path& f
     for (; a != root.end(); ++a, ++b) if (b == file.end() || *a != *b) return false;
     return b != file.end();
 }
+bool boundedUVCells(double u0, double v0, double u1, double v1) {
+    if (u0 >= 0 && u0 <= 16 && u1 >= 0 && u1 <= 16 && v0 >= 0 && v0 <= 16 && v1 >= 0 && v1 <= 16) return true;
+    const double lowU = (std::min)(u0,u1)/16, highU = (std::max)(u0,u1)/16;
+    const double lowV = (std::min)(v0,v1)/16, highV = (std::max)(v0,v1)/16;
+    const int columns = lowU == highU ? 1 : (std::max)(1, (int)ceil(highU)-(int)floor(lowU));
+    const int rows = lowV == highV ? 1 : (std::max)(1, (int)ceil(highV)-(int)floor(lowV));
+    return columns*rows <= MAX_MOD_UV_CELLS;
+}
 bool readPack(const std::string& path, Pack& next, std::string& error) {
     next.byType.resize(MAX_BLOCK_TYPES, nullptr);
     const auto source = std::filesystem::canonical(std::filesystem::u8path(path));
@@ -112,7 +120,8 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
     std::string line;
     if (!std::getline(stream, line)) { error = "Cannot read manifest."; return false; }
     if (!line.empty() && line.back() == '\r') line.pop_back();
-    const bool zRotation = line == "MINEWAYS_MOD_PACK\t4";
+    const bool repeatedUV = line == "MINEWAYS_MOD_PACK\t5";
+    const bool zRotation = repeatedUV || line == "MINEWAYS_MOD_PACK\t4";
     const bool polygonGeometry = zRotation || line == "MINEWAYS_MOD_PACK\t3";
     const bool sharedGeometry = polygonGeometry || line == "MINEWAYS_MOD_PACK\t2";
     if (!sharedGeometry && line != "MINEWAYS_MOD_PACK\t1") { error = "Unsupported mod pack format."; return false; }
@@ -261,9 +270,15 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
                 ++polygonCount > 1000000) return fail();
             for (int vertex = 0; vertex < polygon.count; ++vertex) for (int component = 0; component < 5; ++component) {
                 double value;
-                if (!number(f[3 + vertex * 5 + component], value, component < 3 ? -256 : 0, component < 3 ? 256 : 16)) return fail();
+                if (!number(f[3 + vertex * 5 + component], value, component < 3 || repeatedUV ? -256 : 0, component < 3 || repeatedUV ? 256 : 16)) return fail();
                 polygon.vertices[vertex][component] = (float)value;
             }
+            double lowU = polygon.vertices[0][3], highU = lowU, lowV = polygon.vertices[0][4], highV = lowV;
+            for (int vertex = 1; vertex < polygon.count; ++vertex) {
+                lowU = (std::min)(lowU,(double)polygon.vertices[vertex][3]); highU = (std::max)(highU,(double)polygon.vertices[vertex][3]);
+                lowV = (std::min)(lowV,(double)polygon.vertices[vertex][4]); highV = (std::max)(highV,(double)polygon.vertices[vertex][4]);
+            }
+            if (repeatedUV && !boundedUVCells(lowU,lowV,highU,highV)) return fail();
             // A degenerate leading triangle cannot produce a finite face normal.
             double a[3], b[3], cross[3];
             for (int i = 0; i < 3; ++i) { a[i] = (double)polygon.vertices[1][i] - polygon.vertices[0][i]; b[i] = (double)polygon.vertices[2][i] - polygon.vertices[0][i]; }
@@ -281,7 +296,8 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
             face.cullface = f[8] == "-" ? -1 : direction(f[8]);
             if (face.direction < 0 || (face.cullface < 0 && f[8] != "-")) return fail();
             for (const auto& old : element->faces) if (old.direction == face.direction) return fail();
-            for (int i = 0; i < 4; ++i) { double value; if (!number(f[i + 2], value, 0, 16)) return fail(); face.uv[i] = (float)value; }
+            for (int i = 0; i < 4; ++i) { double value; if (!number(f[i + 2], value, repeatedUV ? -256 : 0, repeatedUV ? 256 : 16)) return fail(); face.uv[i] = (float)value; }
+            if (repeatedUV && !boundedUVCells(face.uv[0],face.uv[1],face.uv[2],face.uv[3])) return fail();
             if (!integer(f[6], face.rotation, 0, 270) || face.rotation % 90 || !integer(f[7], face.texture, 0, (int)next.textures.size() - 1)) return fail();
             element->faces.push_back(face);
         }

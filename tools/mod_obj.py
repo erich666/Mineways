@@ -193,10 +193,12 @@ def compile_obj(compiler, model, rotation, api):
             elif kind == 'vt':
                 if len(args) not in (2, 3):
                     raise error('OBJ UVs require two components')
-                values = numbers(args, -0.000001, 1.000001)
+                values = numbers(args, -17, 17)
+                api.number(values[0], -16, 16)
+                api.number(values[1], -15 if flip else -16, 17 if flip else 16)
                 if len(values) == 3 and values[2] != 0:
                     raise error('OBJ 3D texture coordinates are unsupported')
-                target.append(tuple(max(0., min(1., v)) for v in values[:2]))
+                target.append(values[:2])
             else:
                 if len(args) != 3:
                     raise error('invalid OBJ normal')
@@ -242,6 +244,8 @@ def compile_obj(compiler, model, rotation, api):
             if sum(v*v for v in cross) < 1e-16:
                 compiler.warnings.add(name + ': degenerate OBJ faces are omitted')
                 continue
+            if api.expanded_uv([corner[3:] for corner in corners]):
+                compiler.warnings.add(name + ': ' + api.REPEATED_UV_WARNING)
             polygons.append({'texture': texture(material), 'vertices': corners})
         elif kind == 'vc':
             raise error('OBJ vertex colors are unsupported')

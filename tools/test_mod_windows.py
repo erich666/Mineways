@@ -240,6 +240,43 @@ def check_signed_geometry(path, lower, upper, inward):
         assert dot < 0 if inward else dot > 0, 'Signed model face winding changed'
 
 
+
+def check_repeated_uv_geometry(path, individual):
+    vertices, uv, faces = [], [], []
+    for line in path.read_text().splitlines():
+        fields = line.split()
+        if not fields:
+            continue
+        if fields[0] == 'v':
+            vertices.append(tuple(map(float, fields[1:4])))
+        elif fields[0] == 'vt':
+            uv.append(tuple(map(float, fields[1:3])))
+        elif fields[0] == 'f':
+            faces.append([tuple(int(x) - 1 for x in corner.split('/')[:2]) for corner in fields[1:]])
+    for axis, (low, high) in enumerate(zip((.125, .1875, .25), (.875, .8125, .75))):
+        assert math.isclose(min(v[axis] for v in vertices), low, abs_tol=1e-6)
+        assert math.isclose(max(v[axis] for v in vertices), high, abs_tol=1e-6)
+    area, count = 0., 0
+    for face in faces:
+        points = [vertices[v] for v, t in face]
+        if not all(math.isclose(p[1], .8125, abs_tol=1e-6) for p in points):
+            continue
+        count += 1
+        for i in range(1, len(points) - 1):
+            a = [points[i][j] - points[0][j] for j in range(3)]
+            b = [points[i+1][j] - points[0][j] for j in range(3)]
+            cross_y = a[2]*b[0] - a[0]*b[2]
+            assert cross_y > 0, 'Repeated UV face winding reversed or collapsed'
+            area += cross_y / 2
+        if individual:
+            for vertex, texture in face:
+                x, _, z = vertices[vertex]
+                expected = (2 * (x - .125) / .75 - .5, 1 - (2 * (z - .25) / .5 - .5))
+                for actual, wanted in zip(uv[texture], expected):
+                    assert abs((actual - wanted + .5) % 1 - .5) < 1e-5, 'Repeated UV mapping changed'
+    assert count > 1 and math.isclose(area, .375, abs_tol=1e-6), 'Repeated UV patches lost or duplicated surface area'
+
+
 def exercise(executable, root):
     pack = FIXTURE.build_fixture(root)
     input_path = root / 'input.schem'
@@ -249,7 +286,7 @@ def exercise(executable, root):
     catalog_manifest, catalog_input, catalog_names = large_catalog(root)
     assert gzip.decompress(input_path.read_bytes()).startswith(b'\x0a')
     manifest_text = (pack / 'manifest.mwpack').read_text(encoding='utf-8')
-    assert manifest_text.splitlines()[0] in ('MINEWAYS_MOD_PACK\t1', 'MINEWAYS_MOD_PACK\t2', 'MINEWAYS_MOD_PACK\t3', 'MINEWAYS_MOD_PACK\t4')
+    assert manifest_text.splitlines()[0] in ('MINEWAYS_MOD_PACK\t1', 'MINEWAYS_MOD_PACK\t2', 'MINEWAYS_MOD_PACK\t3', 'MINEWAYS_MOD_PACK\t4', 'MINEWAYS_MOD_PACK\t5')
     selectors = {line.split('\t')[1] for line in manifest_text.splitlines() if line.startswith('state\t')}
     assert {'ae2:matrix_frame', 'ae2:drive[facing=north,spin=0]', 'ae2:quartz_glass',
             'ae2:spatial_pylon', 'allthemodium:molten_allthemodium_block[level=0]',
@@ -355,6 +392,24 @@ def exercise(executable, root):
                       'Selection location min to max: 0, 0, 0 to 0, 0, 0',
                       'Export for Rendering: ' + str(usd)])
         assert usd.exists() and usd.stat().st_size > 100, details
+    uv_source = root / 'uv-repeat.schem'
+    uv_state = 'fixture:uv_repeat[orientation=plain,retained=true]'
+    schematic(uv_source, [uv_state])
+    for individual in (True, False):
+        label = 'uv-repeat-' + ('individual' if individual else 'mosaic')
+        output = root / (label + '.obj')
+        restored = root / (label + '.schem')
+        texture_mode = ('Export individual textures to directory uvrepeattex' if individual
+                        else 'Export full color texture patterns')
+        details = run(executable, root, label, [*common, 'Minecraft world: ' + str(uv_source),
+                      'File type: ' + texture_mode,
+                      'Selection location min to max: 0, 0, 0 to 0, 0, 0',
+                      'Export for Rendering: ' + str(output), 'Export Schematic: ' + str(restored)])
+        check_obj(output, details)
+        check_repeated_uv_geometry(output, individual)
+        verify_schematic(restored, [uv_state], details)
+        if individual:
+            check_export_pixels(output, texture_sources)
     # Invisible models keep their state identity and leave neighboring cube faces intact.
     invisible_names = ['fixture:cube[custom=left]', 'ae2:matrix_frame[custom=retained]',
                        'fixture:cube[custom=right]']
@@ -516,7 +571,20 @@ def exercise_pack(executable, root, manifest):
                'neovitae:raw_spiritus_crystal',
                'xycraft_machines:collector',
                'xycraft_machines:energy_selector',
-               'xycraft_machines:stake']
+               'xycraft_machines:stake',
+               'create:creative_motor',
+               'handcrafted:pillager_trophy',
+               'handcrafted:stackable_book',
+               'immersiveengineering:wall_clinker_brick',
+               'mcwfurnitures:acacia_glass_table',
+               'mcwroofs:grass_steep_roof',
+               'mcwroofs:black_striped_awning',
+               'mekanism:chemical_oxidizer',
+               'neovitae:rune_acceleration',
+               'oritech:black_hole_block',
+               'pneumaticcraft:programmer',
+               'refurbished_furniture:black_trampoline',
+               'silentgear:material_grader']
     targets += [name for name in blocks if name.startswith('allthemodium:molten_')]
     for block in targets:
         if block in by_block:

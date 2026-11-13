@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <fstream>
 #include <thread>
+#include <sstream>
 
 using Bytes = std::vector<unsigned char>;
 static void word(Bytes& b, int n) { b.push_back((unsigned char)(n >> 8)); b.push_back((unsigned char)n); }
@@ -339,6 +340,21 @@ int main(int argc, char** argv) {
             sharedPrefix + "geometry\t0\n" + geometry + "endgeometry\nstate\tlab:bad\t000000\t0\nusemodel\t0\t0\t0\t0\ninvisible\nendstate\n"}) {
         writeFile(path, invalid);
         assert(!LoadModPack(path.u8string(), error) && GetModBlock(type2, state2)->definition->invisible);
+    }
+    for (int version : {1,2,3,4,5}) for (bool polygon : {false,true}) {
+        for (const auto& example : std::vector<std::pair<std::string,bool>>{
+                {"-8\t-8\t24\t24",true},{"24\t-8\t24\t24",true},
+                {"-256\t0\t0\t256",true},{"-256\t-256\t256\t256",false},{"0\t0\t257\t16",false}}) {
+            std::istringstream values(example.first); double u0,v0,u1,v1; values>>u0>>v0>>u1>>v1;
+            std::ostringstream content;
+            content << "MINEWAYS_MOD_PACK\t" << version << "\ntexture\t0\tlab:block/stone\ttextures/0.png\nstate\tlab:repeat\tabcdef\t255\nmodel\t0\t0\t0\n";
+            if (polygon) content << "polygon\t0\t3\t0\t0\t0\t" << u0 << '\t' << v0 << "\t16\t0\t0\t" << u1 << '\t' << v0 << "\t0\t16\t0\t" << u0 << '\t' << v1 << '\n';
+            else content << "element\t0\t0\t0\t16\t16\t16\tnone\t0\t8\t8\t8\t0\nface\tup\t" << example.first << "\t0\t0\t-\n";
+            content << "endstate\n"; writeFile(path,content.str());
+            const std::string prior=ModPackPath();
+            assert(LoadModPack(path.u8string(),error) == (version==5 && example.second));
+            if (version!=5 || !example.second) assert(ModPackPath()==prior);
+        }
     }
     ClearModPack();
     puts("PASS: mod pack validation, namespace isolation, chunk palettes, state round trips, concurrency and capacity");

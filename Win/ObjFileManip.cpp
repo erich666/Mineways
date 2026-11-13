@@ -17937,6 +17937,95 @@ static int saveBoxCustomUVVertices(int boxIndex, float minPixX, float maxPixX, f
     return startVertexIndex;
 }
 
+// Tile an imported face without stretching or enlarging its source texture. The
+// clipping attributes include positions, so even constant/collinear UVs retain area.
+struct RepeatedModVertex { double position[3]; double uv[2]; };
+static int saveRepeatedModFace(int type, int dataVal, int direction, int markFirstFace,
+    int swatch, int start, const int indices[4], const float uv[4][2], int count)
+{
+    RepeatedModVertex source[4];
+    double low[2] = { uv[0][0], uv[0][1] }, high[2] = { uv[0][0], uv[0][1] };
+    for (int i = 0; i < count; ++i) {
+        // Copy before checkVertexListSize can move the vertex array.
+        for (int axis = 0; axis < 3; ++axis) source[i].position[axis] = gModel.vertices[start + indices[i]][axis];
+        for (int axis = 0; axis < 2; ++axis) {
+            source[i].uv[axis] = uv[i][axis];
+            low[axis] = min(low[axis], source[i].uv[axis]); high[axis] = max(high[axis], source[i].uv[axis]);
+        }
+    }
+    int first[2], last[2];
+    for (int axis = 0; axis < 2; ++axis) {
+        if (!std::isfinite(low[axis]) || !std::isfinite(high[axis]) || low[axis] < -17 || high[axis] > 17) return MW_CANNOT_PARSE_IMPORT_FILE;
+        first[axis] = (int)floor(low[axis]);
+        if (low[axis] == high[axis]) {
+            // Keep an unchanged axis at its original image edge. Repeating an
+            // exact V seam selects the top edge because exported V is inverted.
+            if (low[axis] >= 0 && low[axis] <= 1) first[axis] = 0;
+            else if (axis == 1 && low[axis] == floor(low[axis])) --first[axis];
+            last[axis] = first[axis];
+        } else last[axis] = max(first[axis], (int)ceil(high[axis]) - 1);
+    }
+    if ((last[0]-first[0]+1) * (last[1]-first[1]+1) > MAX_MOD_UV_CELLS) return MW_WORLD_EXPORT_TOO_LARGE;
+    int emitted = 0;
+    for (int row = first[1]; row <= last[1]; ++row) for (int col = first[0]; col <= last[0]; ++col) {
+        for (int triangle = 0; triangle < count - 2; ++triangle) {
+            RepeatedModVertex clipped[8] = {source[0], source[triangle+1], source[triangle+2]};
+            int size = 3;
+            for (int plane = 0; plane < 4 && size; ++plane) {
+                RepeatedModVertex next[8]; int nextSize = 0;
+                const int axis = plane / 2;
+                const double boundary = (axis ? row : col) + (plane & 1);
+                auto inside = [&](const RepeatedModVertex& vertex) { return (plane & 1) ? vertex.uv[axis] <= boundary : vertex.uv[axis] >= boundary; };
+                auto append = [&](const RepeatedModVertex& vertex) {
+                    if (nextSize >= 8) return false;
+                    next[nextSize++] = vertex; return true;
+                };
+                for (int i = 0; i < size; ++i) {
+                    const auto& a = clipped[(i+size-1)%size]; const auto& b = clipped[i];
+                    const bool aInside = inside(a), bInside = inside(b);
+                    if (aInside != bInside) {
+                        const double fraction = (boundary-a.uv[axis])/(b.uv[axis]-a.uv[axis]);
+                        RepeatedModVertex intersection;
+                        for (int c = 0; c < 3; ++c) intersection.position[c] = a.position[c] + fraction*(b.position[c]-a.position[c]);
+                        for (int c = 0; c < 2; ++c) intersection.uv[c] = a.uv[c] + fraction*(b.uv[c]-a.uv[c]);
+                        intersection.uv[axis] = boundary;
+                        if (!append(intersection)) return MW_WORLD_EXPORT_TOO_LARGE;
+                    }
+                    if (bInside && !append(b)) return MW_WORLD_EXPORT_TOO_LARGE;
+                }
+                size = nextSize;
+                for (int i = 0; i < size; ++i) clipped[i] = next[i];
+            }
+            for (int fan = 1; fan + 1 < size; ++fan) {
+                const RepeatedModVertex corners[3] = {clipped[0],clipped[fan],clipped[fan+1]};
+                float positions[3][3], a[3], b[3], cross[3];
+                for (int i = 0; i < 3; ++i) for (int c = 0; c < 3; ++c) positions[i][c] = (float)corners[i].position[c];
+                for (int c = 0; c < 3; ++c) { a[c] = positions[1][c]-positions[0][c]; b[c] = positions[2][c]-positions[0][c]; }
+                VecCross(cross, =, a, X, b);
+                const float area = VecDot(cross, cross);
+                if (!std::isfinite(area)) return MW_WORLD_EXPORT_TOO_LARGE;
+                if (area == 0) continue; // Shared clip boundaries and float-collapsed slivers have no surface.
+                if (++emitted > MAX_MOD_UV_CELLS * 10) return MW_WORLD_EXPORT_TOO_LARGE;
+                const int base = gModel.vertexCount;
+                int vertexIndices[4] = {0,1,2,2}, textureIndices[4] = {};
+                for (int i = 0; i < 3; ++i) {
+                    if (checkVertexListSize() >= MW_BEGIN_ERRORS) return MW_WORLD_EXPORT_TOO_LARGE;
+                    for (int c = 0; c < 3; ++c) gModel.vertices[gModel.vertexCount][c] = positions[i][c];
+                    ++gModel.vertexCount;
+                    const float u = (float)max(0.0, min(1.0, corners[i].uv[0]-col));
+                    const float v = (float)max(0.0, min(1.0, corners[i].uv[1]-row));
+                    textureIndices[i] = saveTextureUV(swatch,type,u,v);
+                    if (textureIndices[i] < 0) return MW_WORLD_EXPORT_TOO_LARGE;
+                }
+                textureIndices[3] = textureIndices[2];
+                const int result = saveBoxFaceUVs(type,dataVal,direction,emitted == 1 ? markFirstFace : 0,base,vertexIndices,textureIndices);
+                if (result >= MW_BEGIN_ERRORS) return result;
+            }
+        }
+    }
+    return emitted ? MW_NO_ERROR : MW_WORLD_EXPORT_TOO_LARGE;
+}
+
 // Save one face of a box created by saveBoxCustomUVVertices(), textured exactly as Minecraft does for a block model JSON element's face:
 // uv is the face's "uv" [u1,v1,u2,v2] (0-16 units over the whole texture, v going down, and u1 > u2 or v1 > v2 to mirror), rotation is
 // the face's "rotation" (0, 90, 180, 270). The texture is the whole image anchored at anchorLoc, which may span multiple tiles (e.g.
@@ -17966,6 +18055,8 @@ static int saveBoxModelFaceUVLock(int startVertexIndex, int type, int dataVal, i
     assert(faceDirection >= 0 && faceDirection < 6);
     int vindex[4];
     int uvIndices[4] = { 0, 0, 0, 0 };
+    float finalUV[4][2] = {};
+    bool repeated = false;
     bool span = (findSpanImage(anchorLoc) != NULL);
     for (int i = 0; i < 4; i++) {
         vindex[i] = faceVindex[faceDirection][i];
@@ -18022,13 +18113,19 @@ static int saveBoxModelFaceUVLock(int startVertexIndex, int type, int dataVal, i
                 else if (nrm[Z] < -0.5f) { u = 16.0f - pt[X]; v = 16.0f - pt[Y]; }
                 else { u = pt[X]; v = 16.0f - pt[Y]; }
             }
-            if (span)
-                uvIndices[i] = saveSpanTextureUV(anchorLoc, type, u / 16.0f, 1.0f - v / 16.0f);
-            else
-                // a single tile; for solid colors, the swatch is the block type (see getSwatch)
-                uvIndices[i] = saveTextureUV((gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) ? anchorLoc : colorSwatch(type), type, u / 16.0f, 1.0f - v / 16.0f);
-            if (uvIndices[i] < 0)
-                return MW_WORLD_EXPORT_TOO_LARGE;
+            finalUV[i][0] = u / 16.0f; finalUV[i][1] = 1.0f - v / 16.0f;
+            repeated = repeated || u < 0 || u > 16 || v < 0 || v > 16;
+        }
+    }
+    if (gModel.exportTexture) {
+        const bool sourceTexture = (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) != 0;
+        if (repeated && IsModBlock(type) && sourceTexture)
+            return saveRepeatedModFace(type,dataVal,faceDirection,markFirstFace,anchorLoc,startVertexIndex,vindex,finalUV,4);
+        for (int i = 0; i < 4; ++i) {
+            const float u = repeated && !sourceTexture ? .5f : finalUV[i][0];
+            const float v = repeated && !sourceTexture ? .5f : finalUV[i][1];
+            uvIndices[i] = span ? saveSpanTextureUV(anchorLoc,type,u,v) : saveTextureUV(sourceTexture ? anchorLoc : colorSwatch(type),type,u,v);
+            if (uvIndices[i] < 0) return MW_WORLD_EXPORT_TOO_LARGE;
         }
     }
     return saveBoxFaceUVs(type, dataVal, faceDirection, markFirstFace, startVertexIndex, vindex, uvIndices);
@@ -18134,6 +18231,9 @@ static int saveModPolygons(int boxIndex, int type, int dataVal, const ModModel& 
         const int start = gModel.vertexCount;
         int indices[4] = {0, 1, 2, polygon.count == 3 ? 2 : 3};
         int uvs[4] = {};
+        float finalUV[4][2] = {}; bool repeated = false;
+        const bool sourceTexture = (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) != 0;
+        const int swatch = sourceTexture ? gModTextureSwatches[polygon.texture] : colorSwatch(type);
         for (int i = 0; i < polygon.count; ++i) {
             if (checkVertexListSize() >= MW_BEGIN_ERRORS) return MW_WORLD_EXPORT_TOO_LARGE;
             float position[3];
@@ -18143,15 +18243,19 @@ static int saveModPolygons(int boxIndex, int type, int dataVal, const ModModel& 
             for (int q = 0; q < model.y / 90; ++q) { const float x = position[0]; position[0] = -position[2]; position[2] = x; }
             for (int axis = 0; axis < 3; ++axis) gModel.vertices[gModel.vertexCount][axis] = (float)anchor[axis] + (position[axis] + 8.0f) / 16.0f;
             ++gModel.vertexCount;
-            if (gModel.exportTexture) {
-                const int swatch = (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) ? gModTextureSwatches[polygon.texture] : colorSwatch(type);
-                uvs[i] = saveTextureUV(swatch, type, polygon.vertices[i][3] / 16.0f, 1.0f - polygon.vertices[i][4] / 16.0f);
-                if (uvs[i] < 0) return MW_WORLD_EXPORT_TOO_LARGE;
-            }
+            finalUV[i][0] = polygon.vertices[i][3] / 16.0f;
+            finalUV[i][1] = 1.0f - polygon.vertices[i][4] / 16.0f;
+            repeated = repeated || finalUV[i][0] < 0 || finalUV[i][0] > 1 || finalUV[i][1] < 0 || finalUV[i][1] > 1;
+        }
+        if (gModel.exportTexture && !(repeated && sourceTexture)) for (int i = 0; i < polygon.count; ++i) {
+            uvs[i] = saveTextureUV(swatch,type,repeated ? .5f : finalUV[i][0],repeated ? .5f : finalUV[i][1]);
+            if (uvs[i] < 0) return MW_WORLD_EXPORT_TOO_LARGE;
         }
         if (polygon.count == 3) uvs[3] = uvs[2];
         gUsingTransform = 1; // Compute the normal from the actual polygon, including rotation.
-        const int result = saveBoxFaceUVs(type, dataVal, DIRECTION_BLOCK_TOP, first ? 1 : 0, start, indices, uvs);
+        const int result = repeated && sourceTexture && gModel.exportTexture ?
+            saveRepeatedModFace(type,dataVal,DIRECTION_BLOCK_TOP,first ? 1 : 0,swatch,start,indices,finalUV,polygon.count) :
+            saveBoxFaceUVs(type, dataVal, DIRECTION_BLOCK_TOP, first ? 1 : 0, start, indices, uvs);
         first = false;
         gUsingTransform = 0;
         if (result >= MW_BEGIN_ERRORS) return result;

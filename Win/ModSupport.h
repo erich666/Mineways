@@ -5,6 +5,9 @@
 #include <map>
 #include <memory>
 
+// Maximum texture cells covered by one repeated source face.
+constexpr int MAX_MOD_UV_CELLS = 256;
+
 struct ModDimension {
     std::string id;
     int minY = 0;

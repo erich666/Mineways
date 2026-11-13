@@ -47,7 +47,7 @@ class ObjTests(unittest.TestCase):
         bad = ['f 0/1 2/2 3/3', 'f 99/1 2/2 3/3', 'f -999/1 2/2 3/3',
                'f 1//1 2//1 3//1', 'f 1/1/99 2/2/1 3/3/1',
                'f 1/1 2/2 3/3 4/4 5/5', 'v nan 0 0', 'v 16.01 0 0',
-               'vt 1.1 0', 'vc 1 0 0', 'mtllib ../escape.mtl', 'mtllib /etc/passwd',
+               'vt 17.1 0', 'vc 1 0 0', 'mtllib ../escape.mtl', 'mtllib /etc/passwd',
                'mtllib file:///tmp/leak.mtl']
         for record in bad:
             with self.subTest(record=record):

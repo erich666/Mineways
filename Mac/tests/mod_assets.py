@@ -95,6 +95,38 @@ f -4/4/2 -3/5/2 -2/6/2 -1/7/2
 
 
 
+
+def uv_assets(source):
+    """Original patterned art and bounded expanded-UV geometry for native tests."""
+    texture = 'fixture:block/obj_pattern'
+    pixels = bytes(c for y in range(16) for x in range(16) for c in (x*16, y*16, 128, 255))
+    put(source, 'assets/fixture/textures/block/obj_pattern.png', mod.encode_png(16, 16, pixels))
+    for name, uv, local in [('uv_repeat', [-8, -8, 24, 24], False),
+                            ('uv_reversed', [24, 24, -8, -8], False),
+                            ('uv_constant', [24, -8, 24, 24], False),
+                            ('uv_integer', [-16, 0, 32, 16], False),
+                            ('uv_point', [-16, 32, -16, 32], False),
+                            ('uv_local', [-8, -8, 24, 24], True)]:
+        faces = {side: {'texture': texture, 'uv': uv if side == 'up' else [0, 0, 16, 16]}
+                 for side in mod.DIRECTIONS}
+        element = {'from': [2, 3, 4], 'to': [14, 13, 12], 'faces': faces}
+        if local:
+            element['rotation'] = {'axis': 'y', 'angle': 22.5, 'origin': [8, 8, 8]}
+        put(source, f'assets/fixture/models/block/{name}.json', {'elements': [element]})
+        put(source, f'assets/fixture/blockstates/{name}.json', {'variants': {
+            'orientation=plain': {'model': 'fixture:block/' + name},
+            'orientation=turned': {'model': 'fixture:block/' + name, 'x': 0, 'y': 0, 'ae2:z': 90, 'uvlock': True}}})
+    put(source, 'assets/fixture/blockstates/uv_polygon.json', {'variants': {
+        '': {'model': 'fixture:block/uv_polygon'}}})
+    put(source, 'assets/fixture/models/block/uv_polygon.json', {
+        'loader': 'neoforge:obj', 'model': 'fixture:models/block/uv_polygon.obj', 'flip_v': True})
+    put(source, 'assets/fixture/models/block/uv_polygon.mtl',
+        b'newmtl pattern\nmap_Kd fixture:block/obj_pattern\n')
+    put(source, 'assets/fixture/models/block/uv_polygon.obj',
+        b'mtllib uv_polygon.mtl\nv 0 0 0\nv 1 0 0\nv 0.5 1 0.5\n'
+        b'vt -0.5 -0.5\nvt 1.5 -0.5\nvt 0.5 1.5\nusemtl pattern\nf 1/1 2/2 3/3\n')
+
+
 def build_fixture(root):
     """Create original assets for geometry/UV, alpha, state and schematic tests."""
     root = Path(root)
@@ -133,6 +165,7 @@ def build_fixture(root):
     put(source, 'data/fixture/dimension/moon.json', {'type': {'min_y': -64, 'height': 384, 'coordinate_scale': 2}})
     adapter_assets(source)
     obj_assets(source)
+    uv_assets(source)
     geometry_faces = {direction: {'texture': 'fixture:block/' + direction,
                                  'uv': [1, 2, 14, 15], 'rotation': index % 4 * 90,
                                  'cullface': direction}

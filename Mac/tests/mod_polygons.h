@@ -81,6 +81,18 @@ static void checkModPolygons(const std::filesystem::path& root)
     WorldGuide world = {}; world.type = WORLD_SCHEMATIC_TYPE;
     world.sch = {blocks.data(), values.data(), 1025, 1, 1, 1025, false, true};
     exportWorld(world, root / "collapsed-polygon.obj", modes[0], true, false, false, true);
+    // Expanded UV clipping must also reject a wholly collapsed source face,
+    // rather than silently omit the block after skipping zero-area clip slivers.
+    {
+        std::ofstream out(path);
+        out << "MINEWAYS_MOD_PACK\t5\ntexture\t0\tfixture:validation\tpolygon-validation.png\ngeometry\t0\n"
+            << "polygon\t0\t3\t0\t0\t0\t-8\t-8\t0.0002\t0\t0\t24\t-8\t0\t0.0002\t0\t-8\t24\n"
+            << "endgeometry\nstate\tfixture:tiny\t808080\t255\nusemodel\t0\t0\t0\t0\nendstate\n";
+    }
+    assert(LoadModPack(path.u8string(),error));
+    assert(ResolveModState("fixture:tiny",&type,&state)==1);
+    blocks.front()=blocks.back()=(unsigned short)type; values.front()=values.back()=(unsigned short)state;
+    exportWorld(world,root/"collapsed-repeated-polygon.obj",modes[0],true,false,false,true);
     ClearCache();
     assert(LoadModPack(originalPack, error));
 
