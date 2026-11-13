@@ -2783,11 +2783,11 @@ static bool modNbtEntity(bfFile* pbf, int format, ModSavedEntity& entity, int li
             else {
                 // Unknown mods may use this name for another array shape. Skip their
                 // payload, but reject it if this voxel needs the supported IE context.
-                const int offset = bftell(pbf);
-                if (offset < 0) return false;
+                const int positionOffset = bftell(pbf);
+                if (positionOffset < 0) return false;
                 if (!modNbtPosition(pbf, entity.context.position)) {
                     entity.validContext = false;
-                    if (bfseek(pbf, offset, SEEK_SET) < 0 || skipType(pbf, type) < 0) return false;
+                    if (bfseek(pbf, positionOffset, SEEK_SET) < 0 || skipType(pbf, type) < 0) return false;
                 }
                 else entity.context.hasPosition = true;
             }
