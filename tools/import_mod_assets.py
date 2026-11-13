@@ -38,6 +38,9 @@ _mekanism_module = _load_helper('mod_mekanism_models')
 _enderio_module = _load_helper('mod_enderio_models')
 _wire_module = _load_helper('mod_wire_models')
 _framework_module = _load_helper('mod_framework_models')
+_custom_defaults = _load_helper('mod_custom_defaults')
+_lantern_module = _load_helper('mod_lantern_models')
+_ie_sides_module = _load_helper('mod_ie_sides')
 _cloudfx_module = _load_helper('mod_cloudfx')
 
 MAX_FILE = 16 * 1024 * 1024
@@ -493,6 +496,8 @@ class Compiler:
                                                         _storage_module.SIMPLE_MATERIAL_LOADER, _storage_module.LIMITED_BARREL_LOADER,
                                                         _material_module.DOMUM_LOADER, _mekanism_module.LOADER, _enderio_module.IO_OVERLAY_LOADER,
                                                         _framework_module.LOADER, *_wire_module.LOADERS,
+                                                        _custom_defaults.FRAMED_LOADER, _custom_defaults.MICROCHIP_LOADER,
+                                                        _lantern_module.LOADER, _ie_sides_module.LOADER,
                                                         *_machine_module.LOADERS):
             raise ImportError('custom model loader: ' + str(own['loader']))
         if own.get('loader') == 'fusion:model':
@@ -504,6 +509,29 @@ class Compiler:
             result['components'] = own.get('components', [])
         elif 'loader' not in own and parent.get('loader') == _framework_module.LOADER:
             result['components'] = parent.get('components', [])
+        if own.get('loader') == _custom_defaults.FRAMED_LOADER:
+            result['children'] = own.get('children', {})
+            result['parts'] = own.get('parts', {})
+            if 'item_render_order' not in own:
+                result.pop('item_render_order', None)
+        elif 'loader' not in own and parent.get('loader') == _custom_defaults.FRAMED_LOADER:
+            for field in ('children', 'parts', 'item_render_order'):
+                if field in parent:
+                    result[field] = parent[field]
+                else:
+                    result.pop(field, None)
+        if result.get('loader') == _lantern_module.LOADER:
+            source = own if 'loader' in own else parent
+            if 'support' in source:
+                result['support'] = source['support']
+            else:
+                result.pop('support', None)
+        if own.get('loader') == _ie_sides_module.LOADER:
+            for field in ('base_name', 'type'):
+                result[field] = own.get(field)
+        elif 'loader' not in own and parent.get('loader') == _ie_sides_module.LOADER:
+            for field in ('base_name', 'type'):
+                result[field] = parent.get(field)
         if not isinstance(own.get('textures', {}), dict):
             raise ImportError('model textures must be an object: ' + name)
         result['textures'] = {**parent.get('textures', {}), **own.get('textures', {})}
@@ -889,6 +917,14 @@ class Compiler:
         if name == 'ae2:block/matrix_frame' and model == {'textures': {}}:
             return {'rotation': rotation, 'elements': [], 'invisible': True}
         model = self.builtin_adapter(name, model)
+        if model.get('loader') == _custom_defaults.FRAMED_LOADER:
+            return _custom_defaults.compile_framed(self, name, model, rotation, selector, depth, ImportError, block_name)
+        if model.get('loader') == _custom_defaults.MICROCHIP_LOADER:
+            return _custom_defaults.compile_microchip(self, name, model, rotation, selector, depth, ImportError, block_name)
+        if model.get('loader') == _lantern_module.LOADER:
+            return _lantern_module.compile_wall_lantern(self, name, model, rotation, selector, depth, ImportError, block_name)
+        if model.get('loader') == _ie_sides_module.LOADER:
+            return _ie_sides_module.compile_conf_sides(self, name, model, rotation, selector, depth, ImportError, block_name)
         if _wire_module.is_empty_rack_model(name, model, selector, block_name):
             return {'rotation': rotation, 'elements': [], 'invisible': True}
         if model.get('loader') in _wire_module.LOADERS:
@@ -954,10 +990,16 @@ class Compiler:
             elements, polygons = [], []
             all_invisible = True
             requires_visible_companion = False
+            fixed_rotation = False
             for child_name, child in children.items():
                 if not visibility.get(child_name, True):
                     continue
                 compiled = self.compile_model({'model': child}, depth + 1, selector, block_name)
+                if 'split_models' in compiled or 'split_policy' in compiled:
+                    raise ImportError('nested split model geometry requires an explicit replacement model')
+                fixed_rotation = fixed_rotation or compiled.get('fixed_rotation', False)
+                if fixed_rotation and (rotation[0] or rotation[1] or (len(rotation) > 3 and rotation[3])):
+                    raise ImportError('rotated composite contains fixed-rotation geometry')
                 all_invisible = all_invisible and compiled.get('invisible', False)
                 requires_visible_companion = requires_visible_companion or compiled.get('requires_visible_companion', False)
                 elements.extend(compiled['elements'])
@@ -971,6 +1013,8 @@ class Compiler:
             if len(elements) > MAX_ELEMENTS:
                 raise ImportError('composite element count exceeds limit')
             result = {'rotation': rotation, 'elements': elements, 'polygons': polygons, 'invisible': all_invisible}
+            if fixed_rotation:
+                result['fixed_rotation'] = True
             if all_invisible and requires_visible_companion:
                 result['requires_visible_companion'] = True
             return result

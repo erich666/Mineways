@@ -301,6 +301,18 @@ This pass adds 45 definitions and 1,342 selectors with no lost coverage. The ful
 
 All 192 Python tests and native macOS ASan/UBSan fixture exports passed. Full-pack native exports checked every new selector across three batches, with source pixels, repeated OBJ, and exact Sponge geometry/state round trips. The baseline checked 656 states and 620 textures. Portable Windows fixtures cover 1,288 states. The preceding Domum/transmitter commit passed macOS Intel CI and Windows Debug/Release regression tests. Its full-pack Windows Release run checked 1,139 states and 596 textures successfully.
 
+## Framed storage, microchips, wall lanterns, and configurable sides
+
+Functional Storage framed blocks now retain their supplied visible child geometry when saved design materials are absent. Child texture scopes and visibility remain independent. Item-render ordering does not suppress world geometry. Microchips export the verified default cube with six uncullable faces and directional base-texture overrides. Their generated geometry ignores supplied application rotation, matching the shipped loader. Reports identify omitted signal overlays and saved customization.
+
+Four Amendments wall lanterns now export complete bodies and supports: vanilla lantern, soul lantern, Forbidden Arcanus deorum lantern, and deorum soul lantern. The adapter respects custom body precedence, preserves source UVs and element pivots, and applies the verified static body pose. Ten compatibility definitions still lack original body assets and fail explicitly. Inherited lantern models retain their parsed support resource. Nested split-model compositions remain unsupported instead of silently dropping child geometry.
+
+IE configurable-side models export the verified NONE setting on all six absolute directions. Their directional textures, face UVs, and cull directions match the shipped generator. Reports identify omitted saved input/output settings. Rotated composites containing fixed-rotation generated models fail explicitly rather than changing their geometry.
+
+This pass adds 37 definitions and 384 selectors with no lost coverage. The full ATM10 8.3 catalog contains 45,265 definitions, 587,933 selectors, 32,009 textures, 91,760 geometries, 554,392 elements, 34,774 polygons, and 25 dimensions. The report retains 6,886 unsupported definitions and 5,017 unsupported states.
+
+All 222 Python tests and native macOS ASan/UBSan fixture exports passed. Sixteen new native cases cover individual/mosaic pixels, directional quadrants, independently calculated lantern geometry, fixed-rotation equality, and Sponge identity. The Windows assertion code also passed against those native exports. Full-pack exports checked all 384 new selectors, repeated OBJ output, and exact Sponge geometry/state round trips. The baseline checked 706 states and 684 textures. Portable Windows fixtures cover 1,338 states. The preceding machine/wire/furniture commit passed macOS Intel CI, Windows Debug/Release regressions, and full-pack Windows Release tests.
+
 ## Compiled format
 
 The importer writes version 6 for split models. Otherwise, it writes version 5 for repeated UVs, version 4 for Z rotations, version 3 for polygons, or version 2. The runtime reads versions 1 through 6. All versions use UTF-8 text with tab-separated fields. Resource identifiers and selectors cannot contain control characters. Dimension records are optional. Texture and geometry indices each start at zero and increase by one. References must use earlier records.

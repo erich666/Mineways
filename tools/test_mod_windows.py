@@ -468,6 +468,7 @@ def exercise(executable, root):
             points = [tuple(map(float, line.split()[1:4])) for line in output.read_text().splitlines() if line.startswith('v ')]
             assert len(points) == len(expected) == 8
             assert all(any(all(abs(a-b) < 1e-6 for a,b in zip(point, corner)) for corner in expected) for point in points), label
+    exercise_custom_defaults(executable, root, common, texture_sources)
     for orientation in ('plain', 'turned'):
         label = 'mesh-' + orientation
         state = 'fixture:obj_mesh[orientation=' + orientation + ',retained=true]'
@@ -651,6 +652,88 @@ def exercise(executable, root):
 def obj_geometry(path):
     return [line for line in path.read_text(errors='replace').splitlines()
             if line.startswith(('v ', 'vt ', 'vn ', 'f ', 'usemtl '))]
+
+
+def read_textured_faces(path):
+    materials, current = {}, None
+    for line in path.with_suffix('.mtl').read_text().splitlines():
+        if line.startswith('newmtl '):
+            current = line[7:]
+        elif line.startswith('map_Kd '):
+            texture = path.parent / line[7:].replace('\\', '/')
+            materials[current] = FIXTURE.mod.decode_png(texture.read_bytes())
+    points, uv, faces = [], [], []
+    for line in path.read_text().splitlines():
+        fields = line.split()
+        if line.startswith('v '):
+            points.append(tuple(map(float, fields[1:4])))
+        elif line.startswith('vt '):
+            uv.append(tuple(map(float, fields[1:3])))
+        elif line.startswith('usemtl '):
+            current = line[7:]
+        elif line.startswith('f '):
+            corners = [tuple(map(int, value.split('/')[:2])) for value in fields[1:]]
+            faces.append(([(points[p-1], uv[t-1]) for p, t in corners], materials[current]))
+    return faces
+
+
+def exercise_custom_defaults(executable, root, common, texture_sources):
+    samples = [(f'framed-{f}', f'fixture:framed_default[facing={f}]', 3, 2) for f in ('north', 'east')]
+    samples += [(f'microchip-{f}', f'fixture:microchip_default[facing={f}]', 6, 2) for f in ('north', 'east')]
+    samples += [(f'lantern-{f}', f'amendments:wall_lantern[attachment=block,facing={f}]', 10, 2)
+                for f in ('north', 'east', 'south', 'west')]
+    for kind, textures in (('side_top_bottom', 3), ('side_vertical', 2), ('vertical', 2), ('all_same_texture', 1)):
+        samples += [(f'ie-sides-{kind}-{turn}', f'fixture:ie_sides_{kind}[orientation={turn}]', 6, textures)
+                    for turn in ('plain', 'turned')]
+    references = {}
+    for label, state, face_count, texture_count in samples:
+        source, output, restored = [root / (label + suffix) for suffix in ('.schem', '.obj', '-restored.schem')]
+        schematic(source, [state])
+        details = run(executable, root, label, [*common, 'Minecraft world: ' + str(source),
+                      'File type: Export individual textures to directory ' + label + 'tex',
+                      'Selection location min to max: 0, 0, 0 to 0, 0, 0',
+                      'Export for Rendering: ' + str(output), 'Export Schematic: ' + str(restored)])
+        check_obj(output, details, minimum_faces=face_count)
+        assert sum(line.startswith('f ') for line in output.read_text().splitlines()) == face_count, label
+        assert check_export_pixels(output, texture_sources) == texture_count, label
+        verify_schematic(restored, [state], details)
+        if label.startswith('lantern-'):
+            turns = ('north', 'east', 'south', 'west').index(label[8:])
+            points = [tuple(map(float, line.split()[1:4])) for line in output.read_text().splitlines() if line.startswith('v ')]
+            for _ in range((4-turns) % 4):
+                points = [(1-z, y, x) for x, y, z in points]
+            assert all(abs(min(p[i] for p in points)-v) < 1e-6 for i, v in enumerate((1/16, 3/16, 7/16)))
+            assert all(abs(max(p[i] for p in points)-v) < 1e-6 for i, v in enumerate((15/16, 15/16, 1)))
+        if not label.startswith(('microchip-', 'ie-sides-')):
+            continue
+        check_signed_geometry(output, (0, 0, 0), (1, 1, 1), False)
+        faces = read_textured_faces(output)
+        key = label.rsplit('-', 1)[0]
+        if key in references:
+            assert faces == references[key], 'Generated loader incorrectly inherited application rotation: ' + label
+        else:
+            references[key] = faces
+        for corners, (width, height, pixels) in faces:
+            center = [sum(p[i] for p, _ in corners)/4 for i in range(3)]
+            side = next(name for axis, name0, name1 in ((1, 'down', 'up'), (2, 'north', 'south'), (0, 'west', 'east'))
+                        for value, name in ((0, name0), (1, name1)) if center[axis] == value)
+            for a in (.25, .75):
+                for b in (.25, .75):
+                    weights = ((1-a)*(1-b), a*(1-b), a*b, (1-a)*b)
+                    point = [sum(w*p[i] for w, (p, _) in zip(weights, corners)) for i in range(3)]
+                    uv = [sum(w*t[i] for w, (_, t) in zip(weights, corners)) for i in range(2)]
+                    offset = (min(height-1, int((1-uv[1])*height))*width + min(width-1, int(uv[0]*width)))*4
+                    if label.startswith('microchip-'):
+                        expected = (180, 60, 185, 255) if side == 'up' else (95, 175, 45, 255)
+                    else:
+                        x, y, z = point
+                        u, v = {'down': (x, 1-z), 'up': (x, z), 'north': (1-x, 1-y),
+                                'south': (x, 1-y), 'west': (z, 1-y), 'east': (1-z, 1-y)}[side]
+                        kind = key[len('ie-sides-'):]
+                        blue = (40 if side == 'down' else 90) if kind == 'side_top_bottom' and side in ('down', 'up') else (
+                            90 if side in ('down', 'up') and kind != 'all_same_texture' else 200 if kind == 'vertical' else 150)
+                        expected = (min(15, int(u*16))*16, min(15, int(v*16))*16, blue, 255)
+                    assert tuple(pixels[offset:offset+4]) == expected, (label, side, point, expected)
 
 
 def check_export_pixels(object_path, sources):
@@ -847,6 +930,44 @@ def exercise_pack(executable, root, manifest):
                'supplementaries:rope_tomatoes',
                'supplementaries:stick_tomatoes',
                'securitycraft:reinforced_scaffolding',
+               'amendments:forbidden_arcanus/wall_deorum_lantern',
+               'amendments:forbidden_arcanus/wall_deorum_soul_lantern',
+               'amendments:wall_lantern',
+               'amendments:wall_soul_lantern',
+               'functionalstorage:compacting_framed_drawer',
+               'functionalstorage:framed_1',
+               'functionalstorage:framed_2',
+               'functionalstorage:framed_4',
+               'functionalstorage:framed_controller_extension',
+               'functionalstorage:framed_fluid_1',
+               'functionalstorage:framed_fluid_2',
+               'functionalstorage:framed_fluid_4',
+               'functionalstorage:framed_simple_compacting_drawer',
+               'functionalstorage:framed_storage_controller',
+               'immersiveengineering:capacitor_creative',
+               'immersiveengineering:capacitor_hv',
+               'immersiveengineering:capacitor_lv',
+               'immersiveengineering:capacitor_mv',
+               'immersiveengineering:fluid_placer',
+               'immersiveengineering:fluid_pump',
+               'immersiveengineering:metal_barrel',
+               'immersiveengineering:wooden_barrel',
+               'little_big_redstone:black_microchip',
+               'little_big_redstone:blue_microchip',
+               'little_big_redstone:brown_microchip',
+               'little_big_redstone:cyan_microchip',
+               'little_big_redstone:gray_microchip',
+               'little_big_redstone:green_microchip',
+               'little_big_redstone:light_blue_microchip',
+               'little_big_redstone:light_gray_microchip',
+               'little_big_redstone:lime_microchip',
+               'little_big_redstone:magenta_microchip',
+               'little_big_redstone:orange_microchip',
+               'little_big_redstone:pink_microchip',
+               'little_big_redstone:purple_microchip',
+               'little_big_redstone:red_microchip',
+               'little_big_redstone:white_microchip',
+               'little_big_redstone:yellow_microchip',
                'enderio:alloy_smelter',
                'enderio:crafter',
                'enderio:drain',
@@ -876,8 +997,6 @@ def exercise_pack(executable, root, manifest):
                'refurbished_furniture:light_ceiling_light',
                'refurbished_furniture:light_range_hood',
                'refurbished_furniture:stone_stepping_stones',
-               'unsupported_states',
-               'warnings',
                'minecolonies:blockminecoloniesrack',
                'mekanism:advanced_logistical_transporter',
                'mekanism:advanced_mechanical_pipe',

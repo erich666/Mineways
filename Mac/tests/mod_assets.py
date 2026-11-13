@@ -273,7 +273,10 @@ def build_fixture(root):
                                ('mod_material_fixtures.py', 'material_assets'),
                                ('mod_enderio_fixtures.py', 'enderio_assets'),
                                ('mod_wire_fixtures.py', 'wire_assets'),
-                               ('mod_framework_fixtures.py', 'framework_assets')):
+                               ('mod_framework_fixtures.py', 'framework_assets'),
+                               ('mod_custom_default_fixtures.py', 'custom_default_assets'),
+                               ('mod_lantern_fixtures.py', 'lantern_assets'),
+                               ('mod_ie_sides_fixtures.py', 'ie_sides_assets')):
         fixture_spec = importlib.util.spec_from_file_location(filename[:-3], Path(__file__).with_name(filename))
         fixture_module = importlib.util.module_from_spec(fixture_spec)
         fixture_spec.loader.exec_module(fixture_module)
