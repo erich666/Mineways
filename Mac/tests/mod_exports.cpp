@@ -253,6 +253,7 @@ static std::vector<std::string> stateNames(const WorldGuide& world)
 #include "mod_faucet_exports.h"
 #include "mod_canvas_exports.h"
 #include "mod_hanging_sign_exports.h"
+#include "mod_twilight_hanging_exports.h"
 #include "mod_twilight_chest_exports.h"
 #include "mod_polygons.h"
 #include "mod_precision.h"
@@ -476,6 +477,7 @@ int main(int argc, char** argv)
     checkCanvasDefaultExports(root);
     checkHangingSignExports(root);
     checkTwilightSignExports(root);
+    checkTwilightHangingExports(root);
     checkTwilightChestExports(root);
     checkSplitModExports(root);
     checkModPolygons(root);

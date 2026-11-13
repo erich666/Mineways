@@ -420,6 +420,18 @@ This pass adds 50 definitions and 1,128 selectors without changing or losing pri
 
 All 372 importer tests passed. Native macOS ASan/UBSan checks cover 42 hanging-sign cases and 18 Twilight sign cases in both texture modes. They verify exact geometry, winding, UVs, pixels, defaults, partial states, and Sponge identity. Windows assertions passed against those outputs. Full-pack native exports checked every new selector. The baseline checked 960 states and 820 textures. Portable Windows fixtures cover 1,828 states.
 
+## Twilight hanging signs
+
+Twilight Forest's 16 hanging-sign definitions share the verified vanilla hanging-sign mesh with eight registered hanging textures. Ceiling signs retain all 16 headings and both attachment styles. Wall signs retain their mounting planks and four facings. Propertyless and partial states preserve the same defaults as the canvas signs. Saved text, text dye, and glowing text remain omitted.
+
+The shared mesh preserves two-sided chain winding and separate front/back UVs. Twilight and canvas signs keep their own verified block identities, resource routes, and texture selection. Visible resource-pack replacements remain visible.
+
+Blockstate variant keys are normalized before renderer-specific expansion. Equivalent property orders produce one selector, while conflicting applications for the same canonical selector are rejected. Original input limits still apply before deduplication. This prevents duplicate sign, chest, and loader-flag states when resource packs reorder properties.
+
+This pass adds 16 definitions and 448 selectors without changing or losing prior selector geometry, rotations, colors, or texture data. The full catalog contains 45,596 definitions, 592,705 selectors, 32,257 textures, 93,979 geometries, 563,546 elements, 57,356 polygons, and 25 dimensions. Remaining unsupported totals are 6,557 definitions and 5,003 states.
+
+All 381 importer tests passed. Native macOS ASan/UBSan checks cover 20 additional cases, all eight wood textures, both attachment styles, defaults, partial states, both texture modes, and Sponge identity. Windows assertions passed against those outputs. The fixture manifest and textures remained byte-identical after selector normalization. Full-pack native exports checked all 448 new selectors. Baseline exports checked 960 states and 820 textures. Portable Windows fixtures cover 1,860 states.
+
 ## Compiled format
 
 The importer writes version 6 for split models. Otherwise, it writes version 5 for repeated UVs, version 4 for Z rotations, version 3 for polygons, or version 2. The runtime reads versions 1 through 6. All versions use UTF-8 text with tab-separated fields. Resource identifiers and selectors cannot contain control characters. Dimension records are optional. Texture and geometry indices each start at zero and increase by one. References must use earlier records.

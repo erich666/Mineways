@@ -1171,6 +1171,25 @@ class Compiler:
         return result
 
     def block(self, name, definition):
+        # Expanders compare selector strings. Canonicalize supplied keys first,
+        # so an explicit unsorted selector cannot evade their overlap checks.
+        if 'variants' in definition:
+            variants = definition['variants']
+            if not isinstance(variants, dict) or not variants or len(variants) > MAX_STATES:
+                raise ImportError('invalid or excessive block variants')
+            normalized = {}
+            for selector, application in variants.items():
+                if not isinstance(selector, str):
+                    raise ImportError('invalid state selector')
+                values = properties(selector)
+                key = ','.join(f'{key}={values[key]}' for key in sorted(values))
+                if key in normalized:
+                    # Python equality conflates bool/int/float JSON values.
+                    if json.dumps(normalized[key], sort_keys=True, separators=(',', ':')) != json.dumps(application, sort_keys=True, separators=(',', ':')):
+                        raise ImportError('conflicting canonical state selector: ' + key)
+                else:
+                    normalized[key] = application
+            definition = {**definition, 'variants': normalized}
         definition = _twilight_sign_module.expand_sign(self, name, definition, ImportError, _canvas_sign_module)
         definition = _canvas_sign_module.expand_canvas_sign(self, name, definition, ImportError)
         definition = _conveyor_module.expand_conveyor(self, name, definition, ImportError)

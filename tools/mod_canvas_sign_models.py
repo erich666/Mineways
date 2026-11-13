@@ -197,6 +197,20 @@ def _attached(state,error_type):
     return value == 'true'
 
 
+def _hanging_polygons(angle, wall, attached, material):
+    """Shared vanilla hanging sign parts, with both chain faces preserved."""
+    polygons = _hanging_cube((-7,0,-1),(14,10,2),(0,12),angle,material)
+    if wall:
+        polygons += _hanging_cube((-8,-6,-2),(16,2,4),(0,0),angle,material)
+    if attached:
+        polygons += _hanging_cube((-6,-6,0),(12,6,0),(14,6),angle,material)
+    else:
+        for x in (-5,5):
+            for local_angle,uv in ((-CHAIN_ANGLE,(0,6)),(CHAIN_ANGLE,(6,6))):
+                polygons += _hanging_cube((-1.5,0,0),(3,6,0),uv,angle,material,(x,-6,0),local_angle)
+    return polygons
+
+
 def _compile_hanging(compiler,name,model,rotation,selector,depth,error_type,block_name,decode_png):
     color,wall = HANGING_BLOCKS[block_name]
     state = selector or {}
@@ -209,15 +223,7 @@ def _compile_hanging(compiler,name,model,rotation,selector,depth,error_type,bloc
     if compiler.element_count+count > MAX_COMPILED_ELEMENTS:
         raise error_type('compiled hanging canvas sign polygon budget exceeded')
     material = texture(compiler, 'farmersdelight:entity/signs/hanging/canvas'+('_'+color if color else ''), error_type, decode_png)
-    polygons = _hanging_cube((-7,0,-1),(14,10,2),(0,12),angle,material)
-    if wall:
-        polygons += _hanging_cube((-8,-6,-2),(16,2,4),(0,0),angle,material)
-    if attached:
-        polygons += _hanging_cube((-6,-6,0),(12,6,0),(14,6),angle,material)
-    else:
-        for x in (-5,5):
-            for local_angle,uv in ((-CHAIN_ANGLE,(0,6)),(CHAIN_ANGLE,(6,6))):
-                polygons += _hanging_cube((-1.5,0,0),(3,6,0),uv,angle,material,(x,-6,0),local_angle)
+    polygons = _hanging_polygons(angle, wall, attached, material)
     compiler.element_count += len(polygons)
     compiler.warnings.add(block_name + ': hanging canvas sign body without saved front/back text, text dye or glowing text')
     if any(rotation) or model.get('transform',{}) or model.get('visibility') or model.get('textures'):
@@ -262,6 +268,8 @@ def _expand_hanging(compiler,name,definition,error_type):
             continue
         changed = True
         for values in itertools.product(*((None,*domains[key]) for key in keys)):
+            if all(value is None for value in values):
+                continue  # The original selector is already retained, including its key order.
             expanded = {**state,**{key:value for key,value in zip(keys,values) if value is not None}}
             key = ','.join(k+'='+expanded[k] for k in sorted(expanded))
             if key in output and output[key] != application:

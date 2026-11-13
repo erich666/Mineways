@@ -127,5 +127,80 @@ class TwilightSigns(unittest.TestCase):
         with self.assertRaisesRegex(mod.ImportError,'4096'):
             compiler.block('twilightforest:canopy_sign',definition)
 
+    def test_hanging_all_identities_selector_counts_and_materials(self):
+        compiler=self.compiler();total=0
+        for index,wood in enumerate(WOODS):
+            for wall in (False,True):
+                block='twilightforest:'+wood+('_wall_hanging_sign' if wall else '_hanging_sign')
+                rows=compiler.block(block,compiler.assets.json(mod.asset_path(block,'blockstates')))
+                self.assertEqual(len(rows),5 if wall else 51);total+=len(rows)
+                self.assertFalse(compiler.unsupported_states)
+                for row in rows:
+                    count=20 if wall else 8 if 'attached=true' in row[0] else 14
+                    self.assertEqual(len(row[3][0]['polygons']),count)
+                texture='twilightforest:entity/signs/hanging/'+wood
+                pixels=mod.decode_png(compiler.textures[texture][0])[2]
+                offset=(22*64+19)*4
+                self.assertEqual(tuple(pixels[offset:offset+4]),(76,88,40+24*index,255))
+        self.assertEqual(total,448);self.assertEqual(compiler.element_count,5696)
+        self.assertEqual(len(compiler.textures),8)
+
+    def test_hanging_source_board_chains_and_partial_states(self):
+        block='twilightforest:twilight_oak_hanging_sign'
+        default=self.compile(block=block)
+        self.assertEqual(default,self.compile(block=block,state={'rotation':'0','attached':'false'}))
+        self.assertEqual(default['polygons'][0]['vertices'],[(15,10,7,4,6),(1,10,7,.5,6),
+                                                           (1,10,9,.5,7),(15,10,9,4,7)])
+        attached=self.compile(block=block,state={'attached':'true'})
+        self.assertEqual(len(attached['polygons']),8)
+        self.assertEqual([v[3:] for v in attached['polygons'][-2]['vertices']],[(6.5,3),(3.5,3),(3.5,6),(6.5,6)])
+        self.assertEqual([v[3:] for v in attached['polygons'][-1]['vertices']],[(9.5,3),(6.5,3),(6.5,6),(9.5,6)])
+        # Both sides share a plane but retain separate texture ranges.
+        self.assertEqual({v[:3] for v in attached['polygons'][-2]['vertices']},
+                         {v[:3] for v in attached['polygons'][-1]['vertices']})
+        self.assertEqual(attached,self.compile(block=block,state={'rotation':'0','attached':'true'}))
+        self.assertEqual(default,self.compile(block=block,x=90,y=270,uvlock=True,**{'ae2:z':90}))
+        compiler=self.compiler();application={'model':block.replace(':',':block/')}
+        for state,count in [('rotation=7',3),('attached=true',17),('rotation=7,attached=true',1)]:
+            rows=compiler.block(block,{'variants':{state:application}})
+            self.assertEqual(len(rows),count)
+            self.assertTrue(all(all(prop in row[0] for prop in state.split(',')) for row in rows))
+        wall=self.compile(block='twilightforest:twilight_oak_wall_hanging_sign')
+        self.assertEqual(len(wall['polygons']),20)
+        points=[v for f in wall['polygons'] for v in f['vertices']]
+        for axis,(low,high) in enumerate(((0,16),(0,16),(6,10))):
+            self.assertAlmostEqual(min(v[axis] for v in points),low)
+            self.assertAlmostEqual(max(v[axis] for v in points),high)
+
+    def test_hanging_override_guards_and_exact_budgets(self):
+        block='twilightforest:canopy_hanging_sign';compiler=self.compiler()
+        application={'model':block.replace(':',':block/')}
+        for state in ({},{'rotation':'0'},{'attached':'true'}):
+            with self.assertRaisesRegex(mod.ImportError,'explicit palette'):
+                compiler.compile_model(application,depth=1,selector=state,block_name=block)
+        with self.assertRaises(mod.ImportError):self.compile(block=block,state={'attached':'yes'})
+        for state,count in [({'attached':'true'},8),({'attached':'false'},14)]:
+            compiler=self.compiler();compiler.element_count=mod.MAX_COMPILED_ELEMENTS-count
+            self.compile(compiler,block,state);self.assertEqual(compiler.element_count,mod.MAX_COMPILED_ELEMENTS)
+            compiler=self.compiler();compiler.element_count=mod.MAX_COMPILED_ELEMENTS-count+1
+            with self.assertRaisesRegex(mod.ImportError,'budget'):self.compile(compiler,block,state)
+            self.assertEqual(compiler.textures,{})
+        put(self.root,'assets/twilightforest/models/block/canopy_hanging_sign.json',{
+            'parent':'minecraft:builtin/entity','textures':{'body':'twilightforest:entity/signs/hanging/canopy'},
+            'elements':[{'from':[0,0,0],'to':[1,1,1],'faces':{'up':{'texture':'#body'}}}]})
+        compiler=self.compiler();rows=compiler.block(block,{'variants':{'':application}})
+        self.assertEqual(len(rows),1);self.assertNotIn('polygons',rows[0][3][0])
+
+    def test_hanging_unsorted_extra_properties_do_not_duplicate_selector(self):
+        from mod_hanging_canvas_fixtures import hanging_canvas_sign_assets
+        hanging_canvas_sign_assets(self.root,mod.encode_png)
+        for block,model in (('twilightforest:canopy_hanging_sign','twilightforest:block/canopy_hanging_sign'),
+                            ('farmersdelight:hanging_canvas_sign','farmersdelight:block/canvas_sign')):
+            compiler=self.compiler()
+            rows=compiler.block(block,{'variants':{'waterlogged=true,custom=kept':{'model':model}}})
+            self.assertEqual(len(rows),51)
+            self.assertEqual(len({row[0] for row in rows}),51)
+            self.assertTrue(all('custom=kept' in row[0] and 'waterlogged=true' in row[0] for row in rows))
+
 
 if __name__=='__main__':unittest.main()

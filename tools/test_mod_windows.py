@@ -479,6 +479,7 @@ def exercise(executable, root):
     exercise_canvas_models(executable, root, common, texture_sources)
     exercise_hanging_canvas_models(executable, root, common, texture_sources)
     exercise_twilight_sign_models(executable, root, common, texture_sources)
+    exercise_twilight_hanging_models(executable, root, common, texture_sources)
     exercise_twilight_chest_models(executable, root, common, texture_sources)
     for orientation in ('plain', 'turned'):
         label = 'mesh-' + orientation
@@ -795,6 +796,24 @@ def exercise_twilight_sign_models(executable, root, common, texture_sources):
     exercise_renderer_samples(executable, root, common, texture_sources, samples)
 
 
+def exercise_twilight_hanging_models(executable, root, common, texture_sources):
+    samples = []
+    directions = ('north', 'east', 'south', 'west')
+    for index, wood in enumerate(('twilight_oak', 'canopy', 'mangrove', 'dark', 'time', 'transformation', 'mining', 'sorting')):
+        attached = 'true' if index % 2 else 'false'
+        samples.append(('twilight-hanging-' + wood + '-ceiling',
+                        f'twilightforest:{wood}_hanging_sign[attached={attached},rotation={2*index+1}]',
+                        8 if index % 2 else 14, 1))
+        samples.append(('twilight-hanging-' + wood + '-wall',
+                        f'twilightforest:{wood}_wall_hanging_sign[facing={directions[index%4]}]', 20, 1))
+    samples += [('twilight-hanging-default', 'twilightforest:twilight_oak_hanging_sign', 14, 1),
+                ('twilight-hanging-wall-default', 'twilightforest:twilight_oak_wall_hanging_sign', 20, 1),
+                ('twilight-hanging-partial-rotation', 'twilightforest:twilight_oak_hanging_sign[rotation=7]', 14, 1),
+                ('twilight-hanging-partial-attached', 'twilightforest:twilight_oak_hanging_sign[attached=true]', 8, 1)]
+    assert len(samples) == 20
+    exercise_renderer_samples(executable, root, common, texture_sources, samples)
+
+
 def exercise_twilight_chest_models(executable, root, common, texture_sources):
     samples = [(f'twilight-chest-{family}-{kind}-default', 'twilightforest:' + family +
                 ('_trapped_chest' if kind == 'trapped' else '_chest'), 18, 1)
@@ -865,9 +884,9 @@ def exercise_renderer_samples(executable, root, common, texture_sources, samples
                 actual = {point for corners, _ in faces for point, _ in corners}
                 assert len(actual) == len(expected), name
                 assert all(any(all(abs(a-b) < 2e-5 for a,b in zip(point,want)) for want in expected) for point in actual), name
-            if label.startswith('hanging-'):
+            if label.startswith(('hanging-', 'twilight-hanging-')):
                 properties = dict(field.split('=') for field in state.partition('[')[2].rstrip(']').split(',') if field)
-                wall = 'wall_hanging_canvas_sign' in state
+                wall = 'wall_hanging_' in state
                 attached = not wall and properties.get('attached', 'false') == 'true'
                 angle = ({'north': 180, 'east': 270, 'south': 0, 'west': 90}[properties.get('facing', 'north')]
                          if wall else 22.5*int(properties.get('rotation', '0')))
@@ -1646,6 +1665,9 @@ def exercise_pack(executable, root, manifest):
                 ('_wall_sign' if wall else '_sign')
                 for wood in ('twilight_oak', 'canopy', 'mangrove', 'dark', 'time', 'transformation', 'mining', 'sorting')
                 for wall in (False, True)]
+    targets += ['twilightforest:' + wood + suffix
+                for wood in ('twilight_oak', 'canopy', 'mangrove', 'dark', 'time', 'transformation', 'mining', 'sorting')
+                for suffix in ('_hanging_sign', '_wall_hanging_sign')]
     targets += [name for name in blocks if name.startswith(('allthemodium:molten_', 'domum_ornamentum:', 'morered:'))]
     targets += sorted({state.split('[', 1)[0] for state in split_policies})
     for block in targets:
