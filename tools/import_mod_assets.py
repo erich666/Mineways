@@ -32,6 +32,7 @@ _obj_module = _load_helper('mod_obj')
 _ie_module = _load_helper('mod_ie_models')
 _conveyor_module = _load_helper('mod_conveyor_models')
 _faucet_module = _load_helper('mod_faucet_models')
+_canvas_sign_module = _load_helper('mod_canvas_sign_models')
 _split_module = _load_helper('mod_ie_split')
 _machine_module = _load_helper('mod_machine_models')
 _storage_module = _load_helper('mod_storage_models')
@@ -531,8 +532,14 @@ class Compiler:
         if not inline:
             path = asset_path(name, 'models')
             own = self.assets.json(path) if path in self.assets.files else cube_template(name)
+        # Only the absent engine parent can create this trusted placeholder marker.
+        if own is not None and '_builtin_entity' in own:
+            own = {key: value for key, value in own.items() if key != '_builtin_entity'}
         if own is None:
-            raise ImportError('missing model: ' + name)
+            if name == 'minecraft:builtin/entity':
+                own = {'_builtin_entity': True}
+            else:
+                raise ImportError('missing model: ' + name)
         if 'loader' in own and own['loader'] not in ('neoforge:composite', 'forge:composite', 'fusion:model', 'lootr:brushable',
                                                         'refinedstorage:cable', 'bibliocraft:bookcase',
                                                         'bibliocraft:table', 'xycraft_core:connected_textures',
@@ -941,6 +948,13 @@ class Compiler:
         rotation = (x, y, int(uvlock), z) if z else (x, y, int(uvlock))
         model = self.model(application['model'])
         name = application['model']
+        if _canvas_sign_module.matches(block_name, name, model):
+            return _canvas_sign_module.compile_canvas_sign(self, name, model, rotation, selector, depth, ImportError, block_name, decode_png)
+        if _chest_module.is_twilight_chest(block_name, model):
+            return _chest_module.compile_twilight_chest(self, name, model, rotation, selector, depth, ImportError, block_name, decode_png)
+        if _machine_module.is_empty_fluid(block_name, name, model):
+            self.warnings.add(block_name + ': verified empty industrial fluid placeholder; schematic identity is preserved without geometry')
+            return {'rotation': rotation, 'elements': [], 'invisible': True}
         if name == 'ae2:block/matrix_frame' and model == {'textures': {}}:
             return {'rotation': rotation, 'elements': [], 'invisible': True}
         model = self.builtin_adapter(name, model)
@@ -1153,6 +1167,7 @@ class Compiler:
         return result
 
     def block(self, name, definition):
+        definition = _canvas_sign_module.expand_canvas_sign(self, name, definition, ImportError)
         definition = _conveyor_module.expand_conveyor(self, name, definition, ImportError)
         definition = _chest_module.expand_chest(self, name, definition, ImportError)
         definition = _storage_module.expand_portable_grid(self, name, definition, ImportError)

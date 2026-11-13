@@ -251,6 +251,8 @@ static std::vector<std::string> stateNames(const WorldGuide& world)
 #include "mod_chest_pipe_exports.h"
 #include "mod_conveyor_exports.h"
 #include "mod_faucet_exports.h"
+#include "mod_canvas_exports.h"
+#include "mod_twilight_chest_exports.h"
 #include "mod_polygons.h"
 #include "mod_precision.h"
 #include "mod_rotations.h"
@@ -439,13 +441,22 @@ int main(int argc, char** argv)
     assert(stateNames(invisibleRead) == stateNames(invisibleWorld));
     exportWorld(invisibleRead, root / "invisible-roundtrip.obj", 0, true, false, false, false, true);
     assert(ResolveModState("fixture:cube", &cube, &cubeState) == 1);
-    unsigned short mixedBlocks[] = {(unsigned short)invisibleType, 0, (unsigned short)cube};
-    unsigned short mixedData[] = {PACK_TYPE_EXT_AND_DATAVAL(invisibleType, invisibleState), 0,
-                                 PACK_TYPE_EXT_AND_DATAVAL(cube, cubeState)};
+    int hydrogenType, hydrogenState, honeyType, honeyState;
+    assert(ResolveModState("modern_industrialization:hydrogen", &hydrogenType, &hydrogenState) == 1);
+    assert(ResolveModState("extended_industrialization:honey", &honeyType, &honeyState) == 1);
+    assert(GetModBlock(hydrogenType, hydrogenState)->definition->invisible);
+    assert(GetModBlock(honeyType, honeyState)->definition->invisible);
+    unsigned short mixedBlocks[] = {(unsigned short)cube, (unsigned short)invisibleType,
+        (unsigned short)hydrogenType, (unsigned short)honeyType, (unsigned short)cube};
+    unsigned short mixedData[] = {(unsigned short)cubeState, (unsigned short)invisibleState,
+        (unsigned short)hydrogenState, (unsigned short)honeyState, (unsigned short)cubeState};
     WorldGuide mixedWorld = invisibleWorld;
-    mixedWorld.sch = {mixedBlocks, mixedData, 3, 1, 1, 3, false, true};
+    mixedWorld.sch = {mixedBlocks, mixedData, 5, 1, 1, 5, false, true};
     exportWorld(mixedWorld, root / "invisible-mixed.obj", textures | EXPT_OUTPUT_SEPARATE_TEXTURE_TILES);
-    assert(countLines(readText(root / "invisible-mixed.obj"), "f ") == 6);
+    const auto mixedFaces = readGeometryFaces(root / "invisible-mixed.obj", 12);
+    for (const auto& face : mixedFaces) for (const auto& vertex : face)
+        assert((vertex.position[0] >= 0 && vertex.position[0] <= 1) ||
+               (vertex.position[0] >= 4 && vertex.position[0] <= 5));
     exportWorld(mixedWorld, root / "invisible-mixed.schem", 0);
     WorldGuide mixedRead = readSchematic(root / "invisible-mixed.schem");
     assert(stateNames(mixedRead) == stateNames(mixedWorld));
@@ -461,6 +472,8 @@ int main(int argc, char** argv)
     checkChestPipeExports(root);
     checkConveyorDefaultExports(root);
     checkFaucetDefaultExports(root);
+    checkCanvasDefaultExports(root);
+    checkTwilightChestExports(root);
     checkSplitModExports(root);
     checkModPolygons(root);
     checkModPrecision(root);

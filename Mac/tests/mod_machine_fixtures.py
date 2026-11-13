@@ -23,3 +23,8 @@ def machine_assets(root, encode_png):
         put(f'assets/fixture/blockstates/{name}.json', {'variants': {
             'facing=north': {'model': 'fixture:' + name},
             'facing=east': {'model': 'fixture:' + name, 'x': 90, 'y': 270, 'uvlock': True}}})
+
+    put('assets/minecraft/models/block/air.json', {})
+    for block in ('modern_industrialization:hydrogen', 'extended_industrialization:honey'):
+        namespace, name = block.split(':')
+        put(f'assets/{namespace}/blockstates/{name}.json', {'variants': {'': {'model': 'minecraft:block/air'}}})

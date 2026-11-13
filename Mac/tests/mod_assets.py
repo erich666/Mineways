@@ -284,6 +284,8 @@ def build_fixture(root):
                                ('mod_chest_fixtures.py', 'chest_assets'),
                                ('mod_conveyor_fixtures.py', 'conveyor_assets'),
                                ('mod_faucet_fixtures.py', 'faucet_assets'),
+                               ('mod_canvas_sign_fixtures.py', 'canvas_sign_assets'),
+                               ('mod_twilight_chest_fixtures.py', 'twilight_chest_assets'),
                                ('mod_xycraft_pipe_fixtures.py', 'xycraft_pipe_assets'),
                                ('mod_data_storage_fixtures.py', 'data_storage_assets'),
                                ('mod_pressure_tube_fixtures.py', 'pressure_tube_assets'),

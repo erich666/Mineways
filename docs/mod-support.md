@@ -396,6 +396,18 @@ All 64 faucet selectors now compile, recovering eight previously unsupported sta
 
 All 338 importer tests passed. Ten native macOS ASan/UBSan cases verify the two bodies, four facings, combined turns with UV lock, exact geometry/UVs/pixels, retained cull hints, both texture modes, and Sponge identity. The Windows assertions passed against those outputs. Full-pack native exports checked all eight new selectors. Baseline exports checked 962 states and 840 textures, with repeated OBJ output and exact Sponge geometry/state round trips. Portable Windows fixtures cover 1,628 states.
 
+## Canvas signs, Twilight chests, and empty industrial cells
+
+Farmer's Delight standing and wall canvas signs now use their exact entity meshes and supplied 64×32 textures. Standing signs retain all 16 headings and their posts. Wall signs retain the mounting offset and four facings. Propertyless states use verified defaults. Rectangular textures retain normalized UVs through the existing square export slots. Saved front/back text, text dye, and glowing text remain omitted. The 34 hanging-sign definitions and 36 orphan Dyenamics compatibility assets remain unsupported.
+
+Twilight Forest's 16 ordinary/trapped chests reuse the verified vanilla single/left/right mesh with their 48 complete entity textures. Facing, half selection, partial states, and north/single defaults remain exact. Live lid opening remains omitted. Explicit visible model replacements bypass these entity fallbacks. The internal `minecraft:builtin/entity` marker comes only from the missing engine parent; source JSON cannot forge or replace it.
+
+The importer now preserves 81 verified Modern/Extended Industrialization fluid-placeholder identities without geometry. These blocks use the intentionally empty `MIFluidBlock` path. The rule requires a curated block identity and the unchanged empty `minecraft:block/air` model. Visible replacements remain visible. Unrelated Create and Copycats air-model placeholders remain unsupported.
+
+This pass adds 131 definitions and 775 selectors without changing prior selector geometry, rotations, colors, or texture data. The full catalog contains 45,530 definitions, 591,129 selectors, 32,224 textures, 92,919 geometries, 563,546 elements, 44,828 polygons, and 25 dimensions. Remaining unsupported totals are 6,623 definitions and 5,003 states. Engine entity placeholders are no longer classified as missing resource files.
+
+All 357 importer tests passed. Native macOS ASan/UBSan checks cover 24 sign cases, 28 chest cases, and mixed visible/invisible schematic identity. They verify exact source geometry, winding, UVs, pixels, defaults, all standing-sign headings, both texture modes, and Sponge round trips. Windows assertions passed against those outputs. Full-pack native exports checked all 775 new selectors. The baseline checked 959 states and 816 textures. Portable Windows fixtures cover 1,727 states.
+
 ## Compiled format
 
 The importer writes version 6 for split models. Otherwise, it writes version 5 for repeated UVs, version 4 for Z rotations, version 3 for polygons, or version 2. The runtime reads versions 1 through 6. All versions use UTF-8 text with tab-separated fields. Resource identifiers and selectors cannot contain control characters. Dimension records are optional. Texture and geometry indices each start at zero and increase by one. References must use earlier records.

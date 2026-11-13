@@ -32,6 +32,30 @@ class MachineTests(unittest.TestCase):
         return {'loader': 'modern_industrialization:machine', 'casing': 'lv',
                 'default_overlays': {'front': 'sample:block/stone'}, **extra}
 
+    def test_verified_empty_fluid_identities_and_narrow_air_scope(self):
+        self.model('minecraft:block/air', {})
+        compiler = self.compiler()
+        names = mod._machine_module.EMPTY_FLUID_BLOCKS
+        self.assertEqual(len(names), 81)
+        definition = {'variants': {'custom=kept': {'model': 'minecraft:block/air'}}}
+        for name in names:
+            self.assertEqual(compiler.block(name, definition), [(name + '[custom=kept]', [0, 0, 0], 0, [])])
+        for name in ('create:copycat_panel', 'copycats:copycat_slab', 'modern_industrialization:unknown_fluid'):
+            with self.subTest(name=name), self.assertRaises(mod.ImportError):
+                compiler.block(name, definition)
+        with self.assertRaises(mod.ImportError):
+            compiler.compile_model({'model': {}}, block_name='modern_industrialization:hydrogen')
+        self.assertEqual(compiler.textures, {})
+
+    def test_empty_fluid_explicit_visible_overrides_remain_visible(self):
+        self.model('minecraft:block/air', {'parent': 'minecraft:block/cube_all',
+                                         'textures': {'all': 'sample:block/stone'}})
+        compiler = self.compiler()
+        for name in ('modern_industrialization:hydrogen', 'extended_industrialization:honey'):
+            model = compiler.compile_model({'model': 'minecraft:block/air'}, block_name=name)
+            self.assertFalse(model.get('invisible'))
+            self.assertEqual(len(model['elements'][0]['faces']), 6)
+
     def test_casing_and_north_fallback_ignore_application_rotation(self):
         compiler = self.compiler()
         model = self.machine(default_overlays={'front': 'sample:block/stone',

@@ -13,6 +13,12 @@ FACINGS = ('north', 'east', 'south', 'west')
 TYPES = ('single', 'left', 'right')
 TIERS = {'sophisticatedstorage:' + (tier + '_' if tier != 'wood' else '') + 'chest': tier
          for tier in ('wood', 'copper', 'iron', 'gold', 'diamond', 'netherite')}
+TWILIGHT_CHESTS = {'twilightforest:' + wood + suffix: (material, trapped)
+                   for wood, material in (('twilight_oak', 'twilight'), ('canopy', 'canopy'),
+                                          ('mangrove', 'mangrove'), ('dark', 'darkwood'),
+                                          ('time', 'time'), ('transformation', 'transformation'),
+                                          ('mining', 'mining'), ('sorting', 'sorting'))
+                   for suffix, trapped in (('_chest', False), ('_trapped_chest', True))}
 MAX_VARIANTS = 4096
 MAX_GENERATED_PIXELS = 64 * 1024 * 1024
 MAX_COMPILED_ELEMENTS = 4000000
@@ -124,6 +130,13 @@ def _cube(origin, size, uv_origin, facing, texture):
     return output
 
 
+def _closed_geometry(chest_type, facing, body, latch):
+    x, width, latch_x, latch_width = {'single': (1,14,7,2), 'right': (1,15,15,1), 'left': (0,15,0,1)}[chest_type]
+    return (_cube((x,0,1),(width,10,14),(0,19),facing,body)
+                + _cube((x,9,1),(width,5,14),(0,0),facing,body)
+                + _cube((latch_x,7,15),(latch_width,4,1),(0,0),facing,latch))
+
+
 def compile_chest(compiler, name, model, rotation, selector, depth, error_type, block_name, decode_png):
     if model.get('loader') != LOADER or block_name not in TIERS:
         raise error_type('chest renderer requires a verified storage block identity')
@@ -136,10 +149,7 @@ def compile_chest(compiler, name, model, rotation, selector, depth, error_type, 
     if compiler.element_count + 18 > MAX_COMPILED_ELEMENTS:
         raise error_type('compiled chest polygon budget exceeded')
     body, latch = _textures(compiler, chest_type, TIERS[block_name], error_type, decode_png)
-    x, width, latch_x, latch_width = {'single': (1,14,7,2), 'right': (1,15,15,1), 'left': (0,15,0,1)}[chest_type]
-    polygons = (_cube((x,0,1),(width,10,14),(0,19),facing,body)
-                + _cube((x,9,1),(width,5,14),(0,0),facing,body)
-                + _cube((latch_x,7,15),(latch_width,4,1),(0,0),facing,latch))
+    polygons = _closed_geometry(chest_type, facing, body, latch)
     label = name if isinstance(name, str) else '<inline>'
     compiler.warnings.add(f'{label}: closed undyed acacia chest with visible tier and latch; saved wood, dyes, tier hiding, opening animation, packing, displayed items, lock indicators and upgrades are not evaluated')
     if any(rotation) or model.get('transform', {}):
@@ -154,7 +164,8 @@ def expand_chest(compiler, name, definition, error_type):
         if not isinstance(chosen, dict) or 'model' not in chosen:
             return False
         try:
-            return compiler.model(chosen['model']).get('loader') == LOADER
+            resolved = compiler.model(chosen['model'])
+            return resolved.get('loader') == LOADER or is_twilight_chest(name, resolved)
         except error_type:
             return False
     variants = definition.get('variants')
@@ -196,3 +207,42 @@ def expand_chest(compiler, name, definition, error_type):
             if len(output) > MAX_VARIANTS:
                 raise error_type('chest expansion exceeds 4096 selectors')
     return {**definition, 'variants': output} if changed else definition
+
+
+def is_twilight_chest(block_name, model):
+    """Only the verified BER identities and untouched entity placeholder path."""
+    return (block_name in TWILIGHT_CHESTS and model.get('_builtin_entity') is True
+            and 'loader' not in model and 'elements' not in model)
+
+
+def compile_twilight_chest(compiler, name, model, rotation, selector, depth, error_type, block_name, decode_png):
+    # TFChestRenderer registers on vanilla CHEST/TRAPPED_CHEST and overrides
+    # only getMaterial. All three vanilla cube layers and world rotations stay.
+    if not is_twilight_chest(block_name, model):
+        raise error_type('Twilight chest requires a verified unchanged entity model')
+    state = selector or {}
+    if depth and any(key not in state for key in ('facing', 'type')):
+        raise error_type('nested chest requires explicit facing and type palette properties')
+    facing, chest_type = state.get('facing', 'north'), state.get('type', 'single')
+    if facing not in FACINGS or chest_type not in TYPES:
+        raise error_type('invalid chest facing or type')
+    if compiler.element_count + 18 > MAX_COMPILED_ELEMENTS:
+        raise error_type('compiled chest polygon budget exceeded')
+    material, trapped = TWILIGHT_CHESTS[block_name]
+    suffix = ('trapped' if chest_type == 'single' else 'trapped_' + chest_type) if trapped else chest_type
+    texture = compiler.texture('twilightforest:entity/chest/' + material + '/' + suffix)
+    checked = getattr(compiler, '_twilight_chest_checked_textures', None)
+    if checked is None:
+        checked = compiler._twilight_chest_checked_textures = set()
+    if texture not in checked:
+        _, _, pixels = decode_png(compiler.textures[texture][0])
+        if any(alpha not in (0, 255) for alpha in pixels[3::4]):
+            raise error_type('chest cutout textures require binary alpha (0 or 255): ' + texture)
+        checked.add(texture)
+    polygons = _closed_geometry(chest_type, facing, texture, texture)
+    label = name if isinstance(name, str) else '<inline>'
+    compiler.warnings.add(f'{label}: closed Twilight Forest chest; live lid opening animation is not evaluated')
+    if any(rotation) or model.get('transform', {}):
+        compiler.warnings.add(f'{label}: supplied rotations, UV lock and root transforms are ignored by the shipped chest block-entity renderer')
+    compiler.element_count += len(polygons)
+    return {'rotation': (0,0,0), 'elements': [], 'polygons': polygons, 'fixed_rotation': True}

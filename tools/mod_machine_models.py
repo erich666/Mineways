@@ -12,6 +12,34 @@ LOADERS = ('modern_industrialization:machine',
            'modern_industrialization:use_block_model')
 
 
+# MI 2.5.10 FluidDefinition and EI MIFluidHolder register empty MIFluidBlock cells.
+# Keep this identity set narrow: Create/Copycats also use air assets for visible renderers.
+EMPTY_FLUID_BLOCKS = frozenset(
+    {'modern_industrialization:' + name for name in (
+        'acetylene acrylic_acid acrylic_glue argon benzene biodiesel boosted_diesel butadiene caprolactam '
+        'chlorine chromium_hydrochloric_solution creosote crude_oil cryofluid deuterium diesel diethyl_ether '
+        'ethanol ethylbenzene ethylene heavy_fuel heavy_water heavy_water_steam helium helium_3 helium_plasma '
+        'high_pressure_heavy_water high_pressure_heavy_water_steam high_pressure_steam high_pressure_water '
+        'hydrochloric_acid hydrogen light_fuel liquid_air lubricant manganese_sulfuric_solution methane '
+        'molten_redstone naphtha nitrogen nylon oxygen plant_oil platinum_sulfuric_solution polyethylene '
+        'polyvinyl_chloride propene purified_platinum_sulfuric_solution raw_biodiesel raw_synthetic_oil '
+        'shale_oil sodium_hydroxide soldering_alloy steam steam_cracked_heavy_fuel steam_cracked_light_fuel '
+        'steam_cracked_naphtha styrene styrene_butadiene styrene_butadiene_rubber sugar_solution '
+        'sulfuric_acid sulfuric_crude_oil sulfuric_heavy_fuel sulfuric_light_fuel sulfuric_naphtha '
+        'synthetic_oil synthetic_rubber toluene tritium uu_matter vinyl_chloride '
+    ).split()}
+    | {'extended_industrialization:' + name for name in (
+        'blazing_essence composted_manure distilled_water honey manure npk_fertilizer phosphoric_acid '
+        'potassium_chloride potassium_hydroxide '
+    ).split()}
+)
+
+
+def is_empty_fluid(block_name, name, model):
+    return (block_name in EMPTY_FLUID_BLOCKS and name == "minecraft:block/air"
+            and model == {"textures": {}})
+
+
 def _resource(value, error_type, default_namespace='minecraft'):
     if not isinstance(value, str):
         raise error_type('machine resource reference must be a string')

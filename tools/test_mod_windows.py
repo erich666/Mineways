@@ -476,6 +476,8 @@ def exercise(executable, root):
     exercise_chest_pipe_models(executable, root, common, texture_sources)
     exercise_conveyor_models(executable, root, common, texture_sources)
     exercise_faucet_models(executable, root, common, texture_sources)
+    exercise_canvas_models(executable, root, common, texture_sources)
+    exercise_twilight_chest_models(executable, root, common, texture_sources)
     for orientation in ('plain', 'turned'):
         label = 'mesh-' + orientation
         state = 'fixture:obj_mesh[orientation=' + orientation + ',retained=true]'
@@ -596,18 +598,20 @@ def exercise(executable, root):
     assert 'needs saved block-entity data' in details and not missing_output.exists(), details
     # Invisible models keep their state identity and leave neighboring cube faces intact.
     invisible_names = ['fixture:cube[custom=left]', 'ae2:matrix_frame[custom=retained]',
+                       'modern_industrialization:hydrogen[custom=retained]',
+                       'extended_industrialization:honey[custom=retained]',
                        'fixture:cube[custom=right]']
     invisible_input = root / 'invisible-input.schem'
     schematic(invisible_input, invisible_names)
     air_input = root / 'air-input.schem'
-    schematic(air_input, [invisible_names[0], 'minecraft:air', invisible_names[2]])
+    schematic(air_input, [invisible_names[0], *(['minecraft:air'] * (len(invisible_names)-2)), invisible_names[-1]])
     geometry = []
     invisible_export = root / 'invisible-roundtrip.schem'
     for label, source in [('invisible', invisible_input), ('air', air_input)]:
         output = root / (label + '.obj')
         commands = [*common, 'Minecraft world: ' + str(source),
                     'File type: Export individual textures to directory ' + label + 'tex',
-                    'Selection location min to max: 0, 0, 0 to 2, 0, 0',
+                    f'Selection location min to max: 0, 0, 0 to {len(invisible_names)-1}, 0, 0',
                     'Export for Rendering: ' + str(output)]
         if label == 'invisible':
             commands.append('Export Schematic: ' + str(invisible_export))
@@ -621,7 +625,7 @@ def exercise(executable, root):
     invisible_second = root / 'invisible-roundtrip2.schem'
     details = run(executable, root, 'invisible_roundtrip', [*common,
                   'Minecraft world: ' + str(invisible_export),
-                  'Selection location min to max: 0, 0, 0 to 2, 0, 0',
+                  f'Selection location min to max: 0, 0, 0 to {len(invisible_names)-1}, 0, 0',
                   'Export Schematic: ' + str(invisible_second)])
     verify_schematic(invisible_second, invisible_names, details)
     dim_obj = root / 'dimension.obj'
@@ -743,6 +747,32 @@ def exercise_faucet_models(executable, root, common, texture_sources):
     exercise_renderer_samples(executable, root, common, texture_sources, samples)
 
 
+def exercise_canvas_models(executable, root, common, texture_sources):
+    samples = [('canvas-standing-blank-' + turn, 'farmersdelight:canvas_sign' +
+                ('' if turn == 'default' else '[rotation=' + turn + ']'), 12, 1)
+               for turn in ('default', *(str(i) for i in range(16)))]
+    samples += [('canvas-standing-red-3', 'farmersdelight:red_canvas_sign[rotation=3]', 12, 1)]
+    samples += [('canvas-wall-blank-' + facing, 'farmersdelight:canvas_wall_sign' +
+                 ('' if facing == 'default' else '[facing=' + facing + ']'), 6, 1)
+                for facing in ('default', 'north', 'east', 'south', 'west')]
+    samples += [('canvas-wall-red-east', 'farmersdelight:red_canvas_wall_sign[facing=east]', 6, 1)]
+    exercise_renderer_samples(executable, root, common, texture_sources, samples)
+
+
+def exercise_twilight_chest_models(executable, root, common, texture_sources):
+    samples = [(f'twilight-chest-{family}-{kind}-default', 'twilightforest:' + family +
+                ('_trapped_chest' if kind == 'trapped' else '_chest'), 18, 1)
+               for family in ('twilight_oak', 'canopy', 'mangrove', 'dark', 'time', 'transformation', 'mining', 'sorting')
+               for kind in ('normal', 'trapped')]
+    samples += [(f'twilight-chest-{shape}-{facing}', f'twilightforest:twilight_oak_chest[facing={facing},type={shape}]', 18, 1)
+                for shape in ('left', 'right') for facing in ('north', 'east', 'south', 'west')]
+    samples += [('twilight-chest-trapped-left', 'twilightforest:twilight_oak_trapped_chest[facing=north,type=left]', 18, 1),
+                ('twilight-chest-trapped-right', 'twilightforest:twilight_oak_trapped_chest[facing=east,type=right]', 18, 1),
+                ('twilight-chest-partial-facing', 'twilightforest:twilight_oak_chest[facing=south]', 18, 1),
+                ('twilight-chest-partial-type', 'twilightforest:twilight_oak_chest[type=right]', 18, 1)]
+    exercise_renderer_samples(executable, root, common, texture_sources, samples)
+
+
 def exercise_renderer_samples(executable, root, common, texture_sources, samples):
     for label, state, count, texture_count in samples:
         source, restored = root / (label + '.schem'), root / (label + '-restored.schem')
@@ -780,6 +810,25 @@ def exercise_renderer_samples(executable, root, common, texture_sources, samples
                 assert signature == reference, 'Mosaic changed renderer geometry or UV pixels: ' + name
             else:
                 reference = signature
+            if label.startswith('canvas-'):
+                properties = dict(field.split('=') for field in state.partition('[')[2].rstrip(']').split(',') if field)
+                wall = 'canvas_wall_sign' in state
+                angle = -{'north': 180, 'east': 270, 'south': 0, 'west': 90}[properties.get('facing', 'north')] if wall else -22.5*int(properties.get('rotation', '0'))
+                sine, cosine = math.sin(math.radians(angle)), math.cos(math.radians(angle))
+                scale = struct.unpack('f', struct.pack('f', 2/3))[0]
+                boxes = [((-12, -14, -1), (12, -2, 1))]
+                if not wall:
+                    boxes.append(((-1, -2, -1), (1, 12, 1)))
+                expected = []
+                for low, high in boxes:
+                    for x in (low[0], high[0]):
+                        for y in (low[1], high[1]):
+                            for z in (low[2], high[2]):
+                                a, b, c = scale*x, -scale*y-(5 if wall else 0), -scale*z-(7 if wall else 0)
+                                expected.append(((8+cosine*a+sine*c)/16, (8+b)/16, (8-sine*a+cosine*c)/16))
+                actual = {point for corners, _ in faces for point, _ in corners}
+                assert len(actual) == len(expected), name
+                assert all(any(all(abs(a-b) < 2e-5 for a,b in zip(point,want)) for want in expected) for point in actual), name
             if label.startswith('faucet-'):
                 kind, pose = label.split('-')[1:]
                 low, high = ((2, 5, 3), (12, 11, 14)) if kind == 'off' else ((3, 4, 2), (14, 12, 13))
@@ -819,7 +868,7 @@ def exercise_renderer_samples(executable, root, common, texture_sources, samples
                         cross = (b[1]-a[1])*(c[2]-a[2])-(b[2]-a[2])*(c[1]-a[1])
                         seams.append(1 if cross > 0 else -1)
                 assert sorted(seams) == [-1, 1], 'Double chest latch halves do not meet'
-            elif label.startswith('chest-'):
+            elif label.startswith(('chest-', 'twilight-chest-')):
                 properties = dict(field.split('=') for field in state.partition('[')[2].rstrip(']').split(',') if field)
                 facing, shape = properties.get('facing', 'north'), properties.get('type', 'single')
                 left, right = (1, 15) if shape == 'single' else (0, 15) if shape == 'left' else (1, 16)
@@ -1220,6 +1269,58 @@ def exercise_pack(executable, root, manifest):
                'immersiveengineering:conveyor_dropper',
                'immersiveengineering:conveyor_vertical',
                'supplementaries:faucet',
+               'farmersdelight:black_canvas_sign',
+               'farmersdelight:black_canvas_wall_sign',
+               'farmersdelight:blue_canvas_sign',
+               'farmersdelight:blue_canvas_wall_sign',
+               'farmersdelight:brown_canvas_sign',
+               'farmersdelight:brown_canvas_wall_sign',
+               'farmersdelight:canvas_sign',
+               'farmersdelight:canvas_wall_sign',
+               'farmersdelight:cyan_canvas_sign',
+               'farmersdelight:cyan_canvas_wall_sign',
+               'farmersdelight:gray_canvas_sign',
+               'farmersdelight:gray_canvas_wall_sign',
+               'farmersdelight:green_canvas_sign',
+               'farmersdelight:green_canvas_wall_sign',
+               'farmersdelight:light_blue_canvas_sign',
+               'farmersdelight:light_blue_canvas_wall_sign',
+               'farmersdelight:light_gray_canvas_sign',
+               'farmersdelight:light_gray_canvas_wall_sign',
+               'farmersdelight:lime_canvas_sign',
+               'farmersdelight:lime_canvas_wall_sign',
+               'farmersdelight:magenta_canvas_sign',
+               'farmersdelight:magenta_canvas_wall_sign',
+               'farmersdelight:orange_canvas_sign',
+               'farmersdelight:orange_canvas_wall_sign',
+               'farmersdelight:pink_canvas_sign',
+               'farmersdelight:pink_canvas_wall_sign',
+               'farmersdelight:purple_canvas_sign',
+               'farmersdelight:purple_canvas_wall_sign',
+               'farmersdelight:red_canvas_sign',
+               'farmersdelight:red_canvas_wall_sign',
+               'farmersdelight:white_canvas_sign',
+               'farmersdelight:white_canvas_wall_sign',
+               'farmersdelight:yellow_canvas_sign',
+               'farmersdelight:yellow_canvas_wall_sign',
+               'twilightforest:canopy_chest',
+               'twilightforest:canopy_trapped_chest',
+               'twilightforest:dark_chest',
+               'twilightforest:dark_trapped_chest',
+               'twilightforest:mangrove_chest',
+               'twilightforest:mangrove_trapped_chest',
+               'twilightforest:mining_chest',
+               'twilightforest:mining_trapped_chest',
+               'twilightforest:sorting_chest',
+               'twilightforest:sorting_trapped_chest',
+               'twilightforest:time_chest',
+               'twilightforest:time_trapped_chest',
+               'twilightforest:transformation_chest',
+               'twilightforest:transformation_trapped_chest',
+               'twilightforest:twilight_oak_chest',
+               'twilightforest:twilight_oak_trapped_chest',
+               'modern_industrialization:hydrogen',
+               'extended_industrialization:honey',
                'pneumaticcraft:advanced_pressure_tube',
                'pneumaticcraft:pressure_tube',
                'pneumaticcraft:reinforced_pressure_tube',
