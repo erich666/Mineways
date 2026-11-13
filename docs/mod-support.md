@@ -337,6 +337,18 @@ This pass adds 35 definitions and 1,266 selectors. Every preexisting selector re
 
 All 275 Python tests passed. Twenty native macOS ASan/UBSan cases check independently calculated geometry, winding, UVs, RGBA, both texture modes, and Sponge identity. The Windows assertions passed against those native exports. Full-pack native exports checked all 1,266 new selectors, repeated OBJ output, source pixels, and exact Sponge geometry/state round trips. Portable Windows fixtures cover 1,436 sampled states. macOS app, capacity, and security checks passed. Earlier framed-storage and inheritance batches passed full-pack Windows Debug/Release and macOS Intel CI.
 
+## Closed shulkers and isolated pressure tubes
+
+Sophisticated Storage shulker boxes now export their closed base and lid with source UVs, the renderer's slight shrink, six saved facings, and visible tier textures. The propertyless block default faces down. The entity head is not part of the storage renderer. Saved dyes, tier hiding, opening animation, locks, upgrades, and displayed items remain unavailable. Source PNG overrides retain their pixels. Fractional-alpha replacements fail explicitly because the renderer uses cutout materials rather than ordinary alpha blending.
+
+PneumaticCraft pressure tubes now export the initialized isolated appearance: six copies of the supplied disconnected model with the renderer's exact local rotations. Source coordinates, UVs, element rotations, and application rotation remain intact. The raw renderer with absent ModelData draws nothing, so the report explicitly identifies this approximation. Saved closed ends, live connections, modules, and camouflage remain unavailable. Culled child faces are omitted, matching the renderer's null-side query. Unsupported parent-dependent or custom-loader replacements fail explicitly.
+
+Composite root transforms now reject fixed renderer geometry, just as composite application rotations already do. An actual-pack audit found no affected fixed renderer children under nonidentity root transforms. Windows per-block OBJ mosaics now select RGBA and alpha maps for imported textures. A native regression first reproduced alpha changing from 128 to 255, then passed after the exporter fix.
+
+This pass adds nine definitions and 45 selectors without changing any existing selector's geometry, rotation, color, or texture data. The full ATM10 8.3 catalog contains 45,309 definitions, 589,244 selectors, 32,058 textures, 92,213 geometries, 562,789 elements, 35,260 polygons, and 25 dimensions. Remaining unsupported totals are 6,842 definitions and 5,017 states.
+
+All 294 Python tests passed. Twenty-four new native macOS ASan/UBSan cases check analytic geometry, winding, source UVs, both texture modes, tier pixels after nearest-neighbor resampling, and Sponge identity. Full-pack native exports checked all 45 new selectors. The baseline checked 788 states and 749 textures. Portable Windows fixtures cover 1,454 states. Windows assertions also passed against the native renderer outputs. macOS app, capacity, and security checks passed.
+
 ## Compiled format
 
 The importer writes version 6 for split models. Otherwise, it writes version 5 for repeated UVs, version 4 for Z rotations, version 3 for polygons, or version 2. The runtime reads versions 1 through 6. All versions use UTF-8 text with tab-separated fields. Resource identifiers and selectors cannot contain control characters. Dimension records are optional. Texture and geometry indices each start at zero and increase by one. References must use earlier records.

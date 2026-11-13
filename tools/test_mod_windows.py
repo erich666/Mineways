@@ -471,6 +471,7 @@ def exercise(executable, root):
     exercise_custom_defaults(executable, root, common, texture_sources)
     exercise_owned_models(executable, root, common, texture_sources)
     exercise_dynamic_models(executable, root, common, texture_sources)
+    exercise_renderer_models(executable, root, common, texture_sources)
     for orientation in ('plain', 'turned'):
         label = 'mesh-' + orientation
         state = 'fixture:obj_mesh[orientation=' + orientation + ',retained=true]'
@@ -677,6 +678,62 @@ def read_textured_faces(path):
             corners = [tuple(map(int, value.split('/')[:2])) for value in fields[1:]]
             faces.append(([(points[p-1], uv[t-1]) for p, t in corners], materials[current]))
     return faces
+
+
+def exercise_renderer_models(executable, root, common, texture_sources):
+    samples = [(f'tube-{pose}', f'fixture:pressure_tube[pose={pose}]', 12)
+               for pose in ('plain', 'turned', 'rolled')]
+    for tier in ('base', 'copper', 'netherite'):
+        block = 'sophisticatedstorage:' + (tier + '_' if tier != 'base' else '') + 'shulker_box'
+        samples += [(f'shulker-{tier}-{facing}', block + (f'[facing={facing}]' if facing != 'default' else ''), 12)
+                    for facing in ('default', 'down', 'up', 'north', 'south', 'west', 'east')]
+    for label, state, count in samples:
+        source, restored = root / (label + '.schem'), root / (label + '-restored.schem')
+        schematic(source, [state])
+        reference = None
+        for mosaic in (False, True):
+            name = label + ('-mosaic' if mosaic else '')
+            output = root / (name + '.obj')
+            mode = 'Export full color texture patterns' if mosaic else 'Export individual textures to directory ' + name + 'tex'
+            details = run(executable, root, name, [*common, 'Minecraft world: ' + str(source),
+                          'File type: ' + mode, 'Selection location min to max: 0, 0, 0 to 0, 0, 0',
+                          'Export for Rendering: ' + str(output), 'Export Schematic: ' + str(restored)])
+            check_obj(output, details, minimum_faces=count)
+            verify_schematic(restored, [state], details)
+            faces = read_textured_faces(output)
+            assert len(faces) == count, name
+            if not mosaic:
+                assert check_export_pixels(output, texture_sources) == 1, name
+            signature = []
+            for corners, (width, height, pixels) in faces:
+                colors = []
+                for a, b in ((.23, .19), (.71, .67), (.23, .67), (.71, .19)):
+                    weights = ((1-a)*(1-b), a*(1-b), a*b, (1-a)*b)
+                    uv = [sum(w*t[i] for w, (_, t) in zip(weights, corners)) for i in range(2)]
+                    if mosaic:
+                        px, py = min(width-1, int(uv[0]*width)), min(height-1, int((1-uv[1])*height))
+                    else:
+                        # The bundled terrain uses 16px tiles. Mosaics sample high-resolution sources at that size.
+                        px, py = min(15, int(uv[0]*16))*width//16, min(15, int((1-uv[1])*16))*height//16
+                    offset = (py*width+px)*4
+                    colors.append(tuple(pixels[offset:offset+4]))
+                signature.append((tuple(p for p, _ in corners), tuple(colors)))
+            if mosaic:
+                assert signature == reference, 'Mosaic changed renderer geometry or UV pixels: ' + name
+            else:
+                reference = signature
+            if label.startswith('shulker-'):
+                facing = label.rsplit('-', 1)[1]
+                facing = 'down' if facing == 'default' else facing
+                shrink = struct.unpack('f', struct.pack('f', .9995))[0]
+                for corners, _ in faces:
+                    for point, _ in corners:
+                        a, b, c = ((v*16-8)/shrink for v in point)
+                        # Undo Direction.getRotation, before checking the closed base/lid levels.
+                        x, y, z = {'up': (a,b,c), 'down': (a,-b,-c), 'north': (-a,-c,-b),
+                                   'south': (a,c,-b), 'west': (c,-a,-b), 'east': (-c,a,-b)}[facing]
+                        assert abs(abs(x)-8) < 2e-5 and abs(abs(z)-8) < 2e-5, (name, point)
+                        assert min(abs(y-v) for v in (-8,-4,0,8)) < 2e-5, (name, point)
 
 
 def exercise_dynamic_models(executable, root, common, texture_sources):
@@ -959,6 +1016,15 @@ def exercise_pack(executable, root, manifest):
             if state not in selected:
                 selected.append(state)
     targets = [
+               'pneumaticcraft:advanced_pressure_tube',
+               'pneumaticcraft:pressure_tube',
+               'pneumaticcraft:reinforced_pressure_tube',
+               'sophisticatedstorage:copper_shulker_box',
+               'sophisticatedstorage:diamond_shulker_box',
+               'sophisticatedstorage:gold_shulker_box',
+               'sophisticatedstorage:iron_shulker_box',
+               'sophisticatedstorage:netherite_shulker_box',
+               'sophisticatedstorage:shulker_box',
                'mekanism:advanced_energy_cube',
                'mekanism:basic_energy_cube',
                'mekanism:creative_energy_cube',

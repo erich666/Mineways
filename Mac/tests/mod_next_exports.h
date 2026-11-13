@@ -128,10 +128,11 @@ static std::vector<Sample> samples() {
     return result;
 }
 }
-static void checkNextDefaultExports(const std::filesystem::path& root) {
+static void checkAnalyticModelExports(const std::filesystem::path& folder,
+    const std::vector<NextExportTest::Sample>& cases, NextExportTest::Color (*samplePixel)(int,int,int), double tolerance=1e-6) {
     using namespace NextExportTest;
-    const auto folder=root/"next-defaults";std::filesystem::create_directories(folder);
-    for(const auto& sample:samples()) {
+    std::filesystem::create_directories(folder);
+    for(const auto& sample:cases) {
         int type,state;assert(ResolveModState(sample.state,&type,&state)==1);
         unsigned short block=(unsigned short)type,value=(unsigned short)state;
         WorldGuide world={};world.type=WORLD_SCHEMATIC_TYPE;world.sch={&block,&value,1,1,1,1,false,true};
@@ -145,7 +146,7 @@ static void checkNextDefaultExports(const std::filesystem::path& root) {
                 for(size_t e=0;e<sample.faces.size();++e)if(!used.count(e)) {
                     const auto& expected=sample.faces[e];std::array<int,4> candidate={};bool same=true;
                     for(int v=0;v<4;++v) {candidate[v]=-1;for(int p=0;p<4;++p) {
-                        bool close=true;for(int a=0;a<3;++a)close=close&&fabs(face[v].position[a]*16-expected.points[p][a])<1e-6;
+                        bool close=true;for(int a=0;a<3;++a)close=close&&fabs(face[v].position[a]*16-expected.points[p][a])<tolerance;
                         if(close)candidate[v]=p;
                     }same=same&&candidate[v]>=0;}
                     if(same) {const P a=expected.points[0],b=expected.points[1],c=expected.points[2];P ab,ac;
@@ -164,7 +165,7 @@ static void checkNextDefaultExports(const std::filesystem::path& root) {
                     for(int k=0;k<3;++k){u+=face[corners[k]].uv[0]*weights[k];v+=face[corners[k]].uv[1]*weights[k];ru+=expected.uv[ids[corners[k]]][0]*weights[k];rv+=expected.uv[ids[corners[k]]][1]*weights[k];}
                     if(expected.image<6&&(fabs(ru-round(ru))<1e-5||fabs(rv-round(rv))<1e-5))continue;
                     const int x=(int)floor(u*width),y=(int)floor((1-v)*height);assert(x>=0&&x<(int)width&&y>=0&&y<(int)height);
-                    const Color color=pixel(expected.image,(int)floor(ru),(int)floor(rv));
+                    const Color color=samplePixel(expected.image,(int)floor(ru),(int)floor(rv));
                     for(int channel=0;channel<4;++channel)if(pixels[((size_t)y*width+x)*4+channel]!=color[channel]) {
                         fprintf(stderr,"pixel mismatch %s face%zu image%d at %g,%g channel%d: %d != %d\n",sample.label.c_str(),f,expected.image,ru,rv,channel,pixels[((size_t)y*width+x)*4+channel],color[channel]);assert(false);}
                     ++checked;
@@ -176,4 +177,8 @@ static void checkNextDefaultExports(const std::filesystem::path& root) {
             WorldGuide restored=readSchematic(schematic);assert(stateNames(restored)==stateNames(world));free(restored.sch.blocks);free(restored.sch.data);
         }
     }
+}
+
+static void checkNextDefaultExports(const std::filesystem::path& root) {
+    checkAnalyticModelExports(root/"next-defaults",NextExportTest::samples(),NextExportTest::pixel);
 }

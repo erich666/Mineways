@@ -43,6 +43,8 @@ _lantern_module = _load_helper('mod_lantern_models')
 _ie_sides_module = _load_helper('mod_ie_sides')
 _power_module = _load_helper('mod_power_models')
 _backpack_module = _load_helper('mod_backpack_models')
+_shulker_module = _load_helper('mod_shulker_models')
+_pressure_tube_module = _load_helper('mod_pressure_tube_models')
 _twilight_module = _load_helper('mod_twilight_models')
 _cloudfx_module = _load_helper('mod_cloudfx')
 
@@ -60,6 +62,7 @@ LOADER_GEOMETRY_FIELDS = {
     _lantern_module.LOADER: ('support',),
     _ie_sides_module.LOADER: ('base_name', 'type'),
     _power_module.PIPE_LOADER: ('pipeType', 'transparent'),
+    _pressure_tube_module.LOADER: ('prefix',),
     _power_module.CUBE_LOADER: _power_module.CUBE_FIELDS,
     _twilight_module.CONNECTED: ('base', 'connected_texture', 'connectable_blocks'),
     _twilight_module.FORCE_FIELD: ('elements',),
@@ -531,7 +534,7 @@ class Compiler:
                                                         _framework_module.LOADER, *_wire_module.LOADERS,
                                                         _custom_defaults.FRAMED_LOADER, _custom_defaults.MICROCHIP_LOADER,
                                                         _lantern_module.LOADER, _ie_sides_module.LOADER, *_power_module.LOADERS,
-                                                        _backpack_module.LOADER, *_twilight_module.LOADERS,
+                                                        _backpack_module.LOADER, _shulker_module.LOADER, _pressure_tube_module.LOADER, *_twilight_module.LOADERS,
                                                         *_machine_module.LOADERS):
             raise ImportError('custom model loader: ' + str(own['loader']))
         if own.get('loader') == 'fusion:model':
@@ -935,6 +938,10 @@ class Compiler:
         model = self.builtin_adapter(name, model)
         if depth and any(flag not in (selector or {}) for flag in PALETTE_FLAGS.get(model.get('loader'), ())):
             raise ImportError('nested dynamic model requires explicit palette flags')
+        if model.get('loader') == _shulker_module.LOADER:
+            return _shulker_module.compile_shulker(self, name, model, rotation, selector, depth, ImportError, block_name, decode_png)
+        if model.get('loader') == _pressure_tube_module.LOADER:
+            return _pressure_tube_module.compile_pressure_tube(self, name, model, rotation, selector, depth, ImportError, block_name, quarter_turn_orientation)
         if model.get('loader') == _storage_module.BARREL_LOADER:
             return _storage_module.compile_barrel(self, name, model, rotation, selector, depth, ImportError, block_name)
         if model.get('loader') == _backpack_module.LOADER:
@@ -1028,7 +1035,7 @@ class Compiler:
                 if 'split_models' in compiled or 'split_policy' in compiled:
                     raise ImportError('nested split model geometry requires an explicit replacement model')
                 fixed_rotation = fixed_rotation or compiled.get('fixed_rotation', False)
-                if fixed_rotation and (rotation[0] or rotation[1] or (len(rotation) > 3 and rotation[3])):
+                if fixed_rotation and (rotation[0] or rotation[1] or (len(rotation) > 3 and rotation[3]) or not transform.is_identity):
                     raise ImportError('rotated composite contains fixed-rotation geometry')
                 all_invisible = all_invisible and compiled.get('invisible', False)
                 requires_visible_companion = requires_visible_companion or compiled.get('requires_visible_companion', False)
@@ -1123,6 +1130,7 @@ class Compiler:
         return result
 
     def block(self, name, definition):
+        definition = _shulker_module.expand_shulker(self, name, definition, ImportError)
         for loader, flags in PALETTE_FLAGS.items():
             definition = _storage_module.expand_loader_flags(self, name, definition, loader, flags, ImportError)
         definition = _storage_module.expand_block(self, name, definition, ImportError)

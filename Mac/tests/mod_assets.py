@@ -280,6 +280,8 @@ def build_fixture(root):
                                ('mod_obj_ownership_fixtures.py', 'obj_ownership_assets'),
                                ('mod_machine_fixtures.py', 'machine_assets'),
                                ('mod_power_fixtures.py', 'power_assets'),
+                               ('mod_shulker_fixtures.py', 'shulker_assets'),
+                               ('mod_pressure_tube_fixtures.py', 'pressure_tube_assets'),
                                ('mod_twilight_fixtures.py', 'twilight_assets'),
                                ('mod_dynamic_storage_fixtures.py', 'dynamic_storage_assets')):
         fixture_spec = importlib.util.spec_from_file_location(filename[:-3], Path(__file__).with_name(filename))
