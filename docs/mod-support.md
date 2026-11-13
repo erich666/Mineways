@@ -313,6 +313,16 @@ This pass adds 37 definitions and 384 selectors with no lost coverage. The full 
 
 All 222 Python tests and native macOS ASan/UBSan fixture exports passed. Sixteen new native cases cover individual/mosaic pixels, directional quadrants, independently calculated lantern geometry, fixed-rotation equality, and Sponge identity. The Windows assertion code also passed against those native exports. Full-pack exports checked all 384 new selectors, repeated OBJ output, and exact Sponge geometry/state round trips. The baseline checked 706 states and 684 textures. Portable Windows fixtures cover 1,338 states. The preceding machine/wire/furniture commit passed macOS Intel CI, Windows Debug/Release regressions, and full-pack Windows Release tests.
 
+## Custom geometry inheritance fixes
+
+Custom geometry now retains the fields captured where its loader is declared. A new explicit loader declaration resets omitted options to that loader's defaults. Plain children retain their parent's parsed geometry. Child textures, visibility, root transforms, and render-type context remain independently overridable where the renderer uses them.
+
+This corrects OBJ/Mekanism/IE options, composite children, storage defaults, More Red tint geometry, Framework components, and other verified loader-owned fields. Domum retains its captured geometry parent separately from the structural parent. Limited barrels ignore custom part overrides in loaderless children. IE OBJ ignores unsupported NeoForge material options. MI defaults use identity geometry, matching their shipped bake methods. Composite item orders accept bounded string child names; exotic Gson coercions remain explicitly unsupported.
+
+The full ATM10 comparison changed exactly 42 selectors across four XyCraft definitions: buffer, isolator, item-filter pipe, and item-sorter pipe. Their OBJ UVs now use the correct explicit-loader default. Every other selector retained identical geometry, rotations, state colors, and texture data. No selectors were added or lost. Catalog totals remain 45,265 definitions and 587,933 selectors.
+
+All 240 Python tests passed. Six native macOS sanitizer cases checked exact asymmetric geometry, source-gradient UV pixels, both texture modes, MI identity rotation, and Sponge identity. The Windows assertion code passed against those native outputs. Full-pack exports checked all 42 corrected selectors, repeated OBJ output, and exact Sponge geometry/state round trips. The baseline checked 710 states and 689 textures. Portable Windows fixtures cover 1,376 states, including every corrected XyCraft selector. Earlier full Windows Debug runs also passed: 1,139 states for the Domum/transmitter batch and 1,288 states for the machine/wire/furniture batch.
+
 ## Compiled format
 
 The importer writes version 6 for split models. Otherwise, it writes version 5 for repeated UVs, version 4 for Z rotations, version 3 for polygons, or version 2. The runtime reads versions 1 through 6. All versions use UTF-8 text with tab-separated fields. Resource identifiers and selectors cannot contain control characters. Dimension records are optional. Texture and geometry indices each start at zero and increase by one. References must use earlier records.

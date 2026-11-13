@@ -277,6 +277,8 @@ int main(int argc, char** argv)
         "xycraft_world:lamp_pillar_blue",
         "xycraft_world:lamp_lantern_blue",
         "xycraft_machines:buffer",
+        "xycraft_machines:pipe_item_sorter",
+        "xycraft_machines:pipe_item_filter",
         "xycraft_machines:engineering_table",
         "xycraft_machines:extractor",
         "xycraft_machines:isolator",

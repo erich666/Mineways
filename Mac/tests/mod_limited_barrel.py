@@ -124,6 +124,23 @@ class LimitedBarrelModels(unittest.TestCase):
             with self.subTest(changes=changes), self.assertRaises(mod.ImportError):
                 self.compile({**self.tier, **changes})
 
+    def test_loaderless_layers_inherit_frozen_parts_and_ignore_custom_fields(self):
+        changes = {'model_parts': {'base': {'model': 'fixture:barrel_flat'}},
+                   'wood_overrides': {'acacia': {'base': {'textures': {'surface': 'fixture:barrel_unused'}}}}}
+        put(self.root, 'assets/fixture/models/plain_barrel.json', {'parent': 'fixture:limited_barrel', **changes})
+        compiler, original = self.compile()
+        inherited = storage.compile_limited_barrel(compiler, 'fixture:plain_barrel', {}, (0, 0, 0), {}, 0, mod.ImportError)
+        self.assertEqual(inherited, original)
+        # These fields are not deserialized at all without an explicit loader.
+        _, ignored = self.compile({'parent': 'fixture:plain_barrel', 'model_parts': [], 'wood_overrides': 7})
+        self.assertEqual(ignored, original)
+        _, explicit = self.compile({'parent': 'fixture:limited_barrel', 'loader': storage.LIMITED_BARREL_LOADER, **changes})
+        self.assertEqual(explicit['elements'][0]['coordinates'][:6], (0, 0, 0, 16, 16, 16))
+        self.assertEqual(explicit['elements'][0]['faces'][0][-2], 'fixture:barrel_unused')
+        with self.assertRaises(mod.ImportError):
+            self.compile({'parent': 'fixture:plain_barrel', 'loader': storage.LIMITED_BARREL_LOADER, 'model_parts': []})
+        self.assertEqual(storage.compile_limited_barrel(compiler, 'fixture:limited_barrel', {}, (0, 0, 0), {}, 0, mod.ImportError), original)
+
     def test_missing_models_cycles_and_parent_depth_are_bounded(self):
         with self.assertRaises(mod.ImportError):
             self.compile({'loader': storage.LIMITED_BARREL_LOADER, 'model_parts': {'base': {'textures': {}}}})

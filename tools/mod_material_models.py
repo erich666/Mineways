@@ -11,7 +11,7 @@ def compile_domum(compiler, name, model, rotation, selector, depth, error_type, 
     """
     if depth >= 63:
         raise error_type('excessive material model depth')
-    parent = model.get('parent')
+    parent = model.get('_domum_geometry_parent', model.get('parent'))
     if not isinstance(parent, str):
         raise error_type('Domum material model requires a parent resource')
     resolved = compiler.model(parent)

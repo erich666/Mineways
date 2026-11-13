@@ -88,6 +88,24 @@ class MaterialModels(unittest.TestCase):
         with self.assertRaisesRegex(mod.ImportError, 'depth'):
             self.compile('fixture:material_empty_parent', depth=63)
 
+    def test_inherited_geometry_keeps_captured_parent_separate_from_model_parent(self):
+        wrapper = {'loader': material.DOMUM_LOADER, 'parent': 'fixture:material_parent'}
+        put(self.root, 'assets/fixture/models/domum_wrapper.json', wrapper)
+        put(self.root, 'assets/fixture/models/domum_child.json', {
+            'parent': 'fixture:domum_wrapper', '_domum_geometry_parent': 'fixture:missing',
+            'textures': {'surface': 'fixture:material_outer'}, 'elements': []})
+        compiler = mod.Compiler(mod.Assets([self.root]))
+        resolved = compiler.model('fixture:domum_child')
+        self.assertEqual(resolved['parent'], 'fixture:domum_wrapper')
+        self.assertEqual(resolved['_domum_geometry_parent'], 'fixture:material_parent')
+        result = compiler.compile_model({'model': 'fixture:domum_child', 'y': 90})
+        expected = compiler.compile_model({'model': 'fixture:material_parent', 'y': 90})
+        self.assertEqual(result, expected)
+        # A new explicit loader captures its own parent, not an inherited marker.
+        explicit = compiler.model({'parent': 'fixture:domum_wrapper', 'loader': material.DOMUM_LOADER,
+                                   '_domum_geometry_parent': 'fixture:missing'})
+        self.assertEqual(explicit['_domum_geometry_parent'], 'fixture:domum_wrapper')
+
     def test_block_dispatch_preserves_visible_and_empty_states(self):
         compiler = mod.Compiler(mod.Assets([self.root]))
         rows = compiler.block('fixture:material_block', compiler.assets.json('assets/fixture/blockstates/material_block.json'))

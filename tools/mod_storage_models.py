@@ -230,6 +230,14 @@ def _limited_barrel_parts(compiler, reference, error_type, chain=()):
         raise error_type('limited barrel parent must use the limited barrel loader')
     if own.get('transform', {}) != {}:
         raise error_type('limited barrel root transforms require an explicit replacement model')
+    if 'loader' not in own:
+        # A plain BlockModel inherits the already parsed custom geometry object.
+        if 'parent' not in own:
+            raise error_type('limited barrel model requires a loader or parent')
+        parts = _limited_barrel_parts(compiler, own['parent'], error_type, chain + (key,))
+        if key is not None:
+            cache[key] = parts
+        return parts
     parts = _barrel_parts(own.get('model_parts', {}), error_type)
     overrides = own.get('wood_overrides', {})
     if not isinstance(overrides, dict) or len(overrides) > 256:

@@ -43,6 +43,26 @@ _lantern_module = _load_helper('mod_lantern_models')
 _ie_sides_module = _load_helper('mod_ie_sides')
 _cloudfx_module = _load_helper('mod_cloudfx')
 
+# Custom geometry is parsed where a loader is declared. Child baking context
+# (textures, visibility, transforms) remains overridable independently.
+OBJ_GEOMETRY_FIELDS = ('model', 'automatic_culling', 'shade_quads', 'flip_v', 'emissive_ambient', 'mtl_override')
+LOADER_GEOMETRY_FIELDS = {
+    'neoforge:composite': ('children', 'item_render_order'),
+    'forge:composite': ('children', 'item_render_order'),
+    'neoforge:obj': OBJ_GEOMETRY_FIELDS,
+    _mekanism_module.LOADER: OBJ_GEOMETRY_FIELDS + ('glass',),
+    'immersiveengineering:ie_obj': ('model', 'callbacks', 'dynamic', 'layers'),
+    _framework_module.LOADER: ('components',),
+    _custom_defaults.FRAMED_LOADER: ('children', 'parts', 'item_render_order'),
+    _lantern_module.LOADER: ('support',),
+    _ie_sides_module.LOADER: ('base_name', 'type'),
+    _storage_module.SIMPLE_MATERIAL_LOADER: ('base', 'overlay'),
+    _wire_module.WIRE_LOADER: ('line', 'edge'),
+    _wire_module.TINT_LOADER: ('elements',),
+    'modern_industrialization:machine': ('casing', 'default_overlays', 'tiered_overlays', 'no_overlay_on_output_side'),
+    'modern_industrialization:use_block_model': ('block',),
+}
+
 MAX_FILE = 16 * 1024 * 1024
 MAX_TOTAL = 512 * 1024 * 1024
 MAX_FILES = 1000000
@@ -505,33 +525,15 @@ class Compiler:
                 raise ImportError('unsupported Fusion model type: ' + str(own.get('type')))
         parent = self.model(own['parent'], chain + (name,)) if 'parent' in own else {}
         result = {**parent, **own}
-        if own.get('loader') == _framework_module.LOADER:
-            result['components'] = own.get('components', [])
-        elif 'loader' not in own and parent.get('loader') == _framework_module.LOADER:
-            result['components'] = parent.get('components', [])
-        if own.get('loader') == _custom_defaults.FRAMED_LOADER:
-            result['children'] = own.get('children', {})
-            result['parts'] = own.get('parts', {})
-            if 'item_render_order' not in own:
-                result.pop('item_render_order', None)
-        elif 'loader' not in own and parent.get('loader') == _custom_defaults.FRAMED_LOADER:
-            for field in ('children', 'parts', 'item_render_order'):
-                if field in parent:
-                    result[field] = parent[field]
-                else:
-                    result.pop(field, None)
-        if result.get('loader') == _lantern_module.LOADER:
-            source = own if 'loader' in own else parent
-            if 'support' in source:
-                result['support'] = source['support']
+        source = own if 'loader' in own else parent
+        for field in LOADER_GEOMETRY_FIELDS.get(result.get('loader'), ()):
+            if field in source:
+                result[field] = source[field]
             else:
-                result.pop('support', None)
-        if own.get('loader') == _ie_sides_module.LOADER:
-            for field in ('base_name', 'type'):
-                result[field] = own.get(field)
-        elif 'loader' not in own and parent.get('loader') == _ie_sides_module.LOADER:
-            for field in ('base_name', 'type'):
-                result[field] = parent.get(field)
+                result.pop(field, None)
+        if result.get('loader') == _material_module.DOMUM_LOADER:
+            result['_domum_geometry_parent'] = (own.get('parent') if 'loader' in own
+                                                else parent.get('_domum_geometry_parent'))
         if not isinstance(own.get('textures', {}), dict):
             raise ImportError('model textures must be an object: ' + name)
         result['textures'] = {**parent.get('textures', {}), **own.get('textures', {})}
@@ -963,9 +965,9 @@ class Compiler:
         if model.get('loader') == 'fusion:model':
             label = name if isinstance(name, str) else '<inline>'
             self.warnings.add(f'{label}: connected-texture neighbors are not evaluated')
-        adapted = _machine_module.adapt_machine_model(self, name, model, selector, ImportError)
-        if adapted is None:
-            adapted = self.custom_loader_adapter(name, model, selector)
+        if model.get('loader') in _machine_module.LOADERS:
+            return _machine_module.compile_machine(self, name, model, rotation, selector, depth, ImportError, block_name)
+        adapted = self.custom_loader_adapter(name, model, selector)
         if adapted is not None:
             return self.compile_model({'model': adapted, 'x': x, 'y': y, 'uvlock': uvlock, 'ae2:z': z}, depth + 1, selector, block_name)
         if model.get('loader') == 'lootr:brushable':
@@ -987,6 +989,10 @@ class Compiler:
                 raise ImportError('invalid or excessive composite children')
             if not all(isinstance(child, dict) for child in children.values()):
                 raise ImportError('composite child must be an inline model object')
+            order = model.get('item_render_order', list(children))
+            if (not isinstance(order, list) or len(order) > 256
+                    or any(not isinstance(key, str) or key not in children for key in order)):
+                raise ImportError('composite item_render_order requires bounded child names')
             elements, polygons = [], []
             all_invisible = True
             requires_visible_companion = False

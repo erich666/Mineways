@@ -137,7 +137,8 @@ class ExpandedUvTests(unittest.TestCase):
                                       for line in original.splitlines()) + '\n')
             c = mod.Compiler(mod.Assets([self.root]))
             self.addCleanup(c.assets.close)
-            result = c.compile_model({'model': {'parent': 'fixture:block/uv_polygon', 'flip_v': flip}})
+            result = c.compile_model({'model': {'parent': 'fixture:block/uv_polygon',
+                'loader': 'neoforge:obj', 'model': 'fixture:models/block/uv_polygon.obj', 'flip_v': flip}})
             self.assertTrue(all(vertex[3:] == expected for vertex in result['polygons'][0]['vertices']))
 
     def test_obj_expanded_budget_matches_standard_faces(self):

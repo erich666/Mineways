@@ -469,6 +469,7 @@ def exercise(executable, root):
             assert len(points) == len(expected) == 8
             assert all(any(all(abs(a-b) < 1e-6 for a,b in zip(point, corner)) for corner in expected) for point in points), label
     exercise_custom_defaults(executable, root, common, texture_sources)
+    exercise_owned_models(executable, root, common, texture_sources)
     for orientation in ('plain', 'turned'):
         label = 'mesh-' + orientation
         state = 'fixture:obj_mesh[orientation=' + orientation + ',retained=true]'
@@ -677,6 +678,55 @@ def read_textured_faces(path):
     return faces
 
 
+def exercise_owned_models(executable, root, common, texture_sources):
+    samples = [(f'obj-owned-{mode}', f'fixture:obj_owned[mode={mode}]', 1, 1) for mode in ('inherited', 'reset')]
+    for kind, faces, textures in (('default', 3, 2), ('delegate', 2, 1)):
+        samples += [(f'machine-{kind}-{f}', f'fixture:machine_{kind}[facing={f}]', faces, textures) for f in ('north', 'east')]
+    reference = {}
+    for label, state, face_count, texture_count in samples:
+        source, output, restored = [root / (label + suffix) for suffix in ('.schem', '.obj', '-restored.schem')]
+        schematic(source, [state])
+        details = run(executable, root, label, [*common, 'Minecraft world: ' + str(source),
+                      'File type: Export individual textures to directory ' + label + 'tex',
+                      'Selection location min to max: 0, 0, 0 to 0, 0, 0',
+                      'Export for Rendering: ' + str(output), 'Export Schematic: ' + str(restored)])
+        check_obj(output, details, minimum_faces=face_count)
+        assert check_export_pixels(output, texture_sources) == texture_count
+        verify_schematic(restored, [state], details)
+        faces = read_textured_faces(output)
+        assert len(faces) == face_count
+        if label.startswith('machine-'):
+            key = label.rsplit('-', 1)[0]
+            if key in reference:
+                assert faces == reference[key], 'Machine default inherited application rotation'
+            else:
+                reference[key] = faces
+            continue
+        inherited = label.endswith('inherited')
+        expected_points = [(16,3,4), (4,3,4), (4,13,4), (16,13,4)] if inherited else [(3,1,13), (11,1,13), (11,9,13), (3,9,13)]
+        expected_uv = [(2,12), (12,12), (12,2), (2,2)] if inherited else [(2,4), (12,4), (12,14), (2,14)]
+        corners, (width, height, pixels) = faces[0]
+        assert len(corners) == 4
+        for point, uv in corners:
+            index = next(i for i, wanted in enumerate(expected_points)
+                         if all(abs(p-q/16) < 1e-6 for p, q in zip(point, wanted)))
+            u, v = expected_uv[index]
+            assert abs(uv[0]-u/16) < 1e-6 and abs(uv[1]-(1-v/16)) < 1e-6, label
+        for a in (.25, .75):
+            for b in (.25, .75):
+                weights = ((1-a)*(1-b), a*(1-b), a*b, (1-a)*b)
+                point = [16*sum(w*p[i] for w, (p, _) in zip(weights, corners)) for i in range(3)]
+                uv = [sum(w*t[i] for w, (_, t) in zip(weights, corners)) for i in range(2)]
+                if inherited:
+                    u, v = 2+(16-point[0])*10/12, 12-(point[1]-3)
+                    expected = (int(u)*16, int(v)*16, 40, 255)
+                else:
+                    u, v = 2+(point[0]-3)*10/8, 4+(point[1]-1)*10/8
+                    expected = (40, int(u)*16, int(v)*16, 255)
+                offset = (min(height-1, int((1-uv[1])*height))*width + min(width-1, int(uv[0]*width)))*4
+                assert tuple(pixels[offset:offset+4]) == expected, (label, point, expected)
+
+
 def exercise_custom_defaults(executable, root, common, texture_sources):
     samples = [(f'framed-{f}', f'fixture:framed_default[facing={f}]', 3, 2) for f in ('north', 'east')]
     samples += [(f'microchip-{f}', f'fixture:microchip_default[facing={f}]', 6, 2) for f in ('north', 'east')]
@@ -763,6 +813,10 @@ def check_export_pixels(object_path, sources):
 def exercise_pack(executable, root, manifest):
     """Use an external compiled pack, never a user's live Minecraft world."""
     rotation_blocks = {
+        'xycraft_machines:buffer',
+        'xycraft_machines:isolator',
+        'xycraft_machines:pipe_item_filter',
+        'xycraft_machines:pipe_item_sorter',
         'advanced_ae:quantum_crafter',
         'ae2:charger',
         'ae2:chest',

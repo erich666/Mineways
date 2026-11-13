@@ -141,7 +141,13 @@ def compile_ie_obj(compiler, model, rotation, selector, api, obj_module):
             return tuple(point[i] + 8 + delta[i] for i in range(3))
         rotation = (0, 0, 0)
     adapter = SimpleNamespace(visible=visible, color=color, position=position)
-    result = obj_module.compile_obj(compiler, {**model, 'flip_v': True}, rotation, api, ie=adapter)
+    # IEOBJLoader reads model/callbacks/dynamic/layers, not NeoForge's OBJ
+    # parser options. In particular, an ignored mtl_override must not replace
+    # the OBJ's own material library. IE always flips V in its quad builder.
+    obj_model = {key: value for key, value in model.items() if key not in (
+        'automatic_culling', 'shade_quads', 'flip_v', 'emissive_ambient', 'mtl_override')}
+    obj_model['flip_v'] = True
+    result = obj_module.compile_obj(compiler, obj_model, rotation, api, ie=adapter)
     if callback == 'structural_arm':
         textures = {polygon['texture'] for polygon in result['polygons']}
         if len(textures) != 1:

@@ -4,6 +4,7 @@ import tempfile
 import unittest
 
 from mod_assets import mod, put, simple
+from mod_machine_fixtures import machine_assets
 
 
 class MachineTests(unittest.TestCase):
@@ -31,20 +32,49 @@ class MachineTests(unittest.TestCase):
         return {'loader': 'modern_industrialization:machine', 'casing': 'lv',
                 'default_overlays': {'front': 'sample:block/stone'}, **extra}
 
-    def test_casing_and_north_fallback_preserve_application_rotation(self):
+    def test_casing_and_north_fallback_ignore_application_rotation(self):
         compiler = self.compiler()
         model = self.machine(default_overlays={'front': 'sample:block/stone',
                                                'front_active': 'missing:active',
                                                'output': 'missing:output'})
         compiled = compiler.compile_model({'model': model, 'y': 90, 'uvlock': True},
                                           selector={'facing': 'east', 'active': 'true'})
-        self.assertEqual(compiled['rotation'], (0, 90, 1))
+        self.assertEqual(compiled['rotation'], (0, 0, 0))
+        self.assertTrue(compiled['fixed_rotation'])
         self.assertEqual(len(compiled['elements']), 2)
         overlay = compiled['elements'][1]
         self.assertEqual(overlay['coordinates'][:6], (0, 0, -0.008, 16, 16, -0.008))
         self.assertEqual(overlay['faces'][0], ('north', 0, 0, 16, 16, 0, 'sample:block/stone', 'north'))
         self.assertTrue(any('north-facing inactive' in text and 'block entity orientation' in text
                             for text in compiler.warnings))
+
+    def test_both_machine_loaders_ignore_xyz_and_uvlock_and_reject_rotated_composites(self):
+        compiler = self.compiler()
+        for model in (self.machine(), {'loader': 'modern_industrialization:use_block_model', 'block': 'sample:stone'}):
+            expected = compiler.compile_model({'model': model})
+            for turns in ({'x': 90, 'y': 270, 'uvlock': True}, {'ae2:z': 90}):
+                result = compiler.compile_model({'model': model, **turns})
+                self.assertEqual(result, expected)
+                self.assertEqual(result['rotation'], (0, 0, 0))
+                self.assertTrue(result['fixed_rotation'])
+            composite = {'loader': 'neoforge:composite', 'children': {'machine': model}}
+            nested = {'loader': 'neoforge:composite', 'children': {'inner': composite}}
+            self.assertTrue(compiler.compile_model({'model': nested})['fixed_rotation'])
+            with self.assertRaisesRegex(mod.ImportError, 'fixed-rotation'):
+                compiler.compile_model({'model': nested, 'y': 90})
+
+    def test_shared_machine_fixture_preserves_identity_for_both_loaders(self):
+        machine_assets(self.source, mod.encode_png)
+        compiler = self.compiler()
+        for name, face_count in (('machine_default', 3), ('machine_delegate', 2)):
+            rows = compiler.block('fixture:' + name, compiler.assets.json(f'assets/fixture/blockstates/{name}.json'))
+            self.assertEqual(len(rows), 2)
+            self.assertFalse(compiler.unsupported_states)
+            self.assertEqual(rows[0][3], rows[1][3])
+            model = rows[0][3][0]
+            self.assertEqual(model['rotation'], (0, 0, 0))
+            self.assertEqual(sum(len(element['faces']) for element in model['elements']), face_count)
+            self.assertEqual(model['elements'][0]['coordinates'][:6], (1, 2, 3, 14, 15, 16))
 
     def test_all_overlay_directions_and_specific_field_precedence(self):
         overlays = {'front': 'sample:block/stone', 'side': 'sample:block/stone',

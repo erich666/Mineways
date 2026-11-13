@@ -25,7 +25,8 @@ def _resource(value, error_type, default_namespace='minecraft'):
 def adapt_machine_model(compiler, name, model, selector, error_type=ValueError):
     """Return standard inline geometry, a delegate model name, or None.
 
-    Preserve blockstate application rotations in the caller. A selector cannot
+    The Java geometry ignores ModelState, so the caller must use identity.
+    A selector cannot
     recover MI's frontDirection: the inspected loader reads it from ModelData,
     not a BlockState property. Do not reinterpret unrelated palette properties.
     """
@@ -97,3 +98,15 @@ def adapt_machine_model(compiler, name, model, selector, error_type=ValueError):
     compiler.warnings.add(f'{name}: machine uses supplied casing and north-facing inactive overlays; '
                           'block entity orientation, activity, casing upgrades and output/extraction overlays are unavailable')
     return {'loader': 'neoforge:composite', 'children': children}
+
+
+def compile_machine(compiler, name, model, rotation, selector, depth, error_type, block_name=None):
+    """Both shipped MI loaders bake their captured defaults without ModelState."""
+    if depth >= 63:
+        raise error_type('excessive machine model depth')
+    adapted = adapt_machine_model(compiler, name, model, selector, error_type)
+    if adapted is None:
+        raise error_type('unsupported machine model loader')
+    result = compiler.compile_model({'model': adapted}, depth + 1, selector, block_name)
+    result['fixed_rotation'] = True
+    return result
