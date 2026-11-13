@@ -398,7 +398,7 @@ All 338 importer tests passed. Ten native macOS ASan/UBSan cases verify the two 
 
 ## Canvas signs, Twilight chests, and empty industrial cells
 
-Farmer's Delight standing and wall canvas signs now use their exact entity meshes and supplied 64×32 textures. Standing signs retain all 16 headings and their posts. Wall signs retain the mounting offset and four facings. Propertyless states use verified defaults. Rectangular textures retain normalized UVs through the existing square export slots. Saved front/back text, text dye, and glowing text remain omitted. The 34 hanging-sign definitions and 36 orphan Dyenamics compatibility assets remain unsupported.
+Farmer's Delight standing and wall canvas signs now use their exact entity meshes and supplied 64×32 textures. Standing signs retain all 16 headings and their posts. Wall signs retain the mounting offset and four facings. Propertyless states use verified defaults. Rectangular textures retain normalized UVs through the existing square export slots. Saved front/back text, text dye, and glowing text remain omitted. The 36 orphan Dyenamics compatibility assets remain unsupported. Hanging signs are covered by the following pass.
 
 Twilight Forest's 16 ordinary/trapped chests reuse the verified vanilla single/left/right mesh with their 48 complete entity textures. Facing, half selection, partial states, and north/single defaults remain exact. Live lid opening remains omitted. Explicit visible model replacements bypass these entity fallbacks. The internal `minecraft:builtin/entity` marker comes only from the missing engine parent; source JSON cannot forge or replace it.
 
@@ -407,6 +407,18 @@ The importer now preserves 81 verified Modern/Extended Industrialization fluid-p
 This pass adds 131 definitions and 775 selectors without changing prior selector geometry, rotations, colors, or texture data. The full catalog contains 45,530 definitions, 591,129 selectors, 32,224 textures, 92,919 geometries, 563,546 elements, 44,828 polygons, and 25 dimensions. Remaining unsupported totals are 6,623 definitions and 5,003 states. Engine entity placeholders are no longer classified as missing resource files.
 
 All 357 importer tests passed. Native macOS ASan/UBSan checks cover 24 sign cases, 28 chest cases, and mixed visible/invisible schematic identity. They verify exact source geometry, winding, UVs, pixels, defaults, all standing-sign headings, both texture modes, and Sponge round trips. Windows assertions passed against those outputs. Full-pack native exports checked all 775 new selectors. The baseline checked 959 states and 816 textures. Portable Windows fixtures cover 1,727 states.
+
+## Hanging canvas and Twilight signs
+
+Farmer's Delight's 34 hanging-sign definitions now retain their exact boards, mounting planks, and chains. Ceiling signs support all 16 headings and both attachment styles. Wall signs support four facings. Missing properties use the verified defaults, including partial property sets. Zero-depth chain planes retain both nondegenerate faces, opposite winding, and distinct front/back UVs.
+
+Twilight Forest's 16 standing/wall signs reuse the verified vanilla sign mesh with eight registered wood textures. Their palette headings, wall offsets, and default states remain exact. Visible resource-pack model replacements bypass the entity fallback. Both sign families omit saved text, text dye, and glowing text.
+
+Sign textures share a binary-alpha validation cache. Removing a texture during a failed-state rollback also releases its cached PNG reference. Reloading the same texture name validates the replacement bytes again.
+
+This pass adds 50 definitions and 1,128 selectors without changing or losing prior selector geometry, rotations, colors, or texture data. The full catalog contains 45,580 definitions, 592,257 selectors, 32,249 textures, 93,691 geometries, 563,546 elements, 53,900 polygons, and 25 dimensions. Remaining unsupported totals are 6,573 definitions and 5,003 states.
+
+All 372 importer tests passed. Native macOS ASan/UBSan checks cover 42 hanging-sign cases and 18 Twilight sign cases in both texture modes. They verify exact geometry, winding, UVs, pixels, defaults, partial states, and Sponge identity. Windows assertions passed against those outputs. Full-pack native exports checked every new selector. The baseline checked 960 states and 820 textures. Portable Windows fixtures cover 1,828 states.
 
 ## Compiled format
 

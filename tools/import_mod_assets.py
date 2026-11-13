@@ -33,6 +33,7 @@ _ie_module = _load_helper('mod_ie_models')
 _conveyor_module = _load_helper('mod_conveyor_models')
 _faucet_module = _load_helper('mod_faucet_models')
 _canvas_sign_module = _load_helper('mod_canvas_sign_models')
+_twilight_sign_module = _load_helper('mod_twilight_sign_models')
 _split_module = _load_helper('mod_ie_split')
 _machine_module = _load_helper('mod_machine_models')
 _storage_module = _load_helper('mod_storage_models')
@@ -692,6 +693,7 @@ class Compiler:
     def remove_last_texture(self):
         name, _ = self.textures.popitem()
         self.face_texture_pixel_count -= self.face_texture_pixels.pop(name, 0)
+        getattr(self, '_sign_checked_textures', {}).pop(name, None)
 
     def face_color_texture(self, texture, element, face, label):
         """Bake NeoForge's static vertex ARGB into the referenced texture."""
@@ -950,6 +952,8 @@ class Compiler:
         name = application['model']
         if _canvas_sign_module.matches(block_name, name, model):
             return _canvas_sign_module.compile_canvas_sign(self, name, model, rotation, selector, depth, ImportError, block_name, decode_png)
+        if _twilight_sign_module.matches(block_name, model):
+            return _twilight_sign_module.compile_sign(self, name, model, rotation, selector, depth, ImportError, block_name, decode_png, _canvas_sign_module)
         if _chest_module.is_twilight_chest(block_name, model):
             return _chest_module.compile_twilight_chest(self, name, model, rotation, selector, depth, ImportError, block_name, decode_png)
         if _machine_module.is_empty_fluid(block_name, name, model):
@@ -1167,6 +1171,7 @@ class Compiler:
         return result
 
     def block(self, name, definition):
+        definition = _twilight_sign_module.expand_sign(self, name, definition, ImportError, _canvas_sign_module)
         definition = _canvas_sign_module.expand_canvas_sign(self, name, definition, ImportError)
         definition = _conveyor_module.expand_conveyor(self, name, definition, ImportError)
         definition = _chest_module.expand_chest(self, name, definition, ImportError)

@@ -477,6 +477,8 @@ def exercise(executable, root):
     exercise_conveyor_models(executable, root, common, texture_sources)
     exercise_faucet_models(executable, root, common, texture_sources)
     exercise_canvas_models(executable, root, common, texture_sources)
+    exercise_hanging_canvas_models(executable, root, common, texture_sources)
+    exercise_twilight_sign_models(executable, root, common, texture_sources)
     exercise_twilight_chest_models(executable, root, common, texture_sources)
     for orientation in ('plain', 'turned'):
         label = 'mesh-' + orientation
@@ -759,6 +761,40 @@ def exercise_canvas_models(executable, root, common, texture_sources):
     exercise_renderer_samples(executable, root, common, texture_sources, samples)
 
 
+def exercise_hanging_canvas_models(executable, root, common, texture_sources):
+    samples = [('hanging-default', 'farmersdelight:hanging_canvas_sign', 14, 1)]
+    for attached in (False, True):
+        value = 'true' if attached else 'false'
+        for rotation in range(16):
+            samples.append(('hanging-' + ('attached-' if attached else 'detached-') + str(rotation),
+                            f'farmersdelight:hanging_canvas_sign[attached={value},rotation={rotation}]',
+                            8 if attached else 14, 1))
+    samples += [('hanging-partial-rotation', 'farmersdelight:hanging_canvas_sign[rotation=7]', 14, 1),
+                ('hanging-partial-attached', 'farmersdelight:hanging_canvas_sign[attached=true]', 8, 1),
+                ('hanging-red-3', 'farmersdelight:red_hanging_canvas_sign[attached=true,rotation=3]', 8, 1),
+                ('hanging-wall-default', 'farmersdelight:wall_hanging_canvas_sign', 20, 1)]
+    samples += [('hanging-wall-' + facing, 'farmersdelight:wall_hanging_canvas_sign[facing=' + facing + ']', 20, 1)
+                for facing in ('north', 'east', 'south', 'west')]
+    samples += [('hanging-wall-red-east', 'farmersdelight:red_wall_hanging_canvas_sign[facing=east]', 20, 1)]
+    assert len(samples) == 42
+    exercise_renderer_samples(executable, root, common, texture_sources, samples)
+
+
+def exercise_twilight_sign_models(executable, root, common, texture_sources):
+    samples = []
+    directions = ('north', 'east', 'south', 'west')
+    for index, wood in enumerate(('twilight_oak', 'canopy', 'mangrove', 'dark', 'time', 'transformation', 'mining', 'sorting')):
+        samples.append(('twilight-sign-' + wood + '-standing',
+                        f'twilightforest:{wood}_sign[rotation={(2*index+1)%16}]', 12, 1))
+        wall_name = 'twilight' if wood == 'twilight_oak' else wood
+        samples.append(('twilight-sign-' + wood + '-wall',
+                        f'twilightforest:{wall_name}_wall_sign[facing={directions[index%4]}]', 6, 1))
+    samples += [('twilight-sign-default', 'twilightforest:twilight_oak_sign', 12, 1),
+                ('twilight-wall-default', 'twilightforest:twilight_wall_sign', 6, 1)]
+    assert len(samples) == 18
+    exercise_renderer_samples(executable, root, common, texture_sources, samples)
+
+
 def exercise_twilight_chest_models(executable, root, common, texture_sources):
     samples = [(f'twilight-chest-{family}-{kind}-default', 'twilightforest:' + family +
                 ('_trapped_chest' if kind == 'trapped' else '_chest'), 18, 1)
@@ -810,9 +846,9 @@ def exercise_renderer_samples(executable, root, common, texture_sources, samples
                 assert signature == reference, 'Mosaic changed renderer geometry or UV pixels: ' + name
             else:
                 reference = signature
-            if label.startswith('canvas-'):
+            if label.startswith(('canvas-', 'twilight-sign-', 'twilight-wall-')):
                 properties = dict(field.split('=') for field in state.partition('[')[2].rstrip(']').split(',') if field)
-                wall = 'canvas_wall_sign' in state
+                wall = '_wall_sign' in state
                 angle = -{'north': 180, 'east': 270, 'south': 0, 'west': 90}[properties.get('facing', 'north')] if wall else -22.5*int(properties.get('rotation', '0'))
                 sine, cosine = math.sin(math.radians(angle)), math.cos(math.radians(angle))
                 scale = struct.unpack('f', struct.pack('f', 2/3))[0]
@@ -826,6 +862,35 @@ def exercise_renderer_samples(executable, root, common, texture_sources, samples
                             for z in (low[2], high[2]):
                                 a, b, c = scale*x, -scale*y-(5 if wall else 0), -scale*z-(7 if wall else 0)
                                 expected.append(((8+cosine*a+sine*c)/16, (8+b)/16, (8-sine*a+cosine*c)/16))
+                actual = {point for corners, _ in faces for point, _ in corners}
+                assert len(actual) == len(expected), name
+                assert all(any(all(abs(a-b) < 2e-5 for a,b in zip(point,want)) for want in expected) for point in actual), name
+            if label.startswith('hanging-'):
+                properties = dict(field.split('=') for field in state.partition('[')[2].rstrip(']').split(',') if field)
+                wall = 'wall_hanging_canvas_sign' in state
+                attached = not wall and properties.get('attached', 'false') == 'true'
+                angle = ({'north': 180, 'east': 270, 'south': 0, 'west': 90}[properties.get('facing', 'north')]
+                         if wall else 22.5*int(properties.get('rotation', '0')))
+                sine, cosine = math.sin(math.radians(angle)), math.cos(math.radians(angle))
+                # Independent source parts: board, optional plank, then two-sided
+                # flat chains. Local part yaw precedes the renderer's Y/Z flip.
+                parts = [((-7, 0, -1), (7, 10, 1), 0, 0, 0)]
+                if wall:
+                    parts.append(((-8, -6, -2), (8, -4, 2), 0, 0, 0))
+                if attached:
+                    parts.append(((-6, -6, 0), (6, 0, 0), 0, 0, 0))
+                else:
+                    parts += [((-1.5, 0, 0), (1.5, 6, 0), yaw, x, -6)
+                              for x in (-5, 5) for yaw in (-0.7853981852531433, 0.7853981852531433)]
+                expected = set()
+                for low, high, local_yaw, offset_x, offset_y in parts:
+                    for x in (low[0], high[0]):
+                        for y in (low[1], high[1]):
+                            for z in (low[2], high[2]):
+                                a = math.cos(local_yaw)*x + math.sin(local_yaw)*z + offset_x
+                                b = math.sin(local_yaw)*x - math.cos(local_yaw)*z
+                                expected.add(((8+cosine*a-sine*b)/16, (10-y-offset_y)/16,
+                                              (8+sine*a+cosine*b)/16))
                 actual = {point for corners, _ in faces for point, _ in corners}
                 assert len(actual) == len(expected), name
                 assert all(any(all(abs(a-b) < 2e-5 for a,b in zip(point,want)) for want in expected) for point in actual), name
@@ -1572,6 +1637,15 @@ def exercise_pack(executable, root, manifest):
                'mekanism:ultimate_pressurized_tube',
                'mekanism:ultimate_thermodynamic_conductor',
                'mekanism:ultimate_universal_cable']
+    # Exact batch13 families, including all supplied color/wood identities.
+    targets += ['farmersdelight:' + (color + '_' if color else '') + suffix
+                for color in ('', 'white', 'orange', 'magenta', 'light_blue', 'yellow', 'lime', 'pink',
+                              'gray', 'light_gray', 'cyan', 'purple', 'blue', 'brown', 'green', 'red', 'black')
+                for suffix in ('hanging_canvas_sign', 'wall_hanging_canvas_sign')]
+    targets += ['twilightforest:' + ('twilight' if wall and wood == 'twilight_oak' else wood) +
+                ('_wall_sign' if wall else '_sign')
+                for wood in ('twilight_oak', 'canopy', 'mangrove', 'dark', 'time', 'transformation', 'mining', 'sorting')
+                for wall in (False, True)]
     targets += [name for name in blocks if name.startswith(('allthemodium:molten_', 'domum_ornamentum:', 'morered:'))]
     targets += sorted({state.split('[', 1)[0] for state in split_policies})
     for block in targets:

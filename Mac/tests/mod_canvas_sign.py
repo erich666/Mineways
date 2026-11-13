@@ -78,7 +78,7 @@ class CanvasSignModels(unittest.TestCase):
                 self.assertAlmostEqual(max(p[axis] for p in points),high[axis])
 
     def test_exact_identity_route_and_visible_resource_override(self):
-        for name in ('dyenamicsandfriends:farmersdelight_amber_canvas_sign','farmersdelight:hanging_canvas_sign','farmersdelight:blue_hanging_canvas_sign','fixture:canvas_sign'):
+        for name in ('dyenamicsandfriends:farmersdelight_amber_canvas_sign','farmersdelight:unknown_canvas_sign','farmersdelight:unknown_hanging_canvas_sign','fixture:canvas_sign'):
             with self.assertRaisesRegex(mod.ImportError,'standard elements'):
                 self.compile(block=name)
         put(self.root,'assets/fixture/models/unrelated.json',{'textures':{}})
