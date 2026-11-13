@@ -386,6 +386,16 @@ This pass adds three definitions and 15 selectors without changing any prior sel
 
 All 329 importer tests passed. Fifteen native macOS ASan/UBSan cases check every conveyor quad against independent source positions, winding, and UVs. They also verify texture pixels, both export texture modes, and Sponge identity. The Windows assertions passed against those exports, including the four vertical-conveyor bounds. Full-pack native exports checked all 15 new selectors. The baseline checked 960 states and 839 textures, with repeated OBJ output and exact Sponge geometry/state round trips. Portable Windows fixtures cover 1,626 states.
 
+## Supplementaries dry faucet bodies
+
+The faucet loader now exports its supplied off/on body when saved fluid model data is unavailable. It retains application rotations, UV lock, child textures, and cull hints. Both captured children are validated within the normal compiler limits. The liquid child contributes no exported geometry or textures. The importer does not infer a flowing stream from the `has_water` palette property.
+
+Outer faucet textures, visibility, and root transforms do not replace the child model context. Loaderless children cannot override the captured `model` and `liquid` fields. Reports identify omitted saved fluid identity, color, emission, and flowing appearance.
+
+All 64 faucet selectors now compile, recovering eight previously unsupported states. The full catalog contains 45,399 definitions, 590,354 selectors, 32,159 textures, 92,387 geometries, 563,546 elements, 37,700 polygons, and 25 dimensions. No prior selector changed or disappeared. Remaining unsupported totals are 6,754 definitions and 5,003 states.
+
+All 338 importer tests passed. Ten native macOS ASan/UBSan cases verify the two bodies, four facings, combined turns with UV lock, exact geometry/UVs/pixels, retained cull hints, both texture modes, and Sponge identity. The Windows assertions passed against those outputs. Full-pack native exports checked all eight new selectors. Baseline exports checked 962 states and 840 textures, with repeated OBJ output and exact Sponge geometry/state round trips. Portable Windows fixtures cover 1,628 states.
+
 ## Compiled format
 
 The importer writes version 6 for split models. Otherwise, it writes version 5 for repeated UVs, version 4 for Z rotations, version 3 for polygons, or version 2. The runtime reads versions 1 through 6. All versions use UTF-8 text with tab-separated fields. Resource identifiers and selectors cannot contain control characters. Dimension records are optional. Texture and geometry indices each start at zero and increase by one. References must use earlier records.

@@ -475,6 +475,7 @@ def exercise(executable, root):
     exercise_data_models(executable, root, common, texture_sources)
     exercise_chest_pipe_models(executable, root, common, texture_sources)
     exercise_conveyor_models(executable, root, common, texture_sources)
+    exercise_faucet_models(executable, root, common, texture_sources)
     for orientation in ('plain', 'turned'):
         label = 'mesh-' + orientation
         state = 'fixture:obj_mesh[orientation=' + orientation + ',retained=true]'
@@ -735,6 +736,13 @@ def exercise_conveyor_models(executable, root, common, texture_sources):
     exercise_renderer_samples(executable, root, common, texture_sources, samples)
 
 
+def exercise_faucet_models(executable, root, common, texture_sources):
+    samples = [(f'faucet-{kind}-{pose}', f'fixture:faucet_{kind}[facing=' +
+                ('north,pose=turned]' if pose == 'turned' else pose + ',pose=plain]'), 6, 1)
+               for kind in ('off', 'on') for pose in ('north', 'east', 'south', 'west', 'turned')]
+    exercise_renderer_samples(executable, root, common, texture_sources, samples)
+
+
 def exercise_renderer_samples(executable, root, common, texture_sources, samples):
     for label, state, count, texture_count in samples:
         source, restored = root / (label + '.schem'), root / (label + '-restored.schem')
@@ -772,6 +780,19 @@ def exercise_renderer_samples(executable, root, common, texture_sources, samples
                 assert signature == reference, 'Mosaic changed renderer geometry or UV pixels: ' + name
             else:
                 reference = signature
+            if label.startswith('faucet-'):
+                kind, pose = label.split('-')[1:]
+                low, high = ((2, 5, 3), (12, 11, 14)) if kind == 'off' else ((3, 4, 2), (14, 12, 13))
+                expected = set()
+                for x in (low[0], high[0]):
+                    for y in (low[1], high[1]):
+                        for z in (low[2], high[2]):
+                            a, b, c = (x, z, 16-y) if pose == 'turned' else (x, y, z)
+                            for _ in range({'north': 0, 'east': 1, 'south': 2, 'west': 3, 'turned': 3}[pose]):
+                                a, c = 16-c, a
+                            expected.add((a/16, b/16, c/16))
+                actual = {point for corners, _ in faces for point, _ in corners}
+                assert actual == expected, 'Faucet body changed or gained a fluid stream: ' + name
             if label.startswith('conveyor-'):
                 kind, facing = label.split('-')[1:]
                 low, high = (0, 0, 0), (1, 3/16, 1)
@@ -1198,6 +1219,7 @@ def exercise_pack(executable, root, manifest):
                'immersiveengineering:conveyor_basic',
                'immersiveengineering:conveyor_dropper',
                'immersiveengineering:conveyor_vertical',
+               'supplementaries:faucet',
                'pneumaticcraft:advanced_pressure_tube',
                'pneumaticcraft:pressure_tube',
                'pneumaticcraft:reinforced_pressure_tube',

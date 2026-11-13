@@ -283,6 +283,7 @@ def build_fixture(root):
                                ('mod_shulker_fixtures.py', 'shulker_assets'),
                                ('mod_chest_fixtures.py', 'chest_assets'),
                                ('mod_conveyor_fixtures.py', 'conveyor_assets'),
+                               ('mod_faucet_fixtures.py', 'faucet_assets'),
                                ('mod_xycraft_pipe_fixtures.py', 'xycraft_pipe_assets'),
                                ('mod_data_storage_fixtures.py', 'data_storage_assets'),
                                ('mod_pressure_tube_fixtures.py', 'pressure_tube_assets'),

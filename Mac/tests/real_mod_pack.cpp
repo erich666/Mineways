@@ -356,6 +356,7 @@ int main(int argc, char** argv)
         "immersiveengineering:conveyor_basic",
         "immersiveengineering:conveyor_dropper",
         "immersiveengineering:conveyor_vertical",
+        "supplementaries:faucet",
         "sophisticatedstorage:chest",
         "sophisticatedstorage:copper_chest",
         "sophisticatedstorage:diamond_chest",

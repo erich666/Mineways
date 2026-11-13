@@ -250,6 +250,7 @@ static std::vector<std::string> stateNames(const WorldGuide& world)
 #include "mod_data_exports.h"
 #include "mod_chest_pipe_exports.h"
 #include "mod_conveyor_exports.h"
+#include "mod_faucet_exports.h"
 #include "mod_polygons.h"
 #include "mod_precision.h"
 #include "mod_rotations.h"
@@ -459,6 +460,7 @@ int main(int argc, char** argv)
     checkDataDefaultExports(root);
     checkChestPipeExports(root);
     checkConveyorDefaultExports(root);
+    checkFaucetDefaultExports(root);
     checkSplitModExports(root);
     checkModPolygons(root);
     checkModPrecision(root);
