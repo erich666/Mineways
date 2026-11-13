@@ -108,16 +108,16 @@ void MapPanel::OnPaint(wxPaintEvent&)
         dc.Clear();
         return;
     }
-    // wxImage expects packed RGB (no alpha channel; we have RGBA).
+    // DrawMap produces BGRA pixels. wxImage expects packed RGB.
     // Convert into m_rgbBuf, a member buffer resized alongside the panel (not reallocated
     // every paint). static_data=true tells wxImage not to take/free ownership of it; the
     // buffer only needs to outlive the wxBitmap(img) copy below.
     if (!m_rgbBuf || w != m_w || h != m_h) { dc.Clear(); return; }
     unsigned char* rgb = m_rgbBuf;
     for (int i = 0, j = 0; i < w * h * 4; i += 4, j += 3) {
-        rgb[j]   = bits[i];
+        rgb[j]   = bits[i+2];
         rgb[j+1] = bits[i+1];
-        rgb[j+2] = bits[i+2];
+        rgb[j+2] = bits[i];
     }
     wxImage img(w, h, rgb, true /*static: caller-owned buffer*/);
     dc.DrawBitmap(wxBitmap(img), 0, 0, false);

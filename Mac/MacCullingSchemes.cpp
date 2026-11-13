@@ -82,7 +82,7 @@ static void saveScheme(const MacCullingScheme& cs)
     cfg.SetPath("/");
 }
 
-static bool loadScheme(int id, MacCullingScheme& cs)
+static bool loadScheme(int id, MacCullingScheme& cs, bool migrate = true)
 {
     if (id <= 0) return false;
 
@@ -146,7 +146,7 @@ static bool loadScheme(int id, MacCullingScheme& cs)
     }
     cfg.SetPath("/");
     cs = decoded;
-    if (!hasNames) saveScheme(cs);
+    if (!hasNames && migrate) saveScheme(cs);
     return true;
 }
 
@@ -204,7 +204,7 @@ static wchar_t gLastSelected[255] = {};
 
 const wchar_t* getSelectedCullingSchemeW() { return gLastSelected; }
 
-bool SelectCullingSchemeByName(const wxString& name)
+bool SelectCullingSchemeByName(const wxString& name, bool migrate)
 {
     if (name.IsEmpty() || name.CmpNoCase("Standard") == 0) {
         applyCullingScheme(nullptr);
@@ -213,7 +213,7 @@ bool SelectCullingSchemeByName(const wxString& name)
     }
     for (int id : listSchemeIds()) {
         MacCullingScheme cs;
-        if (!loadScheme(id, cs)) continue;
+        if (!loadScheme(id, cs, migrate)) continue;
         if (wxString::FromUTF8(cs.name).CmpNoCase(name) == 0) {
             applyCullingScheme(cs.culled);
             wcsncpy(gLastSelected, name.wc_str(), 254);

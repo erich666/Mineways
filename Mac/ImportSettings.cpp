@@ -281,7 +281,7 @@ static bool CommandLoadTerrainFile(ImportedSet& is, wxString& error)
 
 static bool CommandLoadCullingScheme(ImportedSet& is, wxString& error)
 {
-    if (!SelectCullingSchemeByName(is.cullingScheme)) {
+    if (!SelectCullingSchemeByName(is.cullingScheme, !gMacHeadless)) {
         error = wxString::Format("Mineways attempted to load culling scheme \"%s\" but could not do so. Please select it from the menu manually.", is.cullingScheme);
         return false;
     }
@@ -319,7 +319,10 @@ static bool CommandExportFile(ImportedSet& is, wxString& error, int fileMode, co
         bool isSponge = fileName.Lower().EndsWith(".schem");
         efd->fileType = isSponge ? FILE_TYPE_SPONGE_SCHEMATIC : FILE_TYPE_SCHEMATIC;
     }
-    gFrame->RunExport(*efd, GetExportPathBuf());
+    if (!gFrame->RunExport(*efd, GetExportPathBuf())) {
+        error = "export failed.";
+        return false;
+    }
     return true;
 }
 

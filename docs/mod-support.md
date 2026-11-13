@@ -66,6 +66,10 @@ The importer reads `data/<namespace>/dimension/*.json`. A dimension can use an i
 
 Incomplete dimension types appear in `report.json`. The application can still discover their world directories without a pack. Discovery uses available chunk heights and default coordinate scale when pack metadata is absent. A compiled pack can contain dimensions without block definitions.
 
+## Biomes
+
+Custom biome identifiers no longer prevent chunks from loading. Biomes without a built-in color mapping use the default biome tint. Custom biome grass, foliage, water colors, and runtime effects are not imported.
+
 ## Supported models
 
 The importer resolves standard JSON model parents and texture aliases. It supports box elements, including inverted bounds and extended coordinates from -256 to 256 pixels, face UVs, face rotations, element rotations, element rescale, blockstate X/Y rotations, and UV locking.
@@ -158,7 +162,7 @@ python tools/test_mod_windows.py Win\x64\Debug\Mineways.exe --pack C:\temp\atm10
 
 Build the corresponding native binaries first. The Debug executable also requires the MSVC AddressSanitizer DLL directory on `PATH`.
 
-In GitHub Actions, select **Windows Build > Run workflow**, choose the branch, and enable `full_atm`. Both Debug and Release jobs download the pinned assets, compile the complete catalog, and run the native tests. The full-pack command includes the synthetic and capacity tests, so the workflow runs them only once per job. Normal push and pull-request jobs do not download ATM10.
+In GitHub Actions, select **Windows Build > Run workflow**, choose the branch, and enable `full_atm`. Both Debug and Release jobs download the pinned assets, compile the complete catalog, and run the native tests. The full-pack workflow uses `--pack-only` to avoid repeating the synthetic and capacity tests. Normal Debug and Release jobs retain those checks. Add `--pack-only` to the local commands above to run only the full catalog. Normal push and pull-request jobs do not download ATM10.
 
 Full-pack tests activate every catalog block name through a synthetic schematic palette, then sample actual states for exports. They verify texture pixels, repeat exports, and Sponge geometry/state round trips. They do not test every selector. Full-catalog and capacity invocations have ten-minute timeouts. Smaller fixture invocations have two-minute timeouts. Each workflow job has a one-hour limit. The workflow uploads no downloaded JARs, compiled texture assets, or exports.
 

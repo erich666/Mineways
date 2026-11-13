@@ -1,0 +1,117 @@
+name: Mod Preview Packages
+
+on:
+  pull_request:
+    paths:
+      - 'Win/**'
+      - 'Mac/**'
+      - 'tools/*preview*'
+      - 'tools/import_mod_assets.py'
+      - 'tools/mod_*.py'
+      - 'docs/preview-quickstart.md'
+      - 'docs/mod-support.md'
+      - '.github/workflows/mod-preview.yml'
+  workflow_dispatch:
+    inputs:
+      full_atm:
+        description: Test the packaged Windows executable with the pinned full ATM10 catalog
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2022
+            platform: windows-x64
+          - runner: macos-15-intel
+            platform: macos-x86_64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Build Windows Release
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products '*' -requires Microsoft.Component.MSBuild -property installationPath
+          & "$vs\MSBuild\Current\Bin\MSBuild.exe" Win/Mineways.vcxproj -p:Configuration=Release -p:Platform=x64 -p:PlatformToolset=v143 -v:m -nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tools/package_preview.py --platform windows-x64 --app Win/x64/Release/Mineways.exe --output Mineways-preview-windows-x64.zip --source-revision "$(git rev-parse HEAD)"
+      - name: Build and bundle macOS Release
+        if: runner.os == 'macOS'
+        run: |
+          brew install wxwidgets dylibbundler
+          make -C Mac app
+          dylibbundler -od -b -x Mac/Mineways.app/Contents/MacOS/mineways -d Mac/Mineways.app/Contents/Frameworks -p @executable_path/../Frameworks
+          codesign --force --deep --sign - Mac/Mineways.app
+          codesign --verify --deep --strict Mac/Mineways.app
+          python tools/package_preview.py --platform macos-x86_64 --app Mac/Mineways.app --output Mineways-preview-macos-x86_64.zip --source-revision "$(git rev-parse HEAD)"
+      - name: Test package tooling
+        shell: bash
+        run: |
+          python tools/test_preview_demo.py
+          python tools/test_preview_package.py --self-test
+      - uses: actions/upload-artifact@v6
+        with:
+          name: preview-${{ matrix.platform }}
+          path: Mineways-preview-${{ matrix.platform }}.zip
+          if-no-files-found: error
+
+  test-download:
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2022
+            platform: windows-x64
+          - runner: macos-15-intel
+            platform: macos-x86_64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v8
+        with:
+          name: preview-${{ matrix.platform }}
+          path: downloaded
+      - name: Test downloaded package without build dependencies
+        run: python tools/test_preview_package.py downloaded/Mineways-preview-${{ matrix.platform }}.zip --output preview-test
+      - name: Test Windows GUI startup and map
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: tools/test_preview_windows_gui.ps1 -PackageRoot "preview-test/extracted preview with spaces/Mineways-preview-windows-x64" -Screenshot "preview-test/windows-gui.png"
+      - name: Test packaged Windows with full ATM10 catalog
+        if: runner.os == 'Windows' && inputs.full_atm
+        shell: pwsh
+        run: |
+          python tools/download_mod_assets.py tools/fixtures/atm10-1.21.1.json "$env:RUNNER_TEMP/atm10-assets"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tools/import_mod_assets.py --sources-file "$env:RUNNER_TEMP/atm10-assets/sources.txt" -o "$env:RUNNER_TEMP/atm10-pack"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tools/test_mod_windows.py "preview-test/extracted preview with spaces/Mineways-preview-windows-x64/Mineways.exe" --pack "$env:RUNNER_TEMP/atm10-pack/manifest.mwpack" --pack-only
+      - name: Save smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: preview-smoke-${{ matrix.platform }}
+          path: |
+            preview-test/**/smoke output/**
+            preview-test/windows-gui.png
+          if-no-files-found: warn

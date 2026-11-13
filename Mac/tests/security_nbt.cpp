@@ -249,7 +249,7 @@ static void checkEntities(const std::string& directory)
     });
     // A shared budget also bounds repeated fields and unknown nested values.
     Bytes exhausted = entities();
-    for (int i = 0; i < 100001; i++) stringTag(exhausted, "id", "minecraft:pig");
+    for (int i = 0; i < 1000001; i++) stringTag(exhausted, "id", "minecraft:pig");
     stringTag(exhausted, "id", "minecraft:cushion"); position(exhausted);
     exhausted.push_back(0); exhausted.push_back(0);
     readers(exhausted, directory, [](bfFile* input) {
@@ -266,13 +266,80 @@ static void checkEntities(const std::string& directory)
     }
 }
 
+static void checkBiomeNamespaces()
+{
+    for (const char* name : { "minecraft:forest", "biomeswevegone:allium_shrubland", "mod:a",
+        "missing_namespace", "bad:?", "mod:a[bad=state]" }) {
+        Bytes bytes;
+        tag(bytes, 10, "");
+        tag(bytes, 9, "sections"); bytes.push_back(10); number(bytes, 1, 4);
+        tag(bytes, 1, "Y"); bytes.push_back(15);
+        tag(bytes, 10, "block_states");
+        tag(bytes, 9, "palette"); bytes.push_back(10); number(bytes, 1, 4);
+        stringTag(bytes, "Name", "minecraft:stone"); bytes.push_back(0); bytes.push_back(0);
+        tag(bytes, 10, "biomes");
+        tag(bytes, 9, "palette"); bytes.push_back(8); number(bytes, 1, 4);
+        number(bytes, strlen(name), 2); bytes.insert(bytes.end(), name, name + strlen(name));
+        bytes.push_back(0); bytes.push_back(0); bytes.push_back(0);
+        int offset = 0;
+        bfFile input = {};
+        input.type = BF_BUFFER;
+        input.buf = bytes.data();
+        input.buflen = (int)bytes.size();
+        input.offset = &offset;
+        {
+            std::vector<unsigned short> blocks(65536), data(65536);
+            std::vector<unsigned char> light(65536), biomes(256);
+            BlockEntity entities[NUM_BLOCK_ENTITIES];
+            int count = 0, filled = 0;
+            int result = nbtGetBlocks(&input, blocks.data(), data.data(), light.data(), biomes.data(),
+                entities, &count, 21, 0, 255, filled, nullptr, 7);
+            if (strcmp(name, "missing_namespace") == 0 || strcmp(name, "bad:?") == 0 || strchr(name, '[')) {
+                assert(result < 0); continue;
+            }
+            assert(result >= 0 && blocks[240 * 256] == BLOCK_STONE);
+            assert(biomes[0] == (strcmp(name, "minecraft:forest") == 0 ? 4 : 0));
+        }
+    }
+}
+
+static void checkWorldMetadata(const std::string& directory)
+{
+    for (int count : { 230000, 1000001 }) {
+        Bytes bytes;
+        tag(bytes, 10, "");
+        tag(bytes, 10, "Data");
+        tag(bytes, 10, "WorldGenSettings");
+        tag(bytes, 9, "entries"); bytes.push_back(1); number(bytes, count, 4);
+        bytes.insert(bytes.end(), count, 0);
+        bytes.push_back(0);
+        tag(bytes, 3, "version"); number(bytes, 19133, 4);
+        tag(bytes, 3, "SpawnX"); number(bytes, 12, 4);
+        tag(bytes, 3, "SpawnY"); number(bytes, 70, 4);
+        tag(bytes, 3, "SpawnZ"); number(bytes, -9, 4);
+        bytes.push_back(0); bytes.push_back(0);
+        readers(bytes, directory, [count](bfFile* input) {
+            int version;
+            int result = nbtGetFileVersion(input, &version);
+            assert(count == 230000 ? result == 0 && version == 19133 : result != 0);
+        });
+        readers(bytes, directory, [count](bfFile* input) {
+            int x, y, z;
+            int result = nbtGetSpawn(input, &x, &y, &z);
+            assert(count == 230000 ? result == 0 && x == 12 && y == 70 && z == -9 : result != 0);
+        });
+    }
+}
+
 int main(int argc, char** argv)
 {
     assert(argc == 2 || argc == 3);
     const auto start = std::chrono::steady_clock::now();
+    if (argc == 2 || strcmp(argv[2], "biomes") == 0) checkBiomeNamespaces();
+    if (argc == 2 || strcmp(argv[2], "metadata") == 0) checkWorldMetadata(argv[1]);
     if (argc == 2 || strcmp(argv[2], "sponge") == 0) checkSponge(argv[1]);
     if (argc == 2 || strcmp(argv[2], "legacy") == 0) checkLegacy(argv[1]);
     if (argc == 2 || strcmp(argv[2], "entities") == 0) checkEntities(argv[1]);
     assert(std::chrono::steady_clock::now() - start < std::chrono::seconds(10));
-    puts("PASS: Sponge v2/v3 indices and deferred fields, legacy tag completeness, bounded entity arrays, buffer/gzip readers");
+    puts("PASS: Sponge v2/v3 indices and deferred fields, legacy tag completeness, bounded world metadata and entity arrays, buffer/gzip readers");
 }

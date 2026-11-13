@@ -2,6 +2,8 @@
 #include <wx/wx.h>
 #include "MapPanel.h"
 
+extern bool gMacHeadless;
+
 struct ExportFileData;   // full definition comes from stdafx.h -> blockInfo.h; forward decl is enough here
 
 class MinewaysFrame : public wxFrame {
@@ -19,7 +21,7 @@ public:
     wxString LoadWorldFromDir(const wxString& dir);   // "" on success, error message on failure
     void LoadTestBlockWorld();
     wxString LoadSchematic(const wxString& path);   // "" on success, error message on failure
-    void RunExport(ExportFileData& efd, const wchar_t* outputPath);
+    bool RunExport(ExportFileData& efd, const wchar_t* outputPath);
     void RedrawMap();
     void SetTerrainFile(const wxString& path);
     bool SetModPack(const wxString& path, bool clear, wxString& error);

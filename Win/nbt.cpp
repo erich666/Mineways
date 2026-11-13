@@ -2465,7 +2465,8 @@ static double readDouble(bfFile* pbf)
     return fl.f;
 }
 #define NBT_SKIP_MAX_DEPTH 64
-#define NBT_SKIP_TAG_BUDGET 100000
+// ATM10 world generation metadata exceeds 200,000 tags in a valid level.dat.
+#define NBT_SKIP_TAG_BUDGET 1000000
 
 static bool skipReadWord(bfFile* pbf, unsigned short* value)
 {
@@ -4194,16 +4195,16 @@ static int readBiomePalette(bfFile* pbf, unsigned char* paletteBiomeEntry, int& 
     // go through entries in Palette
     while (nentries--) {
         len = readWord(pbf);
-        if (len <= 10 || len >= MAX_NAME_LENGTH)
+        if (len <= 0 || len >= MAX_NAME_LENGTH)
             return LINE_ERROR;  // really, should not reach here if the data's OK
         if (bfread(pbf, thisBiomeName, len) < 0)
             return LINE_ERROR;
         thisBiomeName[len] = 0;
-        if (strncmp(thisBiomeName, "minecraft:", 10) != 0)
+        std::string canonicalBiome;
+        if (strchr(thisBiomeName, '[') || !CanonicalModState(std::string(thisBiomeName, len), canonicalBiome))
             return LINE_ERROR;
-        // convert biome name to the proper index
-        // The +10 goes past the "minecraft:" part of the name in the palette
-        int index = findIndexFromBiomeName(thisBiomeName+10);
+        // shortcut: custom biomes use default colors until packs supply biome tint data.
+        int index = strncmp(thisBiomeName, "minecraft:", 10) == 0 ? findIndexFromBiomeName(thisBiomeName + 10) : 0;
         if (index < 0) {
             // Name not found - fail!
             assert(0);

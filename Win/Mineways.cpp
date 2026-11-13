@@ -429,7 +429,7 @@ static struct {
     {_T("Warning: too many polygons.\n\nThere are more than one million polygons in file. This is usually too many for Shapeways."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<2
     {_T("Warning: multiple separate parts found after processing.\n\nThis may not be what you want to print. Increase the value for 'Delete floating parts' to delete these. Try the 'Debug: show separate parts' export option to see if the model is what you expected."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<3
     {_T("Warning: at least one dimension of the model is too long.\n\nCheck the dimensions for this printer's material: look in the top of the model file itself, using a text editor."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<4
-    {_T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock. Mineways does not understand blocks added by mods, and uses the older (simpler) schematic format so does not support blocks added in 1.13 or newer versions. If you are not using mods nor exporting 1.13 or newer blocks, your version of Mineways may be out of date. Check http://mineways.com for a newer version."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<5
+    {_T("Warning: some block types could not be preserved in this export. Unknown blocks use a fallback. The legacy .schematic format also replaces newer blocks. Use Sponge .schem for supported modern and mod block identities.\n\nFor modded worlds, load a matching compiled mod pack before opening the world. Check its report.json for unsupported blocks or states. Report preview issues at https://github.com/wbreiler/Mineways/issues."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<5
     {_T("Warning: your terrain texture file is incomplete, likely because it was made for an older version of Mineways.\nThe block textures it is missing were filled in from Mineways' built-in textures, so newer block types will export, but may not match your texture pack's look. (Or, a TerrainExt*_n/_m/_e/_r.png material file has too few rows or does not match the color file's size, so was padded or ignored.)\nTo fix this, use the TileMaker program or other image editor\nto make TerrainExt*.png files with 80 rows and 32 columns of block textures.\n\nThis warning will not be repeated this session."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<6 VERTICAL_TILES
     {_T("Warning: one or more Change Block commands specified location(s) that were outside the selected volume."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<7
     {_T("Warning: with the large Terrain File you're using, the output texture is extremely large. Other programs make have problems using it. We recommend that you use the 'Export tiles' option instead, or reduce the size of your Terrain File by using the '-t 256' (or smaller) option in TileMaker.\n\nThis warning will not be repeated this session."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<8
@@ -3221,8 +3221,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         CheckUnknownBlock(false);
         ClearBlockReadCheck();
 
-        // note how this is different that the write schematic message, which notes 1.13 export problems
-        FilterMessageBox(NULL, _T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock. Mineways does not understand blocks added by mods. If you are not using mods, your version of Mineways may be out of date. Check http://mineways.com for a newer version of Mineways."),
+        // World reads use the configured replacement for unsupported blocks.
+        FilterMessageBox(NULL, _T("Warning: this world contains unknown block types. They use the configured unknown-block replacement, which defaults to bedrock.\n\nFor modded worlds, load a matching compiled mod pack before opening the world. Check its report.json for unsupported blocks or states. Report preview issues at https://github.com/wbreiler/Mineways/issues."),
             _T("Read error"), MB_OK | MB_ICONWARNING);
     }
 
@@ -11382,7 +11382,7 @@ static void checkMapDrawErrorCode(int retCode)
             else {
                 int bx, bz;
                 GetBadChunkLocation(&bx, &bz);
-                swprintf_s(fullbuf, _countof(fullbuf), _T("Error: chunk (%d, %d) read error at nbt.cpp line %d. Mineways does not support betas or mods. Also, make sure you have downloaded the latest version of Mineways from mineways.com. If it's neither of these, please report it as a bug (see the Help menu)."), bx, bz, -retCode);
+                swprintf_s(fullbuf, _countof(fullbuf), _T("Error: chunk (%d, %d) could not be read at nbt.cpp line %d. The chunk may be damaged or use an unsupported format. Report this error with your preview build, Minecraft version, modpack version, and coordinates at https://github.com/wbreiler/Mineways/issues."), bx, bz, -retCode);
             }
             FilterMessageBox(NULL, fullbuf,
                 _T("Warning"), MB_OK | MB_ICONERROR | MB_TOPMOST);
@@ -11392,7 +11392,7 @@ static void checkMapDrawErrorCode(int retCode)
         if (gOneTimeDrawWarning & retCode) {
             // NBT_WARNING_NAME_NOT_FOUND
             // currently the only warning - we will someday look at bits, I guess, in retCode
-            swprintf_s(fullbuf, _countof(fullbuf), _T("Warning: unknown block types '%S' encountered and turned into '%S'.\n\nIf you are not running a Minecraft beta, mod, or conversion, please download the latest version of Mineways from mineways.com. If you think Mineways has a bug, please report it (see the Help menu)."),
+            swprintf_s(fullbuf, _countof(fullbuf), _T("Warning: unknown block types '%S' encountered and turned into '%S'.\n\nLoad a compiled mod pack that matches this world. Check its report.json for unsupported blocks or states. Supported models can still omit runtime details. Report preview issues at https://github.com/wbreiler/Mineways/issues."),
                 MapUnknownBlockName(), gBlockDefinitions[GetUnknownBlockID()].name);
             FilterMessageBox(NULL, fullbuf,
                 _T("Warning"), MB_OK | MB_ICONWARNING | MB_TOPMOST);

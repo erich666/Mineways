@@ -117,9 +117,11 @@ def large_catalog(root):
 def region(path, name, chunk_x=0, chunk_z=0):
     path.mkdir(parents=True, exist_ok=True)
     palette = tag(9, 'palette', b'\x0a' + struct.pack('>i', 1) + tag(8, 'Name', text(name)) + b'\0')
+    biomes = tag(9, 'palette', b'\x08' + struct.pack('>i', 1) + text('fixture:meadow'))
     section = tag(1, 'Y', b'\0') + compound('block_states', palette) + b'\0'
+    biome_section = tag(1, 'Y', b'\x0f') + compound('biomes', biomes) + b'\0'
     chunk = compound('', number('DataVersion', 3953) + number('xPos', chunk_x) + number('zPos', chunk_z)
-                     + tag(9, 'sections', b'\x0a' + struct.pack('>i', 1) + section))
+                     + tag(9, 'sections', b'\x0a' + struct.pack('>i', 2) + section + biome_section))
     payload = zlib.compress(chunk)
     data = bytearray(8192)
     slot = 4 * (chunk_x % 32 + 32 * (chunk_z % 32))
@@ -129,10 +131,13 @@ def region(path, name, chunk_x=0, chunk_z=0):
     (path / f'r.{chunk_x // 32}.{chunk_z // 32}.mca').write_bytes(data)
 
 
-def world(path):
+def world(path, metadata_entries=230000):
     region(path / 'region', 'minecraft:stone')
     region(path / 'dimensions/fixture/moon/region', 'fixture:cube')
-    data = number('version', 19133) + number('DataVersion', 3953)
+    # Large valid modpack metadata must not hide the version/spawn fields.
+    entries = tag(9, 'entries', b'\x01' + struct.pack('>i', metadata_entries) + bytes(metadata_entries))
+    data = compound('WorldGenSettings', entries)
+    data += number('version', 19133) + number('DataVersion', 3953)
     data += compound('Version', number('Id', 3953))
     data += tag(8, 'LevelName', text('Mod export fixture'))
     data += number('SpawnX', 0) + number('SpawnY', 0) + number('SpawnZ', 0)
@@ -297,6 +302,8 @@ def exercise(executable, root):
     names = schematic(input_path)
     world_path = root / 'world'
     world(world_path)
+    over_budget_world = root / 'over-budget-world'
+    world(over_budget_world, metadata_entries=1000001)
     catalog_manifest, catalog_input, catalog_names = large_catalog(root)
     assert gzip.decompress(input_path.read_bytes()).startswith(b'\x0a')
     manifest_text = (pack / 'manifest.mwpack').read_text(encoding='utf-8')
@@ -632,6 +639,12 @@ def exercise(executable, root):
                   f'Selection location min to max: 0, 0, 0 to {len(invisible_names)-1}, 0, 0',
                   'Export Schematic: ' + str(invisible_second)])
     verify_schematic(invisible_second, invisible_names, details)
+    rejected = root / 'over-budget-metadata.obj'
+    run(executable, root, 'over_budget_metadata', [*common,
+        'Minecraft world: ' + str(over_budget_world),
+        'Selection location min to max: 0, 0, 0 to 0, 0, 0',
+        'Export for Rendering: ' + str(rejected)], expect_success=False)
+    assert not rejected.exists(), 'Over-budget world metadata reached export'
     dim_obj = root / 'dimension.obj'
     details = run(executable, root, 'dimension', [*common, 'Minecraft world: ' + str(world_path),
                   'Dimension: fixture:moon', 'File type: Export individual textures to directory dimtex',

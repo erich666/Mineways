@@ -20,9 +20,20 @@
 #include <cmath>
 #include <limits>
 #include <new>
+#include <memory>
 #include <stdexcept>
 #include <sys/sysctl.h>
 #include <wx/scopeguard.h>
+
+bool gMacHeadless = false;
+
+static int ReportMessage(const wxString& message, const wxString& caption,
+                         long style, wxWindow* parent)
+{
+    if (!gMacHeadless) return wxMessageBox(message, caption, style, parent);
+    fprintf(stderr, "%s: %s\n", caption.utf8_str().data(), message.utf8_str().data());
+    return wxOK;
+}
 
 // ─── Globals (mirror of Win/Mineways.cpp static globals) ────────────────────
 #define MINZOOM 1.0f
@@ -373,24 +384,26 @@ MinewaysFrame::MinewaysFrame(wxWindow* parent)
     // Export defaults, matching Windows' "Export for Rendering" preset
     InitViewExportData(gEfd);
 
-    // Restore persisted settings
-    wxConfig cfg("Mineways");
-    long memory = cfg.ReadLong("mapMemoryMB", 2048);
-    if (memory == 1024 || memory == 2048 || memory == 4096 || memory == 8192 || memory == 16384)
-        m_mapMemoryMB = (int)memory;
-    wxString cfgTerrain, cfgSaves, cfgExportPath;
-    if (cfg.Read("terrainPath", &cfgTerrain) && wxFileExists(cfgTerrain))
-        terrainPath = cfgTerrain;
-    if (cfg.Read("savesDir", &cfgSaves))
-        savesDir = cfgSaves;
-    if (cfg.Read("exportPath", &cfgExportPath))
-        _mwUtf8ToWideBuffer(cfgExportPath.utf8_str(), gExportPath, 4096);
-    LoadExportFileData(gEfd);   // falls back to the InitViewExportData preset above if absent/stale
-    LoadRecentExportsFromConfig();
-    gCurX = cfg.ReadDouble("curX", 0.0);
-    gCurZ = cfg.ReadDouble("curZ", 0.0);
-    gCurScale = cfg.ReadDouble("curScale", 1.0);
-    if (!std::isfinite(gCurScale) || gCurScale < 0.01) gCurScale = 1.0;
+    if (!gMacHeadless) {
+        // Restore persisted settings
+        wxConfig cfg("Mineways");
+        long memory = cfg.ReadLong("mapMemoryMB", 2048);
+        if (memory == 1024 || memory == 2048 || memory == 4096 || memory == 8192 || memory == 16384)
+            m_mapMemoryMB = (int)memory;
+        wxString cfgTerrain, cfgSaves, cfgExportPath;
+        if (cfg.Read("terrainPath", &cfgTerrain) && wxFileExists(cfgTerrain))
+            terrainPath = cfgTerrain;
+        if (cfg.Read("savesDir", &cfgSaves))
+            savesDir = cfgSaves;
+        if (cfg.Read("exportPath", &cfgExportPath))
+            _mwUtf8ToWideBuffer(cfgExportPath.utf8_str(), gExportPath, 4096);
+        LoadExportFileData(gEfd);   // falls back to the InitViewExportData preset above if absent/stale
+        LoadRecentExportsFromConfig();
+        gCurX = cfg.ReadDouble("curX", 0.0);
+        gCurZ = cfg.ReadDouble("curZ", 0.0);
+        gCurScale = cfg.ReadDouble("curScale", 1.0);
+        if (!std::isfinite(gCurScale) || gCurScale < 0.01) gCurScale = 1.0;
+    }
 
     if (!_mwUtf8ToWideBuffer(terrainPath.utf8_str(), gSelectTerrainPathAndName, MAX_PATH_AND_FILE))
         gSelectTerrainPathAndName[0] = L'\0';
@@ -448,15 +461,17 @@ MinewaysFrame::~MinewaysFrame()
 {
     if (m_mapPanel) m_mapPanel->PauseLoading();
     ClearLoadedWorldData();
-    // Persist settings to plist via wxConfig
-    wxConfig cfg("Mineways");
-    cfg.Write("terrainPath", wxString(gSelectTerrainPathAndName));
-    cfg.Write("savesDir", wxString(gWorldPathDefault));
-    if (gExportPath[0]) cfg.Write("exportPath", wxString(gExportPath));
-    SaveExportFileData(gEfd);
-    cfg.Write("curX",     gCurX);
-    cfg.Write("curZ",     gCurZ);
-    cfg.Write("curScale", gCurScale);
+    if (!gMacHeadless) {
+        // Persist settings to plist via wxConfig
+        wxConfig cfg("Mineways");
+        cfg.Write("terrainPath", wxString(gSelectTerrainPathAndName));
+        cfg.Write("savesDir", wxString(gWorldPathDefault));
+        if (gExportPath[0]) cfg.Write("exportPath", wxString(gExportPath));
+        SaveExportFileData(gEfd);
+        cfg.Write("curX",     gCurX);
+        cfg.Write("curZ",     gCurZ);
+        cfg.Write("curScale", gCurScale);
+    }
 
     gFrame = nullptr;
     free(gMapBits);
@@ -851,7 +866,7 @@ void MinewaysFrame::SetTerrainFile(const wxString& path)
 {
     wchar_t terrainPath[MAX_PATH_AND_FILE];
     if (!_mwUtf8ToWideBuffer(path.utf8_str(), terrainPath, MAX_PATH_AND_FILE)) {
-        wxMessageBox("The terrain file path is invalid or too long.", "Terrain file error",
+        ReportMessage("The terrain file path is invalid or too long.", "Terrain file error",
                      wxOK | wxICON_ERROR, this);
         return;
     }
@@ -991,14 +1006,14 @@ static int BuildExportFlags(const ExportFileData& e, wxWindow* parent)
         int unsupported = EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_SWATCHES | EXPT_OUTPUT_TEXTURE_IMAGES |
                           EXPT_OUTPUT_SEPARATE_TEXTURE_TILES | EXPT_OUTPUT_OBJ_MTL_PER_TYPE | EXPT_DEBUG_SHOW_GROUPS | EXPT_DEBUG_SHOW_WELDS;
         if (flags & unsupported)
-            wxMessageBox("Color output is not supported for ASCII STL; file will contain no colors.",
+            ReportMessage("Color output is not supported for ASCII STL; file will contain no colors.",
                         "Informational", wxOK | wxICON_INFORMATION, parent);
         flags &= ~unsupported;
         flags &= ~EXPT_OUTPUT_OBJ_MTL_PER_TYPE;
     } else if (ft == FILE_TYPE_BINARY_MAGICS_STL || ft == FILE_TYPE_BINARY_VISCAM_STL) {
         int unsupported = EXPT_OUTPUT_TEXTURE_SWATCHES | EXPT_OUTPUT_TEXTURE_IMAGES | EXPT_OUTPUT_SEPARATE_TEXTURE_TILES;
         if (flags & unsupported)
-            wxMessageBox("Texture output is not supported for binary STL; file will contain solid colors instead.",
+            ReportMessage("Texture output is not supported for binary STL; file will contain solid colors instead.",
                         "Informational", wxOK | wxICON_INFORMATION, parent);
         flags &= ~unsupported;
         flags &= ~EXPT_OUTPUT_OBJ_MTL_PER_TYPE;
@@ -1050,7 +1065,7 @@ void MinewaysFrame::OnExportOBJ(wxCommandEvent&)
 
 // Shared by OnExportOBJ (after the dialog returns OK) and OnRepeatExport/Ctrl+X
 // (reuses the last-used efd/path without reopening the dialog).
-void MinewaysFrame::RunExport(ExportFileData& efd, const wchar_t* outputPath)
+bool MinewaysFrame::RunExport(ExportFileData& efd, const wchar_t* outputPath)
 {
     m_mapPanel->PauseLoading();
     wxON_BLOCK_EXIT_OBJ0(*m_mapPanel, MapPanel::ResumeLoading);
@@ -1073,9 +1088,9 @@ void MinewaysFrame::RunExport(ExportFileData& efd, const wchar_t* outputPath)
     wchar_t curDir[MAX_PATH_AND_FILE];
     wxFileName exeFN(wxStandardPaths::Get().GetExecutablePath());
     if (!_mwUtf8ToWideBuffer(exeFN.GetPath().utf8_str(), curDir, MAX_PATH_AND_FILE)) {
-        wxMessageBox("The application resource path is invalid or too long.", "Export failed",
+        ReportMessage("The application resource path is invalid or too long.", "Export failed",
                      wxOK | wxICON_ERROR, this);
-        return;
+        return false;
     }
 
     // Biome/group state
@@ -1088,11 +1103,11 @@ void MinewaysFrame::RunExport(ExportFileData& efd, const wchar_t* outputPath)
         wxString probePrefix = outputFileName.GetPathWithSep() + ".mineways-write-test-";
         wxString probePath = wxFileName::CreateTempFileName(probePrefix);
         if (probePath.empty()) {
-            wxMessageBox(wxString::Format(
+            ReportMessage(wxString::Format(
                 "Cannot create a file in the export directory — check the path and permissions.\nDirectory: %s",
                 outputFileName.GetPath()),
                 "Export pre-check failed", wxOK | wxICON_ERROR, this);
-            return;
+            return false;
         }
         wxRemoveFile(probePath);
     }
@@ -1107,9 +1122,12 @@ void MinewaysFrame::RunExport(ExportFileData& efd, const wchar_t* outputPath)
     // mid-export cancellation mechanism in the underlying export code.
     gExportProgressLastValue = 0;
     gExportProgressLastMsg = "Exporting...";
-    wxProgressDialog progressDlg("Exporting", gExportProgressLastMsg, 100, this,
-                                 wxPD_APP_MODAL | wxPD_ELAPSED_TIME | wxPD_AUTO_HIDE);
-    gExportProgressDlg = &progressDlg;
+    std::unique_ptr<wxProgressDialog> progressDlg;
+    if (!gMacHeadless) {
+        progressDlg.reset(new wxProgressDialog("Exporting", gExportProgressLastMsg, 100, this,
+                                  wxPD_APP_MODAL | wxPD_ELAPSED_TIME | wxPD_AUTO_HIDE));
+    }
+    gExportProgressDlg = progressDlg.get();
 
     int errCode = SaveVolume((wchar_t*)outputPath, efd.fileType,
         &gOptions, &gWorldGuide, curDir,
@@ -1129,7 +1147,7 @@ void MinewaysFrame::RunExport(ExportFileData& efd, const wchar_t* outputPath)
         // Codes in this range (e.g. MW_NO_BLOCKS_FOUND, MW_ALL_BLOCKS_DELETED) mean
         // SaveVolume deliberately wrote nothing — not an error, but not success either.
         // Mirrors Win/Mineways.cpp's `errCode < MW_BEGIN_NOTHING_TO_DO` success gate.
-        wxMessageBox("No file was written: nothing exportable was found in the selected region.",
+        ReportMessage("No file was written: nothing exportable was found in the selected region.",
                      "Nothing exported", wxOK | wxICON_WARNING, this);
     } else if (errCode == MW_NO_ERROR || errCode < MW_BEGIN_ERRORS) {
         // Build message before freeing the list
@@ -1143,7 +1161,7 @@ void MinewaysFrame::RunExport(ExportFileData& efd, const wchar_t* outputPath)
         } else {
             msg += "\n(expected: " + wxString(outputPath) + ")";
         }
-        wxMessageBox(msg, "Export done", wxOK | wxICON_INFORMATION, this);
+        ReportMessage(msg, "Export done", wxOK | wxICON_INFORMATION, this);
 
         // Issue #138 parity: record successful model exports in the Recent Exports menu.
         // Use the first actually-written file so the recorded path has the on-disk suffix
@@ -1154,20 +1172,21 @@ void MinewaysFrame::RunExport(ExportFileData& efd, const wchar_t* outputPath)
             AddToRecentExports(wxString(outputPath));
         }
     } else if ((errCode & (MW_CANNOT_PARSE_IMPORT_FILE | MW_WORLD_EXPORT_TOO_LARGE)) && *ModExportError()) {
-        wxMessageBox(wxString::FromUTF8(ModExportError()), "Export error", wxOK | wxICON_ERROR, this);
+        ReportMessage(wxString::FromUTF8(ModExportError()), "Export error", wxOK | wxICON_ERROR, this);
     } else if (errCode == MW_CANNOT_PARSE_IMPORT_FILE && efd.fileType == FILE_TYPE_SCHEMATIC &&
                ModBlockTypeLimit() > NUM_BLOCKS_DEFINED) {
-        wxMessageBox("Mod blocks need Sponge .schem to preserve names and states. Choose Sponge schematic or clear the mod pack.",
+        ReportMessage("Mod blocks need Sponge .schem to preserve names and states. Choose Sponge schematic or clear the mod pack.",
                      "Export error", wxOK | wxICON_ERROR, this);
     } else {
         // Show path even on failure so user can diagnose
-        wxMessageBox(wxString::Format("Export failed (error %d).\nAttempted path: %s",
+        ReportMessage(wxString::Format("Export failed (error %d).\nAttempted path: %s",
                      errCode, wxString(outputPath)),
                      "Export error", wxOK | wxICON_ERROR, this);
     }
 
     // Free file list
     for (int i = 0; i < outputFileList.count; i++) free(outputFileList.name[i]);
+    return errCode < MW_BEGIN_NOTHING_TO_DO;
 }
 
 void MinewaysFrame::OnQuit(wxCommandEvent&) { Close(true); }
@@ -1256,7 +1275,7 @@ void MinewaysFrame::PopulateRecentExportsMenu()
 // addToRecentExports.
 void MinewaysFrame::AddToRecentExports(const wxString& path)
 {
-    if (path.IsEmpty()) return;
+    if (gMacHeadless || path.IsEmpty()) return;
 
     for (int i = 0; i < gRecentExportCount; i++) {
         if (gRecentExports[i].CmpNoCase(path) == 0) {
