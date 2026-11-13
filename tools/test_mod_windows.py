@@ -470,6 +470,7 @@ def exercise(executable, root):
             assert all(any(all(abs(a-b) < 1e-6 for a,b in zip(point, corner)) for corner in expected) for point in points), label
     exercise_custom_defaults(executable, root, common, texture_sources)
     exercise_owned_models(executable, root, common, texture_sources)
+    exercise_dynamic_models(executable, root, common, texture_sources)
     for orientation in ('plain', 'turned'):
         label = 'mesh-' + orientation
         state = 'fixture:obj_mesh[orientation=' + orientation + ',retained=true]'
@@ -678,6 +679,96 @@ def read_textured_faces(path):
     return faces
 
 
+def exercise_dynamic_models(executable, root, common, texture_sources):
+    samples = []
+    for kind, count in (('opaque', 6), ('transparent', 12)):
+        samples += [(f'pipe-{kind}-{pose}', f'fixture:pipe_{kind}[orientation={pose}]', count, 1, 0, 0)
+                    for pose in ('plain', 'turned')]
+    samples += [('energy-' + facing, f'fixture:energy_cube[facing={facing}]', 7, 2, x, y)
+                for facing, x, y in (('north', 0, 0), ('east', 0, 1), ('up', 3, 0))]
+    samples += [('twilight-' + pose, f'fixture:twilight_connected[pose={pose}]', 6, 1, x, y)
+                for pose, x, y in (('plain', 0, 0), ('turned', 1, 3))]
+    samples += [('twilight-pink', 'twilightforest:pink_castle_door', 6, 1, 0, 0),
+                ('force-ne', 'fixture:twilight_forcefield[down=false,east=true,north=true,south=false,up=false,west=false]', 2, 1, 0, 0),
+                ('force-partial', 'fixture:twilight_forcefield[east=true,north=true]', 2, 1, 0, 0),
+                ('backpack-partial', 'fixturestorage:backpack[battery=true,facing=north]', 15, 3, 0, 0)]
+    samples += [('barrel-' + kind, 'fixturestorage:barrel[' + props + ']', 4, 2, x, y)
+                for kind, props, x, y in (
+                    ('closed', 'facing=north,flat_top=false,open=false', 0, 0),
+                    ('open', 'facing=north,flat_top=false,open=true', 0, 0),
+                    ('flat', 'facing=up,flat_top=true,open=false', 3, 0))]
+    for kind in ('default', 'equipped'):
+        for facing, y in (('north', 0), ('east', 1)):
+            flag = 'true' if kind == 'equipped' else 'false'
+            props = f'battery={flag},facing={facing},left_tank={flag},right_tank={flag}'
+            samples.append((f'backpack-{kind}-{facing}', f'fixturestorage:backpack[{props}]', 15, 3, 0, y))
+    references = {}
+    for label, state, count, texture_count, x_turns, y_turns in samples:
+        source = root / (label + '.schem')
+        schematic(source, [state])
+        # Analytic source bounds, independent of the compiled fixture geometry.
+        if label.startswith('pipe-'):
+            boxes = [((5, 5, 5), (11, 11, 11))]
+        elif label.startswith('energy-'):
+            boxes = [((2, 3, 4), (14, 13, 12)), ((6, 6, 6), (10, 10, 10))]
+        elif label.startswith('twilight-'):
+            boxes = [((0, 0, 0), (16, 16, 16))]
+        elif label.startswith('force-'):
+            boxes = [((7, 6, 0), (9, 10, 5)), ((9, 6, 5), (16, 10, 11))]
+        elif label.startswith('barrel-'):
+            top = {'closed': 14, 'open': 10, 'flat': 16}[label[7:]]
+            boxes = [((1, 0, 2), (15, top, 14)), ((1, 0, 2), (15, 15, 14))]
+        else:
+            parts = (0, 5, 6, 7, 4) if '-equipped-' in label else (0, 1, 2, 7, 4) if label == 'backpack-partial' else (0, 1, 2, 3, 4)
+            boxes = [((i, 1, 2), (i+1, 13, 14)) for i in parts]
+        expected = []
+        for low, high in boxes:
+            for x in (low[0], high[0]):
+                for y in (low[1], high[1]):
+                    for z in (low[2], high[2]):
+                        p = (x, y, z)
+                        for _ in range(x_turns):
+                            p = (p[0], p[2], 16-p[1])
+                        for _ in range(y_turns):
+                            p = (16-p[2], p[1], p[0])
+                        expected.append(tuple(v/16 for v in p))
+        individual = None
+        for mosaic in (False, True):
+            name = label + ('-mosaic' if mosaic else '')
+            output, restored = root / (name + '.obj'), root / (label + '-restored.schem')
+            mode = 'Export full color texture patterns' if mosaic else 'Export individual textures to directory ' + name + 'tex'
+            details = run(executable, root, name, [*common, 'Minecraft world: ' + str(source),
+                          'File type: ' + mode, 'Selection location min to max: 0, 0, 0 to 0, 0, 0',
+                          'Export for Rendering: ' + str(output), 'Export Schematic: ' + str(restored)])
+            check_obj(output, details, minimum_faces=count)
+            verify_schematic(restored, [state], details)
+            faces = read_textured_faces(output)
+            assert len(faces) == count, (name, len(faces), count)
+            if not mosaic:
+                assert check_export_pixels(output, texture_sources) == texture_count, name
+            signature = []
+            for corners, (width, height, pixels) in faces:
+                for point, uv in corners:
+                    assert any(all(abs(a-b) < 1e-6 for a, b in zip(point, want)) for want in expected), (name, point)
+                colors = []
+                for a in (.23, .71):
+                    for b in (.19, .67):
+                        weights = ((1-a)*(1-b), a*(1-b), a*b, (1-a)*b)
+                        uv = [sum(w*t[i] for w, (_, t) in zip(weights, corners)) for i in range(2)]
+                        offset = (min(height-1, int((1-uv[1])*height))*width + min(width-1, int(uv[0]*width)))*4
+                        colors.append(tuple(pixels[offset:offset+4]))
+                signature.append((tuple(p for p, _ in corners), tuple(colors)))
+            if mosaic:
+                assert signature == individual, 'Mosaic changed geometry or sampled UV colors: ' + name
+            else:
+                individual = signature
+                if label.startswith('pipe-'):
+                    key = label.rsplit('-', 1)[0]
+                    if key in references:
+                        assert faces == references[key], 'Pipe inherited an ignored rotation: ' + label
+                    references[key] = faces
+
+
 def exercise_owned_models(executable, root, common, texture_sources):
     samples = [(f'obj-owned-{mode}', f'fixture:obj_owned[mode={mode}]', 1, 1) for mode in ('inherited', 'reset')]
     for kind, faces, textures in (('default', 3, 2), ('delegate', 2, 1)):
@@ -867,7 +958,43 @@ def exercise_pack(executable, root, manifest):
         for state in by_block[block]:
             if state not in selected:
                 selected.append(state)
-    targets = ['ae2:matrix_frame', 'ae2:drive', 'ae2:quartz_glass',
+    targets = [
+               'mekanism:advanced_energy_cube',
+               'mekanism:basic_energy_cube',
+               'mekanism:creative_energy_cube',
+               'mekanism:elite_energy_cube',
+               'mekanism:ultimate_energy_cube',
+               'moderndynamics:ev_cable',
+               'moderndynamics:fluid_pipe',
+               'moderndynamics:hv_cable',
+               'moderndynamics:item_pipe',
+               'moderndynamics:lv_cable',
+               'moderndynamics:mv_cable',
+               'moderndynamics:superconductor_cable',
+               'sophisticatedbackpacks:backpack',
+               'sophisticatedbackpacks:copper_backpack',
+               'sophisticatedbackpacks:diamond_backpack',
+               'sophisticatedbackpacks:gold_backpack',
+               'sophisticatedbackpacks:iron_backpack',
+               'sophisticatedbackpacks:netherite_backpack',
+               'sophisticatedstorage:barrel',
+               'sophisticatedstorage:copper_barrel',
+               'sophisticatedstorage:diamond_barrel',
+               'sophisticatedstorage:gold_barrel',
+               'sophisticatedstorage:iron_barrel',
+               'sophisticatedstorage:netherite_barrel',
+               'twilightforest:arctic_fur_block',
+               'twilightforest:auroralized_glass',
+               'twilightforest:blue_castle_door',
+               'twilightforest:blue_force_field',
+               'twilightforest:green_force_field',
+               'twilightforest:orange_force_field',
+               'twilightforest:pink_castle_door',
+               'twilightforest:pink_force_field',
+               'twilightforest:violet_castle_door',
+               'twilightforest:violet_force_field',
+               'twilightforest:yellow_castle_door',
+               'ae2:matrix_frame', 'ae2:drive', 'ae2:quartz_glass',
                'ae2:quartz_vibrant_glass', 'ae2:spatial_pylon',
                'handcrafted:acacia_bench', 'handcrafted:blue_bowl',
                'botanypots:black_concrete_botany_pot', 'bibliocraft:black_fancy_gold_lamp',

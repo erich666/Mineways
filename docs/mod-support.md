@@ -323,6 +323,20 @@ The full ATM10 comparison changed exactly 42 selectors across four XyCraft defin
 
 All 240 Python tests passed. Six native macOS sanitizer cases checked exact asymmetric geometry, source-gradient UV pixels, both texture modes, MI identity rotation, and Sponge identity. The Windows assertion code passed against those native outputs. Full-pack exports checked all 42 corrected selectors, repeated OBJ output, and exact Sponge geometry/state round trips. The baseline checked 710 states and 689 textures. Portable Windows fixtures cover 1,376 states, including every corrected XyCraft selector. Earlier full Windows Debug runs also passed: 1,139 states for the Domum/transmitter batch and 1,288 states for the machine/wire/furniture batch.
 
+## Static power, storage, and Twilight models
+
+Modern Dynamics pipes export their disconnected center with the supplied texture. Transparent pipes retain inward faces and their opposite-face UV mapping. Generated pipes ignore application transforms, matching the shipped loader. Mekanism energy cubes retain the frame and six inactive LEDs, with original UVs and blockstate rotation. Reports identify omitted connections, attachments, side configuration, and stored-energy effects.
+
+Sophisticated Storage barrels retain the default wood, tier overlay, open state, and flat-top geometry. Sophisticated Backpacks use supplied parts, verified default colors, and palette-selected tanks and batteries. Saved recoloring, materials, packing, displayed items, contents, and animation remain unavailable. Optional unresolved texture aliases preserve the loader's fallback. Required missing resources still fail explicitly.
+
+Twilight connected textures export isolated faces with their base and overlay, including verified castle-door tints and the no-world aurora color. Force fields select supplied elements from saved cardinal directions. Their renderer ignores source rotations. Reports identify omitted diagonal joins, neighbor face suppression, position-dependent color, and emission.
+
+Dynamic flag expansion preserves explicit true flags in partial palettes. Omitted flags use verified false defaults. Complete selectors remain more specific. Nested dynamic models require explicit flags, so wrappers cannot silently freeze their default geometry.
+
+This pass adds 35 definitions and 1,266 selectors. Every preexisting selector retains identical geometry, rotations, colors, and texture data. The full ATM10 8.3 catalog contains 45,300 definitions, 589,199 selectors, 32,050 textures, 92,174 geometries, 562,786 elements, 34,828 polygons, and 25 dimensions. Remaining unsupported totals are 6,851 definitions and 5,017 states, including missing compatibility resources.
+
+All 275 Python tests passed. Twenty native macOS ASan/UBSan cases check independently calculated geometry, winding, UVs, RGBA, both texture modes, and Sponge identity. The Windows assertions passed against those native exports. Full-pack native exports checked all 1,266 new selectors, repeated OBJ output, source pixels, and exact Sponge geometry/state round trips. Portable Windows fixtures cover 1,436 sampled states. macOS app, capacity, and security checks passed. Earlier framed-storage and inheritance batches passed full-pack Windows Debug/Release and macOS Intel CI.
+
 ## Compiled format
 
 The importer writes version 6 for split models. Otherwise, it writes version 5 for repeated UVs, version 4 for Z rotations, version 3 for polygons, or version 2. The runtime reads versions 1 through 6. All versions use UTF-8 text with tab-separated fields. Resource identifiers and selectors cannot contain control characters. Dimension records are optional. Texture and geometry indices each start at zero and increase by one. References must use earlier records.

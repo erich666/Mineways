@@ -41,6 +41,9 @@ _framework_module = _load_helper('mod_framework_models')
 _custom_defaults = _load_helper('mod_custom_defaults')
 _lantern_module = _load_helper('mod_lantern_models')
 _ie_sides_module = _load_helper('mod_ie_sides')
+_power_module = _load_helper('mod_power_models')
+_backpack_module = _load_helper('mod_backpack_models')
+_twilight_module = _load_helper('mod_twilight_models')
 _cloudfx_module = _load_helper('mod_cloudfx')
 
 # Custom geometry is parsed where a loader is declared. Child baking context
@@ -56,11 +59,21 @@ LOADER_GEOMETRY_FIELDS = {
     _custom_defaults.FRAMED_LOADER: ('children', 'parts', 'item_render_order'),
     _lantern_module.LOADER: ('support',),
     _ie_sides_module.LOADER: ('base_name', 'type'),
+    _power_module.PIPE_LOADER: ('pipeType', 'transparent'),
+    _power_module.CUBE_LOADER: _power_module.CUBE_FIELDS,
+    _twilight_module.CONNECTED: ('base', 'connected_texture', 'connectable_blocks'),
+    _twilight_module.FORCE_FIELD: ('elements',),
     _storage_module.SIMPLE_MATERIAL_LOADER: ('base', 'overlay'),
     _wire_module.WIRE_LOADER: ('line', 'edge'),
     _wire_module.TINT_LOADER: ('elements',),
     'modern_industrialization:machine': ('casing', 'default_overlays', 'tiered_overlays', 'no_overlay_on_output_side'),
     'modern_industrialization:use_block_model': ('block',),
+}
+
+PALETTE_FLAGS = {
+    _storage_module.BARREL_LOADER: ('open',),
+    _backpack_module.LOADER: ('left_tank', 'right_tank', 'battery'),
+    _twilight_module.FORCE_FIELD: _twilight_module.DIRECTIONS,
 }
 
 MAX_FILE = 16 * 1024 * 1024
@@ -513,11 +526,12 @@ class Compiler:
                                                         'refinedstorage:cable', 'bibliocraft:bookcase',
                                                         'bibliocraft:table', 'xycraft_core:connected_textures',
                                                         'neoforge:obj', 'immersiveengineering:ie_obj', 'immersiveengineering:basic_split', 'supplementaries:extra_rotation',
-                                                        _storage_module.SIMPLE_MATERIAL_LOADER, _storage_module.LIMITED_BARREL_LOADER,
+                                                        _storage_module.SIMPLE_MATERIAL_LOADER, _storage_module.LIMITED_BARREL_LOADER, _storage_module.BARREL_LOADER,
                                                         _material_module.DOMUM_LOADER, _mekanism_module.LOADER, _enderio_module.IO_OVERLAY_LOADER,
                                                         _framework_module.LOADER, *_wire_module.LOADERS,
                                                         _custom_defaults.FRAMED_LOADER, _custom_defaults.MICROCHIP_LOADER,
-                                                        _lantern_module.LOADER, _ie_sides_module.LOADER,
+                                                        _lantern_module.LOADER, _ie_sides_module.LOADER, *_power_module.LOADERS,
+                                                        _backpack_module.LOADER, *_twilight_module.LOADERS,
                                                         *_machine_module.LOADERS):
             raise ImportError('custom model loader: ' + str(own['loader']))
         if own.get('loader') == 'fusion:model':
@@ -919,6 +933,16 @@ class Compiler:
         if name == 'ae2:block/matrix_frame' and model == {'textures': {}}:
             return {'rotation': rotation, 'elements': [], 'invisible': True}
         model = self.builtin_adapter(name, model)
+        if depth and any(flag not in (selector or {}) for flag in PALETTE_FLAGS.get(model.get('loader'), ())):
+            raise ImportError('nested dynamic model requires explicit palette flags')
+        if model.get('loader') == _storage_module.BARREL_LOADER:
+            return _storage_module.compile_barrel(self, name, model, rotation, selector, depth, ImportError, block_name)
+        if model.get('loader') == _backpack_module.LOADER:
+            return _backpack_module.compile_backpack(self, name, model, rotation, selector, depth, ImportError, block_name)
+        if model.get('loader') in _twilight_module.LOADERS:
+            return _twilight_module.compile_twilight(self, name, model, rotation, selector, depth, ImportError, block_name)
+        if model.get('loader') in _power_module.LOADERS:
+            return _power_module.compile_power_model(self, name, model, rotation, selector, depth, ImportError, block_name)
         if model.get('loader') == _custom_defaults.FRAMED_LOADER:
             return _custom_defaults.compile_framed(self, name, model, rotation, selector, depth, ImportError, block_name)
         if model.get('loader') == _custom_defaults.MICROCHIP_LOADER:
@@ -1099,6 +1123,8 @@ class Compiler:
         return result
 
     def block(self, name, definition):
+        for loader, flags in PALETTE_FLAGS.items():
+            definition = _storage_module.expand_loader_flags(self, name, definition, loader, flags, ImportError)
         definition = _storage_module.expand_block(self, name, definition, ImportError)
         definition = _ie_module.expand_block(self, name, definition, ImportError)
         definition = self.fluid_definition(name, definition)

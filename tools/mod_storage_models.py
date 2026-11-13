@@ -161,6 +161,7 @@ def compile_simple_material(compiler, name, model, rotation, selector, depth, er
 
 
 LIMITED_BARREL_LOADER = 'sophisticatedstorage:limited_barrel'
+BARREL_LOADER = 'sophisticatedstorage:barrel'
 
 
 def _barrel_resource(value, error_type):
@@ -210,7 +211,7 @@ def _merge_barrel_parts(parent, own):
     return result
 
 
-def _limited_barrel_parts(compiler, reference, error_type, chain=()):
+def _limited_barrel_parts(compiler, reference, error_type, chain=(), loader=LIMITED_BARREL_LOADER):
     """Merge each layer's wood overrides before that layer's parent defaults."""
     inline = isinstance(reference, dict)
     key = None if inline else _barrel_resource(reference, error_type)
@@ -219,14 +220,15 @@ def _limited_barrel_parts(compiler, reference, error_type, chain=()):
     cache = getattr(compiler, '_limited_barrel_part_cache', None)
     if cache is None:
         cache = compiler._limited_barrel_part_cache = {}
-    if key in cache:
-        return cache[key]
+    cache_key = (loader, key)
+    if key is not None and cache_key in cache:
+        return cache[cache_key]
     if inline:
         own = reference
     else:
         namespace, path = key.split(':')
         own = compiler.assets.json(f'assets/{namespace}/models/{path}.json')
-    if not isinstance(own, dict) or own.get('loader', LIMITED_BARREL_LOADER) != LIMITED_BARREL_LOADER:
+    if not isinstance(own, dict) or own.get('loader', loader) != loader:
         raise error_type('limited barrel parent must use the limited barrel loader')
     if own.get('transform', {}) != {}:
         raise error_type('limited barrel root transforms require an explicit replacement model')
@@ -234,9 +236,9 @@ def _limited_barrel_parts(compiler, reference, error_type, chain=()):
         # A plain BlockModel inherits the already parsed custom geometry object.
         if 'parent' not in own:
             raise error_type('limited barrel model requires a loader or parent')
-        parts = _limited_barrel_parts(compiler, own['parent'], error_type, chain + (key,))
+        parts = _limited_barrel_parts(compiler, own['parent'], error_type, chain + (key,), loader)
         if key is not None:
-            cache[key] = parts
+            cache[cache_key] = parts
         return parts
     parts = _barrel_parts(own.get('model_parts', {}), error_type)
     overrides = own.get('wood_overrides', {})
@@ -249,7 +251,7 @@ def _limited_barrel_parts(compiler, reference, error_type, chain=()):
         if wood == 'acacia':
             parts = _merge_barrel_parts(parts, parsed)
     if 'parent' in own:
-        parent = _limited_barrel_parts(compiler, own['parent'], error_type, chain + (key,))
+        parent = _limited_barrel_parts(compiler, own['parent'], error_type, chain + (key,), loader)
         parts = _merge_barrel_parts(parent, parts)
     if len(parts) > 32:
         raise error_type('limited barrel inherited parts exceed limit')
@@ -257,7 +259,7 @@ def _limited_barrel_parts(compiler, reference, error_type, chain=()):
         if len(part['textures']) > 256:
             raise error_type('limited barrel inherited textures exceed limit')
     if key is not None:
-        cache[key] = parts
+        cache[cache_key] = parts
     return parts
 
 
@@ -345,3 +347,76 @@ def compile_limited_barrel(compiler, name, model, rotation, selector, depth, err
     label = name if isinstance(name, str) else '<inline>'
     compiler.warnings.add(f'{label}: default acacia barrel with visible tier only; saved wood, dyes, custom materials, packing, lock indicators and displayed items are not evaluated')
     return result
+
+
+def compile_barrel(compiler, name, model, rotation, selector, depth, error_type, block_name=None):
+    """Ordinary barrels share the raw part loader, but OPEN selects BASE_OPEN."""
+    opened = (selector or {}).get('open', 'false')
+    if opened not in ('false', 'true'):
+        raise error_type('barrel open must be true or false')
+    parts = _limited_barrel_parts(compiler, name, error_type, loader=BARREL_LOADER)
+    children = {}
+    base = 'base_open' if opened == 'true' else 'base'
+    for part_name in (base, 'tier'):
+        part = parts.get(part_name)
+        if part is None and part_name == 'tier':
+            continue
+        if part is None or 'model' not in part:
+            raise error_type('barrel ' + part_name + ' has no supplied model')
+        geometry = _barrel_geometry(compiler, part['model'], error_type)
+        children[part_name] = {'elements': geometry['elements'], 'textures': {**geometry['textures'], **part['textures']}}
+    x, y, uvlock = rotation[:3]
+    application = {'model': {'loader': 'neoforge:composite', 'children': children}, 'x': x, 'y': y, 'uvlock': bool(uvlock)}
+    if len(rotation) == 4:
+        application['ae2:z'] = rotation[3]
+    result = compiler.compile_model(application, depth + 1, selector, block_name)
+    label = name if isinstance(name, str) else '<inline>'
+    compiler.warnings.add(f'{label}: default acacia barrel with visible tier and palette-selected open state; saved wood, dyes, materials, packing, lock indicators and displayed items are not evaluated')
+    return result
+
+
+def expand_loader_flags(compiler, name, definition, loader, properties, error_type):
+    """Add palette flags omitted by the source's dynamic model applications."""
+    def matches(application):
+        selected = application[0] if isinstance(application, list) and application else application
+        if not isinstance(selected, dict) or 'model' not in selected:
+            return False
+        try:
+            return compiler.model(selected['model']).get('loader') == loader
+        except error_type:
+            return False  # Normal model compilation reports invalid source models.
+
+    variants = definition.get('variants')
+    if not isinstance(variants, dict):
+        multipart = definition.get('multipart', [])
+        if isinstance(multipart, list) and any(isinstance(part, dict) and matches(part.get('apply')) for part in multipart):
+            raise error_type('dynamic model flags require variant models, not multipart applications')
+        return definition
+    if len(variants) > MAX_VARIANTS:
+        return definition
+    expanded, changed = {}, False
+    for selector, application in variants.items():
+        if selector in expanded and expanded[selector] != application:
+            raise error_type('overlapping dynamic model selectors')
+        expanded[selector] = application
+        if not matches(application):
+            continue
+        state = _properties(selector, error_type)
+        if any(key in state and state[key] not in ('false', 'true') for key in properties):
+            raise error_type('dynamic model flags must be true or false')
+        missing = [key for key in properties if key not in state]
+        changed = changed or bool(missing)
+        # Full selectors preserve exact property matching. True-only subsets also
+        # retain explicit flags in partial palettes, with omitted flags defaulting
+        # to false. Full selectors outrank these subsets in native resolution.
+        combinations = itertools.chain(itertools.product(('false', 'true'), repeat=len(missing)),
+                                       itertools.product((None, 'true'), repeat=len(missing)))
+        for flags in combinations:
+            values = {**state, **{key: value for key, value in zip(missing, flags) if value is not None}}
+            key = ','.join(f'{key}={values[key]}' for key in sorted(values))
+            if key in expanded and expanded[key] != application:
+                raise error_type('overlapping dynamic model selectors')
+            expanded[key] = application
+            if len(expanded) > MAX_VARIANTS:
+                raise error_type('dynamic model expansion exceeds 4096 selectors')
+    return {**definition, 'variants': expanded} if changed else definition

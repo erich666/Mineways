@@ -278,7 +278,10 @@ def build_fixture(root):
                                ('mod_lantern_fixtures.py', 'lantern_assets'),
                                ('mod_ie_sides_fixtures.py', 'ie_sides_assets'),
                                ('mod_obj_ownership_fixtures.py', 'obj_ownership_assets'),
-                               ('mod_machine_fixtures.py', 'machine_assets')):
+                               ('mod_machine_fixtures.py', 'machine_assets'),
+                               ('mod_power_fixtures.py', 'power_assets'),
+                               ('mod_twilight_fixtures.py', 'twilight_assets'),
+                               ('mod_dynamic_storage_fixtures.py', 'dynamic_storage_assets')):
         fixture_spec = importlib.util.spec_from_file_location(filename[:-3], Path(__file__).with_name(filename))
         fixture_module = importlib.util.module_from_spec(fixture_spec)
         fixture_spec.loader.exec_module(fixture_module)
