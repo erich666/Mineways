@@ -1,5 +1,6 @@
 # Builds the wxWidgets macOS port (Mac/) into a self-contained Mineways.app.
-# - Every push/PR touching Mac/ or Win/ builds and uploads the app as a workflow artifact.
+# - Master pushes touching Mac/ or Win/ build and upload the app as a workflow artifact.
+# - Pull requests use the Mod Preview Packages workflow for macOS builds and tests.
 # - A tag matching the Windows version, such as "v14.03", also publishes a GitHub Release.
 #
 # Ships unsigned (ad-hoc signed only, no Apple Developer account needed). Finder may
@@ -11,15 +12,6 @@ on:
   push:
     branches: [master]
     tags: ['v*']
-    paths:
-      - 'Mac/**'
-      - 'Win/*.cpp'
-      - 'Win/*.h'
-      - '.github/workflows/macos-build.yml'
-      - 'tools/import_mod_assets.py'
-      - 'tools/mod_*.py'
-      - 'CHANGELOG.md'
-  pull_request:
     paths:
       - 'Mac/**'
       - 'Win/*.cpp'

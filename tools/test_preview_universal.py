@@ -6,8 +6,9 @@ import plistlib
 import struct
 import tempfile
 import unittest
+from unittest.mock import patch
 
-from merge_preview_macos import validate_bundles
+from merge_preview_macos import dependency_contract, validate_bundles
 from package_preview import MAC_CPUS, check_architecture
 
 
@@ -63,6 +64,27 @@ class UniversalTests(unittest.TestCase):
         link.symlink_to('missing.dylib')
         with self.assertRaisesRegex(ValueError, 'symlinks differ'):
             validate_bundles(self.arm, self.intel)
+
+    def test_fat_dependency_contract_checks_both_slices(self):
+        binary = self.arm / 'Contents/MacOS/mineways'
+        binary.write_bytes(universal())
+        for mismatch in (False, True):
+            with self.subTest(mismatch=mismatch):
+                checked = []
+                def output(args):
+                    if args[0] == 'vtool':
+                        return ' minos 26.0\n minos 26.0\n'
+                    architecture = args[args.index('-arch') + 1]
+                    checked.append(architecture)
+                    dependency = 'different' if mismatch and architecture == 'x86_64' else 'shared'
+                    return str(binary) + ':\n\t@executable_path/' + dependency + '.dylib (compatibility version 1.0.0)\n'
+                with patch('merge_preview_macos.command', side_effect=output):
+                    if mismatch:
+                        with self.assertRaisesRegex(ValueError, 'dependency versions differ'):
+                            dependency_contract(binary)
+                    else:
+                        self.assertEqual(len(dependency_contract(binary)), 1)
+                self.assertEqual(set(checked), {'arm64', 'x86_64'})
 
     def test_universal_requires_every_library_slice(self):
         (self.arm / 'Contents/MacOS/mineways').write_bytes(universal())

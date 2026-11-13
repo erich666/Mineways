@@ -3,6 +3,7 @@
 
 CXX      := clang++
 ARCH     ?= $(shell uname -m)
+ARCH_FLAGS := $(foreach arch,$(ARCH),-arch $(arch))
 
 # Follow the Windows version in the upstream code included in this checkout.
 UPSTREAM_VERSION := $(shell awk '$$1 == "\#define" && $$2 == "MINEWAYS_MAJOR_VERSION" { major = $$3 } $$1 == "\#define" && $$2 == "MINEWAYS_MINOR_VERSION" { minor = $$3 } END { printf "%d.%02d", major, minor }' ../Win/stdafx.h)
@@ -18,7 +19,7 @@ VERSION_HEADER := .MinewaysVersion.h
 WX_CFLAGS := $(shell wx-config --cxxflags)
 WX_LIBS   := $(shell wx-config --libs)
 
-CXXFLAGS := -std=c++17 -arch $(ARCH) -O2 -Wall \
+CXXFLAGS := -std=c++17 $(ARCH_FLAGS) -O2 -Wall \
             -MMD -MP \
             -Wno-unused-function \
             -Wno-macro-redefined \
@@ -32,7 +33,7 @@ CXXFLAGS := -std=c++17 -arch $(ARCH) -O2 -Wall \
 # GUI files need wxWidgets flags on top of the base flags
 GUI_CXXFLAGS := $(CXXFLAGS) $(WX_CFLAGS)
 
-LDFLAGS  := -arch $(ARCH)
+LDFLAGS  := $(ARCH_FLAGS)
 LIBS     := -lz $(WX_LIBS)
 
 SRC_DIR  := ../Win

@@ -11,6 +11,8 @@ on:
       - 'docs/preview-quickstart.md'
       - 'docs/mod-support.md'
       - '.github/workflows/mod-preview.yml'
+      - '.github/workflows/macos-build.yml'
+      - 'CHANGELOG.md'
   workflow_dispatch:
     inputs:
       full_atm:
@@ -29,12 +31,12 @@ jobs:
         include:
           - runner: windows-2022
             platform: windows-x64
+            timeout_minutes: 30
           - runner: macos-26-intel
-            platform: macos-x86_64
-          - runner: macos-26
-            platform: macos-arm64
+            platform: macos-universal
+            timeout_minutes: 75
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
+    timeout-minutes: ${{ matrix.timeout_minutes }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -67,37 +69,8 @@ jobs:
           path: Mineways-preview-${{ matrix.platform }}.zip
           if-no-files-found: error
 
-  universal:
-    needs: package
-    runs-on: macos-26-intel
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.11'
-      - uses: actions/download-artifact@v8
-        with:
-          name: preview-macos-arm64
-          path: native
-      - uses: actions/download-artifact@v8
-        with:
-          name: preview-macos-x86_64
-          path: native
-      - name: Merge and verify universal app
-        run: |
-          python tools/merge_preview_macos.py --arm-package native/Mineways-preview-macos-arm64.zip --intel-package native/Mineways-preview-macos-x86_64.zip --output-app Mineways.app --source-revision "$(git rev-parse HEAD)"
-          python tools/package_preview.py --platform macos-universal --app Mineways.app --output Mineways-preview-macos-universal.zip --source-revision "$(git rev-parse HEAD)"
-      - uses: actions/upload-artifact@v6
-        with:
-          name: preview-macos-universal
-          path: Mineways-preview-macos-universal.zip
-          if-no-files-found: error
-
   test-download:
-    needs: [package, universal]
+    needs: package
     strategy:
       fail-fast: false
       matrix:

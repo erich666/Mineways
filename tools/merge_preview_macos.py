@@ -47,19 +47,27 @@ def command(args):
 
 
 def dependency_contract(binary):
-    lines = command(['otool', '-L', str(binary)]).splitlines()[1:]
-    bundled = []
-    for line in lines:
-        line = line.strip()
-        if line.startswith('@'):
-            bundled.append(line)
-        elif not line.startswith(('/usr/lib/', '/System/Library/')):
-            raise ValueError('External developer dependency: ' + line)
+    contracts = []
+    cpus = macho_cpus(binary)
+    for architecture, cpu in MAC_CPUS.items():
+        if cpus is None or cpu not in cpus:
+            continue
+        lines = command(['otool', '-arch', architecture, '-L', str(binary)]).splitlines()[1:]
+        bundled = []
+        for line in lines:
+            line = line.strip()
+            if line.startswith('@'):
+                bundled.append(line)
+            elif not line.startswith(('/usr/lib/', '/System/Library/')):
+                raise ValueError('External developer dependency: ' + line)
+        contracts.append(sorted(bundled))
+    if not contracts or any(contract != contracts[0] for contract in contracts):
+        raise ValueError('Universal Mach-O dependency versions differ: ' + str(binary))
     build = command(['vtool', '-show-build', str(binary)])
     minimums = re.findall(r'^\s*minos\s+(\d+)\.(\d+)', build, re.MULTILINE)
     if not minimums or any((int(a), int(b)) > (26, 0) for a, b in minimums):
         raise ValueError('Mach-O requires a system newer than macOS 26.0: ' + str(binary))
-    return sorted(bundled)
+    return contracts[0]
 
 
 def merge_packages(arm_package, intel_package, output, revision):
