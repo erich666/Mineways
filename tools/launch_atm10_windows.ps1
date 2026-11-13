@@ -25,12 +25,18 @@ try {
         Write-Output 'Downloading showcase setup tools...'
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
         Invoke-WebRequest -UseBasicParsing -Uri $pin.url -OutFile $archive -TimeoutSec 180
-        if ((Get-Item -LiteralPath $archive).Length -ne $pin.size -or
-            (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant() -cne $pin.sha256) {
+        $algorithm = [Security.Cryptography.SHA256]::Create()
+        try {
+            $source = [IO.File]::OpenRead($archive)
+            try { $archiveHash = [BitConverter]::ToString($algorithm.ComputeHash($source)).Replace('-', '').ToLowerInvariant() }
+            finally { $source.Dispose() }
+        } finally { $algorithm.Dispose() }
+        if ((Get-Item -LiteralPath $archive).Length -ne $pin.size -or $archiveHash -cne $pin.sha256) {
             throw 'Python runtime size or SHA-256 does not match its pin'
         }
         $unpacked = Join-Path $stage 'python'
-        Expand-Archive -LiteralPath $archive -DestinationPath $unpacked
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        [IO.Compression.ZipFile]::ExtractToDirectory($archive, $unpacked)
         $pth = @(Get-ChildItem -LiteralPath $unpacked -Filter 'python*._pth')
         if ($pth.Count -ne 1 -or -not (Test-Path -LiteralPath (Join-Path $unpacked 'python.exe'))) {
             throw 'Python runtime archive is incomplete'
