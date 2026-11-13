@@ -33,7 +33,7 @@ static std::wstring wide(const std::filesystem::path& path)
 
 static void exportWorld(WorldGuide& world, const std::filesystem::path& path, int mode,
                         bool detailed = true, bool doubled = false, bool printing = false, bool expectFailure = false,
-                        bool expectEmpty = false, bool windowsUsdDefaults = false, bool individual = true,
+                        bool expectEmpty = false, bool windowsRenderDefaults = false, bool individual = true,
                         int formatOverride = -1, int rotation = 0, float blockSize = 1000.0f, int firstX = 0)
 {
     const bool existingFailureTarget = expectFailure && std::filesystem::exists(path);
@@ -60,13 +60,14 @@ static void exportWorld(WorldGuide& world, const std::filesystem::path& path, in
                               BLF_BILLBOARD | BLF_PANE | BLF_FLATTEN | BLF_FLATTEN_SMALL |
                               BLF_SMALL_MIDDLER | BLF_SMALL_BILLBOARD;
     options.exportFlags = mode | (individual ? EXPT_INDIVIDUAL_BLOCKS : 0);
-    if (windowsUsdDefaults) {
-        assert(fileType == FILE_TYPE_USD);
+    if (windowsRenderDefaults) {
+        assert(fileType == FILE_TYPE_USD || fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ);
         settings.scaleLightsVal = 15.0f;
         settings.scaleEmittersVal = 20.0f;
         settings.chkTextureRGB = settings.chkTextureA = settings.chkTextureRGBA = 1;
         settings.chkMaterialPerFamily = settings.chkMakeGroupsObjects = settings.chkSplitByBlockType = 1;
-        settings.radioExportTileTextures[fileType] = 1;
+        settings.radioExportTileTextures[fileType] = fileType == FILE_TYPE_USD || (mode & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES);
+        settings.radioExportFullTexture[fileType] = !settings.radioExportTileTextures[fileType];
         settings.comboPhysicalMaterial[fileType] = PRINT_MATERIAL_FULL_COLOR_SANDSTONE;
         // initializeViewExportData leaves custom material and MDL disabled for USD.
         options.exportFlags |= EXPT_OUTPUT_OBJ_SEPARATE_TYPES | EXPT_OUTPUT_OBJ_MATERIAL_PER_BLOCK |

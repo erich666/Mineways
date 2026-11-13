@@ -137,7 +137,7 @@ static void checkNextDefaultExports(const std::filesystem::path& root) {
         WorldGuide world={};world.type=WORLD_SCHEMATIC_TYPE;world.sch={&block,&value,1,1,1,1,false,true};
         for(bool individual:{true,false}) {
             const auto object=folder/(sample.label+(individual?".obj":"-mosaic.obj"));
-            exportWorld(world,object,EXPT_OUTPUT_MATERIALS|EXPT_OUTPUT_TEXTURE_IMAGES|(individual?EXPT_OUTPUT_SEPARATE_TEXTURE_TILES:0));
+            exportWorld(world,object,EXPT_OUTPUT_MATERIALS|EXPT_OUTPUT_TEXTURE_IMAGES|(individual?EXPT_OUTPUT_SEPARATE_TEXTURE_TILES:0),true,false,false,false,false,true);
             const auto faces=readGeometryFaces(object,sample.faces.size());const auto names=CustomExportTest::faceMaterials(object);const auto maps=CustomExportTest::materials(object);
             assert(names.size()==faces.size());std::set<size_t> used;
             for(size_t f=0;f<faces.size();++f) {

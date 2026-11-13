@@ -32677,10 +32677,10 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
         tfString[0] = '\0';
     }
 
-    // export map_d only if CUTOUTS.
+    // Imported face opacity belongs to the texture, not the block's map color.
     if (!gModel.print3D &&
         (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) &&
-        (alpha < 1.0 || (gBlockDefinitions[type].flags & BLF_CUTOUTS)) &&
+        (alpha < 1.0 || IsModBlock(type) || (gBlockDefinitions[type].flags & BLF_CUTOUTS)) &&
         !(gModel.options->pEFD->chkLeavesSolid && (gBlockDefinitions[type].flags & BLF_LEAF_PART)))
     {
         // cutouts or alpha
