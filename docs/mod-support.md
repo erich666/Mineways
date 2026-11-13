@@ -259,6 +259,10 @@ The full ATM10 8.3 catalog recovers all 38 targeted `ie_obj` definitions and all
 
 The catalog contains 45,026 definitions, 572,754 selectors, 31,680 textures, 90,446 geometries, 509,160 elements, 34,642 polygons, and 25 dimensions. The report lists 7,125 unsupported definitions and 1,855 unsupported states. All 337 new selectors passed native macOS sanitizer exports, source texture pixel checks, repeated OBJ exports, and exact Sponge geometry/state round trips. All 6,224 split-part cases passed the same native checks across 13 compact test worlds. All 126 Python tests passed. Native fixtures also cover saved context, missing-context errors, malformed or truncated NBT, entity limits, and preservation of an existing output file when preflight rejects the export.
 
+The [Windows Debug/Release fixture run](https://github.com/wbreiler/Mineways/actions/runs/43346911561) passed at `cc8a76c`. Both configurations passed all 126 importer tests, native geometry and schematic fixtures, the uint16 block-ID boundary, and imported texture capacity checks. The [macOS Intel build and test run](https://github.com/wbreiler/Mineways/actions/runs/43346915704) also passed, including app packaging and artifact upload.
+
+The [full-pack Windows run](https://github.com/wbreiler/Mineways/actions/runs/43346911672) compiled the same catalog from all 496 pinned assets. Both Debug and Release passed 893 sampled states, 390 texture pixel checks, repeated OBJ exports, and exact Sponge geometry/state round trips. Release export and round-trip processes took 9.594 and 8.875 seconds. Debug with AddressSanitizer took 477.719 and 467.063 seconds, within the unchanged ten-minute process limits.
+
 ## Compiled format
 
 The importer writes version 6 for split models. Otherwise, it writes version 5 for repeated UVs, version 4 for Z rotations, version 3 for polygons, or version 2. The runtime reads versions 1 through 6. All versions use UTF-8 text with tab-separated fields. Resource identifiers and selectors cannot contain control characters. Dimension records are optional. Texture and geometry indices each start at zero and increase by one. References must use earlier records.
