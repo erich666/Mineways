@@ -14,6 +14,7 @@ TIERS = {'sophisticatedstorage:' + (tier + '_' if tier != 'base' else '') + 'shu
          for tier in ('base', 'copper', 'iron', 'gold', 'diamond', 'netherite')}
 SHRINK = struct.unpack('f', struct.pack('f', .9995))[0]
 MAX_GENERATED_PIXELS = 64 * 1024 * 1024
+MAX_COMPILED_ELEMENTS = 4000000
 MAX_VARIANTS = 4096
 
 
@@ -80,12 +81,15 @@ def compile_shulker(compiler, name, model, rotation, selector, depth, error_type
     facing = state.get('facing', 'down')
     if facing not in FACINGS:
         raise error_type('shulker facing must be a cardinal direction')
+    if compiler.element_count + 12 > MAX_COMPILED_ELEMENTS:
+        raise error_type('compiled shulker polygon budget exceeded')
     texture = _texture(compiler, TIERS[block_name], error_type, decode_png)
     polygons = _cube(-8, 8, 28, facing, texture) + _cube(-16, 12, 0, facing, texture)
     label = name if isinstance(name, str) else '<inline>'
     compiler.warnings.add(f'{label}: closed undyed shulker with visible tier; saved dyes, tier hiding, opening animation, locks, upgrades and displayed items are not evaluated')
     if any(rotation) or model.get('transform', {}):
         compiler.warnings.add(f'{label}: supplied rotations, UV lock and root transforms are ignored by the shipped shulker block-entity renderer')
+    compiler.element_count += len(polygons)
     return {'rotation': (0, 0, 0), 'elements': [], 'polygons': polygons, 'fixed_rotation': True}
 
 

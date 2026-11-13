@@ -38,6 +38,20 @@ class StorageChests(unittest.TestCase):
         return compiler,chest.compile_chest(compiler,'sophisticatedstorage:block/chest',self.model,rotation,state,
                                             depth,mod.ImportError,block,mod.decode_png)
 
+    def test_shared_polygon_budget_exact_boundary(self):
+        compiler = self.compiler()
+        compiler.element_count = chest.MAX_COMPILED_ELEMENTS - 18
+        self.compile(compiler=compiler)
+        self.assertEqual(compiler.element_count, chest.MAX_COMPILED_ELEMENTS)
+        compiler = self.compiler()
+        compiler.element_count = chest.MAX_COMPILED_ELEMENTS - 17
+        before = compiler.element_count
+        with self.assertRaisesRegex(mod.ImportError, 'polygon budget'):
+            self.compile(compiler=compiler)
+        self.assertEqual(compiler.element_count, before)
+        self.assertEqual(len(compiler.textures), 0)
+        self.assertEqual(compiler.face_texture_pixel_count, 0)
+
     def test_literal_cube_bounds_and_uv_rectangles(self):
         _,model=self.compile('south','single')
         self.assertEqual(len(model['polygons']),18)

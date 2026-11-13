@@ -15,6 +15,7 @@ TIERS = {'sophisticatedstorage:' + (tier + '_' if tier != 'wood' else '') + 'che
          for tier in ('wood', 'copper', 'iron', 'gold', 'diamond', 'netherite')}
 MAX_VARIANTS = 4096
 MAX_GENERATED_PIXELS = 64 * 1024 * 1024
+MAX_COMPILED_ELEMENTS = 4000000
 
 
 def _resource(value, error_type):
@@ -132,6 +133,8 @@ def compile_chest(compiler, name, model, rotation, selector, depth, error_type, 
     facing, chest_type = state.get('facing', 'north'), state.get('type', 'single')
     if facing not in FACINGS or chest_type not in TYPES:
         raise error_type('invalid chest facing or type')
+    if compiler.element_count + 18 > MAX_COMPILED_ELEMENTS:
+        raise error_type('compiled chest polygon budget exceeded')
     body, latch = _textures(compiler, chest_type, TIERS[block_name], error_type, decode_png)
     x, width, latch_x, latch_width = {'single': (1,14,7,2), 'right': (1,15,15,1), 'left': (0,15,0,1)}[chest_type]
     polygons = (_cube((x,0,1),(width,10,14),(0,19),facing,body)
@@ -141,6 +144,7 @@ def compile_chest(compiler, name, model, rotation, selector, depth, error_type, 
     compiler.warnings.add(f'{label}: closed undyed acacia chest with visible tier and latch; saved wood, dyes, tier hiding, opening animation, packing, displayed items, lock indicators and upgrades are not evaluated')
     if any(rotation) or model.get('transform', {}):
         compiler.warnings.add(f'{label}: supplied rotations, UV lock and root transforms are ignored by the shipped chest block-entity renderer')
+    compiler.element_count += len(polygons)
     return {'rotation': (0,0,0), 'elements': [], 'polygons': polygons, 'fixed_rotation': True}
 
 

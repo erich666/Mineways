@@ -30,6 +30,7 @@ def _load_helper(name):
 
 _obj_module = _load_helper('mod_obj')
 _ie_module = _load_helper('mod_ie_models')
+_conveyor_module = _load_helper('mod_conveyor_models')
 _split_module = _load_helper('mod_ie_split')
 _machine_module = _load_helper('mod_machine_models')
 _storage_module = _load_helper('mod_storage_models')
@@ -60,6 +61,7 @@ LOADER_GEOMETRY_FIELDS = {
     _mekanism_module.LOADER: OBJ_GEOMETRY_FIELDS + ('glass',),
     _mekanism_module.DATA_LOADER: ('no_data', 'emitting'),
     'immersiveengineering:ie_obj': ('model', 'callbacks', 'dynamic', 'layers'),
+    _conveyor_module.LOADER: ('conveyorType',),
     _framework_module.LOADER: ('components',),
     _custom_defaults.FRAMED_LOADER: ('children', 'parts', 'item_render_order'),
     _lantern_module.LOADER: ('support',),
@@ -537,7 +539,7 @@ class Compiler:
                                                         _material_module.DOMUM_LOADER, _mekanism_module.LOADER, _mekanism_module.DATA_LOADER, _storage_module.PORTABLE_LOADER, _enderio_module.IO_OVERLAY_LOADER,
                                                         _framework_module.LOADER, *_wire_module.LOADERS,
                                                         _custom_defaults.FRAMED_LOADER, _custom_defaults.MICROCHIP_LOADER,
-                                                        _lantern_module.LOADER, _ie_sides_module.LOADER, *_power_module.LOADERS,
+                                                        _lantern_module.LOADER, _ie_sides_module.LOADER, _conveyor_module.LOADER, *_power_module.LOADERS,
                                                         _backpack_module.LOADER, _shulker_module.LOADER, _chest_module.LOADER, _xycraft_pipe_module.LOADER, _pressure_tube_module.LOADER, *_twilight_module.LOADERS,
                                                         *_machine_module.LOADERS):
             raise ImportError('custom model loader: ' + str(own['loader']))
@@ -944,6 +946,8 @@ class Compiler:
             raise ImportError('nested dynamic model requires explicit palette flags')
         if model.get('loader') == _mekanism_module.DATA_LOADER:
             return _mekanism_module.compile_data_based(self, name, model, rotation, selector, depth, ImportError, block_name)
+        if model.get('loader') == _conveyor_module.LOADER:
+            return _conveyor_module.compile_conveyor(self, name, model, rotation, selector, depth, ImportError, block_name)
         if model.get('loader') == _storage_module.PORTABLE_LOADER:
             return _storage_module.compile_portable_grid(self, name, model, rotation, selector, depth, ImportError, block_name)
         if model.get('loader') == _chest_module.LOADER:
@@ -1145,6 +1149,7 @@ class Compiler:
         return result
 
     def block(self, name, definition):
+        definition = _conveyor_module.expand_conveyor(self, name, definition, ImportError)
         definition = _chest_module.expand_chest(self, name, definition, ImportError)
         definition = _storage_module.expand_portable_grid(self, name, definition, ImportError)
         definition = _shulker_module.expand_shulker(self, name, definition, ImportError)

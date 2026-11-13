@@ -374,6 +374,18 @@ This pass adds 11 definitions and 128 selectors without changing existing geomet
 
 All 320 importer tests passed. Native macOS ASan/UBSan checks cover 24 new single-cell cases plus a double-chest pair, including exact geometry, UVs, winding, pixels, both texture modes, and Sponge identity. The pair verifies a 30-pixel body width and touching latch halves. Windows assertions passed against those outputs. Full-pack native exports checked all 128 new selectors; the baseline checked 945 states and 830 textures. Portable Windows fixtures cover 1,611 states.
 
+## Immersive Engineering default conveyors
+
+Basic, dropper, and vertical conveyors now export the verified inactive, uncovered fallback mesh. Each uses the shipped renderer's 35 quads, including its separate belt and casing surfaces. Source UVs and replacement PNGs remain intact. Palette facing rotates the model. Propertyless palettes use north. Vertical conveyors retain the exact upright transform and omit the entry belt, which requires neighbor data.
+
+The conveyor loader owns `conveyorType`. Its renderer ignores outer textures, root transforms, application rotations, and UV lock. Nested conveyors require explicit facing. Reports identify omitted saved slopes, covers, dyes, live activity, and connections. Extract, redstone, and splitter conveyors remain unsupported because their extra meshes require a separate orientation contract.
+
+Chest and shulker meshes now count toward the shared compiler geometry budget. Their checks reject an exhausted budget before loading or composing textures. Exact-boundary tests cover both helpers.
+
+This pass adds three definitions and 15 selectors without changing any prior selector's geometry, rotations, colors, or texture data. The full catalog contains 45,399 definitions, 590,346 selectors, 32,159 textures, 92,387 geometries, 563,546 elements, 37,700 polygons, and 25 dimensions. Remaining unsupported totals are 6,754 definitions and 5,011 states.
+
+All 329 importer tests passed. Fifteen native macOS ASan/UBSan cases check every conveyor quad against independent source positions, winding, and UVs. They also verify texture pixels, both export texture modes, and Sponge identity. The Windows assertions passed against those exports, including the four vertical-conveyor bounds. Full-pack native exports checked all 15 new selectors. The baseline checked 960 states and 839 textures, with repeated OBJ output and exact Sponge geometry/state round trips. Portable Windows fixtures cover 1,626 states.
+
 ## Compiled format
 
 The importer writes version 6 for split models. Otherwise, it writes version 5 for repeated UVs, version 4 for Z rotations, version 3 for polygons, or version 2. The runtime reads versions 1 through 6. All versions use UTF-8 text with tab-separated fields. Resource identifiers and selectors cannot contain control characters. Dimension records are optional. Texture and geometry indices each start at zero and increase by one. References must use earlier records.

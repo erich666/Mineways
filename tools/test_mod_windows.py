@@ -474,6 +474,7 @@ def exercise(executable, root):
     exercise_renderer_models(executable, root, common, texture_sources)
     exercise_data_models(executable, root, common, texture_sources)
     exercise_chest_pipe_models(executable, root, common, texture_sources)
+    exercise_conveyor_models(executable, root, common, texture_sources)
     for orientation in ('plain', 'turned'):
         label = 'mesh-' + orientation
         state = 'fixture:obj_mesh[orientation=' + orientation + ',retained=true]'
@@ -726,6 +727,14 @@ def exercise_chest_pipe_models(executable, root, common, texture_sources):
     exercise_renderer_samples(executable, root, common, texture_sources, samples)
 
 
+def exercise_conveyor_models(executable, root, common, texture_sources):
+    samples = [(f'conveyor-{kind}-{facing}', 'immersiveengineering:conveyor_' + kind +
+                ('' if facing == 'default' else '[facing=' + facing + ']'), 35, 3)
+               for kind in ('basic', 'dropper', 'vertical')
+               for facing in ('default', 'north', 'east', 'south', 'west')]
+    exercise_renderer_samples(executable, root, common, texture_sources, samples)
+
+
 def exercise_renderer_samples(executable, root, common, texture_sources, samples):
     for label, state, count, texture_count in samples:
         source, restored = root / (label + '.schem'), root / (label + '-restored.schem')
@@ -763,6 +772,19 @@ def exercise_renderer_samples(executable, root, common, texture_sources, samples
                 assert signature == reference, 'Mosaic changed renderer geometry or UV pixels: ' + name
             else:
                 reference = signature
+            if label.startswith('conveyor-'):
+                kind, facing = label.split('-')[1:]
+                low, high = (0, 0, 0), (1, 3/16, 1)
+                if kind == 'vertical':
+                    low, high = {'default': ((0, 0, 0), (1, 1, 3/16)),
+                                 'north': ((0, 0, 0), (1, 1, 3/16)),
+                                 'east': ((13/16, 0, 0), (1, 1, 1)),
+                                 'south': ((0, 0, 13/16), (1, 1, 1)),
+                                 'west': ((0, 0, 0), (3/16, 1, 1))}[facing]
+                points = [point for corners, _ in faces for point, _ in corners]
+                for axis in range(3):
+                    assert abs(min(p[axis] for p in points)-low[axis]) < 1e-6, name
+                    assert abs(max(p[axis] for p in points)-high[axis]) < 1e-6, name
             if label == 'chest-double-south':
                 points = [point for corners, _ in faces for point, _ in corners]
                 assert abs(min(p[0] for p in points)-1/16) < 1e-6 and abs(max(p[0] for p in points)-31/16) < 1e-6
@@ -1173,6 +1195,9 @@ def exercise_pack(executable, root, manifest):
                'pneumaticcraft:vacuum_trap',
                'refinedstorage:creative_portable_grid',
                'refinedstorage:portable_grid',
+               'immersiveengineering:conveyor_basic',
+               'immersiveengineering:conveyor_dropper',
+               'immersiveengineering:conveyor_vertical',
                'pneumaticcraft:advanced_pressure_tube',
                'pneumaticcraft:pressure_tube',
                'pneumaticcraft:reinforced_pressure_tube',

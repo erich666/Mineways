@@ -32,6 +32,20 @@ class StorageShulkers(unittest.TestCase):
             depth, mod.ImportError, block, mod.decode_png)
         return compiler, result
 
+    def test_shared_polygon_budget_exact_boundary(self):
+        compiler = self.compiler()
+        compiler.element_count = shulker.MAX_COMPILED_ELEMENTS - 12
+        self.compile(compiler=compiler)
+        self.assertEqual(compiler.element_count, shulker.MAX_COMPILED_ELEMENTS)
+        compiler = self.compiler()
+        compiler.element_count = shulker.MAX_COMPILED_ELEMENTS - 11
+        before = compiler.element_count
+        with self.assertRaisesRegex(mod.ImportError, 'polygon budget'):
+            self.compile(compiler=compiler)
+        self.assertEqual(compiler.element_count, before)
+        self.assertEqual(len(compiler.textures), 0)
+        self.assertEqual(compiler.face_texture_pixel_count, 0)
+
     def test_exact_source_uv_rectangles_and_no_head(self):
         _, result = self.compile('up')
         self.assertEqual(len(result['polygons']), 12)
