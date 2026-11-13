@@ -59,4 +59,4 @@ jobs:
           $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products '*' -requires Microsoft.Component.MSBuild -property installationPath
           $asan = Get-ChildItem "$vs\VC\Tools\MSVC\*\bin\Hostx64\x64\clang_rt.asan_dynamic-x86_64.dll" | Sort-Object FullName -Descending | Select-Object -First 1
           if ($asan) { $env:PATH = "$($asan.DirectoryName);$env:PATH" }
-          python tools/test_mod_windows.py "Win/x64/${{ matrix.configuration }}/Mineways.exe" --pack "$env:RUNNER_TEMP/atm10-pack/manifest.mwpack"
+          python tools/test_mod_windows.py "Win/x64/${{ matrix.configuration }}/Mineways.exe" --pack "$env:RUNNER_TEMP/atm10-pack/manifest.mwpack" --pack-only

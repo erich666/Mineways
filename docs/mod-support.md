@@ -432,6 +432,17 @@ This pass adds 16 definitions and 448 selectors without changing or losing prior
 
 All 381 importer tests passed. Native macOS ASan/UBSan checks cover 20 additional cases, all eight wood textures, both attachment styles, defaults, partial states, both texture modes, and Sponge identity. Windows assertions passed against those outputs. The fixture manifest and textures remained byte-identical after selector normalization. Full-pack native exports checked all 448 new selectors. Baseline exports checked 960 states and 820 textures. Portable Windows fixtures cover 1,860 states.
 
+## Windows full-pack validation
+
+The regular Windows Debug/Release jobs run the synthetic renderer, dimension, precision, and capacity suites. Manual jobs with `full_atm=true` compile the pinned ATM10 catalog and run only the external-pack checks. Both job types must pass for complete Windows coverage.
+
+```powershell
+python tools/test_mod_windows.py Win/x64/Debug/Mineways.exe
+python tools/test_mod_windows.py Win/x64/Debug/Mineways.exe --pack C:/path/to/manifest.mwpack --pack-only
+```
+
+`--pack` alone retains the combined fixture and external-pack behavior. `--pack-only` requires `--pack`. It avoids repeating the synthetic suite before the actual catalog tests. That repetition previously exhausted the 60-minute Debug job before full-pack validation could finish. The 600-second native process limits and all external-pack assertions remain unchanged.
+
 ## Compiled format
 
 The importer writes version 6 for split models. Otherwise, it writes version 5 for repeated UVs, version 4 for Z rotations, version 3 for polygons, or version 2. The runtime reads versions 1 through 6. All versions use UTF-8 text with tab-separated fields. Resource identifiers and selectors cannot contain control characters. Dimension records are optional. Texture and geometry indices each start at zero and increase by one. References must use earlier records.

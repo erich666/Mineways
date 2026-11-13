@@ -3,6 +3,7 @@
 
 --fixtures-only validates fixture generation on any host without running Mineways.
 --pack manifest.mwpack additionally tests external real assets without using a live world.
+--pack-only runs only the external pack checks, requiring --pack.
 --output new-directory retains generated fixtures, logs, and exports for local diagnosis.
 """
 import argparse
@@ -1698,7 +1699,7 @@ def exercise_pack(executable, root, manifest):
     source = root / 'actual-input.schem'
     # Activate every installed block name, then render a compact grid to retain tiny source details.
     # Unused palette entries occupy no voxels. No live world is opened.
-    palette = list(dict.fromkeys([by_block[block][0] for block in blocks] + names))
+    palette = list(dict.fromkeys([by_block[block][0] for block in blocks] + names + ['minecraft:air']))
     assert len(palette) <= 65536, 'Full-pack test exceeds the Sponge palette limit'
     palette_index = {name: index for index, name in enumerate(palette)}
     columns = min(32, len(selected))
@@ -2029,8 +2030,11 @@ def main():
     parser.add_argument('executable', nargs='?')
     parser.add_argument('--fixtures-only', action='store_true')
     parser.add_argument('--pack', type=Path, help='also test this externally compiled manifest (or pack directory)')
+    parser.add_argument('--pack-only', action='store_true', help='run only the --pack checks, without repeating synthetic fixtures')
     parser.add_argument('--output', type=Path, help='retain fixtures, logs, and exports in a new directory')
     args = parser.parse_args()
+    if args.pack_only and not args.pack:
+        parser.error('--pack-only requires --pack')
     if not args.fixtures_only and not args.executable:
         parser.error('provide a Mineways executable or --fixtures-only')
     executable = Path(args.executable).resolve() if not args.fixtures_only else None
@@ -2050,6 +2054,9 @@ def main():
             pass
         else:
             raise AssertionError('Script-order check accepted a selection before world loading')
+        if args.pack_only:
+            exercise_pack(executable, root, manifest)
+            return
         exercise(executable, root)
         exercise_limits(executable, root)
         exercise_normals(executable, root)
@@ -2064,8 +2071,11 @@ def main():
     else:
         with tempfile.TemporaryDirectory(prefix='mineways mod windows ') as temporary:
             execute(Path(temporary))
-    print('PASS: ' + ('portable Windows export fixtures' if executable is None else
-                     'native mod geometry, adapters, invisible states, textures, schematic round trips, dimensions, uint16 IDs, 4096 texture limits, and syntax checks'))
+    if args.pack_only:
+        print('PASS: ' + ('external pack fixtures' if executable is None else 'native external pack validation'))
+    else:
+        print('PASS: ' + ('portable Windows export fixtures' if executable is None else
+                         'native mod geometry, adapters, invisible states, textures, schematic round trips, dimensions, uint16 IDs, 4096 texture limits, and syntax checks'))
 
 
 if __name__ == '__main__':
