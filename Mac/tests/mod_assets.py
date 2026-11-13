@@ -152,6 +152,61 @@ def uv_assets(source):
         b'vt -0.5 -0.5\nvt 1.5 -0.5\nvt 0.5 1.5\nusemtl pattern\nf 1/1 2/2 3/3\n')
 
 
+def ie_obj_assets(source):
+    """Original synthetic meshes exercise IE callbacks without mod-owned assets."""
+    pixels = bytes((255,255,255,255, 128,64,32,255, 0,255,0,255, 255,0,255,255))
+    put(source, 'assets/fixture/textures/block/ie_pattern.png', mod.encode_png(2, 2, pixels))
+    put(source, 'assets/fixture/models/ie.mtl', b'newmtl material\nKd 0 0 0\nmap_Kd fixture:block/ie_pattern\n')
+
+    def mesh(name, groups, callback, variants=None):
+        lines = ['mtllib ie.mtl', 'vt 0 0', 'vt 1 0', 'vt 1 1', 'vt 0 1', 'usemtl material']
+        vertex = 1
+        for group, low, high in groups:
+            x0,y0,z0 = low
+            x1,y1,z1 = high
+            corners = [(x0,y0,z0),(x1,y0,z0),(x1,y1,z0),(x0,y1,z0),
+                       (x0,y0,z1),(x1,y0,z1),(x1,y1,z1),(x0,y1,z1)]
+            lines.append('o ' + group)
+            lines.extend('v ' + ' '.join(str(value / 16) for value in point) for point in corners)
+            for indices in ((1,0,3,2),(4,5,6,7),(0,4,7,3),(5,1,2,6),(3,7,6,2),(0,1,5,4)):
+                lines.append('f ' + ' '.join(f'{vertex + index}/{uv + 1}' for uv,index in enumerate(indices)))
+            vertex += 8
+        put(source, f'assets/fixture/models/{name}.obj.ie', ('\n'.join(lines) + '\n').encode())
+        put(source, f'assets/fixture/models/{name}.json', {'loader':'immersiveengineering:ie_obj',
+            'model':f'fixture:models/{name}.obj.ie', 'callbacks':'immersiveengineering:' + callback})
+        put(source, f'assets/fixture/blockstates/{name}.json', {'variants':variants or {'':{'model':'fixture:' + name}}})
+
+    mesh('ie_chute', [('base',(2,0,2),(14,4,14)), ('diagonal',(0,0,0),(16,16,16)),
+                     ('north',(0,0,0),(16,16,16))], 'chute')
+    mesh('ie_lantern', [('base',(6,4,6),(10,12,10)), ('attach_t',(7,12,7),(9,16,9)),
+                       ('attach_b',(7,0,7),(9,4,9)), ('attach_n',(7,7,0),(9,9,6)),
+                       ('attach_s',(7,7,10),(9,9,16)), ('attach_w',(0,7,7),(6,9,9)),
+                       ('attach_e',(10,7,7),(16,9,9))], 'lantern')
+    mesh('ie_balloon', [('balloon1_0',(0,2,2),(4,14,14)), ('balloon0_1',(4,2,2),(8,14,14)),
+                       ('base',(8,2,2),(12,14,14))], 'balloon')
+    mesh('ie_floodlight', [('base',(-4,-4,-4),(4,4,4))], 'floodlight',
+         {f'facing={side}':{'model':'fixture:ie_floodlight'} for side in ('down','up')})
+    mesh('ie_slope', [('Slope',(0,0,0),(16,16,16))], 'structural_arm')
+
+
+def ie_split_assets(source):
+    """Three vertical cell panels sharing one unchanged palette identity."""
+    put(source, 'assets/fixture/textures/block/ie_split.png', mod.encode_png(2,2,bytes((220,60,20,255))*4))
+    put(source, 'assets/fixture/models/block/ie_split.mtl', b'newmtl panel\nmap_Kd fixture:block/ie_split\n')
+    put(source, 'assets/fixture/models/block/ie_split.obj',
+        b'mtllib ie_split.mtl\nv 0.125 0 0.25\nv 0.875 0 0.25\nv 0.875 3 0.25\nv 0.125 3 0.25\n'
+        b'vt 0 0\nvt 1 0\nvt 1 1\nvt 0 1\nusemtl panel\nf 1/1 2/2 3/3 4/4\n')
+    inner = {'loader':'neoforge:obj','model':'fixture:models/block/ie_split.obj','flip_v':True}
+    put(source, 'assets/immersiveengineering/models/block/cloche_split.json',
+        {'loader':'immersiveengineering:basic_split','dynamic':False,'inner_model':inner,
+         'split_parts':[[0,0,0],[0,1,0],[0,2,0]]})
+    put(source, 'assets/fixture/blockstates/ie_split.json', {'variants':{'':{'model':'immersiveengineering:block/cloche_split'}}})
+    put(source, 'assets/immersiveengineering/models/block/multiblocks/silo_split.json',
+        {'loader':'immersiveengineering:basic_split','dynamic':False,'inner_model':inner,
+         'split_parts':[[0,0,0],[0,1,0],[0,2,0]]})
+    put(source, 'assets/fixture/blockstates/ie_split_position.json', {'variants':{'':{'model':'immersiveengineering:block/multiblocks/silo_split'}}})
+
+
 def build_fixture(root):
     """Create original assets for geometry/UV, alpha, state and schematic tests."""
     root = Path(root)
@@ -192,6 +247,8 @@ def build_fixture(root):
     obj_assets(source)
     uv_assets(source)
     cloudfx_assets(source)
+    ie_split_assets(source)
+    ie_obj_assets(source)
     geometry_faces = {direction: {'texture': 'fixture:block/' + direction,
                                  'uv': [1, 2, 14, 15], 'rotation': index % 4 * 90,
                                  'cullface': direction}

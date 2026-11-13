@@ -367,6 +367,9 @@ void SetSeparatorObj(const wchar_t* separator);
 void ChangeCache(int size);
 void ClearCache();
 
+// Detailed mod export diagnostic, cleared at the start of each export.
+const char* ModExportError();
+
 int SaveVolume(wchar_t* objFileName, int fileType, Options* options, WorldGuide* gWorldGuide, const wchar_t* curDir, int minx, int miny, int minz, int maxx, int maxy, int maxz, int mapMinHeight, int mapMaxHeight,
     ProgressCallback callback, wchar_t* terrainFileName, wchar_t* cullSchemeSelected, FileList* outputFileList, int majorVersion, int minorVersion, int worldVersion, ChangeBlockCommand* pCBC, int instanceChunkSize,
     int& userSelectedBiome, int& biomeIndex, int& groupCount, int groupCountSize, int* groupCountArray);

@@ -120,7 +120,8 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
     std::string line;
     if (!std::getline(stream, line)) { error = "Cannot read manifest."; return false; }
     if (!line.empty() && line.back() == '\r') line.pop_back();
-    const bool repeatedUV = line == "MINEWAYS_MOD_PACK\t5";
+    const bool splitGeometry = line == "MINEWAYS_MOD_PACK\t6";
+    const bool repeatedUV = splitGeometry || line == "MINEWAYS_MOD_PACK\t5";
     const bool zRotation = repeatedUV || line == "MINEWAYS_MOD_PACK\t4";
     const bool polygonGeometry = zRotation || line == "MINEWAYS_MOD_PACK\t3";
     const bool sharedGeometry = polygonGeometry || line == "MINEWAYS_MOD_PACK\t2";
@@ -212,10 +213,41 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
             element = nullptr;
         }
         else if (f[0] == "invisible") {
-            if (!sharedGeometry || !def || f.size() != 1 || def->invisible || !def->models.empty() || def->alpha != 0) return fail();
+            if (!sharedGeometry || !def || f.size() != 1 || def->invisible || !def->models.empty() || def->alpha != 0 || def->splitPolicy != ModSplitPolicy::None) return fail();
             def->invisible = true;
             model = nullptr;
             element = nullptr;
+        }
+        else if (f[0] == "splitpolicy") {
+            if (!splitGeometry || !def || def->invisible || !def->models.empty() || def->splitPolicy != ModSplitPolicy::None || f.size() != 7) return fail();
+            const char* policies[] = {"none", "dummy", "position", "post", "slave_x", "slave_y", "slave_z", "meter"};
+            int policy = 0;
+            for (int i = 1; i < 8; ++i) if (f[1] == policies[i]) policy = i;
+            if (!policy) return fail();
+            def->splitPolicy = (ModSplitPolicy)policy;
+            if (f[2] != "-") {
+                std::string canonical; std::map<std::string, std::string> props;
+                if (f[2].size() > 255 || !parseState(f[2], def->masterEntityId, props, canonical) || !props.empty()) return fail();
+            }
+            if ((policy == 1 || policy == 2) && def->masterEntityId.empty()) return fail();
+            for (int i = 0; i < 3; ++i) if (!integer(f[i + 3], def->master[i], -16, 16)) return fail();
+            if (!integer(f[6], def->splitSizeX, 1, 32)) return fail();
+        }
+        else if (f[0] == "part" || f[0] == "emptypart") {
+            if (!splitGeometry || !def || def->splitPolicy == ModSplitPolicy::None || f.size() != 4) return fail();
+            if (f[0] == "emptypart") {
+                if (def->models.size() >= 256) return fail();
+                def->models.emplace_back();
+            }
+            if (def->models.empty() || def->models.back().splitPart || (f[0] == "part" && !def->models.back().geometry)) return fail();
+            auto& part = def->models.back();
+            part.splitPart = true;
+            for (int i = 0; i < 3; ++i) if (!integer(f[i + 1], part.part[i], -16, 16)) return fail();
+            for (size_t i = 0; i + 1 < def->models.size(); ++i) {
+                const auto& old = def->models[i];
+                if (old.splitPart && old.part[0] == part.part[0] && old.part[1] == part.part[1] && old.part[2] == part.part[2]) return fail();
+            }
+            model = nullptr; element = nullptr;
         }
         else if (f[0] == "usemodel") {
             ModModel m;
@@ -305,7 +337,8 @@ bool readPack(const std::string& path, Pack& next, std::string& error) {
             if (!def || f.size() != 1 || (def->models.empty() && !def->invisible)) return fail();
             for (const auto& m : def->models) {
                 // Shared geometry is immutable and already validated at endgeometry.
-                if (m.geometry) continue;
+                if ((def->splitPolicy != ModSplitPolicy::None) != m.splitPart) return fail();
+                if (m.geometry || m.splitPart) continue;
                 if (m.elements.empty() && m.polygons.empty()) return fail();
                 for (const auto& e : m.elements) if (e.faces.empty()) return fail();
             }
@@ -368,6 +401,71 @@ const std::vector<ModDimension>& ModDimensions() { return pack.dimensions; }
 int ModBlockTypeLimit() { std::lock_guard<std::mutex> lock(stateMutex); return pack.typeLimit; }
 bool IsModBlock(int type) { if (type < NUM_BLOCKS_DEFINED || type >= MAX_BLOCK_TYPES) return false; std::lock_guard<std::mutex> lock(stateMutex); return type < pack.typeLimit && pack.byType[type] != nullptr; }
 bool HasModBlock(const std::string& name) { return pack.blocks.find(name) != pack.blocks.end(); }
+// Split geometry is selected from immutable templates. Saved NBT remains separate
+// from the canonical palette string, so schematic identity does not gain fake properties.
+static bool selectSplitDefinition(ModBlockState& state, const std::map<std::string, std::string>& props) {
+    const auto& source = *state.sourceDefinition;
+    if (source.splitPolicy == ModSplitPolicy::None) return true;
+    int part[3] = {};
+    bool known = true;
+    const auto property = [&](const char* name) { const auto it = props.find(name); return it == props.end() ? std::string() : it->second; };
+    switch (source.splitPolicy) {
+    case ModSplitPolicy::Dummy:
+        known = state.context.hasDummy;
+        part[1] = state.context.dummy;
+        break;
+    case ModSplitPolicy::Position:
+        if (!source.masterEntityId.empty() && state.context.entityId == source.masterEntityId) break;
+        known = state.context.hasPosition;
+        for (int i = 0; i < 3; ++i) part[i] = state.context.position[i];
+        if (property("mirrored") == "true") part[0] = source.splitSizeX - part[0] - 1;
+        for (int i = 0; i < 3; ++i) part[i] -= source.master[i];
+        break;
+    case ModSplitPolicy::Post: {
+        known = integer(property("post_slave"), part[1], 0, 3);
+        const auto horizontal = property("horizontal_offset");
+        if (horizontal == "north") part[2] = -1;
+        else if (horizontal == "south") part[2] = 1;
+        else if (horizontal == "east") part[0] = 1;
+        else if (horizontal == "west") part[0] = -1;
+        else if (horizontal != "none") known = false;
+        break;
+    }
+    default: {
+        const auto slave = property("multiblockslave");
+        known = slave == "true" || slave == "false";
+        const bool dummy = slave == "true";
+        if (source.splitPolicy == ModSplitPolicy::SlaveX) part[0] = dummy ? 1 : 0;
+        else if (source.splitPolicy == ModSplitPolicy::SlaveY) part[1] = dummy ? 1 : 0;
+        else if (source.splitPolicy == ModSplitPolicy::SlaveZ) part[2] = dummy ? -1 : 0;
+        else if (source.splitPolicy == ModSplitPolicy::Meter) part[1] = dummy ? 0 : -1;
+        break;
+    }
+    }
+    auto resolved = std::make_shared<ModStateModel>();
+    resolved->selector = source.selector;
+    resolved->properties = source.properties;
+    resolved->color = source.color;
+    resolved->alpha = source.alpha;
+    resolved->invisible = source.invisible;
+    resolved->splitPolicy = source.splitPolicy;
+    resolved->masterEntityId = source.masterEntityId;
+    for (int i = 0; i < 3; ++i) resolved->master[i] = source.master[i];
+    resolved->splitSizeX = source.splitSizeX;
+    if (known) for (const auto& model : source.models) {
+        if (model.part[0] == part[0] && model.part[1] == part[1] && model.part[2] == part[2]) {
+            resolved->models.push_back(model);
+            break;
+        }
+    }
+    state.contextMissing = resolved->models.empty();
+    if (!state.contextMissing && resolved->models.front().Elements().empty() && resolved->models.front().Polygons().empty()) {
+        resolved->models.clear(); resolved->invisible = true; resolved->alpha = 0;
+    }
+    state.resolvedDefinition = resolved;
+    state.definition = resolved.get();
+    return !state.contextMissing;
+}
 static int resolveModState(const std::string& state, int* type, int* dataVal) {
     if (!type || !dataVal) return -1;
     std::string name, canonical;
@@ -399,6 +497,8 @@ static int resolveModState(const std::string& state, int* type, int* dataVal) {
     std::unique_ptr<ModBlockState> result(new ModBlockState);
     result->canonical = canonical;
     result->definition = selected;
+    result->sourceDefinition = selected;
+    selectSplitDefinition(*result, props);
     const auto waterlogged = props.find("waterlogged");
     result->waterlogged = waterlogged != props.end() && waterlogged->second == "true";
     const int index = (int)block.states.size();
@@ -420,6 +520,53 @@ static int resolveModState(const std::string& state, int* type, int* dataVal) {
 int ResolveModState(const std::string& state, int* type, int* dataVal) {
     try { return resolveModState(state, type, dataVal); }
     catch (const std::bad_alloc&) { return -1; }
+}
+bool ModBlockNeedsContext(int type, int dataVal) {
+    const auto* state = GetModBlock(type, dataVal);
+    return state && state->contextMissing;
+}
+int ResolveModContext(int type, int dataVal, const ModBlockContext& context, int* resolvedData) {
+    if (!resolvedData || type < NUM_BLOCKS_DEFINED || type >= MAX_BLOCK_TYPES || dataVal < 0 || context.entityId.size() > 255) return -1;
+    if (context.hasDummy && (context.dummy < -16 || context.dummy > 16)) return -1;
+    if (context.hasPosition) for (int v : context.position) if (v < -16 || v > 32) return -1;
+    if (!context.entityId.empty()) {
+        std::string name, canonical; std::map<std::string, std::string> props;
+        if (!parseState(context.entityId, name, props, canonical) || !props.empty()) return -1;
+    }
+    try {
+        std::lock_guard<std::mutex> lock(stateMutex);
+        if (type >= pack.typeLimit || !pack.byType[type]) return 0;
+        auto& block = *pack.byType[type];
+        if ((size_t)dataVal >= block.states.size()) return 0;
+        const auto& original = *block.states[dataVal];
+        if (original.sourceDefinition->splitPolicy == ModSplitPolicy::None) { *resolvedData = dataVal; return 1; }
+        const auto& source = *original.sourceDefinition;
+        if (source.splitPolicy == ModSplitPolicy::Dummy || source.splitPolicy == ModSplitPolicy::Position) {
+            if (context.entityId.empty()) return 0;
+            std::string dummyId = source.masterEntityId;
+            if (source.splitPolicy == ModSplitPolicy::Position && dummyId.size() > 7 && dummyId.compare(dummyId.size()-7, 7, "_master") == 0)
+                dummyId.replace(dummyId.size()-7, 7, "_dummy");
+            if (context.entityId != source.masterEntityId && context.entityId != dummyId) return -1;
+        }
+        std::string key = original.canonical + "|" + context.entityId;
+        if (context.hasDummy) key += "|d" + std::to_string(context.dummy);
+        if (context.hasPosition) for (int v : context.position) key += "|p" + std::to_string(v);
+        const auto old = block.stateIds.find(key);
+        if (old != block.stateIds.end()) { *resolvedData = old->second; return block.states[old->second]->contextMissing ? 0 : 1; }
+        if (block.states.size() >= 4096 || pack.stateCount >= 131072 || pack.stateBytes + key.size() * 2 > 64 * 1024 * 1024) return -1;
+        std::unique_ptr<ModBlockState> state(new ModBlockState(original));
+        state->context = context;
+        std::string name, canonical; std::map<std::string, std::string> props;
+        if (!parseState(state->canonical, name, props, canonical)) return -1;
+        const bool complete = selectSplitDefinition(*state, props);
+        const int index = (int)block.states.size();
+        if (block.states.size() == block.states.capacity()) block.states.reserve(block.states.capacity() ? block.states.capacity() * 2 : 16);
+        block.stateIds.emplace(key, index);
+        block.states.push_back(std::move(state));
+        ++pack.stateCount; pack.stateBytes += key.size() * 2;
+        *resolvedData = index;
+        return complete ? 1 : 0;
+    } catch (const std::bad_alloc&) { return -1; }
 }
 const ModBlockState* GetModBlock(int type, int dataVal) {
     if (type < NUM_BLOCKS_DEFINED || type >= MAX_BLOCK_TYPES || dataVal < 0) return nullptr;

@@ -50,6 +50,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "CullingSchemes.h"	// isBlockCulled() — active Culling Scheme filter
 
+static std::string gModExportError;
+const char* ModExportError() { return gModExportError.c_str(); }
+
 static std::string blockMaterialName(int type, int state = -1)
 {
     const char* name = gBlockDefinitions[type].name;
@@ -68,7 +71,7 @@ static float blockDataAlpha(int type, int dataVal)
     if (const auto* state = GetModBlock(type, dataVal)) {
         const int fileType = gModel.options->pEFD->fileType;
         // Invisible blocks still carry their identity in schematic exports.
-        if (state->definition->invisible && fileType != FILE_TYPE_SPONGE_SCHEMATIC && fileType != FILE_TYPE_SCHEMATIC)
+        if (!state->contextMissing && state->definition->invisible && fileType != FILE_TYPE_SPONGE_SCHEMATIC && fileType != FILE_TYPE_SCHEMATIC)
             return 0.0f;
         return 1.0f;
     }
@@ -1029,6 +1032,12 @@ static int saveModGeometry(int boxIndex, int type, int dataVal)
 {
     const ModBlockState* state = GetModBlock(type, dataVal);
     if (!state || !state->definition) return MW_CANNOT_PARSE_IMPORT_FILE;
+    if (state->contextMissing) {
+        gModExportError = "A selected mod block needs saved block-entity data to place its model: " + state->canonical +
+            ". Open the original world or a Sponge schematic containing that data.";
+        fprintf(stderr, "%s\n", gModExportError.c_str());
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+    }
     const int directions[] = { DIRECTION_BLOCK_BOTTOM, DIRECTION_BLOCK_TOP,
         DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z,
         DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
@@ -1441,6 +1450,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     ProgressCallback callback, wchar_t* terrainFileName, wchar_t* cullSchemeSelected, FileList* outputFileList, int majorVersion, int minorVersion, int worldVersion, ChangeBlockCommand* pCBC, int instanceChunkSize,
     int& userSelectedBiome, int& biomeIndex, int& groupCount, int groupCountSize, int *groupCountArray)
 {
+    gModExportError.clear();
     restoreModTextureSlots();
     // * Read the texture for the materials.
     // * populateBox:
@@ -39315,6 +39325,24 @@ static int writeSpongeSchematicBox()
         int swapper = width; width = length; length = swapper;
     }
 
+    // Reject context limits before opening an existing destination for replacement.
+    size_t modEntityCount = 0, modEntityBytes = 21;
+    for (int y = gSolidBox.min[Y]; y <= gSolidBox.max[Y]; ++y)
+        for (int z = gSolidBox.min[Z]; z <= gSolidBox.max[Z]; ++z)
+            for (int x = gSolidBox.min[X]; x <= gSolidBox.max[X]; ++x) {
+                const auto& cell = gBoxData[BOX_INDEX(x, y, z)];
+                const auto* mod = GetModBlock(cell.type, cell.data);
+                if (!mod || mod->context.entityId.empty()) continue;
+                ++modEntityCount;
+                modEntityBytes += 38 + mod->context.entityId.size() +
+                    (mod->context.hasDummy ? 12 : 0) + (mod->context.hasPosition ? 26 : 0);
+                if (modEntityCount > 65536 || modEntityBytes > 16 * 1024 * 1024)
+                    return retCode | MW_WORLD_EXPORT_TOO_LARGE;
+            }
+    struct ModSpongeEntity { int position[3]; const ModBlockContext* context; };
+    std::vector<ModSpongeEntity> modEntities;
+    modEntities.reserve(modEntityCount);
+
     concatFileName3(schematicFileNameWithSuffix, gOutputFilePath, gOutputFileRoot, L".schem");
 
     err = _wfopen_s(&fptr, schematicFileNameWithSuffix, L"wb");
@@ -39474,6 +39502,11 @@ static int writeSpongeSchematicBox()
                         paletteIndexLookup[lookupKey] = paletteIndex;
                 }
 
+                const auto* mod = GetModBlock(type, dataVal);
+                if (mod && !mod->context.entityId.empty()) {
+                    modEntities.push_back({{(loc[X] - xStart) * xIncr, loc[Y] - gSolidBox.min[Y],
+                                            (loc[Z] - zStart) * zIncr}, &mod->context});
+                }
                 int nb = spongeWriteVarint(NULL, (unsigned int)paletteIndex, varintBytes);
                 blockData.insert(blockData.end(), varintBytes, varintBytes + nb);
             }
@@ -39507,9 +39540,27 @@ static int writeSpongeSchematicBox()
     }
     (void)totalSize;
 
-    // BlockEntities: empty list, moved under Blocks in v3 (was at root in v2). Stage 4 will
-    // populate this for signs/banners/heads/pots.
-    CHECK_SPONGE_QUIT(schematicWriteEmptyListTag(gz, "BlockEntities"));
+    // Preserve the bounded IE model context, independently of canonical palette identity.
+    CHECK_SPONGE_QUIT(schematicWriteTagValue(gz, 0x09, (char*)"BlockEntities"));
+    CHECK_SPONGE_QUIT(schematicWriteUnsignedCharValue(gz, 0x0A));
+    CHECK_SPONGE_QUIT(schematicWriteIntValue(gz, (int)modEntities.size()));
+    for (auto& entity : modEntities) {
+        const auto& context = *entity.context;
+        CHECK_SPONGE_QUIT(schematicWriteIntArrayTag(gz, (char*)"Pos", entity.position, 3));
+        CHECK_SPONGE_QUIT(schematicWriteTagValue(gz, 0x08, (char*)"Id"));
+        CHECK_SPONGE_QUIT(schematicWriteShortValue(gz, (short)context.entityId.size()));
+        CHECK_SPONGE_QUIT(schematicWriteStringValue(gz, (char*)context.entityId.c_str()));
+        CHECK_SPONGE_QUIT(schematicWriteCompoundTag(gz, (char*)"Data"));
+        if (context.hasDummy) {
+            CHECK_SPONGE_QUIT(schematicWriteIntTag(gz, (char*)"dummy", context.dummy));
+        }
+        if (context.hasPosition) {
+            int position[3] = {context.position[0], context.position[1], context.position[2]};
+            CHECK_SPONGE_QUIT(schematicWriteIntArrayTag(gz, (char*)"posInMB", position, 3));
+        }
+        CHECK_SPONGE_QUIT(schematicWriteUnsignedCharValue(gz, 0));
+        CHECK_SPONGE_QUIT(schematicWriteUnsignedCharValue(gz, 0));
+    }
 
     CHECK_SPONGE_QUIT(schematicWriteUnsignedCharValue(gz, 0x0));    // TAG_End closing the Blocks compound
 

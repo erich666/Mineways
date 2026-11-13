@@ -95,7 +95,7 @@ Five definitions remain unsupported in the original four-mod subset:
 | `ae2:cable_bus` | The central cable and six directional part compounds identify cables, attachments, and facades. Connections and channel activity can also depend on neighboring blocks and runtime network state. |
 | `iceandfire:allthemodium_pile`, `iceandfire:unobtainium_pile`, `iceandfire:vibranium_pile` | Allthemodium ships blockstate references but no corresponding pile models. No installed JAR or local resource pack supplies them. The inspected Ice and Fire registry registers gold, silver, and copper piles, with no registration found for these three compatibility names. They appear to be stale compatibility resources. |
 
-Paint and cable support need a new modern block-entity data path. `nbtGetBlocks` currently retains only legacy `TileEntities` information, and `BlockEntity` holds four bytes. A bounded, position-keyed payload must survive chunk caching, reach the exporter, and round-trip through Sponge before those adapters can preserve actual block contents. Paint is the smaller first adapter. Cable rendering additionally needs versioned part parsers, facade models, and neighbor connections. Empty cable or paint proxy cubes would misrepresent the saved world.
+Modern chunk and Sponge readers now retain bounded IE model-offset context, as described below. This path does not retain AE2 paint dots, cable parts, inventories, or arbitrary block-entity payloads. Paint and cable support still require their own validated payload schemas and render adapters. Cable rendering also needs facade models and neighbor connections. Empty cable or paint proxy cubes would misrepresent the saved world.
 
 The current implementation has these explicit limits:
 
@@ -233,9 +233,35 @@ The exporter splits affected faces at texture boundaries after UV locking. Each 
 
 The CloudFX pass recovers all 423 targeted definitions and 2,059 selectors across XyCraft World, Override, Machines, and Allthecompressed. No previously supported selector is lost. The catalog contains 44,952 definitions, 572,417 selectors, 31,611 textures, 88,936 geometries, 509,160 elements, and 18,866 polygons. Its report lists 7,199 unsupported definitions and 1,855 unsupported states. All 2,059 new selectors passed macOS sanitizer exports in five compact synthetic worlds, with source texture pixel checks, repeated OBJ exports, and exact Sponge geometry/state round trips. All 103 importer tests passed. Synthetic tests compare the generated pixels with an independent Java float reference and verify atlas stacking, PNG overrides, ARGB inheritance, transparency, and budget rollback.
 
+## Immersive Engineering models
+
+The adapters target Immersive Engineering 12.4.2 for Minecraft 1.21.1. The `ie_obj` adapter reads supplied OBJ geometry, textures, render layers, and verified static callback defaults. It follows IE object-group visibility and V-coordinate conversion. IE ignores OBJ material diffuse colors; supported callback colors use derived RGBA textures. Positive forward OBJ indices are supported. Negative indices remain relative to the attributes available at each face.
+
+The `basic_split` adapter divides the source model into cells before applying blockstate rotations. It preserves clipped UVs and moves each part into local cell coordinates. Overhangs join the nearest declared part, using the shipped Java set order for equal distances. Mirrored models preserve winding. Each world cell selects only its corresponding part, so the exporter does not duplicate the complete machine at every cell.
+
+Cell selection uses palette properties where the shipped provider permits this. Posts use `post_slave` and `horizontal_offset`. Workbenches, circuit tables, Tesla coils, and current transformers use `multiblockslave`. Other providers require saved context:
+
+- Cloches, sample drills, blast-furnace preheaters, and transformers use the root `dummy` NBT integer.
+- Multiblock dummy entities use the `posInMB` integer array with exactly three coordinates. The adapter applies the verified master offset and mirrored-state mapping.
+- Multiblock master entities use their verified `_master` entity ID and select the origin part. Dummy entities must have the corresponding `_dummy` ID.
+
+Modern chunks supply these fields through `block_entities`. Sponge v2 supplies them in `BlockEntities`; Sponge v3 supplies them in each entry's `Data` compound. Entity positions associate the context with the correct voxel. The runtime retains context separately from the canonical namespaced block state. Different cells can share one palette identity while selecting different geometry. Context variants count toward the existing per-block state limit.
+
+A render export reports missing required fields or palette properties. Unknown part coordinates also stop the export. Mineways does not assume the origin part or silently hide the affected cell. Sponge exports can preserve the block identity and recognized context even when rendering cannot proceed. They preserve these rendering fields, not complete inventories or machine configuration.
+
+Entity IDs must match the declared provider and contain at most 255 bytes. Saved `dummy` values use -16..16; `posInMB` coordinates use -16..32. Entity lists permit at most 65,536 records and 16 MiB. Invalid field types, duplicate positions, and positions outside the containing region are rejected. The importer limits each split model to 256 declared parts and 65,536 generated fragments. Unsupported Java set collision-tree cases fail explicitly.
+
+Static callback defaults do not reproduce every saved or live appearance. Reports identify omitted connection arms, pipe connections, chute walls, installed boards, shelf crates, blueprints, crops, machine contents, and activity indicators. Shader skins, animations, emitted lighting, and separate block-entity renderer geometry remain omitted. Structural arms use the verified one-block default slope; saved length, attachment, and direction are not reconstructed. The bounded cell-offset support does not remove these callback limitations.
+
+Stable triangulation avoids unnecessary sliver triangles without changing convex geometry or affine UV interpolation. Faces with nonaffine UVs retain their original triangulation. Intrinsically thin faces can still exceed the exporter’s existing float-coordinate precision in wide selections. Tests found this in synthetic rows about 1,000 blocks wide. The exporter rejects this precision loss instead of emitting invalid normals. The exhaustive part tests use a compact 32-column grid.
+
+The full ATM10 8.3 catalog recovers all 38 targeted `ie_obj` definitions and all 35 `basic_split` definitions. The verified invisible `fake_light` adds one more definition. Together they add 74 definitions and 337 selectors without losing prior support. Five visible blocks still requiring separate renderers remain unsupported: bucket wheels, watermills, windmills, shader banners, and wall shader banners.
+
+The catalog contains 45,026 definitions, 572,754 selectors, 31,680 textures, 90,446 geometries, 509,160 elements, 34,642 polygons, and 25 dimensions. The report lists 7,125 unsupported definitions and 1,855 unsupported states. All 337 new selectors passed native macOS sanitizer exports, source texture pixel checks, repeated OBJ exports, and exact Sponge geometry/state round trips. All 6,224 split-part cases passed the same native checks across 13 compact test worlds. All 126 Python tests passed. Native fixtures also cover saved context, missing-context errors, malformed or truncated NBT, entity limits, and preservation of an existing output file when preflight rejects the export.
+
 ## Compiled format
 
-The importer writes version 5 for repeated UVs, version 4 for explicit Z rotations, version 3 for polygons, and version 2 otherwise. The runtime reads versions 1 through 5. All versions use UTF-8 text with tab-separated fields. Resource identifiers and selectors cannot contain control characters. Dimension records are optional. Texture and geometry indices each start at zero and increase by one. References must use earlier records.
+The importer writes version 6 for split models. Otherwise, it writes version 5 for repeated UVs, version 4 for Z rotations, version 3 for polygons, or version 2. The runtime reads versions 1 through 6. All versions use UTF-8 text with tab-separated fields. Resource identifiers and selectors cannot contain control characters. Dimension records are optional. Texture and geometry indices each start at zero and increase by one. References must use earlier records.
 
 ```text
 MINEWAYS_MOD_PACK<TAB>2
@@ -251,6 +277,31 @@ endstate
 ```
 
 A `geometry` record stores reusable elements and faces. Version 3 also permits `polygon<TAB>texture_index<TAB>vertex_count`, followed by five tab-separated numbers per vertex: `x y z u v`. A polygon has three or four vertices. Positions use pixels within -256..256, and UVs use 0..16 with V downward, extended as described below for version 5. Degenerate polygons are invalid. Polygon limits are 16,384 per geometry and 1,000,000 per catalog. Each `usemodel` references that geometry with its own blockstate rotations and UV-lock setting. A state can reference several models. `endgeometry` and `endstate` close their respective definitions. A new `element` record closes the previous element.
+
+Version 6 adds cell-selection metadata to a state. It retains all version 5 geometry features:
+
+```text
+state<TAB>namespace:block[property=value]<TAB>RRGGBB<TAB>alpha_byte
+splitpolicy<TAB>policy<TAB>expected_entity_id_or_dash<TAB>master_x<TAB>master_y<TAB>master_z<TAB>size_x
+usemodel<TAB>geometry_index<TAB>x_degrees<TAB>y_degrees<TAB>uvlock_0_or_1[<TAB>z_degrees]
+part<TAB>offset_x<TAB>offset_y<TAB>offset_z
+emptypart<TAB>offset_x<TAB>offset_y<TAB>offset_z
+endstate
+```
+
+`splitpolicy` precedes the state's models. Each `part` follows a shared `usemodel`; inline geometry cannot supply a split part. `emptypart` declares a known empty cell without a model reference. Part coordinates must be unique integer triples within -16..16. Master coordinates use the same bounds; `size_x` must be 1..32. A split state cannot mix ordinary models or an `invisible` marker with its parts.
+
+| Policy | Part selection |
+| --- | --- |
+| `dummy` | Saved integer selects `(0, dummy, 0)`; requires the exact declared entity ID. |
+| `position` | Saved `posInMB`, optional X mirroring, then subtraction of the declared master coordinates. The declared master ID selects `(0, 0, 0)`. |
+| `post` | `post_slave` supplies Y; `horizontal_offset` supplies the horizontal displacement. |
+| `slave_x` | `multiblockslave=true` selects `(1, 0, 0)`; false selects the origin. |
+| `slave_y` | `multiblockslave=true` selects `(0, 1, 0)`; false selects the origin. |
+| `slave_z` | `multiblockslave=true` selects `(0, 0, -1)`; false selects the origin. |
+| `meter` | `multiblockslave=true` selects the origin; false selects `(0, -1, 0)`. |
+
+The first two policies require an entity ID. Palette-only policies use `-` in that field. Older manifest versions reject the new records. Shared geometry remains immutable when the runtime selects a part.
 
 Version 5 permits face and polygon UV coordinates within -256..256 pixels, with at most 256 texture cells in each source face's UV bounding rectangle. Earlier versions retain their 0..16 UV restriction. Expanded faces repeat the source texture through bounded subdivision at export. In-range faces retain their original topology.
 

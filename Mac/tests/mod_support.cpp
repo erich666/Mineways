@@ -23,6 +23,7 @@ static std::string cube(const std::string& selector, const std::string& color = 
     return s + "endstate\n";
 }
 static void writeFile(const std::filesystem::path& path, const std::string& text) { std::ofstream file(path, std::ios::binary); file << text; assert(file.good()); }
+#include "mod_context.h"
 int main(int argc, char** argv) {
     assert(argc == 2);
     nbtInitTables();
@@ -357,5 +358,6 @@ int main(int argc, char** argv) {
         }
     }
     ClearModPack();
+    testModContext(path);
     puts("PASS: mod pack validation, namespace isolation, chunk palettes, state round trips, concurrency and capacity");
 }

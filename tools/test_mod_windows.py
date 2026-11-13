@@ -40,7 +40,7 @@ def compound(name, body):
     return tag(10, name, body + b'\0')
 
 
-def schematic(path, names=None, indices=None, dimensions=None):
+def schematic(path, names=None, indices=None, dimensions=None, block_entities=()):
     if names is None:
         names = ['fixture:cube[custom=retained]', 'fixture:wedge[facing=east]', 'fixture:panel']
     assert 1 <= len(names) <= 100000
@@ -64,6 +64,17 @@ def schematic(path, names=None, indices=None, dimensions=None):
     body += number('PaletteMax', len(names))
     body += compound('Palette', b''.join(number(name, index) for index, name in enumerate(names)))
     body += tag(7, 'BlockData', struct.pack('>i', len(payload)) + payload)
+    entities = []
+    for entry in block_entities:
+        payload = tag(8, 'Id', text(entry['id']))
+        payload += tag(11, 'Pos', struct.pack('>4i', 3, *entry['pos']))
+        if 'dummy' in entry:
+            payload += number('dummy', entry['dummy'])
+        if 'position' in entry:
+            payload += tag(11, 'posInMB', struct.pack('>4i', 3, *entry['position']))
+        entities.append(payload + b'\0')
+    if entities:
+        body += tag(9, 'BlockEntities', b'\x0a' + struct.pack('>i', len(entities)) + b''.join(entities))
     path.write_bytes(gzip.compress(compound('Schematic', body)))
     return names
 
@@ -286,7 +297,7 @@ def exercise(executable, root):
     catalog_manifest, catalog_input, catalog_names = large_catalog(root)
     assert gzip.decompress(input_path.read_bytes()).startswith(b'\x0a')
     manifest_text = (pack / 'manifest.mwpack').read_text(encoding='utf-8')
-    assert manifest_text.splitlines()[0] in ('MINEWAYS_MOD_PACK\t1', 'MINEWAYS_MOD_PACK\t2', 'MINEWAYS_MOD_PACK\t3', 'MINEWAYS_MOD_PACK\t4', 'MINEWAYS_MOD_PACK\t5')
+    assert manifest_text.splitlines()[0] in ('MINEWAYS_MOD_PACK\t1', 'MINEWAYS_MOD_PACK\t2', 'MINEWAYS_MOD_PACK\t3', 'MINEWAYS_MOD_PACK\t4', 'MINEWAYS_MOD_PACK\t5', 'MINEWAYS_MOD_PACK\t6')
     selectors = {line.split('\t')[1] for line in manifest_text.splitlines() if line.startswith('state\t')}
     assert {'ae2:matrix_frame', 'ae2:drive[facing=north,spin=0]', 'ae2:quartz_glass',
             'ae2:spatial_pylon', 'allthemodium:molten_allthemodium_block[level=0]',
@@ -432,6 +443,59 @@ def exercise(executable, root):
         cloud_outputs.append(obj_geometry(output))
     assert cloud_outputs[0] == cloud_outputs[1], 'CloudFX Sponge geometry changed'
     verify_schematic(cloud_restored, cloud_states, details)
+    ie_cases = [
+        ('fixture:ie_chute', (2, 0, 2), (14, 4, 14)),
+        ('fixture:ie_lantern[facing=up]', (6, 0, 6), (10, 12, 10)),
+        ('fixture:ie_balloon', (0, 2, 2), (12, 14, 14)),
+        ('fixture:ie_floodlight[facing=down]', (4, 2, 4), (12, 10, 12)),
+        ('fixture:ie_floodlight[facing=up]', (4, 6, 4), (12, 14, 12)),
+        ('fixture:ie_slope', (0, 0, 0), (16, 16, 16))]
+    for index, (state, lower, upper) in enumerate(ie_cases):
+        label = 'ie-obj-' + str(index)
+        source, output = root / (label + '.schem'), root / (label + '.obj')
+        schematic(source, [state])
+        details = run(executable, root, label, [*common, 'Minecraft world: ' + str(source),
+                      'File type: Export individual textures to directory ietex',
+                      'Selection location min to max: 0, 0, 0 to 0, 0, 0',
+                      'Export for Rendering: ' + str(output)])
+        check_obj(output, details)
+        points = [tuple(map(float, line.split()[1:4])) for line in output.read_text().splitlines() if line.startswith('v ')]
+        for axis in range(3):
+            assert math.isclose(min(v[axis] for v in points), lower[axis] / 16, abs_tol=1e-6), label
+            assert math.isclose(max(v[axis] for v in points), upper[axis] / 16, abs_tol=1e-6), label
+        check_export_pixels(output, texture_sources)
+    for kind in ('dummy', 'position'):
+        prefix = 'ie-split-' + kind
+        split_source, split_restored = root / (prefix + '.schem'), root / (prefix + '-restored.schem')
+        split_state = 'fixture:ie_split' + ('_position' if kind == 'position' else '') + '[retained=true]'
+        split_entities = [({'id': 'immersiveengineering:silo_dummy', 'pos': (0, y, 0), 'position': (1, y, 1)}
+                           if kind == 'position' else {'id': 'immersiveengineering:cloche', 'pos': (0, y, 0), 'dummy': y})
+                          for y in range(3)]
+        schematic(split_source, [split_state], [0, 0, 0], (1, 3, 1), split_entities)
+        split_geometry = []
+        for label, source in [(prefix, split_source), (prefix + '-restored', split_restored)]:
+            output = root / (label + '.obj')
+            commands = [*common, 'Minecraft world: ' + str(source),
+                        'File type: Export individual textures to directory iesplittex',
+                        'Selection location min to max: 0, 0, 0 to 0, 2, 0',
+                        'Export for Rendering: ' + str(output)]
+            if label == prefix:
+                commands.append('Export Schematic: ' + str(split_restored))
+            details = run(executable, root, label, commands)
+            check_obj(output, details, minimum_faces=3)
+            split_geometry.append(obj_geometry(output))
+            check_export_pixels(output, texture_sources)
+        assert split_geometry[0] == split_geometry[1], 'Saved IE offsets changed in Sponge round trip'
+        raw = gzip.decompress(split_restored.read_bytes())
+        assert split_entities[0]['id'].encode() in raw
+        assert raw.count(b'posInMB' if kind == 'position' else b'dummy') == 3
+        verify_schematic(split_restored, [split_state], details)
+    missing_source, missing_output = root / 'ie-missing.schem', root / 'ie-missing.obj'
+    schematic(missing_source, [split_state])
+    details = run(executable, root, 'ie-missing', [*common, 'Minecraft world: ' + str(missing_source),
+                  'Selection location min to max: 0, 0, 0 to 0, 0, 0',
+                  'Export for Rendering: ' + str(missing_output)], expect_success=False)
+    assert 'needs saved block-entity data' in details and not missing_output.exists(), details
     # Invisible models keep their state identity and leave neighboring cube faces intact.
     invisible_names = ['fixture:cube[custom=left]', 'ae2:matrix_frame[custom=retained]',
                        'fixture:cube[custom=right]']
@@ -544,18 +608,26 @@ def exercise_pack(executable, root, manifest):
         'extendedae:ex_io_port',
     }
     rotation_states = []
-    by_block, textures = {}, {}
+    by_block, textures, split_policies = {}, {}, {}
+    current_policy = None
     selectors = 0
     with manifest.open(encoding='utf-8') as stream:
         for line in stream:
             fields = line.rstrip('\r\n').split('\t')
             if fields[0] == 'state':
                 state = fields[1]
+                current_policy = None
                 block = state.split('[', 1)[0]
                 by_block.setdefault(block, [state, state])[1] = state
                 if block in rotation_blocks:
                     rotation_states.append(state)
                 selectors += 1
+            elif fields[0] == 'splitpolicy':
+                current_policy = {'kind': fields[1], 'id': fields[2],
+                                  'master': tuple(map(int, fields[3:6])), 'size_x': int(fields[6])}
+                split_policies[state] = current_policy
+            elif fields[0] == 'part' and current_policy is not None:
+                current_policy.setdefault('part', tuple(map(int, fields[1:4])))
             elif fields[0] == 'texture':
                 path = (manifest.parent / fields[3]).resolve()
                 assert manifest.parent.resolve() in path.parents, 'Texture escapes pack root'
@@ -618,36 +690,92 @@ def exercise_pack(executable, root, manifest):
                'xycraft_machines:extractor',
                'xycraft_machines:isolator',
                'xycraft_machines:nitrogen_extractor',
-               'xycraft_override:bricks_red']
+               'xycraft_override:bricks_red',
+               'immersiveengineering:chute_aluminum',
+               'immersiveengineering:chute_colored_red',
+               'immersiveengineering:lantern',
+               'immersiveengineering:cagelamp',
+               'immersiveengineering:balloon',
+               'immersiveengineering:siren',
+               'immersiveengineering:logic_unit',
+               'immersiveengineering:fluid_pipe',
+               'immersiveengineering:alu_slope',
+               'immersiveengineering:steel_slope',
+               'immersiveengineering:breaker_switch',
+               'immersiveengineering:redstone_breaker',
+               'immersiveengineering:redstone_timer',
+               'immersiveengineering:connector_probe',
+               'immersiveengineering:connector_redstone',
+               'immersiveengineering:connector_structural',
+               'immersiveengineering:floodlight',
+               'immersiveengineering:turret_gun',
+               'immersiveengineering:turret_chem']
     targets += [name for name in blocks if name.startswith('allthemodium:molten_')]
+    targets += sorted({state.split('[', 1)[0] for state in split_policies})
     for block in targets:
         if block in by_block:
             for state in by_block[block]:
                 if state not in selected:
                     selected.append(state)
+    observed = []
+    for state in selected:
+        policy = split_policies.get(state)
+        if policy and policy['kind'] in ('post', 'slave_x', 'slave_y', 'slave_z', 'meter'):
+            name, _, raw = state.partition('[')
+            props = dict(item.split('=', 1) for item in raw.rstrip(']').split(',') if item)
+            if policy['kind'] == 'post':
+                props.setdefault('post_slave', '0')
+                props.setdefault('horizontal_offset', 'none')
+            else:
+                props.setdefault('multiblockslave', 'false')
+            state = name + '[' + ','.join(key + '=' + value for key, value in sorted(props.items())) + ']'
+            split_policies[state] = policy
+        observed.append(state)
+    selected = list(dict.fromkeys(observed))
     names = []
     for state in selected:
         if names:
             names.append('minecraft:air')
         names.append(state)
     source = root / 'actual-input.schem'
-    # Activate every installed block name through the palette, then render a bounded sample.
-    # Place the sample in the first row; all other voxels are air. No live world is opened.
+    # Activate every installed block name, then render a compact grid to retain tiny source details.
+    # Unused palette entries occupy no voxels. No live world is opened.
     palette = list(dict.fromkeys([by_block[block][0] for block in blocks] + names))
     assert len(palette) <= 65536, 'Full-pack test exceeds the Sponge palette limit'
     palette_index = {name: index for index, name in enumerate(palette)}
-    width = max(512, len(names))
-    length = (max(len(palette), len(names)) + width - 1) // width
-    indices = [palette_index[name] for name in names]
-    indices += [palette_index['minecraft:air']] * (width * length - len(indices))
-    schematic(source, palette, indices, (width, 1, length))
+    columns = min(32, len(selected))
+    sample_width = columns * 2 - 1
+    sample_length = ((len(selected) + columns - 1) // columns) * 2 - 1
+    width = 512
+    length = max(sample_length, (len(palette) + width - 1) // width)
+    indices = [palette_index['minecraft:air']] * (width * length)
+    for index, state in enumerate(selected):
+        indices[(index % columns) * 2 + (index // columns) * 2 * width] = palette_index[state]
+    entities = []
+    for index, state in enumerate(selected):
+        policy = split_policies.get(state)
+        if not policy or policy['kind'] not in ('dummy', 'position'):
+            continue
+        part = policy.get('part', (0, 0, 0))
+        entry = {'id': policy['id'], 'pos': ((index % columns) * 2, 0, (index // columns) * 2)}
+        if policy['kind'] == 'dummy':
+            entry['dummy'] = part[1]
+        else:
+            assert entry['id'].endswith('_master')
+            entry['id'] = entry['id'][:-7] + '_dummy'
+            position = [part[i] + policy['master'][i] for i in range(3)]
+            if 'mirrored=true' in state:
+                position[0] = policy['size_x'] - position[0] - 1
+            entry['position'] = position
+        entities.append(entry)
+    schematic(source, palette, indices, (width, 1, length), entities)
     (root / 'selected-states.txt').write_text('\n'.join(selected) + '\n', encoding='utf-8')
     print(f'External catalog: {len(blocks)} blocks, {selectors} selectors, {len(textures)} textures; {len(selected)} sampled states', flush=True)
     common = ['Mod pack: ' + str(manifest),
               'Set render type: Wavefront OBJ absolute indices', 'Center model: NO',
               'Export lesser blocks: YES', 'Individual blocks: YES',
               'File type: Export individual textures to directory actualtex']
-    selection = f'Selection location min to max: 0, 0, 0 to {len(names) - 1}, 0, 0'
+    selection = f'Selection location min to max: 0, 0, 0 to {sample_width - 1}, 0, {sample_length - 1}'
     obj, repeated, roundtrip = [root / name for name in ['actual.obj', 'actual-repeat.obj', 'actual.schem']]
     after = root / 'actual-roundtrip.obj'
     actual_commands = [*common, 'Minecraft world: ' + str(source), selection,

@@ -144,6 +144,67 @@ static ObjStats validateObj(const std::filesystem::path& path)
     return result;
 }
 
+// Test-only part suffix selects saved context without changing the Minecraft state.
+static void resolveSample(const std::string& sample, int& type, int& data)
+{
+    const auto suffix = sample.find("|part=");
+    std::string canonical = sample.substr(0, suffix);
+    assert(ResolveModState(canonical, &type, &data) == 1);
+    const auto* state = GetModBlock(type, data);
+    if (!state->contextMissing && suffix == std::string::npos) return;
+    const auto& source = *state->sourceDefinition;
+    // Asset selectors omit properties consumed by Java offset providers. These are
+    // explicit synthetic test states, never inferred production-world defaults.
+    const auto addProperty = [&](const char* name, const char* value) {
+        const std::string property = std::string(name) + "=";
+        if (canonical.find("[" + property) != std::string::npos || canonical.find("," + property) != std::string::npos) return;
+        if (!canonical.empty() && canonical.back() == ']') {
+            canonical.pop_back(); canonical += "," + property + value + "]";
+        } else canonical += "[" + property + value + "]";
+    };
+    if (source.splitPolicy == ModSplitPolicy::Post) {
+        assert(suffix == std::string::npos);
+        addProperty("post_slave", "0"); addProperty("horizontal_offset", "none");
+        assert(ResolveModState(canonical, &type, &data) == 1);
+        assert(!GetModBlock(type, data)->contextMissing);
+        return;
+    }
+    if (source.splitPolicy == ModSplitPolicy::SlaveX || source.splitPolicy == ModSplitPolicy::SlaveY ||
+        source.splitPolicy == ModSplitPolicy::SlaveZ || source.splitPolicy == ModSplitPolicy::Meter) {
+        assert(suffix == std::string::npos);
+        addProperty("multiblockslave", "false");
+        assert(ResolveModState(canonical, &type, &data) == 1);
+        assert(!GetModBlock(type, data)->contextMissing);
+        return;
+    }
+    assert(source.splitPolicy == ModSplitPolicy::Dummy || source.splitPolicy == ModSplitPolicy::Position);
+    int part[3] = {};
+    if (suffix != std::string::npos) {
+        assert(sscanf(sample.c_str() + suffix + 6, "%d,%d,%d", &part[0], &part[1], &part[2]) == 3);
+    } else {
+        const auto model = std::find_if(source.models.begin(), source.models.end(), [](const ModModel& m) {
+            return !m.Elements().empty() || !m.Polygons().empty();
+        });
+        assert(model != source.models.end());
+        std::copy(model->part, model->part + 3, part);
+    }
+    ModBlockContext context;
+    context.entityId = source.masterEntityId;
+    if (source.splitPolicy == ModSplitPolicy::Dummy) {
+        context.hasDummy = true;
+        context.dummy = part[1];
+    } else {
+        assert(context.entityId.size() > 7 && context.entityId.compare(context.entityId.size()-7, 7, "_master") == 0);
+        context.entityId.replace(context.entityId.size()-7, 7, "_dummy");
+        context.hasPosition = true;
+        for (int i = 0; i < 3; ++i) context.position[i] = part[i] + source.master[i];
+        if (canonical.find("mirrored=true") != std::string::npos)
+            context.position[0] = source.splitSizeX - context.position[0] - 1;
+    }
+    assert(ResolveModContext(type, data, context, &data) == 1);
+    assert(!GetModBlock(type, data)->contextMissing);
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 3) { fprintf(stderr, "Usage: real-mod-pack manifest.mwpack output-directory [extra-state ...]\n"); return 2; }
@@ -220,7 +281,26 @@ int main(int argc, char** argv)
         "xycraft_machines:extractor",
         "xycraft_machines:isolator",
         "xycraft_machines:nitrogen_extractor",
-        "xycraft_override:bricks_red"
+        "xycraft_override:bricks_red",
+        "immersiveengineering:chute_aluminum",
+        "immersiveengineering:chute_colored_red",
+        "immersiveengineering:lantern",
+        "immersiveengineering:cagelamp",
+        "immersiveengineering:balloon",
+        "immersiveengineering:siren",
+        "immersiveengineering:logic_unit",
+        "immersiveengineering:fluid_pipe",
+        "immersiveengineering:alu_slope",
+        "immersiveengineering:steel_slope",
+        "immersiveengineering:breaker_switch",
+        "immersiveengineering:redstone_breaker",
+        "immersiveengineering:redstone_timer",
+        "immersiveengineering:connector_probe",
+        "immersiveengineering:connector_redstone",
+        "immersiveengineering:connector_structural",
+        "immersiveengineering:floodlight",
+        "immersiveengineering:turret_gun",
+        "immersiveengineering:turret_chem"
     };
     for (const char* name : targets) {
         auto block = byBlock.find(name);
@@ -228,23 +308,34 @@ int main(int argc, char** argv)
         for (const auto* state : {&block->second.front(), &block->second.back()})
             if (std::find(selected.begin(), selected.end(), *state) == selected.end()) selected.push_back(*state);
     }
+    for (const auto& block : byBlock) {
+        int type, data;
+        assert(ResolveModState(block.second.front(), &type, &data) == 1);
+        if (GetModBlock(type, data)->sourceDefinition->splitPolicy == ModSplitPolicy::None) continue;
+        for (const auto* state : {&block.second.front(), &block.second.back()})
+            if (std::find(selected.begin(), selected.end(), *state) == selected.end()) selected.push_back(*state);
+    }
     for (int argument = 3; argument < argc; ++argument)
         if (std::find(selected.begin(), selected.end(), argv[argument]) == selected.end()) selected.push_back(argv[argument]);
-    const int width = (int)selected.size() * 2 - 1;
-    std::vector<unsigned short> blocks(width, 0);
-    std::vector<unsigned short> data(width, 0);
+    // A compact grid preserves small source details in the exporter's float coordinates.
+    const int columns = min(32, (int)selected.size());
+    const int width = columns * 2 - 1;
+    const int length = (((int)selected.size() + columns - 1) / columns) * 2 - 1;
+    std::vector<unsigned short> blocks(width * length, 0);
+    std::vector<unsigned short> data(width * length, 0);
     std::ofstream selection(output / "selected-states.txt");
     for (size_t i = 0; i < selected.size(); ++i) {
         int type, state;
-        assert(ResolveModState(selected[i], &type, &state) == 1);
-        blocks[i * 2] = (unsigned short)type;
-        data[i * 2] = PACK_TYPE_EXT_AND_DATAVAL(type, state);
+        resolveSample(selected[i], type, state);
+        const size_t cell = (i % columns) * 2 + (i / columns) * 2 * width;
+        blocks[cell] = (unsigned short)type;
+        data[cell] = PACK_TYPE_EXT_AND_DATAVAL(type, state);
         selection << GetModBlock(type, state)->canonical << '\n';
     }
     selection.close();
     WorldGuide world = {};
     world.type = WORLD_SCHEMATIC_TYPE;
-    world.sch = {blocks.data(), data.data(), width, 1, 1, width, false, true};
+    world.sch = {blocks.data(), data.data(), width, 1, length, width * length, false, true};
     world.minHeight = world.maxHeight = 0;
     const int mode = EXPT_OUTPUT_MATERIALS | EXPT_OUTPUT_TEXTURE_IMAGES |
                      EXPT_OUTPUT_OBJ_MTL_PER_TYPE | EXPT_OUTPUT_SEPARATE_TEXTURE_TILES;

@@ -2636,7 +2636,8 @@ static int skipCompoundDepth(bfFile* pbf, int depth, int* tagBudget)
 static int compare(bfFile* pbf, char* name)
 {
     int ret = 0;
-    int len = readWord(pbf);
+    unsigned short len;
+    if (!skipReadWord(pbf, &len)) return -1;
     char thisName[MAX_NAME_LENGTH];
     if (len >= MAX_NAME_LENGTH)
         return -1;
@@ -2694,6 +2695,183 @@ static bool readByteValues(bfFile* pbf, unsigned short* output, int count)
         count -= chunk;
     }
     return true;
+}
+
+// Saved model context is deliberately small: retain only fields used by declared split
+// models, not arbitrary inventories, capabilities, or other block-entity payloads.
+static const int MOD_CONTEXT_MAX_ENTITIES = 65536;
+static const int MOD_CONTEXT_MAX_BYTES = 16 * 1024 * 1024;
+struct ModSavedEntity {
+    bool validContext = true;
+    int position[3] = {};
+    int index = 0;
+    ModBlockContext context;
+};
+
+static bool modNbtInt(bfFile* pbf, int& value)
+{
+    unsigned char bytes[4];
+    if (bfread(pbf, bytes, 4) < 0) return false;
+    const uint32_t bits = ((uint32_t)bytes[0] << 24) | ((uint32_t)bytes[1] << 16) |
+        ((uint32_t)bytes[2] << 8) | bytes[3];
+    value = (int)(int32_t)bits;
+    return true;
+}
+
+static bool modNbtString(bfFile* pbf, std::string& value, int maxLength)
+{
+    unsigned char bytes[2];
+    if (bfread(pbf, bytes, 2) < 0) return false;
+    const int length = ((int)bytes[0] << 8) | bytes[1];
+    if (length > maxLength) return false;
+    value.resize((size_t)length);
+    return (!length || bfread(pbf, &value[0], length) >= 0) && value.find('\0') == std::string::npos;
+}
+
+static bool modNbtPosition(bfFile* pbf, int* position)
+{
+    int count;
+    if (!modNbtInt(pbf, count) || count != 3) return false;
+    for (int axis = 0; axis < 3; ++axis) if (!modNbtInt(pbf, position[axis])) return false;
+    return true;
+}
+
+// format: 0 = modern chunk, 1 = Sponge v2, 2 = Sponge v3, 3 = v3 Data payload.
+static bool modNbtEntity(bfFile* pbf, int format, ModSavedEntity& entity, int listStart, int& tagBudget)
+{
+    bool haveId = false, havePosition[3] = {}, haveData = false;
+    for (;;) {
+        const int offset = bftell(pbf);
+        if (offset < listStart || offset - listStart > MOD_CONTEXT_MAX_BYTES || --tagBudget < 0) return false;
+        unsigned char type;
+        if (bfread(pbf, &type, 1) < 0) return false;
+        if (!type) break;
+        std::string name;
+        if (!modNbtString(pbf, name, 1024)) return false;
+        if (format != 3 && name == (format == 0 ? "id" : "Id")) {
+            if (haveId || type != 8 || !modNbtString(pbf, entity.context.entityId, 255) || entity.context.entityId.empty()) return false;
+            haveId = true;
+        }
+        else if (format == 0 && (name == "x" || name == "y" || name == "z")) {
+            const int axis = name == "x" ? 0 : (name == "y" ? 1 : 2);
+            if (havePosition[axis] || type != 3 || !modNbtInt(pbf, entity.position[axis])) return false;
+            havePosition[axis] = true;
+        }
+        else if ((format == 1 || format == 2) && name == "Pos") {
+            if (havePosition[0] || type != 11 || !modNbtPosition(pbf, entity.position)) return false;
+            havePosition[0] = havePosition[1] = havePosition[2] = true;
+        }
+        else if (format == 2 && name == "Data") {
+            if (haveData || type != 10 || !modNbtEntity(pbf, 3, entity, listStart, tagBudget)) return false;
+            haveData = true;
+        }
+        else if (format != 2 && name == "dummy") {
+            if (entity.context.hasDummy || type != 3) {
+                entity.validContext = false;
+                if (skipType(pbf, type) < 0) return false;
+            }
+            else {
+                if (!modNbtInt(pbf, entity.context.dummy)) return false;
+                entity.context.hasDummy = true;
+            }
+        }
+        else if (format != 2 && name == "posInMB") {
+            if (entity.context.hasPosition || type != 11) {
+                entity.validContext = false;
+                if (skipType(pbf, type) < 0) return false;
+            }
+            else {
+                // Unknown mods may use this name for another array shape. Skip their
+                // payload, but reject it if this voxel needs the supported IE context.
+                const int offset = bftell(pbf);
+                if (offset < 0) return false;
+                if (!modNbtPosition(pbf, entity.context.position)) {
+                    entity.validContext = false;
+                    if (bfseek(pbf, offset, SEEK_SET) < 0 || skipType(pbf, type) < 0) return false;
+                }
+                else entity.context.hasPosition = true;
+            }
+        }
+        else if (skipType(pbf, type) < 0) return false;
+    }
+    return format == 3 || (haveId && havePosition[0] && havePosition[1] && havePosition[2]);
+}
+
+static bool modReadEntityList(bfFile* pbf, int format, unsigned short* blocks, unsigned short* data,
+    int width, int height, int length, int64_t originX, int64_t originY, int64_t originZ)
+{
+    try {
+        const int start = bftell(pbf);
+        unsigned char type;
+        int count;
+        const int64_t volume = (int64_t)width * height * length;
+        if (start < 0 || width <= 0 || height <= 0 || length <= 0 || volume > INT_MAX ||
+            bfread(pbf, &type, 1) < 0 || !modNbtInt(pbf, count) || count < 0 || count > MOD_CONTEXT_MAX_ENTITIES || count > volume ||
+            (type != 10 && !(count == 0 && type == 0))) return false;
+        std::vector<ModSavedEntity> pending;
+        pending.reserve((size_t)count);
+        int tagBudget = 1024 * 1024;
+        for (int i = 0; i < count; ++i) {
+            ModSavedEntity entity;
+            if (!modNbtEntity(pbf, format, entity, start, tagBudget)) return false;
+            const int64_t x = (int64_t)entity.position[0] - originX;
+            const int64_t y = (int64_t)entity.position[1] - originY;
+            const int64_t z = (int64_t)entity.position[2] - originZ;
+            if (x < 0 || x >= width || y < 0 || y >= height || z < 0 || z >= length) return false;
+            entity.index = (int)((y * length + z) * width + x);
+            pending.push_back(std::move(entity));
+        }
+        const int end = bftell(pbf);
+        if (end < start || end - start > MOD_CONTEXT_MAX_BYTES) return false;
+        std::sort(pending.begin(), pending.end(), [](const ModSavedEntity& a, const ModSavedEntity& b) { return a.index < b.index; });
+        for (size_t i = 1; i < pending.size(); ++i) if (pending[i - 1].index == pending[i].index) return false;
+        // Validate the entire list before attaching any record to a voxel.
+        for (const auto& entity : pending) {
+            const int index = entity.index;
+            if (!ModBlockNeedsContext(blocks[index], data[index])) continue;
+            if (!entity.validContext) return false;
+            int resolved = data[index];
+            if (ResolveModContext(blocks[index], data[index], entity.context, &resolved) < 0) return false;
+            // Even a valid unknown part retains its context for a lossless schematic round trip.
+            data[index] = (unsigned short)resolved;
+        }
+        return true;
+    } catch (const std::bad_alloc&) { return false; }
+}
+
+static bool modReadChunkEntities(bfFile* pbf, int rootOffset, unsigned short* blocks, unsigned short* data,
+    int minHeight, int maxHeight)
+{
+    try {
+        if (bfseek(pbf, rootOffset, SEEK_SET) < 0) return false;
+        bool haveX = false, haveZ = false;
+        int chunkX = 0, chunkZ = 0, entitiesOffset = -1;
+        for (;;) {
+            unsigned char type;
+            if (bfread(pbf, &type, 1) < 0) return false;
+            if (!type) break;
+            std::string name;
+            if (!modNbtString(pbf, name, 1024)) return false;
+            if (name == "xPos" || name == "zPos") {
+                bool& have = name == "xPos" ? haveX : haveZ;
+                int& coordinate = name == "xPos" ? chunkX : chunkZ;
+                if (have || type != 3 || !modNbtInt(pbf, coordinate)) return false;
+                have = true;
+            }
+            else {
+                if (name == "block_entities") {
+                    if (type != 9 || entitiesOffset >= 0) return false;
+                    entitiesOffset = bftell(pbf);
+                    if (entitiesOffset < 0) return false;
+                }
+                if (skipType(pbf, type) < 0) return false;
+            }
+        }
+        if (entitiesOffset < 0) return true;
+        if (!haveX || !haveZ || bfseek(pbf, entitiesOffset, SEEK_SET) < 0) return false;
+        return modReadEntityList(pbf, 0, blocks, data, 16, maxHeight - minHeight + 1, 16,
+            (int64_t)chunkX * 16, minHeight, (int64_t)chunkZ * 16);
+    } catch (const std::bad_alloc&) { return false; }
 }
 
 int nbtGetBlocks(bfFile* pbf, unsigned short* buff, unsigned short* data, unsigned char* blockLight, unsigned char* biome, BlockEntity* entities, int* numEntities, int mcVersion, int minHeight, int maxHeight, int & mfsHeight, char* unknownBlock, int unknownBlockID)
@@ -3636,6 +3814,8 @@ SectionsCode:
         // no real data found in the block - this can happen with modded worlds, etc.
         return NBT_NO_SECTIONS;   // means it's empty
     }
+    if (formatClass == FORMAT_1_18_AND_NEWER && ModPackLoaded() &&
+        !modReadChunkEntities(pbf, level_save, buff, data, minHeight, maxHeight)) return LINE_ERROR;
     if (formatClass == FORMAT_UP_THROUGH_1_12) {
         // 1.12 and earlier format - get TileEntities for data about heads, flower pots, standing banners
         if (nbtFindElement(pbf, "TileEntities") != 9)
@@ -7983,7 +8163,8 @@ static bool spongeDataLengthIsValid(int len, int numBlocks, int paletteCapacity)
 static bool spongeReadDataArray(bfFile* pbf, unsigned char** outDataBytes,
     int* outDataBytesLen, int numBlocks, int paletteCapacity)
 {
-    int len = (int)readDword(pbf);
+    int len;
+    if (!modNbtInt(pbf, len)) return false;
     if (!spongeDataLengthIsValid(len, numBlocks, paletteCapacity))
         return false;
     if (*outDataBytes) {
@@ -8019,8 +8200,8 @@ static bool spongeReadPalette(bfFile* pbf,
         if (bfread(pbf, &ptype, 1) < 0) return false;
         if (ptype == 0) return true;    // TAG_End — done
 
-        unsigned int pnameLen = readWord(pbf);
-        if (pnameLen >= 1024) return false;
+        unsigned short pnameLen;
+        if (!skipReadWord(pbf, &pnameLen) || pnameLen >= 1024) return false;
         char pname[1024];
         if (bfread(pbf, pname, (int)pnameLen) < 0) return false;
         pname[pnameLen] = '\0';
@@ -8030,7 +8211,8 @@ static bool spongeReadPalette(bfFile* pbf,
             if (skipType(pbf, ptype) < 0) return false;
             continue;
         }
-        int idx = (int)readDword(pbf);
+        int idx;
+        if (!modNbtInt(pbf, idx)) return false;
         if (idx < 0 || idx >= maxPaletteEntries) {
             return false;
         }
@@ -8068,7 +8250,7 @@ static bool spongeReadPalette(bfFile* pbf,
     }
 }
 
-// Walk the "Blocks" sub-compound (Sponge v3). Reads Palette + Data + (skips) BlockEntities.
+// Walk the "Blocks" sub-compound (Sponge v3). Defer BlockEntities until voxels are decoded.
 // On success, returns true and sets:
 //   *outDataBytes -> malloc'd buffer with the varint stream
 //   *outDataBytesLen -> length in bytes
@@ -8076,15 +8258,15 @@ static bool spongeReadPalette(bfFile* pbf,
 // Caller is responsible for freeing *outDataBytes.
 static bool spongeReadBlocksCompound(bfFile* pbf,
     int** palBlockIds, int** palDataVals, int* palCapacity, int* palCount,
-    unsigned char** outDataBytes, int* outDataBytesLen, int numBlocks)
+    unsigned char** outDataBytes, int* outDataBytesLen, int numBlocks, int* entitiesOffset)
 {
     for (;;) {
         unsigned char type = 0;
         if (bfread(pbf, &type, 1) < 0) return false;
         if (type == 0) return true;     // TAG_End — done with Blocks compound
 
-        unsigned int nameLen = readWord(pbf);
-        if (nameLen >= 64) return false;
+        unsigned short nameLen;
+        if (!skipReadWord(pbf, &nameLen) || nameLen >= 64) return false;
         char tname[64];
         if (bfread(pbf, tname, (int)nameLen) < 0) return false;
         tname[nameLen] = '\0';
@@ -8100,6 +8282,11 @@ static bool spongeReadBlocksCompound(bfFile* pbf,
                     numBlocks, *palCapacity)) {
                 return false;
             }
+        }
+        else if (strcmp(tname, "BlockEntities") == 0 && ModPackLoaded()) {
+            if (type != 9 || *entitiesOffset >= 0) return false;
+            *entitiesOffset = bftell(pbf);
+            if (*entitiesOffset < 0 || skipType(pbf, type) < 0) return false;
         }
         else {
             // BlockEntities, or anything else we don't currently consume
@@ -8151,7 +8338,8 @@ int nbtGetSpongeSchematic(bfFile* pbf,
     unsigned char rootType = 0;
     if (bfread(pbf, &rootType, 1) < 0) SPONGE_FAIL();
     if (rootType != 0x0A) SPONGE_FAIL();
-    unsigned int rootNameLen = readWord(pbf);
+    unsigned short rootNameLen;
+    if (!skipReadWord(pbf, &rootNameLen)) SPONGE_FAIL();
     char rootName[16] = { 0 };
     if (rootNameLen > 0) {
         if (rootNameLen < sizeof(rootName)) {
@@ -8178,6 +8366,7 @@ int nbtGetSpongeSchematic(bfFile* pbf,
     int deferredBlocksOffset = -1;
     int deferredPaletteOffset = -1;
     int deferredBlockDataOffset = -1;
+    int entitiesOffset = -1;
 
     // Walk children of the Schematic compound. Allocation-heavy fields that precede the
     // dimensions are skipped now and revisited once their volume-based limits are known.
@@ -8186,27 +8375,33 @@ int nbtGetSpongeSchematic(bfFile* pbf,
         if (bfread(pbf, &type, 1) < 0) SPONGE_FAIL();
         if (type == 0) break;    // TAG_End — done with Schematic compound
 
-        unsigned int nameLen = readWord(pbf);
-        if (nameLen >= 64) SPONGE_FAIL();
+        unsigned short nameLen;
+        if (!skipReadWord(pbf, &nameLen) || nameLen >= 64) SPONGE_FAIL();
         char tname[64];
         if (bfread(pbf, tname, (int)nameLen) < 0) SPONGE_FAIL();
         tname[nameLen] = '\0';
 
         if (strcmp(tname, "Width") == 0 && type == 0x02) {
-            width = (short)readWord(pbf);
+            unsigned short value;
+            if (!skipReadWord(pbf, &value)) SPONGE_FAIL();
+            width = (short)value;
             haveWidth = true;
         }
         else if (strcmp(tname, "Height") == 0 && type == 0x02) {
-            height = (short)readWord(pbf);
+            unsigned short value;
+            if (!skipReadWord(pbf, &value)) SPONGE_FAIL();
+            height = (short)value;
             haveHeight = true;
         }
         else if (strcmp(tname, "Length") == 0 && type == 0x02) {
-            length = (short)readWord(pbf);
+            unsigned short value;
+            if (!skipReadWord(pbf, &value)) SPONGE_FAIL();
+            length = (short)value;
             haveLength = true;
         }
         else if (strcmp(tname, "DataVersion") == 0 && type == 0x03) {
             // the Minecraft version the block states are from, https://minecraft.wiki/w/Data_version
-            *outDataVersion = readInt(pbf);
+            if (!modNbtInt(pbf, *outDataVersion)) SPONGE_FAIL();
         }
         else if (strcmp(tname, "Blocks") == 0 && type == 0x0A) {
             // v3: Palette + Data nested under a "Blocks" compound.
@@ -8219,7 +8414,7 @@ int nbtGetSpongeSchematic(bfFile* pbf,
                     !spongeImportFitsMemoryBudget(numBlocks, palCapacity, dataBytesLen) ||
                     !spongeReadBlocksCompound(pbf,
                         &palBlockIds, &palDataVals, &palCapacity, &palCount,
-                        &dataBytes, &dataBytesLen, numBlocks)) {
+                        &dataBytes, &dataBytesLen, numBlocks, &entitiesOffset)) {
                     SPONGE_FAIL();
                 }
                 sawBlocks = true;
@@ -8254,6 +8449,11 @@ int nbtGetSpongeSchematic(bfFile* pbf,
                 }
             }
         }
+        else if (isV2 && strcmp(tname, "BlockEntities") == 0 && ModPackLoaded()) {
+            if (type != 9 || entitiesOffset >= 0) SPONGE_FAIL();
+            entitiesOffset = bftell(pbf);
+            if (entitiesOffset < 0 || skipType(pbf, type) < 0) SPONGE_FAIL();
+        }
         else {
             // Version, Offset, Metadata, PaletteMax, Biomes, Entities,
             // BlockEntities (v2 top-level) … — all skipped for now.
@@ -8261,12 +8461,16 @@ int nbtGetSpongeSchematic(bfFile* pbf,
         }
     }
 
+    // v3 has an additional outer root compound. Validate its closing tag before
+    // seeking back to deferred fields, so an incomplete file cannot look complete.
+    if (!isV2 && skipType(pbf, 10) < 0) SPONGE_FAIL();
+
     if (!nbtGetValidatedSchematicVolume(width, height, length, &numBlocks)) SPONGE_FAIL();
     if (deferredBlocksOffset >= 0) {
         if (bfseek(pbf, deferredBlocksOffset, SEEK_SET) < 0 ||
             !spongeReadBlocksCompound(pbf,
                 &palBlockIds, &palDataVals, &palCapacity, &palCount,
-                &dataBytes, &dataBytesLen, numBlocks)) {
+                &dataBytes, &dataBytesLen, numBlocks, &entitiesOffset)) {
             SPONGE_FAIL();
         }
         sawBlocks = true;
@@ -8310,6 +8514,10 @@ int nbtGetSpongeSchematic(bfFile* pbf,
         (*outBlocks)[i] = (unsigned short)fullType;
         (*outData)[i] = PACK_TYPE_EXT_AND_DATAVAL(fullType, palDataVals[idx]);
     }
+
+    if (entitiesOffset >= 0 &&
+        (bfseek(pbf, entitiesOffset, SEEK_SET) < 0 ||
+            !modReadEntityList(pbf, isV2 ? 1 : 2, *outBlocks, *outData, width, height, length, 0, 0, 0))) SPONGE_FAIL();
 
     free(palBlockIds);
     free(palDataVals);

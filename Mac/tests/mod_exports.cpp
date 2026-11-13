@@ -35,6 +35,8 @@ static void exportWorld(WorldGuide& world, const std::filesystem::path& path, in
                         bool detailed = true, bool doubled = false, bool printing = false, bool expectFailure = false,
                         bool expectEmpty = false, bool windowsUsdDefaults = false, bool individual = true)
 {
+    const bool existingFailureTarget = expectFailure && std::filesystem::exists(path);
+    const std::string previousTarget = existingFailureTarget ? readText(path) : std::string();
     ExportFileData settings = {};
     Options options = {};
     const int fileType = path.extension() == ".schematic" ? FILE_TYPE_SCHEMATIC : path.extension() == ".schem" ? FILE_TYPE_SPONGE_SCHEMATIC : path.extension() == ".usda" ? FILE_TYPE_USD : path.extension() == ".stl" ? FILE_TYPE_ASCII_STL : FILE_TYPE_WAVEFRONT_ABS_OBJ;
@@ -87,7 +89,8 @@ static void exportWorld(WorldGuide& world, const std::filesystem::path& path, in
     }
     if (expectFailure) {
         assert(result >= MW_BEGIN_ERRORS);
-        assert(!std::filesystem::exists(path));
+        if (existingFailureTarget) assert(readText(path) == previousTarget);
+        else assert(!std::filesystem::exists(path));
         return;
     }
     if (result >= MW_BEGIN_NOTHING_TO_DO) {
@@ -239,6 +242,7 @@ static std::vector<std::string> stateNames(const WorldGuide& world)
 #include "mod_rotations.h"
 #include "mod_repeated_uv.h"
 #include "mod_normals.h"
+#include "mod_split_exports.h"
 
 int main(int argc, char** argv)
 {
@@ -434,6 +438,7 @@ int main(int argc, char** argv)
     ClearCache();
     free(invisibleRead.sch.blocks); free(invisibleRead.sch.data);
     free(mixedRead.sch.blocks); free(mixedRead.sch.data);
+    checkSplitModExports(root);
     checkModPolygons(root);
     checkModRotations(root);
     checkRepeatedModUV(root);

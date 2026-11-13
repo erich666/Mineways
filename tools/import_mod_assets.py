@@ -29,6 +29,8 @@ def _load_helper(name):
 
 
 _obj_module = _load_helper('mod_obj')
+_ie_module = _load_helper('mod_ie_models')
+_split_module = _load_helper('mod_ie_split')
 _machine_module = _load_helper('mod_machine_models')
 _storage_module = _load_helper('mod_storage_models')
 _cloudfx_module = _load_helper('mod_cloudfx')
@@ -482,7 +484,7 @@ class Compiler:
         if 'loader' in own and own['loader'] not in ('neoforge:composite', 'forge:composite', 'fusion:model', 'lootr:brushable',
                                                         'refinedstorage:cable', 'bibliocraft:bookcase',
                                                         'bibliocraft:table', 'xycraft_core:connected_textures',
-                                                        'neoforge:obj', 'supplementaries:extra_rotation',
+                                                        'neoforge:obj', 'immersiveengineering:ie_obj', 'immersiveengineering:basic_split', 'supplementaries:extra_rotation',
                                                         *_machine_module.LOADERS):
             raise ImportError('custom model loader: ' + str(own['loader']))
         if own.get('loader') == 'fusion:model':
@@ -841,7 +843,7 @@ class Compiler:
             self.textures[name] = (encode_png(16, 16, pixels), [127, 0, 127], 255)
         return name
 
-    def compile_model(self, application, depth=0, selector=None):
+    def compile_model(self, application, depth=0, selector=None, block_name=None):
         if depth >= 64:
             raise ImportError('excessive composite model depth')
         if isinstance(application, list):
@@ -875,11 +877,25 @@ class Compiler:
         if name == 'ae2:block/matrix_frame' and model == {'textures': {}}:
             return {'rotation': rotation, 'elements': [], 'invisible': True}
         model = self.builtin_adapter(name, model)
-        if model.get('loader') == 'neoforge:obj':
-            return _obj_module.compile_obj(self, model, rotation,
-                SimpleNamespace(ImportError=ImportError, resource=resource, decode_png=decode_png,
-                                encode_png=encode_png, MAX_COMPILED_ELEMENTS=MAX_COMPILED_ELEMENTS,
-                                number=number, expanded_uv=expanded_uv, REPEATED_UV_WARNING=REPEATED_UV_WARNING))
+        if (name == 'immersiveengineering:block/ie_empty' or model.get('parent') == 'immersiveengineering:block/ie_empty') and model.get('elements') == [] and 'loader' not in model:
+            fake_light = block_name == 'immersiveengineering:fake_light' and name == 'immersiveengineering:block/ie_empty'
+            turret_top = (block_name in ('immersiveengineering:turret_chem', 'immersiveengineering:turret_gun')
+                          and (selector or {}).get('multiblockslave') == 'true'
+                          and name == block_name.replace(':', ':block/') + '_top')
+            if not fake_light and not turret_top:
+                raise ImportError('IE block-entity renderer has no supported static geometry: ' + str(name))
+            if turret_top:
+                self.warnings.add(str(name) + ': verified empty turret upper cell; the base callback reports omitted block-entity gun geometry')
+            return {'rotation': rotation, 'elements': [], 'invisible': True}
+        if model.get('loader') == 'immersiveengineering:basic_split':
+            return _split_module.compile_split(self, name, model, rotation, selector, depth, ImportError)
+        if model.get('loader') in ('neoforge:obj', 'immersiveengineering:ie_obj'):
+            obj_api = SimpleNamespace(ImportError=ImportError, resource=resource, decode_png=decode_png,
+                                      encode_png=encode_png, MAX_COMPILED_ELEMENTS=MAX_COMPILED_ELEMENTS,
+                                      number=number, expanded_uv=expanded_uv, REPEATED_UV_WARNING=REPEATED_UV_WARNING)
+            if model['loader'] == 'immersiveengineering:ie_obj':
+                return _ie_module.compile_ie_obj(self, model, rotation, selector, obj_api, _obj_module)
+            return _obj_module.compile_obj(self, model, rotation, obj_api)
         if model.get('loader') == 'fusion:model':
             label = name if isinstance(name, str) else '<inline>'
             self.warnings.add(f'{label}: connected-texture neighbors are not evaluated')
@@ -887,7 +903,7 @@ class Compiler:
         if adapted is None:
             adapted = self.custom_loader_adapter(name, model, selector)
         if adapted is not None:
-            return self.compile_model({'model': adapted, 'x': x, 'y': y, 'uvlock': uvlock, 'ae2:z': z}, depth + 1, selector)
+            return self.compile_model({'model': adapted, 'x': x, 'y': y, 'uvlock': uvlock, 'ae2:z': z}, depth + 1, selector, block_name)
         if model.get('loader') == 'lootr:brushable':
             stage = (selector or {}).get('dusted')
             if stage not in ('0', '1', '2', '3'):
@@ -896,7 +912,7 @@ class Compiler:
             if not isinstance(child, dict):
                 raise ImportError('missing Lootr brushable stage model: ' + stage)
             self.warnings.add(f'{application["model"]}: Lootr uses dusted stage without player-opened appearance; player data is not in the block palette')
-            return self.compile_model({'model': child, 'x': x, 'y': y, 'uvlock': uvlock, 'ae2:z': z}, depth + 1, selector)
+            return self.compile_model({'model': child, 'x': x, 'y': y, 'uvlock': uvlock, 'ae2:z': z}, depth + 1, selector, block_name)
         if model.get('loader') in ('neoforge:composite', 'forge:composite'):
             transform = _obj_module.model_transform(model.get('transform', {}), ImportError)
             visibility = model.get('visibility', {})
@@ -912,7 +928,7 @@ class Compiler:
             for child_name, child in children.items():
                 if not visibility.get(child_name, True):
                     continue
-                compiled = self.compile_model({'model': child}, depth + 1, selector)
+                compiled = self.compile_model({'model': child}, depth + 1, selector, block_name)
                 all_invisible = all_invisible and compiled.get('invisible', False)
                 elements.extend(compiled['elements'])
                 polygons.extend(compiled.get('polygons', []))
@@ -996,6 +1012,7 @@ class Compiler:
 
     def block(self, name, definition):
         definition = _storage_module.expand_block(self, name, definition, ImportError)
+        definition = _ie_module.expand_block(self, name, definition, ImportError)
         definition = self.fluid_definition(name, definition)
         selectors = []
         if 'variants' in definition:
@@ -1058,7 +1075,13 @@ class Compiler:
             try:
                 if len(applications) > 256:
                     raise ImportError('state has more than 256 model applications')
-                models = [self.compile_model(value, selector=selector) for value in applications]
+                models = [self.compile_model(value, selector=selector, block_name=name) for value in applications]
+                models = [part for model in models for part in model.get('split_models', [model])]
+                if len(models) > 256:
+                    raise ImportError('state has more than 256 compiled model parts')
+                split_policies = {tuple(model['split_policy']) for model in models if 'split_policy' in model}
+                if split_policies and (len(split_policies) != 1 or any('split_policy' not in model for model in models)):
+                    raise ImportError('state combines incompatible IE split providers')
                 if models and all(model.get('invisible') for model in models):
                     output.append((canonical(name, selector), [0, 0, 0], 0, []))
                     continue
@@ -1135,6 +1158,7 @@ def compile_pack(sources, destination, namespaces=None):
     polygon_count = 0
     has_z_rotation = False
     has_expanded_uv = False
+    has_split_geometry = False
     block_count = selector_count = element_count = 0
     temporary = Path(tempfile.mkdtemp(prefix='.mineways-pack-', dir=destination.parent))
     try:
@@ -1166,7 +1190,13 @@ def compile_pack(sources, destination, namespaces=None):
                     state_stream.write(f'state\t{selector}\t' + ''.join(f'{c:02x}' for c in color) + f'\t{alpha}\n')
                     if not models:
                         state_stream.write('invisible\n')
+                    if models and 'split_policy' in models[0]:
+                        has_split_geometry = True
+                        state_stream.write('splitpolicy\t' + '\t'.join(map(str, models[0]['split_policy'])) + '\n')
                     for model in models:
+                        if 'part' in model and not model['elements'] and not model.get('polygons'):
+                            state_stream.write('emptypart\t' + '\t'.join(map(str, model['part'])) + '\n')
+                            continue
                         has_z_rotation = has_z_rotation or len(model['rotation']) == 4
                         signature = hashlib.sha256(json.dumps((model['elements'], model.get('polygons', [])), sort_keys=True, separators=(',', ':')).encode()).digest()
                         index = geometry_ids.get(signature)
@@ -1203,12 +1233,14 @@ def compile_pack(sources, destination, namespaces=None):
                                 geometry_stream.write('polygon\t' + '\t'.join(map(str, fields)) + '\n')
                             geometry_stream.write('endgeometry\n')
                         state_stream.write('usemodel\t' + '\t'.join(map(str, (index, *model['rotation']))) + '\n')
+                        if 'part' in model:
+                            state_stream.write('part\t' + '\t'.join(map(str, model['part'])) + '\n')
                     state_stream.write('endstate\n')
                 if geometry_stream.tell() + state_stream.tell() > MAX_MANIFEST:
                     raise ImportError('compiled manifest exceeds runtime size limit')
         if not block_count and not dimensions:
             raise ImportError('no supported mod blocks or dimensions found' + (': ' + rejected[0]['reason'] if rejected else ''))
-        version = 5 if has_expanded_uv else 4 if has_z_rotation else 3 if polygon_count else 2
+        version = 6 if has_split_geometry else 5 if has_expanded_uv else 4 if has_z_rotation else 3 if polygon_count else 2
         report = {'format': version, 'polygons': polygon_count, 'blocks': block_count, 'selectors': selector_count,
                   'textures': len(texture_ids), 'geometries': len(geometry_ids), 'elements': element_count,
                   'dimensions': len(dimensions), 'unsupported_dimensions': unsupported_dimensions,

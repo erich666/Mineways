@@ -10,14 +10,17 @@ MAX_LIBRARY_BYTES = 16 * 1024 * 1024
 MAX_GENERATED_PIXELS = 64 * 1024 * 1024
 
 
-def compile_obj(compiler, model, rotation, api):
+def compile_obj(compiler, model, rotation, api, *, ie=None):
     error = api.ImportError
     visibility = model.get('visibility', {})
     if not isinstance(visibility, dict) or len(visibility) > 4096 or any(not isinstance(k, str) or type(v) is not bool for k, v in visibility.items()):
         raise error('invalid OBJ component visibility')
     if 'mtl_override' in model and (not isinstance(model['mtl_override'], str) or not model['mtl_override']):
         raise error('OBJ material override must be a nonempty resource string')
-    transform = model_transform(model.get('transform', {}), error)
+    coordinate_limit = getattr(api, 'source_coordinate_limit', 256)
+    if type(coordinate_limit) is not int or not 256 <= coordinate_limit <= 4096:
+        raise error('invalid trusted OBJ source coordinate limit')
+    transform = model_transform(model.get('transform', {}), error, coordinate_limit)
     for key in ('flip_v', 'automatic_culling', 'shade_quads', 'emissive_ambient'):
         if key in model and type(model[key]) is not bool:
             raise error('OBJ option must be boolean: ' + key)
@@ -35,19 +38,23 @@ def compile_obj(compiler, model, rotation, api):
     library_cache = {}
     library_bytes = 0
     library_materials = 0
+    source_lines = None
 
     def records(identifier, material_library=False):
         path = resource_path(identifier)
         if path not in compiler.assets.files:
             raise error('missing OBJ/MTL asset: ' + identifier)
         try:
-            data = compiler.assets.read(path)
+            nonlocal source_lines
+            data = compiler.assets.read(path) if material_library or source_lines is None else None
             if material_library:
                 nonlocal library_bytes
                 library_bytes += len(data)
                 if library_bytes > MAX_LIBRARY_BYTES:
                     raise error('OBJ material-library byte budget exceeded')
-            lines = data.decode('utf-8-sig').splitlines()
+            lines = data.decode('utf-8-sig').splitlines() if data is not None else source_lines
+            if not material_library:
+                source_lines = lines
         except UnicodeDecodeError as exc:
             raise error('OBJ/MTL must be UTF-8') from exc
         if len(lines) > MAX_LINES:
@@ -92,6 +99,9 @@ def compile_obj(compiler, model, rotation, api):
                     raise error('duplicate OBJ material')
                 current = {'color': (1., 1., 1., 1.), 'map': None, 'ambient': (0., 0., 0.)}
                 materials[label] = current
+            elif ie is not None and kind != 'map_Kd':
+                # IE model-splitter retains map_Kd only, unlike NeoForge OBJ.
+                continue
             elif kind in ('Kd', 'Ka', 'map_Kd', 'forge_TintIndex', 'neoforge_TintIndex'):
                 if current is None:
                     raise error('OBJ material property before newmtl')
@@ -119,9 +129,10 @@ def compile_obj(compiler, model, rotation, api):
     group, part, object_above_group = '', None, False
     flip = model.get('flip_v', False)
 
-    def texture(label):
-        if label in resolved:
-            return resolved[label]
+    def texture(label, group):
+        key = (label, ie.color(group, label)) if ie is not None else label
+        if key in resolved:
+            return resolved[key]
         if label not in materials:
             raise error('unknown OBJ material: ' + str(label))
         m = materials[label]
@@ -167,90 +178,119 @@ def compile_obj(compiler, model, rotation, api):
             ref = derived
         if any(m['ambient'][:3]) and model.get('emissive_ambient', True):
             compiler.warnings.add(name + ': OBJ ambient emission is not exported')
-        resolved[label] = ref
+        if ie is not None:
+            ref = compiler.face_color_texture(ref, {}, {'neoforge_data': {'color': format(key[1], '08x')}}, name)
+        resolved[key] = ref
         return ref
 
-    def index(value, entries):
+    seen_attributes = {'v': 0, 'vt': 0, 'vn': 0}
+
+    def index(value, entries, kind):
         try:
             number = int(value)
         except ValueError as exc:
             raise error('invalid OBJ index') from exc
-        actual = number - 1 if number > 0 else len(entries) + number
+        actual = number - 1 if number > 0 else seen_attributes[kind] + number
         if number == 0 or actual < 0 or actual >= len(entries):
             raise error('OBJ index out of range')
         return entries[actual]
 
-    for fields in records(name):
-        kind, args = fields[0], fields[1:]
-        if kind in ('v', 'vt', 'vn'):
-            target = positions if kind == 'v' else texcoords if kind == 'vt' else normals
-            if len(target) >= MAX_VERTICES:
-                raise error('OBJ vertex attribute limit exceeded')
-            if kind == 'v':
-                if len(args) != 3:
-                    raise error('OBJ positions require three components')
-                target.append(tuple(v * 16 for v in numbers(args, -16, 16)))
-            elif kind == 'vt':
-                if len(args) not in (2, 3):
-                    raise error('OBJ UVs require two components')
-                values = numbers(args, -17, 17)
-                api.number(values[0], -16, 16)
-                api.number(values[1], -15 if flip else -16, 17 if flip else 16)
-                if len(values) == 3 and values[2] != 0:
-                    raise error('OBJ 3D texture coordinates are unsupported')
-                target.append(values[:2])
-            else:
-                if len(args) != 3:
-                    raise error('invalid OBJ normal')
-                target.append(numbers(args, -1e6, 1e6))
-        elif kind == 'mtllib':
-            if len(args) != 1:
-                raise error('OBJ requires one material-library reference')
-            if not model.get('mtl_override'):
-                materials = library(args[0])
-                resolved.clear()
-        elif kind == 'usemtl':
-            material = ' '.join(args)
-        elif kind in ('o', 'g'):
-            if not args:
-                raise error('OBJ component has no name')
-            label = args[0]
-            if kind == 'o' and (object_above_group or not group):
-                object_above_group, group, part = True, label, None
-            elif kind == 'g' and not object_above_group:
-                group, part = label, None
-            else:
-                part = group + '/' + label
-        elif kind == 'f':
-            if len(args) not in (3, 4) or len(polygons) >= MAX_POLYGONS:
-                raise error('OBJ needs bounded triangle/quad faces')
-            corners = []
-            for token in args:
-                parts = token.split('/')
-                if len(parts) not in (2, 3) or not parts[1]:
-                    raise error('OBJ faces need position and UV indices')
-                position = transform(index(parts[0], positions))
-                u, v = index(parts[1], texcoords)
-                if len(parts) == 3:
-                    index(parts[2], normals)
-                    uses_normals = True
-                corners.append((*position, 16 * u, 16 * (1-v if flip else v)))
-            if not visibility.get(group, True) or (part is not None and not visibility.get(part, True)):
-                hidden_faces += 1
+    # NeoForge stores positive indices until bake, allowing forward references.
+    # Negative indices remain relative to attributes present at the face line.
+    for pass_index in (0, 1):
+        for fields in records(name):
+            kind, args = fields[0], fields[1:]
+            if kind in ('v', 'vt', 'vn'):
+                if pass_index == 1:
+                    seen_attributes[kind] += 1
+                    continue
+                target = positions if kind == 'v' else texcoords if kind == 'vt' else normals
+                if len(target) >= MAX_VERTICES:
+                    raise error('OBJ vertex attribute limit exceeded')
+                if kind == 'v':
+                    if len(args) != 3:
+                        raise error('OBJ positions require three components')
+                    target.append(tuple(v * 16 for v in numbers(args, -coordinate_limit / 16, coordinate_limit / 16)))
+                elif kind == 'vt':
+                    if len(args) not in (2, 3):
+                        raise error('OBJ UVs require two components')
+                    values = numbers(args, -17, 17)
+                    api.number(values[0], -16, 16)
+                    api.number(values[1], -15 if flip else -16, 17 if flip else 16)
+                    if len(values) == 3 and values[2] != 0:
+                        raise error('OBJ 3D texture coordinates are unsupported')
+                    target.append(values[:2])
+                else:
+                    if len(args) != 3:
+                        raise error('invalid OBJ normal')
+                    target.append(numbers(args, -1e6, 1e6))
+            elif pass_index == 0:
                 continue
-            a = [corners[1][i] - corners[0][i] for i in range(3)]
-            b = [corners[2][i] - corners[0][i] for i in range(3)]
-            cross = (a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0])
-            if sum(v*v for v in cross) < 1e-16:
-                compiler.warnings.add(name + ': degenerate OBJ faces are omitted')
-                continue
-            if api.expanded_uv([corner[3:] for corner in corners]):
-                compiler.warnings.add(name + ': ' + api.REPEATED_UV_WARNING)
-            polygons.append({'texture': texture(material), 'vertices': corners})
-        elif kind == 'vc':
-            raise error('OBJ vertex colors are unsupported')
-        elif kind not in ('s', 'l'):
-            raise error('unsupported OBJ record: ' + kind)
+            elif kind == 'mtllib':
+                if len(args) != 1:
+                    raise error('OBJ requires one material-library reference')
+                if not model.get('mtl_override'):
+                    materials = library(args[0])
+                    resolved.clear()
+            elif kind == 'usemtl':
+                material = ' '.join(args)
+            elif kind in ('o', 'g'):
+                if not args:
+                    raise error('OBJ component has no name')
+                label = args[0]
+                if ie is not None:
+                    # BlockModelSplitter recognizes only object names. It ignores g.
+                    if kind == 'o':
+                        group, part = label, None
+                elif kind == 'o' and (object_above_group or not group):
+                    object_above_group, group, part = True, label, None
+                elif kind == 'g' and not object_above_group:
+                    group, part = label, None
+                else:
+                    part = group + '/' + label
+            elif kind == 'f':
+                if len(args) not in (3, 4) or len(polygons) >= MAX_POLYGONS:
+                    raise error('OBJ needs bounded triangle/quad faces')
+                corners = []
+                for token in args:
+                    parts = token.split('/')
+                    if len(parts) not in (2, 3) or (not parts[1] and ie is None):
+                        raise error('OBJ faces need position and UV indices')
+                    position = transform(index(parts[0], positions, 'v'))
+                    if ie is not None:
+                        position = ie.position(group, position)
+                        for value in position:
+                            api.number(value, -coordinate_limit, coordinate_limit)
+                    u, v = index(parts[1], texcoords, 'vt') if parts[1] else (0, 0)
+                    if len(parts) == 3:
+                        index(parts[2], normals, 'vn')
+                        uses_normals = True
+                    corners.append((*position, 16 * u, 16 * (1-v if flip else v)))
+                if (ie is not None and (not ie.visible(group) or material is None)) or not visibility.get(group, True) or (part is not None and not visibility.get(part, True)):
+                    hidden_faces += 1
+                    continue
+                def has_area(a, b, c):
+                    ab = [b[i] - a[i] for i in range(3)]
+                    ac = [c[i] - a[i] for i in range(3)]
+                    cross = (ab[1]*ac[2]-ab[2]*ac[1], ab[2]*ac[0]-ab[0]*ac[2], ab[0]*ac[1]-ab[1]*ac[0])
+                    return sum(value*value for value in cross) >= 1e-16
+                first_area = has_area(*corners[:3])
+                second_area = len(corners) == 4 and has_area(corners[0], corners[2], corners[3])
+                if not first_area and not second_area:
+                    compiler.warnings.add(name + ': degenerate OBJ faces are omitted')
+                    continue
+                if len(corners) == 4 and not (first_area and second_area):
+                    # Minecraft draws the fixed 0-2 diagonal. A collinear first
+                    # triangle does not invalidate the second (IE radio tower).
+                    # Preserve that triangle's exact source corners and UVs.
+                    corners = corners[:3] if first_area else [corners[i] for i in (0, 2, 3)]
+                if api.expanded_uv([corner[3:] for corner in corners]):
+                    compiler.warnings.add(name + ': ' + api.REPEATED_UV_WARNING)
+                polygons.append({'texture': texture(material, group), 'vertices': corners})
+            elif kind == 'vc':
+                raise error('OBJ vertex colors are unsupported')
+            elif kind not in ('s', 'l'):
+                raise error('unsupported OBJ record: ' + kind)
     if not polygons:
         if hidden_faces:
             return {'rotation': rotation, 'elements': [], 'polygons': [], 'invisible': True}
@@ -263,7 +303,7 @@ def compile_obj(compiler, model, rotation, api):
         raise error('compiled polygon budget exceeded')
     return {'rotation': rotation, 'elements': [], 'polygons': polygons}
 
-def model_transform(spec, error):
+def model_transform(spec, error, coordinate_limit=256):
     """NeoForge TRSR root transform, converted from center-relative to block coordinates.
 
     TransformationHelper.Deserializer applies its origin before ObjModel.makeQuad
@@ -328,8 +368,8 @@ def model_transform(spec, error):
         point = [point[i] * scale[i] for i in range(3)]
         point = rotate(point, left)
         point = tuple((point[i] + translation[i] + origin[i]) * 16 for i in range(3))
-        if any(not math.isfinite(v) or v < -256 or v > 256 for v in point):
-            raise error('transformed OBJ coordinates exceed -256..256')
+        if any(not math.isfinite(v) or v < -coordinate_limit or v > coordinate_limit for v in point):
+            raise error('transformed OBJ coordinates exceed supported range')
         return point
     apply.is_identity = not any(translation) and scale == (1., 1., 1.) and not any(angle % 360 for _, angle in left + right)
     return apply

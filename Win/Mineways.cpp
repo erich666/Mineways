@@ -6634,6 +6634,12 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
 
 static void PopupErrorDialogs(int errCode)
 {
+    if ((errCode & MW_CANNOT_PARSE_IMPORT_FILE) && *ModExportError()) {
+        const std::string detail(ModExportError());
+        const std::wstring message(detail.begin(), detail.end());
+        FilterMessageBox(NULL, message.c_str(), L"Export error", MB_OK | MB_ICONERROR);
+        errCode &= ~MW_CANNOT_PARSE_IMPORT_FILE;
+    }
     // pop up all errors flagged
     for (int errNo = MW_NUM_CODES - 1; errNo >= 0; errNo--)
     {
