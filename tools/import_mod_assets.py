@@ -485,6 +485,7 @@ class Compiler:
                                                         'refinedstorage:cable', 'bibliocraft:bookcase',
                                                         'bibliocraft:table', 'xycraft_core:connected_textures',
                                                         'neoforge:obj', 'immersiveengineering:ie_obj', 'immersiveengineering:basic_split', 'supplementaries:extra_rotation',
+                                                        _storage_module.SIMPLE_MATERIAL_LOADER, _storage_module.LIMITED_BARREL_LOADER,
                                                         *_machine_module.LOADERS):
             raise ImportError('custom model loader: ' + str(own['loader']))
         if own.get('loader') == 'fusion:model':
@@ -877,6 +878,10 @@ class Compiler:
         if name == 'ae2:block/matrix_frame' and model == {'textures': {}}:
             return {'rotation': rotation, 'elements': [], 'invisible': True}
         model = self.builtin_adapter(name, model)
+        if model.get('loader') == _storage_module.SIMPLE_MATERIAL_LOADER:
+            return _storage_module.compile_simple_material(self, name, model, rotation, selector, depth, ImportError, block_name)
+        if model.get('loader') == _storage_module.LIMITED_BARREL_LOADER:
+            return _storage_module.compile_limited_barrel(self, name, model, rotation, selector, depth, ImportError, block_name)
         if (name == 'immersiveengineering:block/ie_empty' or model.get('parent') == 'immersiveengineering:block/ie_empty') and model.get('elements') == [] and 'loader' not in model:
             fake_light = block_name == 'immersiveengineering:fake_light' and name == 'immersiveengineering:block/ie_empty'
             turret_top = (block_name in ('immersiveengineering:turret_chem', 'immersiveengineering:turret_gun')
@@ -996,8 +1001,13 @@ class Compiler:
                 if type(turn) is not int or turn not in (0, 90, 180, 270):
                     raise ImportError('invalid face rotation')
                 cull = face.get('cullface', '-')
-                if cull not in (*DIRECTIONS, '-'):
+                if not isinstance(cull, str) or len(cull) > 1023:
                     raise ImportError('invalid cullface')
+                if cull not in (*DIRECTIONS, '-'):
+                    # Minecraft Direction.byName returns null for unknown names.
+                    # Preserve that face without applying neighbor culling.
+                    self.warnings.add(f'{label}: unknown cullface {cull!r} disables neighbor culling as in Minecraft')
+                    cull = '-'
                 if face.get('tintindex', -1) != -1:
                     self.warnings.add(f'{application["model"]}: biome/custom tint is not applied')
                 compiled['faces'].append((side, *uv, turn, texture, cull))
@@ -1038,7 +1048,16 @@ class Compiler:
                         if isinstance(value, bool):
                             value = 'true' if value else 'false'
                             condition[key] = value
-                        if not PROPERTY.fullmatch(key) or not isinstance(value, str):
+                        elif type(value) is int:
+                            # Minecraft Selector.Deserializer uses getAsString.
+                            # Keep numeric property identity; do not round floats
+                            # or treat booleans as the integers 0 and 1.
+                            try:
+                                value = str(value)
+                            except ValueError as error:
+                                raise ImportError('invalid multipart property number') from error
+                            condition[key] = value
+                        if not isinstance(key, str) or not PROPERTY.fullmatch(key) or not isinstance(value, str):
                             raise ImportError('invalid multipart property')
                         values = value.split('|')
                         if not all(PROPERTY.fullmatch(v) for v in values):
@@ -1141,6 +1160,24 @@ def compile_dimensions(assets, namespaces):
         except (ImportError, RecursionError) as error:
             unsupported.append({'dimension': name, 'reason': str(error)})
     return dimensions, unsupported
+
+
+def missing_resource_diagnostics(report, assets):
+    # Namespace presence describes supplied assets, not installed mods or registered blocks.
+    namespaces = {path.split('/')[1] for path in assets.files if path.startswith('assets/')}
+    counts = {}
+    for field in ('unsupported', 'unsupported_states'):
+        totals = {'namespace_unindexed': 0, 'namespace_indexed': 0}
+        for row in report[field]:
+            match = re.fullmatch(r'missing (texture|model): ([a-z0-9_.-]+:[a-z0-9_./-]+)', row['reason'])
+            if not match:
+                continue
+            kind, name = match.groups()
+            present = name.split(':', 1)[0] in namespaces
+            row['missing_resource'] = {'kind': kind, 'name': name, 'indexed_namespace_present': present}
+            totals['namespace_indexed' if present else 'namespace_unindexed'] += 1
+        counts[field] = totals
+    report['missing_resources'] = counts
 
 
 def compile_pack(sources, destination, namespaces=None):
@@ -1246,6 +1283,7 @@ def compile_pack(sources, destination, namespaces=None):
                   'dimensions': len(dimensions), 'unsupported_dimensions': unsupported_dimensions,
                   'unsupported': rejected, 'unsupported_states': compiler.unsupported_states,
                   'warnings': sorted(compiler.warnings)}
+        missing_resource_diagnostics(report, assets)
         with (temporary / 'manifest.mwpack').open('w', encoding='utf-8', newline='\n') as manifest:
             manifest.write(f'MINEWAYS_MOD_PACK\t{version}\n')
             for dimension in dimensions:

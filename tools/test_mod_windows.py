@@ -113,17 +113,19 @@ def large_catalog(root):
     return manifest, input_path, names
 
 
-def region(path, name):
+def region(path, name, chunk_x=0, chunk_z=0):
     path.mkdir(parents=True, exist_ok=True)
     palette = tag(9, 'palette', b'\x0a' + struct.pack('>i', 1) + tag(8, 'Name', text(name)) + b'\0')
     section = tag(1, 'Y', b'\0') + compound('block_states', palette) + b'\0'
-    chunk = compound('', number('DataVersion', 3953) + tag(9, 'sections', b'\x0a' + struct.pack('>i', 1) + section))
+    chunk = compound('', number('DataVersion', 3953) + number('xPos', chunk_x) + number('zPos', chunk_z)
+                     + tag(9, 'sections', b'\x0a' + struct.pack('>i', 1) + section))
     payload = zlib.compress(chunk)
     data = bytearray(8192)
-    data[0:4] = b'\0\0\x02\x01'
+    slot = 4 * (chunk_x % 32 + 32 * (chunk_z % 32))
+    data[slot:slot+4] = b'\0\0\x02\x01'
     data += struct.pack('>I', len(payload) + 1) + b'\x02' + payload
     data += bytes((-len(data)) % 4096)
-    (path / 'r.0.0.mca').write_bytes(data)
+    (path / f'r.{chunk_x // 32}.{chunk_z // 32}.mca').write_bytes(data)
 
 
 def world(path):
@@ -378,6 +380,47 @@ def exercise(executable, root):
     texture_sources = {int(parts[1]): pack / parts[3]
                        for line in manifest_text.splitlines()
                        if (parts := line.split('\t'))[0] == 'texture'}
+    for level in (0, 1):
+        label = 'numeric-parts-' + str(level)
+        state = f'fixture:numeric_parts[level={level}]'
+        source, output, restored = [root / (label + suffix) for suffix in ('.schem', '.obj', '-restored.schem')]
+        schematic(source, [state])
+        details = run(executable, root, label, [*common, 'Minecraft world: ' + str(source),
+                      'File type: Export individual textures to directory numerictex',
+                      'Selection location min to max: 0, 0, 0 to 0, 0, 0',
+                      'Export for Rendering: ' + str(output), 'Export Schematic: ' + str(restored)])
+        check_obj(output, details)
+        check_signed_geometry(output, (.125, 0, .125), (.875, .25 if level == 0 else .75, .875), False)
+        verify_schematic(restored, [state], details)
+        assert check_export_pixels(output, texture_sources) == 1
+    for facing in ('north', 'east'):
+        label = 'simple-storage-' + facing
+        state = 'fixture:simple_storage[facing=' + facing + ']'
+        source, output, restored = [root / (label + suffix) for suffix in ('.schem', '.obj', '-restored.schem')]
+        schematic(source, [state])
+        details = run(executable, root, label, [*common, 'Minecraft world: ' + str(source),
+                      'File type: Export individual textures to directory simplestorage',
+                      'Selection location min to max: 0, 0, 0 to 0, 0, 0',
+                      'Export for Rendering: ' + str(output), 'Export Schematic: ' + str(restored)])
+        check_obj(output, details, minimum_faces=3)
+        assert sum(line.startswith('f ') for line in output.read_text().splitlines()) == 3
+        verify_schematic(restored, [state], details)
+        assert check_export_pixels(output, texture_sources) == 1, 'Default storage base gained an overlay'
+    for index, properties in enumerate(('facing=north,flat_top=false,vertical_facing=up',
+                                        'facing=east,flat_top=false,vertical_facing=no',
+                                        'facing=west,flat_top=true,vertical_facing=down')):
+        label = 'limited-barrel-' + str(index)
+        state = 'fixture:limited_barrel[' + properties + ']'
+        source, output, restored = [root / (label + suffix) for suffix in ('.schem', '.obj', '-restored.schem')]
+        schematic(source, [state])
+        details = run(executable, root, label, [*common, 'Minecraft world: ' + str(source),
+                      'File type: Export individual textures to directory limitedbarrel',
+                      'Selection location min to max: 0, 0, 0 to 0, 0, 0',
+                      'Export for Rendering: ' + str(output), 'Export Schematic: ' + str(restored)])
+        check_obj(output, details, minimum_faces=4)
+        assert sum(line.startswith('f ') for line in output.read_text().splitlines()) == 4
+        verify_schematic(restored, [state], details)
+        assert check_export_pixels(output, texture_sources) == 2, 'Barrel base/tier texture inheritance changed'
     for orientation in ('plain', 'turned'):
         label = 'mesh-' + orientation
         state = 'fixture:obj_mesh[orientation=' + orientation + ',retained=true]'
@@ -709,7 +752,54 @@ def exercise_pack(executable, root, manifest):
                'immersiveengineering:connector_structural',
                'immersiveengineering:floodlight',
                'immersiveengineering:turret_gun',
-               'immersiveengineering:turret_chem']
+               'immersiveengineering:turret_chem',
+               'sophisticatedstorage:acacia_storage_connector',
+               'sophisticatedstorage:bamboo_storage_connector',
+               'sophisticatedstorage:birch_storage_connector',
+               'sophisticatedstorage:cherry_storage_connector',
+               'sophisticatedstorage:controller',
+               'sophisticatedstorage:crimson_storage_connector',
+               'sophisticatedstorage:dark_oak_storage_connector',
+               'sophisticatedstorage:jungle_storage_connector',
+               'sophisticatedstorage:limited_barrel_1',
+               'sophisticatedstorage:limited_barrel_2',
+               'sophisticatedstorage:limited_barrel_3',
+               'sophisticatedstorage:limited_barrel_4',
+               'sophisticatedstorage:limited_copper_barrel_1',
+               'sophisticatedstorage:limited_copper_barrel_2',
+               'sophisticatedstorage:limited_copper_barrel_3',
+               'sophisticatedstorage:limited_copper_barrel_4',
+               'sophisticatedstorage:limited_diamond_barrel_1',
+               'sophisticatedstorage:limited_diamond_barrel_2',
+               'sophisticatedstorage:limited_diamond_barrel_3',
+               'sophisticatedstorage:limited_diamond_barrel_4',
+               'sophisticatedstorage:limited_gold_barrel_1',
+               'sophisticatedstorage:limited_gold_barrel_2',
+               'sophisticatedstorage:limited_gold_barrel_3',
+               'sophisticatedstorage:limited_gold_barrel_4',
+               'sophisticatedstorage:limited_iron_barrel_1',
+               'sophisticatedstorage:limited_iron_barrel_2',
+               'sophisticatedstorage:limited_iron_barrel_3',
+               'sophisticatedstorage:limited_iron_barrel_4',
+               'sophisticatedstorage:limited_netherite_barrel_1',
+               'sophisticatedstorage:limited_netherite_barrel_2',
+               'sophisticatedstorage:limited_netherite_barrel_3',
+               'sophisticatedstorage:limited_netherite_barrel_4',
+               'sophisticatedstorage:mangrove_storage_connector',
+               'sophisticatedstorage:oak_storage_connector',
+               'sophisticatedstorage:spruce_storage_connector',
+               'sophisticatedstorage:storage_input',
+               'sophisticatedstorage:storage_io',
+               'sophisticatedstorage:storage_link',
+               'sophisticatedstorage:storage_output',
+               'sophisticatedstorage:warped_storage_connector',
+               'herbsandharvest:cake_block',
+               'merrymaking:kinara',
+               'merrymaking:topper',
+               'supplementaries:crank',
+               'supplementaries:rope_tomatoes',
+               'supplementaries:stick_tomatoes',
+               'securitycraft:reinforced_scaffolding']
     targets += [name for name in blocks if name.startswith('allthemodium:molten_')]
     targets += sorted({state.split('[', 1)[0] for state in split_policies})
     for block in targets:
@@ -971,6 +1061,101 @@ def exercise_normals(executable, root):
     assert obj_geometry(outputs[0]) == obj_geometry(outputs[1]), 'Repeated mesh exports differ'
 
 
+def exercise_precision(executable, root):
+    """Preserve a real thin IE fragment across a 4,096-block selection."""
+    pack = root / 'precision-pack'
+    pack.mkdir()
+    (pack / 'texture.png').write_bytes(FIXTURE.mod.encode_png(2, 2, bytes((80, 140, 200, 255)) * 4))
+    vertices = [(4, -.000048, -.000032, 10.75, 10.5),
+                (4.000048, 15.999984, -.000192, 10.75, 8.5),
+                (4.000047995392386, 15.999984, 0, 10.749976002015831, 8.5)]
+    manifest = pack / 'manifest.mwpack'
+    manifest.write_text('\n'.join(['MINEWAYS_MOD_PACK\t3',
+        'texture\t0\tprecision:pattern\ttexture.png', 'geometry\t0',
+        'polygon\t0\t3\t' + '\t'.join(str(value) for vertex in vertices for value in vertex),
+        'endgeometry', 'state\tprecision:thin\t808080\t255', 'usemodel\t0\t0\t90\t0', 'endstate', '']))
+    state = 'precision:thin[retained=true]'
+    wide, small = pack / 'wide.schem', pack / 'small.schem'
+    schematic(wide, ['minecraft:air', state], [1] + [0] * 4095 + [1], (4097, 1, 1))
+    schematic(small, [state])
+    far_world = pack / 'far-world'
+    world(far_world)
+    far_x = 20000001
+    region(far_world / 'region', 'precision:thin', chunk_x=far_x // 16)
+
+    def commands(source, kind, output, mosaic=False):
+        selection = (f'{far_x}, 0, 0 to {far_x+1}, 0, 0' if source == far_world else
+                     '0, 0, 0 to ' + ('4096' if source == wide else '0') + ', 0, 0')
+        return ['Mod pack: ' + str(manifest), 'Minecraft world: ' + str(source),
+                'Set render type: ' + kind, 'Center model: NO', 'Individual blocks: NO',
+                'Export lesser blocks: YES', 'Units for the model vertex data itself: meters',
+                'Make Z the up direction instead of Y: NO',
+                'Scale model by making each block 1000 mm high',
+                'File type: ' + ('Export full color texture patterns' if mosaic else
+                                'Export individual textures to directory precisiontex'),
+                'Selection location min to max: ' + selection,
+                'Export for Rendering: ' + str(output)]
+
+    if executable is None:
+        write_script(root, 'precision-fixture', commands(wide, 'Wavefront OBJ absolute indices', pack / 'wide.obj'))
+        return
+    f32 = lambda value: struct.unpack('f', struct.pack('f', value))[0]
+    points = [tuple(f32(v) for v in vertex[:3]) for vertex in vertices]
+    expected = [(-(p[2]-points[0][2])/16, (p[1]-points[0][1])/16, (p[0]-points[0][0])/16)
+                for p in points[1:]]
+    reference = None
+    for mosaic in (False, True):
+        label = 'precision-' + ('mosaic' if mosaic else 'individual')
+        output = pack / (label + '.obj')
+        details = run(executable, root, label, commands(wide, 'Wavefront OBJ absolute indices', output, mosaic))
+        check_obj(output, details, minimum_faces=2)
+        positions, faces = [], []
+        for line in output.read_text().splitlines():
+            fields = line.split()
+            if fields and fields[0] == 'v': positions.append(tuple(map(float, fields[1:4])))
+            elif fields and fields[0] == 'f': faces.append([positions[int(v.split('/')[0])-1] for v in fields[1:]])
+        assert len(faces) == 2 and all(len(face) == 3 for face in faces)
+        for face in faces:
+            for point, edge in zip(face[1:], expected):
+                assert all(abs(point[i]-face[0][i]-edge[i]) < 1e-11 for i in range(3)), 'Thin face lost position precision'
+        reference = sorted(point for face in faces for point in face)
+    output = pack / 'precision-ascii.stl'
+    run(executable, root, 'precision-ascii', commands(wide, 'ASCII STL', output))
+    stl = sorted(tuple(map(float, line.split()[1:4])) for line in output.read_text().splitlines()
+                 if line.strip().startswith('vertex '))
+    assert stl == reference, 'ASCII STL lost thin geometry or coordinate precision'
+    for label, kind, suffix in [('usd', 'USD 1.0', '.usda'), ('vrml', 'VRML 2.0', '.wrl'),
+                                ('magics', 'Binary STL iMaterialise', '.stl'), ('viscam', 'Binary STL VisCAM', '.stl')]:
+        output = pack / (label + suffix)
+        sentinel = b'existing output must survive\n'
+        output.write_bytes(sentinel)
+        details = run(executable, root, 'precision-' + label, commands(wide, kind, output, label == 'vrml'), expect_success=False)
+        assert 'cannot preserve a thin face' in details, details
+        assert output.read_bytes() == sentinel, 'Precision preflight overwrote the destination'
+        run(executable, root, 'precision-local-' + label, commands(small, kind, output, label == 'vrml'))
+        assert output.read_bytes() != sentinel and output.stat().st_size > 100
+        if label in ('magics', 'viscam'):
+            assert output.stat().st_size == 134, 'Binary STL triangle record size changed'
+    # Adjacent starts cover both final vertex precision and odd world-to-box offsets.
+    for far_x in (20000001, 20000002):
+        far_obj = pack / 'far.obj'
+        run(executable, root, 'precision-far-obj-' + str(far_x), commands(far_world, 'Wavefront OBJ absolute indices', far_obj))
+        positions = [tuple(map(float, line.split()[1:4])) for line in far_obj.read_text().splitlines() if line.startswith('v ')]
+        assert min(p[0] for p in positions) == far_x + 1, 'Uncentered world placement rounded an odd coordinate'
+        far_stl = pack / 'far.stl'
+        run(executable, root, 'precision-far-ascii-' + str(far_x), commands(far_world, 'ASCII STL', far_stl))
+        stl = [tuple(map(float, line.split()[1:4])) for line in far_stl.read_text().splitlines()
+               if line.strip().startswith('vertex ')]
+        assert sorted(stl) == sorted(positions), 'ASCII STL lost absolute world placement'
+    output = pack / 'far-instance.usda'
+    output.write_bytes(sentinel)
+    instance_commands = commands(far_world, 'USD 1.0', output)
+    instance_commands.insert(-1, 'Individual blocks: YES')
+    details = run(executable, root, 'precision-far-instance', instance_commands, expect_success=False)
+    assert 'instance positions cannot preserve' in details and output.read_bytes() == sentinel, details
+    print('PASS: wide OBJ/ASCII STL precision and explicit float-format preflight', flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('executable', nargs='?')
@@ -1000,6 +1185,7 @@ def main():
         exercise(executable, root)
         exercise_limits(executable, root)
         exercise_normals(executable, root)
+        exercise_precision(executable, root)
         if manifest:
             exercise_pack(executable, root, manifest)
         elif executable is None:

@@ -225,9 +225,12 @@ typedef struct InstanceLocation {
     float location[3];
 } InstanceLocation;
 
+// Export positions retain small model features after adding large block offsets.
+typedef double ExportPoint[3];
+
 typedef struct Model {
     float scale;    // size of a block, in meters
-    Point center;
+    ExportPoint center;
 
     // the standard normals, already rotated into position.
     // first six are the block directions
@@ -238,7 +241,7 @@ typedef struct Model {
     int normalListCapacity;
     int normalListCount;
 
-    Point* vertices;    // vertices to be output, in a given order
+    ExportPoint* vertices;    // vertices to be output, in a given order
     // a little indirect: there is one of these for every grid *corner* location.
     // The index is therefore a block location, possibly +1 in X, Y, and Z
     // (use gFaceToVertexOffset[face][corner 0-3] to get these offsets)

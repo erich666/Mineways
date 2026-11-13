@@ -30,6 +30,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 //
 
 #include "stdafx.h"
+#include <limits>
 #include "tiles.h"
 #include "ModSupport.h"
 #include "rwpng.h"
@@ -1170,7 +1171,7 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox);
 static int removeUnusedFacesAndVertices();
 static bool createInstance(int type, int dataVal, int faceIndex);
 static bool findInstance(int type, int dataVal, int& instanceID);
-static bool saveInstanceLocation(float* anchorPt, int instanceID);
+static bool saveInstanceLocation(const double* anchorPt, int instanceID);
 static unsigned int makeInstanceHash(int type, int dataVal);
 static int tileIdCompare(void* context, const void* str1, const void* str2);
 static int tileUSDIdCompare(void* context, const void* str1, const void* str2);
@@ -1184,7 +1185,7 @@ static int chunkUSDCompare(void* context, const void* str1, const void* str2);
 static int instanceUSDCompare(void* context, const void* str1, const void* str2);
 
 static int getDimensionsAndCount(Point dimensions);
-static void rotateLocation(Point pt);
+template <typename T> static void rotateLocation(T* pt);
 static int checkAndCreateFaces(int boxIndex, IPoint loc);
 static int checkMakeFace(int type, int neighborType, int view3D, int testPartial, int faceDirection, int boxIndex, int neighborBoxIndex, int fluidFullBlock);
 static int neighborMayCoverFace(int neighborType, int view3D, int testPartial, int faceDirection, int neighborBoxIndex);
@@ -1221,6 +1222,7 @@ static void freeModel(Model* pModel);
 static int findMatchingNormal(FaceRecord* pFace, Vector normal, Vector* normalList, int normalListCount);
 static int addNormalToList(Vector normal);
 static int resolveFaceNormals();
+static int validateExportPrecision();
 
 static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float power);
 
@@ -1939,6 +1941,9 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
 
     // create database from all full-sized blocks and compute statistics for output
     retCode |= generateBlockDataAndStatistics(&tightenedWorldBox, &worldBox);
+    if (retCode >= MW_BEGIN_ERRORS) goto Exit;
+
+    retCode |= validateExportPrecision();
     if (retCode >= MW_BEGIN_ERRORS) goto Exit;
 
     UPDATE_STATUS(gProgress.start.output, L"Output files");
@@ -2809,7 +2814,7 @@ static int initializeModelData()
     gModel.vertexIndices = (int*)malloc((size_t)gBoxSizeXYZ * sizeof(int));   // this one never needs realloc
     // These may be reallocated as we go.
     gModel.vertexListSize = startNumVerts;
-    gModel.vertices = (Point*)malloc(startNumVerts * sizeof(Point));
+    gModel.vertices = (ExportPoint*)malloc((size_t)startNumVerts * sizeof(ExportPoint));
     if ((gModel.vertexIndices == NULL) || (gModel.vertices == NULL))
     {
         return MW_WORLD_EXPORT_TOO_LARGE;
@@ -5183,7 +5188,7 @@ static void transformVertices(int count, float mtx[4][4])
     if (!validRange) return;
     for (vert = gModel.vertexCount - count; vert < gModel.vertexCount; vert++)
     {
-        Point resVertex;
+        ExportPoint resVertex;
         for (i = 0; i < 3; i++)
         {
             resVertex[i] = mtx[3][i];   // translation
@@ -5398,6 +5403,15 @@ static bool fenceNeighbor(int type, int boxIndex, int blockSide)
 // return 1 if block processed as a billboard or true geometry
 static int saveBillboardOrGeometry(int boxIndex, int type)
 {
+    if (IsModBlock(type)) {
+        // Imported models bypass the legacy emitters that register occupied bounds.
+        // Keep world-space bounds even when their shared instance already exists.
+        IPoint occupied;
+        boxIndexToLoc(occupied, boxIndex);
+        addBounds(occupied, &gModel.billboardBounds);
+        VecScalar(occupied, +=, 1);
+        addBounds(occupied, &gModel.billboardBounds);
+    }
     int dataVal, faceMask, tbFaceMask;
     float minx, maxx, miny, maxy, minz, maxz, bitAdd;
     int swatchLoc, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc;
@@ -5455,13 +5469,13 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         //loc derives from boxIndex here:
         IPoint iloc;
         boxIndexToLoc(iloc, boxIndex);
-        float anchorPt[3];
+        double anchorPt[3];
         //anchorPt[X] = (float)((float)iloc[X] - gModel.center[X]) * gModel.scale * gUnitsScale;
         //anchorPt[Y] = (float)((float)iloc[Y] - gModel.center[Y]) * gModel.scale * gUnitsScale;
         //anchorPt[Z] = (float)((float)iloc[Z] - gModel.center[Z]) * gModel.scale * gUnitsScale;
-        anchorPt[X] = (float)iloc[X];
-        anchorPt[Y] = (float)iloc[Y];
-        anchorPt[Z] = (float)iloc[Z];
+        anchorPt[X] = (double)iloc[X];
+        anchorPt[Y] = (double)iloc[Y];
+        anchorPt[Z] = (double)iloc[Z];
         // save instance location and ID and faceCount start to a long list.
         if (!saveInstanceLocation(anchorPt, instanceID))
             return retCode | MW_WORLD_EXPORT_TOO_LARGE;
@@ -16701,10 +16715,9 @@ static int saveTriangleGeometry(int type, int dataVal, int boxIndex, int typeBel
     Point2 uvs[3];
     int i, startVertexIndex;
     IPoint anchor;
-    Point* vertices;
+    ExportPoint* vertices;
     int retCode = MW_NO_ERROR;
 
-    vertices = &gModel.vertices[gModel.vertexCount];
     startVertexIndex = gModel.vertexCount;
 
     // box value - compute now. Used for billboard output and adding to bounds (e.g., the torch doesn't actually output anything here,
@@ -16713,7 +16726,7 @@ static int saveTriangleGeometry(int type, int dataVal, int boxIndex, int typeBel
 
     for (i = 0; i < 8; i++)
     {
-        float* pt;
+        double* pt;
         Point cornerVertex;
         Vec3Scalar(cornerVertex, =, (i & 0x4) ? 1.0f : 0.0f, (i & 0x2) ? 1.0f : 0.0f, (i & 0x1) ? 1.0f : 0.0f);
 
@@ -16721,15 +16734,18 @@ static int saveTriangleGeometry(int type, int dataVal, int boxIndex, int typeBel
         retCode |= checkVertexListSize();
         if (retCode >= MW_BEGIN_ERRORS) return retCode;
 
-        pt = (float*)gModel.vertices[gModel.vertexCount];
+        pt = gModel.vertices[gModel.vertexCount];
 
-        pt[X] = (float)anchor[X] + cornerVertex[X];
-        pt[Y] = (float)anchor[Y] + cornerVertex[Y];
-        pt[Z] = (float)anchor[Z] + cornerVertex[Z];
+        pt[X] = (double)anchor[X] + cornerVertex[X];
+        pt[Y] = (double)anchor[Y] + cornerVertex[Y];
+        pt[Z] = (double)anchor[Z] + cornerVertex[Z];
 
         gModel.vertexCount++;
         assert(gModel.vertexCount <= gModel.vertexListSize);
     }
+
+    // Growth while emitting the eight corners may have relocated the array.
+    vertices = &gModel.vertices[startVertexIndex];
 
     // top UVs are always the same
     vindex[0] = 0x2 | 0x4;		// xmax, zmin
@@ -17584,7 +17600,7 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
         }
         for (i = 0; i < 8; i++)
         {
-            float* pt;
+            double* pt;
             Point cornerVertex;
             Vec3Scalar(cornerVertex, =, (i & 0x4) ? fmaxx : fminx, (i & 0x2) ? fmaxy : fminy, (i & 0x1) ? fmaxz : fminz);
 
@@ -17592,11 +17608,11 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
             retCode |= checkVertexListSize();
             if (retCode >= MW_BEGIN_ERRORS) return retCode;
 
-            pt = (float*)gModel.vertices[gModel.vertexCount];
+            pt = gModel.vertices[gModel.vertexCount];
 
-            pt[X] = (float)anchor[X] + cornerVertex[X];
-            pt[Y] = (float)anchor[Y] + cornerVertex[Y];
-            pt[Z] = (float)anchor[Z] + cornerVertex[Z];
+            pt[X] = (double)anchor[X] + cornerVertex[X];
+            pt[Y] = (double)anchor[Y] + cornerVertex[Y];
+            pt[Z] = (double)anchor[Z] + cornerVertex[Z];
 
             gModel.vertexCount++;
             assert(gModel.vertexCount <= gModel.vertexListSize);
@@ -17936,10 +17952,10 @@ static int saveBoxCustomUVVertices(int boxIndex, float minPixX, float maxPixX, f
         if (checkVertexListSize() >= MW_BEGIN_ERRORS)
             return -1;
 
-        float* pt = (float*)gModel.vertices[gModel.vertexCount];
-        pt[X] = (float)anchor[X] + cornerVertex[X];
-        pt[Y] = (float)anchor[Y] + cornerVertex[Y];
-        pt[Z] = (float)anchor[Z] + cornerVertex[Z];
+        double* pt = gModel.vertices[gModel.vertexCount];
+        pt[X] = (double)anchor[X] + cornerVertex[X];
+        pt[Y] = (double)anchor[Y] + cornerVertex[Y];
+        pt[Z] = (double)anchor[Z] + cornerVertex[Z];
 
         gModel.vertexCount++;
         assert(gModel.vertexCount <= gModel.vertexListSize);
@@ -18008,13 +18024,13 @@ static int saveRepeatedModFace(int type, int dataVal, int direction, int markFir
             }
             for (int fan = 1; fan + 1 < size; ++fan) {
                 const RepeatedModVertex corners[3] = {clipped[0],clipped[fan],clipped[fan+1]};
-                float positions[3][3], a[3], b[3], cross[3];
-                for (int i = 0; i < 3; ++i) for (int c = 0; c < 3; ++c) positions[i][c] = (float)corners[i].position[c];
+                double positions[3][3], a[3], b[3], cross[3];
+                for (int i = 0; i < 3; ++i) for (int c = 0; c < 3; ++c) positions[i][c] = corners[i].position[c];
                 for (int c = 0; c < 3; ++c) { a[c] = positions[1][c]-positions[0][c]; b[c] = positions[2][c]-positions[0][c]; }
                 VecCross(cross, =, a, X, b);
-                const float area = VecDot(cross, cross);
+                const double area = VecDot(cross, cross);
                 if (!std::isfinite(area)) return MW_WORLD_EXPORT_TOO_LARGE;
-                if (area == 0) continue; // Shared clip boundaries and float-collapsed slivers have no surface.
+                if (area == 0) continue; // Shared clip boundaries have no surface.
                 if (++emitted > MAX_MOD_UV_CELLS * 10) return MW_WORLD_EXPORT_TOO_LARGE;
                 const int base = gModel.vertexCount;
                 int vertexIndices[4] = {0,1,2,2}, textureIndices[4] = {};
@@ -18246,12 +18262,12 @@ static int saveModPolygons(int boxIndex, int type, int dataVal, const ModModel& 
         const int swatch = sourceTexture ? gModTextureSwatches[polygon.texture] : colorSwatch(type);
         for (int i = 0; i < polygon.count; ++i) {
             if (checkVertexListSize() >= MW_BEGIN_ERRORS) return MW_WORLD_EXPORT_TOO_LARGE;
-            float position[3];
-            for (int axis = 0; axis < 3; ++axis) position[axis] = polygon.vertices[i][axis] - 8.0f;
-            for (int q = 0; q < model.z / 90; ++q) { const float x = position[0]; position[0] = position[1]; position[1] = -x; }
-            for (int q = 0; q < model.x / 90; ++q) { const float y = position[1]; position[1] = position[2]; position[2] = -y; }
-            for (int q = 0; q < model.y / 90; ++q) { const float x = position[0]; position[0] = -position[2]; position[2] = x; }
-            for (int axis = 0; axis < 3; ++axis) gModel.vertices[gModel.vertexCount][axis] = (float)anchor[axis] + (position[axis] + 8.0f) / 16.0f;
+            double position[3];
+            for (int axis = 0; axis < 3; ++axis) position[axis] = (double)polygon.vertices[i][axis] - 8.0;
+            for (int q = 0; q < model.z / 90; ++q) { const double x = position[0]; position[0] = position[1]; position[1] = -x; }
+            for (int q = 0; q < model.x / 90; ++q) { const double y = position[1]; position[1] = position[2]; position[2] = -y; }
+            for (int q = 0; q < model.y / 90; ++q) { const double x = position[0]; position[0] = -position[2]; position[2] = x; }
+            for (int axis = 0; axis < 3; ++axis) gModel.vertices[gModel.vertexCount][axis] = (double)anchor[axis] + (position[axis] + 8.0) / 16.0;
             ++gModel.vertexCount;
             finalUV[i][0] = polygon.vertices[i][3] / 16.0f;
             finalUV[i][1] = 1.0f - polygon.vertices[i][4] / 16.0f;
@@ -20485,15 +20501,15 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
                     for (j = 0; j < 4; j++)
                     {
                         // get vertex location and store location
-                        float* pt;
+                        double* pt;
                         retCode |= checkVertexListSize();
                         if (retCode >= MW_BEGIN_ERRORS) return retCode;
 
-                        pt = (float*)gModel.vertices[gModel.vertexCount];
+                        pt = gModel.vertices[gModel.vertexCount];
 
-                        pt[X] = (float)(anchor[X] + vertexOffsets[fc][j][X]);
-                        pt[Y] = (float)(anchor[Y] + vertexOffsets[fc][j][Y]);
-                        pt[Z] = (float)(anchor[Z] + vertexOffsets[fc][j][Z]);
+                        pt[X] = (double)anchor[X] + vertexOffsets[fc][j][X];
+                        pt[Y] = (double)anchor[Y] + vertexOffsets[fc][j][Y];
+                        pt[Z] = (double)anchor[Z] + vertexOffsets[fc][j][Z];
 
                         face->vertexIndex[j] = startVertexCount + j;
                         if (gModel.exportTexture)
@@ -20839,14 +20855,14 @@ static int checkVertexListSize()
     if (gModel.vertexCount == gModel.vertexListSize)
     {
         int newSize;
-        if (!expandedListSize(gModel.vertexListSize, sizeof(Point), &newSize))
+        if (!expandedListSize(gModel.vertexListSize, sizeof(ExportPoint), &newSize))
             return MW_WORLD_EXPORT_TOO_LARGE;
-        Point* vertices = (Point*)malloc((size_t)newSize * sizeof(Point));
+        ExportPoint* vertices = (ExportPoint*)malloc((size_t)newSize * sizeof(ExportPoint));
         if (vertices == NULL)
         {
             return MW_WORLD_EXPORT_TOO_LARGE;
         }
-        memcpy(vertices, gModel.vertices, gModel.vertexCount * sizeof(Point));
+        memcpy(vertices, gModel.vertices, (size_t)gModel.vertexCount * sizeof(ExportPoint));
         free(gModel.vertices);
         gModel.vertices = vertices;
         gModel.vertexListSize = newSize;
@@ -23209,7 +23225,7 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
         }
 
         // The bottom of the solid box's original bounds is set to be the "0" level when outputting a level.
-        gModel.center[Y] = (float)minOffset[Y];
+        gModel.center[Y] = (double)minOffset[Y];
 
         // We now take the lower bounds offset for the amount to subtract from the X and Z location. We also subtract
         // half the length of the whole box from the output location (rounded to a whole number) so that the model is
@@ -23217,13 +23233,13 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
         // Note that we don't perfectly center all the time but instead round, which makes the blocks
         // align with whole numbers. If you output in meters, you get no fractions, so get
         // a smaller and slightly more accurate OBJ file.
-        gModel.center[X] = (float)(minOffset[X] + floor((float)(worldBox->max[X] - worldBox->min[X] + 1) / 2.0f));
-        gModel.center[Z] = (float)(minOffset[Z] + floor((float)(worldBox->max[Z] - worldBox->min[Z] + 1) / 2.0f));
+        gModel.center[X] = minOffset[X] + floor(((double)worldBox->max[X] - worldBox->min[X] + 1.0) / 2.0);
+        gModel.center[Z] = minOffset[Z] + floor(((double)worldBox->max[Z] - worldBox->min[Z] + 1.0) / 2.0);
     }
     else
     {
         // keep world coordinates (may get rescaled, of course)
-        Vec2Op(gModel.center, =, (float)gWorld2BoxOffset);
+        Vec2Op(gModel.center, =, (double)gWorld2BoxOffset);
     }
 
     // get the normals into their proper orientations.
@@ -23278,13 +23294,13 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
                         }
                         // Whatever the case, store the instance location, which is the stored gModel.faceCount,
                         // which points at the next set of faces
-                        float anchorPt[3];
+                        double anchorPt[3];
                         //anchorPt[X] = (float)((float)iloc[X] - gModel.center[X]) * gModel.scale * gUnitsScale;
                         //anchorPt[Y] = (float)((float)iloc[Y] - gModel.center[Y]) * gModel.scale * gUnitsScale;
                         //anchorPt[Z] = (float)((float)iloc[Z] - gModel.center[Z]) * gModel.scale * gUnitsScale;
-                        anchorPt[X] = (float)loc[X];
-                        anchorPt[Y] = (float)loc[Y];
-                        anchorPt[Z] = (float)loc[Z];
+                        anchorPt[X] = (double)loc[X];
+                        anchorPt[Y] = (double)loc[Y];
+                        anchorPt[Z] = (double)loc[Z];
                         // save instance location and ID to a long list. ID points to the created instance, which has the faceID
                         if (!saveInstanceLocation(anchorPt, instanceID))
                             return retCode | MW_WORLD_EXPORT_TOO_LARGE;
@@ -23349,12 +23365,12 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
     if (!gModel.instancing) {
         for (i = 0; i < gModel.vertexCount; i++)
         {
-            float* pt = (float*)gModel.vertices[i];
-            float anchor[3];
+            double* pt = gModel.vertices[i];
+            ExportPoint anchor;
             Vec2Op(anchor, =, gModel.vertices[i]);
-            pt[X] = (float)(anchor[X] - gModel.center[X]) * gModel.scale * gUnitsScale;
-            pt[Y] = (float)(anchor[Y] - gModel.center[Y]) * gModel.scale * gUnitsScale;
-            pt[Z] = (float)(anchor[Z] - gModel.center[Z]) * gModel.scale * gUnitsScale;
+            pt[X] = (anchor[X] - (double)gModel.center[X]) * gModel.scale * gUnitsScale;
+            pt[Y] = (anchor[Y] - (double)gModel.center[Y]) * gModel.scale * gUnitsScale;
+            pt[Z] = (anchor[Z] - (double)gModel.center[Z]) * gModel.scale * gUnitsScale;
 
             // rotate location as needed
             rotateLocation(pt);
@@ -23498,8 +23514,20 @@ static bool findInstance(int type, int dataVal, int& instanceID)
     return false;
 }
 
-static bool saveInstanceLocation(float* anchorPt, int instanceID)
+static bool saveInstanceLocation(const double* anchorPt, int instanceID)
 {
+    Point location;
+    for (int axis = 0; axis < 3; ++axis) {
+        const double value = anchorPt[axis] - (gModel.options->pEFD->chkCenterModel ? 0.0 : (double)gWorld2BoxOffset[axis]);
+        // USD point-instancer positions are float32, including their integer anchors.
+        if (!std::isfinite(value) || fabs(value) > (std::numeric_limits<float>::max)() || (double)(float)value != value) {
+            gModExportError = "USD instance positions cannot preserve these world coordinates. "
+                "Export Wavefront OBJ or ASCII STL to retain double-precision positions.";
+            fprintf(stderr, "%s\n", gModExportError.c_str());
+            return false;
+        }
+        location[axis] = (float)value;
+    }
     // make room
     if (gModel.instanceLocCount == gModel.instanceLocListSize)
     {
@@ -23518,9 +23546,7 @@ static bool saveInstanceLocation(float* anchorPt, int instanceID)
 
     InstanceLocation* bil = &gModel.instanceLoc[gModel.instanceLocCount++];
     bil->index = instanceID;
-    for (int i = 0; i < 3; i++) {
-        bil->location[i] = anchorPt[i] - (gModel.options->pEFD->chkCenterModel ? 0.0f : (float)gWorld2BoxOffset[i]);
-    }
+    Vec2Op(bil->location, =, location);
     return true;
 }
 
@@ -23784,9 +23810,9 @@ static int getDimensionsAndCount(Point dimensions)
 }
 
 
-static void rotateLocation(Point pt)
+template <typename T> static void rotateLocation(T* pt)
 {
-    float tempf;
+    T tempf;
 
     // check if rotation around an axis
     if (!gModel.options->pEFD->radioRotate0)
@@ -24708,7 +24734,7 @@ static int saveSpecialVertices(int boxIndex, int faceDirection, IPoint loc, floa
     int vertexIndex;
     int i;
     IPoint offset;
-    float* pt;
+    double* pt;
     int retCode = MW_NO_ERROR;
 
     // four vertices to output, check that they exist
@@ -24745,11 +24771,11 @@ static int saveSpecialVertices(int boxIndex, int faceDirection, IPoint loc, floa
                 if (retCode >= MW_BEGIN_ERRORS) return retCode;
 
                 heightIndices[heightLoc] = gModel.vertexCount;
-                pt = (float*)gModel.vertices[gModel.vertexCount];
+                pt = gModel.vertices[gModel.vertexCount];
 
-                pt[X] = (float)(loc[X] + offset[X]);
-                pt[Y] = (float)loc[Y] + heights[heightLoc];
-                pt[Z] = (float)(loc[Z] + offset[Z]);
+                pt[X] = (double)loc[X] + offset[X];
+                pt[Y] = (double)loc[Y] + heights[heightLoc];
+                pt[Z] = (double)loc[Z] + offset[Z];
 
                 gModel.vertexCount++;
                 assert(gModel.vertexCount <= gModel.vertexListSize);
@@ -24765,16 +24791,16 @@ static int saveSpecialVertices(int boxIndex, int faceDirection, IPoint loc, floa
                 if (retCode >= MW_BEGIN_ERRORS) return retCode;
 
                 gModel.vertexIndices[vertexIndex] = gModel.vertexCount;
-                pt = (float*)gModel.vertices[gModel.vertexCount];
+                pt = gModel.vertices[gModel.vertexCount];
 
                 // for now, we use exactly the same coordinates as Minecraft does.
                 //xOut = (float)(1-gWorld2BoxOffset[X] + xloc + xoff);
                 //yOut = (float)(1-gWorld2BoxOffset[Y] + yloc + yoff);
                 //zOut = (float)(1-gWorld2BoxOffset[Z] + zloc + zoff);
                 // centered on origin, good for Blender import. I put Y==0, X & Z centered
-                pt[X] = (float)(loc[X] + offset[X]);
-                pt[Y] = (float)(loc[Y] + offset[Y]);
-                pt[Z] = (float)(loc[Z] + offset[Z]);
+                pt[X] = (double)loc[X] + offset[X];
+                pt[Y] = (double)loc[Y] + offset[Y];
+                pt[Z] = (double)loc[Z] + offset[Z];
 
                 gModel.vertexCount++;
                 assert(gModel.vertexCount <= gModel.vertexListSize);
@@ -24791,7 +24817,7 @@ static int saveVertices(int boxIndex, int faceDirection, IPoint loc)
     int vertexIndex;  // cppcheck-suppress 398
     int i;
     IPoint offset;
-    float* pt;
+    double* pt;
     int retCode = MW_NO_ERROR;
 
     // four vertices to output, check that they exist
@@ -24820,16 +24846,16 @@ static int saveVertices(int boxIndex, int faceDirection, IPoint loc)
             if (retCode >= MW_BEGIN_ERRORS) return retCode;
 
             gModel.vertexIndices[vertexIndex] = gModel.vertexCount;
-            pt = (float*)gModel.vertices[gModel.vertexCount];
+            pt = gModel.vertices[gModel.vertexCount];
 
             // for now, we use exactly the same coordinates as Minecraft does.
             //xOut = (float)(1-gWorld2BoxOffset[X] + xloc + xoff);
             //yOut = (float)(1-gWorld2BoxOffset[Y] + yloc + yoff);
             //zOut = (float)(1-gWorld2BoxOffset[Z] + zloc + zoff);
             // centered on origin, good for Blender import. I put Y==0, X & Z centered
-            pt[X] = (float)(loc[X] + offset[X]);
-            pt[Y] = (float)(loc[Y] + offset[Y]);
-            pt[Z] = (float)(loc[Z] + offset[Z]);
+            pt[X] = (double)loc[X] + offset[X];
+            pt[Y] = (double)loc[Y] + offset[Y];
+            pt[Z] = (double)loc[Z] + offset[Z];
 
             gModel.vertexCount++;
             assert(gModel.vertexCount <= gModel.vertexListSize);
@@ -31137,23 +31163,64 @@ static void freeModel(Model* pModel)
     }
 }
 
+// Run before opening model/material files. Float-only formats cannot represent
+// every thin face at large offsets. Do not write collapsed or reversed geometry.
+static int validateExportPrecision()
+{
+    const int format = gModel.options->pEFD->fileType;
+    const bool floatPositions = format == FILE_TYPE_USD || format == FILE_TYPE_VRML2 ||
+        format == FILE_TYPE_BINARY_MAGICS_STL || format == FILE_TYPE_BINARY_VISCAM_STL;
+    auto fail = [&]() {
+        gModExportError = "The selected output format cannot preserve a thin face at these coordinates. "
+            "Export Wavefront OBJ or ASCII STL to retain double-precision positions.";
+        fprintf(stderr, "%s\n", gModExportError.c_str());
+        return MW_WORLD_EXPORT_TOO_LARGE;
+    };
+    for (int i = 0; i < gModel.vertexCount; ++i) for (int axis = 0; axis < 3; ++axis) {
+        const double value = gModel.vertices[i][axis];
+        if (!std::isfinite(value) || (floatPositions && fabs(value) > (std::numeric_limits<float>::max)())) return fail();
+    }
+    if (!floatPositions) return MW_NO_ERROR;
+    for (int i = 0; i < gModel.faceCount; ++i) {
+        const FaceRecord* face = gModel.faceList[i];
+        const int count = face->vertexIndex[2] == face->vertexIndex[3] ? 3 : 4;
+        ExportPoint rounded[4];
+        for (int corner = 0; corner < count; ++corner) for (int axis = 0; axis < 3; ++axis)
+            rounded[corner][axis] = (double)(float)gModel.vertices[face->vertexIndex[corner]][axis];
+        // Check both diagonals: STL may choose either based on the face normal.
+        for (int corner = 0; corner < (count == 3 ? 1 : 4); ++corner) {
+            const int b = (corner + 1) % count, c = (corner + 2) % count;
+            ExportPoint a1, a2, sourceCross, b1, b2, outputCross;
+            Vec3Op(a1, =, gModel.vertices[face->vertexIndex[b]], -, gModel.vertices[face->vertexIndex[corner]]);
+            Vec3Op(a2, =, gModel.vertices[face->vertexIndex[c]], -, gModel.vertices[face->vertexIndex[corner]]);
+            Vec3Op(b1, =, rounded[b], -, rounded[corner]);
+            Vec3Op(b2, =, rounded[c], -, rounded[corner]);
+            VecCross(sourceCross, =, a1, X, a2);
+            VecCross(outputCross, =, b1, X, b2);
+            const double sourceArea = VecDot(sourceCross, sourceCross);
+            if (sourceArea > 0 && !(VecDot(sourceCross, outputCross) > 0)) return fail();
+        }
+    }
+    return MW_NO_ERROR;
+}
+
 static int findMatchingNormal(FaceRecord* pFace, Vector normal, Vector* normalList, int normalListCount)
 {
     // compute the normal for a face
-    Vector edge1, edge2;
+    ExportPoint edge1, edge2, cross;
     int index0 = pFace->vertexIndex[0];
     Vec3Op(edge1, =, gModel.vertices[index0], -, gModel.vertices[pFace->vertexIndex[1]]);
     Vec3Op(edge2, =, gModel.vertices[index0], -, gModel.vertices[pFace->vertexIndex[2]]);
-    VecCross(normal, =, edge1, X, edge2);
-    float vecdot = VecDot(normal, normal);
+    VecCross(cross, =, edge1, X, edge2);
+    double vecdot = VecDot(cross, cross);
     if (vecdot == 0.0f)
     {
         // the triangle has no area; assert, return index of 0 since it doesn't matter
         assert(0);
         return 0;
     }
-    vecdot = (float)(1.0 / sqrt(vecdot));
-    VecScalar(normal, *=, vecdot);
+    vecdot = 1.0 / sqrt(vecdot);
+    for (int axis = 0; axis < 3; ++axis) normal[axis] = (float)(cross[axis] * vecdot);
 
     // find a close match for the normal
     for (int i = 0; i < normalListCount; i++)
@@ -31164,7 +31231,7 @@ static int findMatchingNormal(FaceRecord* pFace, Vector normal, Vector* normalLi
             // good match! See how much tolerance is needed
             static float minMatch = 1.0f;
             if (vecdot < minMatch)
-                minMatch = vecdot;
+                minMatch = (float)vecdot;
 
             return i;
         }
@@ -31206,13 +31273,13 @@ static int resolveFaceNormals()
         if (pFace->normalIndex == COMPUTE_NORMAL)
         {
             if (IsModBlock(pFace->materialType)) {
-                // Valid source faces can collapse after float anchor/scale conversion.
+                // Reject nonfinite or degenerate transformed source faces.
                 // Reject that export before the legacy normal routine asserts or divides by zero.
-                Vector a, b, cross;
+                ExportPoint a, b, cross;
                 Vec3Op(a, =, gModel.vertices[pFace->vertexIndex[0]], -, gModel.vertices[pFace->vertexIndex[1]]);
                 Vec3Op(b, =, gModel.vertices[pFace->vertexIndex[0]], -, gModel.vertices[pFace->vertexIndex[2]]);
                 VecCross(cross, =, a, X, b);
-                const float lengthSquared = VecDot(cross, cross);
+                const double lengthSquared = VecDot(cross, cross);
                 if (!(lengthSquared > 0.0f) || !std::isfinite(lengthSquared)) return MW_WORLD_EXPORT_TOO_LARGE;
             }
             // Object may have undergone a transform that changes its normal, so we need to compute
@@ -31806,9 +31873,8 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
             UPDATE_STATUS(gProgress.start.output + gProgress.absolute.output * 0.5f * ((float)i / (float)gModel.vertexCount), statusString);
         }
 
-        // 8 significant digits, a float's full precision: with %g's 6, a vertex at a world coordinate in the hundreds can be off
-        // by 1/100th of a pixel, which distorts the texturing of thin parts, such as a tripwire's half-pixel string
-        sprintf_s(outputString, 256, "v %.8g %.8g %.8g\n", gModel.vertices[i][X], gModel.vertices[i][Y], gModel.vertices[i][Z]);
+        // Seventeen significant digits round-trip double positions, including thin features at large offsets.
+        sprintf_s(outputString, 256, "v %.17g %.17g %.17g\n", gModel.vertices[i][X], gModel.vertices[i][Y], gModel.vertices[i][Z]);
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     }
 
@@ -34030,7 +34096,7 @@ static int writeBinarySTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tigh
     int retCode = MW_NO_ERROR;
 
     FaceRecord* pFace;
-    Point* vertex[4];
+    ExportPoint* vertex[4];
     // Normally each face has two triangles; triangle faces have only one, so subtract the "extra faces"
     // due to multiplying by two.
     unsigned int numTri = gModel.faceCount * 2 - gModel.triangleCount;
@@ -34128,9 +34194,12 @@ static int writeBinarySTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tigh
             WERROR_MODEL(PortaWrite(gModelFile, &gModel.normals[pFace->normalIndex], 12));
 
             // two triangles: 0 1 2 and 0 2 3 (or 1 2 3 and 1 3 0)
-            WERROR_MODEL(PortaWrite(gModelFile, vertex[offset], 12));
-            WERROR_MODEL(PortaWrite(gModelFile, vertex[offset + i + 1], 12));
-            WERROR_MODEL(PortaWrite(gModelFile, vertex[(offset + i + 2) % 4], 12));
+            const int corners[3] = {offset, offset + i + 1, (offset + i + 2) % 4};
+            for (int corner = 0; corner < 3; ++corner) {
+                Point output;
+                for (int axis = 0; axis < 3; ++axis) output[axis] = (float)(*vertex[corners[corner]])[axis];
+                WERROR_MODEL(PortaWrite(gModelFile, output, sizeof(output)));
+            }
 
             if (writeColor)
             {
@@ -34202,7 +34271,7 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
 
     int normalIndex;  // cppcheck-suppress 398
     FaceRecord* pFace;
-    Point* vertex[4], * pt;
+    ExportPoint* vertex[4], * pt;
 
     concatFileName3(stlFileNameWithSuffix, gOutputFilePath, gOutputFileRoot, L".stl");
 
@@ -34278,13 +34347,13 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
 
             // two triangles: 0 1 2 and 0 2 3 (or 1 2 3 and 1 3 0)
             pt = vertex[offset];
-            sprintf_s(outputString, 256, "vertex  %e %e %e\n", (double)((*pt)[X]), (double)((*pt)[Y]), (double)((*pt)[Z]));
+            sprintf_s(outputString, 256, "vertex  %.17g %.17g %.17g\n", (double)((*pt)[X]), (double)((*pt)[Y]), (double)((*pt)[Z]));
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             pt = vertex[(offset + i + 1) % 4];	// shouldn't need % 4, but let's be safe, and makes cppcheck happy
-            sprintf_s(outputString, 256, "vertex  %e %e %e\n", (double)((*pt)[X]), (double)((*pt)[Y]), (double)((*pt)[Z]));
+            sprintf_s(outputString, 256, "vertex  %.17g %.17g %.17g\n", (double)((*pt)[X]), (double)((*pt)[Y]), (double)((*pt)[Z]));
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             pt = vertex[(offset + i + 2) % 4];  // cppcheck-suppress 457 - no, this really is initialized
-            sprintf_s(outputString, 256, "vertex  %e %e %e\n", (double)((*pt)[X]), (double)((*pt)[Y]), (double)((*pt)[Z]));
+            sprintf_s(outputString, 256, "vertex  %.17g %.17g %.17g\n", (double)((*pt)[X]), (double)((*pt)[Y]), (double)((*pt)[Z]));
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
             WERROR_MODEL(PortaWrite(gModelFile, "endloop\nendfacet\n", strlen("endloop\nendfacet\n")));
@@ -34439,11 +34508,11 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
                 if (j == gModel.vertexCount - 1)
                 {
                     // no comma at end
-                    sprintf_s(outputString, 256, "            %g %g %g\n", gModel.vertices[j][X], gModel.vertices[j][Y], gModel.vertices[j][Z]);
+                    sprintf_s(outputString, 256, "            %.9g %.9g %.9g\n", (float)gModel.vertices[j][X], (float)gModel.vertices[j][Y], (float)gModel.vertices[j][Z]);
                 }
                 else
                 {
-                    sprintf_s(outputString, 256, "            %g %g %g,\n", gModel.vertices[j][X], gModel.vertices[j][Y], gModel.vertices[j][Z]);
+                    sprintf_s(outputString, 256, "            %.9g %.9g %.9g,\n", (float)gModel.vertices[j][X], (float)gModel.vertices[j][Y], (float)gModel.vertices[j][Z]);
                 }
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             }
@@ -34971,7 +35040,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
                     UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)i / doubleCount));
                     progressTick += progressIncrement;
                 }
-                sprintf_s(outputString, 256, "(%g, %g, %g)%s", pil->location[X], pil->location[Y], pil->location[Z], (i == gModel.instanceLocCount - 1) ? "]\n" : ",");
+                sprintf_s(outputString, 256, "(%.9g, %.9g, %.9g)%s", pil->location[X], pil->location[Y], pil->location[Z], (i == gModel.instanceLocCount - 1) ? "]\n" : ",");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 pil++;
             }
@@ -35087,7 +35156,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
 
                 pil = &gModel.instanceLoc[startInstance];
                 for (i = startInstance; i < endInstance; i++) {
-                    sprintf_s(outputString, 256, "(%g, %g, %g)%s", pil->location[X], pil->location[Y], pil->location[Z], (i == endInstance - 1) ? "]\n" : ",");
+                    sprintf_s(outputString, 256, "(%.9g, %.9g, %.9g)%s", pil->location[X], pil->location[Y], pil->location[Z], (i == endInstance - 1) ? "]\n" : ",");
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                     pil++;
                 }
@@ -35420,10 +35489,10 @@ static int addCameraUSD()
     maxSize *= scale;
 
     // get center - it's half the axis sizes minus gModel.center (more or less)
-    Point center;
-    Vec3Op(center, =, 0.5f * (float)axisSizes, -, (float)gModel.center);
-    Point loc;
-    Vec2Op(loc, =, (float)(1.0/sqrt(3.0f)) * maxSize + 100.0f * center);
+    ExportPoint center;
+    Vec3Op(center, =, 0.5 * (double)axisSizes, -, gModel.center);
+    ExportPoint loc;
+    Vec2Op(loc, =, (1.0/sqrt(3.0)) * maxSize + 100.0 * center);
 
     strcpy_s(outputString, 256, "    def Camera \"Camera\" (\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -35473,7 +35542,7 @@ static int addCameraUSD()
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "        float3 xformOp:scale = (1, 1, 1)\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    sprintf_s(outputString, 256, "        double3 xformOp:translate = (%f, %f, %f)\n", loc[0], loc[1], loc[2]);
+    sprintf_s(outputString, 256, "        double3 xformOp:translate = (%.17g, %.17g, %.17g)\n", loc[0], loc[1], loc[2]);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "        uniform token[] xformOpOrder = [\"xformOp:translate\", \"xformOp:rotateZXY\", \"xformOp:scale\"]\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -35881,7 +35950,7 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
             gOutData.indices[iv] = iv;
 
             // We expand here, only to then turn around and compress these lists later on output. A bit wasteful, could be done better? TODO
-            Vec3Scalar(gOutData.points[iv], =, gModel.vertices[pFace->vertexIndex[j]][X], gModel.vertices[pFace->vertexIndex[j]][Y], gModel.vertices[pFace->vertexIndex[j]][Z]);
+            Vec3Scalar(gOutData.points[iv], =, (float)gModel.vertices[pFace->vertexIndex[j]][X], (float)gModel.vertices[pFace->vertexIndex[j]][Y], (float)gModel.vertices[pFace->vertexIndex[j]][Z]);
             assert(pFace->normalIndex >= 0);
             Vec3Scalar(gOutData.normals[iv], =, gModel.normals[pFace->normalIndex][X], gModel.normals[pFace->normalIndex][Y], gModel.normals[pFace->normalIndex][Z]);
 
@@ -36006,7 +36075,7 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
         strcpy_s(outputString, 256, "            point3f[] points = [");
         WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
         for (i = 0; i < numVerts; i++) {
-            sprintf_s(outputString, 256, "(%g, %g, %g)%s", gOutData.points[i][X], gOutData.points[i][Y], gOutData.points[i][Z], (i == numVerts - 1) ? "]\n" : ", ");
+            sprintf_s(outputString, 256, "(%.9g, %.9g, %.9g)%s", gOutData.points[i][X], gOutData.points[i][Y], gOutData.points[i][Z], (i == numVerts - 1) ? "]\n" : ", ");
             WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
         }
 
@@ -36065,7 +36134,7 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
         strcpy_s(outputString, 256, "            point3f[] points = [");
         WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
         for (i = 0; i < gOutData.vertCountWelded; i++) {
-            sprintf_s(outputString, 256, "(%g, %g, %g)%s", (gOutData.welded[i])[0][X], (gOutData.welded[i])[0][Y], (gOutData.welded[i])[0][Z], (i == gOutData.vertCountWelded - 1) ? "]\n" : ", ");
+            sprintf_s(outputString, 256, "(%.9g, %.9g, %.9g)%s", (gOutData.welded[i])[0][X], (gOutData.welded[i])[0][Y], (gOutData.welded[i])[0][Z], (i == gOutData.vertCountWelded - 1) ? "]\n" : ", ");
             WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
         }
 
@@ -36176,7 +36245,7 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
             strcpy_s(outputString, 256, "            point3f[] points = [");
             WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
             for (i = 0; i < numSegVertices; i++) {
-                sprintf_s(outputString, 256, "(%g, %g, %g)%s", gOutData.points[i + startVertex][X], gOutData.points[i + startVertex][Y], gOutData.points[i + startVertex][Z], (i == numSegVertices - 1) ? "]\n" : ", ");
+                sprintf_s(outputString, 256, "(%.9g, %.9g, %.9g)%s", gOutData.points[i + startVertex][X], gOutData.points[i + startVertex][Y], gOutData.points[i + startVertex][Z], (i == numSegVertices - 1) ? "]\n" : ", ");
                 WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
             }
 
@@ -40571,8 +40640,8 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
 
         // the translation vector from where the minecraft block coordinates are to where they are exported in the model
         // See https://github.com/jmc2obj/j-mc-2-obj/issues/243#issuecomment-2016341301
-        Point exportOffset;
-        Vec3Op(exportOffset, =, (float)gWorld2BoxOffset, -, gModel.center);
+        ExportPoint exportOffset;
+        Vec3Op(exportOffset, =, (double)gWorld2BoxOffset, -, gModel.center);
         sprintf_s(outputString, 256, "# export_offset: (%f, %f, %f)\n", exportOffset[X], exportOffset[Y], exportOffset[Z]);
         WRITE_STAT;
         // in meters, so divide by 1000.
@@ -42878,7 +42947,7 @@ static bool faceCanTile(int faceId)
 #ifdef _DEBUG
     // Final check, just for debug to make sure we didn't let anything through: are all coordinates (not in normal direction) non-fractional, 0-1'ish? Chests, I believe, get their texture squished to their dimension.
     // Things like wheat, nether wart, etc. do not go fully across the tile, OR may get randomized and so won't line up.
-    Vector loc;
+    ExportPoint loc;
     for (i = 0; i < 4; i++) {
         Vec3Scalar(loc, =, gModel.vertices[pFace->vertexIndex[i]][X], gModel.vertices[pFace->vertexIndex[i]][Y], gModel.vertices[pFace->vertexIndex[i]][Z]);
         switch(pFace->normalIndex % 3) {
@@ -42915,22 +42984,22 @@ static void extractZXYfromNormalAndBounds(FaceRecord* pFace, SimplifyFaceRecord*
     default:
         assert(0);
     case X:
-        pSimplifyFace->normalDistance = gModel.vertices[pFace->vertexIndex[0]][X];
+        pSimplifyFace->normalDistance = (float)(gModel.vertices[pFace->vertexIndex[0]][X]);
         // diagonally opposite corners!
-        pSimplifyFace->xll = min(gModel.vertices[pFace->vertexIndex[0]][Z], gModel.vertices[pFace->vertexIndex[2]][Z]);
-        pSimplifyFace->yll = min(gModel.vertices[pFace->vertexIndex[0]][Y], gModel.vertices[pFace->vertexIndex[2]][Y]);
+        pSimplifyFace->xll = (float)(min(gModel.vertices[pFace->vertexIndex[0]][Z], gModel.vertices[pFace->vertexIndex[2]][Z]));
+        pSimplifyFace->yll = (float)(min(gModel.vertices[pFace->vertexIndex[0]][Y], gModel.vertices[pFace->vertexIndex[2]][Y]));
         break;
     case Y:
-        pSimplifyFace->normalDistance = gModel.vertices[pFace->vertexIndex[0]][Y];
+        pSimplifyFace->normalDistance = (float)(gModel.vertices[pFace->vertexIndex[0]][Y]);
         // Note that the northwest corner of the top down view is considered the "lower left" corner
-        pSimplifyFace->xll = min(gModel.vertices[pFace->vertexIndex[0]][X], gModel.vertices[pFace->vertexIndex[2]][X]);
-        pSimplifyFace->yll = min(gModel.vertices[pFace->vertexIndex[0]][Z], gModel.vertices[pFace->vertexIndex[2]][Z]);
+        pSimplifyFace->xll = (float)(min(gModel.vertices[pFace->vertexIndex[0]][X], gModel.vertices[pFace->vertexIndex[2]][X]));
+        pSimplifyFace->yll = (float)(min(gModel.vertices[pFace->vertexIndex[0]][Z], gModel.vertices[pFace->vertexIndex[2]][Z]));
         break;
     case Z:
-        pSimplifyFace->normalDistance = gModel.vertices[pFace->vertexIndex[0]][Z];
+        pSimplifyFace->normalDistance = (float)(gModel.vertices[pFace->vertexIndex[0]][Z]);
         // diagonally opposite corners!
-        pSimplifyFace->xll = min(gModel.vertices[pFace->vertexIndex[0]][X], gModel.vertices[pFace->vertexIndex[2]][X]);
-        pSimplifyFace->yll = min(gModel.vertices[pFace->vertexIndex[0]][Y], gModel.vertices[pFace->vertexIndex[2]][Y]);
+        pSimplifyFace->xll = (float)(min(gModel.vertices[pFace->vertexIndex[0]][X], gModel.vertices[pFace->vertexIndex[2]][X]));
+        pSimplifyFace->yll = (float)(min(gModel.vertices[pFace->vertexIndex[0]][Y], gModel.vertices[pFace->vertexIndex[2]][Y]));
         break;
     }
 }

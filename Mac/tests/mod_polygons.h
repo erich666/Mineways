@@ -64,8 +64,7 @@ static void checkModPolygons(const std::filesystem::path& root)
         std::string error;
         assert(!LoadModPack(path.u8string(), error) && HasModBlock("fixture:obj_mesh"));
     }
-    // Distinct source vertices can collapse after conversion to float world coordinates.
-    // This must report an export error before the normal resolver sees zero area.
+    // Distinct source vertices must survive large offsets in double-precision OBJ output.
     {
         std::ofstream out(path);
         out << prefix << "polygon\t0\t3\t0\t0\t0\t0\t0\t0.0002\t0\t0\t16\t0\t0\t0.0002\t0\t0\t16\n"
@@ -80,9 +79,9 @@ static void checkModPolygons(const std::filesystem::path& root)
     values.front() = values.back() = (unsigned short)state;
     WorldGuide world = {}; world.type = WORLD_SCHEMATIC_TYPE;
     world.sch = {blocks.data(), values.data(), 1025, 1, 1, 1025, false, true};
-    exportWorld(world, root / "collapsed-polygon.obj", modes[0], true, false, false, true);
-    // Expanded UV clipping must also reject a wholly collapsed source face,
-    // rather than silently omit the block after skipping zero-area clip slivers.
+    exportWorld(world, root / "collapsed-polygon.obj", modes[0]);
+    readGeometryFaces(root / "collapsed-polygon.obj", 2);
+    // Expanded UV clipping must preserve the same tiny surfaces at large offsets.
     {
         std::ofstream out(path);
         out << "MINEWAYS_MOD_PACK\t5\ntexture\t0\tfixture:validation\tpolygon-validation.png\ngeometry\t0\n"
@@ -92,7 +91,8 @@ static void checkModPolygons(const std::filesystem::path& root)
     assert(LoadModPack(path.u8string(),error));
     assert(ResolveModState("fixture:tiny",&type,&state)==1);
     blocks.front()=blocks.back()=(unsigned short)type; values.front()=values.back()=(unsigned short)state;
-    exportWorld(world,root/"collapsed-repeated-polygon.obj",modes[0],true,false,false,true);
+    exportWorld(world,root/"collapsed-repeated-polygon.obj",modes[0]);
+    assert(countLines(readText(root/"collapsed-repeated-polygon.obj"), "f ") >= 8);
     ClearCache();
     assert(LoadModPack(originalPack, error));
 

@@ -207,6 +207,19 @@ def ie_split_assets(source):
     put(source, 'assets/fixture/blockstates/ie_split_position.json', {'variants':{'':{'model':'immersiveengineering:block/multiblocks/silo_split'}}})
 
 
+def numeric_multipart_assets(source):
+    """Two integer conditions select distinct original boxes for native tests."""
+    parts = []
+    for level, height in ((0, 4), (1, 12)):
+        name = 'numeric_parts_' + str(level)
+        put(source, 'assets/fixture/models/block/' + name + '.json', {'elements': [{
+            'from': [2, 0, 2], 'to': [14, height, 14],
+            'faces': {direction: {'texture': 'fixture:block/up', 'uv': [0, 0, 16, 16]}
+                      for direction in mod.DIRECTIONS}}]})
+        parts.append({'when': {'level': level}, 'apply': {'model': 'fixture:block/' + name}})
+    put(source, 'assets/fixture/blockstates/numeric_parts.json', {'multipart': parts})
+
+
 def build_fixture(root):
     """Create original assets for geometry/UV, alpha, state and schematic tests."""
     root = Path(root)
@@ -249,6 +262,13 @@ def build_fixture(root):
     cloudfx_assets(source)
     ie_split_assets(source)
     ie_obj_assets(source)
+    numeric_multipart_assets(source)
+    storage_spec = importlib.util.spec_from_file_location(
+        'mod_storage_fixtures', Path(__file__).with_name('mod_storage_fixtures.py'))
+    storage_fixtures = importlib.util.module_from_spec(storage_spec)
+    storage_spec.loader.exec_module(storage_fixtures)
+    storage_fixtures.simple_material_assets(source, mod.encode_png)
+    storage_fixtures.limited_barrel_assets(source, mod.encode_png)
     geometry_faces = {direction: {'texture': 'fixture:block/' + direction,
                                  'uv': [1, 2, 14, 15], 'rotation': index % 4 * 90,
                                  'cullface': direction}

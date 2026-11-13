@@ -1153,7 +1153,7 @@ void MinewaysFrame::RunExport(ExportFileData& efd, const wchar_t* outputPath)
         } else {
             AddToRecentExports(wxString(outputPath));
         }
-    } else if ((errCode & MW_CANNOT_PARSE_IMPORT_FILE) && *ModExportError()) {
+    } else if ((errCode & (MW_CANNOT_PARSE_IMPORT_FILE | MW_WORLD_EXPORT_TOO_LARGE)) && *ModExportError()) {
         wxMessageBox(wxString::FromUTF8(ModExportError()), "Export error", wxOK | wxICON_ERROR, this);
     } else if (errCode == MW_CANNOT_PARSE_IMPORT_FILE && efd.fileType == FILE_TYPE_SCHEMATIC &&
                ModBlockTypeLimit() > NUM_BLOCKS_DEFINED) {

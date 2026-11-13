@@ -300,7 +300,54 @@ int main(int argc, char** argv)
         "immersiveengineering:connector_structural",
         "immersiveengineering:floodlight",
         "immersiveengineering:turret_gun",
-        "immersiveengineering:turret_chem"
+        "immersiveengineering:turret_chem",
+        "sophisticatedstorage:acacia_storage_connector",
+        "sophisticatedstorage:bamboo_storage_connector",
+        "sophisticatedstorage:birch_storage_connector",
+        "sophisticatedstorage:cherry_storage_connector",
+        "sophisticatedstorage:controller",
+        "sophisticatedstorage:crimson_storage_connector",
+        "sophisticatedstorage:dark_oak_storage_connector",
+        "sophisticatedstorage:jungle_storage_connector",
+        "sophisticatedstorage:limited_barrel_1",
+        "sophisticatedstorage:limited_barrel_2",
+        "sophisticatedstorage:limited_barrel_3",
+        "sophisticatedstorage:limited_barrel_4",
+        "sophisticatedstorage:limited_copper_barrel_1",
+        "sophisticatedstorage:limited_copper_barrel_2",
+        "sophisticatedstorage:limited_copper_barrel_3",
+        "sophisticatedstorage:limited_copper_barrel_4",
+        "sophisticatedstorage:limited_diamond_barrel_1",
+        "sophisticatedstorage:limited_diamond_barrel_2",
+        "sophisticatedstorage:limited_diamond_barrel_3",
+        "sophisticatedstorage:limited_diamond_barrel_4",
+        "sophisticatedstorage:limited_gold_barrel_1",
+        "sophisticatedstorage:limited_gold_barrel_2",
+        "sophisticatedstorage:limited_gold_barrel_3",
+        "sophisticatedstorage:limited_gold_barrel_4",
+        "sophisticatedstorage:limited_iron_barrel_1",
+        "sophisticatedstorage:limited_iron_barrel_2",
+        "sophisticatedstorage:limited_iron_barrel_3",
+        "sophisticatedstorage:limited_iron_barrel_4",
+        "sophisticatedstorage:limited_netherite_barrel_1",
+        "sophisticatedstorage:limited_netherite_barrel_2",
+        "sophisticatedstorage:limited_netherite_barrel_3",
+        "sophisticatedstorage:limited_netherite_barrel_4",
+        "sophisticatedstorage:mangrove_storage_connector",
+        "sophisticatedstorage:oak_storage_connector",
+        "sophisticatedstorage:spruce_storage_connector",
+        "sophisticatedstorage:storage_input",
+        "sophisticatedstorage:storage_io",
+        "sophisticatedstorage:storage_link",
+        "sophisticatedstorage:storage_output",
+        "sophisticatedstorage:warped_storage_connector",
+        "herbsandharvest:cake_block",
+        "merrymaking:kinara",
+        "merrymaking:topper",
+        "supplementaries:crank",
+        "supplementaries:rope_tomatoes",
+        "supplementaries:stick_tomatoes",
+        "securitycraft:reinforced_scaffolding"
     };
     for (const char* name : targets) {
         auto block = byBlock.find(name);
@@ -318,7 +365,8 @@ int main(int argc, char** argv)
     for (int argument = 3; argument < argc; ++argument)
         if (std::find(selected.begin(), selected.end(), argv[argument]) == selected.end()) selected.push_back(argv[argument]);
     // A compact grid preserves small source details in the exporter's float coordinates.
-    const int columns = min(32, (int)selected.size());
+    const char* wideRow = getenv("MINEWAYS_TEST_WIDE_ROW");
+    const int columns = wideRow && strcmp(wideRow, "1") == 0 ? (int)selected.size() : min(32, (int)selected.size());
     const int width = columns * 2 - 1;
     const int length = (((int)selected.size() + columns - 1) / columns) * 2 - 1;
     std::vector<unsigned short> blocks(width * length, 0);

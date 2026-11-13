@@ -33,18 +33,21 @@ static std::wstring wide(const std::filesystem::path& path)
 
 static void exportWorld(WorldGuide& world, const std::filesystem::path& path, int mode,
                         bool detailed = true, bool doubled = false, bool printing = false, bool expectFailure = false,
-                        bool expectEmpty = false, bool windowsUsdDefaults = false, bool individual = true)
+                        bool expectEmpty = false, bool windowsUsdDefaults = false, bool individual = true,
+                        int formatOverride = -1, int rotation = 0, float blockSize = 1000.0f, int firstX = 0)
 {
     const bool existingFailureTarget = expectFailure && std::filesystem::exists(path);
     const std::string previousTarget = existingFailureTarget ? readText(path) : std::string();
     ExportFileData settings = {};
     Options options = {};
-    const int fileType = path.extension() == ".schematic" ? FILE_TYPE_SCHEMATIC : path.extension() == ".schem" ? FILE_TYPE_SPONGE_SCHEMATIC : path.extension() == ".usda" ? FILE_TYPE_USD : path.extension() == ".stl" ? FILE_TYPE_ASCII_STL : FILE_TYPE_WAVEFRONT_ABS_OBJ;
+    const int fileType = formatOverride >= 0 ? formatOverride : path.extension() == ".schematic" ? FILE_TYPE_SCHEMATIC : path.extension() == ".schem" ? FILE_TYPE_SPONGE_SCHEMATIC : path.extension() == ".usda" ? FILE_TYPE_USD : path.extension() == ".stl" ? FILE_TYPE_ASCII_STL : FILE_TYPE_WAVEFRONT_ABS_OBJ;
     settings.fileType = fileType;
     settings.chkCreateModelFiles[fileType] = 1;
     settings.chkIndividualBlocks[fileType] = individual;
-    settings.radioRotate0 = settings.radioScaleByBlock = 1;
-    settings.blockSizeVal[fileType] = 1000.0f;
+    settings.radioScaleByBlock = 1;
+    settings.radioRotate0 = rotation == 0; settings.radioRotate90 = rotation == 90;
+    settings.radioRotate180 = rotation == 180; settings.radioRotate270 = rotation == 270;
+    settings.blockSizeVal[fileType] = blockSize;
     settings.hollowThicknessVal[fileType] = 1000.0f;
     settings.comboModelUnits[fileType] = UNITS_METER;
     settings.chkExportAll = detailed;
@@ -78,7 +81,7 @@ static void exportWorld(WorldGuide& world, const std::filesystem::path& path, in
     wchar_t culling[] = L"Standard";
     ClearCache();
     const int result = SaveVolume(filename.data(), fileType, &options, &world, directory.c_str(),
-        0, 0, 0, world.sch.width - 1, world.sch.height - 1, world.sch.length - 1,
+        firstX, 0, 0, world.sch.width - 1, world.sch.height - 1, world.sch.length - 1,
         0, world.sch.height - 1, progress, terrain, culling, &output,
         14, 3, 4189, nullptr, 16, biome, biomeIndex, groups, 0, nullptr);
     for (int i = 0; i < output.count; ++i) free(output.name[i]);
@@ -239,6 +242,7 @@ static std::vector<std::string> stateNames(const WorldGuide& world)
 
 #include "mod_geometry.h"
 #include "mod_polygons.h"
+#include "mod_precision.h"
 #include "mod_rotations.h"
 #include "mod_repeated_uv.h"
 #include "mod_normals.h"
@@ -440,6 +444,7 @@ int main(int argc, char** argv)
     free(mixedRead.sch.blocks); free(mixedRead.sch.data);
     checkSplitModExports(root);
     checkModPolygons(root);
+    checkModPrecision(root);
     checkModRotations(root);
     checkRepeatedModUV(root);
     checkModNormalCapacity(root);
