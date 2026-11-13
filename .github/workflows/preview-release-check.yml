@@ -1,0 +1,91 @@
+name: Check Exact Preview Release
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/preview-release-check.yml'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Preview release tag in this repository
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  test-release:
+    if: github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2022
+            platform: windows-x64
+            package: windows-x64
+          - runner: macos-26-intel
+            platform: macos-x86_64
+            package: macos-universal
+            architecture: x86_64
+          - runner: macos-26
+            platform: macos-arm64
+            package: macos-universal
+            architecture: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    env:
+      PREVIEW_ARCHIVE: Mineways-preview-${{ matrix.package }}.zip
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Download exact release assets from this repository
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREVIEW_RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          gh release download "$PREVIEW_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern "$PREVIEW_ARCHIVE" --pattern SHA256SUMS.txt --dir downloaded
+      - name: Verify ZIP checksum and report build metadata
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          import zipfile
+          directory = Path('downloaded')
+          archive = directory / os.environ['PREVIEW_ARCHIVE']
+          entries = [line.split('  ', 1) for line in (directory / 'SHA256SUMS.txt').read_text(encoding='utf-8').splitlines() if line.strip()]
+          matches = [checksum for checksum, name in entries if name == archive.name]
+          if len(matches) != 1 or hashlib.sha256(archive.read_bytes()).hexdigest() != matches[0]:
+              raise SystemExit('Release ZIP does not match SHA256SUMS.txt')
+          with zipfile.ZipFile(archive) as package:
+              metadata_files = [name for name in package.namelist() if name.endswith('/BUILD-METADATA.json')]
+              if len(metadata_files) != 1:
+                  raise SystemExit('Expected exactly one build metadata file')
+              print(json.dumps(json.loads(package.read(metadata_files[0])), indent=2))
+          print('Exact release ZIP checksum verified:', archive.name)
+          PY
+      - name: Verify native macOS test runner
+        if: runner.os == 'macOS'
+        run: |
+          test "$(uname -m)" = "${{ matrix.architecture }}"
+          python -c 'import platform; assert platform.machine() == "${{ matrix.architecture }}"'
+      - name: Test exact downloaded package
+        shell: bash
+        run: python tools/test_preview_package.py "downloaded/$PREVIEW_ARCHIVE" --output preview-test
+      - name: Test Windows GUI startup and map
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: tools/test_preview_windows_gui.ps1 -PackageRoot "preview-test/extracted preview with spaces/Mineways-preview-windows-x64" -Screenshot "preview-test/windows-gui.png"
+      - name: Save release smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-smoke-${{ matrix.platform }}
+          path: |
+            preview-test/**/smoke output/**
+            preview-test/windows-gui.png
+          if-no-files-found: warn
