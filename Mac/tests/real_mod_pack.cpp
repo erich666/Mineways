@@ -347,7 +347,30 @@ int main(int argc, char** argv)
         "supplementaries:crank",
         "supplementaries:rope_tomatoes",
         "supplementaries:stick_tomatoes",
-        "securitycraft:reinforced_scaffolding"
+        "securitycraft:reinforced_scaffolding",
+        "minecolonies:blockminecoloniesrack",
+        "mekanism:advanced_logistical_transporter",
+        "mekanism:advanced_mechanical_pipe",
+        "mekanism:advanced_pressurized_tube",
+        "mekanism:advanced_thermodynamic_conductor",
+        "mekanism:advanced_universal_cable",
+        "mekanism:basic_logistical_transporter",
+        "mekanism:basic_mechanical_pipe",
+        "mekanism:basic_pressurized_tube",
+        "mekanism:basic_thermodynamic_conductor",
+        "mekanism:basic_universal_cable",
+        "mekanism:diversion_transporter",
+        "mekanism:elite_logistical_transporter",
+        "mekanism:elite_mechanical_pipe",
+        "mekanism:elite_pressurized_tube",
+        "mekanism:elite_thermodynamic_conductor",
+        "mekanism:elite_universal_cable",
+        "mekanism:restrictive_transporter",
+        "mekanism:ultimate_logistical_transporter",
+        "mekanism:ultimate_mechanical_pipe",
+        "mekanism:ultimate_pressurized_tube",
+        "mekanism:ultimate_thermodynamic_conductor",
+        "mekanism:ultimate_universal_cable"
     };
     for (const char* name : targets) {
         auto block = byBlock.find(name);
@@ -358,7 +381,8 @@ int main(int argc, char** argv)
     for (const auto& block : byBlock) {
         int type, data;
         assert(ResolveModState(block.second.front(), &type, &data) == 1);
-        if (GetModBlock(type, data)->sourceDefinition->splitPolicy == ModSplitPolicy::None) continue;
+        if (GetModBlock(type, data)->sourceDefinition->splitPolicy == ModSplitPolicy::None &&
+            block.first.compare(0, 17, "domum_ornamentum:") != 0) continue;
         for (const auto* state : {&block.second.front(), &block.second.back()})
             if (std::find(selected.begin(), selected.end(), *state) == selected.end()) selected.push_back(*state);
     }

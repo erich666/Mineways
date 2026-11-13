@@ -10,8 +10,11 @@ MAX_LIBRARY_BYTES = 16 * 1024 * 1024
 MAX_GENERATED_PIXELS = 64 * 1024 * 1024
 
 
-def compile_obj(compiler, model, rotation, api, *, ie=None):
+def compile_obj(compiler, model, rotation, api, *, ie=None, visible_groups=None):
     error = api.ImportError
+    if visible_groups is not None and (ie is not None or not isinstance(visible_groups, (set, frozenset))
+            or len(visible_groups) > 4096 or any(not isinstance(name, str) or len(name) > 1023 for name in visible_groups)):
+        raise error('invalid trusted OBJ visibility groups')
     visibility = model.get('visibility', {})
     if not isinstance(visibility, dict) or len(visibility) > 4096 or any(not isinstance(k, str) or type(v) is not bool for k, v in visibility.items()):
         raise error('invalid OBJ component visibility')
@@ -266,7 +269,9 @@ def compile_obj(compiler, model, rotation, api, *, ie=None):
                         index(parts[2], normals, 'vn')
                         uses_normals = True
                     corners.append((*position, 16 * u, 16 * (1-v if flip else v)))
-                if (ie is not None and (not ie.visible(group) or material is None)) or not visibility.get(group, True) or (part is not None and not visibility.get(part, True)):
+                component_visible = (group in visible_groups and (part is None or part in visible_groups)) if visible_groups is not None else (
+                    visibility.get(group, True) and (part is None or visibility.get(part, True)))
+                if (ie is not None and (not ie.visible(group) or material is None)) or not component_visible:
                     hidden_faces += 1
                     continue
                 def has_area(a, b, c):

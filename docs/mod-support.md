@@ -279,6 +279,16 @@ The report lists 7,034 unsupported definitions and 5,022 unsupported states. The
 
 All 153 Python tests passed. Native macOS ASan/UBSan exports passed all 12,115 newly supported selectors across 24 batches. All 6,224 IE part cases also passed in wide rows, including the formerly collapsed chunk-loader faces. Both runs checked source texture pixels, repeated OBJ exports, and exact Sponge geometry/state round trips. The full catalog baseline checked 345 states and 380 exported textures. The app build, capacity, and security regression checks also passed.
 
+## Default material models and disconnected transmitters
+
+Domum Ornamentum `materially_textured` models now export the supplied parent geometry with its original textures, transforms, and UVs. The wrapper's texture fields do not replace the separately baked parent's textures. Saved block-entity material replacements remain unsupported and produce a warning. Explicit empty leaf models inside this verified loader retain their invisible state identity. Mixed multipart states omit invisible children from the shared geometry table.
+
+Mekanism `transmitter` models now export their verified disconnected fallback. The OBJ loader retains exactly the six direction-specific `NONE` groups. It preserves texture aliases, diffuse material colors, UV orientation, blockstate rotation, and resource overrides. Reports warn that live connections, contents, colors, and optional glass are not evaluated. Other OBJ loaders retain their existing visibility behavior.
+
+This pass adds 66 definitions and 1,338 selectors without losing prior coverage. The full ATM10 8.3 catalog contains 45,183 definitions, 586,207 selectors, 31,867 textures, 91,631 geometries, 553,864 elements, 34,774 polygons, and 25 dimensions. The report retains 6,968 unsupported definitions and 5,010 unsupported states.
+
+All 168 Python tests and native macOS ASan/UBSan fixture exports passed. Native full-pack exports covered all 1,338 new selectors across three batches, with source-pixel checks, repeated OBJ output, and exact Sponge geometry/state round trips. The expanded baseline checked 507 states and 503 textures. Portable Windows fixtures cover 1,139 states. The preceding precision/storage commit passed macOS Intel CI and Windows Debug/Release regression tests. Its full-pack Windows Release test also passed.
+
 ## Compiled format
 
 The importer writes version 6 for split models. Otherwise, it writes version 5 for repeated UVs, version 4 for Z rotations, version 3 for polygons, or version 2. The runtime reads versions 1 through 6. All versions use UTF-8 text with tab-separated fields. Resource identifiers and selectors cannot contain control characters. Dimension records are optional. Texture and geometry indices each start at zero and increase by one. References must use earlier records.

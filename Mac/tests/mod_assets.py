@@ -269,6 +269,12 @@ def build_fixture(root):
     storage_spec.loader.exec_module(storage_fixtures)
     storage_fixtures.simple_material_assets(source, mod.encode_png)
     storage_fixtures.limited_barrel_assets(source, mod.encode_png)
+    for filename, function in (('mod_transmitter_fixtures.py', 'transmitter_assets'),
+                               ('mod_material_fixtures.py', 'material_assets')):
+        fixture_spec = importlib.util.spec_from_file_location(filename[:-3], Path(__file__).with_name(filename))
+        fixture_module = importlib.util.module_from_spec(fixture_spec)
+        fixture_spec.loader.exec_module(fixture_module)
+        getattr(fixture_module, function)(source, mod.encode_png)
     geometry_faces = {direction: {'texture': 'fixture:block/' + direction,
                                  'uv': [1, 2, 14, 15], 'rotation': index % 4 * 90,
                                  'cullface': direction}

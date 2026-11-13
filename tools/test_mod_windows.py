@@ -421,6 +421,33 @@ def exercise(executable, root):
         assert sum(line.startswith('f ') for line in output.read_text().splitlines()) == 4
         verify_schematic(restored, [state], details)
         assert check_export_pixels(output, texture_sources) == 2, 'Barrel base/tier texture inheritance changed'
+    for label, states, face_count in [
+            ('material-north', ['fixture:material_block[facing=north]'], 2),
+            ('material-east', ['fixture:material_block[facing=east]'], 2),
+            ('material-empty-part', ['fixture:material_multipart[connected=false]'], 2),
+            ('material-two-parts', ['fixture:material_multipart[connected=true]'], 4),
+            ('material-invisible', ['fixture:material_block[facing=north]', 'fixture:material_block[facing=up]'], 2),
+            ('transmitter-north', ['fixture:transmitter[facing=north]'], 6),
+            ('transmitter-east', ['fixture:transmitter[facing=east]'], 6)]:
+        source, output, restored = [root / (label + suffix) for suffix in ('.schem', '.obj', '-restored.schem')]
+        schematic(source, states)
+        details = run(executable, root, label, [*common, 'Minecraft world: ' + str(source),
+                      'File type: Export individual textures to directory ' + label + 'tex',
+                      f'Selection location min to max: 0, 0, 0 to {len(states)-1}, 0, 0',
+                      'Export for Rendering: ' + str(output), 'Export Schematic: ' + str(restored)])
+        check_obj(output, details, minimum_faces=face_count)
+        assert sum(line.startswith('f ') for line in output.read_text().splitlines()) == face_count, label
+        verify_schematic(restored, states, details)
+        assert check_export_pixels(output, texture_sources) == 1, 'Default model gained an overlay: ' + label
+        if label.startswith('transmitter-'):
+            check_signed_geometry(output, (.25, .25, .25), (.75, .75, .75), False)
+        elif label in ('material-north', 'material-empty-part', 'material-invisible'):
+            lines = output.read_text().splitlines()
+            points = [tuple(map(float, line.split()[1:4])) for line in lines if line.startswith('v ')]
+            vertices = {points[int(corner.split('/')[0])-1] for line in lines if line.startswith('f ') for corner in line.split()[1:]}
+            expected = {(x/16, y/16, 3/16) for x in (1, 12) for y in (2, 14)}
+            expected.update((x/16, 14/16, z/16) for x in (1, 12) for z in (3, 15))
+            assert vertices == expected, 'Material parent coordinates changed: ' + label
     for orientation in ('plain', 'turned'):
         label = 'mesh-' + orientation
         state = 'fixture:obj_mesh[orientation=' + orientation + ',retained=true]'
@@ -799,8 +826,31 @@ def exercise_pack(executable, root, manifest):
                'supplementaries:crank',
                'supplementaries:rope_tomatoes',
                'supplementaries:stick_tomatoes',
-               'securitycraft:reinforced_scaffolding']
-    targets += [name for name in blocks if name.startswith('allthemodium:molten_')]
+               'securitycraft:reinforced_scaffolding',
+               'minecolonies:blockminecoloniesrack',
+               'mekanism:advanced_logistical_transporter',
+               'mekanism:advanced_mechanical_pipe',
+               'mekanism:advanced_pressurized_tube',
+               'mekanism:advanced_thermodynamic_conductor',
+               'mekanism:advanced_universal_cable',
+               'mekanism:basic_logistical_transporter',
+               'mekanism:basic_mechanical_pipe',
+               'mekanism:basic_pressurized_tube',
+               'mekanism:basic_thermodynamic_conductor',
+               'mekanism:basic_universal_cable',
+               'mekanism:diversion_transporter',
+               'mekanism:elite_logistical_transporter',
+               'mekanism:elite_mechanical_pipe',
+               'mekanism:elite_pressurized_tube',
+               'mekanism:elite_thermodynamic_conductor',
+               'mekanism:elite_universal_cable',
+               'mekanism:restrictive_transporter',
+               'mekanism:ultimate_logistical_transporter',
+               'mekanism:ultimate_mechanical_pipe',
+               'mekanism:ultimate_pressurized_tube',
+               'mekanism:ultimate_thermodynamic_conductor',
+               'mekanism:ultimate_universal_cable']
+    targets += [name for name in blocks if name.startswith(('allthemodium:molten_', 'domum_ornamentum:'))]
     targets += sorted({state.split('[', 1)[0] for state in split_policies})
     for block in targets:
         if block in by_block:

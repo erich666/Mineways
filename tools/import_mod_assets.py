@@ -33,6 +33,8 @@ _ie_module = _load_helper('mod_ie_models')
 _split_module = _load_helper('mod_ie_split')
 _machine_module = _load_helper('mod_machine_models')
 _storage_module = _load_helper('mod_storage_models')
+_material_module = _load_helper('mod_material_models')
+_mekanism_module = _load_helper('mod_mekanism_models')
 _cloudfx_module = _load_helper('mod_cloudfx')
 
 MAX_FILE = 16 * 1024 * 1024
@@ -167,7 +169,7 @@ class Assets:
     def wanted(name):
         return bool(name == 'assets/minecraft/atlases/blocks.json'
                     or re.fullmatch(r'assets/[^/]+/(?:blockstates|models)/.+\.json', name)
-                    or re.fullmatch(r'assets/[^/]+/models/.+\.(?:obj(?:\.ie)?|mtl)', name)
+                    or re.fullmatch(r'assets/[^/]+/models/.+\.(?:obj(?:\.(?:ie|mek))?|mtl)', name)
                     or re.fullmatch(r'assets/[^/]+/textures/.+\.png(?:\.mcmeta)?', name)
                     or re.fullmatch(r'data/[^/]+/(?:dimension|dimension_type)/.+\.json', name))
 
@@ -486,6 +488,7 @@ class Compiler:
                                                         'bibliocraft:table', 'xycraft_core:connected_textures',
                                                         'neoforge:obj', 'immersiveengineering:ie_obj', 'immersiveengineering:basic_split', 'supplementaries:extra_rotation',
                                                         _storage_module.SIMPLE_MATERIAL_LOADER, _storage_module.LIMITED_BARREL_LOADER,
+                                                        _material_module.DOMUM_LOADER, _mekanism_module.LOADER,
                                                         *_machine_module.LOADERS):
             raise ImportError('custom model loader: ' + str(own['loader']))
         if own.get('loader') == 'fusion:model':
@@ -878,6 +881,8 @@ class Compiler:
         if name == 'ae2:block/matrix_frame' and model == {'textures': {}}:
             return {'rotation': rotation, 'elements': [], 'invisible': True}
         model = self.builtin_adapter(name, model)
+        if model.get('loader') == _material_module.DOMUM_LOADER:
+            return _material_module.compile_domum(self, name, model, rotation, selector, depth, ImportError, block_name)
         if model.get('loader') == _storage_module.SIMPLE_MATERIAL_LOADER:
             return _storage_module.compile_simple_material(self, name, model, rotation, selector, depth, ImportError, block_name)
         if model.get('loader') == _storage_module.LIMITED_BARREL_LOADER:
@@ -894,12 +899,14 @@ class Compiler:
             return {'rotation': rotation, 'elements': [], 'invisible': True}
         if model.get('loader') == 'immersiveengineering:basic_split':
             return _split_module.compile_split(self, name, model, rotation, selector, depth, ImportError)
-        if model.get('loader') in ('neoforge:obj', 'immersiveengineering:ie_obj'):
+        if model.get('loader') in ('neoforge:obj', 'immersiveengineering:ie_obj', _mekanism_module.LOADER):
             obj_api = SimpleNamespace(ImportError=ImportError, resource=resource, decode_png=decode_png,
                                       encode_png=encode_png, MAX_COMPILED_ELEMENTS=MAX_COMPILED_ELEMENTS,
                                       number=number, expanded_uv=expanded_uv, REPEATED_UV_WARNING=REPEATED_UV_WARNING)
             if model['loader'] == 'immersiveengineering:ie_obj':
                 return _ie_module.compile_ie_obj(self, model, rotation, selector, obj_api, _obj_module)
+            if model['loader'] == _mekanism_module.LOADER:
+                return _mekanism_module.compile_transmitter(self, model, rotation, obj_api, _obj_module)
             return _obj_module.compile_obj(self, model, rotation, obj_api)
         if model.get('loader') == 'fusion:model':
             label = name if isinstance(name, str) else '<inline>'
@@ -1231,6 +1238,10 @@ def compile_pack(sources, destination, namespaces=None):
                         has_split_geometry = True
                         state_stream.write('splitpolicy\t' + '\t'.join(map(str, models[0]['split_policy'])) + '\n')
                     for model in models:
+                        # An explicitly invisible multipart child contributes no geometry.
+                        # All-invisible states were normalized to [] by Compiler.block.
+                        if model.get('invisible'):
+                            continue
                         if 'part' in model and not model['elements'] and not model.get('polygons'):
                             state_stream.write('emptypart\t' + '\t'.join(map(str, model['part'])) + '\n')
                             continue

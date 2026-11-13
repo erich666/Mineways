@@ -241,6 +241,7 @@ static std::vector<std::string> stateNames(const WorldGuide& world)
 }
 
 #include "mod_geometry.h"
+#include "mod_loader_exports.h"
 #include "mod_polygons.h"
 #include "mod_precision.h"
 #include "mod_rotations.h"
@@ -442,6 +443,7 @@ int main(int argc, char** argv)
     ClearCache();
     free(invisibleRead.sch.blocks); free(invisibleRead.sch.data);
     free(mixedRead.sch.blocks); free(mixedRead.sch.data);
+    checkDefaultLoaderExports(root);
     checkSplitModExports(root);
     checkModPolygons(root);
     checkModPrecision(root);
