@@ -268,8 +268,16 @@ static void checkEntities(const std::string& directory)
 
 static void checkBiomeNamespaces()
 {
-    for (const char* name : { "minecraft:forest", "biomeswevegone:allium_shrubland", "mod:a",
-        "missing_namespace", "bad:?", "mod:a[bad=state]" }) {
+    const std::string longest = "mod:" + std::string(95, 'a');
+    const std::string tooLong = longest + "a";
+    const struct { const char* name; int biome; } cases[] = {
+        { "minecraft:forest", 4 }, { "mod:forest", 4 }, { "mod:cave/forest", 4 },
+        { "biomeswevegone:allium_shrubland", 35 }, { "terralith:arid_highlands", 35 },
+        { "mod:a", 1 }, { longest.c_str(), 1 }, { tooLong.c_str(), -1 },
+        { "missing_namespace", -1 }, { "bad:?", -1 }, { "mod:a[bad=state]", -1 }
+    };
+    for (const auto& test : cases) {
+        const char* name = test.name;
         Bytes bytes;
         tag(bytes, 10, "");
         tag(bytes, 9, "sections"); bytes.push_back(10); number(bytes, 1, 4);
@@ -294,11 +302,11 @@ static void checkBiomeNamespaces()
             int count = 0, filled = 0;
             int result = nbtGetBlocks(&input, blocks.data(), data.data(), light.data(), biomes.data(),
                 entities, &count, 21, 0, 255, filled, nullptr, 7);
-            if (strcmp(name, "missing_namespace") == 0 || strcmp(name, "bad:?") == 0 || strchr(name, '[')) {
+            if (test.biome < 0) {
                 assert(result < 0); continue;
             }
             assert(result >= 0 && blocks[240 * 256] == BLOCK_STONE);
-            assert(biomes[0] == (strcmp(name, "minecraft:forest") == 0 ? 4 : 0));
+            assert(biomes[0] == test.biome);
         }
     }
 }
