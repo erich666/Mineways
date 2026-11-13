@@ -17,6 +17,9 @@ permissions:
 jobs:
   test-release:
     if: github.event_name == 'workflow_dispatch'
+    # GitHub exposes draft releases only with push access. All commands remain read-only.
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -38,6 +41,8 @@ jobs:
       PREVIEW_ARCHIVE: Mineways-preview-${{ matrix.package }}.zip
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
