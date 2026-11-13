@@ -10,6 +10,10 @@ on:
         description: Preview release tag in this repository
         type: string
         required: true
+      full_atm:
+        description: Test the exact packages with the pinned full ATM10 catalog on every platform
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -27,16 +31,19 @@ jobs:
           - runner: windows-2022
             platform: windows-x64
             package: windows-x64
+            executable: Mineways.exe
           - runner: macos-26-intel
             platform: macos-x86_64
             package: macos-universal
+            executable: Mineways.app/Contents/MacOS/mineways
             architecture: x86_64
           - runner: macos-26
             platform: macos-arm64
             package: macos-universal
+            executable: Mineways.app/Contents/MacOS/mineways
             architecture: arm64
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 15
+    timeout-minutes: 45
     env:
       PREVIEW_ARCHIVE: Mineways-preview-${{ matrix.package }}.zip
     steps:
@@ -85,6 +92,14 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: tools/test_preview_windows_gui.ps1 -PackageRoot "preview-test/extracted preview with spaces/Mineways-preview-windows-x64" -Screenshot "preview-test/windows-gui.png"
+      - name: Test exact package with full ATM10 catalog
+        if: inputs.full_atm
+        shell: bash
+        run: |
+          preview_package="preview-test/extracted preview with spaces/Mineways-preview-${{ matrix.package }}"
+          python tools/download_mod_assets.py tools/fixtures/atm10-1.21.1.json "$RUNNER_TEMP/atm10-assets"
+          python -I "$preview_package/tools/import_mod_assets.py" --sources-file "$RUNNER_TEMP/atm10-assets/sources.txt" -o "$RUNNER_TEMP/atm10-pack"
+          python tools/test_mod_windows.py "$preview_package/${{ matrix.executable }}" --pack "$RUNNER_TEMP/atm10-pack/manifest.mwpack" --pack-only
       - name: Save release smoke evidence
         if: always()
         uses: actions/upload-artifact@v6

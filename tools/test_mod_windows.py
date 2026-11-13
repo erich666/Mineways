@@ -158,9 +158,9 @@ def write_script(root, name, commands):
     check_script_world_order(commands)
     script = root / (name + '.mwscript')
     log = root / (name + '.log')
-    script.write_text('\n'.join([
-        'Show informational: script', 'Show warning: script', 'Show error: script',
-        'Save log file: ' + str(log), *commands, 'Close', '']), encoding='utf-8')
+    logging = (['Show informational: script', 'Show warning: script', 'Show error: script',
+                'Save log file: ' + str(log)] if os.name == 'nt' else [])
+    script.write_text('\n'.join([*logging, *commands, 'Close', '']), encoding='utf-8')
     return script, log
 
 
