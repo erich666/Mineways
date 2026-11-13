@@ -31,6 +31,7 @@ def _load_helper(name):
 _obj_module = _load_helper('mod_obj')
 _machine_module = _load_helper('mod_machine_models')
 _storage_module = _load_helper('mod_storage_models')
+_cloudfx_module = _load_helper('mod_cloudfx')
 
 MAX_FILE = 16 * 1024 * 1024
 MAX_TOTAL = 512 * 1024 * 1024
@@ -93,6 +94,7 @@ class Assets:
     """Index bounded source metadata; open and decompress only referenced assets."""
     def __init__(self, sources):
         self.files = {}
+        self.atlas_sources = []
         self.archives = OrderedDict()
         self.archive_stamps = {}
         total = count = asset_count = source_bytes = 0
@@ -154,12 +156,15 @@ class Assets:
                 if asset_count > MAX_ASSET_FILES:
                     raise ImportError('too many relevant asset files')
                 self.files[name] = (path, member, size)
+                if name == 'assets/minecraft/atlases/blocks.json':
+                    self.atlas_sources.append((path, member, size))
         if not any('/blockstates/' in key or '/dimension/' in key for key in self.files):
             raise ImportError('no blockstate assets or dimension definitions found')
 
     @staticmethod
     def wanted(name):
-        return bool(re.fullmatch(r'assets/[^/]+/(?:blockstates|models)/.+\.json', name)
+        return bool(name == 'assets/minecraft/atlases/blocks.json'
+                    or re.fullmatch(r'assets/[^/]+/(?:blockstates|models)/.+\.json', name)
                     or re.fullmatch(r'assets/[^/]+/models/.+\.(?:obj(?:\.ie)?|mtl)', name)
                     or re.fullmatch(r'assets/[^/]+/textures/.+\.png(?:\.mcmeta)?', name)
                     or re.fullmatch(r'data/[^/]+/(?:dimension|dimension_type)/.+\.json', name))
@@ -175,7 +180,10 @@ class Assets:
     def read(self, name):
         if name not in self.files:
             raise ImportError('missing asset: ' + name)
-        path, member, size = self.files[name]
+        return self.read_entry(self.files[name])
+
+    def read_entry(self, entry):
+        path, member, size = entry
         if member is None:
             if path.is_symlink() or path.resolve() != path:
                 raise ImportError('source changed to a symbolic link: ' + str(path))
@@ -201,9 +209,9 @@ class Assets:
             raise ImportError('asset size changed or exceeds limit')
         return data
 
-    def json(self, path):
+    def json(self, path, entry=None):
         try:
-            value = json.loads(self.read(path), parse_constant=lambda s: (_ for _ in ()).throw(ImportError('nonfinite JSON number')))
+            value = json.loads(self.read(path) if entry is None else self.read_entry(entry), parse_constant=lambda s: (_ for _ in ()).throw(ImportError('nonfinite JSON number')))
         except (UnicodeError, ValueError, RecursionError) as error:
             raise ImportError(f'invalid JSON in {path}: {error}') from error
         if not isinstance(value, dict):
@@ -450,9 +458,13 @@ class Compiler:
         self.assets = assets
         self.models = {}
         self.textures = {}
+        self.face_texture_pixels = {}
+        self.face_texture_pixel_count = 0
         self.warnings = set()
         self.element_count = 0
         self.unsupported_states = []
+        self.cloudfx_declarations = None
+        self.cloudfx_frames = {}
 
     def model(self, name, chain=()):
         inline = isinstance(name, dict)
@@ -493,11 +505,27 @@ class Compiler:
         name = resource(name)
         if name not in self.textures:
             path = asset_path(name, 'textures', '.png')
-            if path not in self.assets.files:
-                raise ImportError('missing texture: ' + name)
-            width, height, pixels = decode_png(self.assets.read(path), lambda: self.warnings.add(f'{name}: discarded bytes after valid PNG end'))
+            generated = path not in self.assets.files
+            if generated:
+                if name not in _cloudfx_module.CLOUD_IDS:
+                    raise ImportError('missing texture: ' + name)
+                if self.cloudfx_declarations is None:
+                    self.cloudfx_declarations = _cloudfx_module.declarations(self.assets, resource, asset_path, ImportError)
+                declaration = self.cloudfx_declarations.get(name)
+                if declaration is None:
+                    raise ImportError('missing CloudFX atlas declaration: ' + name)
+                if 'resource' in declaration:
+                    original = self.texture(declaration['resource'])
+                    self.textures[name] = self.textures[original]
+                    return name
+                if name not in self.cloudfx_frames:
+                    self.cloudfx_frames[name] = _cloudfx_module.generate(declaration, ImportError)
+                width, height, pixels = self.cloudfx_frames[name]
+                self.warnings.add(f'{name}: generated XyCraft CloudFX with fixed seed 0 and warmed frame 129; animation is frozen and the live clock-based seed is unavailable')
+            else:
+                width, height, pixels = decode_png(self.assets.read(path), lambda: self.warnings.add(f'{name}: discarded bytes after valid PNG end'))
             metadata = {}
-            if path + '.mcmeta' in self.assets.files:
+            if not generated and path + '.mcmeta' in self.assets.files:
                 metadata = self.assets.json(path + '.mcmeta')
                 fusion = metadata.get('fusion', {})
                 if not isinstance(fusion, dict):
@@ -584,6 +612,65 @@ class Compiler:
             alpha = alpha_sum // (width * height)
             self.textures[name] = (encode_png(width, height, pixels), rgb, alpha)
         return name
+
+    def remove_last_texture(self):
+        name, _ = self.textures.popitem()
+        self.face_texture_pixel_count -= self.face_texture_pixels.pop(name, 0)
+
+    def face_color_texture(self, texture, element, face, label):
+        """Bake NeoForge's static vertex ARGB into the referenced texture."""
+        if not any(key in owner for owner in (element, face) for key in ('neoforge_data', 'forge_data')):
+            return texture
+        if any('forge_data' in owner for owner in (element, face)):
+            self.warnings.add(f'{label}: legacy forge_data color and lighting hints are not applied')
+        if not any('neoforge_data' in owner for owner in (element, face)):
+            return texture
+
+        def metadata(value):
+            if not isinstance(value, dict):
+                raise ImportError('neoforge_data must be an object')
+            color = value.get('color', -1)
+            if isinstance(color, str):
+                # ExtraFaceData uses Long.parseLong(hex,16), then the low32 bits.
+                if not re.fullmatch(r'[+-]?[0-9a-fA-F]{1,16}', color):
+                    raise ImportError('invalid NeoForge hexadecimal face color')
+                color = int(color, 16)
+                if not -(2**63) <= color < 2**63:
+                    raise ImportError('NeoForge hexadecimal face color exceeds signed64 bits')
+            elif type(color) not in (int, float) or not -(2**31) <= color < 2**32:
+                raise ImportError('NeoForge face color must be a bounded 32-bit number or hexadecimal string')
+            color = int(color)  # Codec.INT uses Number.intValue (truncate toward zero).
+            lights = [value.get(key, 0) for key in ('block_light', 'sky_light')]
+            if any(type(light) not in (int, float) or not -1 < light < 16 for light in lights):
+                raise ImportError('NeoForge face light hints must truncate to integers 0..15')
+            lights = [int(light) for light in lights]
+            ao = value.get('ambient_occlusion', True)
+            if type(ao) is not bool:
+                raise ImportError('NeoForge ambient_occlusion must be boolean')
+            return color & 0xffffffff, lights, ao
+
+        # A face object replaces the entire element object, including defaults.
+        inherited = metadata(element.get('neoforge_data', {}))
+        color, lights, ao = metadata(face['neoforge_data']) if 'neoforge_data' in face else inherited
+        if any(lights):
+            self.warnings.add(f'{label}: NeoForge face lightmap hints are not exported as material emission')
+        if not ao:
+            self.warnings.add(f'{label}: NeoForge face ambient-occlusion setting is not reproduced')
+        if color == 0xffffffff:
+            return texture
+        derived = 'mineways:face/tint_' + hashlib.sha256((texture + ':' + f'{color:08x}').encode()).hexdigest()
+        if derived not in self.textures:
+            width, height, pixels = decode_png(self.textures[texture][0])
+            if self.face_texture_pixel_count + width * height > _obj_module.MAX_GENERATED_PIXELS:
+                raise ImportError('face generated-texture pixel budget exceeded')
+            rgba = ((color >> 16) & 255, (color >> 8) & 255, color & 255, (color >> 24) & 255)
+            tinted = bytes(channel * rgba[index % 4] // 255 for index, channel in enumerate(pixels))
+            alpha_sum = sum(tinted[3::4])
+            rgb = [sum(tinted[i] * tinted[i + 3 - c] for i in range(c, len(tinted), 4)) // max(1, alpha_sum) for c in range(3)]
+            self.textures[derived] = (encode_png(width, height, tinted), rgb, alpha_sum // (width * height))
+            self.face_texture_pixels[derived] = width * height
+            self.face_texture_pixel_count += width * height
+        return derived
 
     def overlay_texture(self, name, base, overlay):
         if name not in self.textures:
@@ -883,6 +970,8 @@ class Compiler:
                         break
                     texture = model['textures'][texture[1:]]
                 texture = self.texture(texture)
+                label = '<inline model>' if isinstance(application['model'], dict) else application['model']
+                texture = self.face_color_texture(texture, element, face, label)
                 uv = vector(face.get('uv', default_uv(side, start, end)), 4, MIN_MODEL_UV, MAX_MODEL_UV)
                 if expanded_uv(((uv[0], uv[1]), (uv[2], uv[3]))):
                     label = '<inline model>' if isinstance(application['model'], dict) else application['model']
@@ -983,7 +1072,7 @@ class Compiler:
             except (ImportError, RecursionError) as error:
                 self.element_count = before_count
                 while len(self.textures) > before_textures:
-                    self.textures.popitem()
+                    self.remove_last_texture()
                 self.warnings = before_warnings
                 failures.append({'state': canonical(name, selector), 'reason': str(error)})
         if failures:
@@ -1064,7 +1153,7 @@ def compile_pack(sources, destination, namespaces=None):
                     block = compiler.block(name, assets.json(path))
                 except (ImportError, RecursionError) as error:
                     while len(compiler.textures) > before_textures:
-                        compiler.textures.popitem()
+                        compiler.remove_last_texture()
                     del compiler.unsupported_states[before_states:]
                     compiler.warnings = before_warnings
                     rejected.append({'block': name, 'reason': str(error)})

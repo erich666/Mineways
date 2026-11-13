@@ -410,6 +410,28 @@ def exercise(executable, root):
         verify_schematic(restored, [uv_state], details)
         if individual:
             check_export_pixels(output, texture_sources)
+    cloud_names = ['fixture:cloud_' + name + '[retained=true]'
+                   for name in ('blue', 'green', 'translucent', 'intense')]
+    cloud_states = [state for i, name in enumerate(cloud_names)
+                    for state in ([name] if i == 0 else ['minecraft:air', name])]
+    cloud_source = root / 'cloud-input.schem'
+    cloud_restored = root / 'cloud-roundtrip.schem'
+    schematic(cloud_source, cloud_states)
+    cloud_outputs = []
+    for label, source in [('cloud', cloud_source), ('cloud-roundtrip', cloud_restored)]:
+        output = root / (label + '.obj')
+        commands = [*common, 'Minecraft world: ' + str(source),
+                    'File type: Export individual textures to directory cloudtex',
+                    'Selection location min to max: 0, 0, 0 to 6, 0, 0',
+                    'Export for Rendering: ' + str(output)]
+        if label == 'cloud':
+            commands.append('Export Schematic: ' + str(cloud_restored))
+        details = run(executable, root, label, commands)
+        check_obj(output, details, minimum_faces=24)
+        assert check_export_pixels(output, texture_sources) == 4
+        cloud_outputs.append(obj_geometry(output))
+    assert cloud_outputs[0] == cloud_outputs[1], 'CloudFX Sponge geometry changed'
+    verify_schematic(cloud_restored, cloud_states, details)
     # Invisible models keep their state identity and leave neighboring cube faces intact.
     invisible_names = ['fixture:cube[custom=left]', 'ae2:matrix_frame[custom=retained]',
                        'fixture:cube[custom=right]']
@@ -584,7 +606,19 @@ def exercise_pack(executable, root, manifest):
                'oritech:black_hole_block',
                'pneumaticcraft:programmer',
                'refurbished_furniture:black_trampoline',
-               'silentgear:material_grader']
+               'silentgear:material_grader',
+               'allthecompressed:xychorium_storage_blue_1x',
+               'allthecompressed:xychorium_storage_red_9x',
+               'xycraft_world:aluminum_bricks_cloud_blue',
+               'xycraft_world:xychorium_storage_blue',
+               'xycraft_world:lamp_pillar_blue',
+               'xycraft_world:lamp_lantern_blue',
+               'xycraft_machines:buffer',
+               'xycraft_machines:engineering_table',
+               'xycraft_machines:extractor',
+               'xycraft_machines:isolator',
+               'xycraft_machines:nitrogen_extractor',
+               'xycraft_override:bricks_red']
     targets += [name for name in blocks if name.startswith('allthemodium:molten_')]
     for block in targets:
         if block in by_block:

@@ -96,6 +96,31 @@ f -4/4/2 -3/5/2 -2/6/2 -1/7/2
 
 
 
+
+def cloudfx_assets(source):
+    """Synthetic atlas declarations and static face colors for the real CloudFX generator."""
+    put(source, 'assets/minecraft/atlases/blocks.json', {'sources': [
+        {'type': 'xycraft_core:fxsprite', 'id': 'xycraft_core:block/' + name,
+         'width': 32, 'height': 32, 'alpha': alpha, 'min_intensity': intensity}
+        for name, alpha, intensity in [('cloudfx', 255, .0065),
+                                       ('cloudfx_translucent', 128, .0065),
+                                       ('cloudfx_intense', 255, .009)]]})
+    for name, texture, color, face_color in [
+            ('cloud_blue', 'cloudfx', 'ff1164ff', None),
+            ('cloud_green', 'cloudfx', 'ff1164ff', 'ff00ff00'),
+            ('cloud_translucent', 'cloudfx_translucent', '801164ff', None),
+            ('cloud_intense', 'cloudfx_intense', 'ffffffff', None)]:
+        faces = {side: {'texture': 'xycraft_core:block/' + texture, 'uv': [0, 0, 16, 16]}
+                 for side in mod.DIRECTIONS}
+        if face_color:
+            for face in faces.values():
+                face['neoforge_data'] = {'color': face_color}
+        model = {'elements': [{'from': [0, 0, 0], 'to': [16, 16, 16], 'faces': faces,
+                              'neoforge_data': {'color': color, 'block_light': 15, 'sky_light': 15}}]}
+        put(source, f'assets/fixture/models/block/{name}.json', model)
+        put(source, f'assets/fixture/blockstates/{name}.json', {'variants': {'': {'model': 'fixture:block/' + name}}})
+
+
 def uv_assets(source):
     """Original patterned art and bounded expanded-UV geometry for native tests."""
     texture = 'fixture:block/obj_pattern'
@@ -166,6 +191,7 @@ def build_fixture(root):
     adapter_assets(source)
     obj_assets(source)
     uv_assets(source)
+    cloudfx_assets(source)
     geometry_faces = {direction: {'texture': 'fixture:block/' + direction,
                                  'uv': [1, 2, 14, 15], 'rotation': index % 4 * 90,
                                  'cullface': direction}

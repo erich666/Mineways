@@ -208,7 +208,19 @@ int main(int argc, char** argv)
         "neovitae:raw_spiritus_crystal",
         "xycraft_machines:collector",
         "xycraft_machines:energy_selector",
-        "xycraft_machines:stake"
+        "xycraft_machines:stake",
+        "allthecompressed:xychorium_storage_blue_1x",
+        "allthecompressed:xychorium_storage_red_9x",
+        "xycraft_world:aluminum_bricks_cloud_blue",
+        "xycraft_world:xychorium_storage_blue",
+        "xycraft_world:lamp_pillar_blue",
+        "xycraft_world:lamp_lantern_blue",
+        "xycraft_machines:buffer",
+        "xycraft_machines:engineering_table",
+        "xycraft_machines:extractor",
+        "xycraft_machines:isolator",
+        "xycraft_machines:nitrogen_extractor",
+        "xycraft_override:bricks_red"
     };
     for (const char* name : targets) {
         auto block = byBlock.find(name);
