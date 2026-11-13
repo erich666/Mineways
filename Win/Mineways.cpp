@@ -5151,7 +5151,7 @@ static int loadWorldList(HMENU menu)
     if (hFind == INVALID_HANDLE_VALUE)
     {
         LOG_INFO(gExecutionLogfile, "    invalid handle value - return 0. This means Mineways couldn't find your Minecraft world saves directory.\n");
-        FilterMessageBox(NULL, _T("Mineways couldn't find your Minecraft world saves directory. This likely means that you're using Minecraft Bedrock edition on Windows 10. Mineways supports only Minecraft Classic (Java) world files. But, there is a free utility to convert from one to the other Minecraft world format. See http://mineways.com for more information.\n\nIf you are using Minecraft Classic (Java) and have stored your worlds elsewhere, use the 'File -> Open...' option and find your level.dat file for the world. Save files are normally at 'C:\\Users\\<your name>\\AppData\\Roaming\\.minecraft\\saves'. For Mac, worlds are usually located at '/users/<your name>/Library/Application Support/minecraft/saves'."),
+        FilterMessageBox(NULL, _T("Mineways could not find the default Minecraft Java saves folder. You can still open a world, schematic, or the included preview demo.\n\nFor a modded world or schematic, first select File > Load Mod Pack and open its manifest.mwpack. Then select File > Open... and open the world's level.dat file or the schematic. See the preview QUICKSTART.md for the included demo."),
             _T("Warning"), MB_OK | MB_ICONWARNING);
         return 0;
     }

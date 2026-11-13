@@ -33,7 +33,7 @@ $script = Join-Path ([IO.Path]::GetDirectoryName($Screenshot)) 'gui-smoke.mwscri
 $process = $null
 try {
     $process = Start-Process -FilePath (Join-Path $PackageRoot 'Mineways.exe') `
-        -ArgumentList ('"' + $script + '"') -WorkingDirectory $PackageRoot -PassThru
+        -ArgumentList ('-s none "' + $script + '"') -WorkingDirectory $PackageRoot -PassThru
     $deadline = [DateTime]::UtcNow.AddSeconds(45)
     do {
         Start-Sleep -Milliseconds 250

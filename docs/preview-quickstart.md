@@ -22,6 +22,8 @@ xattr -cr "/path/to/Mineways-preview-macos-x86_64/Mineways.app"
 
 Use your extracted app path. Then open `Mineways.app`. On Windows, open `Mineways.exe`.
 
+If Windows reports that it cannot find a Minecraft saves folder, select **OK**. The included demo still works. Follow the load order below.
+
 `BUILD-METADATA.json` identifies the source commit and platform. `SHA256SUMS` lists package file hashes.
 
 ## Load the included demo
