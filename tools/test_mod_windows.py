@@ -305,6 +305,7 @@ def exercise(executable, root):
             'ae2:spatial_pylon', 'allthemodium:molten_allthemodium_block[level=0]',
             'allthemodium:molten_allthemodium_block[level=7]'} <= selectors, 'Adapter fixture is incomplete'
     assert '\ninvisible\n' in manifest_text, 'Invisible fixture marker is missing'
+    assert 'fixture:wire[down=false,west=false]' not in selectors and 'fixture:wire' not in selectors
     if executable is None:
         return
     warning = run(executable, root, 'warning_summary', ['Center model: NO'])
@@ -428,7 +429,14 @@ def exercise(executable, root):
             ('material-two-parts', ['fixture:material_multipart[connected=true]'], 4),
             ('material-invisible', ['fixture:material_block[facing=north]', 'fixture:material_block[facing=up]'], 2),
             ('transmitter-north', ['fixture:transmitter[facing=north]'], 6),
-            ('transmitter-east', ['fixture:transmitter[facing=east]'], 6)]:
+            ('transmitter-east', ['fixture:transmitter[facing=east]'], 6),
+            ('io-machine-north', ['fixture:io_machine[facing=north]'], 3),
+            ('io-machine-east', ['fixture:io_machine[facing=east]'], 3),
+            ('wire-node', ['fixture:wire[down=true,west=false]'], 6),
+            ('wire-elbow', ['fixture:wire[down=true,west=true]'], 18),
+            ('rack-invisible', ['fixture:io_machine[facing=north]', 'minecolonies:blockminecoloniesrack[facing=north,variant=blockrackair]'], 3),
+            ('framework-north', ['fixture:framework_open[facing=north]'], 6),
+            ('framework-east', ['fixture:framework_open[facing=east]'], 6)]:
         source, output, restored = [root / (label + suffix) for suffix in ('.schem', '.obj', '-restored.schem')]
         schematic(source, states)
         details = run(executable, root, label, [*common, 'Minecraft world: ' + str(source),
@@ -448,6 +456,18 @@ def exercise(executable, root):
             expected = {(x/16, y/16, 3/16) for x in (1, 12) for y in (2, 14)}
             expected.update((x/16, 14/16, z/16) for x in (1, 12) for z in (3, 15))
             assert vertices == expected, 'Material parent coordinates changed: ' + label
+        elif label.startswith('framework-'):
+            angle = math.radians(11.31)
+            expected = []
+            for x in (2, 13):
+                for y in (3, 11):
+                    for z in (4, 14):
+                        point = (x/16, (5+(y-5)*math.cos(angle)-(z-6)*math.sin(angle))/16,
+                                 (6+(y-5)*math.sin(angle)+(z-6)*math.cos(angle))/16)
+                        expected.append((1-point[2], point[1], point[0]) if label.endswith('east') else point)
+            points = [tuple(map(float, line.split()[1:4])) for line in output.read_text().splitlines() if line.startswith('v ')]
+            assert len(points) == len(expected) == 8
+            assert all(any(all(abs(a-b) < 1e-6 for a,b in zip(point, corner)) for corner in expected) for point in points), label
     for orientation in ('plain', 'turned'):
         label = 'mesh-' + orientation
         state = 'fixture:obj_mesh[orientation=' + orientation + ',retained=true]'
@@ -827,6 +847,37 @@ def exercise_pack(executable, root, manifest):
                'supplementaries:rope_tomatoes',
                'supplementaries:stick_tomatoes',
                'securitycraft:reinforced_scaffolding',
+               'enderio:alloy_smelter',
+               'enderio:crafter',
+               'enderio:drain',
+               'enderio:enchanter',
+               'enderio:fluid_tank',
+               'enderio:impulse_hopper',
+               'enderio:niard',
+               'enderio:painting_machine',
+               'enderio:powered_spawner',
+               'enderio:pressurized_fluid_tank',
+               'enderio:sag_mill',
+               'enderio:slice_and_splice',
+               'enderio:soul_binder',
+               'enderio:soul_engine',
+               'enderio:stirling_generator',
+               'enderio:vat',
+               'enderio:wired_charger',
+               'enderio:wireless_charger',
+               'refurbished_furniture:andesite_stepping_stones',
+               'refurbished_furniture:computer',
+               'refurbished_furniture:dark_ceiling_light',
+               'refurbished_furniture:dark_range_hood',
+               'refurbished_furniture:deepslate_stepping_stones',
+               'refurbished_furniture:diorite_stepping_stones',
+               'refurbished_furniture:frying_pan',
+               'refurbished_furniture:granite_stepping_stones',
+               'refurbished_furniture:light_ceiling_light',
+               'refurbished_furniture:light_range_hood',
+               'refurbished_furniture:stone_stepping_stones',
+               'unsupported_states',
+               'warnings',
                'minecolonies:blockminecoloniesrack',
                'mekanism:advanced_logistical_transporter',
                'mekanism:advanced_mechanical_pipe',
@@ -850,7 +901,7 @@ def exercise_pack(executable, root, manifest):
                'mekanism:ultimate_pressurized_tube',
                'mekanism:ultimate_thermodynamic_conductor',
                'mekanism:ultimate_universal_cable']
-    targets += [name for name in blocks if name.startswith(('allthemodium:molten_', 'domum_ornamentum:'))]
+    targets += [name for name in blocks if name.startswith(('allthemodium:molten_', 'domum_ornamentum:', 'morered:'))]
     targets += sorted({state.split('[', 1)[0] for state in split_policies})
     for block in targets:
         if block in by_block:

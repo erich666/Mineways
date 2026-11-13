@@ -35,6 +35,9 @@ _machine_module = _load_helper('mod_machine_models')
 _storage_module = _load_helper('mod_storage_models')
 _material_module = _load_helper('mod_material_models')
 _mekanism_module = _load_helper('mod_mekanism_models')
+_enderio_module = _load_helper('mod_enderio_models')
+_wire_module = _load_helper('mod_wire_models')
+_framework_module = _load_helper('mod_framework_models')
 _cloudfx_module = _load_helper('mod_cloudfx')
 
 MAX_FILE = 16 * 1024 * 1024
@@ -488,7 +491,8 @@ class Compiler:
                                                         'bibliocraft:table', 'xycraft_core:connected_textures',
                                                         'neoforge:obj', 'immersiveengineering:ie_obj', 'immersiveengineering:basic_split', 'supplementaries:extra_rotation',
                                                         _storage_module.SIMPLE_MATERIAL_LOADER, _storage_module.LIMITED_BARREL_LOADER,
-                                                        _material_module.DOMUM_LOADER, _mekanism_module.LOADER,
+                                                        _material_module.DOMUM_LOADER, _mekanism_module.LOADER, _enderio_module.IO_OVERLAY_LOADER,
+                                                        _framework_module.LOADER, *_wire_module.LOADERS,
                                                         *_machine_module.LOADERS):
             raise ImportError('custom model loader: ' + str(own['loader']))
         if own.get('loader') == 'fusion:model':
@@ -496,6 +500,10 @@ class Compiler:
                 raise ImportError('unsupported Fusion model type: ' + str(own.get('type')))
         parent = self.model(own['parent'], chain + (name,)) if 'parent' in own else {}
         result = {**parent, **own}
+        if own.get('loader') == _framework_module.LOADER:
+            result['components'] = own.get('components', [])
+        elif 'loader' not in own and parent.get('loader') == _framework_module.LOADER:
+            result['components'] = parent.get('components', [])
         if not isinstance(own.get('textures', {}), dict):
             raise ImportError('model textures must be an object: ' + name)
         result['textures'] = {**parent.get('textures', {}), **own.get('textures', {})}
@@ -881,6 +889,14 @@ class Compiler:
         if name == 'ae2:block/matrix_frame' and model == {'textures': {}}:
             return {'rotation': rotation, 'elements': [], 'invisible': True}
         model = self.builtin_adapter(name, model)
+        if _wire_module.is_empty_rack_model(name, model, selector, block_name):
+            return {'rotation': rotation, 'elements': [], 'invisible': True}
+        if model.get('loader') in _wire_module.LOADERS:
+            return _wire_module.compile_wire_model(self, name, model, rotation, selector, depth, ImportError, block_name)
+        if model.get('loader') == _framework_module.LOADER:
+            model = _framework_module.adapt_open_model(model, ImportError, MAX_ELEMENTS)
+        if model.get('loader') == _enderio_module.IO_OVERLAY_LOADER:
+            return _enderio_module.compile_io_overlay(self, name, rotation)
         if model.get('loader') == _material_module.DOMUM_LOADER:
             return _material_module.compile_domum(self, name, model, rotation, selector, depth, ImportError, block_name)
         if model.get('loader') == _storage_module.SIMPLE_MATERIAL_LOADER:
@@ -937,11 +953,13 @@ class Compiler:
                 raise ImportError('composite child must be an inline model object')
             elements, polygons = [], []
             all_invisible = True
+            requires_visible_companion = False
             for child_name, child in children.items():
                 if not visibility.get(child_name, True):
                     continue
                 compiled = self.compile_model({'model': child}, depth + 1, selector, block_name)
                 all_invisible = all_invisible and compiled.get('invisible', False)
+                requires_visible_companion = requires_visible_companion or compiled.get('requires_visible_companion', False)
                 elements.extend(compiled['elements'])
                 polygons.extend(compiled.get('polygons', []))
             if not transform.is_identity:
@@ -952,7 +970,10 @@ class Compiler:
                 raise ImportError('composite polygon count exceeds limit')
             if len(elements) > MAX_ELEMENTS:
                 raise ImportError('composite element count exceeds limit')
-            return {'rotation': rotation, 'elements': elements, 'polygons': polygons, 'invisible': all_invisible}
+            result = {'rotation': rotation, 'elements': elements, 'polygons': polygons, 'invisible': all_invisible}
+            if all_invisible and requires_visible_companion:
+                result['requires_visible_companion'] = True
+            return result
         elements = model.get('elements')
         if not isinstance(elements, list) or not elements or len(elements) > MAX_ELEMENTS:
             raise ImportError('model needs 1..2048 standard elements: ' + str(application['model']))
@@ -1109,6 +1130,8 @@ class Compiler:
                 if split_policies and (len(split_policies) != 1 or any('split_policy' not in model for model in models)):
                     raise ImportError('state combines incompatible IE split providers')
                 if models and all(model.get('invisible') for model in models):
+                    if any(model.get('requires_visible_companion') for model in models):
+                        raise ImportError('model requires live renderer data without a visible supplied fallback')
                     output.append((canonical(name, selector), [0, 0, 0], 0, []))
                     continue
                 faces = [face for model in models for element in model['elements'] for face in element['faces']]

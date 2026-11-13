@@ -289,6 +289,18 @@ This pass adds 66 definitions and 1,338 selectors without losing prior coverage.
 
 All 168 Python tests and native macOS ASan/UBSan fixture exports passed. Native full-pack exports covered all 1,338 new selectors across three batches, with source-pixel checks, repeated OBJ output, and exact Sponge geometry/state round trips. The expanded baseline checked 507 states and 503 textures. Portable Windows fixtures cover 1,139 states. The preceding precision/storage commit passed macOS Intel CI and Windows Debug/Release regression tests. Its full-pack Windows Release test also passed.
 
+## Static machine, wire, and furniture models
+
+EnderIO IO overlays now contribute no geometry when their saved configuration is unavailable, matching the shipped fallback. Separate machine-base geometry remains visible. Painted blocks still require saved paint data. Conditional capacitor-bank models remain unsupported because their selected Athena renderer needs separate support.
+
+More Red exports palette-selected nodes and elbows. Reports identify omitted neighbor-dependent line/edge connections and power tint. States with no supplied visible geometry remain unsupported, including through nested composites. MineColonies' verified `blockrackair` rack variant preserves its invisible schematic identity. Resource replacements with actual geometry still render.
+
+Framework open models now use their supplied components, including arbitrary supported element angles, source UVs, and inherited texture overrides. The adapter preserves the loader's custom-geometry inheritance rules and its zero-endpoint UV defaults. Unsupported root transforms and nonstandard rescale combinations fail explicitly. Native tests compare rotated vertices against independently calculated positions.
+
+This pass adds 45 definitions and 1,342 selectors with no lost coverage. The full ATM10 8.3 catalog contains 45,228 definitions, 587,549 selectors, 31,934 textures, 91,712 geometries, 554,218 elements, 34,774 polygons, and 25 dimensions. Unsupported totals are 6,923 definitions and 5,018 states. Newly exposed fully dynamic wire states account for the increased partial-state count.
+
+All 192 Python tests and native macOS ASan/UBSan fixture exports passed. Full-pack native exports checked every new selector across three batches, with source pixels, repeated OBJ, and exact Sponge geometry/state round trips. The baseline checked 656 states and 620 textures. Portable Windows fixtures cover 1,288 states. The preceding Domum/transmitter commit passed macOS Intel CI and Windows Debug/Release regression tests. Its full-pack Windows Release run checked 1,139 states and 596 textures successfully.
+
 ## Compiled format
 
 The importer writes version 6 for split models. Otherwise, it writes version 5 for repeated UVs, version 4 for Z rotations, version 3 for polygons, or version 2. The runtime reads versions 1 through 6. All versions use UTF-8 text with tab-separated fields. Resource identifiers and selectors cannot contain control characters. Dimension records are optional. Texture and geometry indices each start at zero and increase by one. References must use earlier records.

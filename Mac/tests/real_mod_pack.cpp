@@ -348,6 +348,38 @@ int main(int argc, char** argv)
         "supplementaries:rope_tomatoes",
         "supplementaries:stick_tomatoes",
         "securitycraft:reinforced_scaffolding",
+        "enderio:alloy_smelter",
+        "enderio:crafter",
+        "enderio:drain",
+        "enderio:enchanter",
+        "enderio:fluid_tank",
+        "enderio:impulse_hopper",
+        "enderio:niard",
+        "enderio:painting_machine",
+        "enderio:powered_spawner",
+        "enderio:pressurized_fluid_tank",
+        "enderio:sag_mill",
+        "enderio:slice_and_splice",
+        "enderio:soul_binder",
+        "enderio:soul_engine",
+        "enderio:stirling_generator",
+        "enderio:vat",
+        "enderio:wired_charger",
+        "enderio:wireless_charger",
+        "refurbished_furniture:andesite_stepping_stones",
+        "refurbished_furniture:computer",
+        "refurbished_furniture:dark_ceiling_light",
+        "refurbished_furniture:dark_range_hood",
+        "refurbished_furniture:deepslate_stepping_stones",
+        "refurbished_furniture:diorite_stepping_stones",
+        "refurbished_furniture:frying_pan",
+        "refurbished_furniture:granite_stepping_stones",
+        "refurbished_furniture:light_ceiling_light",
+        "refurbished_furniture:light_range_hood",
+        "refurbished_furniture:stone_stepping_stones",
+        "textures",
+        "unsupported_states",
+        "warnings",
         "minecolonies:blockminecoloniesrack",
         "mekanism:advanced_logistical_transporter",
         "mekanism:advanced_mechanical_pipe",
@@ -382,7 +414,8 @@ int main(int argc, char** argv)
         int type, data;
         assert(ResolveModState(block.second.front(), &type, &data) == 1);
         if (GetModBlock(type, data)->sourceDefinition->splitPolicy == ModSplitPolicy::None &&
-            block.first.compare(0, 17, "domum_ornamentum:") != 0) continue;
+            block.first.compare(0, 17, "domum_ornamentum:") != 0 &&
+            block.first.compare(0, 8, "morered:") != 0) continue;
         for (const auto* state : {&block.second.front(), &block.second.back()})
             if (std::find(selected.begin(), selected.end(), *state) == selected.end()) selected.push_back(*state);
     }
