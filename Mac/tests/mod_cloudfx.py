@@ -14,13 +14,11 @@ cloud = mod._cloudfx_module
 class CloudFxTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix='mineways-cloudfx-')
+        self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.source = self.root / 'source'
         simple(self.source)
         cloudfx_assets(self.source)
-
-    def tearDown(self):
-        self.temp.cleanup()
 
     def compiler(self, sources=None):
         assets = mod.Assets(sources or [self.source])
