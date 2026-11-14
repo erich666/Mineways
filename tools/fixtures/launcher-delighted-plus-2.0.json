@@ -39,5 +39,6 @@
     "minecraft": "1.21.1"
   },
   "expected_mod_count": 80,
-  "expected_file_count": 84
+  "expected_file_count": 84,
+  "expected_active_mod_count": 80
 }

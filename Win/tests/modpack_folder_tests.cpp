@@ -3,6 +3,10 @@
 #include <chrono>
 #include <fstream>
 #include <iostream>
+#ifdef _WIN32
+#include <windows.h>
+#include <shellapi.h>
+#endif
 
 int main()
 {
@@ -12,6 +16,15 @@ int main()
     assert(quoteArgument(L"C:\\Pack\\") == L"\"C:\\Pack\\\\\"");
     assert(quoteArgument(L"a\"b") == L"\"a\\\"b\"");
     assert(quoteArgument(L"\u4e16\u754c") == L"\"\u4e16\u754c\"");
+#ifdef _WIN32
+    for (const auto& argument : {L"", L"C:\\Games\\Pack & $name; (test)\\", L"quote\"slash\\", L"\u4e16\u754c", L"%PATH%!literal"}) {
+        const auto command = quoteArgument(L"test.exe") + L" " + quoteArgument(argument);
+        int count = 0;
+        LPWSTR* parsed = CommandLineToArgvW(command.c_str(), &count);
+        assert(parsed && count == 2 && std::wstring(parsed[1]) == argument);
+        LocalFree(parsed);
+    }
+#endif
     namespace fs = std::filesystem;
     const auto root = fs::temp_directory_path() /
         ("Mineways modpack tests " + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));

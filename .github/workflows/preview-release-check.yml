@@ -66,6 +66,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PREVIEW_RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
+          gh release view "$PREVIEW_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json targetCommitish --jq .targetCommitish > "$RUNNER_TEMP/preview-source.txt"
           gh release download "$PREVIEW_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern "$PREVIEW_ARCHIVE" --pattern SHA256SUMS.txt --dir downloaded
       - name: Verify ZIP checksum and report build metadata
         shell: bash
@@ -85,8 +86,8 @@ jobs:
               if len(metadata_files) != 1:
                   raise SystemExit('Expected exactly one build metadata file')
               metadata = json.loads(package.read(metadata_files[0]))
-              if metadata['source_revision'] != os.environ['GITHUB_SHA']:
-                  raise SystemExit('The package source revision differs from the workflow checkout')
+              if metadata['source_revision'] != (Path(os.environ['RUNNER_TEMP']) / 'preview-source.txt').read_text().strip():
+                  raise SystemExit('The package source revision differs from the release target commit')
               print(json.dumps(metadata, indent=2))
           print('Exact release ZIP checksum verified:', archive.name)
           PY
@@ -124,6 +125,14 @@ jobs:
       - name: Test shipped ATM10 showcase exports and schematics
         shell: bash
         run: python tools/test_atm10_showcase.py "preview-test/extracted preview with spaces/Mineways-preview-${{ matrix.package }}" --output showcase-test
+      - name: Test Windows folder selection and argument handling
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VSINSTALL=%%i"
+          call "%VSINSTALL%\Common7\Tools\VsDevCmd.bat" -arch=x64
+          cl /nologo /EHsc /std:c++17 /W4 /WX Win\tests\modpack_folder_tests.cpp /Fe:"%RUNNER_TEMP%\modpack_folder_tests.exe" shell32.lib || exit /b 1
+          "%RUNNER_TEMP%\modpack_folder_tests.exe"
       - name: Test the Windows showcase launcher opens the GUI
         if: runner.os == 'Windows'
         shell: pwsh
@@ -133,6 +142,12 @@ jobs:
         run: |
           python tools/test_launcher_real_packs.py --self-test
           python tools/test_launcher_real_packs.py "preview-test/extracted preview with spaces/Mineways-preview-${{ matrix.package }}" --output real-launcher-packs
+      - name: Test the normal Windows modpack picker with both real packs
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          tools/test_modpack_picker_windows.ps1 -PackageRoot "preview-test/extracted preview with spaces/Mineways-preview-windows-x64" -Installations real-launcher-packs -Output native-modpack-picker
+          python tools/test_launcher_real_packs.py "preview-test/extracted preview with spaces/Mineways-preview-windows-x64" --output real-launcher-packs --gui-output native-modpack-picker
       - name: Test exact package with full ATM10 catalog
         if: inputs.full_atm
         shell: bash
@@ -151,6 +166,9 @@ jobs:
             preview-test/windows-gui.png
             preview-test/showcase-gui.png
             showcase-test/validation.json
+            native-modpack-picker/*.json
+            native-modpack-picker/**/native-picker-map.png
+            native-modpack-picker/**/*.log
             real-launcher-packs/validation.json
             real-launcher-packs/**/installation.json
             real-launcher-packs/**/*.log

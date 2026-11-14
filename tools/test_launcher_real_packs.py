@@ -46,14 +46,16 @@ def acquire(fixture, cache):
     if (index.get('formatVersion') != 1 or index.get('game') != 'minecraft'
             or index['dependencies'] != fixture['dependencies']
             or len(files) != fixture['expected_file_count']
-            or sum(entry['path'].startswith('mods/') for entry in files) != fixture['expected_mod_count']):
+            or sum(entry['path'].startswith('mods/') for entry in files) != fixture['expected_mod_count']
+            or sum(entry['path'].startswith('mods/') and entry['path'].endswith('.jar')
+                   for entry in files) != fixture['expected_active_mod_count']):
         raise AssertionError('Pinned public pack has unexpected metadata')
     seen = set()
     for entry in files:
         path = PurePosixPath(entry['path'])
         if (path.is_absolute() or '..' in path.parts or '\\' in entry['path'] or ':' in entry['path']
                 or path.parts[0] not in ('mods', 'resourcepacks', 'shaderpacks')
-                or path.suffix.lower() not in ('.jar', '.zip') or entry['path'].casefold() in seen):
+                or not entry['path'].lower().endswith(('.jar', '.jar.disabled', '.zip')) or entry['path'].casefold() in seen):
             raise ValueError('Unsafe or duplicate public pack file path')
         seen.add(entry['path'].casefold())
         if (not re.fullmatch('[0-9a-f]{40}', entry['hashes']['sha1'])
@@ -69,7 +71,7 @@ def acquire(fixture, cache):
     with ThreadPoolExecutor(max_workers=8) as pool:
         list(pool.map(lambda entry: fetch(entry, cache), entries))
     print(f'Verified full pack: {fixture["name"]} {fixture["version"]}, '
-          f'{fixture["expected_mod_count"]} mod files', flush=True)
+          f'{fixture["expected_mod_count"]} mod files ({fixture["expected_active_mod_count"]} enabled)', flush=True)
 
 
 def make_world(world, fixture):
@@ -245,7 +247,7 @@ def validate(package, fixture, instance, world, output):
         raise AssertionError('Launcher preparation or export modified the instance saves')
     metadata = json.loads((package / 'BUILD-METADATA.json').read_text(encoding='utf-8'))
     return {'source_revision': metadata['source_revision'], 'modrinth_version_id': fixture['modrinth_version_id'],
-            'pack': fixture['name'], 'version': fixture['version'], 'layout': fixture['layout'],
+            'pack': fixture['name'], 'enabled_mods': fixture['expected_active_mod_count'], 'version': fixture['version'], 'layout': fixture['layout'],
             'minecraft': fixture['index']['dependencies']['minecraft'], 'loader': fixture['loader']['kind'],
             'loader_version': fixture['loader']['version'], 'sample_states': states,
             'source_pixel_textures': checked, 'faces': len(geometry(individual)),
@@ -259,6 +261,7 @@ class FixtureChecks(unittest.TestCase):
             fixture = json.loads(path.read_text())
             self.assertGreater(fixture['expected_mod_count'], 50)
             self.assertGreaterEqual(fixture['expected_file_count'], fixture['expected_mod_count'])
+            self.assertLessEqual(fixture['expected_active_mod_count'], fixture['expected_mod_count'])
             self.assertEqual(fixture['dependencies']['minecraft'], '1.21.1')
             for pin in (fixture['mrpack'], fixture['minecraft_client'], fixture['loader']):
                 self.assertRegex(pin['sha1'], r'^[0-9a-f]{40}$')
@@ -266,6 +269,38 @@ class FixtureChecks(unittest.TestCase):
                 downloader.check_url(pin['url'])
             self.assertEqual(urlsplit(fixture['mrpack']['url']).hostname, 'cdn.modrinth.com')
 
+
+
+def validate_gui_exports(installations, gui_output):
+    results = []
+    references = json.loads((installations / 'validation.json').read_text(encoding='utf-8'))
+    for setup_path in sorted(installations.glob('*/installation.json')):
+        setup = json.loads(setup_path.read_text(encoding='utf-8'))
+        fixture = json.loads(Path(setup['fixture']).read_text(encoding='utf-8'))
+        reference = next(item for item in references if item['pack'] == fixture['name'])
+        destination = gui_output / setup_path.parent.name
+        obj = destination / 'individual.obj'
+        states = [sample['state'] for sample in fixture['samples']]
+        manifest = Path(reference['manifest'])
+        textures = pack_sources(manifest, states)
+        names = {}
+        for line in manifest.read_text(encoding='utf-8').splitlines():
+            fields = line.split('\t')
+            if fields[0] == 'texture':
+                names[fields[2]] = int(fields[1])
+        check_obj(obj, '')
+        pixels = check_export_pixels(obj, textures)
+        check_sample_materials(obj, [names[sample['texture']] for sample in fixture['samples']])
+        verify_schematic(destination / 'roundtrip.schem', states, '')
+        if geometry(obj) != geometry(setup_path.parent / 'individual.obj'):
+            raise AssertionError('Native picker current-scene geometry differs from the verified pack export')
+        results.append({'pack': fixture['name'], 'sample_states': states,
+                        'source_pixel_textures': pixels, 'faces': len(geometry(obj)),
+                        'same_process_native_picker': True})
+    if len(results) != 2:
+        raise AssertionError('Expected both native launcher picker exports')
+    (gui_output / 'validation.json').write_text(json.dumps(results, indent=2) + '\n', encoding='utf-8')
+    print('PASS: native picker current-scene geometry, sample textures, and Sponge identity: ' + json.dumps(results))
 
 
 def main():
@@ -276,6 +311,7 @@ def main():
     parser.add_argument('--fixture', type=Path, action='append')
     parser.add_argument('--assets-only', action='store_true', help='prepare original test installations without running the package')
     parser.add_argument('--self-test', action='store_true')
+    parser.add_argument('--gui-output', type=Path, help='verify existing native picker exports against --output installations')
     args = parser.parse_args()
     if args.self_test:
         unittest.main(argv=[__file__])
@@ -283,6 +319,9 @@ def main():
     if args.output is None or (args.package is None and not args.assets_only):
         parser.error('PACKAGE_ROOT and --output are required unless --assets-only')
     output = args.output.resolve()
+    if args.gui_output:
+        validate_gui_exports(output, args.gui_output.resolve())
+        return
     output.mkdir(parents=True, exist_ok=False)
     cache = (args.assets_cache or output / 'asset cache').resolve()
     results = []

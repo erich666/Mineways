@@ -39,5 +39,6 @@
     "neoforge": "21.1.249"
   },
   "expected_mod_count": 177,
-  "expected_file_count": 184
+  "expected_file_count": 184,
+  "expected_active_mod_count": 169
 }
