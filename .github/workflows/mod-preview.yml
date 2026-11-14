@@ -191,8 +191,12 @@ jobs:
         run: |
           # v14.03 hides two shared file-list helpers when Sketchfab is disabled.
           if ((git -C vanilla-baseline rev-parse HEAD:Win/Mineways.cpp) -eq '52877899fca031bc3bd6301f72aef842d74b4813') {
-            git -C vanilla-baseline apply ../tools/fixtures/v14.03-windows-baseline.patch
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $src = 'vanilla-baseline/Win/Mineways.cpp'
+            $encoding = [System.Text.Encoding]::Latin1
+            $cpp = [IO.File]::ReadAllText($src, $encoding)
+            $cpp = $cpp.Replace('void initializeOutputFileList(FileList&', "#endif`r`nvoid initializeOutputFileList(FileList&")
+            $cpp = $cpp.Replace('// return a failure code (simply "1" at this point', "#ifdef SKETCHFAB`r`n" + '// return a failure code (simply "1" at this point')
+            [IO.File]::WriteAllText($src, $cpp, $encoding)
           }
           $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products '*' -requires Microsoft.Component.MSBuild -property installationPath
           & "$vs\MSBuild\Current\Bin\MSBuild.exe" vanilla-baseline/Win/Mineways.vcxproj -p:Configuration=Release -p:Platform=x64 -p:PlatformToolset=v143 -v:m -nologo
