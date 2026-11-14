@@ -30,7 +30,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 //
 
 #include "stdafx.h"
+#include <limits>
 #include "tiles.h"
+#include "ModSupport.h"
 #include "rwpng.h"
 #include "vector.h"
 #include "mdlFiles.h"
@@ -38,13 +40,44 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <limits.h>
 #include <string.h>
 #include <math.h>
+#include <cmath>
 #include <time.h>
 
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <set>
+#include <type_traits>
 
 #include "CullingSchemes.h"	// isBlockCulled() — active Culling Scheme filter
+
+static std::string gModExportError;
+const char* ModExportError() { return gModExportError.c_str(); }
+
+static std::string blockMaterialName(int type, int state = -1)
+{
+    const char* name = gBlockDefinitions[type].name;
+    if (!IsModBlock(type)) return name;
+    std::string result = "mod_";
+    for (size_t i = 0; name[i] && i < 96; ++i) {
+        char c = name[i];
+        result += (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' ? c : '_';
+    }
+    return result + "_" + std::to_string(type) + (state >= 0 ? "_state_" + std::to_string(state) : "");
+}
+
+static float blockDataAlpha(int type, int dataVal)
+{
+    // Imported map alpha describes one top face. Face textures supply export opacity.
+    if (const auto* state = GetModBlock(type, dataVal)) {
+        const int fileType = gModel.options->pEFD->fileType;
+        // Invisible blocks still carry their identity in schematic exports.
+        if (!state->contextMissing && state->definition->invisible && fileType != FILE_TYPE_SPONGE_SCHEMATIC && fileType != FILE_TYPE_SCHEMATIC)
+            return 0.0f;
+        return 1.0f;
+    }
+    return gBlockDefinitions[type].alpha;
+}
 
 // Set to a tiny number to have front and back faces of billboards be separated a bit.
 // TODO: currently works only for those billboards made by using the various multitile calls,
@@ -299,7 +332,20 @@ static int gUsingTransform = 0;
 static inline int swatchToCol(int swatchLoc) { return (swatchLoc % 16) + 16 * (swatchLoc / TILES_PER_PAGE); }
 static inline int swatchToRow(int swatchLoc) { return (swatchLoc % TILES_PER_PAGE) / 16; }
 static inline int swatchToTableIndex(int swatchLoc) { return swatchToCol(swatchLoc) + XTILES * swatchToRow(swatchLoc); }// the tiles.h entry for a swatch index
-#define TILES_ENTRY(swatchLoc) gTilesTable[swatchToTableIndex(swatchLoc)]
+typedef std::remove_reference<decltype(gTilesTable[0])>::type ModTileDefinition;
+static std::vector<ModTileDefinition> gModTiles;
+static std::vector<int> gModTextureIds;
+static std::vector<int> gSolidTypes;
+static std::vector<int> gSolidSwatches;
+static int gModExportFileType;
+static int exportTileCount() { return TOTAL_TILES + (int)gModTiles.size(); }
+static bool isImportedSwatch(int swatch) { return swatch >= TOTAL_TILES && swatch < exportTileCount(); }
+static ModTileDefinition& exportTile(int swatch) {
+    assert(swatch >= 0 && swatch < exportTileCount());
+    return swatch < TOTAL_TILES ? gTilesTable[swatchToTableIndex(swatch)] : gModTiles[swatch - TOTAL_TILES];
+}
+static int colorSwatch(int type) { return gSolidSwatches.empty() ? type : gSolidSwatches[type]; }
+#define TILES_ENTRY(swatchLoc) exportTile(swatchLoc)
 
 // A tiles.h entry whose source image spans more than one tile (see the spanX/spanY comment in tiles.h)
 // has its name and material info - filename, typeForMtl, dataValForMtl, flags - on the entry at the
@@ -311,7 +357,7 @@ static inline int swatchToTableIndex(int swatchLoc) { return swatchToCol(swatchL
 // that actually holds its name/material data: itself, unless it's a member cell, in which case its anchor.
 static int resolveTileAnchor(int swatchLoc)
 {
-    assert(swatchLoc >= 0 && swatchLoc < TOTAL_TILES);
+    assert(swatchLoc >= 0 && swatchLoc < exportTileCount());
     if (TILES_ENTRY(swatchLoc).spanX < 0 || TILES_ENTRY(swatchLoc).spanY < 0) {
         int anchorCol = TILES_ENTRY(swatchLoc).txrX + TILES_ENTRY(swatchLoc).spanX;
         int anchorRow = TILES_ENTRY(swatchLoc).txrY + TILES_ENTRY(swatchLoc).spanY;
@@ -349,7 +395,7 @@ static void getTileMaterialName(int swatchLoc, char* outName, int outSizeChars)
 // How many tiles wide (and high - spans are square) the image anchored at this swatch is: 1 for a normal tile.
 static int tileSpan(int swatchLoc)
 {
-    if (swatchLoc < 0 || swatchLoc >= TOTAL_TILES)
+    if (swatchLoc < 0 || swatchLoc >= exportTileCount())
         return 1;
     return (TILES_ENTRY(swatchLoc).spanX > 1) ? TILES_ENTRY(swatchLoc).spanX : 1;
 }
@@ -429,7 +475,7 @@ static bool reserveSpanBlocks()
                 gSpanImages[i].blockRow = shelfBottom - size;
                 rightCol -= size;
                 // first slot of the block's top row is its lowest numbered slot, which must be past the tiles
-                if (gSpanImages[i].blockCol < 0 || gSpanImages[i].blockRow * gModel.swatchesPerRow + gSpanImages[i].blockCol < TOTAL_TILES)
+                if (gSpanImages[i].blockCol < 0 || gSpanImages[i].blockRow * gModel.swatchesPerRow + gSpanImages[i].blockCol < exportTileCount())
                     return false;
             }
         }
@@ -668,7 +714,7 @@ ProgressValues gProgress;
 
 
 // objects that are waterlogged should be considered fully in water, as if the block was in water
-#define IS_WATERLOGGED(tval,bi) ((gBlockDefinitions[tval].flags & BLF_WATERLOG) || \
+#define IS_WATERLOGGED(tval,bi) (ModBlockWaterlogged(tval, gBoxData[bi].data) || (gBlockDefinitions[tval].flags & BLF_WATERLOG) || \
 								((gBlockDefinitions[tval].flags & BLF_MAYWATERLOG) && !(gBlockDefinitions[tval].flags & BLF_LAME_WATERLOG) && (gBoxData[bi].data & WATERLOGGED_BIT)))
 
 #define IS_FLUID(tval,bi)	(((tval) >= BLOCK_WATER && (tval) <= BLOCK_STATIONARY_LAVA) || IS_WATERLOGGED(tval,bi))
@@ -861,6 +907,7 @@ typedef struct ModelFace {
     int rotation;
     int billboardBack;
     int swatchLoc;  // the face's own 16x16 tile, e.g. a bed's, or 0 to use the model's whole (possibly multi-tile) image
+    int cullMode;   // 0 preserves built-in behavior, -1 disables culling, otherwise direction + 1
 } ModelFace;
 // One Minecraft block model JSON element: "from", "to" (in 0-16 pixel units) and its faces. An element may also have a "rotation":
 // rotAngle degrees, as in the JSON (so, about Y, negative turns clockwise, seen from above), about rotOrigin, in pixel units, about
@@ -875,12 +922,167 @@ typedef struct ModelElement {
     int rotAxis;
     int rescale;
 } ModelElement;
-static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, float yAngle, int xAngle = 0, bool uvlock = false);
-static int saveRotatedModel(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, int xAngle, int yAngle, bool uvlock);
+static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, float yAngle, int xAngle = 0, bool uvlock = false, int zAngle = 0);
+static int saveRotatedModel(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, int xAngle, int yAngle, bool uvlock, int zAngle = 0);
 // The terrain tile anchor of a sign's 32x32 texture (see tiles.h): standing and wall signs in rows 4-7, hanging and wall hanging signs in
 // rows 8-11, eight woods (SIGN_WOOD(), the order of gSignWoods[]) to each pair of rows, from column 16.
 #define SIGN_TEXTURE_ANCHOR(wood, hanging) TILE_TO_SWATCH(16 + 2 * ((wood) % 8), ((hanging) ? 8 : 4) + 2 * ((wood) / 8))
 static int saveSignModel(int boxIndex, int type, int dataVal, bool hanging, const ModelElement* elements, int elementCount, float yAngle);
+
+static std::vector<int> gModTextureSwatches;
+static std::vector<std::wstring> gModTextureNames;
+static void restoreModTextureSlots()
+{
+    gModTiles.clear();
+    gModTextureIds.clear();
+}
+
+static void prepareSolidSwatches()
+{
+    gSolidSwatches.assign(MAX_BLOCK_TYPES, 0);
+    gSolidTypes.clear();
+    for (int type = 0; type < NUM_BLOCKS_DEFINED; ++type) {
+        gSolidSwatches[type] = type;
+        gSolidTypes.push_back(type);
+    }
+    for (long long i = 0; i < gBoxSizeXYZ; ++i) for (int type : {gBoxData[i].type, gBoxData[i].origType}) {
+        if (type >= NUM_BLOCKS_DEFINED && !gSolidSwatches[type]) {
+            gSolidSwatches[type] = (int)gSolidTypes.size();
+            gSolidTypes.push_back(type);
+        }
+    }
+}
+
+static std::vector<int> selectedModTextures()
+{
+    std::set<unsigned> states;
+    std::set<int> textures;
+    for (long long i = 0; i < gBoxSizeXYZ; ++i) {
+        const BoxCell& cell = gBoxData[i];
+        for (int type : {cell.type, cell.origType}) {
+            if (!IsModBlock(type)) continue;
+            const int data = cell.data & DATAVAL_MASK;
+            if (!states.insert(((unsigned)type << 12) | data).second) continue;
+            const auto* state = GetModBlock(type, data);
+            if (state && state->definition) for (const auto& model : state->definition->models) {
+                for (const auto& element : model.Elements()) for (const auto& face : element.faces)
+                    textures.insert(face.texture);
+                for (const auto& face : model.Polygons()) textures.insert(face.texture);
+            }
+        }
+    }
+    return std::vector<int>(textures.begin(), textures.end());
+}
+
+// Imported textures have their own output slots; the vanilla terrain table stays unchanged.
+static bool prepareModTextures(int fileType, const std::vector<int>& used)
+{
+    restoreModTextureSlots();
+    gModTextureNames.clear();
+    gModExportFileType = fileType;
+    gModTextureSwatches.assign(ModTextures().size(), SWATCH_INDEX(1, 0));
+    if (used.size() > MAX_SELECTED_MOD_TEXTURES) return false;
+    std::string error;
+    if (!EnsureModTextures(used, error)) return false;
+    gModTextureNames.reserve(used.size());
+    gModTiles.reserve(used.size());
+    gModTextureIds = used;
+    for (int index : used) {
+        gModTextureNames.push_back(L"mw_mod_" + std::to_wstring(index));
+        ModTileDefinition tile = {};
+        tile.filename = gModTextureNames.back().c_str();
+        tile.altFilename = L"";
+        tile.typeForMtl = BLOCK_STONE;
+        tile.flags = SWATCH_CLAMP_ALL;
+        gModTextureSwatches[index] = TOTAL_TILES + (int)gModTiles.size();
+        gModTiles.push_back(tile);
+    }
+    return true;
+}
+
+static unsigned char modPBRValue(int category, int channel)
+{
+    const bool obj = gModExportFileType == FILE_TYPE_WAVEFRONT_REL_OBJ || gModExportFileType == FILE_TYPE_WAVEFRONT_ABS_OBJ;
+    return category == CATEGORY_NORMALS ? (channel == 2 ? 255 : 128) :
+        category == CATEGORY_ROUGHNESS && !obj ? 255 : 0;
+}
+
+static void copyModTextures(progimage_info* dst, int category)
+{
+    const int channels = gCatChannels[category];
+    for (size_t slot = 0; slot < gModTextureIds.size(); ++slot) {
+        const int swatch = TOTAL_TILES + (int)slot;
+        const int left = (swatch % gModel.swatchesPerRow) * gModel.swatchSize;
+        const int top = (swatch / gModel.swatchesPerRow) * gModel.swatchSize;
+        const auto& source = ModTextures()[gModTextureIds[slot]];
+        assert(left + gModel.swatchSize <= dst->width && top + gModel.swatchSize <= dst->height);
+        for (int y = 0; y < gModel.swatchSize; ++y) for (int x = 0; x < gModel.swatchSize; ++x) {
+            const int sx = max(0, min(gModel.tileSize - 1, x - SWATCH_BORDER));
+            const int sy = max(0, min(gModel.tileSize - 1, y - SWATCH_BORDER));
+            const size_t src = ((size_t)sy * source.height / gModel.tileSize * source.width + (size_t)sx * source.width / gModel.tileSize) * 4;
+            const size_t pixel = ((size_t)(top + y) * dst->width + left + x) * channels;
+            for (int channel = 0; channel < channels; ++channel)
+                dst->image_data[pixel + channel] = category == CATEGORY_RGBA ? source.rgba[src + channel] : modPBRValue(category, channel);
+        }
+    }
+}
+
+static int saveModPolygons(int boxIndex, int type, int dataVal, const ModModel& model);
+
+static int saveModGeometry(int boxIndex, int type, int dataVal)
+{
+    const ModBlockState* state = GetModBlock(type, dataVal);
+    if (!state || !state->definition) return MW_CANNOT_PARSE_IMPORT_FILE;
+    if (state->contextMissing) {
+        gModExportError = "A selected mod block needs saved block-entity data to place its model: " + state->canonical +
+            ". Open the original world or a Sponge schematic containing that data.";
+        fprintf(stderr, "%s\n", gModExportError.c_str());
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+    }
+    const int directions[] = { DIRECTION_BLOCK_BOTTOM, DIRECTION_BLOCK_TOP,
+        DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z,
+        DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
+    for (const auto& sourceModel : state->definition->models) {
+        std::vector<ModelElement> elements;
+        for (const auto& source : sourceModel.Elements()) {
+            ModelElement element = {};
+            std::copy(source.from, source.from + 3, element.from);
+            std::copy(source.to, source.to + 3, element.to);
+            std::copy(source.origin, source.origin + 3, element.rotOrigin);
+            element.rotAxis = source.axis == 0 ? 1 : source.axis == 1 ? 0 : 2;
+            element.rotAngle = source.angle;
+            element.rescale = source.rescale;
+            bool flat[3] = { source.from[0] == source.to[0], source.from[1] == source.to[1], source.from[2] == source.to[2] };
+            const bool inverted = source.from[0] > source.to[0] || source.from[1] > source.to[1] || source.from[2] > source.to[2];
+            bool emittedFlat = false;
+            for (const auto& face : source.faces) {
+                int axis = face.direction < 2 ? 1 : face.direction < 4 ? 2 : 0;
+                if (flat[(axis + 1) % 3] || flat[(axis + 2) % 3]) continue;
+                if (face.texture < 0 || (size_t)face.texture >= gModTextureSwatches.size())
+                    return MW_CANNOT_PARSE_IMPORT_FILE;
+                ModelFace& out = element.face[element.faceCount++];
+                out.faceDirection = directions[face.direction];
+                std::copy(face.uv, face.uv + 4, out.uv);
+                out.rotation = face.rotation;
+                out.swatchLoc = (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES) ? colorSwatch(type) : gModTextureSwatches[face.texture];
+                out.cullMode = face.cullface < 0 || source.angle != 0 || inverted ? -1 : directions[face.cullface] + 1;
+                out.billboardBack = flat[axis] && emittedFlat;
+                emittedFlat = emittedFlat || flat[axis];
+            }
+            if (element.faceCount) elements.push_back(element);
+        }
+        if (!sourceModel.Polygons().empty()) {
+            int code = saveModPolygons(boxIndex, type, dataVal, sourceModel);
+            if (code >= MW_BEGIN_ERRORS) return code;
+        }
+        if (!elements.empty()) {
+            int code = saveRotatedModel(boxIndex, type, dataVal, 0, elements.data(), (int)elements.size(), sourceModel.x, sourceModel.y, sourceModel.uvlock, sourceModel.z);
+            if (code >= MW_BEGIN_ERRORS) return code;
+        }
+    }
+    return 1;
+}
+
 static int saveTurnedModel(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, float yAngle);
 static int paneConnects(int neighborType);
 static int saveFenceRails(int boxIndex, int type, int dataVal, int yAngle);
@@ -914,7 +1116,7 @@ static float getHeadYAngle(int dataVal);
 #define BED_DOWN_TILE TILE_TO_SWATCH(16, 23)
 #define BED_HEAD_NORTH_TILE TILE_TO_SWATCH(17, 23)
 static int saveBoxModelFace(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int anchorLoc, const float uv[4], int rotation);
-static int saveBoxModelFaceUVLock(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int anchorLoc, const float uv[4], int rotation, int xAngle, int yAngle);
+static int saveBoxModelFaceUVLock(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int anchorLoc, const float uv[4], int rotation, int xAngle, int yAngle, int zAngle = 0);
 static int saveSpanTextureUV(int anchorLoc, int type, float su, float sv);
 static int findFaceDimensions(float rect[4], int faceDirection, float minPixX, float maxPixX, float minPixY, float maxPixY, float minPixZ, float maxPixZ);
 static int lesserNeighborCoversRectangle(int faceDirection, int boxIndex, float rect[4]);
@@ -969,8 +1171,8 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox);
 static int removeUnusedFacesAndVertices();
 static bool createInstance(int type, int dataVal, int faceIndex);
 static bool findInstance(int type, int dataVal, int& instanceID);
-static bool saveInstanceLocation(float* anchorPt, int instanceID);
-static int makeInstanceHash(int type, int dataVal);
+static bool saveInstanceLocation(const double* anchorPt, int instanceID);
+static unsigned int makeInstanceHash(int type, int dataVal);
 static int tileIdCompare(void* context, const void* str1, const void* str2);
 static int tileUSDIdCompare(void* context, const void* str1, const void* str2);
 #ifdef SIMPLIFY_RESORT
@@ -983,7 +1185,7 @@ static int chunkUSDCompare(void* context, const void* str1, const void* str2);
 static int instanceUSDCompare(void* context, const void* str1, const void* str2);
 
 static int getDimensionsAndCount(Point dimensions);
-static void rotateLocation(Point pt);
+template <typename T> static void rotateLocation(T* pt);
 static int checkAndCreateFaces(int boxIndex, IPoint loc);
 static int checkMakeFace(int type, int neighborType, int view3D, int testPartial, int faceDirection, int boxIndex, int neighborBoxIndex, int fluidFullBlock);
 static int neighborMayCoverFace(int neighborType, int view3D, int testPartial, int faceDirection, int neighborBoxIndex);
@@ -1018,8 +1220,9 @@ static int saveTextureUV(int swatchLoc, int type, float u, float v);
 static void freeModel(Model* pModel);
 
 static int findMatchingNormal(FaceRecord* pFace, Vector normal, Vector* normalList, int normalListCount);
-static int addNormalToList(Vector normal, Vector* normalList, int* normalListCount, int normalListSize);
-static void resolveFaceNormals();
+static int addNormalToList(Vector normal);
+static int resolveFaceNormals();
+static int validateExportPrecision();
 
 static float getEmitterLevel(int type, int dataVal, bool splitByBlockType, float power);
 
@@ -1038,7 +1241,7 @@ static int writeVRMLTextureUV(float u, float v, int addComment, int swatchLoc);
 
 static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* box, IBox* tightenedWorldBox, const wchar_t* curDir, const wchar_t* terrainFileName, wchar_t* cullSchemeSelected, ChangeBlockCommand* pCBC);
 static bool findNextChunk(int startInstance, int& endInstance, char* chunkLocation);
-static void nameFromHash(int hash, char* instanceNameString);
+static void nameFromHash(unsigned int hash, char* instanceNameString);
 static int openUSDFile(wchar_t* destination, PORTAFILE& modelFile);
 static int writeCommentUSD(char* commentString);
 static int finishCommentsUSD(char* defaultPrim);
@@ -1105,7 +1308,7 @@ static void spacesToUnderlines(wchar_t* targetString);
 static void allJunkToUnderlines(char* targetString);
 static void changeCharToUnderline(char toReplace, char* targetString);
 
-static float retrieveMtlAlpha(int type);
+static float retrieveMtlAlpha(int type, int dataVal);
 static int createBaseMaterialTexture();
 
 static void copyPNGArea(progimage_info* dst, int dst_x_min, int dst_y_min, int size_x, int size_y, progimage_info* src, int src_x_min, int src_y_min);
@@ -1175,7 +1378,7 @@ typedef struct SimplifyRect {
 } SimplifyRect;
 static int planSimplifyRects(SimplifyFaceRecord** ppSFR, int faceCount, bool yFirst, std::vector<SimplifyRect>& rects);
 static void mergeSimplifyRect(const SimplifyRect& rect);
-static short findUVinIndex(FaceRecord* pFace, float bx, float by);
+static int findUVinIndex(FaceRecord* pFace, float bx, float by);
 static int getVertexIDmatching(FaceRecord* pFace, float xnx, float yny);
 
 static wchar_t gSeparator[3];
@@ -1199,6 +1402,46 @@ void ClearCache()
 //
 // Main code begins
 
+// This setting is one directory component, never a path supplied by an imported model.
+static bool validTextureDirectory(const char* directory)
+{
+    size_t length = 0;
+    while (length < MAX_PATH && directory[length] != '\0') {
+        unsigned char ch = (unsigned char)directory[length];
+        if (ch < 32 || strchr("<>|?*:/\\\"", ch) != NULL)
+            return false;
+        length++;
+    }
+    if (length == MAX_PATH)
+        return false;
+    return length == 0 || (directory[length - 1] != '.' && directory[length - 1] != ' ');
+}
+
+// Do not follow an existing texture/material directory link outside the export folder.
+static bool createExportDirectory(const wchar_t* directory)
+{
+    wchar_t path[MAX_PATH_AND_FILE];
+    wcscpy_s(path, MAX_PATH_AND_FILE, directory);
+    size_t length = wcslen(path);
+    while (length > 0 && (path[length - 1] == L'/' || path[length - 1] == L'\\'))
+        path[--length] = L'\0';
+    if (length == 0 || !(CreateDirectoryW(path, NULL) || GetLastError() == ERROR_ALREADY_EXISTS))
+        return false;
+#ifdef WIN32
+    DWORD attributes = GetFileAttributesW(path);
+    return attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_DIRECTORY) &&
+        !(attributes & FILE_ATTRIBUTE_REPARSE_POINT);
+#else
+    char* localPath = _mwNormalizeWidePath(path);
+    if (localPath == NULL)
+        return false;
+    struct stat info;
+    bool result = lstat(localPath, &info) == 0 && S_ISDIR(info.st_mode);
+    free(localPath);
+    return result;
+#endif
+}
+
 //world = path to world saves
 //min* = minimum block location of box to save
 //max* = maximum block location of box to save
@@ -1209,6 +1452,8 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
     ProgressCallback callback, wchar_t* terrainFileName, wchar_t* cullSchemeSelected, FileList* outputFileList, int majorVersion, int minorVersion, int worldVersion, ChangeBlockCommand* pCBC, int instanceChunkSize,
     int& userSelectedBiome, int& biomeIndex, int& groupCount, int groupCountSize, int *groupCountArray)
 {
+    gModExportError.clear();
+    restoreModTextureSlots();
     // * Read the texture for the materials.
     // * populateBox:
     //  ** Read through the chunks once, only the data within the box specified. Keep track of the "solid box", the bounds where objects actually exist.
@@ -1221,6 +1466,15 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
 #ifdef _DEBUG
     gStartTimeStamp = gTimeStamp = clock();
 #endif
+
+    if (((options->exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES) || fileType == FILE_TYPE_USD) &&
+        !validTextureDirectory(options->pEFD->tileDirString))
+        return MW_CANNOT_CREATE_DIRECTORY;
+    if (options->exportFlags & EXPT_HOLLOW_BOTTOM) {
+        const float thickness = options->pEFD->hollowThicknessVal[options->pEFD->fileType];
+        if (!std::isfinite(thickness) || thickness <= 0.0f)
+            return MW_CANNOT_PARSE_IMPORT_FILE;
+    }
 
     IBox worldBox;
     IBox tightenedWorldBox;
@@ -1348,8 +1602,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
 
             concatFileName3(gMaterialDirectoryPath, gOutputFilePath, materialFileSubdir, gSeparator);
             // try to create it
-            if (!(CreateDirectoryW(gMaterialDirectoryPath, NULL) ||
-                ERROR_ALREADY_EXISTS == GetLastError()))
+            if (!createExportDirectory(gMaterialDirectoryPath))
             {
                 // Failed to create directory.
                 retCode |= MW_CANNOT_CREATE_DIRECTORY;
@@ -1419,15 +1672,21 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
             wchar_t terrainFileCat[MAX_PATH_AND_FILE];
             wcscpy_s(terrainFileCat, MAX_PATH, terrainFileName);
             int len = (int)wcslen(terrainFileCat);
-            if (_wcsicmp(&terrainFileCat[len - 4], L".png") == 0)
+            if (len >= 4 && _wcsicmp(&terrainFileCat[len - 4], L".png") == 0)
             {
                 // remove .png suffix
                 terrainFileCat[len - 4] = 0x0;
             }
             else {
                 // else read will fail, but so be it for the first, RGBA file
-                if (catIndex > 0)
+                if (catIndex > 0) {
+                    // Nothing gets read into this image, so it must not be left
+                    // non-NULL: every consumer of pInputTerrainImage treats a non-NULL
+                    // entry as loaded and indexes straight into image_data.
+                    delete gModel.pInputTerrainImage[catIndex];
+                    gModel.pInputTerrainImage[catIndex] = NULL;
                     continue;
+                }
             }
             wcscat_s(terrainFileCat, MAX_PATH, gCatSuffixes[catIndex]);
             wcscat_s(terrainFileCat, MAX_PATH, L".png");
@@ -1525,6 +1784,19 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         goto Exit;
     }
 
+    {
+        bool ready = false;
+        try {
+            prepareSolidSwatches();
+            ready = prepareModTextures(fileType, (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) ?
+                selectedModTextures() : std::vector<int>());
+        } catch (const std::bad_alloc&) {}
+        if (!ready) {
+            retCode |= MW_TEXTURE_TOO_LARGE;
+            goto Exit;
+        }
+    }
+
     // prepare to write texture, if needed
     if (gModel.exportTexture)
     {
@@ -1544,7 +1816,7 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
             // Use "noisy" colors, fixed 512 x 512 - we could actually make this texture quite small
             // Note this used to be 256 x 256, but that's only 14*14 = 196 materials, and we're now
             // at 198 or so...
-            gModel.textureResolution = 1024;    // was 512 for 1.16
+            gModel.textureResolution = 1024;
             // This number determines number of swatches per row. Make it 256, even though there's
             // no incoming image. This then ensures there's room for enough solid color images.
             gModel.terrainWidth = 16 * XTILES;    // really, no image, but act like there is
@@ -1553,6 +1825,11 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         gModel.tileSize = gModel.terrainWidth / XTILES;
         gModel.resScale = 16.0f / (float)gModel.tileSize;
         gModel.swatchSize = 2 + gModel.tileSize;
+        const int baseSwatches = (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) ? exportTileCount() : (int)gSolidTypes.size();
+        while ((gModel.textureResolution / gModel.swatchSize) * (gModel.textureResolution / gModel.swatchSize) < baseSwatches + 512) {
+            if (gModel.textureResolution >= 16384) { retCode |= MW_TEXTURE_TOO_LARGE; goto Exit; }
+            gModel.textureResolution = min(gModel.textureResolution * 2, 16384);
+        }
         gModel.invTextureResolution = 1.0f / (float)gModel.textureResolution;
         gModel.swatchesPerRow = (int)(gModel.textureResolution / gModel.swatchSize);
         gModel.textureUVPerSwatch = (float)gModel.swatchSize / (float)gModel.textureResolution; // e.g. 18 / 256
@@ -1564,18 +1841,20 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
         if ((gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) && !gModel.exportTiles) {
             // Only very small tiles (under 16x16) could fail to fit, in which case make a larger mosaic
             while (!reserveSpanBlocks()) {
-                gModel.textureResolution *= 2;
+                if (gModel.textureResolution >= 16384) { retCode |= MW_TEXTURE_TOO_LARGE; goto Exit; }
+                gModel.textureResolution = min(gModel.textureResolution * 2, 16384);
                 gModel.invTextureResolution = 1.0f / (float)gModel.textureResolution;
                 gModel.swatchesPerRow = (int)(gModel.textureResolution / gModel.swatchSize);
                 gModel.textureUVPerSwatch = (float)gModel.swatchSize / (float)gModel.textureResolution;
                 gModel.textureUVPerTile = (float)gModel.tileSize / (float)gModel.textureResolution;
                 // composites are limited by the per-swatch UV lists
-                gModel.swatchListSize = min(gModel.swatchesPerRow * gModel.swatchesPerRow, NUM_MAX_SWATCHES);
+                gModel.swatchListSize = gModel.swatchesPerRow * gModel.swatchesPerRow;
             }
         }
 
         if (EXPORT_TEXTURE) {
-            retCode |= createBaseMaterialTexture();
+            try { retCode |= createBaseMaterialTexture(); }
+            catch (const std::bad_alloc&) { retCode |= MW_TEXTURE_TOO_LARGE; }
         }
     }
 
@@ -1662,7 +1941,10 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
 
     // create database from all full-sized blocks and compute statistics for output
     retCode |= generateBlockDataAndStatistics(&tightenedWorldBox, &worldBox);
-    if (retCode >= MW_BEGIN_ERRORS) return retCode;
+    if (retCode >= MW_BEGIN_ERRORS) goto Exit;
+
+    retCode |= validateExportPrecision();
+    if (retCode >= MW_BEGIN_ERRORS) goto Exit;
 
     UPDATE_STATUS(gProgress.start.output, L"Output files");
     // UPDATE_PROGRESS(gProgress.start.output);
@@ -1719,6 +2001,8 @@ int SaveVolume(wchar_t* saveFileName, int fileType, Options* options, WorldGuide
 
     // done!
 Exit:
+    restoreModTextureSlots();
+    ReleaseModTextures();
 
     //UPDATE_PROGRESS(gProgress.start.zip);
 
@@ -2083,8 +2367,7 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
                     //    // relative path
                     //    concatFileName4(gTextureDirectoryPath, gMaterialDirectoryPath, subpath, L"", L"");
                     //}
-                    if (!(CreateDirectoryW(gTextureDirectoryPath, NULL) ||
-                        ERROR_ALREADY_EXISTS == GetLastError()))
+                    if (!createExportDirectory(gTextureDirectoryPath))
                     {
                         // Failed to create directory.
                         retCode |= MW_CANNOT_CREATE_DIRECTORY;
@@ -2100,7 +2383,7 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
                 bool isOBJ = (fileType == FILE_TYPE_WAVEFRONT_REL_OBJ) || (fileType == FILE_TYPE_WAVEFRONT_ABS_OBJ);
                 int outputCount = 0;
                 int frequency = (int)(1 + (gModel.tileListCount / 5));
-                for (int i = 0; i < TOTAL_TILES; i++) {
+                for (int i = 0; i < exportTileCount(); i++) {
                     // tile name is material name, period
                     if (gModel.tileList[CATEGORY_RGBA][i]) {
                         // tile found that should be output
@@ -2293,8 +2576,7 @@ static int modifyAndWriteTextures(int needDifferentTextures, int fileType)
                     charToWchar(gModel.options->pEFD->tileDirString, subpath);
                     wcscat_s(subpath, MAX_PATH_AND_FILE, gSeparator);
                     concatFileName2(gTextureDirectoryPath, gMaterialDirectoryPath, subpath);
-                    if (!(CreateDirectoryW(gTextureDirectoryPath, NULL) ||
-                        ERROR_ALREADY_EXISTS == GetLastError()))
+                    if (!createExportDirectory(gTextureDirectoryPath))
                     {
                         retCode |= MW_CANNOT_CREATE_DIRECTORY;
                         return retCode;
@@ -2532,7 +2814,7 @@ static int initializeModelData()
     gModel.vertexIndices = (int*)malloc((size_t)gBoxSizeXYZ * sizeof(int));   // this one never needs realloc
     // These may be reallocated as we go.
     gModel.vertexListSize = startNumVerts;
-    gModel.vertices = (Point*)malloc(startNumVerts * sizeof(Point));
+    gModel.vertices = (ExportPoint*)malloc((size_t)startNumVerts * sizeof(ExportPoint));
     if ((gModel.vertexIndices == NULL) || (gModel.vertices == NULL))
     {
         return MW_WORLD_EXPORT_TOO_LARGE;
@@ -2586,7 +2868,16 @@ static int initializeModelData()
     gModel.faceSize = initialFaceSize;
     gModel.faceList = (FaceRecord**)malloc(gModel.faceSize * sizeof(FaceRecord*));
 
-    memset(gModel.uvSwatches, 0, NUM_MAX_SWATCHES * sizeof(UVList));
+    gModel.swatchCapacity = max(gModel.swatchListSize, NUM_MAX_SWATCHES);
+    gModel.tileCapacity = exportTileCount();
+    gModel.uvSwatches = (UVList*)calloc(gModel.swatchCapacity, sizeof(UVList));
+    gModel.uvSwatchToType = (int*)calloc(gModel.swatchCapacity, sizeof(int));
+    gModel.tileEmissionNeeded = (bool*)calloc(gModel.tileCapacity, sizeof(bool));
+    if (!gModel.uvSwatches || !gModel.uvSwatchToType || !gModel.tileEmissionNeeded) return MW_WORLD_EXPORT_TOO_LARGE;
+    for (int category = 0; category < TOTAL_CATEGORIES; ++category) {
+        gModel.tileList[category] = (bool*)calloc(gModel.tileCapacity, sizeof(bool));
+        if (!gModel.tileList[category]) return MW_WORLD_EXPORT_TOO_LARGE;
+    }
     gModel.uvIndexListSize = 200;	// 50 blocks' worth of UVs, often enough
     gModel.uvIndexList = (UVOutput*)malloc(gModel.uvIndexListSize * sizeof(UVOutput));
     if ((gModel.faceList == NULL) || (gModel.uvIndexList == NULL))
@@ -3146,13 +3437,11 @@ static void findChunkBounds(WorldGuide* pWorldGuide, int bx, int bz, IBox* world
             boxIndex = WORLD_TO_BOX_INDEX(x, miny, z);
             chunkIndex = CHUNK_INDEX(bx, bz, x, miny, z);
             for (y = miny; y <= maxy; y++, boxIndex++) {
-                // grid[] holds the type's low 8 bits; data[]'s top 4 bits hold the type's bits
-                // 8-11 and its low 12 bits are dataVal (see nbt.h) - no BLOCK_HEAD/BLOCK_FLOWER_POT
-                // carve-out needed, unlike the old single-TYPE_HIGH_BIT1-in-dataVal promotion scheme.
+                // The grid holds the complete type; data holds independent state bits.
                 assert((chunkIndex >> 8) <= block->maxFilledHeight);  // if block is reduced in size, make sure it's in bounds
                 // Capture dataVal from the chunk loader buffer BEFORE we advance chunkIndex.
                 // We can't read it from gBoxData here — this is the bounds-finding pre-pass and
-                // gBoxData isn't allocated yet. block->data carries the same packed value that
+                // gBoxData isn't allocated yet. block->data carries the same state value that
                 // gBoxData.data will later hold, so it's the right source for cull lookup.
                 unsigned short curData = block->data[chunkIndex];
                 blockID = BLOCK_TYPE_FROM_GRID_DATA(block->grid[chunkIndex], curData);
@@ -3172,7 +3461,7 @@ static void findChunkBounds(WorldGuide* pWorldGuide, int bx, int bz, IBox* world
                     // check if it's something not to be filtered out: in the output list and alpha > 0
                     // and not hidden by the active Culling Scheme (per-(type,dataVal) check).
                     if ((flags & gModel.options->saveFilterFlags) &&
-                        (gBlockDefinitions[blockID].alpha > 0.0) &&
+                        (blockDataAlpha(blockID, curDataVal) > 0.0f) &&
                         !isBlockCulled(blockID, curDataVal)) {
                         IPoint loc;
                         Vec3Scalar(loc, =, x, y, z);
@@ -3252,9 +3541,7 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
             for (y = miny; y <= maxy; y++, boxIndex++) {
                 // Get the extra values (orientation, type) for the blocks
                 assert((chunkIndex >> 8) <= block->maxFilledHeight);  // if block is reduced in size, make sure it's in bounds
-                // grid[] holds the type's low 8 bits; data[]'s top 4 bits hold the type's bits
-                // 8-11 and its low 12 bits are dataVal (see nbt.h) - no BLOCK_HEAD/BLOCK_FLOWER_POT
-                // carve-out needed, unlike the old single-TYPE_HIGH_BIT1-in-dataVal promotion scheme.
+                // The grid holds the complete type; data holds independent state bits.
                 unsigned short dataVal = BLOCK_DATAVAL_FROM_DATA(block->data[chunkIndex]);
                 gBoxData[boxIndex].data = dataVal;
                 blockID = gBoxData[boxIndex].origType =
@@ -3264,7 +3551,7 @@ static void extractChunk(WorldGuide* pWorldGuide, int bx, int bz, IBox* edgeWorl
                 if (blockID == BLOCK_REDSTONE_WIRE && gModel.options->pEFD->fileType != FILE_TYPE_SCHEMATIC && gModel.options->pEFD->fileType != FILE_TYPE_SPONGE_SCHEMATIC)
                     gBoxData[boxIndex].data &= 0xF;
                 // if you hit this, something has gone odd with the type-extension nibble, which shouldn't happen.
-                assert(blockID < NUM_BLOCKS_DEFINED);
+                assert(blockID < ModBlockTypeLimit());
 
                 // tile entities needed if using old data format
                 if (!gIs13orNewer) {
@@ -3486,7 +3773,7 @@ static int filterBox(ChangeBlockCommand* pCBC)
                     // check if it's something to be filtered out: not in the output list,
                     // alpha is 0, or the active Culling Scheme hides this (type, dataVal).
                     if (!(flags & gModel.options->saveFilterFlags) ||
-                        gBlockDefinitions[gBoxData[boxIndex].type].alpha <= 0.0 ||
+                        blockDataAlpha(gBoxData[boxIndex].type, gBoxData[boxIndex].data) <= 0.0f ||
                         isBlockCulled(gBoxData[boxIndex].type, gBoxData[boxIndex].data)) {
                         // things that should not be saved should be gone, gone, gone, no trace left
                         gBoxData[boxIndex].type = gBoxData[boxIndex].origType = BLOCK_AIR;
@@ -3571,7 +3858,7 @@ static int filterBox(ChangeBlockCommand* pCBC)
                     type = gBoxData[boxIndex].type;
                     if (type != BLOCK_AIR)
                     {
-                        if (type >= NUM_BLOCKS_DEFINED) {
+                        if (type >= ModBlockTypeLimit()) {
                             // convert to bedrock, I guess...
                             // This check is more a symptom than a cure;
                             // there seems to be some error where data gets read and is too large, for some reason.
@@ -3580,7 +3867,7 @@ static int filterBox(ChangeBlockCommand* pCBC)
 //                            type = BLOCK_BEDROCK;
 //                            gBoxData[boxIndex].type = BLOCK_BEDROCK;
 //#else
-                            type = gBoxData[boxIndex].type = (unsigned short)(GetUnknownBlockID() & 0xff);
+                            type = gBoxData[boxIndex].type = (unsigned short)GetUnknownBlockID();
 
                             gBoxData[boxIndex].data = 0x0;
                             gBadBlocksInModel = true;
@@ -3999,13 +4286,15 @@ static bool applyChangeBlockCommand(ChangeBlockCommand* pCBC)
                 bool modify = false;
                 if (pCBC->useFromArray) {
                     // apply array: see if bit for type is flagged
-                    if (pCBC->fromDataBitsArray[gBoxData[boxIndex].type] & (1 << gBoxData[boxIndex].data))
+                    if (gBoxData[boxIndex].data < 16 &&
+                        (pCBC->fromDataBitsArray[gBoxData[boxIndex].type] & (1U << gBoxData[boxIndex].data)))
                         modify = true;
                 }
                 else {
                     // apply range and bits
                     int fromType = gBoxData[boxIndex].type;
-                    if ((pCBC->simpleFromDataBits & (1 << gBoxData[boxIndex].data)) &&
+                    if (gBoxData[boxIndex].data < 16 &&
+                        (pCBC->simpleFromDataBits & (1U << gBoxData[boxIndex].data)) &&
                         (pCBC->simpleFromTypeBegin <= fromType) &&
                         (pCBC->simpleFromTypeEnd >= fromType)) {
                         modify = true;
@@ -4890,11 +5179,16 @@ static void shearMtx(float mtx[4][4], float shx, float shy)
 static void transformVertices(int count, float mtx[4][4])
 {
     int i, j, vert;
-    // If this number is large, it's likely that we sent the wrong value in
-    assert(count <= 400);
+    // Transform the appended range, which can contain thousands of vertices for imported models.
+    // Each vertex was allocated by checkVertexListSize(); validate the actual buffer bounds,
+    // rather than limiting model complexity to an arbitrary number of elements.
+    const bool validRange = count >= 0 && count <= gModel.vertexCount &&
+        gModel.vertexCount <= gModel.vertexListSize && (count == 0 || gModel.vertices != NULL);
+    assert(validRange);
+    if (!validRange) return;
     for (vert = gModel.vertexCount - count; vert < gModel.vertexCount; vert++)
     {
-        Point resVertex;
+        ExportPoint resVertex;
         for (i = 0; i < 3; i++)
         {
             resVertex[i] = mtx[3][i];   // translation
@@ -5109,6 +5403,15 @@ static bool fenceNeighbor(int type, int boxIndex, int blockSide)
 // return 1 if block processed as a billboard or true geometry
 static int saveBillboardOrGeometry(int boxIndex, int type)
 {
+    if (IsModBlock(type)) {
+        // Imported models bypass the legacy emitters that register occupied bounds.
+        // Keep world-space bounds even when their shared instance already exists.
+        IPoint occupied;
+        boxIndexToLoc(occupied, boxIndex);
+        addBounds(occupied, &gModel.billboardBounds);
+        VecScalar(occupied, +=, 1);
+        addBounds(occupied, &gModel.billboardBounds);
+    }
     int dataVal, faceMask, tbFaceMask;
     float minx, maxx, miny, maxy, minz, maxz, bitAdd;
     int swatchLoc, topSwatchLoc, sideSwatchLoc, bottomSwatchLoc;
@@ -5166,13 +5469,13 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
         //loc derives from boxIndex here:
         IPoint iloc;
         boxIndexToLoc(iloc, boxIndex);
-        float anchorPt[3];
+        double anchorPt[3];
         //anchorPt[X] = (float)((float)iloc[X] - gModel.center[X]) * gModel.scale * gUnitsScale;
         //anchorPt[Y] = (float)((float)iloc[Y] - gModel.center[Y]) * gModel.scale * gUnitsScale;
         //anchorPt[Z] = (float)((float)iloc[Z] - gModel.center[Z]) * gModel.scale * gUnitsScale;
-        anchorPt[X] = (float)iloc[X];
-        anchorPt[Y] = (float)iloc[Y];
-        anchorPt[Z] = (float)iloc[Z];
+        anchorPt[X] = (double)iloc[X];
+        anchorPt[Y] = (double)iloc[Y];
+        anchorPt[Z] = (double)iloc[Z];
         // save instance location and ID and faceCount start to a long list.
         if (!saveInstanceLocation(anchorPt, instanceID))
             return retCode | MW_WORLD_EXPORT_TOO_LARGE;
@@ -5182,6 +5485,8 @@ static int saveBillboardOrGeometry(int boxIndex, int type)
             return 1;
         }
     }
+
+    if (IsModBlock(type)) return saveModGeometry(boxIndex, type, dataVal);
 
     switch (type)
     {
@@ -16410,10 +16715,9 @@ static int saveTriangleGeometry(int type, int dataVal, int boxIndex, int typeBel
     Point2 uvs[3];
     int i, startVertexIndex;
     IPoint anchor;
-    Point* vertices;
+    ExportPoint* vertices;
     int retCode = MW_NO_ERROR;
 
-    vertices = &gModel.vertices[gModel.vertexCount];
     startVertexIndex = gModel.vertexCount;
 
     // box value - compute now. Used for billboard output and adding to bounds (e.g., the torch doesn't actually output anything here,
@@ -16422,7 +16726,7 @@ static int saveTriangleGeometry(int type, int dataVal, int boxIndex, int typeBel
 
     for (i = 0; i < 8; i++)
     {
-        float* pt;
+        double* pt;
         Point cornerVertex;
         Vec3Scalar(cornerVertex, =, (i & 0x4) ? 1.0f : 0.0f, (i & 0x2) ? 1.0f : 0.0f, (i & 0x1) ? 1.0f : 0.0f);
 
@@ -16430,15 +16734,18 @@ static int saveTriangleGeometry(int type, int dataVal, int boxIndex, int typeBel
         retCode |= checkVertexListSize();
         if (retCode >= MW_BEGIN_ERRORS) return retCode;
 
-        pt = (float*)gModel.vertices[gModel.vertexCount];
+        pt = gModel.vertices[gModel.vertexCount];
 
-        pt[X] = (float)anchor[X] + cornerVertex[X];
-        pt[Y] = (float)anchor[Y] + cornerVertex[Y];
-        pt[Z] = (float)anchor[Z] + cornerVertex[Z];
+        pt[X] = (double)anchor[X] + cornerVertex[X];
+        pt[Y] = (double)anchor[Y] + cornerVertex[Y];
+        pt[Z] = (double)anchor[Z] + cornerVertex[Z];
 
         gModel.vertexCount++;
         assert(gModel.vertexCount <= gModel.vertexListSize);
     }
+
+    // Growth while emitting the eight corners may have relocated the array.
+    vertices = &gModel.vertices[startVertexIndex];
 
     // top UVs are always the same
     vindex[0] = 0x2 | 0x4;		// xmax, zmin
@@ -16932,8 +17239,6 @@ static FaceRecord* allocFaceRecordFromPool()
             gModel.faceRecordPool = pFRP;
         }
         else {
-            // out of memory! Not sure what to do...
-            assert(pFRP);
             return NULL;
         }
     }
@@ -16966,8 +17271,6 @@ static SimplifyFaceRecord* allocSimplifyFaceRecordFromPool()
                 gModel.simplifyFaceRecordPool = pSFRP;
             }
             else {
-                // out of memory! Not sure what to do...
-                assert(pSFRP);
                 return NULL;
             }
         }
@@ -16983,6 +17286,7 @@ static SimplifyFaceRecord* allocSimplifyFaceRecordFromPool()
 
 static unsigned short getSignificantMaterial(int type, int dataVal)
 {
+    if (IsModBlock(type)) return (unsigned short)(dataVal & DATAVAL_MASK);
     // Return only the "material-related" bits of the data value. That is, only those bits
     // that differentiate the various sub-materials. So, dirt has all low bits returned
     // (might as well account for future data values 0x3F - bit 0x40 is waterlogged, bit 0x80 is the extended object bit), ladders have none, since the
@@ -17060,7 +17364,7 @@ static int saveTriangleFace(int boxIndex, int swatchLoc, int type, int dataVal, 
         //face->faceIndex = firstFaceModifier( 0, gModel.faceCount );
         // never a first face, we know how we're using it currently (as sides for rails, and these simply aren't the first)
         face->faceIndex = gModel.faceCount;
-        face->materialType = (short)type;
+        face->materialType = type;
         face->materialDataVal = getSignificantMaterial(type, dataVal);
 
         // always the same normal, which directly corresponds to the normals[] array in gModel
@@ -17071,7 +17375,7 @@ static int saveTriangleFace(int boxIndex, int swatchLoc, int type, int dataVal, 
         {
             face->vertexIndex[j] = startVertexIndex + vindex[j];
             if (gModel.exportTexture)
-                face->uvIndex[j] = (short)uvIndices[j];
+                face->uvIndex[j] = uvIndices[j];
         }
         // double last point - we normally store four points in face records, so this tips us off that it's a triangle
         face->vertexIndex[3] = face->vertexIndex[2];
@@ -17296,7 +17600,7 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
         }
         for (i = 0; i < 8; i++)
         {
-            float* pt;
+            double* pt;
             Point cornerVertex;
             Vec3Scalar(cornerVertex, =, (i & 0x4) ? fmaxx : fminx, (i & 0x2) ? fmaxy : fminy, (i & 0x1) ? fmaxz : fminz);
 
@@ -17304,11 +17608,11 @@ static int saveBoxAlltileGeometry(int boxIndex, int type, int dataVal, int swatc
             retCode |= checkVertexListSize();
             if (retCode >= MW_BEGIN_ERRORS) return retCode;
 
-            pt = (float*)gModel.vertices[gModel.vertexCount];
+            pt = gModel.vertices[gModel.vertexCount];
 
-            pt[X] = (float)anchor[X] + cornerVertex[X];
-            pt[Y] = (float)anchor[Y] + cornerVertex[Y];
-            pt[Z] = (float)anchor[Z] + cornerVertex[Z];
+            pt[X] = (double)anchor[X] + cornerVertex[X];
+            pt[Y] = (double)anchor[Y] + cornerVertex[Y];
+            pt[Z] = (double)anchor[Z] + cornerVertex[Z];
 
             gModel.vertexCount++;
             assert(gModel.vertexCount <= gModel.vertexListSize);
@@ -17648,15 +17952,104 @@ static int saveBoxCustomUVVertices(int boxIndex, float minPixX, float maxPixX, f
         if (checkVertexListSize() >= MW_BEGIN_ERRORS)
             return -1;
 
-        float* pt = (float*)gModel.vertices[gModel.vertexCount];
-        pt[X] = (float)anchor[X] + cornerVertex[X];
-        pt[Y] = (float)anchor[Y] + cornerVertex[Y];
-        pt[Z] = (float)anchor[Z] + cornerVertex[Z];
+        double* pt = gModel.vertices[gModel.vertexCount];
+        pt[X] = (double)anchor[X] + cornerVertex[X];
+        pt[Y] = (double)anchor[Y] + cornerVertex[Y];
+        pt[Z] = (double)anchor[Z] + cornerVertex[Z];
 
         gModel.vertexCount++;
         assert(gModel.vertexCount <= gModel.vertexListSize);
     }
     return startVertexIndex;
+}
+
+// Tile an imported face without stretching or enlarging its source texture. The
+// clipping attributes include positions, so even constant/collinear UVs retain area.
+struct RepeatedModVertex { double position[3]; double uv[2]; };
+static int saveRepeatedModFace(int type, int dataVal, int direction, int markFirstFace,
+    int swatch, int start, const int indices[4], const float uv[4][2], int count)
+{
+    RepeatedModVertex source[4];
+    double low[2] = { uv[0][0], uv[0][1] }, high[2] = { uv[0][0], uv[0][1] };
+    for (int i = 0; i < count; ++i) {
+        // Copy before checkVertexListSize can move the vertex array.
+        for (int axis = 0; axis < 3; ++axis) source[i].position[axis] = gModel.vertices[start + indices[i]][axis];
+        for (int axis = 0; axis < 2; ++axis) {
+            source[i].uv[axis] = uv[i][axis];
+            low[axis] = min(low[axis], source[i].uv[axis]); high[axis] = max(high[axis], source[i].uv[axis]);
+        }
+    }
+    int first[2], last[2];
+    for (int axis = 0; axis < 2; ++axis) {
+        if (!std::isfinite(low[axis]) || !std::isfinite(high[axis]) || low[axis] < -17 || high[axis] > 17) return MW_CANNOT_PARSE_IMPORT_FILE;
+        first[axis] = (int)floor(low[axis]);
+        if (low[axis] == high[axis]) {
+            // Keep an unchanged axis at its original image edge. Repeating an
+            // exact V seam selects the top edge because exported V is inverted.
+            if (low[axis] >= 0 && low[axis] <= 1) first[axis] = 0;
+            else if (axis == 1 && low[axis] == floor(low[axis])) --first[axis];
+            last[axis] = first[axis];
+        } else last[axis] = max(first[axis], (int)ceil(high[axis]) - 1);
+    }
+    if ((last[0]-first[0]+1) * (last[1]-first[1]+1) > MAX_MOD_UV_CELLS) return MW_WORLD_EXPORT_TOO_LARGE;
+    int emitted = 0;
+    for (int row = first[1]; row <= last[1]; ++row) for (int col = first[0]; col <= last[0]; ++col) {
+        for (int triangle = 0; triangle < count - 2; ++triangle) {
+            RepeatedModVertex clipped[8] = {source[0], source[triangle+1], source[triangle+2]};
+            int size = 3;
+            for (int plane = 0; plane < 4 && size; ++plane) {
+                RepeatedModVertex next[8]; int nextSize = 0;
+                const int axis = plane / 2;
+                const double boundary = (axis ? row : col) + (plane & 1);
+                auto inside = [&](const RepeatedModVertex& vertex) { return (plane & 1) ? vertex.uv[axis] <= boundary : vertex.uv[axis] >= boundary; };
+                auto append = [&](const RepeatedModVertex& vertex) {
+                    if (nextSize >= 8) return false;
+                    next[nextSize++] = vertex; return true;
+                };
+                for (int i = 0; i < size; ++i) {
+                    const auto& a = clipped[(i+size-1)%size]; const auto& b = clipped[i];
+                    const bool aInside = inside(a), bInside = inside(b);
+                    if (aInside != bInside) {
+                        const double fraction = (boundary-a.uv[axis])/(b.uv[axis]-a.uv[axis]);
+                        RepeatedModVertex intersection;
+                        for (int c = 0; c < 3; ++c) intersection.position[c] = a.position[c] + fraction*(b.position[c]-a.position[c]);
+                        for (int c = 0; c < 2; ++c) intersection.uv[c] = a.uv[c] + fraction*(b.uv[c]-a.uv[c]);
+                        intersection.uv[axis] = boundary;
+                        if (!append(intersection)) return MW_WORLD_EXPORT_TOO_LARGE;
+                    }
+                    if (bInside && !append(b)) return MW_WORLD_EXPORT_TOO_LARGE;
+                }
+                size = nextSize;
+                for (int i = 0; i < size; ++i) clipped[i] = next[i];
+            }
+            for (int fan = 1; fan + 1 < size; ++fan) {
+                const RepeatedModVertex corners[3] = {clipped[0],clipped[fan],clipped[fan+1]};
+                double positions[3][3], a[3], b[3], cross[3];
+                for (int i = 0; i < 3; ++i) for (int c = 0; c < 3; ++c) positions[i][c] = corners[i].position[c];
+                for (int c = 0; c < 3; ++c) { a[c] = positions[1][c]-positions[0][c]; b[c] = positions[2][c]-positions[0][c]; }
+                VecCross(cross, =, a, X, b);
+                const double area = VecDot(cross, cross);
+                if (!std::isfinite(area)) return MW_WORLD_EXPORT_TOO_LARGE;
+                if (area == 0) continue; // Shared clip boundaries have no surface.
+                if (++emitted > MAX_MOD_UV_CELLS * 10) return MW_WORLD_EXPORT_TOO_LARGE;
+                const int base = gModel.vertexCount;
+                int vertexIndices[4] = {0,1,2,2}, textureIndices[4] = {};
+                for (int i = 0; i < 3; ++i) {
+                    if (checkVertexListSize() >= MW_BEGIN_ERRORS) return MW_WORLD_EXPORT_TOO_LARGE;
+                    for (int c = 0; c < 3; ++c) gModel.vertices[gModel.vertexCount][c] = positions[i][c];
+                    ++gModel.vertexCount;
+                    const float u = (float)max(0.0, min(1.0, corners[i].uv[0]-col));
+                    const float v = (float)max(0.0, min(1.0, corners[i].uv[1]-row));
+                    textureIndices[i] = saveTextureUV(swatch,type,u,v);
+                    if (textureIndices[i] < 0) return MW_WORLD_EXPORT_TOO_LARGE;
+                }
+                textureIndices[3] = textureIndices[2];
+                const int result = saveBoxFaceUVs(type,dataVal,direction,emitted == 1 ? markFirstFace : 0,base,vertexIndices,textureIndices);
+                if (result >= MW_BEGIN_ERRORS) return result;
+            }
+        }
+    }
+    return emitted ? MW_NO_ERROR : MW_WORLD_EXPORT_TOO_LARGE;
 }
 
 // Save one face of a box created by saveBoxCustomUVVertices(), textured exactly as Minecraft does for a block model JSON element's face:
@@ -17672,8 +18065,8 @@ static int saveBoxModelFace(int startVertexIndex, int type, int dataVal, int fac
 // texture coordinates are changed as Minecraft's BlockMath.getUVLockTransform does. Each is taken as a point on the side of the
 // block the face is on, by Minecraft's default mapping for that side, turned with the block, and mapped back to texture coordinates
 // by the default mapping of the side it's turned to. (So a side face turned about Y keeps its "uv".) The face itself is saved
-// unturned; the caller turns the vertices. With both angles 0, it's saveBoxModelFace.
-static int saveBoxModelFaceUVLock(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int anchorLoc, const float uv[4], int rotation, int xAngle, int yAngle)
+// unturned; the caller turns the vertices. With all angles 0, it's saveBoxModelFace.
+static int saveBoxModelFaceUVLock(int startVertexIndex, int type, int dataVal, int faceDirection, int markFirstFace, int anchorLoc, const float uv[4], int rotation, int xAngle, int yAngle, int zAngle)
 {
     // Minecraft's vertex order for each face direction (FaceInfo), as box corner bits: 0x4 X max, 0x2 Y max, 0x1 Z max. Counterclockwise
     // as seen from outside the box, as Mineways wants.
@@ -17688,6 +18081,8 @@ static int saveBoxModelFaceUVLock(int startVertexIndex, int type, int dataVal, i
     assert(faceDirection >= 0 && faceDirection < 6);
     int vindex[4];
     int uvIndices[4] = { 0, 0, 0, 0 };
+    float finalUV[4][2] = {};
+    bool repeated = false;
     bool span = (findSpanImage(anchorLoc) != NULL);
     for (int i = 0; i < 4; i++) {
         vindex[i] = faceVindex[faceDirection][i];
@@ -17696,7 +18091,7 @@ static int saveBoxModelFaceUVLock(int startVertexIndex, int type, int dataVal, i
             int shifted = (i + rotation / 90) % 4;
             float u = (shifted == 0 || shifted == 1) ? uv[0] : uv[2];
             float v = (shifted == 0 || shifted == 3) ? uv[1] : uv[3];
-            if (xAngle != 0 || yAngle != 0) {
+            if (xAngle != 0 || yAngle != 0 || zAngle != 0) {
                 // the point on the face's side of the block (pixels, from the block's center), and that side's direction
                 float pt[3], nrm[3];
                 switch (faceDirection) {
@@ -17721,6 +18116,10 @@ static int saveBoxModelFaceUVLock(int startVertexIndex, int type, int dataVal, i
                 case DIRECTION_BLOCK_TOP: nrm[Y] = 1.0f; break;
                 case DIRECTION_BLOCK_SIDE_HI_Z: nrm[Z] = 1.0f; break;
                 }
+                for (int q = 0; q < ((zAngle / 90) & 0x3); q++) {
+                    float t = pt[X]; pt[X] = pt[Y]; pt[Y] = -t;
+                    t = nrm[X]; nrm[X] = nrm[Y]; nrm[Y] = -t;
+                }
                 // "x" 90 takes up to north, (x,y,z) to (x,z,-y); "y" 90 takes north to east, (x,y,z) to (-z,y,x)
                 for (int q = 0; q < ((xAngle / 90) & 0x3); q++) {
                     float t = pt[Y]; pt[Y] = pt[Z]; pt[Z] = -t;
@@ -17740,13 +18139,19 @@ static int saveBoxModelFaceUVLock(int startVertexIndex, int type, int dataVal, i
                 else if (nrm[Z] < -0.5f) { u = 16.0f - pt[X]; v = 16.0f - pt[Y]; }
                 else { u = pt[X]; v = 16.0f - pt[Y]; }
             }
-            if (span)
-                uvIndices[i] = saveSpanTextureUV(anchorLoc, type, u / 16.0f, 1.0f - v / 16.0f);
-            else
-                // a single tile; for solid colors, the swatch is the block type (see getSwatch)
-                uvIndices[i] = saveTextureUV((gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) ? anchorLoc : type, type, u / 16.0f, 1.0f - v / 16.0f);
-            if (uvIndices[i] < 0)
-                return MW_WORLD_EXPORT_TOO_LARGE;
+            finalUV[i][0] = u / 16.0f; finalUV[i][1] = 1.0f - v / 16.0f;
+            repeated = repeated || u < 0 || u > 16 || v < 0 || v > 16;
+        }
+    }
+    if (gModel.exportTexture) {
+        const bool sourceTexture = (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) != 0;
+        if (repeated && IsModBlock(type) && sourceTexture)
+            return saveRepeatedModFace(type,dataVal,faceDirection,markFirstFace,anchorLoc,startVertexIndex,vindex,finalUV,4);
+        for (int i = 0; i < 4; ++i) {
+            const float u = repeated && !sourceTexture ? .5f : finalUV[i][0];
+            const float v = repeated && !sourceTexture ? .5f : finalUV[i][1];
+            uvIndices[i] = span ? saveSpanTextureUV(anchorLoc,type,u,v) : saveTextureUV(sourceTexture ? anchorLoc : colorSwatch(type),type,u,v);
+            if (uvIndices[i] < 0) return MW_WORLD_EXPORT_TOO_LARGE;
         }
     }
     return saveBoxFaceUVs(type, dataVal, faceDirection, markFirstFace, startVertexIndex, vindex, uvIndices);
@@ -17822,22 +18227,66 @@ static int saveFenceRails(int boxIndex, int type, int dataVal, int yAngle)
 }
 
 // Save a model, as given in Minecraft's JSON, textured by the (possibly multi-tile) image at anchorLoc, then turn it as a blockstate
-// does, by "x" and then "y" (multiples of 90 degrees), with "uvlock" if set.
-static int saveRotatedModel(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, int xAngle, int yAngle, bool uvlock)
+// does, by optional AE2 "z", then "x" and "y" (multiples of 90 degrees), with "uvlock" if set.
+static int saveRotatedModel(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, int xAngle, int yAngle, bool uvlock, int zAngle)
 {
     float mtx[4][4];
     int vertexCount = gModel.vertexCount;
     gUsingTransform = 1;
-    int retCode = saveModelElements(boxIndex, type, dataVal, anchorLoc, elements, elementCount, (float)yAngle, xAngle, uvlock);
+    int retCode = saveModelElements(boxIndex, type, dataVal, anchorLoc, elements, elementCount, (float)yAngle, xAngle, uvlock, zAngle);
     vertexCount = gModel.vertexCount - vertexCount;
     identityMtx(mtx);
     translateToOriginMtx(mtx, boxIndex);
+    if (zAngle != 0) rotateMtx(mtx, 0.0f, 0.0f, (float)zAngle);
     rotateMtx(mtx, (float)xAngle, 0.0f, 0.0f);
     rotateMtx(mtx, 0.0f, (float)yAngle, 0.0f);
     translateFromOriginMtx(mtx, boxIndex);
     transformVertices(vertexCount, mtx);
     gUsingTransform = 0;
     return retCode;
+}
+
+// OBJ polygons already carry their winding and per-corner UVs. They do not use box UV inference.
+static int saveModPolygons(int boxIndex, int type, int dataVal, const ModModel& model)
+{
+    IPoint anchor;
+    boxIndexToLoc(anchor, gModel.instancing ? 0 : boxIndex);
+    bool first = true;
+    for (const auto& polygon : model.Polygons()) {
+        if (polygon.texture < 0 || (size_t)polygon.texture >= gModTextureSwatches.size()) return MW_CANNOT_PARSE_IMPORT_FILE;
+        const int start = gModel.vertexCount;
+        int indices[4] = {0, 1, 2, polygon.count == 3 ? 2 : 3};
+        int uvs[4] = {};
+        float finalUV[4][2] = {}; bool repeated = false;
+        const bool sourceTexture = (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) != 0;
+        const int swatch = sourceTexture ? gModTextureSwatches[polygon.texture] : colorSwatch(type);
+        for (int i = 0; i < polygon.count; ++i) {
+            if (checkVertexListSize() >= MW_BEGIN_ERRORS) return MW_WORLD_EXPORT_TOO_LARGE;
+            double position[3];
+            for (int axis = 0; axis < 3; ++axis) position[axis] = (double)polygon.vertices[i][axis] - 8.0;
+            for (int q = 0; q < model.z / 90; ++q) { const double x = position[0]; position[0] = position[1]; position[1] = -x; }
+            for (int q = 0; q < model.x / 90; ++q) { const double y = position[1]; position[1] = position[2]; position[2] = -y; }
+            for (int q = 0; q < model.y / 90; ++q) { const double x = position[0]; position[0] = -position[2]; position[2] = x; }
+            for (int axis = 0; axis < 3; ++axis) gModel.vertices[gModel.vertexCount][axis] = (double)anchor[axis] + (position[axis] + 8.0) / 16.0;
+            ++gModel.vertexCount;
+            finalUV[i][0] = polygon.vertices[i][3] / 16.0f;
+            finalUV[i][1] = 1.0f - polygon.vertices[i][4] / 16.0f;
+            repeated = repeated || finalUV[i][0] < 0 || finalUV[i][0] > 1 || finalUV[i][1] < 0 || finalUV[i][1] > 1;
+        }
+        if (gModel.exportTexture && !(repeated && sourceTexture)) for (int i = 0; i < polygon.count; ++i) {
+            uvs[i] = saveTextureUV(swatch,type,repeated ? .5f : finalUV[i][0],repeated ? .5f : finalUV[i][1]);
+            if (uvs[i] < 0) return MW_WORLD_EXPORT_TOO_LARGE;
+        }
+        if (polygon.count == 3) uvs[3] = uvs[2];
+        gUsingTransform = 1; // Compute the normal from the actual polygon, including rotation.
+        const int result = repeated && sourceTexture && gModel.exportTexture ?
+            saveRepeatedModFace(type,dataVal,DIRECTION_BLOCK_TOP,first ? 1 : 0,swatch,start,indices,finalUV,polygon.count) :
+            saveBoxFaceUVs(type, dataVal, DIRECTION_BLOCK_TOP, first ? 1 : 0, start, indices, uvs);
+        first = false;
+        gUsingTransform = 0;
+        if (result >= MW_BEGIN_ERRORS) return result;
+    }
+    return MW_NO_ERROR;
 }
 
 // Does a glass pane or bars connect to this neighbor? Panes, bars, walls, and whole blocks.
@@ -18055,7 +18504,7 @@ static int modelFaceIsCovered(int boxIndex, const ModelElement* pElem, int faceD
 // yAngle is the rotation about Y the caller gives the model afterwards, used to find which faces are hidden by neighbors.
 // Elements with their own rotation are turned into place here, so the caller must have set gUsingTransform.
 // The first face saved is marked as the first face of the block.
-static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, float yAngle, int xAngle /*= 0*/, bool uvlock /*= false*/)
+static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc, const ModelElement* elements, int elementCount, float yAngle, int xAngle /*= 0*/, bool uvlock /*= false*/, int zAngle /*= 0*/)
 {
     int retCode = MW_NO_ERROR;
     int markFirstFace = 1;
@@ -18075,10 +18524,10 @@ static int saveModelElements(int boxIndex, int type, int dataVal, int anchorLoc,
                 continue;
             // a face on the block's side is hidden if the neighbor there covers it, e.g. a straw bed's bottom on a full opaque
             // block, or a shelf mushroom's back against its log (only tested for a model turned just about Y)
-            if ((xAngle == 0) && modelFaceIsCovered(boxIndex, pElem, pFace->faceDirection, yAngle))
+            if ((xAngle == 0) && (zAngle == 0) && pFace->cullMode != -1 && modelFaceIsCovered(boxIndex, pElem, pFace->cullMode > 0 ? pFace->cullMode - 1 : pFace->faceDirection, yAngle))
                 continue;
             retCode |= saveBoxModelFaceUVLock(startVertexIndex, type, dataVal, pFace->faceDirection, markFirstFace, pFace->swatchLoc ? pFace->swatchLoc : anchorLoc, pFace->uv, pFace->rotation,
-                uvlock ? xAngle : 0, uvlock ? (int)yAngle : 0);
+                uvlock ? xAngle : 0, uvlock ? (int)yAngle : 0, uvlock ? zAngle : 0);
             if (retCode >= MW_BEGIN_ERRORS)
                 return retCode;
             markFirstFace = 0;
@@ -18718,7 +19167,7 @@ static int saveBoxFaceUVs(int type, int dataVal, int faceDirection, int markFirs
     // if we sort, we want to keep faces in the order generated, which is
     // generally cache-coherent (and also just easier to view in the file)
     face->faceIndex = firstFaceModifier(markFirstFace, gModel.faceCount);
-    face->materialType = (short)type;
+    face->materialType = type;
     face->materialDataVal = getSignificantMaterial(type, dataVal);
 
     // always the same normal, which directly corresponds to the normals[] array in gModel
@@ -18729,7 +19178,7 @@ static int saveBoxFaceUVs(int type, int dataVal, int faceDirection, int markFirs
     {
         face->vertexIndex[j] = startVertexIndex + vindex[j];
         if (gModel.exportTexture)
-            face->uvIndex[j] = (short)uvIndices[j];
+            face->uvIndex[j] = uvIndices[j];
     }
 
     // all set, so save it away
@@ -20018,7 +20467,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
                 // if we sort, we want to keep faces in the order generated, which is
                 // generally cache-coherent (and also just easier to view in the file)
                 face->faceIndex = firstFaceModifier((i == 0) && (firstFace>0), gModel.faceCount);
-                face->materialType = (short)type;
+                face->materialType = type;
                 face->materialDataVal = getSignificantMaterial(type, origDataVal);
 
                 // if no transform happens, then use faceDir index for normal index
@@ -20052,19 +20501,19 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
                     for (j = 0; j < 4; j++)
                     {
                         // get vertex location and store location
-                        float* pt;
+                        double* pt;
                         retCode |= checkVertexListSize();
                         if (retCode >= MW_BEGIN_ERRORS) return retCode;
 
-                        pt = (float*)gModel.vertices[gModel.vertexCount];
+                        pt = gModel.vertices[gModel.vertexCount];
 
-                        pt[X] = (float)(anchor[X] + vertexOffsets[fc][j][X]);
-                        pt[Y] = (float)(anchor[Y] + vertexOffsets[fc][j][Y]);
-                        pt[Z] = (float)(anchor[Z] + vertexOffsets[fc][j][Z]);
+                        pt[X] = (double)anchor[X] + vertexOffsets[fc][j][X];
+                        pt[Y] = (double)anchor[Y] + vertexOffsets[fc][j][Y];
+                        pt[Z] = (double)anchor[Z] + vertexOffsets[fc][j][Z];
 
                         face->vertexIndex[j] = startVertexCount + j;
                         if (gModel.exportTexture)
-                            face->uvIndex[j] = (short)uvIndices[firstUV[j]];
+                            face->uvIndex[j] = uvIndices[firstUV[j]];
 
                         gModel.vertexCount++;
                         assert(gModel.vertexCount <= gModel.vertexListSize);
@@ -20087,7 +20536,7 @@ static int saveBillboardFacesExtraData(int boxIndex, int type, int billboardType
                     {
                         face->vertexIndex[3 - j] = startVertexCount + j;
                         if (gModel.exportTexture)
-                            face->uvIndex[3 - j] = (short)uvIndices[secondUV[j]];
+                            face->uvIndex[3 - j] = uvIndices[secondUV[j]];
                     }
                 }
 
@@ -20406,14 +20855,14 @@ static int checkVertexListSize()
     if (gModel.vertexCount == gModel.vertexListSize)
     {
         int newSize;
-        if (!expandedListSize(gModel.vertexListSize, sizeof(Point), &newSize))
+        if (!expandedListSize(gModel.vertexListSize, sizeof(ExportPoint), &newSize))
             return MW_WORLD_EXPORT_TOO_LARGE;
-        Point* vertices = (Point*)malloc((size_t)newSize * sizeof(Point));
+        ExportPoint* vertices = (ExportPoint*)malloc((size_t)newSize * sizeof(ExportPoint));
         if (vertices == NULL)
         {
             return MW_WORLD_EXPORT_TOO_LARGE;
         }
-        memcpy(vertices, gModel.vertices, gModel.vertexCount * sizeof(Point));
+        memcpy(vertices, gModel.vertices, (size_t)gModel.vertexCount * sizeof(ExportPoint));
         free(gModel.vertices);
         gModel.vertices = vertices;
         gModel.vertexListSize = newSize;
@@ -22176,8 +22625,13 @@ static int determineScaleAndHollowAndMelt()
         scaleByCost();
     }
 
-    // now compute how many blocks are needed for a minimally-thick wall
-    gWallBlockThickness = (int)(ceil(gMtlCostTable[gPhysMtl].minWall / gModel.scale));
+    // Imported settings can bypass the export dialog's numeric checks.
+    if (!std::isfinite(gModel.scale) || gModel.scale <= 0.0f)
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+    const double wallThickness = ceil((double)gMtlCostTable[gPhysMtl].minWall / gModel.scale);
+    if (!std::isfinite(wallThickness) || wallThickness < 0.0 || wallThickness > INT_MAX)
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+    gWallBlockThickness = (int)wallThickness;
 
     // Remove unneeded material. While bubbles are illegal, it's fine to hollow out the base of any object, working from the
     //    bottom up. Option: delete a block at the base if it has neighboring blocks in all 8 positions on this level
@@ -22323,6 +22777,18 @@ static int hollowBottomOfModel()
     int listFound = 1;
     int survived, dir, neighborCount, neighborIndex;
     IPoint loc;
+    const double thickness = gModel.options->pEFD->hollowThicknessVal[gModel.options->pEFD->fileType];
+    if (!std::isfinite(thickness) || thickness <= 0.0 ||
+        !std::isfinite(gModel.scale) || gModel.scale <= 0.0f)
+        return MW_CANNOT_PARSE_IMPORT_FILE;
+    const double blockThickness = ceil(thickness * MM_TO_METERS / gModel.scale);
+    const int spanX = gSolidBox.max[X] - gSolidBox.min[X];
+    const int spanZ = gSolidBox.max[Z] - gSolidBox.min[Z];
+    // A wall wider than the model leaves no interior to hollow. Check before narrowing.
+    if (blockThickness > spanX / 2 || blockThickness > spanZ / 2)
+        return MW_NO_ERROR;
+    gHollowBlockThickness = (int)blockThickness;
+
     // we could actually allocate less, but don't want to risk allocing 0 (or less than 0!)
     size_t hollowWidth = (size_t)(gSolidBox.max[X] - gSolidBox.min[X] + 1);
     size_t hollowLength = (size_t)(gSolidBox.max[Z] - gSolidBox.min[Z] + 1);
@@ -22344,11 +22810,8 @@ static int hollowBottomOfModel()
     }
     //memset(hollowDone, 0, hollowListSize);
 
-    assert(gModel.options->pEFD->hollowThicknessVal[gModel.options->pEFD->fileType] > 0.0f);
-    gHollowBlockThickness = (int)(ceil(gModel.options->pEFD->hollowThicknessVal[gModel.options->pEFD->fileType] * MM_TO_METERS / gModel.scale));
-
     // an arbitrary guess: if the box is long in one dimension or the other, add posts for support
-    addPost = (gSolidBox.max[X] > gSolidBox.min[X] + 8 + 2 * gHollowBlockThickness) || (gSolidBox.max[Z] > gSolidBox.min[Z] + 8 + 2 * gHollowBlockThickness);
+    addPost = (spanX - 2 * gHollowBlockThickness > 8) || (spanZ - 2 * gHollowBlockThickness > 8);
 
     // note that we test to the maximum, as we want the upper limit to be hit and so set the hollowDone for every location.
     for (y = gSolidBox.min[Y]; (y <= gSolidBox.max[Y]) && listFound; y++)
@@ -22762,7 +23225,7 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
         }
 
         // The bottom of the solid box's original bounds is set to be the "0" level when outputting a level.
-        gModel.center[Y] = (float)minOffset[Y];
+        gModel.center[Y] = (double)minOffset[Y];
 
         // We now take the lower bounds offset for the amount to subtract from the X and Z location. We also subtract
         // half the length of the whole box from the output location (rounded to a whole number) so that the model is
@@ -22770,17 +23233,20 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
         // Note that we don't perfectly center all the time but instead round, which makes the blocks
         // align with whole numbers. If you output in meters, you get no fractions, so get
         // a smaller and slightly more accurate OBJ file.
-        gModel.center[X] = (float)(minOffset[X] + floor((float)(worldBox->max[X] - worldBox->min[X] + 1) / 2.0f));
-        gModel.center[Z] = (float)(minOffset[Z] + floor((float)(worldBox->max[Z] - worldBox->min[Z] + 1) / 2.0f));
+        gModel.center[X] = minOffset[X] + floor(((double)worldBox->max[X] - worldBox->min[X] + 1.0) / 2.0);
+        gModel.center[Z] = minOffset[Z] + floor(((double)worldBox->max[Z] - worldBox->min[Z] + 1.0) / 2.0);
     }
     else
     {
         // keep world coordinates (may get rescaled, of course)
-        Vec2Op(gModel.center, =, (float)gWorld2BoxOffset);
+        Vec2Op(gModel.center, =, (double)gWorld2BoxOffset);
     }
 
     // get the normals into their proper orientations.
     // We need only 6 when only blocks are exported.
+    gModel.normals = (Vector*)malloc(NORMAL_LIST_SIZE * sizeof(Vector));
+    if (!gModel.normals) return MW_WORLD_EXPORT_TOO_LARGE;
+    gModel.normalListCapacity = NORMAL_LIST_SIZE;
     gModel.normalListCount = gExportBillboards ? NUM_NORMALS_STORED : 6;
     for (i = 0; i < gModel.normalListCount; i++)
     {
@@ -22828,13 +23294,13 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
                         }
                         // Whatever the case, store the instance location, which is the stored gModel.faceCount,
                         // which points at the next set of faces
-                        float anchorPt[3];
+                        double anchorPt[3];
                         //anchorPt[X] = (float)((float)iloc[X] - gModel.center[X]) * gModel.scale * gUnitsScale;
                         //anchorPt[Y] = (float)((float)iloc[Y] - gModel.center[Y]) * gModel.scale * gUnitsScale;
                         //anchorPt[Z] = (float)((float)iloc[Z] - gModel.center[Z]) * gModel.scale * gUnitsScale;
-                        anchorPt[X] = (float)loc[X];
-                        anchorPt[Y] = (float)loc[Y];
-                        anchorPt[Z] = (float)loc[Z];
+                        anchorPt[X] = (double)loc[X];
+                        anchorPt[Y] = (double)loc[Y];
+                        anchorPt[Z] = (double)loc[Z];
                         // save instance location and ID to a long list. ID points to the created instance, which has the faceID
                         if (!saveInstanceLocation(anchorPt, instanceID))
                             return retCode | MW_WORLD_EXPORT_TOO_LARGE;
@@ -22899,12 +23365,12 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
     if (!gModel.instancing) {
         for (i = 0; i < gModel.vertexCount; i++)
         {
-            float* pt = (float*)gModel.vertices[i];
-            float anchor[3];
+            double* pt = gModel.vertices[i];
+            ExportPoint anchor;
             Vec2Op(anchor, =, gModel.vertices[i]);
-            pt[X] = (float)(anchor[X] - gModel.center[X]) * gModel.scale * gUnitsScale;
-            pt[Y] = (float)(anchor[Y] - gModel.center[Y]) * gModel.scale * gUnitsScale;
-            pt[Z] = (float)(anchor[Z] - gModel.center[Z]) * gModel.scale * gUnitsScale;
+            pt[X] = (anchor[X] - (double)gModel.center[X]) * gModel.scale * gUnitsScale;
+            pt[Y] = (anchor[Y] - (double)gModel.center[Y]) * gModel.scale * gUnitsScale;
+            pt[Z] = (anchor[Z] - (double)gModel.center[Z]) * gModel.scale * gUnitsScale;
 
             // rotate location as needed
             rotateLocation(pt);
@@ -22913,7 +23379,7 @@ static int generateBlockDataAndStatistics(IBox* tightWorldBox, IBox* worldBox)
 
     // Ready the normals for direct output - any undefined (-1 index) get set now
     // It's possible the output format doesn't include normals, but this process is almost always needed (and easily missed)
-    resolveFaceNormals();
+    retCode |= resolveFaceNormals();
 
     return retCode;
 }
@@ -23015,8 +23481,8 @@ static bool createInstance(int type, int dataVal, int faceIndex)
 static bool findInstance(int type, int dataVal, int& instanceID)
 {
     // make the hash for the ID
-    int hash = makeInstanceHash(type, dataVal);
-    static int prevHash = -1;
+    unsigned int hash = makeInstanceHash(type, dataVal);
+    static unsigned int prevHash = UINT_MAX;
     static int prevID = -1;
 
     //gHashFinds++;
@@ -23025,7 +23491,7 @@ static bool findInstance(int type, int dataVal, int& instanceID)
     // This worked well in my one test: 385k tests (22k hash hits, 363k normal) vs. 915k tests
     // doing just the reverse slog below. (If forward slog below, that gave 22k hash and
     // 1,849k normal, almost 6x doing the reverse slog).
-    if (hash == prevHash) {
+    if (hash == prevHash && prevID >= 0 && prevID < gModel.instanceCount && gModel.instance[prevID].hash == hash) {
         // quick out
         instanceID = prevID;
         //gHashHits++;
@@ -23048,8 +23514,20 @@ static bool findInstance(int type, int dataVal, int& instanceID)
     return false;
 }
 
-static bool saveInstanceLocation(float* anchorPt, int instanceID)
+static bool saveInstanceLocation(const double* anchorPt, int instanceID)
 {
+    Point location;
+    for (int axis = 0; axis < 3; ++axis) {
+        const double value = anchorPt[axis] - (gModel.options->pEFD->chkCenterModel ? 0.0 : (double)gWorld2BoxOffset[axis]);
+        // USD point-instancer positions are float32, including their integer anchors.
+        if (!std::isfinite(value) || fabs(value) > (std::numeric_limits<float>::max)() || (double)(float)value != value) {
+            gModExportError = "USD instance positions cannot preserve these world coordinates. "
+                "Export Wavefront OBJ or ASCII STL to retain double-precision positions.";
+            fprintf(stderr, "%s\n", gModExportError.c_str());
+            return false;
+        }
+        location[axis] = (float)value;
+    }
     // make room
     if (gModel.instanceLocCount == gModel.instanceLocListSize)
     {
@@ -23068,19 +23546,17 @@ static bool saveInstanceLocation(float* anchorPt, int instanceID)
 
     InstanceLocation* bil = &gModel.instanceLoc[gModel.instanceLocCount++];
     bil->index = instanceID;
-    for (int i = 0; i < 3; i++) {
-        bil->location[i] = anchorPt[i] - (gModel.options->pEFD->chkCenterModel ? 0.0f : (float)gWorld2BoxOffset[i]);
-    }
+    Vec2Op(bil->location, =, location);
     return true;
 }
 
-static int makeInstanceHash(int type, int dataVal)
+static unsigned int makeInstanceHash(int type, int dataVal)
 {
     if (gBlockDefinitions[type].flags & BLF_MAYWATERLOG) {
         // even lame, double-slab blocks need to have this bit removed
         dataVal &= ~WATERLOGGED_BIT;
     }
-    return type << 16 | dataVal;
+    return ((unsigned int)type << 16) | (unsigned int)dataVal;
 }
 
 #define UV_TO_SWATCHLOC(pUV) 
@@ -23276,7 +23752,7 @@ static int instanceUSDCompare(void* context, const void* str1, const void* str2)
     f1 = (BlockInstance*)str1;
     f2 = (BlockInstance*)str2;
 
-    return ((f1->hash < f2->hash) ? -1 : 1);
+    return f1->hash < f2->hash ? -1 : f1->hash > f2->hash ? 1 : 0;
 }
 
 // return 0 if nothing solid in box
@@ -23334,9 +23810,9 @@ static int getDimensionsAndCount(Point dimensions)
 }
 
 
-static void rotateLocation(Point pt)
+template <typename T> static void rotateLocation(T* pt)
 {
-    float tempf;
+    T tempf;
 
     // check if rotation around an axis
     if (!gModel.options->pEFD->radioRotate0)
@@ -24258,7 +24734,7 @@ static int saveSpecialVertices(int boxIndex, int faceDirection, IPoint loc, floa
     int vertexIndex;
     int i;
     IPoint offset;
-    float* pt;
+    double* pt;
     int retCode = MW_NO_ERROR;
 
     // four vertices to output, check that they exist
@@ -24295,11 +24771,11 @@ static int saveSpecialVertices(int boxIndex, int faceDirection, IPoint loc, floa
                 if (retCode >= MW_BEGIN_ERRORS) return retCode;
 
                 heightIndices[heightLoc] = gModel.vertexCount;
-                pt = (float*)gModel.vertices[gModel.vertexCount];
+                pt = gModel.vertices[gModel.vertexCount];
 
-                pt[X] = (float)(loc[X] + offset[X]);
-                pt[Y] = (float)loc[Y] + heights[heightLoc];
-                pt[Z] = (float)(loc[Z] + offset[Z]);
+                pt[X] = (double)loc[X] + offset[X];
+                pt[Y] = (double)loc[Y] + heights[heightLoc];
+                pt[Z] = (double)loc[Z] + offset[Z];
 
                 gModel.vertexCount++;
                 assert(gModel.vertexCount <= gModel.vertexListSize);
@@ -24315,16 +24791,16 @@ static int saveSpecialVertices(int boxIndex, int faceDirection, IPoint loc, floa
                 if (retCode >= MW_BEGIN_ERRORS) return retCode;
 
                 gModel.vertexIndices[vertexIndex] = gModel.vertexCount;
-                pt = (float*)gModel.vertices[gModel.vertexCount];
+                pt = gModel.vertices[gModel.vertexCount];
 
                 // for now, we use exactly the same coordinates as Minecraft does.
                 //xOut = (float)(1-gWorld2BoxOffset[X] + xloc + xoff);
                 //yOut = (float)(1-gWorld2BoxOffset[Y] + yloc + yoff);
                 //zOut = (float)(1-gWorld2BoxOffset[Z] + zloc + zoff);
                 // centered on origin, good for Blender import. I put Y==0, X & Z centered
-                pt[X] = (float)(loc[X] + offset[X]);
-                pt[Y] = (float)(loc[Y] + offset[Y]);
-                pt[Z] = (float)(loc[Z] + offset[Z]);
+                pt[X] = (double)loc[X] + offset[X];
+                pt[Y] = (double)loc[Y] + offset[Y];
+                pt[Z] = (double)loc[Z] + offset[Z];
 
                 gModel.vertexCount++;
                 assert(gModel.vertexCount <= gModel.vertexListSize);
@@ -24341,7 +24817,7 @@ static int saveVertices(int boxIndex, int faceDirection, IPoint loc)
     int vertexIndex;  // cppcheck-suppress 398
     int i;
     IPoint offset;
-    float* pt;
+    double* pt;
     int retCode = MW_NO_ERROR;
 
     // four vertices to output, check that they exist
@@ -24370,16 +24846,16 @@ static int saveVertices(int boxIndex, int faceDirection, IPoint loc)
             if (retCode >= MW_BEGIN_ERRORS) return retCode;
 
             gModel.vertexIndices[vertexIndex] = gModel.vertexCount;
-            pt = (float*)gModel.vertices[gModel.vertexCount];
+            pt = gModel.vertices[gModel.vertexCount];
 
             // for now, we use exactly the same coordinates as Minecraft does.
             //xOut = (float)(1-gWorld2BoxOffset[X] + xloc + xoff);
             //yOut = (float)(1-gWorld2BoxOffset[Y] + yloc + yoff);
             //zOut = (float)(1-gWorld2BoxOffset[Z] + zloc + zoff);
             // centered on origin, good for Blender import. I put Y==0, X & Z centered
-            pt[X] = (float)(loc[X] + offset[X]);
-            pt[Y] = (float)(loc[Y] + offset[Y]);
-            pt[Z] = (float)(loc[Z] + offset[Z]);
+            pt[X] = (double)loc[X] + offset[X];
+            pt[Y] = (double)loc[Y] + offset[Y];
+            pt[Z] = (double)loc[Z] + offset[Z];
 
             gModel.vertexCount++;
             assert(gModel.vertexCount <= gModel.vertexListSize);
@@ -24455,7 +24931,7 @@ static int saveFaceLoop(int boxIndex, int faceDirection, float heights[4], int h
         // as the material
         if (gModel.options->exportFlags & EXPT_DEBUG_SHOW_GROUPS)
         {
-            face->materialType = (short)getMaterialUsingGroup(gBoxData[boxIndex].group);
+            face->materialType = getMaterialUsingGroup(gBoxData[boxIndex].group);
             face->materialDataVal = 0;
         }
         else
@@ -24579,10 +25055,10 @@ static int saveFaceLoop(int boxIndex, int faceDirection, float heights[4], int h
 
         if (computedSpecialUVs)
             for (i = 0; i < 4; i++)
-                face->uvIndex[i] = (short)specialUVindices[i];
+                face->uvIndex[i] = specialUVindices[i];
         else
             for (i = 0; i < 4; i++)
-                face->uvIndex[i] = (short)regularUVindices[i];
+                face->uvIndex[i] = regularUVindices[i];
 
 
         // if we're exporting the full texture, then a composite was used:
@@ -24770,12 +25246,29 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
     bool rotatedEnd = false;
     float spanRect[4] = { 0.0f, 0.0f, 16.0f, 16.0f };
 
+    if (IsModBlock(type) && !(gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES)) {
+        if (uvIndices) for (int i = 0; i < 4; ++i) uvIndices[i] = i;
+        const auto* state = GetModBlock(type, dataVal);
+        const int directions[] = { DIRECTION_BLOCK_BOTTOM, DIRECTION_BLOCK_TOP,
+            DIRECTION_BLOCK_SIDE_LO_Z, DIRECTION_BLOCK_SIDE_HI_Z,
+            DIRECTION_BLOCK_SIDE_LO_X, DIRECTION_BLOCK_SIDE_HI_X };
+        int texture = -1;
+        if (state && state->definition) for (const auto& model : state->definition->models)
+            for (const auto& element : model.Elements()) for (const auto& face : element.faces) {
+                if (texture < 0) texture = face.texture;
+                if (directions[face.direction] == faceDirection) texture = face.texture;
+            }
+        if (texture < 0 && state && state->definition) for (const auto& model : state->definition->models)
+            if (!model.Polygons().empty()) { texture = model.Polygons()[0].texture; break; }
+        return texture >= 0 && (size_t)texture < gModTextureSwatches.size() ? gModTextureSwatches[texture] : SWATCH_INDEX(1, 0);
+    }
+
     // outputting swatches
     if (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_SWATCHES)
     {
         // use a solid color - TODO we could add carpet and stairs here, among others. Real low priority...
         // note that this is not fleshed out (e.g. I don't know if snow works) as full textures, which is the popular mode.
-        swatchLoc = type;
+        swatchLoc = colorSwatch(type);
         switch (type)
         {
         case BLOCK_STONE_DOUBLE_SLAB:						// getSwatch
@@ -30117,9 +30610,9 @@ static int getSwatch(int type, int dataVal, int faceDirection, int backgroundInd
 #ifdef _DEBUG
             {
                 static bool doInit = true;
-                static bool blockCutoutFound[NUM_BLOCKS_DEFINED];
+                static bool blockCutoutFound[MAX_BLOCK_TYPES];
                 if (doInit) {
-                    memset(blockCutoutFound, 0, NUM_BLOCKS_DEFINED * sizeof(bool));
+                    memset(blockCutoutFound, 0, sizeof(blockCutoutFound));
                     doInit = false;
                 }
                 if (!blockCutoutFound[type]) {
@@ -30390,7 +30883,7 @@ static int saveTextureUV(int swatchLoc, int type, float u, float v)
     // Some callers (billboards such as the azalea) ask for them anyway, so give back a harmless index instead of computing a swatch location.
     if (!gModel.exportTexture)
         return 0;
-    assert(swatchLoc < NUM_MAX_SWATCHES);
+    if (swatchLoc < 0 || swatchLoc >= gModel.swatchCapacity) return -1;
     // uvSwatches is used ONLY to see if the UV pair coming in has been saved before. If not, room is made to save the new UV.
     int count = gModel.uvSwatches[swatchLoc].count;
     UVRecord* uvr = gModel.uvSwatches[swatchLoc].records;
@@ -30460,7 +30953,7 @@ static int saveTextureUV(int swatchLoc, int type, float u, float v)
     // Individual tile export puts each UV on the tile's 17x17 grid of texel corners (see mosaicUVtoSeparateUV), which is all that
     // most faces need. A UV between texel corners, e.g. on a water or lava face, is output exactly instead, as a multi-tile image's
     // UV is: as if on an image of one tile, anchored at this swatch.
-    if (gModel.exportTiles && (swatchLoc < TOTAL_TILES) &&
+    if (gModel.exportTiles && (swatchLoc < exportTileCount()) &&
         ((fabs(u * 16.0f - floor(u * 16.0f + 0.5f)) > 0.001f) || (fabs(v * 16.0f - floor(v * 16.0f + 0.5f)) > 0.001f)))
     {
         gModel.uvIndexList[gModel.uvIndexCount].spanAnchor = swatchLoc;
@@ -30486,7 +30979,7 @@ static int saveSpanTextureUV(int anchorLoc, int type, float su, float sv)
         return 0;
     if (!(gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES)) {
         // solid colors: the swatch is the block type (see getSwatch) and the location on it doesn't matter
-        return saveTextureUV(type, type, su, sv);
+        return saveTextureUV(colorSwatch(type), type, su, sv);
     }
     SpanImage* pSpan = findSpanImage(anchorLoc);
     assert(pSpan);
@@ -30559,6 +31052,10 @@ static void freeModel(Model* pModel)
 {
     int catIndex;
 
+    free(pModel->normals);
+    pModel->normals = NULL;
+    pModel->normalListCount = pModel->normalListCapacity = 0;
+
     if (pModel->vertices)
     {
         free(pModel->vertices);
@@ -30572,16 +31069,19 @@ static void freeModel(Model* pModel)
 
     if (pModel->uvIndexList)
     {
-        int i;
         free(pModel->uvIndexList);
         pModel->uvIndexList = NULL;
 
-        // free all per-swatch UVRecord lists
-        for (i = 0; i < NUM_MAX_SWATCHES; i++)
-        {
-            free(pModel->uvSwatches[i].records);
-            pModel->uvSwatches[i].records = NULL;
-        }
+    }
+    if (pModel->uvSwatches) {
+        for (int i = 0; i < pModel->swatchCapacity; ++i) free(pModel->uvSwatches[i].records);
+        free(pModel->uvSwatches);
+        pModel->uvSwatches = NULL;
+    }
+    free(pModel->uvSwatchToType); pModel->uvSwatchToType = NULL;
+    free(pModel->tileEmissionNeeded); pModel->tileEmissionNeeded = NULL;
+    for (int category = 0; category < TOTAL_CATEGORIES; ++category) {
+        free(pModel->tileList[category]); pModel->tileList[category] = NULL;
     }
     freeSpanImages();
 
@@ -30663,23 +31163,64 @@ static void freeModel(Model* pModel)
     }
 }
 
+// Run before opening model/material files. Float-only formats cannot represent
+// every thin face at large offsets. Do not write collapsed or reversed geometry.
+static int validateExportPrecision()
+{
+    const int format = gModel.options->pEFD->fileType;
+    const bool floatPositions = format == FILE_TYPE_USD || format == FILE_TYPE_VRML2 ||
+        format == FILE_TYPE_BINARY_MAGICS_STL || format == FILE_TYPE_BINARY_VISCAM_STL;
+    auto fail = [&]() {
+        gModExportError = "The selected output format cannot preserve a thin face at these coordinates. "
+            "Export Wavefront OBJ or ASCII STL to retain double-precision positions.";
+        fprintf(stderr, "%s\n", gModExportError.c_str());
+        return MW_WORLD_EXPORT_TOO_LARGE;
+    };
+    for (int i = 0; i < gModel.vertexCount; ++i) for (int axis = 0; axis < 3; ++axis) {
+        const double value = gModel.vertices[i][axis];
+        if (!std::isfinite(value) || (floatPositions && fabs(value) > (std::numeric_limits<float>::max)())) return fail();
+    }
+    if (!floatPositions) return MW_NO_ERROR;
+    for (int i = 0; i < gModel.faceCount; ++i) {
+        const FaceRecord* face = gModel.faceList[i];
+        const int count = face->vertexIndex[2] == face->vertexIndex[3] ? 3 : 4;
+        ExportPoint rounded[4];
+        for (int corner = 0; corner < count; ++corner) for (int axis = 0; axis < 3; ++axis)
+            rounded[corner][axis] = (double)(float)gModel.vertices[face->vertexIndex[corner]][axis];
+        // Check both diagonals: STL may choose either based on the face normal.
+        for (int corner = 0; corner < (count == 3 ? 1 : 4); ++corner) {
+            const int b = (corner + 1) % count, c = (corner + 2) % count;
+            ExportPoint a1, a2, sourceCross, b1, b2, outputCross;
+            Vec3Op(a1, =, gModel.vertices[face->vertexIndex[b]], -, gModel.vertices[face->vertexIndex[corner]]);
+            Vec3Op(a2, =, gModel.vertices[face->vertexIndex[c]], -, gModel.vertices[face->vertexIndex[corner]]);
+            Vec3Op(b1, =, rounded[b], -, rounded[corner]);
+            Vec3Op(b2, =, rounded[c], -, rounded[corner]);
+            VecCross(sourceCross, =, a1, X, a2);
+            VecCross(outputCross, =, b1, X, b2);
+            const double sourceArea = VecDot(sourceCross, sourceCross);
+            if (sourceArea > 0 && !(VecDot(sourceCross, outputCross) > 0)) return fail();
+        }
+    }
+    return MW_NO_ERROR;
+}
+
 static int findMatchingNormal(FaceRecord* pFace, Vector normal, Vector* normalList, int normalListCount)
 {
     // compute the normal for a face
-    Vector edge1, edge2;
+    ExportPoint edge1, edge2, cross;
     int index0 = pFace->vertexIndex[0];
     Vec3Op(edge1, =, gModel.vertices[index0], -, gModel.vertices[pFace->vertexIndex[1]]);
     Vec3Op(edge2, =, gModel.vertices[index0], -, gModel.vertices[pFace->vertexIndex[2]]);
-    VecCross(normal, =, edge1, X, edge2);
-    float vecdot = VecDot(normal, normal);
+    VecCross(cross, =, edge1, X, edge2);
+    double vecdot = VecDot(cross, cross);
     if (vecdot == 0.0f)
     {
         // the triangle has no area; assert, return index of 0 since it doesn't matter
         assert(0);
         return 0;
     }
-    vecdot = (float)(1.0 / sqrt(vecdot));
-    VecScalar(normal, *=, vecdot);
+    vecdot = 1.0 / sqrt(vecdot);
+    for (int axis = 0; axis < 3; ++axis) normal[axis] = (float)(cross[axis] * vecdot);
 
     // find a close match for the normal
     for (int i = 0; i < normalListCount; i++)
@@ -30690,7 +31231,7 @@ static int findMatchingNormal(FaceRecord* pFace, Vector normal, Vector* normalLi
             // good match! See how much tolerance is needed
             static float minMatch = 1.0f;
             if (vecdot < minMatch)
-                minMatch = vecdot;
+                minMatch = (float)vecdot;
 
             return i;
         }
@@ -30700,25 +31241,25 @@ static int findMatchingNormal(FaceRecord* pFace, Vector normal, Vector* normalLi
     return COMPUTE_NORMAL;
 }
 
-static int addNormalToList(Vector normal, Vector* normalList, int* normalListCount, int normalListSize)
+static int addNormalToList(Vector normal)
 {
-    if (*normalListCount == normalListSize)
+    if (gModel.normalListCount == gModel.normalListCapacity)
     {
-        // out of room! make normalList longer
-        assert(0);
-        // we return the last normal, since normally (hah) we'd run out only due to really complex water
-        // and lava top patterns. The last normal computed is probably fine for everything else...
-        return (*normalListCount) - 1;
+        // FaceRecord stores a signed short index. Grow within that representable range.
+        const int maxNormals = 32767;
+        if (gModel.normalListCapacity >= maxNormals) return -1;
+        const int capacity = min(gModel.normalListCapacity * 2, maxNormals);
+        Vector* normals = (Vector*)realloc(gModel.normals, (size_t)capacity * sizeof(Vector));
+        if (!normals) return -1;
+        gModel.normals = normals;
+        gModel.normalListCapacity = capacity;
     }
-    // add to end of list
-    Vec2Op(normalList[*normalListCount], =, normal);
-    (*normalListCount)++;
-
-    return (*normalListCount) - 1;
+    Vec2Op(gModel.normals[gModel.normalListCount], =, normal);
+    return gModel.normalListCount++;
 }
 
 // go through all face normals and, if not set, find the proper face normal (or add it to the list)
-static void resolveFaceNormals()
+static int resolveFaceNormals()
 {
     UPDATE_STATUS(-999.0f, L"Resolving face normals");
 
@@ -30731,6 +31272,16 @@ static void resolveFaceNormals()
 
         if (pFace->normalIndex == COMPUTE_NORMAL)
         {
+            if (IsModBlock(pFace->materialType)) {
+                // Reject nonfinite or degenerate transformed source faces.
+                // Reject that export before the legacy normal routine asserts or divides by zero.
+                ExportPoint a, b, cross;
+                Vec3Op(a, =, gModel.vertices[pFace->vertexIndex[0]], -, gModel.vertices[pFace->vertexIndex[1]]);
+                Vec3Op(b, =, gModel.vertices[pFace->vertexIndex[0]], -, gModel.vertices[pFace->vertexIndex[2]]);
+                VecCross(cross, =, a, X, b);
+                const double lengthSquared = VecDot(cross, cross);
+                if (!(lengthSquared > 0.0f) || !std::isfinite(lengthSquared)) return MW_WORLD_EXPORT_TOO_LARGE;
+            }
             // Object may have undergone a transform that changes its normal, so we need to compute
             // the normal now. First try to retrieve it from the list, then add a new one if not found.
             Vector normal;
@@ -30739,7 +31290,9 @@ static void resolveFaceNormals()
             // Check if a good match was not found; need to save a new normal if not
             if (pFace->normalIndex == COMPUTE_NORMAL)
             {
-                pFace->normalIndex = (short)addNormalToList(normal, gModel.normals, &gModel.normalListCount, NORMAL_LIST_SIZE);
+                const int index = addNormalToList(normal);
+                if (index < 0) return MW_WORLD_EXPORT_TOO_LARGE;
+                pFace->normalIndex = (short)index;
             }
             assert(pFace->normalIndex != COMPUTE_NORMAL);
         }
@@ -30768,6 +31321,7 @@ static void resolveFaceNormals()
     // Really, some unused normals could still be output, but this cuts the number down a little.
     // Yikes, on second thought, don't do this - only works in _DEBUG! Left as a warning to my future self.
     //gModel.normalListCount = maxFaceNormalIndex + 1;
+    return MW_NO_ERROR;
 }
 
 // There are some blocks that have a "primary" name like "Wool" or "Coral Fan", but the real name is "White Wool" or "Tube Coral Fan".
@@ -31206,7 +31760,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
 
     int i, j, groupCount, index;
 
-    unsigned char outputMaterial[NUM_BLOCKS];
+    unsigned char outputMaterial[MAX_BLOCK_TYPES];
 
     int retCode = MW_NO_ERROR;
 
@@ -31319,9 +31873,8 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
             UPDATE_STATUS(gProgress.start.output + gProgress.absolute.output * 0.5f * ((float)i / (float)gModel.vertexCount), statusString);
         }
 
-        // 8 significant digits, a float's full precision: with %g's 6, a vertex at a world coordinate in the hundreds can be off
-        // by 1/100th of a pixel, which distorts the texturing of thin parts, such as a tripwire's half-pixel string
-        sprintf_s(outputString, 256, "v %.8g %.8g %.8g\n", gModel.vertices[i][X], gModel.vertices[i][Y], gModel.vertices[i][Z]);
+        // Seventeen significant digits round-trip double positions, including thin features at large offsets.
+        sprintf_s(outputString, 256, "v %.17g %.17g %.17g\n", gModel.vertices[i][X], gModel.vertices[i][Y], gModel.vertices[i][Z]);
         WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     }
 
@@ -31387,9 +31940,11 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                     // New ID encountered, so output it: material name, and group.
                     // Group isn't really required, but can be useful.
                     // Output group only if we're not already using it for individual blocks.
-                    strcpy_s(mtlName, 256, gBlockDefinitions[prevType].name);
+                    strcpy_s(mtlName, 256, blockMaterialName(prevType).c_str());
 
-                    if (subtypeMaterial && IsASubblock(prevType, prevDataVal)) {
+                    if (subtypeMaterial && IsModBlock(prevType)) {
+                    strcpy_s(mtlName, 256, blockMaterialName(prevType, prevDataVal).c_str());
+                } else if (subtypeMaterial && IsASubblock(prevType, prevDataVal)) {
                         // use subtype name or add a dataval suffix.
                         // If possible, turn these data values into the actual sub-material type names.
                         const char* subName = RetrieveBlockSubname(prevType, prevDataVal);
@@ -31431,7 +31986,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                             // swatch locations exactly correspond with tiles.h names (or, for a member
                             // cell of a multi-tile image, its span anchor's name plus an offset suffix -
                             // see getTileMaterialName)
-                            assert(prevSwatchLoc < TOTAL_TILES);
+                            assert(prevSwatchLoc < exportTileCount());
                             // TODO: could someday store mtlName in this same table; no need to convert every time
                             getTileMaterialName(prevSwatchLoc, mtlName, MAX_PATH_AND_FILE);
                             sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
@@ -31506,7 +32061,7 @@ static int writeOBJBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightenedW
                             // swatch locations exactly correspond with tiles.h names (or, for a member
                             // cell of a multi-tile image, its span anchor's name plus an offset suffix -
                             // see getTileMaterialName)
-                            assert(prevSwatchLoc < TOTAL_TILES);
+                            assert(prevSwatchLoc < exportTileCount());
                             getTileMaterialName(prevSwatchLoc, mtlName, MAX_PATH_AND_FILE);
                             assert(strlen(mtlName));    // if hit, means a bad swatchLoc was assigned
                             sprintf_s(outputString, 256, "usemtl %s\n", mtlName);
@@ -31834,7 +32389,7 @@ static int writeOBJTextureUV(float u, float v, int addComment, int swatchLoc)
     // we go a bit nuts with the precision here, not sure it helps, but can't hurt; used to use just "%g"
     if (addComment)
     {
-        if (swatchLoc < TOTAL_TILES) {
+        if (swatchLoc < exportTileCount()) {
             char outName[MAX_PATH_AND_FILE];
             getTileMaterialName(swatchLoc, outName, MAX_PATH_AND_FILE);
             assert(strlen(outName) > 0);
@@ -31886,7 +32441,7 @@ static int writeOBJMtlFile()
         return MW_CANNOT_CREATE_FILE;
 
     if (gModel.exportTiles) {
-        for (i = 0; i < TOTAL_TILES; i++) {
+        for (i = 0; i < exportTileCount(); i++) {
             // tile name is material name, period
             if (gModel.tileList[CATEGORY_RGBA][i]) {
                 gModel.tileListCount++;
@@ -31972,7 +32527,7 @@ static int writeOBJMtlFile()
         // output materials
         if (gModel.exportTiles) {
             // Go through all tiles and see which are used
-            for (i = 0; i < TOTAL_TILES; i++) {
+            for (i = 0; i < exportTileCount(); i++) {
                 // tile name is material name, possibly with _s if it's a synthesized tile.
                 if (gModel.tileList[CATEGORY_RGBA][i]) {
                     // tile found that should be output. For a member cell of a multi-tile image, name/flags/
@@ -32016,11 +32571,13 @@ static int writeOBJMtlFile()
                     dataVal = MTL_LIST_DATAVAL(gMtlList[i]);
 
                 // print header: material name
-                strcpy_s(mtlName, 256, gBlockDefinitions[type].name);
+                strcpy_s(mtlName, 256, blockMaterialName(type).c_str());
 
                 // add a dataval suffix:
                 // If possible, turn these data values into the actual sub-material type names.
-                if (subtypeMaterial && IsASubblock(type, dataVal)) {
+                if (subtypeMaterial && IsModBlock(type)) {
+                    strcpy_s(mtlName, 256, blockMaterialName(type, dataVal).c_str());
+                } else if (subtypeMaterial && IsASubblock(type, dataVal)) {
                     // use subtype name or add a dataval suffix.
                     // If possible, turn these data values into the actual sub-material type names.
                     const char* subName = RetrieveBlockSubname(type, dataVal);
@@ -32106,7 +32663,7 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
     ka = 0.2;
     kd = 1.0;
     ks = 0.0;
-    alpha = retrieveMtlAlpha(type);
+    alpha = retrieveMtlAlpha(type, dataVal);
 
     if (alpha < 1.0f)
     {
@@ -32120,10 +32677,10 @@ static int writeOBJFullMtlDescription(char* mtlName, int type, int dataVal, char
         tfString[0] = '\0';
     }
 
-    // export map_d only if CUTOUTS.
+    // Imported face opacity belongs to the texture, not the block's map color.
     if (!gModel.print3D &&
         (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) &&
-        (alpha < 1.0 || (gBlockDefinitions[type].flags & BLF_CUTOUTS)) &&
+        (alpha < 1.0 || IsModBlock(type) || (gBlockDefinitions[type].flags & BLF_CUTOUTS)) &&
         !(gModel.options->pEFD->chkLeavesSolid && (gBlockDefinitions[type].flags & BLF_LEAF_PART)))
     {
         // cutouts or alpha
@@ -32456,7 +33013,7 @@ static TypeTile multTable[MULT_TABLE_SIZE] = {
     { BLOCK_REDSTONE_WIRE /* REDSTONE_WIRE_DOT */, 4, 11, { 0, 0, 0 } },
 };
 
-static float retrieveMtlAlpha(int type)
+static float retrieveMtlAlpha(int type, int dataVal)
 {
     // 3d printers cannot print semitransparent surfaces, so set alpha to 1.0 so what you preview
     // is what you get. TODO Should we turn off alpha for textures, as the textures themselves will have alpha in them - this is
@@ -32466,7 +33023,7 @@ static float retrieveMtlAlpha(int type)
     //alpha = ( gModel.print3D || (gModel.exportTexture)) ? 1.0f : gBlockDefinitions[type].alpha;
     // Well, hmmm, alpha is useful in previewing (no textures displayed), at least for OBJ files
     // alpha = gModel.print3D ? 1.0f : gBlockDefinitions[type].alpha;
-    float alpha = gBlockDefinitions[type].alpha;
+    float alpha = blockDataAlpha(type, dataVal);
     if (gModel.options->exportFlags & EXPT_DEBUG_SHOW_GROUPS)
     {
         // if showing groups, make the alpha of the largest group transparent
@@ -32509,11 +33066,12 @@ static int createBaseMaterialTexture()
 
     mainprog = new progimage_info();
 
+    gModel.pPNGtexture = mainprog;
     mainprog->width = gModel.textureResolution;
     mainprog->height = gModel.textureResolution;
 
     // resize and clear
-    mainprog->image_data.resize(gModel.textureResolution * gModel.textureResolution * 4 * sizeof(unsigned char), 0x0);
+    mainprog->image_data.resize((size_t)gModel.textureResolution * gModel.textureResolution * 4 * sizeof(unsigned char), 0x0);
     // TODO: any way to check if we're out of memory?
 
     gModel.pPNGtexture = mainprog;  // eventually freed in freeModel()
@@ -32552,10 +33110,10 @@ static int createBaseMaterialTexture()
                 else
                 {
                     // fill with a solid color
-                    r = (unsigned char)(gBlockDefinitions[gModel.swatchCount].color >> 16);
-                    g = (unsigned char)((gBlockDefinitions[gModel.swatchCount].color >> 8) & 0xff);
-                    b = (unsigned char)(gBlockDefinitions[gModel.swatchCount].color & 0xff);
-                    a = (unsigned char)(gBlockDefinitions[gModel.swatchCount].alpha * 255.0f);
+                    r = (unsigned char)(gBlockDefinitions[gSolidTypes[gModel.swatchCount]].color >> 16);
+                    g = (unsigned char)((gBlockDefinitions[gSolidTypes[gModel.swatchCount]].color >> 8) & 0xff);
+                    b = (unsigned char)(gBlockDefinitions[gSolidTypes[gModel.swatchCount]].color & 0xff);
+                    a = (unsigned char)(gBlockDefinitions[gSolidTypes[gModel.swatchCount]].alpha * 255.0f);
 
                     if (gModel.options->exportFlags & EXPT_DEBUG_SHOW_GROUPS)
                     {
@@ -32584,7 +33142,7 @@ static int createBaseMaterialTexture()
                 }
 
                 gModel.swatchCount++;
-                keepGoing = (gModel.swatchCount < NUM_BLOCKS_MAP);
+                keepGoing = (gModel.swatchCount < (int)gSolidTypes.size());
             }
         }
         assert(keepGoing == 0);
@@ -33453,6 +34011,11 @@ static int createBaseMaterialTexture()
         }
     }
 
+    if (useTextureImage) {
+        copyModTextures(mainprog, CATEGORY_RGBA);
+        gModel.swatchCount = exportTileCount();
+    }
+
     // Create PBR mosaic textures (normals, metallic, emission, roughness) for mosaic export.
     // These mirror the RGBA mosaic layout but skip RGBA-specific post-processing.
     if (useTextureImage && !gModel.exportTiles) {
@@ -33462,12 +34025,13 @@ static int createBaseMaterialTexture()
 
             int channels = gCatChannels[cat];
             progimage_info* pbrProg = new progimage_info();
+            gModel.pPBRtexture[cat] = pbrProg;
             pbrProg->width = gModel.textureResolution;
             pbrProg->height = gModel.textureResolution;
 
             // Default fill: normals = (128,128,255) for up-facing neutral; others = 0
             unsigned char defaultByte = (cat == CATEGORY_NORMALS) ? 128 : 0;
-            pbrProg->image_data.resize(gModel.textureResolution * gModel.textureResolution * channels, defaultByte);
+            pbrProg->image_data.resize((size_t)gModel.textureResolution * gModel.textureResolution * channels, defaultByte);
 
             // For normals, fix the blue channel to 255 (every 3rd byte starting at index 2)
             if (cat == CATEGORY_NORMALS) {
@@ -33511,6 +34075,7 @@ static int createBaseMaterialTexture()
                 }
             }
 
+            copyModTextures(pbrProg, cat);
             gModel.pPBRtexture[cat] = pbrProg;
             gModel.hasPBRmosaic[cat] = true;
         }
@@ -33531,7 +34096,7 @@ static int writeBinarySTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tigh
     int retCode = MW_NO_ERROR;
 
     FaceRecord* pFace;
-    Point* vertex[4];
+    ExportPoint* vertex[4];
     // Normally each face has two triangles; triangle faces have only one, so subtract the "extra faces"
     // due to multiplying by two.
     unsigned int numTri = gModel.faceCount * 2 - gModel.triangleCount;
@@ -33629,9 +34194,12 @@ static int writeBinarySTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tigh
             WERROR_MODEL(PortaWrite(gModelFile, &gModel.normals[pFace->normalIndex], 12));
 
             // two triangles: 0 1 2 and 0 2 3 (or 1 2 3 and 1 3 0)
-            WERROR_MODEL(PortaWrite(gModelFile, vertex[offset], 12));
-            WERROR_MODEL(PortaWrite(gModelFile, vertex[offset + i + 1], 12));
-            WERROR_MODEL(PortaWrite(gModelFile, vertex[(offset + i + 2) % 4], 12));
+            const int corners[3] = {offset, offset + i + 1, (offset + i + 2) % 4};
+            for (int corner = 0; corner < 3; ++corner) {
+                Point output;
+                for (int axis = 0; axis < 3; ++axis) output[axis] = (float)(*vertex[corners[corner]])[axis];
+                WERROR_MODEL(PortaWrite(gModelFile, output, sizeof(output)));
+            }
 
             if (writeColor)
             {
@@ -33703,7 +34271,7 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
 
     int normalIndex;  // cppcheck-suppress 398
     FaceRecord* pFace;
-    Point* vertex[4], * pt;
+    ExportPoint* vertex[4], * pt;
 
     concatFileName3(stlFileNameWithSuffix, gOutputFilePath, gOutputFileRoot, L".stl");
 
@@ -33722,11 +34290,7 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
     // start to write file
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
-    char facetNormalString[NORMAL_LIST_SIZE][256];
-    for (i = 0; i < gModel.normalListCount; i++)
-    {
-        sprintf_s(facetNormalString[i], 256, "facet normal %e %e %e\n", gModel.normals[i][X], gModel.normals[i][Y], gModel.normals[i][Z]);
-    }
+    char facetNormalString[256];
 
     int noteProgress = 1 + (int)((float)gModel.faceCount / (gProgress.absolute.output / 0.04f));
 
@@ -33743,7 +34307,7 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
         if (faceNo % noteProgress == 0) {
             prettifyNumber(faceNo + 1, numString1);
             swprintf_s(statusString, 1024, L"Writing %s of %s faces", numString1, numString2);
-            UPDATE_STATUS(gProgress.start.output + gProgress.absolute.output * ((float)i / (float)gModel.faceCount), statusString);
+            UPDATE_STATUS(gProgress.start.output + gProgress.absolute.output * ((float)faceNo / (float)gModel.faceCount), statusString);
         }
 
         pFace = gModel.faceList[faceNo];
@@ -33755,6 +34319,7 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
 
         assert(pFace->normalIndex >= 0);
         normalIndex = pFace->normalIndex;
+        sprintf_s(facetNormalString, 256, "facet normal %e %e %e\n", gModel.normals[normalIndex][X], gModel.normals[normalIndex][Y], gModel.normals[normalIndex][Z]);
 
         // typical output:
         //facet normal 0.000000e+000 -1.000000e+000 0.000000e+000
@@ -33777,18 +34342,18 @@ static int writeAsciiSTLBox(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tight
 
         for (i = 0; i < faceTriCount; i++)
         {
-            WERROR_MODEL(PortaWrite(gModelFile, facetNormalString[normalIndex], strlen(facetNormalString[normalIndex])));
+            WERROR_MODEL(PortaWrite(gModelFile, facetNormalString, strlen(facetNormalString)));
             WERROR_MODEL(PortaWrite(gModelFile, "outer loop\n", strlen("outer loop\n")));
 
             // two triangles: 0 1 2 and 0 2 3 (or 1 2 3 and 1 3 0)
             pt = vertex[offset];
-            sprintf_s(outputString, 256, "vertex  %e %e %e\n", (double)((*pt)[X]), (double)((*pt)[Y]), (double)((*pt)[Z]));
+            sprintf_s(outputString, 256, "vertex  %.17g %.17g %.17g\n", (double)((*pt)[X]), (double)((*pt)[Y]), (double)((*pt)[Z]));
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             pt = vertex[(offset + i + 1) % 4];	// shouldn't need % 4, but let's be safe, and makes cppcheck happy
-            sprintf_s(outputString, 256, "vertex  %e %e %e\n", (double)((*pt)[X]), (double)((*pt)[Y]), (double)((*pt)[Z]));
+            sprintf_s(outputString, 256, "vertex  %.17g %.17g %.17g\n", (double)((*pt)[X]), (double)((*pt)[Y]), (double)((*pt)[Z]));
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             pt = vertex[(offset + i + 2) % 4];  // cppcheck-suppress 457 - no, this really is initialized
-            sprintf_s(outputString, 256, "vertex  %e %e %e\n", (double)((*pt)[X]), (double)((*pt)[Y]), (double)((*pt)[Z]));
+            sprintf_s(outputString, 256, "vertex  %.17g %.17g %.17g\n", (double)((*pt)[X]), (double)((*pt)[Y]), (double)((*pt)[Z]));
             WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
 
             WERROR_MODEL(PortaWrite(gModelFile, "endloop\nendfacet\n", strlen("endloop\nendfacet\n")));
@@ -33943,11 +34508,11 @@ static int writeVRML2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightene
                 if (j == gModel.vertexCount - 1)
                 {
                     // no comma at end
-                    sprintf_s(outputString, 256, "            %g %g %g\n", gModel.vertices[j][X], gModel.vertices[j][Y], gModel.vertices[j][Z]);
+                    sprintf_s(outputString, 256, "            %.9g %.9g %.9g\n", (float)gModel.vertices[j][X], (float)gModel.vertices[j][Y], (float)gModel.vertices[j][Z]);
                 }
                 else
                 {
-                    sprintf_s(outputString, 256, "            %g %g %g,\n", gModel.vertices[j][X], gModel.vertices[j][Y], gModel.vertices[j][Z]);
+                    sprintf_s(outputString, 256, "            %.9g %.9g %.9g,\n", (float)gModel.vertices[j][X], (float)gModel.vertices[j][Y], (float)gModel.vertices[j][Z]);
                 }
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
             }
@@ -34141,7 +34706,7 @@ static int writeVRMLAttributeShapeSplit(int type, int dataVal, char* mtlName, ch
     kd = 0.9f;
     ks = 0.1f;
     // not needed ke = 0.0f;
-    alpha = retrieveMtlAlpha(type);
+    alpha = retrieveMtlAlpha(type, dataVal);
 
     if (alpha < 1.0f)
     {
@@ -34206,7 +34771,7 @@ static int writeVRMLTextureUV(float u, float v, int addComment, int swatchLoc)
 
     if (addComment)
     {
-        if (swatchLoc < TOTAL_TILES) {
+        if (swatchLoc < exportTileCount()) {
             char outName[MAX_PATH_AND_FILE];
             getTileMaterialName(swatchLoc, outName, MAX_PATH_AND_FILE);
             assert(strlen(outName) > 0);
@@ -34475,7 +35040,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
                     UPDATE_PROGRESS(gProgress.start.output + gProgress.absolute.output * ((float)i / doubleCount));
                     progressTick += progressIncrement;
                 }
-                sprintf_s(outputString, 256, "(%g, %g, %g)%s", pil->location[X], pil->location[Y], pil->location[Z], (i == gModel.instanceLocCount - 1) ? "]\n" : ",");
+                sprintf_s(outputString, 256, "(%.9g, %.9g, %.9g)%s", pil->location[X], pil->location[Y], pil->location[Z], (i == gModel.instanceLocCount - 1) ? "]\n" : ",");
                 WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                 pil++;
             }
@@ -34591,7 +35156,7 @@ static int writeUSD2Box(WorldGuide* pWorldGuide, IBox* worldBox, IBox* tightened
 
                 pil = &gModel.instanceLoc[startInstance];
                 for (i = startInstance; i < endInstance; i++) {
-                    sprintf_s(outputString, 256, "(%g, %g, %g)%s", pil->location[X], pil->location[Y], pil->location[Z], (i == endInstance - 1) ? "]\n" : ",");
+                    sprintf_s(outputString, 256, "(%.9g, %.9g, %.9g)%s", pil->location[X], pil->location[Y], pil->location[Z], (i == endInstance - 1) ? "]\n" : ",");
                     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
                     pil++;
                 }
@@ -34679,7 +35244,7 @@ Exit:
     if (retCode < MW_BEGIN_ERRORS) {
         // note that textures get written out in SaveVolume(), which calls this function.
         // But we need this value computed, for the progress bar
-        for (i = 0; i < TOTAL_TILES; i++) {
+        for (i = 0; i < exportTileCount(); i++) {
             // tile name is material name, period
             if (gModel.tileList[CATEGORY_RGBA][i]) {
                 gModel.tileListCount++;
@@ -34717,7 +35282,7 @@ static bool findNextChunk(int startInstance, int& endInstance, char* chunkLocati
 
     // go through rest of list, look for a chunk change
     endInstance = startInstance + 1;
-    do {
+    while (endInstance < gModel.instanceLocCount) {
         pil = &gModel.instanceLoc[endInstance];
         if (chunk[Y] != (int)(pil->location[Y] / gModel.instanceChunkSize) ||
             chunk[X] != (int)(pil->location[X] / gModel.instanceChunkSize) ||
@@ -34726,15 +35291,15 @@ static bool findNextChunk(int startInstance, int& endInstance, char* chunkLocati
             return true;
         }
         endInstance++;
-    } while (endInstance < gModel.instanceLocCount); // if endInstance == the count then we're at the end of the last chunk
+    } // endInstance equal to the count is the end of the last chunk.
 
     return true;
 }
 
-static void nameFromHash(int hash, char* instanceNameString)
+static void nameFromHash(unsigned int hash, char* instanceNameString)
 {
     int type = hash >> 16;
-    int dataVal = hash & 0xff;
+    int dataVal = hash & 0xffff;
     //const char* subName = RetrieveBlockSubname(type, dataVal);
     // TODO much better here would be to access the map naming routine, but that's tricky - 
     // you have to get the name and mask out the data value (should be made part of that routine and shared)
@@ -34924,10 +35489,10 @@ static int addCameraUSD()
     maxSize *= scale;
 
     // get center - it's half the axis sizes minus gModel.center (more or less)
-    Point center;
-    Vec3Op(center, =, 0.5f * (float)axisSizes, -, (float)gModel.center);
-    Point loc;
-    Vec2Op(loc, =, (float)(1.0/sqrt(3.0f)) * maxSize + 100.0f * center);
+    ExportPoint center;
+    Vec3Op(center, =, 0.5 * (double)axisSizes, -, gModel.center);
+    ExportPoint loc;
+    Vec2Op(loc, =, (1.0/sqrt(3.0)) * maxSize + 100.0 * center);
 
     strcpy_s(outputString, 256, "    def Camera \"Camera\" (\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -34977,7 +35542,7 @@ static int addCameraUSD()
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "        float3 xformOp:scale = (1, 1, 1)\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
-    sprintf_s(outputString, 256, "        double3 xformOp:translate = (%f, %f, %f)\n", loc[0], loc[1], loc[2]);
+    sprintf_s(outputString, 256, "        double3 xformOp:translate = (%.17g, %.17g, %.17g)\n", loc[0], loc[1], loc[2]);
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
     strcpy_s(outputString, 256, "        uniform token[] xformOpOrder = [\"xformOp:translate\", \"xformOp:rotateZXY\", \"xformOp:scale\"]\n");
     WERROR_MODEL(PortaWrite(gModelFile, outputString, strlen(outputString)));
@@ -35251,7 +35816,7 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary, boo
         for (i = 0; i < gModel.instanceCount; i++) {
             // different naming, etc.
             int type = gModel.instance[i].hash >> 16;
-            int dataVal = gModel.instance[i].hash & 0xff;
+            int dataVal = gModel.instance[i].hash & 0xffff;
             const char* subName = RetrieveBlockSubname(type, dataVal);
 
             sprintf_s(outputString, 256, "\n    def Xform \"Block_%d_%d\"\n    {\n", type, dataVal);
@@ -35260,7 +35825,7 @@ static int createMeshesUSD(wchar_t* blockLibraryPath, char *materialLibrary, boo
             WERROR_MODEL(PortaWrite(blockFile, outputString, strlen(outputString)));
             sprintf_s(outputString, 256, "        int blockSubType = %d\n", dataVal);
             WERROR_MODEL(PortaWrite(blockFile, outputString, strlen(outputString)));
-            sprintf_s(outputString, 256, "        string typeName = \"%s\"\n", gBlockDefinitions[type].name);
+            sprintf_s(outputString, 256, "        string typeName = \"%s\"\n", blockMaterialName(type).c_str());
             WERROR_MODEL(PortaWrite(blockFile, outputString, strlen(outputString)));
             sprintf_s(outputString, 256, "        string subTypeName = \"%s\"\n", subName);
             WERROR_MODEL(PortaWrite(blockFile, outputString, strlen(outputString)));
@@ -35385,7 +35950,7 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
             gOutData.indices[iv] = iv;
 
             // We expand here, only to then turn around and compress these lists later on output. A bit wasteful, could be done better? TODO
-            Vec3Scalar(gOutData.points[iv], =, gModel.vertices[pFace->vertexIndex[j]][X], gModel.vertices[pFace->vertexIndex[j]][Y], gModel.vertices[pFace->vertexIndex[j]][Z]);
+            Vec3Scalar(gOutData.points[iv], =, (float)gModel.vertices[pFace->vertexIndex[j]][X], (float)gModel.vertices[pFace->vertexIndex[j]][Y], (float)gModel.vertices[pFace->vertexIndex[j]][Z]);
             assert(pFace->normalIndex >= 0);
             Vec3Scalar(gOutData.normals[iv], =, gModel.normals[pFace->normalIndex][X], gModel.normals[pFace->normalIndex][Y], gModel.normals[pFace->normalIndex][Z]);
 
@@ -35510,7 +36075,7 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
         strcpy_s(outputString, 256, "            point3f[] points = [");
         WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
         for (i = 0; i < numVerts; i++) {
-            sprintf_s(outputString, 256, "(%g, %g, %g)%s", gOutData.points[i][X], gOutData.points[i][Y], gOutData.points[i][Z], (i == numVerts - 1) ? "]\n" : ", ");
+            sprintf_s(outputString, 256, "(%.9g, %.9g, %.9g)%s", gOutData.points[i][X], gOutData.points[i][Y], gOutData.points[i][Z], (i == numVerts - 1) ? "]\n" : ", ");
             WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
         }
 
@@ -35569,7 +36134,7 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
         strcpy_s(outputString, 256, "            point3f[] points = [");
         WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
         for (i = 0; i < gOutData.vertCountWelded; i++) {
-            sprintf_s(outputString, 256, "(%g, %g, %g)%s", (gOutData.welded[i])[0][X], (gOutData.welded[i])[0][Y], (gOutData.welded[i])[0][Z], (i == gOutData.vertCountWelded - 1) ? "]\n" : ", ");
+            sprintf_s(outputString, 256, "(%.9g, %.9g, %.9g)%s", (gOutData.welded[i])[0][X], (gOutData.welded[i])[0][Y], (gOutData.welded[i])[0][Z], (i == gOutData.vertCountWelded - 1) ? "]\n" : ", ");
             WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
         }
 
@@ -35680,7 +36245,7 @@ static int outputUSDMesh(PORTAFILE file, int startingFace, int numFaces, int num
             strcpy_s(outputString, 256, "            point3f[] points = [");
             WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
             for (i = 0; i < numSegVertices; i++) {
-                sprintf_s(outputString, 256, "(%g, %g, %g)%s", gOutData.points[i + startVertex][X], gOutData.points[i + startVertex][Y], gOutData.points[i + startVertex][Z], (i == numSegVertices - 1) ? "]\n" : ", ");
+                sprintf_s(outputString, 256, "(%.9g, %.9g, %.9g)%s", gOutData.points[i + startVertex][X], gOutData.points[i + startVertex][Y], gOutData.points[i + startVertex][Z], (i == numSegVertices - 1) ? "]\n" : ", ");
                 WERROR_MODEL(PortaWrite(file, outputString, strlen(outputString)));
             }
 
@@ -36209,7 +36774,7 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
         // more for 3D printing than anything. This is all kind of half-baked, the paths are not quite right.
         bool isCutout = false;
         bool isSemitransparent = false;
-        float alpha = retrieveMtlAlpha(pFace->materialType);
+        float alpha = retrieveMtlAlpha(pFace->materialType, pFace->materialDataVal);
         // TODO: could key off of the alpha of the tile, e.g.,
         // TILES_ENTRY(resolveTileAnchor(swatchLoc)).flags & TILE_USES_ALPHA - not sure there's any gain
         if (!gModel.print3D &&
@@ -37441,8 +38006,11 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
             // in which case opacityThreshold is respected. For others (Most path tracers) transparency is properly 
             // respected and the opacityThreshold is ignored.
 
-            bool sRepeat = (TILES_ENTRY(resolveTileAnchor(swatchLoc)).flags & SBIT_REPEAT_SIDES) ? true : false;
-            bool tRepeat = (TILES_ENTRY(resolveTileAnchor(swatchLoc)).flags & SBIT_REPEAT_TOP_BOTTOM) ? true : false;
+            // Solid-color and composite swatches are output slots, not source terrain tiles.
+            const bool sourceTile = (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) &&
+                swatchLoc >= 0 && swatchLoc < exportTileCount();
+            bool sRepeat = sourceTile && (TILES_ENTRY(resolveTileAnchor(swatchLoc)).flags & SBIT_REPEAT_SIDES);
+            bool tRepeat = sourceTile && (TILES_ENTRY(resolveTileAnchor(swatchLoc)).flags & SBIT_REPEAT_TOP_BOTTOM);
 
             strcpy_s(outputString, 256, "\n            def Shader \"PreviewSurface\"\n");
             WERROR_MODEL(PortaWrite(materialFile, outputString, strlen(outputString)));
@@ -37770,10 +38338,13 @@ static int createMaterialsUSD(char *texturePath, char *mdlPath, wchar_t *mtlLibr
 
 static boolean tileIsAnEmitter(int type, int swatchLoc )
 {
-    if (gModel.tileList[CATEGORY_EMISSION][swatchLoc]) {
+    const bool sourceTile = (gModel.options->exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES_OR_TILES) &&
+        swatchLoc >= 0 && swatchLoc < exportTileCount();
+    if (sourceTile && gModel.tileList[CATEGORY_EMISSION][swatchLoc]) {
         return true;
     }
     if (gBlockDefinitions[type].flags & BLF_EMITTER) {
+        if (!sourceTile) return true;
         // part of an emitter - is it a face that emits?
         switch (type) {
         default:
@@ -37814,9 +38385,9 @@ static boolean tileIsAnEmitter(int type, int swatchLoc )
 static void setMetallicRoughnessByName(char *mtlName, float *metallic, float *roughness)
 {
     // check metals first
-    char blockName[100];
-    strcpy_s(blockName, 100, mtlName);
-    _strlwr_s(blockName, 100);
+    char blockName[MAX_PATH_AND_FILE];
+    strcpy_s(blockName, sizeof(blockName), mtlName);
+    _strlwr_s(blockName, sizeof(blockName));
     changeCharToUnderline( ' ', blockName);
     if (strstr(blockName, "iron") != NULL && strstr(blockName, "_ore") == NULL) {
         // iron
@@ -37954,9 +38525,11 @@ static boolean findEndOfGroup(int startRun, int endCount, char* mtlName, int& ne
     // New ID encountered, so output it: material name, and group.
     // Group isn't really required, but can be useful.
     // Output group only if we're not already using it for individual blocks.
-    strcpy_s(mtlName, 256, gBlockDefinitions[prevType].name);
+    strcpy_s(mtlName, 256, blockMaterialName(prevType).c_str());
 
-    if (subtypeMaterial && IsASubblock(prevType, prevDataVal)) {
+    if (subtypeMaterial && IsModBlock(prevType)) {
+                    strcpy_s(mtlName, 256, blockMaterialName(prevType, prevDataVal).c_str());
+                } else if (subtypeMaterial && IsASubblock(prevType, prevDataVal)) {
         // use subtype name or add a dataval suffix.
         // If possible, turn these data values into the actual sub-material type names.
         const char* subName = RetrieveBlockSubname(prevType, prevDataVal);
@@ -37978,7 +38551,7 @@ static boolean findEndOfGroup(int startRun, int endCount, char* mtlName, int& ne
         // new material per tile ID
         // swatch locations exactly correspond with tiles.h names (or, for a member cell of a multi-tile
         // image, its span anchor's name plus an offset suffix - see getTileMaterialName)
-        assert(prevSwatchLoc < TOTAL_TILES);
+        assert(prevSwatchLoc < exportTileCount());
         getTileMaterialName(prevSwatchLoc, mtlName, MAX_PATH_AND_FILE);
         // note in an array that this separate tile should be output as a material
         gModel.tileList[CATEGORY_RGBA][prevSwatchLoc] = true;  // means has a texture
@@ -38232,6 +38805,12 @@ static int writeUSDTextures()
 //===============================================================================================
 static int writeSchematicBox()
 {
+    // Legacy numeric IDs cannot represent a portable mod identity. Use Sponge .schem.
+    for (int x = gSolidBox.min[X]; x <= gSolidBox.max[X]; ++x)
+        for (int y = gSolidBox.min[Y]; y <= gSolidBox.max[Y]; ++y)
+            for (int z = gSolidBox.min[Z]; z <= gSolidBox.max[Z]; ++z)
+                if (IsModBlock(gBoxData[BOX_INDEX(x, y, z)].type))
+                    return MW_CANNOT_PARSE_IMPORT_FILE;
     FILE* fptr;
     int err;
     gzFile gz;
@@ -38815,6 +39394,24 @@ static int writeSpongeSchematicBox()
         int swapper = width; width = length; length = swapper;
     }
 
+    // Reject context limits before opening an existing destination for replacement.
+    size_t modEntityCount = 0, modEntityBytes = 21;
+    for (int y = gSolidBox.min[Y]; y <= gSolidBox.max[Y]; ++y)
+        for (int z = gSolidBox.min[Z]; z <= gSolidBox.max[Z]; ++z)
+            for (int x = gSolidBox.min[X]; x <= gSolidBox.max[X]; ++x) {
+                const auto& cell = gBoxData[BOX_INDEX(x, y, z)];
+                const auto* mod = GetModBlock(cell.type, cell.data);
+                if (!mod || mod->context.entityId.empty()) continue;
+                ++modEntityCount;
+                modEntityBytes += 38 + mod->context.entityId.size() +
+                    (mod->context.hasDummy ? 12 : 0) + (mod->context.hasPosition ? 26 : 0);
+                if (modEntityCount > 65536 || modEntityBytes > 16 * 1024 * 1024)
+                    return retCode | MW_WORLD_EXPORT_TOO_LARGE;
+            }
+    struct ModSpongeEntity { int position[3]; const ModBlockContext* context; };
+    std::vector<ModSpongeEntity> modEntities;
+    modEntities.reserve(modEntityCount);
+
     concatFileName3(schematicFileNameWithSuffix, gOutputFilePath, gOutputFileRoot, L".schem");
 
     err = _wfopen_s(&fptr, schematicFileNameWithSuffix, L"wb");
@@ -38878,13 +39475,7 @@ static int writeSpongeSchematicBox()
     // Keyed on the full 12-bit dataVal: some families (e.g. note block's instrument, bits 0x7C0) use bits
     // above 0xFF, and an 8-bit key would make such blocks share the first-seen block's palette entry.
     const int lookupDataVals = DATAVAL_MASK + 1;
-    int* paletteIndexLookup = (int*)malloc((size_t)NUM_BLOCKS_DEFINED * lookupDataVals * sizeof(int));
-    if (paletteIndexLookup == NULL) {
-        gzflush(gz, Z_FINISH);
-        fclose(fptr);
-        return retCode | MW_WORLD_EXPORT_TOO_LARGE;
-    }
-    for (int i = 0; i < NUM_BLOCKS_DEFINED * lookupDataVals; i++) paletteIndexLookup[i] = -1;
+    std::unordered_map<int, int> paletteIndexLookup;
 
     std::vector<std::string> paletteNames;
     paletteNames.reserve(256);
@@ -38897,7 +39488,7 @@ static int writeSpongeSchematicBox()
     int totalSize = width * height * length;
 
     int unknownBlockExports = 0;
-    char nameBuf[256];
+    char nameBuf[1024];
     unsigned char varintBytes[5];
 
     IPoint loc;
@@ -38932,15 +39523,15 @@ static int writeSpongeSchematicBox()
                 // A wall's connected sides are "low" or "tall", which Mineways doesn't keep (all twelve bits are used); Minecraft
                 // finds it from the block above, so do so here (see spongeWallTallSides()).
                 int wallTall = 0;
-                if ((type & 0xFFF) == BLOCK_COBBLESTONE_WALL && loc[Y] < gSolidBox.max[Y]) {
+                if (type == BLOCK_COBBLESTONE_WALL && loc[Y] < gSolidBox.max[Y]) {
                     int aboveIndex = rotateQuarter
                         ? BOX_INDEX(loc[Z], loc[Y] + 1, loc[X])
                         : BOX_INDEX(loc[X], loc[Y] + 1, loc[Z]);
                     wallTall = spongeWallTallSides(dataVal, aboveIndex);
                 }
 
-                int lookupKey = (type & 0xFFF) * lookupDataVals + (dataVal & DATAVAL_MASK);
-                if (lookupKey < 0 || lookupKey >= NUM_BLOCKS_DEFINED * lookupDataVals) {
+                int lookupKey = type * lookupDataVals + (dataVal & DATAVAL_MASK);
+                if (lookupKey < 0 || lookupKey >= ModBlockTypeLimit() * lookupDataVals) {
                     // unknown block — fall back to air, count it for the user-facing warning
                     type = 0;
                     dataVal = 0;
@@ -38949,7 +39540,8 @@ static int writeSpongeSchematicBox()
                 }
 
                 // a wall with tall sides isn't told apart by its dataVal, so it's looked up by its name
-                int paletteIndex = wallTall ? -1 : paletteIndexLookup[lookupKey];
+                auto cachedPalette = paletteIndexLookup.find(lookupKey);
+                int paletteIndex = wallTall || cachedPalette == paletteIndexLookup.end() ? -1 : cachedPalette->second;
                 if (paletteIndex < 0) {
                     int n = spongeBlockStateString(type, dataVal, nameBuf, sizeof(nameBuf));
                     if (n <= 0) {
@@ -38979,13 +39571,17 @@ static int writeSpongeSchematicBox()
                         paletteIndexLookup[lookupKey] = paletteIndex;
                 }
 
+                const auto* mod = GetModBlock(type, dataVal);
+                if (mod && !mod->context.entityId.empty()) {
+                    modEntities.push_back({{(loc[X] - xStart) * xIncr, loc[Y] - gSolidBox.min[Y],
+                                            (loc[Z] - zStart) * zIncr}, &mod->context});
+                }
                 int nb = spongeWriteVarint(NULL, (unsigned int)paletteIndex, varintBytes);
                 blockData.insert(blockData.end(), varintBytes, varintBytes + nb);
             }
         }
     }
 
-    free(paletteIndexLookup);
     if (unknownBlockExports > 0) {
         retCode |= MW_UNKNOWN_BLOCK_TYPE_ENCOUNTERED;
     }
@@ -39013,9 +39609,27 @@ static int writeSpongeSchematicBox()
     }
     (void)totalSize;
 
-    // BlockEntities: empty list, moved under Blocks in v3 (was at root in v2). Stage 4 will
-    // populate this for signs/banners/heads/pots.
-    CHECK_SPONGE_QUIT(schematicWriteEmptyListTag(gz, "BlockEntities"));
+    // Preserve the bounded IE model context, independently of canonical palette identity.
+    CHECK_SPONGE_QUIT(schematicWriteTagValue(gz, 0x09, (char*)"BlockEntities"));
+    CHECK_SPONGE_QUIT(schematicWriteUnsignedCharValue(gz, 0x0A));
+    CHECK_SPONGE_QUIT(schematicWriteIntValue(gz, (int)modEntities.size()));
+    for (auto& entity : modEntities) {
+        const auto& context = *entity.context;
+        CHECK_SPONGE_QUIT(schematicWriteIntArrayTag(gz, (char*)"Pos", entity.position, 3));
+        CHECK_SPONGE_QUIT(schematicWriteTagValue(gz, 0x08, (char*)"Id"));
+        CHECK_SPONGE_QUIT(schematicWriteShortValue(gz, (short)context.entityId.size()));
+        CHECK_SPONGE_QUIT(schematicWriteStringValue(gz, (char*)context.entityId.c_str()));
+        CHECK_SPONGE_QUIT(schematicWriteCompoundTag(gz, (char*)"Data"));
+        if (context.hasDummy) {
+            CHECK_SPONGE_QUIT(schematicWriteIntTag(gz, (char*)"dummy", context.dummy));
+        }
+        if (context.hasPosition) {
+            int position[3] = {context.position[0], context.position[1], context.position[2]};
+            CHECK_SPONGE_QUIT(schematicWriteIntArrayTag(gz, (char*)"posInMB", position, 3));
+        }
+        CHECK_SPONGE_QUIT(schematicWriteUnsignedCharValue(gz, 0));
+        CHECK_SPONGE_QUIT(schematicWriteUnsignedCharValue(gz, 0));
+    }
 
     CHECK_SPONGE_QUIT(schematicWriteUnsignedCharValue(gz, 0x0));    // TAG_End closing the Blocks compound
 
@@ -39135,6 +39749,16 @@ static int writeEmissiveScaledTile(wchar_t* filename, int index)
 
 static int writeTileFromCategoryInput(wchar_t *filename, int index, int category)
 {
+    if (isImportedSwatch(index)) {
+        progimage_info image;
+        image.width = image.height = gModel.tileSize;
+        const int channels = gCatChannels[category];
+        image.image_data.resize((size_t)image.width * image.height * channels);
+        for (size_t i = 0; i < image.image_data.size(); ++i) image.image_data[i] = modPBRValue(category, (int)(i % channels));
+        const int rc = writepng(&image, channels, filename);
+        addOutputFilenameToList(filename);
+        return rc;
+    }
     int rc = MW_NO_ERROR;
 
     int numChannels = gCatChannels[category];
@@ -39213,6 +39837,15 @@ static int writeTileFromCategoryInput(wchar_t *filename, int index, int category
 
 static boolean isTileValue(int category, int swatchLoc, boolean checkAllPixels, unsigned char value)
 {
+    if (isImportedSwatch(swatchLoc)) {
+        if (category == CATEGORY_RGBA) {
+            const auto& pixels = ModTextures()[gModTextureIds[swatchLoc - TOTAL_TILES]].rgba;
+            for (size_t i = 0; i < (checkAllPixels ? pixels.size() : 4); ++i) if (pixels[i] != value) return false;
+        } else {
+            for (int c = 0; c < gCatChannels[category]; ++c) if (modPBRValue(category, c) != value) return false;
+        }
+        return true;
+    }
     if (gModel.pInputTerrainImage[category] != NULL) {
         // check tile, either first pixel or all pixels, to see if it's black.
         int numChannels = gCatChannels[category];
@@ -39240,6 +39873,11 @@ static boolean isTileValue(int category, int swatchLoc, boolean checkAllPixels, 
 // returns constant value (or first pixel value, if things differ)
 static boolean isTileValueConstant(int category, int swatchLoc, unsigned char &value)
 {
+    if (isImportedSwatch(swatchLoc)) {
+        assert(gCatChannels[category] == 1);
+        value = modPBRValue(category, 0);
+        return true;
+    }
     if (gModel.pInputTerrainImage[category] != NULL) {
         // check tile to see if all its values equals its first value.
         // This can go wrong with alpha cutouts, but that's OK.
@@ -39269,6 +39907,15 @@ static boolean isTileValueConstant(int category, int swatchLoc, unsigned char &v
 // -1 - tile does not exist (why are you calling?)
 static int tileAlphaStatus(int swatchLoc)
 {
+    if (isImportedSwatch(swatchLoc)) {
+        int result = 0;
+        const auto& pixels = ModTextures()[gModTextureIds[swatchLoc - TOTAL_TILES]].rgba;
+        for (size_t i = 3; i < pixels.size(); i += 4) {
+            if (pixels[i] != 0 && pixels[i] != 255) return 2;
+            if (pixels[i] == 0) result = 1;
+        }
+        return result;
+    }
     int numChannels = gCatChannels[CATEGORY_RGBA];
     if (numChannels != 4) {
         // no alpha found - why is this one tested?
@@ -39442,6 +40089,16 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
         WRITE_STAT;
     }
 
+
+    if (pWorldGuide->dimensionId[0]) {
+        WcharToChar(pWorldGuide->dimensionId, outChar, MAX_PATH_AND_FILE);
+        std::string dimensionLine = std::string("# Dimension: ") + outChar + "\n";
+        if (printFunc) {
+            if ((*printFunc)(&dimensionLine[0])) return MW_CANNOT_WRITE_TO_FILE;
+        } else {
+            WERROR_FH(PortaWrite(fh, dimensionLine.c_str(), dimensionLine.size()));
+        }
+    }
 
     _time32(&aclock);   // Get time in seconds.
     _localtime32_s(&newtime, &aclock);   // Convert time to struct tm form.
@@ -39983,8 +40640,8 @@ static int writeStatistics(HANDLE fh, int (*printFunc)(char *), WorldGuide* pWor
 
         // the translation vector from where the minecraft block coordinates are to where they are exported in the model
         // See https://github.com/jmc2obj/j-mc-2-obj/issues/243#issuecomment-2016341301
-        Point exportOffset;
-        Vec3Op(exportOffset, =, (float)gWorld2BoxOffset, -, gModel.center);
+        ExportPoint exportOffset;
+        Vec3Op(exportOffset, =, (double)gWorld2BoxOffset, -, gModel.center);
         sprintf_s(outputString, 256, "# export_offset: (%f, %f, %f)\n", exportOffset[X], exportOffset[Y], exportOffset[Z]);
         WRITE_STAT;
         // in meters, so divide by 1000.
@@ -41122,7 +41779,7 @@ static void compositePNGSwatchOverColor(progimage_info* dst, int dstSwatch, int 
     unsigned int* dsti = (unsigned int*)(&dst->image_data[0]) + drow * swatchSize * dst->width + dcol * swatchSize;
 
     int row, col;
-    unsigned char or, og, ob, oa;
+    unsigned char ovr, og, ob, oa;
     unsigned char dr, dg, db, da;
     unsigned int* coveri, * cdsti;  // cppcheck-suppress 398
 
@@ -41135,7 +41792,7 @@ static void compositePNGSwatchOverColor(progimage_info* dst, int dstSwatch, int 
         {
             unsigned char oma;
 
-            GET_PNG_TEXEL(or, og, ob, oa, *coveri);
+            GET_PNG_TEXEL(ovr, og, ob, oa, *coveri);
 
             oma = 255 - oa;
 
@@ -41154,7 +41811,7 @@ static void compositePNGSwatchOverColor(progimage_info* dst, int dstSwatch, int 
             else
             {
                 // full blend must be done: use over, http://en.wikipedia.org/wiki/Alpha_compositing
-                dr = (unsigned char)((or * oa * 255 + ur * ua * oma) / (255 * 255));
+                dr = (unsigned char)((ovr * oa * 255 + ur * ua * oma) / (255 * 255));
                 dg = (unsigned char)((og * oa * 255 + ug * ua * oma) / (255 * 255));
                 db = (unsigned char)((ob * oa * 255 + ub * ua * oma) / (255 * 255));
                 da = (unsigned char)((oa * 255 + ua * oma) / 255);
@@ -42290,7 +42947,7 @@ static bool faceCanTile(int faceId)
 #ifdef _DEBUG
     // Final check, just for debug to make sure we didn't let anything through: are all coordinates (not in normal direction) non-fractional, 0-1'ish? Chests, I believe, get their texture squished to their dimension.
     // Things like wheat, nether wart, etc. do not go fully across the tile, OR may get randomized and so won't line up.
-    Vector loc;
+    ExportPoint loc;
     for (i = 0; i < 4; i++) {
         Vec3Scalar(loc, =, gModel.vertices[pFace->vertexIndex[i]][X], gModel.vertices[pFace->vertexIndex[i]][Y], gModel.vertices[pFace->vertexIndex[i]][Z]);
         switch(pFace->normalIndex % 3) {
@@ -42327,22 +42984,22 @@ static void extractZXYfromNormalAndBounds(FaceRecord* pFace, SimplifyFaceRecord*
     default:
         assert(0);
     case X:
-        pSimplifyFace->normalDistance = gModel.vertices[pFace->vertexIndex[0]][X];
+        pSimplifyFace->normalDistance = (float)(gModel.vertices[pFace->vertexIndex[0]][X]);
         // diagonally opposite corners!
-        pSimplifyFace->xll = min(gModel.vertices[pFace->vertexIndex[0]][Z], gModel.vertices[pFace->vertexIndex[2]][Z]);
-        pSimplifyFace->yll = min(gModel.vertices[pFace->vertexIndex[0]][Y], gModel.vertices[pFace->vertexIndex[2]][Y]);
+        pSimplifyFace->xll = (float)(min(gModel.vertices[pFace->vertexIndex[0]][Z], gModel.vertices[pFace->vertexIndex[2]][Z]));
+        pSimplifyFace->yll = (float)(min(gModel.vertices[pFace->vertexIndex[0]][Y], gModel.vertices[pFace->vertexIndex[2]][Y]));
         break;
     case Y:
-        pSimplifyFace->normalDistance = gModel.vertices[pFace->vertexIndex[0]][Y];
+        pSimplifyFace->normalDistance = (float)(gModel.vertices[pFace->vertexIndex[0]][Y]);
         // Note that the northwest corner of the top down view is considered the "lower left" corner
-        pSimplifyFace->xll = min(gModel.vertices[pFace->vertexIndex[0]][X], gModel.vertices[pFace->vertexIndex[2]][X]);
-        pSimplifyFace->yll = min(gModel.vertices[pFace->vertexIndex[0]][Z], gModel.vertices[pFace->vertexIndex[2]][Z]);
+        pSimplifyFace->xll = (float)(min(gModel.vertices[pFace->vertexIndex[0]][X], gModel.vertices[pFace->vertexIndex[2]][X]));
+        pSimplifyFace->yll = (float)(min(gModel.vertices[pFace->vertexIndex[0]][Z], gModel.vertices[pFace->vertexIndex[2]][Z]));
         break;
     case Z:
-        pSimplifyFace->normalDistance = gModel.vertices[pFace->vertexIndex[0]][Z];
+        pSimplifyFace->normalDistance = (float)(gModel.vertices[pFace->vertexIndex[0]][Z]);
         // diagonally opposite corners!
-        pSimplifyFace->xll = min(gModel.vertices[pFace->vertexIndex[0]][X], gModel.vertices[pFace->vertexIndex[2]][X]);
-        pSimplifyFace->yll = min(gModel.vertices[pFace->vertexIndex[0]][Y], gModel.vertices[pFace->vertexIndex[2]][Y]);
+        pSimplifyFace->xll = (float)(min(gModel.vertices[pFace->vertexIndex[0]][X], gModel.vertices[pFace->vertexIndex[2]][X]));
+        pSimplifyFace->yll = (float)(min(gModel.vertices[pFace->vertexIndex[0]][Y], gModel.vertices[pFace->vertexIndex[2]][Y]));
         break;
     }
 }
@@ -42637,20 +43294,20 @@ static void mergeSimplifyRect(const SimplifyRect& rect)
     // The new UV indices are 0,0 to xlen,ylen.
     // Negative indices means "negate and use this value-1 as an X & Y indexed location"
     // Typical UV order is 0,0 / 1,0 / 1,1 / 1,0 (basically, V = 1 - Y above in order
-    short uvIndex[4];
+    int uvIndex[4];
     uvIndex[0] = findUVinIndex(pCornerSFR->pFace,0.0f,0.0f); // is always 0,0
     if (xlen == 1) {
         uvIndex[1] = findUVinIndex(pCornerSFR->pFace, 1.0f, 0.0f);
     } else {
-        uvIndex[1] = (short)(-1 - xlen);
+        uvIndex[1] = (-1 - xlen);
     }
     // this one cannot be 1,1:
-    uvIndex[2] = (short)(-1 - ylen * (SIMPLIFY_MAX_DIMENSION+1) - xlen);
+    uvIndex[2] = (-1 - ylen * (SIMPLIFY_MAX_DIMENSION+1) - xlen);
     if (ylen == 1) {
         uvIndex[3] = findUVinIndex(pCornerSFR->pFace, 0.0f, 1.0f);
-    } 
+    }
     else {
-        uvIndex[3] = (short)(-1 - ylen * (SIMPLIFY_MAX_DIMENSION + 1));
+        uvIndex[3] = (-1 - ylen * (SIMPLIFY_MAX_DIMENSION + 1));
     }
 
     // all set, so copy them over
@@ -42720,7 +43377,7 @@ static void mergeSimplifyRect(const SimplifyRect& rect)
     gModel.simplifyFaceSavings += xlen * ylen - 1;
 }
 
-static short findUVinIndex(FaceRecord* pFace, float bx, float by)
+static int findUVinIndex(FaceRecord* pFace, float bx, float by)
 {
     int i;
     for (i = 0; i < 4; i++) {

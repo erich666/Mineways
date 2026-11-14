@@ -1,0 +1,191 @@
+# Mineways native macOS build (wxWidgets GUI)
+# Usage: make -C Mac          (from repo root)
+
+CXX      := clang++
+ARCH     ?= $(shell uname -m)
+ARCH_FLAGS := $(foreach arch,$(ARCH),-arch $(arch))
+
+# Follow the Windows version in the upstream code included in this checkout.
+UPSTREAM_VERSION := $(shell awk '$$1 == "\#define" && $$2 == "MINEWAYS_MAJOR_VERSION" { major = $$3 } $$1 == "\#define" && $$2 == "MINEWAYS_MINOR_VERSION" { minor = $$3 } END { printf "%d.%02d", major, minor }' ../Win/stdafx.h)
+MINEWAYS_VERSION ?= $(UPSTREAM_VERSION)
+ifneq ($(MINEWAYS_VERSION),$(UPSTREAM_VERSION))
+$(error MINEWAYS_VERSION must match Windows/upstream $(UPSTREAM_VERSION), got $(MINEWAYS_VERSION))
+endif
+MINEWAYS_VERSION_MAJOR := $(word 1,$(subst ., ,$(MINEWAYS_VERSION)))
+MINEWAYS_VERSION_MINOR_RAW := $(word 2,$(subst ., ,$(MINEWAYS_VERSION)))
+MINEWAYS_VERSION_MINOR := $(shell echo $(MINEWAYS_VERSION_MINOR_RAW) | sed 's/^0*//;s/^$$/0/')
+VERSION_HEADER := .MinewaysVersion.h
+
+WX_CFLAGS := $(shell wx-config --cxxflags)
+WX_LIBS   := $(shell wx-config --libs)
+
+CXXFLAGS := -std=c++17 $(ARCH_FLAGS) -O2 -Wall \
+            -MMD -MP \
+            -Wno-unused-function \
+            -Wno-macro-redefined \
+            -Wno-writable-strings \
+            -DMINEWAYS_X64 \
+            -I. -I../Win \
+            -include $(VERSION_HEADER) \
+            -include compat.h \
+            $(shell pkg-config --cflags zlib 2>/dev/null)
+
+# GUI files need wxWidgets flags on top of the base flags
+GUI_CXXFLAGS := $(CXXFLAGS) $(WX_CFLAGS)
+
+LDFLAGS  := $(ARCH_FLAGS)
+LIBS     := -lz $(WX_LIBS)
+
+SRC_DIR  := ../Win
+
+# Core library (no GUI, no Win32 UI calls)
+CORE_SRCS := $(SRC_DIR)/blockInfo.cpp \
+             $(SRC_DIR)/biomes.cpp \
+             $(SRC_DIR)/lodepng.cpp \
+             $(SRC_DIR)/rwpng.cpp \
+             $(SRC_DIR)/nbt.cpp \
+             $(SRC_DIR)/ModSupport.cpp \
+             $(SRC_DIR)/region.cpp \
+             $(SRC_DIR)/cache.cpp \
+             $(SRC_DIR)/ObjFileManip.cpp \
+             $(SRC_DIR)/terrainExtData.cpp \
+             $(SRC_DIR)/stdafx.cpp \
+             $(SRC_DIR)/MinewaysMap.cpp
+
+# wxWidgets GUI sources (live in Mac/)
+GUI_SRCS  := MinewaysApp.cpp \
+             MinewaysFrame.cpp \
+             MapPanel.cpp \
+             MapRenderer.cpp \
+             LocationDialog.cpp \
+             ExportDialog.cpp \
+             MacCullingSchemes.cpp \
+             ImportSettings.cpp
+
+CORE_OBJS := $(patsubst $(SRC_DIR)/%.cpp, %.o, $(CORE_SRCS))
+GUI_OBJS  := $(patsubst %.cpp, %.o, $(GUI_SRCS))
+ALL_OBJS  := $(CORE_OBJS) $(GUI_OBJS)
+ALL_DEPS  := $(ALL_OBJS:.o=.d)
+
+TARGET    := mineways
+APP_NAME  := Mineways.app
+APP_CONTENTS := $(APP_NAME)/Contents
+
+.PHONY: all app clean test test-version test-security FORCE
+
+all: $(TARGET)
+
+test: test-version $(ALL_OBJS)
+	$(CXX) $(GUI_CXXFLAGS) tests/port_regressions.cpp $(filter-out MinewaysApp.o MinewaysFrame.o ImportSettings.o,$(ALL_OBJS)) $(LDFLAGS) $(LIBS) -o /tmp/mineways-port-regressions
+	/tmp/mineways-port-regressions
+
+test-version:
+	python3 tests/version_alignment.py
+
+# Override this directory when running the checks in an isolated workspace.
+SECURITY_TEST_DIR ?= /tmp/mineways-security-tests
+SANITIZER_FLAGS := -O1 -g -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer
+
+test-security: $(ALL_OBJS)
+	mkdir -p "$(SECURITY_TEST_DIR)"
+	$(CXX) $(CXXFLAGS) $(SANITIZER_FLAGS) tests/security_exports.cpp $(filter-out ObjFileManip.o,$(CORE_OBJS)) MacCullingSchemes.o $(LDFLAGS) $(LIBS) -o "$(SECURITY_TEST_DIR)/exports"
+	"$(SECURITY_TEST_DIR)/exports" "$(SECURITY_TEST_DIR)"
+	$(CXX) $(CXXFLAGS) $(SANITIZER_FLAGS) tests/security_nbt.cpp $(SRC_DIR)/nbt.cpp $(SRC_DIR)/ModSupport.cpp $(SRC_DIR)/blockInfo.cpp $(SRC_DIR)/biomes.cpp $(SRC_DIR)/lodepng.cpp -lz -o "$(SECURITY_TEST_DIR)/nbt"
+	"$(SECURITY_TEST_DIR)/nbt" "$(SECURITY_TEST_DIR)"
+	TMPDIR="$(SECURITY_TEST_DIR)" python3 tests/security_textures.py
+	TMPDIR="$(SECURITY_TEST_DIR)" python3 tests/security_png.py
+	TMPDIR="$(SECURITY_TEST_DIR)" python3 tests/security_annotation.py
+	python3 tests/security_windows.py "$(SECURITY_TEST_DIR)/windows"
+
+$(TARGET): $(ALL_OBJS)
+	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
+	@echo "Built $(TARGET)"
+
+app: $(TARGET)
+	rm -rf $(APP_NAME)
+	mkdir -p $(APP_CONTENTS)/MacOS $(APP_CONTENTS)/Resources
+	cp $(TARGET) $(APP_CONTENTS)/MacOS/
+	cp Info.plist $(APP_CONTENTS)/
+	/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(MINEWAYS_VERSION)" $(APP_CONTENTS)/Info.plist
+	/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(MINEWAYS_VERSION)" $(APP_CONTENTS)/Info.plist
+	cp mineways.icns $(APP_CONTENTS)/Resources/
+	@if [ -f terrainExt.png ]; then cp terrainExt.png $(APP_CONTENTS)/Resources/; echo "Bundled terrainExt.png"; fi
+	@if [ -f ../terrainExt.png ]; then cp ../terrainExt.png $(APP_CONTENTS)/Resources/; echo "Bundled terrainExt.png from repo root"; fi
+	@echo "Built $(APP_NAME)"
+
+COMPAT_H := compat.h
+
+FORCE:
+
+$(VERSION_HEADER): FORCE
+	@mkdir -p $(dir $@)
+	@printf '%s\n' \
+		'#define MAC_MINEWAYS_VERSION_STRING "$(MINEWAYS_VERSION)"' \
+		'#define MAC_MINEWAYS_VERSION_MAJOR $(MINEWAYS_VERSION_MAJOR)' \
+		'#define MAC_MINEWAYS_VERSION_MINOR $(MINEWAYS_VERSION_MINOR)' > $@.tmp
+	@cmp -s $@.tmp $@ || mv $@.tmp $@
+	@rm -f $@.tmp
+
+$(ALL_OBJS): $(VERSION_HEADER)
+
+# Core files: base flags only; compat.h is force-included so all core objects depend on it
+%.o: $(SRC_DIR)/%.cpp $(COMPAT_H)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# GUI files: base + wx flags (explicit pattern rules override the core rule above)
+MinewaysApp.o: MinewaysApp.cpp $(COMPAT_H)
+	$(CXX) $(GUI_CXXFLAGS) -c $< -o $@
+
+MinewaysFrame.o: MinewaysFrame.cpp $(COMPAT_H)
+	$(CXX) $(GUI_CXXFLAGS) -c $< -o $@
+
+MapRenderer.o: MapRenderer.cpp $(COMPAT_H)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+MapPanel.o: MapPanel.cpp $(COMPAT_H)
+	$(CXX) $(GUI_CXXFLAGS) -c $< -o $@
+
+LocationDialog.o: LocationDialog.cpp $(COMPAT_H)
+	$(CXX) $(GUI_CXXFLAGS) -c $< -o $@
+
+ExportDialog.o: ExportDialog.cpp $(COMPAT_H)
+	$(CXX) $(GUI_CXXFLAGS) -c $< -o $@
+
+MacCullingSchemes.o: MacCullingSchemes.cpp $(COMPAT_H)
+	$(CXX) $(GUI_CXXFLAGS) -c $< -o $@
+
+ImportSettings.o: ImportSettings.cpp $(COMPAT_H)
+	$(CXX) $(GUI_CXXFLAGS) -c $< -o $@
+
+clean:
+	rm -f *.o *.d $(TARGET) $(VERSION_HEADER)
+
+-include $(ALL_DEPS)
+
+# Data-only importer and native registry checks. Each execution uses fresh fixtures.
+.PHONY: test-mods
+test-mods: $(ALL_OBJS)
+	python3 -m unittest discover -s tests -p 'mod_*.py'
+	$(CXX) $(CXXFLAGS) $(SANITIZER_FLAGS) tests/mod_support.cpp $(SRC_DIR)/ModSupport.cpp $(SRC_DIR)/blockInfo.cpp $(SRC_DIR)/biomes.cpp $(SRC_DIR)/lodepng.cpp -lz -o /tmp/mineways-mod-support
+	/tmp/mineways-mod-support "$$(mktemp -d /tmp/mineways-mod-support.XXXXXX)"
+
+	$(CXX) $(CXXFLAGS) $(SANITIZER_FLAGS) tests/mod_exports.cpp $(SRC_DIR)/ModSupport.cpp $(SRC_DIR)/nbt.cpp $(SRC_DIR)/MinewaysMap.cpp $(filter-out ObjFileManip.o ModSupport.o nbt.o MinewaysMap.o,$(CORE_OBJS)) MacCullingSchemes.o $(LDFLAGS) $(LIBS) -o /tmp/mineways-mod-exports
+	@mod_test_dir=$$(mktemp -d /tmp/mineways-mod-exports.XXXXXX); \
+	  python3 tests/mod_assets.py --fixture "$$mod_test_dir/fixture" && \
+	  /tmp/mineways-mod-exports "$$mod_test_dir/fixture/pack/manifest.mwpack" "$$mod_test_dir/output"
+
+# Optional local integration test; the pack assets remain outside the repository.
+.PHONY: test-real-mods
+test-real-mods: $(VERSION_HEADER)
+	@test -n "$(MOD_PACK)" || { echo 'Set MOD_PACK=/path/to/manifest.mwpack'; exit 2; }
+	@real_mod_dir=$$(mktemp -d /tmp/mineways-real-mods.XXXXXX); \
+	  $(CXX) $(GUI_CXXFLAGS) $(SANITIZER_FLAGS) tests/real_mod_pack.cpp $(filter-out $(SRC_DIR)/ObjFileManip.cpp,$(CORE_SRCS)) MacCullingSchemes.cpp $(LDFLAGS) $(LIBS) -o "$$real_mod_dir/test" && \
+	  "$$real_mod_dir/test" "$(MOD_PACK)" "$$real_mod_dir/output"
+
+# All uint16 block IDs and the selected imported texture budget. Assets are synthetic.
+.PHONY: test-mod-limits
+test-mod-limits: $(VERSION_HEADER)
+	@mod_limit_dir=$$(mktemp -d /tmp/mineways-mod-limits.XXXXXX); \
+	  python3 tests/mod_assets.py --limits-fixture "$$mod_limit_dir/fixture" && \
+	  $(CXX) $(GUI_CXXFLAGS) $(SANITIZER_FLAGS) tests/mod_limits.cpp $(filter-out $(SRC_DIR)/ObjFileManip.cpp,$(CORE_SRCS)) MacCullingSchemes.cpp $(LDFLAGS) $(LIBS) -o "$$mod_limit_dir/test" && \
+	  "$$mod_limit_dir/test" "$$mod_limit_dir/fixture/pack/manifest.mwpack" "$$mod_limit_dir/output"

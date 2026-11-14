@@ -739,6 +739,10 @@ void deleteChestFromGrid(ChestGrid* pcg, int category, int fullIndex)
 
 void deleteDecoratedPotFromGrid(DecoratedPotGrid* ppg, int category, int fullIndex)
 {
+	if (category < 0 || category >= ppg->totalCategories || category >= TOTAL_CATEGORIES || ppg->totalTiles <= 0 ||
+		fullIndex < 0 || fullIndex >= TOTAL_CATEGORIES * TOTAL_DECORATED_POT_TILES ||
+		fullIndex / ppg->totalTiles != category)
+		return;
 	// shouldn't be calling this otherwise, but let's be safe:
 	if (ppg->pr[fullIndex].exists) {
 		ppg->decoratedPotCount--;

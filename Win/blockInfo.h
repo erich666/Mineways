@@ -403,7 +403,8 @@ typedef struct ExportFileData
 } ExportFileData;
 
 // USDA + 5 MDL files + color/normal/MER files
-#define MAX_OUTPUT_FILES (6+5*TOTAL_TILES)
+#define MAX_SELECTED_MOD_TEXTURES 4096
+#define MAX_OUTPUT_FILES (6+5*(TOTAL_TILES+MAX_SELECTED_MOD_TEXTURES))
 
 typedef struct FileList {
     int count;
@@ -430,6 +431,7 @@ typedef struct Options {
 
 // number of blocks with entries in block info table (max number at bottom + 1) - now that 255 is used, we need this
 #define NUM_BLOCKS_DEFINED 561
+#define MAX_BLOCK_TYPES 65536
 // number of official Minecraft blocks (no longer needed - we used to have the block after everything be special)
 #define NUM_BLOCKS_STANDARD NUM_BLOCKS_DEFINED
 // number of blocks we want to show on the map (no longer needed - includes the unknown one)

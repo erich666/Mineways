@@ -100,6 +100,22 @@ if len(sys.argv) == 5:
     fnameout = sys.argv[4]
 
 
+# Batch filenames cannot contain shell metacharacters or control characters.
+# A colon is allowed only after a drive letter.
+def batch_filename(name):
+    drive = len(name) >= 2 and name[0].isascii() and name[0].isalpha() and name[1] == ':'
+    path = name[2:] if drive else name
+    if (not path or not name.isprintable() or any(ch in '&|<>^%!"()*?[]:' for ch in path)
+            or name.startswith(('-', '@')) or name.endswith(('/', '\\'))):
+        raise ValueError('filename contains characters unsafe for a batch file')
+    return '"' + name + '"'
+
+
+# Validate both names before producing any batch commands.
+batch_input = batch_filename(filename)
+batch_output = batch_filename(fnameout)
+
+
 def get_image_size(fname):
     '''Determine the image type of fhandle and return its size.
     from draco'''
@@ -146,7 +162,7 @@ def check_output(outstring, fname, fnameout, format):
 # main program
 
 outstring = 'magick '
-outstring += filename + ' '
+outstring += batch_input + ' '
 
 image_size = get_image_size(filename)
 
@@ -170,7 +186,7 @@ for num in range(startx,image_size[0]-1,512):
     outstring += ','
     outstring += str(image_size[1]-1)
     outstring += '\" '
-    outstring = check_output(outstring,filename,fnameout,format)
+    outstring = check_output(outstring,filename,batch_output,format)
 
 # horizontal lines
 for num in range(starty,image_size[1]-1,512):
@@ -181,7 +197,7 @@ for num in range(starty,image_size[1]-1,512):
     outstring += ','
     outstring += str(num)
     outstring += '\" '
-    outstring = check_output(outstring,filename,fnameout,format)
+    outstring = check_output(outstring,filename,batch_output,format)
 
 # output text rectangles
 for y in range(starty,image_size[1]-1,512):
@@ -200,7 +216,7 @@ for y in range(starty,image_size[1]-1,512):
         outstring += ','
         outstring += str(y+29)
         outstring += '\" '
-        outstring = check_output(outstring,filename,fnameout,format)
+        outstring = check_output(outstring,filename,batch_output,format)
 
 # output text
 format = '-strokewidth 1 '
@@ -227,9 +243,9 @@ for y in range(starty,image_size[1]-1,512):
         outstring += '.'
         outstring += str(gridy)
         outstring += '\'\" '
-        outstring = check_output(outstring,filename,fnameout,format)
+        outstring = check_output(outstring,filename,batch_output,format)
 
-outstring += fnameout
+outstring += batch_output
 print (outstring)
 
 

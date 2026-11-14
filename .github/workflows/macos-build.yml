@@ -1,0 +1,27 @@
+# Regular Windows + universal macOS packages share the preview build/test pipeline.
+# Master/manual runs produce tested candidate artifacts. Only version-tag pushes publish.
+name: Release Packages
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+    paths:
+      - 'Mac/**'
+      - 'Win/**'
+      - 'tools/**'
+      - 'docs/**'
+      - 'CHANGELOG.md'
+      - '.github/workflows/macos-build.yml'
+      - '.github/workflows/mod-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  packages:
+    uses: ./.github/workflows/mod-preview.yml
+    with:
+      distribution: release
+      release_tag: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}

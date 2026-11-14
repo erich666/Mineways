@@ -42,7 +42,7 @@ int readtga(progimage_info* im, wchar_t* filename, LodePNGColorType colortype)
     im->width = im->height = 0;
 
     if (colortype != LCT_GREY && colortype != LCT_RGB && colortype != LCT_RGBA)
-        return 106; // IMAGE_ERROR_UNSUPPORTED_FORMAT
+        return IMAGE_ERROR_UNSUPPORTED_FORMAT;
 
     FILE* f;
     _wfopen_s(&f, filename, L"rb");
@@ -251,9 +251,8 @@ int readtgaheader(progimage_info* im, wchar_t* filename, LodePNGColorType& color
         colortype = LCT_GREY;
         break;
     default:
-        assert(0);
         fclose(f);
-        return 106; // IMAGE_ERROR_UNSUPPORTED_FORMAT;
+        return IMAGE_ERROR_UNSUPPORTED_FORMAT;
     case 3:
         colortype = LCT_RGB;
         break;
@@ -301,4 +300,3 @@ int readImageHeader(progimage_info* im, wchar_t* filename, LodePNGColorType& col
     // unknown image type
     return 999;
 }
-

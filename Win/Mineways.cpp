@@ -38,6 +38,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 #include "XZip.h"
 #include "rwpng.h"
+#include "ModSupport.h"
+#include "ModpackFolder.h"
+#include <ShObjIdl.h>
 #include <assert.h>
 #include <ShlObj.h>
 #include <Shlwapi.h>
@@ -50,6 +53,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include <unordered_set>
 #include <cstdint>
+#include <limits>
+#include <stdexcept>
+#include <cmath>
 
 // Should really make a full-featured error system, a la https://www.softwariness.com/articles/assertions-in-cpp/, but this'll do for now.
 // trick so that there is not a warning that there's a constant value being tested by an "if"
@@ -164,6 +170,7 @@ static BOOL gLeftIsRight = FALSE;
 
 static int gSpawnX, gSpawnY, gSpawnZ;
 static int gPlayerX, gPlayerY, gPlayerZ;
+static char gPlayerDimension[256] = "minecraft:overworld";
 
 // minimum depth output by default, sea level including water (or not, in 1.9; still, not a terrible start)
 // note: 51 this gets you to bedrock in deep lakes
@@ -222,7 +229,7 @@ static std::unordered_set<long long> gPaintedChunks;
 // When a prefetch scan runs out of time before finding anything to do, the next pass carries on from this ring, so that a
 // large view still gets finished. Any redraw starts it over at 0, as the view, and what's been drawn, may have changed.
 static int gPrefetchResumeRing = 0;
-#define PAINTED_CHUNK_KEY(cx, cz)   (((long long)(cx) << 32) | (unsigned int)(cz))
+#define PAINTED_CHUNK_KEY(cx, cz)   (((long long)(cx) * 0x100000000LL) | (unsigned int)(cz))
 
 // Map memory: the most memory the chunk cache may use, from Help > Map memory, kept in the registry
 // as HKCU\Software\Eric Haines\Mineways\MapMemoryMB. The cache holds as many chunks as fit at the
@@ -391,6 +398,7 @@ typedef struct ImportedSet {
     char world[MAX_PATH_AND_FILE];
     char terrainFile[MAX_PATH_AND_FILE];
     char cullingScheme[MAX_PATH_AND_FILE];
+    char dimension[MAX_PATH_AND_FILE];
     wchar_t* importFile;
     int lineNumber;
     size_t errorMessagesStringSize;
@@ -423,7 +431,7 @@ static struct {
     {_T("Warning: too many polygons.\n\nThere are more than one million polygons in file. This is usually too many for Shapeways."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<2
     {_T("Warning: multiple separate parts found after processing.\n\nThis may not be what you want to print. Increase the value for 'Delete floating parts' to delete these. Try the 'Debug: show separate parts' export option to see if the model is what you expected."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<3
     {_T("Warning: at least one dimension of the model is too long.\n\nCheck the dimensions for this printer's material: look in the top of the model file itself, using a text editor."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<4
-    {_T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock. Mineways does not understand blocks added by mods, and uses the older (simpler) schematic format so does not support blocks added in 1.13 or newer versions. If you are not using mods nor exporting 1.13 or newer blocks, your version of Mineways may be out of date. Check http://mineways.com for a newer version."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<5
+    {_T("Warning: some block types could not be preserved in this export. Unknown blocks use a fallback. The legacy .schematic format also replaces newer blocks. Use Sponge .schem for supported modern and mod block identities.\n\nFor modded worlds, load a matching compiled mod pack before opening the world. Check its report.json for unsupported blocks or states. Report preview issues at https://github.com/wbreiler/Mineways/issues."), _T("Warning"), MB_OK | MB_ICONWARNING},	// <<5
     {_T("Warning: your terrain texture file is incomplete, likely because it was made for an older version of Mineways.\nThe block textures it is missing were filled in from Mineways' built-in textures, so newer block types will export, but may not match your texture pack's look. (Or, a TerrainExt*_n/_m/_e/_r.png material file has too few rows or does not match the color file's size, so was padded or ignored.)\nTo fix this, use the TileMaker program or other image editor\nto make TerrainExt*.png files with 80 rows and 32 columns of block textures.\n\nThis warning will not be repeated this session."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<6 VERTICAL_TILES
     {_T("Warning: one or more Change Block commands specified location(s) that were outside the selected volume."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<7
     {_T("Warning: with the large Terrain File you're using, the output texture is extremely large. Other programs make have problems using it. We recommend that you use the 'Export tiles' option instead, or reduce the size of your Terrain File by using the '-t 256' (or smaller) option in TileMaker.\n\nThis warning will not be repeated this session."), _T("Warning"), MB_OK | MB_ICONWARNING },	// <<8
@@ -503,6 +511,13 @@ static void drawTheMap();
 static void setUIOnLoadWorld(HWND hWnd, HWND hwndSlider, HWND hwndLabel, HWND hwndInfoLabel, HWND hwndBottomSlider, HWND hwndBottomLabel);
 static void updateCursor(LPARAM lParam, BOOL hdragging);
 static void gotoSurface(HWND hWnd, HWND hwndSlider, HWND hwndLabel);
+static bool switchToDimension(const wchar_t* id, WindowSet& ws);
+static const int IDM_DIMENSIONS = 49000;
+static const int IDM_LOAD_MOD_PACK = 49001;
+static const int IDM_CLEAR_MOD_PACK = 49002;
+static const int IDM_CHOOSE_MODPACK_FOLDER = 49003;
+static int chooseModpackFolder(HWND owner);
+static bool setModPack(const char* path, bool clear, std::string& error);
 static void updateStatus(int mx, int mz, int my, const char* blockLabel, int type, int dataVal, int biome, HWND hwndStatus);
 static void sendStatusMessage(HWND hwndStatus, wchar_t* buf);
 static void populateCullingSchemes(HMENU menu);
@@ -549,8 +564,8 @@ static char* findBlockTypeAndData(char* line, int* pType, int* pData, unsigned s
 static char* compareLCAndSkip(char* a, char const* b);
 static char* skipPastUnsignedInteger(char* strPtr);
 static bool createCB(ImportedSet& is);
-static bool addFromRangeToCB(ChangeBlockCommand* pCBC, unsigned char fromType, unsigned char fromEndType, unsigned short fromDataBits);
-static void setDefaultFromRangeToCB(ChangeBlockCommand* pCBC, unsigned char fromType, unsigned char fromEndType, unsigned short fromDataBits);
+static bool addFromRangeToCB(ChangeBlockCommand* pCBC, unsigned short fromType, unsigned short fromEndType, unsigned short fromDataBits);
+static void setDefaultFromRangeToCB(ChangeBlockCommand* pCBC, unsigned short fromType, unsigned short fromEndType, unsigned short fromDataBits);
 static void addRangeToDataBitsArray(ChangeBlockCommand* pCBC, int fromType, int fromEndType, unsigned short fromDataBits);
 static void saveCBinto(ChangeBlockCommand* pCBC, int intoType, int intoData);
 static bool addDataBitsArray(ChangeBlockCommand* pCBC);
@@ -1026,6 +1041,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
         gMainHWnd = hWnd;
         DarkModeApplyToWindow(hWnd);
+        AppendMenuW(GetSubMenu(GetMenu(hWnd), 1), MF_STRING, IDM_DIMENSIONS, L"Dimensions...");
+        InsertMenuW(GetSubMenu(GetMenu(hWnd), 0), IDM_CLOSE, MF_BYCOMMAND | MF_STRING, IDM_CHOOSE_MODPACK_FOLDER, L"Choose Modpack Folder...");
+        InsertMenuW(GetSubMenu(GetMenu(hWnd), 0), IDM_CLOSE, MF_BYCOMMAND | MF_STRING, IDM_LOAD_MOD_PACK, L"Load Mod Pack...");
+        InsertMenuW(GetSubMenu(GetMenu(hWnd), 0), IDM_CLOSE, MF_BYCOMMAND | MF_STRING, IDM_CLEAR_MOD_PACK, L"Clear Mod Pack");
         checkThemeMenu(GetMenu(hWnd));
         validateItems(GetMenu(hWnd));
 
@@ -2839,23 +2858,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 REDRAW_ALL;
                 break;
             case IDM_JUMPSPAWN:
-                gCurX = gSpawnX;
-                gCurZ = gSpawnZ;
-                if (gOptions.worldType & HELL)
-                {
-                    gCurX /= 8.0;
-                    gCurZ /= 8.0;
-                }
+                gCurX = ConvertDimensionCoordinate(gSpawnX, gWorldGuide.type == WORLD_LEVEL_TYPE ? DimensionCoordinateScale("minecraft:overworld") : 1.0, WorldDimensionScale(&gWorldGuide, gOptions.worldType));
+                gCurZ = ConvertDimensionCoordinate(gSpawnZ, gWorldGuide.type == WORLD_LEVEL_TYPE ? DimensionCoordinateScale("minecraft:overworld") : 1.0, WorldDimensionScale(&gWorldGuide, gOptions.worldType));
                 REDRAW_ALL;
                 break;
             case IDM_JUMPPLAYER:
-                gCurX = gPlayerX;
-                gCurZ = gPlayerZ;
-                if (gOptions.worldType & HELL)
-                {
-                    gCurX /= 8.0;
-                    gCurZ /= 8.0;
-                }
+                gCurX = ConvertDimensionCoordinate(gPlayerX, gWorldGuide.type == WORLD_LEVEL_TYPE ? DimensionCoordinateScale(gPlayerDimension) : 1.0, WorldDimensionScale(&gWorldGuide, gOptions.worldType));
+                gCurZ = ConvertDimensionCoordinate(gPlayerZ, gWorldGuide.type == WORLD_LEVEL_TYPE ? DimensionCoordinateScale(gPlayerDimension) : 1.0, WorldDimensionScale(&gWorldGuide, gOptions.worldType));
                 REDRAW_ALL;
                 break;
             case IDM_VIEW_JUMPTOMODEL: // F4
@@ -2871,11 +2880,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 {
                     gCurX = (minx + maxx) / 2;
                     gCurZ = (minz + maxz) / 2;
-                    if (gOptions.worldType & HELL)
-                    {
-                        gCurX /= 8.0;
-                        gCurZ /= 8.0;
-                    }
                     REDRAW_ALL;
                 }
                 break;
@@ -2936,6 +2940,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 // reload world, if loaded
                 if (gLoaded)
                 {
+                    std::wstring dimension = gWorldGuide.dimensionId;
+                    double reloadX = gCurX, reloadZ = gCurZ;
                     if (loadWorld(hWnd))
                     {
                         // world not loaded properly
@@ -2943,6 +2949,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                             _T("Read error"), MB_OK | MB_ICONERROR);
 
                         return 0;
+                    }
+                    if (!dimension.empty() && switchToDimension(dimension.c_str(), gWS)) {
+                        gCurX = reloadX; gCurZ = reloadZ;
                     }
                     // TODO: reload world list, too, so that new worlds added since now appear.
                     // Ignore any errors (non-Anvil), since these were already reported.
@@ -2955,87 +2964,77 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     FilterMessageBox(NULL, _T("You need to load a world first. Use 'Open World' or 'Open...' and find your level.dat file in %appdata%/.minecraft/saves."), _T("Informational"), MB_OK | MB_ICONINFORMATION);
                 }
                 break;
-            case IDM_HELL:
-                if (gWorldGuide.type == WORLD_LEVEL_TYPE) {
-                    if (!(gOptions.worldType & HELL))
-                    {
-                        CheckMenuItem(GetMenu(hWnd), IDM_HELL, MF_CHECKED);
-                        gOneTimeWorldWarning = NBT_WARNING_DIRECTORY_NOT_FOUND;
-                        gOptions.worldType |= HELL;
-                        CheckMenuItem(GetMenu(hWnd), IDM_END, MF_UNCHECKED);
-                        gOptions.worldType &= ~ENDER;
-                        // change scale as needed
-                        gCurX /= 8.0;
-                        gCurZ /= 8.0;
-                        // it's useless to view Nether from MAP_MAX_HEIGHT
-                        if (gCurDepth == gMaxHeight)
-                        {
-                            gCurDepth = 126;
-                            setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
-                        }
-                        gOverworldHideStatus = gOptions.worldType & HIDEOBSCURED;
-                        gOptions.worldType |= HIDEOBSCURED;
-                        //gTargetDepth=0;
-                        // semi-useful, I'm not sure: zoom in when going to nether
-                        //gCurScale *= 8.0;
-                        //gCurScale = clamp(gCurScale,gMinZoom,MAXZOOM);
-                        //formTitle(&gWorldGuide, hWnd);
-                    }
-                    else
-                    {
-                        // back to the overworld
-                        gotoSurface(hWnd, hwndSlider, hwndLabel);
-                    }
-                    CheckMenuItem(GetMenu(hWnd), IDM_OBSCURED, (gOptions.worldType & HIDEOBSCURED) ? MF_CHECKED : MF_UNCHECKED);
-                    CloseAll();
-                    // clear selection when you switch from somewhere else to The Nether, or vice versa
-                    gHighlightOn = FALSE;
-                    SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_CLEAR);
-                    enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
-
+            case IDM_CHOOSE_MODPACK_FOLDER:
+            {
+                int retCode = chooseModpackFolder(hWnd);
+                if (retCode) {
+                    if (retCode == 2) gotoSurface(hWnd, hwndSlider, hwndLabel);
+                    setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
                     REDRAW_ALL;
                 }
-
                 break;
+            }
+            case IDM_LOAD_MOD_PACK:
+            case IDM_CLEAR_MOD_PACK:
+            {
+                bool clear = wmId == IDM_CLEAR_MOD_PACK;
+                std::string packPath;
+                if (!clear) {
+                    wchar_t selected[MAX_PATH_AND_FILE] = {};
+                    OPENFILENAMEW dialog = {};
+                    dialog.lStructSize = sizeof(dialog);
+                    dialog.hwndOwner = hWnd;
+                    dialog.lpstrFilter = L"Mod pack manifest (*.mwpack)\0*.mwpack\0\0";
+                    dialog.lpstrFile = selected;
+                    dialog.nMaxFile = MAX_PATH_AND_FILE;
+                    dialog.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+                    if (!GetOpenFileNameW(&dialog)) break;
+                    int bytes = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, selected, -1, NULL, 0, NULL, NULL);
+                    if (bytes <= 0) break;
+                    std::vector<char> utf8((size_t)bytes);
+                    if (!WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, selected, -1, utf8.data(), bytes, NULL, NULL)) break;
+                    packPath = utf8.data();
+                }
+                std::string error;
+                if (!setModPack(packPath.c_str(), clear, error)) {
+                    wchar_t packMessage[2048];
+                    if (!MultiByteToWideChar(CP_UTF8, 0, error.c_str(), -1, packMessage, 2048))
+                        wcscpy_s(packMessage, 2048, L"Could not load the mod pack.");
+                    FilterMessageBox(hWnd, packMessage, L"Mod pack", MB_OK | MB_ICONERROR);
+                }
+                REDRAW_ALL;
+                break;
+            }
+            case IDM_DIMENSIONS:
+            {
+                auto dimensions = DiscoverWorldDimensions(&gWorldGuide);
+                if (dimensions.empty()) {
+                    FilterMessageBox(hWnd, L"Load a world with region files first.", L"Dimensions", MB_OK | MB_ICONINFORMATION);
+                    break;
+                }
+                HMENU choices = CreatePopupMenu();
+                for (size_t i = 0; i < dimensions.size(); ++i)
+                    AppendMenuW(choices, MF_STRING | (dimensions[i].id == gWorldGuide.dimensionId ? MF_CHECKED : 0),
+                        (UINT_PTR)i + 1, dimensions[i].id.c_str());
+                POINT point;
+                GetCursorPos(&point);
+                UINT selected = TrackPopupMenu(choices, TPM_RETURNCMD | TPM_NONOTIFY, point.x, point.y, 0, hWnd, NULL);
+                DestroyMenu(choices);
+                if (selected && selected <= dimensions.size()) {
+                    if (!switchToDimension(dimensions[selected - 1].id.c_str(), gWS))
+                        FilterMessageBox(hWnd, L"The dimension directory is no longer available.", L"Dimensions", MB_OK | MB_ICONWARNING);
+                    REDRAW_ALL;
+                }
+                break;
+            }
+            case IDM_HELL:
             case IDM_END:
                 if (gWorldGuide.type == WORLD_LEVEL_TYPE) {
-                    if (!(gOptions.worldType & ENDER))
-                    {
-                        // entering Ender, turn off hell if need be
-                        CheckMenuItem(GetMenu(hWnd), IDM_END, MF_CHECKED);
-                        gOneTimeWorldWarning = NBT_WARNING_DIRECTORY_NOT_FOUND;
-                        gOptions.worldType |= ENDER;
-                        if (gOptions.worldType & HELL)
-                        {
-                            // get out of hell zoom
-                            gCurX *= 8.0;
-                            gCurZ *= 8.0;
-                            // and undo other hell stuff
-                            if (gCurDepth == 126)
-                            {
-                                gCurDepth = gMaxHeight;
-                                setSlider(hWnd, hwndSlider, hwndLabel, gCurDepth, false);
-                            }
-                            // turn off obscured, then restore overworld's obscured status
-                            gOptions.worldType &= ~HIDEOBSCURED;
-                            CheckMenuItem(GetMenu(hWnd), IDM_OBSCURED, MF_UNCHECKED);
-                            gOptions.worldType |= gOverworldHideStatus;
-                            // uncheck hell menu item
-                            CheckMenuItem(GetMenu(hWnd), IDM_HELL, MF_UNCHECKED);
-                            gOptions.worldType &= ~HELL;
-                        }
-                    }
-                    else
-                    {
-                        // exiting Ender, go back to overworld
-                        gotoSurface(hWnd, hwndSlider, hwndLabel);
-                    }
-                    CloseAll();
-                    // clear selection when you switch from somewhere else to The End, or vice versa
-                    gHighlightOn = FALSE;
-                    SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_CLEAR);
-                    enableBottomControl(gHighlightOn, /* hwndBottomSlider, hwndBottomLabel, */ hwndInfoBottomLabel);
-
+                    const wchar_t* id = wmId == IDM_HELL ?
+                        ((gOptions.worldType & HELL) ? L"minecraft:overworld" : L"minecraft:the_nether") :
+                        ((gOptions.worldType & ENDER) ? L"minecraft:overworld" : L"minecraft:the_end");
+                    if (!switchToDimension(id, gWS))
+                        FilterMessageBox(hWnd, L"This dimension has no region directory.", L"Dimensions", MB_OK | MB_ICONINFORMATION);
                     REDRAW_ALL;
                 }
                 break;
@@ -3237,8 +3236,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         CheckUnknownBlock(false);
         ClearBlockReadCheck();
 
-        // note how this is different that the write schematic message, which notes 1.13 export problems
-        FilterMessageBox(NULL, _T("Warning: Mineways encountered an unknown block type in your model. Such blocks are converted to bedrock. Mineways does not understand blocks added by mods. If you are not using mods, your version of Mineways may be out of date. Check http://mineways.com for a newer version of Mineways."),
+        // World reads use the configured replacement for unsupported blocks.
+        FilterMessageBox(NULL, _T("Warning: this world contains unknown block types. They use the configured unknown-block replacement, which defaults to bedrock.\n\nFor modded worlds, load a matching compiled mod pack before opening the world. Check its report.json for unsupported blocks or states. Report preview issues at https://github.com/wbreiler/Mineways/issues."),
             _T("Read error"), MB_OK | MB_ICONWARNING);
     }
 
@@ -3891,14 +3890,267 @@ static void updateCursor(LPARAM lParam, BOOL hdragging)
     }
 }
 
+static HRESULT chooseModpackDirectory(HWND owner, const wchar_t* title,
+    const std::filesystem::path& initial, std::filesystem::path& selected)
+{
+    HRESULT initialized = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    if (FAILED(initialized)) return initialized;
+    IFileOpenDialog* dialog = NULL;
+    HRESULT result = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog));
+    if (SUCCEEDED(result)) {
+        DWORD options = 0;
+        result = dialog->GetOptions(&options);
+        if (SUCCEEDED(result)) result = dialog->SetOptions(options | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST | FOS_NOCHANGEDIR | FOS_DONTADDTORECENT);
+        if (SUCCEEDED(result)) result = dialog->SetTitle(title);
+        if (SUCCEEDED(result) && !initial.empty()) {
+            IShellItem* folder = NULL;
+            result = SHCreateItemFromParsingName(initial.c_str(), NULL, IID_PPV_ARGS(&folder));
+            if (SUCCEEDED(result)) {
+                result = dialog->SetFolder(folder);
+                folder->Release();
+            }
+        }
+        if (SUCCEEDED(result)) result = dialog->Show(owner);
+        if (SUCCEEDED(result)) {
+            IShellItem* item = NULL;
+            result = dialog->GetResult(&item);
+            if (SUCCEEDED(result)) {
+                PWSTR path = NULL;
+                result = item->GetDisplayName(SIGDN_FILESYSPATH, &path);
+                if (SUCCEEDED(result)) selected = path;
+                CoTaskMemFree(path);
+                item->Release();
+            }
+        }
+        dialog->Release();
+    }
+    CoUninitialize();
+    return result;
+}
+
+static std::string readModpackHelperFile(const std::filesystem::path& file, size_t limit)
+{
+    std::ifstream input(file, std::ios::binary);
+    std::string text(limit + 1, '\0');
+    input.read(text.data(), static_cast<std::streamsize>(text.size()));
+    text.resize(static_cast<size_t>(input.gcount()));
+    if (text.size() > limit) throw std::runtime_error("The modpack preparation helper returned too much data.");
+    return text;
+}
+
+static std::string prepareChosenModpack(HWND owner, const std::filesystem::path& instance,
+    const std::filesystem::path& world)
+{
+    const auto helper = std::filesystem::path(gExeDirectory) / L"tools" / L"prepare_modpack_windows.ps1";
+    if (!std::filesystem::is_regular_file(helper))
+        throw std::runtime_error("The installed-modpack helper is missing. Extract the complete preview ZIP, including its tools folder, and try again.");
+    wchar_t system[MAX_PATH_AND_FILE] = {};
+    UINT systemLength = GetSystemDirectoryW(system, _countof(system));
+    if (!systemLength || systemLength >= _countof(system))
+        throw std::runtime_error("Could not locate Windows PowerShell. Check your Windows installation and try again.");
+    const auto powershell = std::filesystem::path(system) / L"WindowsPowerShell" / L"v1.0" / L"powershell.exe";
+    wchar_t temporary[MAX_PATH_AND_FILE] = {};
+    wchar_t resultPath[MAX_PATH_AND_FILE] = {};
+    DWORD temporaryLength = GetTempPathW(_countof(temporary), temporary);
+    if (!temporaryLength || temporaryLength >= _countof(temporary) || !GetTempFileNameW(temporary, L"MWP", 0, resultPath))
+        throw std::runtime_error("Could not create a temporary result file. Check that your temporary folder is writable.");
+    struct ResultFiles {
+        std::filesystem::path path;
+        ~ResultFiles() {
+            std::error_code ignored;
+            std::filesystem::remove(path, ignored);
+            std::filesystem::remove(path.wstring() + L".error.txt", ignored);
+        }
+    } files{resultPath};
+    using MinewaysModpack::quoteArgument;
+    std::wstring command = quoteArgument(powershell.wstring()) + L" -NoProfile -ExecutionPolicy Bypass -File " +
+        quoteArgument(helper.wstring()) + L" " + quoteArgument(instance.wstring()) + L" " +
+        quoteArgument(world.wstring()) + L" " + quoteArgument(resultPath);
+    STARTUPINFOW startup = {};
+    startup.cb = static_cast<DWORD>(sizeof(startup));
+    PROCESS_INFORMATION process = {};
+    if (!CreateProcessW(powershell.c_str(), command.data(), NULL, NULL, FALSE, CREATE_NEW_CONSOLE,
+        NULL, gExeDirectory, &startup, &process))
+        throw std::runtime_error("Windows could not start modpack preparation. Check that Windows PowerShell and the preview tools are available, then try again.");
+    CloseHandle(process.hThread);
+    BOOL enabled = IsWindowEnabled(owner);
+    EnableWindow(owner, FALSE);
+    bool quit = false;
+    int quitCode = 0;
+    DWORD wait = WAIT_FAILED;
+    while ((wait = MsgWaitForMultipleObjects(1, &process.hProcess, FALSE, INFINITE, QS_ALLINPUT)) == WAIT_OBJECT_0 + 1) {
+        MSG message;
+        while (PeekMessageW(&message, NULL, 0, 0, PM_REMOVE)) {
+            if (message.message == WM_QUIT) {
+                quit = true;
+                quitCode = static_cast<int>(message.wParam);
+                break;
+            }
+            TranslateMessage(&message);
+            DispatchMessageW(&message);
+        }
+        if (quit) break;
+    }
+    if (quit || wait == WAIT_FAILED) TerminateProcess(process.hProcess, ERROR_CANCELLED);
+    DWORD code = 1;
+    BOOL hasCode = GetExitCodeProcess(process.hProcess, &code);
+    CloseHandle(process.hProcess);
+    if (IsWindow(owner)) EnableWindow(owner, enabled);
+    if (quit) {
+        PostQuitMessage(quitCode);
+        return std::string();
+    }
+    if (wait == WAIT_FAILED || !hasCode)
+        throw std::runtime_error("Could not wait for modpack preparation. The current world has not changed. Close the preparation window and try again.");
+    if (code == ERROR_CANCELLED || code == 0xC000013A)
+        throw std::runtime_error("Modpack preparation was cancelled. The current world has not changed.");
+    if (code != 0) {
+        std::string diagnostic = readModpackHelperFile(files.path.wstring() + L".error.txt", 4096);
+        if (diagnostic.empty()) diagnostic = "Modpack preparation failed. Check that the instance and its mods are readable and that the preview folder is writable, then choose the folder again. The current world has not changed.";
+        throw std::runtime_error(diagnostic);
+    }
+    std::string manifest = readModpackHelperFile(files.path, 4 * MAX_PATH_AND_FILE);
+    if (manifest.empty() || manifest.find_first_of("\r\n") != std::string::npos || manifest.find('\0') != std::string::npos)
+        throw std::runtime_error("Modpack preparation did not return a valid manifest path. Extract a fresh preview and try again.");
+    if (manifest != "VANILLA") {
+        wchar_t wide[MAX_PATH_AND_FILE] = {};
+        if (!MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, manifest.c_str(), -1, wide, _countof(wide)) ||
+            !std::filesystem::path(wide).is_absolute() || !std::filesystem::is_regular_file(wide))
+            throw std::runtime_error("Modpack preparation returned a missing or invalid manifest. Choose the instance again to retry.");
+    }
+    return manifest;
+}
+
+static void preflightModpackWorld(const std::filesystem::path& world)
+{
+    int version = 0;
+    wchar_t opened[MAX_PATH_AND_FILE] = {};
+    if (GetFileVersion(world.c_str(), &version, opened, _countof(opened)) != 0 || version < 19133)
+        throw std::runtime_error("The selected level.dat is not a readable Java Anvil world. Open this save in Minecraft and close it before trying again. The current world has not changed.");
+}
+
+static int chooseModpackFolder(HWND owner)
+{
+    if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE) {
+        FilterMessageBox(owner, L"Open a world or the Block Test World before choosing a modpack folder.", L"Choose Modpack Folder", MB_OK | MB_ICONINFORMATION);
+        return 0;
+    }
+    try {
+        std::filesystem::path selected;
+        HRESULT result = chooseModpackDirectory(owner, L"Choose Modpack Folder", std::filesystem::path(), selected);
+        if (result == HRESULT_FROM_WIN32(ERROR_CANCELLED)) return 0;
+        if (FAILED(result)) throw std::runtime_error("Could not open the Windows folder chooser. Check that the folder is accessible and try again.");
+        const auto instance = MinewaysModpack::instanceRoot(selected);
+        result = chooseModpackDirectory(owner, L"Choose a World in This Modpack's saves Folder", instance / L"saves", selected);
+        if (result == HRESULT_FROM_WIN32(ERROR_CANCELLED)) return 0;
+        if (FAILED(result)) throw std::runtime_error("Could not open this modpack's saves folder. Check its permissions and try again.");
+        const auto world = MinewaysModpack::worldFolder(instance, selected);
+        const std::wstring worldFile = (world / L"level.dat").wstring();
+        if (worldFile.size() >= MAX_PATH_AND_FILE)
+            throw std::runtime_error("The selected world path is too long. Move the instance to a shorter path and try again.");
+        preflightModpackWorld(world);
+        const std::string manifest = prepareChosenModpack(owner, instance, world);
+        if (manifest.empty()) return 0;
+        MinewaysModpack::worldFolder(instance, world);
+        preflightModpackWorld(world);
+        std::string error;
+        if (!setModPack(manifest == "VANILLA" ? "" : manifest.c_str(), manifest == "VANILLA", error))
+            throw std::runtime_error(error);
+        wchar_t filename[MAX_PATH_AND_FILE];
+        wcscpy_s(filename, worldFile.c_str());
+        return loadWorldFromFilename(filename, owner);
+    } catch (const std::exception& error) {
+        wchar_t message[4096];
+        if (!MultiByteToWideChar(CP_UTF8, 0, error.what(), -1, message, _countof(message)))
+            wcscpy_s(message, L"Could not access the selected modpack. Check its folders and permissions, then try again.");
+        FilterMessageBox(owner, message, L"Choose Modpack Folder", MB_OK | MB_ICONERROR);
+        return 0;
+    }
+}
+
+static bool setModPack(const char* path, bool clear, std::string& error)
+{
+    if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE) {
+        error = "Open a world or the Block Test World before changing mod packs. Reload the schematic after the pack changes.";
+        return false;
+    }
+    ChunkLoaderStop();
+    if (!clear && !LoadModPack(path, error)) {
+        gPrefetchQueued = false;
+        gScrollCacheValid = false;
+        return false;
+    }
+    if (clear) ClearModPack();
+    CloseAll();
+    gPrefetchQueued = false;
+    gScrollCacheValid = false;
+    SetMapPremultipliedColors(0);
+    InvalidateMapRenderCache();
+    CheckUnknownBlock(true);
+    ClearBlockReadCheck();
+    if (gWorldGuide.type == WORLD_LEVEL_TYPE && gWorldGuide.dimensionId[0]) {
+        std::wstring id = gWorldGuide.dimensionId;
+        switchToDimension(id.c_str(), gWS);
+    }
+    return true;
+}
+
+static bool switchToDimension(const wchar_t* id, WindowSet& ws)
+{
+    bool wasNether = (gOptions.worldType & HELL) != 0;
+    double oldScale = WorldDimensionScale(&gWorldGuide, gOptions.worldType);
+    bool sameDimension = wcscmp(id, gWorldGuide.dimensionId) == 0;
+    if (!SelectWorldDimension(&gWorldGuide, id, &gOptions.worldType)) return false;
+    bool isNether = (gOptions.worldType & HELL) != 0;
+    if (!sameDimension) {
+        gCurX = ConvertDimensionCoordinate(gCurX, oldScale, gWorldGuide.dimensionScale);
+        gCurZ = ConvertDimensionCoordinate(gCurZ, oldScale, gWorldGuide.dimensionScale);
+    }
+    if (wasNether != isNether) {
+        if (isNether) {
+            gOverworldHideStatus = gOptions.worldType & HIDEOBSCURED;
+            gOptions.worldType |= HIDEOBSCURED;
+        } else {
+            gOptions.worldType = (gOptions.worldType & ~HIDEOBSCURED) | gOverworldHideStatus;
+        }
+    }
+    gMinHeight = gWorldGuide.minHeight;
+    gMaxHeight = gWorldGuide.maxHeight;
+    GetChunkHeights(&gWorldGuide, gMinHeight, gMaxHeight, gMinecraftVersion, (int)gCurX, (int)gCurZ);
+    gCurDepth = isNether ? (std::max)(gMinHeight, (std::min)(126, gMaxHeight)) : gMaxHeight;
+    gTargetDepth = gMinHeight;
+    gHighlightOn = FALSE;
+    SetHighlightState(0, 0, 0, 0, 0, 0, 0, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_CLEAR);
+    gPrefetchQueued = false;
+    gScrollCacheValid = false;
+    gOneTimeWorldWarning = NBT_WARNING_DIRECTORY_NOT_FOUND;
+    SendMessage(ws.hwndSlider, TBM_SETRANGE, TRUE, MAKELONG(0, gMaxHeight - gMinHeight));
+    SendMessage(ws.hwndBottomSlider, TBM_SETRANGE, TRUE, MAKELONG(0, gMaxHeight - gMinHeight));
+    setSlider(ws.hWnd, ws.hwndSlider, ws.hwndLabel, gCurDepth, false);
+    setSlider(ws.hWnd, ws.hwndBottomSlider, ws.hwndBottomLabel, gTargetDepth, false);
+    enableBottomControl(0, ws.hwndInfoBottomLabel);
+    CheckMenuItem(GetMenu(ws.hWnd), IDM_HELL, isNether ? MF_CHECKED : MF_UNCHECKED);
+    CheckMenuItem(GetMenu(ws.hWnd), IDM_END, (gOptions.worldType & ENDER) ? MF_CHECKED : MF_UNCHECKED);
+    CheckMenuItem(GetMenu(ws.hWnd), IDM_OBSCURED, (gOptions.worldType & HIDEOBSCURED) ? MF_CHECKED : MF_UNCHECKED);
+    return true;
+}
+
 // Note: don't change worldType before calling this method - it sets worldType to overworld itself.
 static void gotoSurface(HWND hWnd, HWND hwndSlider, HWND hwndLabel)
 {
+    double oldScale = WorldDimensionScale(&gWorldGuide, gOptions.worldType);
+    gCurX = ConvertDimensionCoordinate(gCurX, oldScale, DimensionCoordinateScale("minecraft:overworld"));
+    gCurZ = ConvertDimensionCoordinate(gCurZ, oldScale, DimensionCoordinateScale("minecraft:overworld"));
+    // A successful load already selected the overworld and its exact pack bounds.
+    if (wcscmp(gWorldGuide.dimensionId, L"minecraft:overworld") != 0) {
+        gWorldGuide.dimensionId[0] = 0;
+        gWorldGuide.dimensionPath[0] = 0;
+        gWorldGuide.dimensionScale = 0;
+        gWorldGuide.dimensionBoundsFromPack = false;
+    }
     if (gOptions.worldType & HELL)
     {
         // get out of hell zoom
-        gCurX *= 8.0;
-        gCurZ *= 8.0;
         // and undo other hell stuff
         if (gCurDepth == 126)
         {
@@ -3976,7 +4228,9 @@ static void updateStatus(int mx, int mz, int my, const char* blockLabel, int typ
         // In Nether, show corresponding overworld coordinates
         if (gOptions.worldType & HELL)
             //wsprintf(buf,L"%d,%d; y=%d[%d,%d] %S \t\tBtm %d",mx,mz,my,mx*8,mz*8,blockLabel,gTargetDepth);
-            swprintf_s(buf, _countof(buf), L"%d,%d,y=%d[%d,%d]; %S%S%S%S%S%S", mx, mz, my, mx * 8, mz * 8, 
+            swprintf_s(buf, _countof(buf), L"%d,%d,y=%d[%d,%d]; %S%S%S%S%S%S", mx, mz, my,
+                (int)ConvertDimensionCoordinate(mx, WorldDimensionScale(&gWorldGuide, gOptions.worldType), DimensionCoordinateScale("minecraft:overworld")),
+                (int)ConvertDimensionCoordinate(mz, WorldDimensionScale(&gWorldGuide, gOptions.worldType), DimensionCoordinateScale("minecraft:overworld")),
                 WATERLOGGED_LABEL(type, dataVal) ? "waterlogged " : "",
                 blockLabel, sbuftype, sbufbiome, sbufselect, sbufmap);	// char to wchar
         else
@@ -4328,7 +4582,7 @@ static int loadSpongeSchematic(wchar_t* pathAndFile)
     CloseAll();
 
     int width = 0, height = 0, length = 0;
-    unsigned char* blocks = NULL;
+    unsigned short* blocks = NULL;
     unsigned short* data = NULL;
     int dataVersion = 0;
     int retval = GetSpongeSchematic(pathAndFile, &width, &height, &length, &blocks, &data, &dataVersion);
@@ -4358,12 +4612,9 @@ static int loadSpongeSchematic(wchar_t* pathAndFile)
     //      which uses gWorldGuide.minHeight=0 from loadWorld), not the -64..319 of 1.18 and newer
     //      worlds, so Ctrl-A / Select-All highlights line up with where the blocks live. So the
     //      heights are set directly here, not from the version.
-    //   2. gMcVersion >= 13 so gIs13orNewer = true. .schem palettes carry 1.13+ block IDs whose
-    //      high bits (>255) Mineways packs into the top nibble of dataVal (see nbt.h); a wrong
-    //      gMcVersion here doesn't affect that unpacking (BLOCK_TYPE_FROM_GRID_DATA in
-    //      ObjFileManip.cpp/MinewaysMap.cpp applies unconditionally), but gIs13orNewer still
-    //      gates other 1.13+-only parsing paths (e.g. tile-entity handling), so it must be set
-    //      for modern blocks like the copper golem statues at IDs 502/503 to come through intact.
+    //   2. gMcVersion >= 13 so gIs13orNewer = true. Sponge palettes contain modern blocks.
+    //      Their full IDs are independent of the state field, but gIs13orNewer still controls
+    //      version-specific parsing paths such as tile-entity handling.
     //      A file without a DataVersion (or with one from before 1.13, data version 1519, which a
     //      Sponge schematic can't really be) is taken to be from 1.16.5, data version 2586.
     gVersionID = (dataVersion >= 1519) ? dataVersion : 2586;
@@ -4395,7 +4646,7 @@ static int loadSchematic(wchar_t* pathAndFile)
         gWorldGuide.sch.length, &gWorldGuide.sch.numBlocks))
         return 100 + 4;
 
-    gWorldGuide.sch.blocks = (unsigned char*)malloc(gWorldGuide.sch.numBlocks);
+    gWorldGuide.sch.blocks = (unsigned short*)malloc((size_t)gWorldGuide.sch.numBlocks * sizeof(*gWorldGuide.sch.blocks));
     gWorldGuide.sch.data = (unsigned short*)malloc((size_t)gWorldGuide.sch.numBlocks * sizeof(unsigned short));
     if (gWorldGuide.sch.blocks == NULL || gWorldGuide.sch.data == NULL) {
         free(gWorldGuide.sch.blocks);
@@ -4448,6 +4699,16 @@ static void testWorldHeight(int& minHeight, int& maxHeight, int mcVersion, int s
 static int loadWorld(HWND hWnd)
 {
     CloseAll();
+    double oldScale = WorldDimensionScale(&gWorldGuide, gOptions.worldType);
+    gCurX = ConvertDimensionCoordinate(gCurX, oldScale, DimensionCoordinateScale("minecraft:overworld"));
+    gCurZ = ConvertDimensionCoordinate(gCurZ, oldScale, DimensionCoordinateScale("minecraft:overworld"));
+    if (gOptions.worldType & HELL)
+        gOptions.worldType = (gOptions.worldType & ~HIDEOBSCURED) | gOverworldHideStatus;
+    gOptions.worldType &= ~(HELL | ENDER);
+    gWorldGuide.dimensionId[0] = 0;
+    gWorldGuide.dimensionPath[0] = 0;
+    gWorldGuide.dimensionScale = 0;
+    gWorldGuide.dimensionBoundsFromPack = false;
     // the map buffer shows the old world, so the next draw can't just pan it
     gScrollCacheValid = false;
     // defaults
@@ -4520,7 +4781,8 @@ static int loadWorld(HWND hWnd)
             retcode = 3;
         }
         int dimension;
-        if (GetPlayer(gWorldGuide.world, &gPlayerX, &gPlayerY, &gPlayerZ, &dimension) != 0) {
+        strcpy_s(gPlayerDimension, sizeof(gPlayerDimension), "minecraft:overworld");
+        if (GetPlayer(gWorldGuide.world, &gPlayerX, &gPlayerY, &gPlayerZ, &dimension, gPlayerDimension, sizeof(gPlayerDimension)) != 0) {
             // if this fails, it's a server world, so set the values equal to the spawn location; return no error
             // from http://minecraft.wiki/w/Level_format
             // Player: The state of the Singleplayer player. This overrides the <player>.dat file with the same name as the
@@ -4528,34 +4790,23 @@ static int loadWorld(HWND hWnd)
             gPlayerX = gSpawnX;
             gPlayerY = gSpawnY;
             gPlayerZ = gSpawnZ;
+            strcpy_s(gPlayerDimension, sizeof(gPlayerDimension), "minecraft:overworld");
             gWorldGuide.isServerWorld = true;
-        }
-        else {
-            // use dimension to set world type viewed.
-            if (dimension == 1) {
-                // Nether
-                // could do this, but then we need to set a bunch of other options: 
-                // gOptions.worldType |= HELL;
-
-                // in Nether, so convert; for now, return overworld position, always
-                gPlayerX = gPlayerX * 8;
-                gPlayerZ = gPlayerZ * 8;
-            }
-            else if (dimension == 2) {
-                // End
-                //gOptions.worldType |= ENDER;
-            }
-            else {
-                // Overworld
-                //gOptions.worldType &= ~(HELL | ENDER);
-                assert(dimension == 0);
-            }
         }
         // This may or may not work, so we ignore errors.
         GetFileVersionId(gWorldGuide.world, &gVersionID);
         gMinecraftVersion = DATA_VERSION_TO_RELEASE_NUMBER(gVersionID);
         setHeightsFromVersionID();
-        testWorldHeight(gMinHeight, gMaxHeight, gMinecraftVersion, gSpawnX, gSpawnZ, gPlayerX, gPlayerZ);
+        {
+            int overworld = gOptions.worldType & ~(HELL | ENDER);
+            if (SelectWorldDimension(&gWorldGuide, L"minecraft:overworld", &overworld)) {
+                gMinHeight = gWorldGuide.minHeight;
+                gMaxHeight = gWorldGuide.maxHeight;
+            }
+            testWorldHeight(gMinHeight, gMaxHeight, gMinecraftVersion, gSpawnX, gSpawnZ,
+                (int)ConvertDimensionCoordinate(gPlayerX, DimensionCoordinateScale(gPlayerDimension), DimensionCoordinateScale("minecraft:overworld")),
+                (int)ConvertDimensionCoordinate(gPlayerZ, DimensionCoordinateScale(gPlayerDimension), DimensionCoordinateScale("minecraft:overworld")));
+        }
         break;
 
     case WORLD_SCHEMATIC_TYPE:
@@ -5093,7 +5344,7 @@ static int loadWorldList(HMENU menu)
     if (hFind == INVALID_HANDLE_VALUE)
     {
         LOG_INFO(gExecutionLogfile, "    invalid handle value - return 0. This means Mineways couldn't find your Minecraft world saves directory.\n");
-        FilterMessageBox(NULL, _T("Mineways couldn't find your Minecraft world saves directory. This likely means that you're using Minecraft Bedrock edition on Windows 10. Mineways supports only Minecraft Classic (Java) world files. But, there is a free utility to convert from one to the other Minecraft world format. See http://mineways.com for more information.\n\nIf you are using Minecraft Classic (Java) and have stored your worlds elsewhere, use the 'File -> Open...' option and find your level.dat file for the world. Save files are normally at 'C:\\Users\\<your name>\\AppData\\Roaming\\.minecraft\\saves'. For Mac, worlds are usually located at '/users/<your name>/Library/Application Support/minecraft/saves'."),
+        FilterMessageBox(NULL, _T("Mineways could not find the default Minecraft Java saves folder. You can still open a world, schematic, or the included preview demo.\n\nFor a modded world or schematic, first select File > Load Mod Pack and open its manifest.mwpack. Then select File > Open... and open the world's level.dat file or the schematic. See the preview QUICKSTART.md for the included demo."),
             _T("Warning"), MB_OK | MB_ICONWARNING);
         return 0;
     }
@@ -5638,6 +5889,31 @@ static void copyOverExportPrintData(ExportFileData* pEFD)
     }
 }
 
+void initializeOutputFileList(FileList& outputFileList)
+{
+    outputFileList.count = 0;
+    for (int i = 0; i < MAX_OUTPUT_FILES; i++)
+    {
+        outputFileList.name[i] = NULL;
+    }
+    // we don't really need to alloc here, but this is a bit of future proofing, in case
+    // the output file list gets used by some method other than addOutputFilenameToList.
+    // If uncommented, outputFileList should then add an "allocated count" vs. a count of real file names on the list.
+    //for (int i = 0; i < 10; i++)
+    //{
+    //    outputFileList.name[i] = (wchar_t*)malloc(MAX_PATH_AND_FILE * sizeof(wchar_t));
+    //}
+}
+
+void freeOutputFileList(FileList& outputFileList)
+{
+    for (int i = 0; i < outputFileList.count; i++)
+    {
+        free(outputFileList.name[i]);
+    }
+    outputFileList.count = 0;
+}
+
 #ifdef SKETCHFAB
 
 static bool isSketchfabFieldSizeValid(char* field, int size, bool exact)
@@ -5762,31 +6038,6 @@ static LPTSTR prepareSketchfabExportFile(HWND hWnd)
     return filepath;
 }
 
-void initializeOutputFileList(FileList& outputFileList)
-{
-    outputFileList.count = 0;
-    for (int i = 0; i < MAX_OUTPUT_FILES; i++)
-    {
-        outputFileList.name[i] = NULL;
-    }
-    // we don't really need to alloc here, but this is a bit of future proofing, in case
-    // the output file list gets used by some method other than addOutputFilenameToList.
-    // If uncommented, outputFileList should then add an "allocated count" vs. a count of real file names on the list.
-    //for (int i = 0; i < 10; i++)
-    //{
-    //    outputFileList.name[i] = (wchar_t*)malloc(MAX_PATH_AND_FILE * sizeof(wchar_t));
-    //}
-}
-
-void freeOutputFileList(FileList& outputFileList)
-{
-    for (int i = 0; i < outputFileList.count; i++)
-    {
-        free(outputFileList.name[i]);
-    }
-    outputFileList.count = 0;
-}
-
 // return a failure code (simply "1" at this point, since it pops up its own error) on failure, else return 0 on success.
 static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileName, wchar_t* terrainFileName, wchar_t* cullSchemeSelected)
 {
@@ -5827,15 +6078,19 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileNa
                 (*updateProgress)(0.90f + 0.10f * (float)i / (float)outputFileList.count, NULL);
             }
 
-            ZipAdd(hz, nameOnly, outputFileList.name[i], 0, ZIP_FILENAME);
-
-            // delete model files if not needed
-            if (!gpEFD->chkCreateModelFiles[gpEFD->fileType])
-            {
-                DeleteFile(outputFileList.name[i]);
+            if (ZipAdd(hz, nameOnly, outputFileList.name[i], 0, ZIP_FILENAME) != ZR_OK) {
+                errCode |= MW_CANNOT_WRITE_TO_FILE;
+                break;
             }
         }
-        CloseZip(hz);
+        if (CloseZip(hz) != ZR_OK)
+            errCode |= MW_CANNOT_WRITE_TO_FILE;
+
+        // Keep every source until the complete archive has been finalized.
+        if (errCode < MW_BEGIN_ERRORS && !gpEFD->chkCreateModelFiles[gpEFD->fileType]) {
+            for (int i = 0; i < outputFileList.count; i++)
+                DeleteFile(outputFileList.name[i]);
+        }
     }
 
     if (updateProgress != NULL)
@@ -5871,7 +6126,7 @@ static int processSketchfabExport(PublishSkfbData* skfbPData, wchar_t* objFileNa
 
     freeOutputFileList(outputFileList);
 
-    return 0;
+    return errCode >= MW_BEGIN_ERRORS ? 1 : 0;
 }
 
 static int publishToSketchfab(HWND hWnd, wchar_t* objFileName, wchar_t* terrainFileName, wchar_t* cullSchemeSelected)
@@ -6379,6 +6634,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
 
                 // if we are zipping tiles, it's a bit different
                 int i;
+                bool zipSucceeded = true;
 
                 // disassemble the directory of the first file
                 wchar_t path[MAX_PATH_AND_FILE];
@@ -6394,6 +6650,7 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                     // TODO - really should just export tiles needed, but this functionality is a bit tricky.
                     if (ZipAdd(hz, relativeFile, outputFileList.name[i], 0, ZIP_FILENAME) != ZR_OK)
                     {
+                        zipSucceeded = false;
                         retCode |= MW_CANNOT_WRITE_TO_FILE;
                         DWORD errorCode = GetLastError();
                         // if we need to get really fancy, include code at https://docs.microsoft.com/en-us/windows/win32/debug/retrieving-the-last-error-code
@@ -6403,11 +6660,6 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                         break;
                     }
 
-                    // delete model files if not needed
-                    if (!gpEFD->chkCreateModelFiles[gpEFD->fileType])
-                    {
-                        DeleteFile(outputFileList.name[i]);
-                    }
                     if (updateProgress != NULL)
                     {
                         (*updateProgress)(0.90f + 0.10f * (float)i / (float)outputFileList.count,NULL);
@@ -6416,19 +6668,30 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
                     // was AddFolderContent(hz, path, piece );
                 }
 
-                CloseZip(hz);
+                if (CloseZip(hz) != ZR_OK) {
+                    zipSucceeded = false;
+                    retCode |= MW_CANNOT_WRITE_TO_FILE;
+                    FilterMessageBox(NULL, L"The ZIP file could not be finalized. The original files have been preserved.",
+                        _T("Internal ZIP error"), MB_OK | MB_ICONERROR);
+                }
 
-                // now delete subdirectories, if empty. Assumes subdirectories come after main directory files
-                wchar_t prevdelpath[MAX_PATH_AND_FILE];
-                prevdelpath[0] = (wchar_t)0;
-                for (i = outputFileList.count-1; i >= 0; i--) {
-                    relativeFile = RemoveGivenPath(outputFileList.name[i], path);
-                    wchar_t delpath[MAX_PATH_AND_FILE];
-                    StripLastString(relativeFile, delpath, filepathpiece);
-                    if (wcscmp(delpath, prevdelpath) != 0 && wcslen(delpath) > 0) {
-                        // we could be more clever here and try to remove the directory only if it
-                        RemoveDirectory(delpath);
-                        wcscpy_s(prevdelpath, MAX_PATH_AND_FILE, delpath);
+                // Keep every source until the complete archive has been finalized.
+                if (zipSucceeded && !gpEFD->chkCreateModelFiles[gpEFD->fileType]) {
+                    for (i = 0; i < outputFileList.count; i++)
+                        DeleteFile(outputFileList.name[i]);
+
+                    // now delete subdirectories, if empty. Assumes subdirectories come after main directory files
+                    wchar_t prevdelpath[MAX_PATH_AND_FILE];
+                    prevdelpath[0] = (wchar_t)0;
+                    for (i = outputFileList.count-1; i >= 0; i--) {
+                        relativeFile = RemoveGivenPath(outputFileList.name[i], path);
+                        wchar_t delpath[MAX_PATH_AND_FILE];
+                        StripLastString(relativeFile, delpath, filepathpiece);
+                        if (wcscmp(delpath, prevdelpath) != 0 && wcslen(delpath) > 0) {
+                            // we could be more clever here and try to remove the directory only if it
+                            RemoveDirectory(delpath);
+                            wcscpy_s(prevdelpath, MAX_PATH_AND_FILE, delpath);
+                        }
                     }
                 }
             }
@@ -6446,13 +6709,19 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
         }
 
         // check if exporting to USD and using the 3-texture format. TODO bug to fix some century in the future. See https://github.com/erich666/Mineways/issues/146
-        if (gModel.instancing && (gpEFD->fileType == FILE_TYPE_USD) && (gOptions.exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES)) {
+        if (gModel.instancing && (gpEFD->fileType == FILE_TYPE_USD) && (gOptions.exportFlags & EXPT_OUTPUT_TEXTURE_IMAGES) &&
+            !(gOptions.exportFlags & EXPT_OUTPUT_SEPARATE_TEXTURE_TILES)) {
             FilterMessageBox(NULL, _T("Warning: Exporting to USD using the three-texture output option along with the Export individual blocks option is likely to give you Meshes with identical names. Sorry, it's a bug, and for an obscure combination of options that would take me a long while to fix. I suggest exporting to individual textures instead. GitHub issue #146."),
                 _T("Export limitation"), MB_OK | MB_ICONWARNING);
         }
 
         // show errors first
-        if (errCode != MW_NO_ERROR)
+        if (errCode == MW_CANNOT_PARSE_IMPORT_FILE && gpEFD->fileType == FILE_TYPE_SCHEMATIC &&
+            ModBlockTypeLimit() > NUM_BLOCKS_DEFINED) {
+            FilterMessageBox(NULL, L"Mod blocks need Sponge .schem to preserve names and states. Choose Sponge schematic or clear the mod pack.",
+                L"Export error", MB_OK | MB_ICONERROR);
+        }
+        else if (errCode != MW_NO_ERROR)
         {
             PopupErrorDialogs(errCode);
         }
@@ -6558,6 +6827,13 @@ static int saveObjFile(HWND hWnd, wchar_t* objFileName, int printModel, wchar_t*
 
 static void PopupErrorDialogs(int errCode)
 {
+    const int detailedError = errCode & (MW_CANNOT_PARSE_IMPORT_FILE | MW_WORLD_EXPORT_TOO_LARGE);
+    if (detailedError && *ModExportError()) {
+        const std::string detail(ModExportError());
+        const std::wstring message(detail.begin(), detail.end());
+        FilterMessageBox(NULL, message.c_str(), L"Export error", MB_OK | MB_ICONERROR);
+        errCode &= ~detailedError;
+    }
     // pop up all errors flagged
     for (int errNo = MW_NUM_CODES - 1; errNo >= 0; errNo--)
     {
@@ -6962,6 +7238,15 @@ static void runImportOrScript(wchar_t* importFile, WindowSet& ws, const char** p
             assert(is.nether == false);
             if (switchToTheEnd(is)) {
                 FilterMessageBox(NULL, L"Attempt to switch to The End failed", _T("Import warning"), MB_OK | MB_ICONWARNING);
+            }
+        }
+
+        if (is.dimension[0]) {
+            wchar_t id[MAX_PATH_AND_FILE];
+            if (!MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, is.dimension, -1, id, MAX_PATH_AND_FILE) ||
+                !switchToDimension(id, ws)) {
+                FilterMessageBox(NULL, L"The exported dimension was not found in this world.", L"Import warning", MB_OK | MB_ICONWARNING);
+                return;
             }
         }
 
@@ -7905,81 +8190,13 @@ static char* closeCommentBlock(char* line)
 // Return 0 if this executes properly. Else return code should be passed up chain.
 static int switchToNether(ImportedSet& is)
 {
-    if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE || gWorldGuide.type == WORLD_TEST_BLOCK_TYPE)
-    {
-        saveWarningMessage(is, L"attempt to switch to Nether but this world has none.");
-        return INTERPRETER_FOUND_ERROR;
-    }
-    gOneTimeWorldWarning = NBT_WARNING_DIRECTORY_NOT_FOUND;
-    gOptions.worldType |= HELL;
-    gOptions.worldType &= ~ENDER;
-    // change scale as needed
-    gCurX /= 8.0;
-    gCurZ /= 8.0;
-    // it's useless to view Nether from MAP_MAX_HEIGHT
-    if (gCurDepth == gMaxHeight)
-    {
-        gCurDepth = 126;
-        setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
-    }
-    gOverworldHideStatus = gOptions.worldType & HIDEOBSCURED;
-    gOptions.worldType |= HIDEOBSCURED;
-
-    CheckMenuItem(GetMenu(is.ws.hWnd), IDM_OBSCURED, (gOptions.worldType & HIDEOBSCURED) ? MF_CHECKED : MF_UNCHECKED);
-    CheckMenuItem(GetMenu(is.ws.hWnd), IDM_HELL, (gOptions.worldType & HELL) ? MF_CHECKED : MF_UNCHECKED);
-    if (gOptions.worldType & ENDER)
-    {
-        CheckMenuItem(GetMenu(is.ws.hWnd), IDM_END, MF_UNCHECKED);
-        gOptions.worldType &= ~ENDER;
-    }
-    CloseAll();
-    // clear selection when you switch from somewhere else to The Nether, or vice versa
-    gHighlightOn = FALSE;
-    SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_CLEAR);
-    enableBottomControl(gHighlightOn, /* is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, */ is.ws.hwndInfoBottomLabel);
-
-    return 0;
+    return switchToDimension(L"minecraft:the_nether", is.ws) ? 0 : INTERPRETER_FOUND_ERROR;
 }
 
 // Return 0 if this executes properly. Else return code should be passed up chain.
 static int switchToTheEnd(ImportedSet& is)
 {
-    if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE || gWorldGuide.type == WORLD_TEST_BLOCK_TYPE)
-    {
-        saveWarningMessage(is, L"attempt to switch to The End level but this world has none.");
-        return INTERPRETER_FOUND_ERROR;
-    }
-    gOneTimeWorldWarning = NBT_WARNING_DIRECTORY_NOT_FOUND;
-    CheckMenuItem(GetMenu(is.ws.hWnd), IDM_END, MF_CHECKED);
-    // entering Ender, turn off hell if need be
-    gOptions.worldType |= ENDER;
-    if (gOptions.worldType & HELL)
-    {
-        // get out of hell zoom
-        gCurX *= 8.0;
-        gCurZ *= 8.0;
-        // and undo other hell stuff
-        if (gCurDepth == 126)
-        {
-            gCurDepth = gMaxHeight;
-            setSlider(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel, gCurDepth, false);
-        }
-        // turn off obscured, then restore overworld's obscured status
-        gOptions.worldType &= ~HIDEOBSCURED;
-        CheckMenuItem(GetMenu(is.ws.hWnd), IDM_OBSCURED, MF_UNCHECKED);
-        gOptions.worldType |= gOverworldHideStatus;
-        // uncheck hell menu item
-        CheckMenuItem(GetMenu(is.ws.hWnd), IDM_HELL, MF_UNCHECKED);
-        gOptions.worldType &= ~HELL;
-    }
-
-    CloseAll();
-    // clear selection when you switch from somewhere else to The End, or vice versa
-    gHighlightOn = FALSE;
-    SetHighlightState(gHighlightOn, 0, 0, 0, 0, 0, 0, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_CLEAR);
-    enableBottomControl(gHighlightOn, /* is.ws.hwndBottomSlider, is.ws.hwndBottomLabel, */ is.ws.hwndInfoBottomLabel);
-
-    return 0;
+    return switchToDimension(L"minecraft:the_end", is.ws) ? 0 : INTERPRETER_FOUND_ERROR;
 }
 
 static int interpretImportLine(char* line, ImportedSet& is)
@@ -8176,13 +8393,55 @@ static int interpretImportLine(char* line, ImportedSet& is)
         return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
     }
 
+    strPtr = findLineDataNoCase(line, "Mod pack:");
+    const char* clearData = findLineDataNoCase(line, "Clear mod pack");
+    bool clearModPack = clearData != NULL;
+    if (strPtr || clearModPack) {
+        if (clearModPack && *clearData) {
+            saveErrorMessage(is, L"Clear mod pack takes no arguments."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (!clearModPack && !*strPtr) {
+            saveErrorMessage(is, L"no mod pack manifest given."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (is.processData && !is.readingModel) {
+            std::string detail;
+            if (!setModPack(clearModPack ? "" : strPtr, clearModPack, detail)) {
+                wchar_t message[2048];
+                if (!MultiByteToWideChar(CP_UTF8, 0, detail.c_str(), -1, message, 2048))
+                    wcscpy_s(message, 2048, L"Could not load the mod pack.");
+                saveErrorMessage(is, message); return INTERPRETER_FOUND_ERROR;
+            }
+        }
+        return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
+    }
+
+    strPtr = findLineDataNoCase(line, "Dimension:");
+    if (strPtr != NULL) {
+        if (!IsWorldDimensionId(strPtr)) {
+            saveErrorMessage(is, L"invalid dimension ID."); return INTERPRETER_FOUND_ERROR;
+        }
+        if (is.processData) {
+            strcpy_s(is.dimension, MAX_PATH_AND_FILE, strPtr);
+            if (!is.readingModel) {
+                wchar_t id[MAX_PATH_AND_FILE];
+                if (!MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, strPtr, -1, id, MAX_PATH_AND_FILE) ||
+                    !switchToDimension(id, is.ws)) {
+                    saveErrorMessage(is, L"dimension not found in the loaded world."); return INTERPRETER_FOUND_ERROR;
+                }
+            }
+        }
+        return INTERPRETER_FOUND_VALID_LINE | INTERPRETER_REDRAW_SCREEN;
+    }
+
     strPtr = findLineDataNoCase(line, "View Overworld");
     if (strPtr != NULL) {
         if (is.processData) {
             // simply ignored if read inside a model, since overworld is the default
             if (!is.readingModel) {
                 if (gLoaded) {
-                    gotoSurface(is.ws.hWnd, is.ws.hwndSlider, is.ws.hwndLabel);
+                    if (!switchToDimension(L"minecraft:overworld", is.ws)) {
+                        saveErrorMessage(is, L"Overworld dimension not found."); return INTERPRETER_FOUND_ERROR;
+                    }
                     CheckMenuItem(GetMenu(is.ws.hWnd), IDM_OBSCURED, (gOptions.worldType & HIDEOBSCURED) ? MF_CHECKED : MF_UNCHECKED);
                     if (gOptions.worldType & ENDER)
                     {
@@ -9326,13 +9585,8 @@ JumpToSpawn:
     if (strPtr != NULL) {
         if (is.processData) {
             if (gLoaded) {
-                gCurX = gSpawnX;
-                gCurZ = gSpawnZ;
-                if (gOptions.worldType & HELL)
-                {
-                    gCurX /= 8.0;
-                    gCurZ /= 8.0;
-                }
+                gCurX = ConvertDimensionCoordinate(gSpawnX, gWorldGuide.type == WORLD_LEVEL_TYPE ? DimensionCoordinateScale("minecraft:overworld") : 1.0, WorldDimensionScale(&gWorldGuide, gOptions.worldType));
+                gCurZ = ConvertDimensionCoordinate(gSpawnZ, gWorldGuide.type == WORLD_LEVEL_TYPE ? DimensionCoordinateScale("minecraft:overworld") : 1.0, WorldDimensionScale(&gWorldGuide, gOptions.worldType));
             }
             else {
                 saveErrorMessage(is, L"Jump to Spawn command failed, as no world has been loaded.");
@@ -9347,13 +9601,8 @@ JumpToSpawn:
     if (strPtr != NULL) {
         if (is.processData) {
             if (gLoaded) {
-                gCurX = gPlayerX;
-                gCurZ = gPlayerZ;
-                if (gOptions.worldType & HELL)
-                {
-                    gCurX /= 8.0;
-                    gCurZ /= 8.0;
-                }
+                gCurX = ConvertDimensionCoordinate(gPlayerX, gWorldGuide.type == WORLD_LEVEL_TYPE ? DimensionCoordinateScale(gPlayerDimension) : 1.0, WorldDimensionScale(&gWorldGuide, gOptions.worldType));
+                gCurZ = ConvertDimensionCoordinate(gPlayerZ, gWorldGuide.type == WORLD_LEVEL_TYPE ? DimensionCoordinateScale(gPlayerDimension) : 1.0, WorldDimensionScale(&gWorldGuide, gOptions.worldType));
             }
             else {
                 saveErrorMessage(is, L"Jump to Player command failed, as no world has been loaded.");
@@ -9379,11 +9628,6 @@ JumpToSpawn:
                 {
                     gCurX = (minx + maxx) / 2;
                     gCurZ = (minz + maxz) / 2;
-                    if (gOptions.worldType & HELL)
-                    {
-                        gCurX /= 8.0;
-                        gCurZ /= 8.0;
-                    }
                 }
                 else {
                     MY_ASSERT(gAlwaysFail);
@@ -10116,7 +10360,7 @@ static bool testChangeBlockCommand(char* line, ImportedSet& is, int* pRetCode)
                 }
                 if (is.processData) {
                     if (fromType <= fromEndType) {
-                        if (!addFromRangeToCB(is.pCBClast, (unsigned char)fromType, (unsigned char)fromEndType, fromDataBits)) {
+                        if (!addFromRangeToCB(is.pCBClast, (unsigned short)fromType, (unsigned short)fromEndType, fromDataBits)) {
                             saveErrorMessage(is, L"out of memory while storing Change blocks ranges.");
                             *pRetCode = INTERPRETER_FOUND_ERROR;
                             return true;
@@ -10125,7 +10369,7 @@ static bool testChangeBlockCommand(char* line, ImportedSet& is, int* pRetCode)
                     else {
                         // allowed, since it could be block name to block name
                         saveWarningMessage(is, L"the from range is saved from high to low; accepted as a range, but it's better to go low to high.");
-                        if (!addFromRangeToCB(is.pCBClast, (unsigned char)fromEndType, (unsigned char)fromType, fromDataBits)) {
+                        if (!addFromRangeToCB(is.pCBClast, (unsigned short)fromEndType, (unsigned short)fromType, fromDataBits)) {
                             saveErrorMessage(is, L"out of memory while storing Change blocks ranges.");
                             *pRetCode = INTERPRETER_FOUND_ERROR;
                             return true;
@@ -10290,7 +10534,7 @@ static bool createCB(ImportedSet& is)
     return true;
 }
 
-static bool addFromRangeToCB(ChangeBlockCommand* pCBC, unsigned char fromType, unsigned char fromEndType, unsigned short fromDataBits)
+static bool addFromRangeToCB(ChangeBlockCommand* pCBC, unsigned short fromType, unsigned short fromEndType, unsigned short fromDataBits)
 {
     // two ways to store data:
     // one is a simple range: 5-50, say, and the data bits must all be the same, e.g. 0xffff (all data)
@@ -10341,7 +10585,7 @@ static bool addFromRangeToCB(ChangeBlockCommand* pCBC, unsigned char fromType, u
     return true;
 }
 
-static void setDefaultFromRangeToCB(ChangeBlockCommand* pCBC, unsigned char fromType, unsigned char fromEndType, unsigned short fromDataBits)
+static void setDefaultFromRangeToCB(ChangeBlockCommand* pCBC, unsigned short fromType, unsigned short fromEndType, unsigned short fromDataBits)
 {
     //pCBC->hasFrom = false; - default, should already be set as such
     pCBC->simpleFromTypeBegin = fromType;
@@ -10372,9 +10616,8 @@ static void saveCBinto(ChangeBlockCommand* pCBC, int intoType, int intoData)
 
 static bool addDataBitsArray(ChangeBlockCommand* pCBC)
 {
-    pCBC->fromDataBitsArray = (unsigned short*)calloc(256, sizeof(unsigned short));
+    pCBC->fromDataBitsArray = (unsigned short*)calloc(MAX_BLOCK_TYPES, sizeof(unsigned short));
     return pCBC->fromDataBitsArray != NULL;
-    //memset(pCBC->fromDataBitsArray, 0, 256 * sizeof(unsigned short));
 }
 
 static void saveCBlocation(ChangeBlockCommand* pCBC, int v[6])
@@ -11332,7 +11575,7 @@ static void checkMapDrawErrorCode(int retCode)
             else {
                 int bx, bz;
                 GetBadChunkLocation(&bx, &bz);
-                swprintf_s(fullbuf, _countof(fullbuf), _T("Error: chunk (%d, %d) read error at nbt.cpp line %d. Mineways does not support betas or mods. Also, make sure you have downloaded the latest version of Mineways from mineways.com. If it's neither of these, please report it as a bug (see the Help menu)."), bx, bz, -retCode);
+                swprintf_s(fullbuf, _countof(fullbuf), _T("Error: chunk (%d, %d) could not be read at nbt.cpp line %d. The chunk may be damaged or use an unsupported format. Report this error with your preview build, Minecraft version, modpack version, and coordinates at https://github.com/wbreiler/Mineways/issues."), bx, bz, -retCode);
             }
             FilterMessageBox(NULL, fullbuf,
                 _T("Warning"), MB_OK | MB_ICONERROR | MB_TOPMOST);
@@ -11342,7 +11585,7 @@ static void checkMapDrawErrorCode(int retCode)
         if (gOneTimeDrawWarning & retCode) {
             // NBT_WARNING_NAME_NOT_FOUND
             // currently the only warning - we will someday look at bits, I guess, in retCode
-            swprintf_s(fullbuf, _countof(fullbuf), _T("Warning: unknown block types '%S' encountered and turned into '%S'.\n\nIf you are not running a Minecraft beta, mod, or conversion, please download the latest version of Mineways from mineways.com. If you think Mineways has a bug, please report it (see the Help menu)."),
+            swprintf_s(fullbuf, _countof(fullbuf), _T("Warning: unknown block types '%S' encountered and turned into '%S'.\n\nLoad a compiled mod pack that matches this world. Check its report.json for unsupported blocks or states. Supported models can still omit runtime details. Report preview issues at https://github.com/wbreiler/Mineways/issues."),
                 MapUnknownBlockName(), gBlockDefinitions[GetUnknownBlockID()].name);
             FilterMessageBox(NULL, fullbuf,
                 _T("Warning"), MB_OK | MB_ICONWARNING | MB_TOPMOST);
@@ -11375,26 +11618,46 @@ static bool saveMapFile(int xmin, int zmin, int xmax, int ymax, int zmax, wchar_
         zmin = zmax;
         zmax = temp;
     }
-    int w = xmax - xmin + 1;
-    int h = zmax - zmin + 1;
-    int zoom = (int)(gCurScale + 0.5f);
+    int64_t widthBlocks = (int64_t)xmax - xmin + 1;
+    int64_t heightBlocks = (int64_t)zmax - zmin + 1;
+    if (widthBlocks > (std::numeric_limits<int>::max)() || heightBlocks > (std::numeric_limits<int>::max)() ||
+        !std::isfinite(gCurScale) || gCurScale < 0 || gCurScale > (std::numeric_limits<int>::max)() - 0.5) {
+        FilterMessageBox(NULL, L"The selected map dimensions are too large to export.",
+            L"Export Map failed", MB_OK | MB_ICONERROR);
+        return false;
+    }
+    int w = (int)widthBlocks;
+    int h = (int)heightBlocks;
+    int zoom = (int)(gCurScale + 0.5);
+    if (zoom < 1) zoom = 1;
+    size_t imageBytes;
+    if (!GetMapImageSize(w, h, zoom, imageBytes)) {
+        FilterMessageBox(NULL, L"The selected map would require more than 1 GiB of image memory. Reduce the selection size or zoom level.",
+            L"Export Map failed", MB_OK | MB_ICONERROR);
+        return false;
+    }
 
-    // first, can we even make such an image?
-    progimage_info* mapimage;
-    mapimage = new progimage_info();
-    mapimage->width = zoom * w;
-    mapimage->height = zoom * h;
-
-    // resize and clear
-    mapimage->image_data.resize(w * h * 3 * zoom * zoom * sizeof(unsigned char), 0x0);
-    unsigned char* imageDst = &mapimage->image_data[0];
+    progimage_info mapimage;
+    mapimage.width = zoom * w;
+    mapimage.height = zoom * h;
+    try {
+        mapimage.image_data.resize(imageBytes, 0x0);
+    } catch (const std::bad_alloc&) {
+        FilterMessageBox(NULL, L"Not enough memory is available to render the selected map.",
+            L"Export Map failed", MB_OK | MB_ICONERROR);
+        return false;
+    } catch (const std::length_error&) {
+        FilterMessageBox(NULL, L"The selected map dimensions are too large to export.",
+            L"Export Map failed", MB_OK | MB_ICONERROR);
+        return false;
+    }
 
     // turn off highlight for map draw
     SetHighlightState(0, xmin, gTargetDepth, zmin, xmax, ymax, zmax, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_IGNORE);
 
     ClearUnknownBlockNameString();
     checkMapDrawErrorCode(
-        DrawMapToArray(imageDst, &gWorldGuide, xmin, zmin, ymax - gMinHeight, gMaxHeight, w, h, zoom, &gOptions, gHitsFound, updateProgress, gMinecraftVersion, gVersionID)
+        DrawMapToArray(mapimage.image_data.data(), mapimage.image_data.size(), &gWorldGuide, xmin, zmin, ymax - gMinHeight, gMaxHeight, w, h, zoom, &gOptions, gHitsFound, updateProgress, gMinecraftVersion, gVersionID)
     );
 
     // check if map file has ".png" at the end - if not, add it.
@@ -11402,8 +11665,7 @@ static bool saveMapFile(int xmin, int zmin, int xmax, int ymax, int zmax, wchar_
     EnsureSuffix(mapFileNameSafe, mapFileName, L".png");
 
     // 0 means success. Currently we don't say what goes wrong otherwise.
-    retCode = writepng(mapimage, 3, mapFileNameSafe);
-    delete mapimage;
+    retCode = writepng(&mapimage, 3, mapFileNameSafe);
 
     // turn highlight back on, now that we're done
     SetHighlightState(gHighlightOn, xmin, gTargetDepth, zmin, xmax, gCurDepth, zmax, gMinHeight, gMaxHeight, HIGHLIGHT_UNDO_IGNORE);
@@ -11450,6 +11712,16 @@ static int FilterMessageBox(HWND hWnd, LPCTSTR lpText, LPCTSTR lpCaption, UINT u
             saveSuppressedMessage(*gpIS, 2, lpText);
         }
         return 1;
+    }
+    // Script completion can restore message preferences before reporting its summary.
+    if (gHeadless) {
+        fwprintf(stderr, L"%ls: %ls\n", lpCaption ? lpCaption : L"Mineways", lpText);
+        switch (uType & MB_TYPEMASK) {
+        case MB_ABORTRETRYIGNORE: return IDABORT;
+        case MB_YESNO: case MB_YESNOCANCEL: return IDNO;
+        case MB_OKCANCEL: case MB_RETRYCANCEL: case MB_CANCELTRYCONTINUE: return IDCANCEL;
+        default: return IDOK;
+        }
     }
     // note: we make all these message boxes system modal - they should always be in the user's face until dismissed.
     return DarkModeMessageBox(hWnd, lpText, lpCaption, uType | MB_TOPMOST);

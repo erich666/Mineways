@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <vector>
 #include <math.h>
+#include <limits.h>
 
 #include "readtga.h"
 #include "tiles.h"
@@ -400,7 +401,7 @@ static int isPNGTileEmpty(progimage_info* dst, int dst_x, int dst_y);
 static void makePNGTileEmpty(progimage_info* dst, int dst_x, int dst_y);
 static void makeSolidTile(progimage_info* dst, int chosenTile, int solid, int span);
 
-static void copyPNG(progimage_info* dst, progimage_info* src);
+static bool copyPNG(progimage_info* dst, progimage_info* src);
 
 static void makeEndPortalTile(progimage_info* dst, int dst_x, int dst_y, progimage_info* src);
 
@@ -410,7 +411,7 @@ static void cleanNormalMap(progimage_info& tile, int type);
 static int convertHeightfieldToXYZ(progimage_info* src, float heightfieldScale);
 
 static bool rotateTileIfHorizontal(progimage_info& tile);
-static void rotateTile(progimage_info& tile, int channels);
+static bool rotateTile(progimage_info& tile, int channels);
 static int classifyImageBumpMap(progimage_info& tile);
 
 int doesTileHaveCutouts(int index);
@@ -674,12 +675,27 @@ int wmain(int argc, wchar_t* argv[])
 		if (verbose)
 			wprintf(L"The base terrain is '%s'\n", terrainBase);
 
+		if (basicterrain.width < 16 || basicterrain.height <= 0 ||
+			(size_t)basicterrain.width > basicterrain.image_data.size() / 4 / basicterrain.height) {
+			wprintf(L"***** ERROR: Base texture dimensions are invalid.\n");
+			return 1;
+		}
+
 		// Older terrainBase.png files are 16 tiles wide (and so much taller than wide). Widen those to XTILES by padding
 		// the right side with empty tiles, so existing tiles stay at the same column and row.
-		if (basicterrain.height > 3 * basicterrain.width && xTiles > 16) {
+		if ((size_t)basicterrain.height > 3 * (size_t)basicterrain.width && xTiles > 16) {
 			unsigned long oldWidth = (unsigned long)basicterrain.width;
-			unsigned long newWidth = oldWidth * xTiles / 16;
-			std::vector<unsigned char> widened((size_t)newWidth * basicterrain.height * 4, 0x0);
+			if (oldWidth > INT_MAX / (xTiles / 16)) {
+				wprintf(L"***** ERROR: Base texture is too wide.\n");
+				return 1;
+			}
+			unsigned long newWidth = oldWidth * (xTiles / 16);
+			std::vector<unsigned char> widened;
+			if ((size_t)newWidth > widened.max_size() / 4 / basicterrain.height) {
+				wprintf(L"***** ERROR: Base texture is too large.\n");
+				return 1;
+			}
+			widened.resize((size_t)newWidth * basicterrain.height * 4, 0x0);
 			for (unsigned long r = 0; r < (unsigned long)basicterrain.height; r++) {
 				memcpy(&widened[(size_t)r * newWidth * 4], &basicterrain.image_data[(size_t)r * oldWidth * 4], (size_t)oldWidth * 4);
 			}
@@ -689,6 +705,10 @@ int wmain(int argc, wchar_t* argv[])
 				wprintf(L"NOTE: base terrain is 16 tiles wide, so it was widened to %d tiles wide.\n", xTiles);
 		}
 		baseTileSize = basicterrain.width / xTiles;
+		if (baseTileSize == 0) {
+			wprintf(L"***** ERROR: Base texture is too narrow.\n");
+			return 1;
+		}
 		baseYTiles = basicterrain.height / baseTileSize;
 	}
 	else
@@ -1216,6 +1236,10 @@ int wmain(int argc, wchar_t* argv[])
 			// allocate output image and fill it up
 			// already done above, so we don't have to dealloc destination_ptr = new progimage_info();
 
+			if (outputTileSize <= 0 || outputTileSize > 16384 / xTiles) {
+				wprintf(L"***** ERROR: The requested output tile size is too large.\n");
+				return 1;
+			}
 			outputXResolution = xTiles * outputTileSize;
 			outputYResolution = outputYTiles * outputTileSize;
 
@@ -1239,7 +1263,10 @@ int wmain(int argc, wchar_t* argv[])
 			{
 				// copy base texture over - assumes RGBA
 				destination_ptr->image_data.resize(outputXResolution * outputYResolution * channels * sizeof(unsigned char), 0x0);
-				copyPNG(destination_ptr, &basicterrain);
+				if (!copyPNG(destination_ptr, &basicterrain)) {
+					wprintf(L"***** ERROR: Base texture dimensions do not fit the output image.\n");
+					return 1;
+				}
 				if (verbose)
 					wprintf(L"Base texture '%s' copied to output file '%s'.\n", terrainBase, terrainExtOutput);
 			}
@@ -1387,6 +1414,15 @@ int wmain(int argc, wchar_t* argv[])
 								}
 								break;
 							}
+						}
+
+						// Redstone animation consists of square frames stacked vertically.
+						if ((index == redstoneDustLine0Index || index == redstoneDustLine1Index) &&
+							(tile.width <= 0 || tile.height < tile.width || tile.height % tile.width ||
+							 (size_t)tile.width > tile.image_data.size() / channels / tile.height)) {
+							wprintf(L"***** ERROR: Redstone image '%s' must contain square frames.\n", inputFile);
+							readImage_cleanup(1, &tile);
+							return 1;
 						}
 
 						// Check some special tiles here for possible errors
@@ -1734,14 +1770,14 @@ wprintf(L"Really processed %s\n", gFG.fr[fullIndex].fullFilename);
 						reportReadError(rc, potFile);
 						// It's important to note the count is down,
 						// as this determines whether anything was done for the category.
-						deleteDecoratedPotFromGrid(&gPotGrid, catIndex, index + catIndex * gPotGrid.totalTiles);
+						deleteDecoratedPotFromGrid(&gPotGrid, catIndex, catIndex * gPotGrid.totalTiles);
 					}
 					// decorated pots must be powers of two
 					else if (testFileForPowerOfTwo(potImage.width, potImage.height, potFile, false)) {
 						readImage_cleanup(1, &potImage);
 						// It's important to note the count is down,
 						// as this determines whether anything was done for the category.
-						deleteDecoratedPotFromGrid(&gPotGrid, catIndex, index + catIndex * gPotGrid.totalTiles);
+						deleteDecoratedPotFromGrid(&gPotGrid, catIndex, catIndex * gPotGrid.totalTiles);
 					}
 					else {
 
@@ -2323,7 +2359,7 @@ static void reportReadError(int rc, const wchar_t* filename)
 	case 104:
 		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR [%s] - unsupported Targa TGA file type.\n", filename);
 		break;
-	case 106: // IMAGE_ERROR_UNSUPPORTED_FORMAT:
+	case IMAGE_ERROR_UNSUPPORTED_FORMAT:
 		swprintf_s(gErrorString, _countof(gErrorString), L"***** ERROR [%s] - unsupported image channel format.\n", filename);
 		break;
 	case 999:
@@ -2811,18 +2847,32 @@ static void makePNGTileEmpty(progimage_info* dst, int dst_x, int dst_y)
 };
 
 // assumes we want to match the source to fit the destination
-static void copyPNG(progimage_info* dst, progimage_info* src)
+static bool copyPNG(progimage_info* dst, progimage_info* src)
 {
 	unsigned long row, col, zoomrow, zoomcol;
 	unsigned char* dst_data;
 	unsigned char* src_data, * src_loc;
-	unsigned long zoom, zoom2;
-	unsigned int sumR, sumG, sumB, sumA;
+	unsigned long zoom;
+	unsigned long long zoom2;
+	unsigned long long sumR, sumG, sumB, sumA;
 	unsigned long numrow, numcol;
+
+	if (src->width <= 0 || src->height <= 0 || dst->width <= 0 || dst->height <= 0 ||
+		(size_t)src->width > src->image_data.size() / 4 / src->height ||
+		(size_t)dst->width > dst->image_data.size() / 4 / dst->height)
+		return false;
+	if (dst->width >= src->width) {
+		if (dst->width % src->width || src->height > dst->height / (dst->width / src->width))
+			return false;
+	} else {
+		if (src->width % dst->width || src->height % (src->width / dst->width) ||
+			src->height / (src->width / dst->width) > dst->height)
+			return false;
+	}
 
 	if (dst->width == src->width)
 	{
-		memcpy(&dst->image_data[0], &src->image_data[0], src->width * src->height * 4);
+		memcpy(&dst->image_data[0], &src->image_data[0], (size_t)src->width * src->height * 4);
 	}
 	else if (dst->width > src->width)
 	{
@@ -2838,14 +2888,14 @@ static void copyPNG(progimage_info* dst, progimage_info* src)
 		numcol = (unsigned long)src->width;
 		for (row = 0; row < numrow; row++)
 		{
-			dst_data = &dst->image_data[0] + row * (unsigned long)dst->width * zoom * 4;
+			dst_data = &dst->image_data[0] + (size_t)row * dst->width * zoom * 4;
 			for (col = 0; col < numcol; col++)
 			{
 				for (zoomrow = 0; zoomrow < zoom; zoomrow++)
 				{
 					for (zoomcol = 0; zoomcol < zoom; zoomcol++)
 					{
-						memcpy(dst_data + (zoomrow * (unsigned long)dst->width + zoomcol) * 4, src_data, 4);
+						memcpy(dst_data + ((size_t)zoomrow * dst->width + zoomcol) * 4, src_data, 4);
 					}
 				}
 				dst_data += zoom * 4;	// move to next column
@@ -2860,15 +2910,15 @@ static void copyPNG(progimage_info* dst, progimage_info* src)
 		// check that zoom factor is an integer (really should be a power of two)
 		assert((src->width / dst->width) == (float)((int)(src->width / dst->width)));
 		zoom = src->width / dst->width;
-		assert((unsigned long)dst->height * zoom >= (unsigned long)src->height);
-		zoom2 = zoom * zoom;
+		assert((unsigned long)dst->height >= (unsigned long)src->height / zoom);
+		zoom2 = (unsigned long long)zoom * zoom;
 
 		dst_data = &dst->image_data[0];
-		numrow = (unsigned long)dst->height;
+		numrow = (unsigned long)src->height / zoom;
 		numcol = (unsigned long)dst->width;
 		for (row = 0; row < numrow; row++)
 		{
-			src_data = &src->image_data[0] + row * src->width * zoom * 4;
+			src_data = &src->image_data[0] + (size_t)row * src->width * zoom * 4;
 			for (col = 0; col < numcol; col++)
 			{
 				sumR = sumG = sumB = sumA = 0;
@@ -2876,7 +2926,7 @@ static void copyPNG(progimage_info* dst, progimage_info* src)
 				{
 					for (zoomcol = 0; zoomcol < zoom; zoomcol++)
 					{
-						src_loc = src_data + (zoomrow * src->width + zoomcol) * 4;
+						src_loc = src_data + ((size_t)zoomrow * src->width + zoomcol) * 4;
 						sumR += (unsigned int)*src_loc++;
 						sumG += (unsigned int)*src_loc++;
 						sumB += (unsigned int)*src_loc++;
@@ -2888,10 +2938,11 @@ static void copyPNG(progimage_info* dst, progimage_info* src)
 				*dst_data++ = (unsigned char)(sumB / zoom2);
 				*dst_data++ = (unsigned char)(sumA / zoom2);
 				// move to next column
-				src_data += zoom * 4;
+				src_data += (size_t)zoom * 4;
 			}
 		}
 	}
+	return true;
 }
 
 
@@ -3213,31 +3264,19 @@ static int convertHeightfieldToXYZ(progimage_info* src, float heightfieldScale)
 // 4 channels assumed
 static bool rotateTileIfHorizontal(progimage_info &tile)
 {
-	assert(tile.width == tile.height);
+
 	bool rotated = false;
 	// check if tile is vertical or horizontal
 	int row, col;
 	int vertCount = 0;
 	int horizCount = 0;
-	// start at middle column of image, at alpha, and scan it for alpha > 0
-	unsigned char* data = &tile.image_data[0] + tile.height * 2 + 3;
-	for (row = 0; row < tile.height; row++)
-	{
-		if (*data != 0)
-		{
+	for (row = 0; row < tile.width; row++) {
+		if (tile.image_data[((size_t)row * tile.width + tile.width / 2) * 4 + 3] != 0)
 			vertCount++;
-		}
-		data += 4 * tile.width;
 	}
-	// start at middle row of image, at alpha, and scan it for alpha > 0
-	data = &tile.image_data[0] + tile.width * tile.height * 2 + 3;
-	for (col = 0; col < tile.width; col++)
-	{
-		if (*data != 0)
-		{
+	for (col = 0; col < tile.width; col++) {
+		if (tile.image_data[((size_t)(tile.width / 2) * tile.width + col) * 4 + 3] != 0)
 			horizCount++;
-		}
-		data += 4;
 	}
 
 	if (vertCount < horizCount) {
@@ -3247,34 +3286,31 @@ static bool rotateTileIfHorizontal(progimage_info &tile)
 	return rotated;
 }
 
-static void rotateTile(progimage_info &tile, int channels)
+static bool rotateTile(progimage_info &tile, int channels)
 {
-	// loop through a quad of the image and round-robin rotate with its 3 other locations
-	int row, col, ch;
-	// start at middle column of image, at alpha, and scan it for alpha > 0
-	for (row = 0; row < tile.height/2; row++)
-	{
-		unsigned char* data0 = &tile.image_data[row*tile.width*channels]; // upper left corner, going down
-		unsigned char* data1 = &tile.image_data[(tile.width - 1 - row) * channels]; // upper right corner, going left
-		unsigned char* data2 = &tile.image_data[((tile.height - row) * tile.width - 1) * channels];	// lower right corner, going up
-		unsigned char* data3 = &tile.image_data[((tile.height - 1) * tile.width + row) * channels]; // lower left corner, going right
-		for (col = 0; col < tile.width/2; col++)
-		{
-			for (ch = 0; ch < channels; ch++) {
-				// copy 0 to tmp, 1 to 0, etc.
-				unsigned char tmp = *data0;
-				*data0++ = *data1;
-				*data1++ = *data2;
-				*data2++ = *data3;
-				*data3++ = tmp;
+	if (tile.width <= 0 || tile.height < tile.width || tile.height % tile.width || channels <= 0 ||
+		(size_t)tile.width > tile.image_data.size() / channels / tile.height)
+		return false;
+	const size_t side = tile.width;
+	for (size_t frame = 0; frame < (size_t)tile.height; frame += side) {
+		for (size_t row = 0; row < side / 2; row++) {
+			for (size_t col = row; col < side - 1 - row; col++) {
+				const size_t positions[] = {
+					((frame + row) * side + col) * channels,
+					((frame + col) * side + side - 1 - row) * channels,
+					((frame + side - 1 - row) * side + side - 1 - col) * channels,
+					((frame + side - 1 - col) * side + row) * channels
+				};
+				for (int ch = 0; ch < channels; ch++) {
+					unsigned char tmp = tile.image_data[positions[0] + ch];
+					for (int i = 0; i < 3; i++)
+						tile.image_data[positions[i] + ch] = tile.image_data[positions[i + 1] + ch];
+					tile.image_data[positions[3] + ch] = tmp;
+				}
 			}
-			// and move one column/row/column/row inwards, remembering that we've just moved to the next pixel from the above
-			//data0 += channels; - <-- that's what we would do if we hadn't incremented the pointer above in the loop
-			data1 += (tile.width-1) * channels;
-			data2 -= 2*channels;
-			data3 -= (tile.width+1) * channels;
 		}
 	}
+	return true;
 }
 
 // Check if RGB image is a normal map, or height map that is red channel only, or grayscale height map

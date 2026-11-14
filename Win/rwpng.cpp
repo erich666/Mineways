@@ -41,12 +41,28 @@ THE POSSIBILITY OF SUCH DAMAGE.
 // return 0 on success
 int readpng(progimage_info *im, wchar_t *filename, LodePNGColorType colortype)
 {
-    //char filename[MAX_PATH];
-    //dumb_wcharToChar(wfilename,filename);
-
-    //decode
-    unsigned int width, height;
-    unsigned int error = lodepng::decode(im->image_data, width, height, filename, colortype);
+    unsigned int width = 0, height = 0;
+    std::vector<unsigned char> buffer;
+    lodepng::State state;
+    state.info_raw.colortype = colortype;
+    state.info_raw.bitdepth = 8;
+    unsigned int error = lodepng::load_file(buffer, filename);
+    if (!error)
+        error = lodepng_inspect(&width, &height, &state, buffer.empty() ? 0 : &buffer[0], buffer.size());
+    if (!error) {
+        // Allow the largest supported terrain atlas while bounding each decoded image buffer.
+        const unsigned long long budget = 4ULL * 1024 * 1024 * 1024;
+        const unsigned long long pixels = (unsigned long long)width * height;
+        const unsigned sourceBytes = (lodepng_get_bpp(&state.info_png.color) + 7) / 8;
+        const unsigned outputBytes = (lodepng_get_bpp(&state.info_raw) + 7) / 8;
+        if (width > (unsigned int)(std::numeric_limits<int>::max)() ||
+            height > (unsigned int)(std::numeric_limits<int>::max)() ||
+            !sourceBytes || !outputBytes || pixels > budget / sourceBytes ||
+            pixels > budget / outputBytes || 7ULL * height > budget - pixels * sourceBytes)
+            error = 92;
+    }
+    if (!error)
+        error = lodepng::decode(im->image_data, width, height, state, buffer);
 
     //if there's an error, display it
     if (error)
@@ -145,7 +161,7 @@ int writepng(progimage_info *im, int channels, wchar_t *filename)
 
     //Encode the image, depending on type
     if (channels != 1 && channels != 3 && channels != 4)
-        return 106; // IMAGE_ERROR_UNSUPPORTED_FORMAT
+        return IMAGE_ERROR_UNSUPPORTED_FORMAT;
 
     if (im == NULL || im->width <= 0 || im->height <= 0)
         return 93;
@@ -158,6 +174,7 @@ int writepng(progimage_info *im, int channels, wchar_t *filename)
     if (pixelCount > (std::numeric_limits<size_t>::max)() / (size_t)channels ||
         im->image_data.size() < pixelCount * (size_t)channels)
         return 93;
+
     unsigned int error = 1;	// 1 means didn't reach lodepng
     if ( channels == 4 )
     {
@@ -173,10 +190,6 @@ int writepng(progimage_info *im, int channels, wchar_t *filename)
     {
         // 8 bit grayscale
         error = lodepng::encode(filename, im->image_data, (unsigned int)im->width, (unsigned int)im->height, LCT_GREY);
-    }
-    else
-    {
-        assert(0);
     }
 
     //if there's an error, display it

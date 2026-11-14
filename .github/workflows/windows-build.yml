@@ -1,0 +1,62 @@
+name: Windows Build
+
+on:
+  push:
+    branches: [master, 'codex/**']
+    paths: ['Win/**', 'tools/import_mod_assets.py', 'tools/mod_*.py', 'Mac/tests/mod_*.py', 'tools/test_mod_windows.py', 'tools/download_mod_assets.py', 'tools/test_download_mod_assets.py', 'tools/fixtures/**', '.github/workflows/windows-build.yml']
+  pull_request:
+    paths: ['Win/**', 'tools/import_mod_assets.py', 'tools/mod_*.py', 'Mac/tests/mod_*.py', 'tools/test_mod_windows.py', 'tools/download_mod_assets.py', 'tools/test_download_mod_assets.py', 'tools/fixtures/**', '.github/workflows/windows-build.yml']
+  workflow_dispatch:
+    inputs:
+      full_atm:
+        description: 'Download and test the pinned 495-mod ATM10 asset catalog (about 1.5 GB per build)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [Release, Debug]
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build native Windows application
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products '*' -requires Microsoft.Component.MSBuild -property installationPath
+          & "$vs\MSBuild\Current\Bin\MSBuild.exe" Win/Mineways.vcxproj -p:Configuration=${{ matrix.configuration }} -p:Platform=x64 -p:PlatformToolset=v143 -v:m -nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Test portable asset importer
+        run: python -m unittest discover -s Mac/tests -p 'mod_*.py'
+      - name: Test pinned asset downloader
+        run: python tools/test_download_mod_assets.py
+      - name: Test native mod exports
+        if: github.event_name != 'workflow_dispatch' || !inputs.full_atm
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products '*' -requires Microsoft.Component.MSBuild -property installationPath
+          $asan = Get-ChildItem "$vs\VC\Tools\MSVC\*\bin\Hostx64\x64\clang_rt.asan_dynamic-x86_64.dll" | Sort-Object FullName -Descending | Select-Object -First 1
+          if ($asan) { $env:PATH = "$($asan.DirectoryName);$env:PATH" }
+          python tools/test_mod_windows.py "Win/x64/${{ matrix.configuration }}/Mineways.exe"
+      - name: Download pinned ATM10 assets
+        if: github.event_name == 'workflow_dispatch' && inputs.full_atm
+        shell: pwsh
+        run: python tools/download_mod_assets.py tools/fixtures/atm10-1.21.1.json "$env:RUNNER_TEMP/atm10-assets"
+      - name: Compile full ATM10 catalog
+        if: github.event_name == 'workflow_dispatch' && inputs.full_atm
+        shell: pwsh
+        run: python tools/import_mod_assets.py --sources-file "$env:RUNNER_TEMP/atm10-assets/sources.txt" -o "$env:RUNNER_TEMP/atm10-pack"
+      - name: Test full ATM10 catalog in native Windows application
+        if: github.event_name == 'workflow_dispatch' && inputs.full_atm
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products '*' -requires Microsoft.Component.MSBuild -property installationPath
+          $asan = Get-ChildItem "$vs\VC\Tools\MSVC\*\bin\Hostx64\x64\clang_rt.asan_dynamic-x86_64.dll" | Sort-Object FullName -Descending | Select-Object -First 1
+          if ($asan) { $env:PATH = "$($asan.DirectoryName);$env:PATH" }
+          python tools/test_mod_windows.py "Win/x64/${{ matrix.configuration }}/Mineways.exe" --pack "$env:RUNNER_TEMP/atm10-pack/manifest.mwpack" --pack-only
