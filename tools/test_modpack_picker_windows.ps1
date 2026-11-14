@@ -104,25 +104,65 @@ function Invoke-Button($Dialog, [string]$Id) {
 }
 function Select-Path([string]$Title, [string]$Path, [string]$FieldName = 'Folder') {
     $dialog = Find-Dialog $Title
-    # The common shell picker exposes its Folder field with automation ID 1148.
-    $field = $dialog.FindFirst([Windows.Automation.TreeScope]::Descendants,
-        [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::AutomationIdProperty, '1148'))
-    $value = $null
-    if ($null -ne $field) { [void]$field.TryGetCurrentPattern([Windows.Automation.ValuePattern]::Pattern, [ref]$value) }
-    if ($null -eq $value) {
-        $edits = $dialog.FindAll([Windows.Automation.TreeScope]::Descendants,
-            [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ControlTypeProperty,
-                [Windows.Automation.ControlType]::Edit))
-        foreach ($edit in $edits) {
-            $candidate = $null
-            if ($edit.Current.Name -match ('^' + [regex]::Escape($FieldName)) -and
-                $edit.TryGetCurrentPattern([Windows.Automation.ValuePattern]::Pattern, [ref]$candidate) -and
-                -not $candidate.Current.IsReadOnly) { $value = $candidate; break }
+    $deadline = [DateTime]::UtcNow.AddSeconds(30)
+    do {
+        # The world picker starts in saves. Select its visible world item directly.
+        if ($Title -eq "Choose a World in This Modpack's saves Folder") {
+            $items = $dialog.FindAll([Windows.Automation.TreeScope]::Descendants,
+                [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::NameProperty,
+                    [IO.Path]::GetFileName($Path)))
+            foreach ($item in $items) {
+                $selection = $null
+                if ($item.TryGetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern, [ref]$selection)) {
+                    $selection.Select()
+                    Invoke-Button $dialog '1'
+                    return
+                }
+            }
         }
-    }
-    if ($null -eq $value) { throw "Native picker has no editable Folder field: $Title" }
-    $value.SetValue($Path)
-    Invoke-Button $dialog '1'
+        # Shell dialog controls appear after the top-level dialog. Wait for their providers.
+        $field = $dialog.FindFirst([Windows.Automation.TreeScope]::Descendants,
+            [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::AutomationIdProperty, '1148'))
+        $value = $null
+        if ($null -ne $field) {
+            [void]$field.TryGetCurrentPattern([Windows.Automation.ValuePattern]::Pattern, [ref]$value)
+            if ($null -eq $value) {
+                $children = $field.FindAll([Windows.Automation.TreeScope]::Descendants,
+                    [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ControlTypeProperty,
+                        [Windows.Automation.ControlType]::Edit))
+                foreach ($child in $children) {
+                    $candidate = $null
+                    if ($child.TryGetCurrentPattern([Windows.Automation.ValuePattern]::Pattern, [ref]$candidate) -and
+                        -not $candidate.Current.IsReadOnly) { $value = $candidate; break }
+                }
+            }
+        }
+        if ($null -eq $value) {
+            $edits = $dialog.FindAll([Windows.Automation.TreeScope]::Descendants,
+                [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ControlTypeProperty,
+                    [Windows.Automation.ControlType]::Edit))
+            foreach ($edit in $edits) {
+                $candidate = $null
+                if ($edit.Current.Name -match ('^' + [regex]::Escape($FieldName)) -and
+                    $edit.TryGetCurrentPattern([Windows.Automation.ValuePattern]::Pattern, [ref]$candidate) -and
+                    -not $candidate.Current.IsReadOnly) { $value = $candidate; break }
+            }
+        }
+        if ($null -ne $value -and -not $value.Current.IsReadOnly) {
+            $value.SetValue($Path)
+            Invoke-Button $dialog '1'
+            return
+        }
+        Start-Sleep -Milliseconds 250
+    } while ([DateTime]::UtcNow -lt $deadline)
+    $controls = @($dialog.FindAll([Windows.Automation.TreeScope]::Descendants,
+        [Windows.Automation.Condition]::TrueCondition) | ForEach-Object {
+            @{ name = $_.Current.Name; id = $_.Current.AutomationId; class = $_.Current.ClassName;
+               type = $_.Current.ControlType.ProgrammaticName }
+        })
+    $controls | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $Output 'picker-controls.json') -Encoding utf8
+    Save-WindowDiagnostics
+    throw "Native picker has no editable $FieldName field or world item: $Title. See picker-controls.json."
 }
 function Wait-Ready([string]$WorldName, [int]$Seconds = 1200) {
     $deadline = [DateTime]::UtcNow.AddSeconds($Seconds)
