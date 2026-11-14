@@ -189,6 +189,11 @@ jobs:
         if: runner.os == 'Windows' && github.event_name == 'pull_request'
         shell: pwsh
         run: |
+          # v14.03 hides two shared file-list helpers when Sketchfab is disabled.
+          if ((git -C vanilla-baseline rev-parse HEAD:Win/Mineways.cpp) -eq '52877899fca031bc3bd6301f72aef842d74b4813') {
+            git -C vanilla-baseline apply ../tools/fixtures/v14.03-windows-baseline.patch
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
           $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products '*' -requires Microsoft.Component.MSBuild -property installationPath
           & "$vs\MSBuild\Current\Bin\MSBuild.exe" vanilla-baseline/Win/Mineways.vcxproj -p:Configuration=Release -p:Platform=x64 -p:PlatformToolset=v143 -v:m -nologo
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
