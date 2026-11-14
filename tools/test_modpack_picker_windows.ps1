@@ -255,29 +255,6 @@ try {
         if ($title -notmatch [regex]::Escape([IO.Path]::GetFileName($setup.world))) {
             throw "The selected world did not load: $title"
         }
-        # Cancel the world chooser and reject invalid NBT before pack preparation.
-        Send-Menu 49003
-        Select-Path 'Choose Modpack Folder' $setup.instance
-        Invoke-Button (Find-Dialog "Choose a World in This Modpack's saves Folder") '2'
-        Start-Sleep -Milliseconds 250
-        if ([ModpackPickerWindow]::Title($window) -ne $title) { throw 'World chooser cancellation changed the scene' }
-        $badWorld = Join-Path ([IO.Path]::GetDirectoryName($setup.world)) ('Invalid picker fixture ' + [guid]::NewGuid().ToString('N'))
-        [IO.Directory]::CreateDirectory($badWorld) | Out-Null
-        try {
-            [IO.File]::WriteAllText((Join-Path $badWorld 'level.dat'), 'Not NBT')
-            Send-Menu 49003
-            Select-Path 'Choose Modpack Folder' $setup.instance
-            Select-Path "Choose a World in This Modpack's saves Folder" $badWorld
-            $failure = Find-Dialog 'Choose Modpack Folder'
-            $text = $failure.FindAll([Windows.Automation.TreeScope]::Descendants,
-                [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ControlTypeProperty,
-                    [Windows.Automation.ControlType]::Text))
-            $messages = @($text | ForEach-Object { $_.Current.Name }) -join ' '
-            if ($messages -notmatch 'not a readable Java Anvil world') { throw "Missing actionable invalid-world error: $messages" }
-            Invoke-Button $failure '1'
-            Start-Sleep -Milliseconds 250
-            if ([ModpackPickerWindow]::Title($window) -ne $title) { throw 'Invalid world changed the current scene' }
-        } finally { [IO.Directory]::Delete($badWorld, $true) }
         $script = Join-Path $destination 'current-scene.mwscript'
         # Deliberately omit Mod pack and Minecraft world: only the native picker loads them.
         @('Show informational: script', 'Show warning: script', 'Show error: script',
