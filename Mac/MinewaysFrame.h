@@ -57,6 +57,7 @@ private:
     void OnWorldMenuItem(wxCommandEvent&);  // dynamic world-list items
     void OnGoToLocation(wxCommandEvent&);
     void OnLoadModPack(wxCommandEvent&);
+    void OnChooseModpackFolder(wxCommandEvent&);
     void OnClearModPack(wxCommandEvent&);
     void OnChooseTerrainFile(wxCommandEvent&);
     void OnDefaultTerrain(wxCommandEvent&);
@@ -101,6 +102,7 @@ enum {
     ID_TEST_BLOCK_WORLD,
     ID_CHOOSE_TERRAIN,
     ID_LOAD_MOD_PACK,
+    ID_CHOOSE_MODPACK_FOLDER,
     ID_CLEAR_MOD_PACK,
     ID_DEFAULT_TERRAIN,
     ID_CULLING_SCHEMES,

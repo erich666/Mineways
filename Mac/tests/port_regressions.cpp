@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <chrono>
 #include <thread>
+#include <wx/mstream.h>
 
 static void parseOption(ImportedSet& settings, const char* command)
 {
@@ -274,15 +275,82 @@ static void checkMapPerformance()
     std::filesystem::remove_all(root);
 }
 
+static void checkModpackInstanceSelection()
+{
+    SetSeparatorMap(L"/");
+    namespace fs = std::filesystem;
+    const fs::path root = fs::temp_directory_path() /
+        ("mineways modpack ' " + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    const fs::path instance = root / "Prism";
+    const fs::path game = instance / ".minecraft";
+    const fs::path saves = game / "saves";
+    const fs::path world = saves / fs::u8path("World café");
+    fs::create_directories(game / "mods");
+    fs::create_directories(world);
+    std::ofstream(world / "level.dat").put('\0');
+    const auto wide = [](const fs::path& path) { return wxString::FromUTF8(path.u8string()); };
+    wxString actualGame, actualSaves, actualWorld;
+    assert(ResolveModpackInstance(wide(instance), actualGame, actualSaves));
+    assert(actualGame == wide(fs::canonical(game)) && actualSaves == wide(fs::canonical(saves)));
+    assert(ResolveModpackInstance(wide(game), actualGame, actualSaves));
+    assert(ModpackWorldInSaves(wide(world), actualSaves, actualWorld));
+    assert(actualWorld == wide(fs::canonical(world)));
+    assert(!ModpackWorldReadable(actualWorld));
+    std::vector<unsigned char> level;
+    appendTag(level, 10, ""); appendTag(level, 10, "Data");
+    appendTag(level, 3, "version"); appendNumber(level, 19133, 4);
+    level.push_back(0); level.push_back(0);
+    gzFile file = gzopen((world / "level.dat").u8string().c_str(), "wb");
+    assert(file && gzwrite(file, level.data(), (unsigned int)level.size()) == (int)level.size());
+    assert(gzclose(file) == Z_OK && ModpackWorldReadable(actualWorld));
+    assert(!ModpackWorldInSaves(wide(saves), actualSaves, actualWorld));
+    fs::create_directories(world / "nested");
+    std::ofstream(world / "nested/level.dat").put('\0');
+    assert(!ModpackWorldInSaves(wide(world / "nested"), actualSaves, actualWorld));
+    const fs::path outside = root / "outside";
+    fs::create_directory(outside);
+    std::ofstream(outside / "level.dat").put('\0');
+    fs::create_directory_symlink(outside, saves / "escaped");
+    assert(!ModpackWorldInSaves(wide(saves / "escaped"), actualSaves, actualWorld));
+    assert(!ResolveModpackInstance(wide(outside), actualGame, actualSaves));
+    for (const char* child : { "", "minecraft" }) {
+        fs::path pack = root / (*child ? "Prism minecraft" : "CurseForge");
+        fs::create_directories(pack / child / "mods");
+        fs::create_directories(pack / child / "saves");
+        assert(ResolveModpackInstance(wide(pack), actualGame, actualSaves));
+        assert(actualGame == wide(fs::canonical(pack / child)));
+    }
+    const fs::path result = root / "result.txt", manifest = root / fs::u8path("pack café '.mwpack");
+    std::ofstream(manifest).put('\0');
+    wxString prepared, error;
+    std::ofstream(result, std::ios::binary) << manifest.u8string();
+    assert(ReadPreparedModpack(wide(result), prepared, error) && prepared == wide(manifest));
+    std::ofstream(result, std::ios::binary) << "VANILLA";
+    assert(ReadPreparedModpack(wide(result), prepared, error) && prepared == "VANILLA");
+    for (const std::string& invalid : { std::string(), std::string("relative.mwpack"),
+        (root / "missing.mwpack").u8string(), manifest.u8string() + "\n", std::string("VANILLA\0extra", 13),
+        std::string("\xff", 1), std::string(4097, 'a') }) {
+        std::ofstream(result, std::ios::binary) << invalid;
+        assert(!ReadPreparedModpack(wide(result), prepared, error) && !error.empty());
+    }
+    const std::string verbose(100000, 'x');
+    wxMemoryInputStream diagnosticStream(verbose.data(), verbose.size());
+    std::string diagnostic;
+    ReadModpackDiagnostic(&diagnosticStream, diagnostic);
+    assert(diagnostic.size() == 16384 && !diagnosticStream.CanRead());
+    fs::remove_all(root);
+}
+
 #include "dimension_regressions.h"
 
 int main()
 {
+    checkModpackInstanceSelection();
     checkDimensionDiscovery();
     checkMapPerformance();
     checkSchematicBoundaries();
     checkOptions();
     for (int version : { 5023, 3953, 2586, 1343, -1 })
         checkSchematic(version);
-    puts("PASS: loader cancellation/world switching, incremental panning/style parity, bounded wide views, schematic chunk boundaries, OBJ option order, aliases, USD independence, syntax-only pass, invalid booleans, schematic versions and height bounds");
+    puts("PASS: modpack instance/world boundaries and helper results, loader cancellation/world switching, incremental panning/style parity, bounded wide views, schematic chunk boundaries, OBJ option order, aliases, USD independence, syntax-only pass, invalid booleans, schematic versions and height bounds");
 }

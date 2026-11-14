@@ -123,6 +123,10 @@ class ImportError(ValueError):
     pass
 
 
+class NoModDefinitions(ImportError):
+    """All indexed block and dimension definitions belong to vanilla Minecraft."""
+
+
 def resource(value):
     if not isinstance(value, str):
         raise ImportError('resource reference must be a string')
@@ -191,9 +195,14 @@ class Assets:
                         if count > MAX_FILES:
                             raise ImportError('too many archive entries')
                         # Validate before ZipInfo separator normalization and NUL truncation.
-                        name = safe_path(entry.orig_filename)
                         if stat.S_ISLNK(entry.external_attr >> 16):
                             raise ImportError('archive symbolic links are not accepted')
+                        # A root label such as "LICENSE_Create: Addon Compatibility" is
+                        # an opaque ZIP key. It cannot supply assets and is never extracted.
+                        raw = entry.orig_filename
+                        if ':' in raw and not any(ch in raw for ch in '/\\\0') and not re.match(r'^[A-Za-z]:', raw):
+                            continue
+                        name = safe_path(raw)
                         if not self.wanted(name) or entry.is_dir():
                             continue
                         if name in seen:
@@ -1459,6 +1468,8 @@ def compile_pack(sources, destination, namespaces=None):
                 if geometry_stream.tell() + state_stream.tell() > MAX_MANIFEST:
                     raise ImportError('compiled manifest exceeds runtime size limit')
         if not block_count and not dimensions:
+            if not rejected and not unsupported_dimensions:
+                raise NoModDefinitions('no supported mod blocks or dimensions found')
             raise ImportError('no supported mod blocks or dimensions found' + (': ' + rejected[0]['reason'] if rejected else ''))
         version = 6 if has_split_geometry else 5 if has_expanded_uv else 4 if has_z_rotation else 3 if polygon_count else 2
         report = {'format': version, 'polygons': polygon_count, 'blocks': block_count, 'selectors': selector_count,

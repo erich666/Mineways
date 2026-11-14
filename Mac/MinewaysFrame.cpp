@@ -6,6 +6,7 @@
 #include <wx/stdpaths.h>
 #include <wx/filename.h>
 #include <wx/progdlg.h>
+#include <wx/process.h>
 #include "MinewaysFrame.h"
 #include "MapPanel.h"
 #include "LocationDialog.h"
@@ -18,6 +19,8 @@
 #include "stdafx.h"
 #include "CullingSchemes.h"   // applyCullingScheme/isBlockCulled declarations
 #include <cmath>
+#include <filesystem>
+#include <fstream>
 #include <limits>
 #include <new>
 #include <memory>
@@ -310,6 +313,7 @@ wxBEGIN_EVENT_TABLE(MinewaysFrame, wxFrame)
     EVT_MENU(ID_TEST_BLOCK_WORLD, MinewaysFrame::OnTestBlockWorld)
     EVT_MENU(ID_GO_TO_LOCATION,   MinewaysFrame::OnGoToLocation)
     EVT_MENU(ID_LOAD_MOD_PACK, MinewaysFrame::OnLoadModPack)
+    EVT_MENU(ID_CHOOSE_MODPACK_FOLDER, MinewaysFrame::OnChooseModpackFolder)
     EVT_MENU(ID_CLEAR_MOD_PACK, MinewaysFrame::OnClearModPack)
     EVT_MENU(ID_CHOOSE_TERRAIN,   MinewaysFrame::OnChooseTerrainFile)
     EVT_MENU(ID_DEFAULT_TERRAIN,  MinewaysFrame::OnDefaultTerrain)
@@ -575,6 +579,8 @@ void MinewaysFrame::BuildMenu()
 
     fileMenu->Append(ID_OPEN_FILE,  "Open level.dat or Schematic...\tCtrl+O",
                      "Open a level.dat or .schematic/.schem file");
+    fileMenu->Append(ID_CHOOSE_MODPACK_FOLDER, "Choose Modpack Folder…",
+                     "Prepare an installed modpack and open one of its worlds");
     fileMenu->Append(ID_GO_TO_LOCATION, "Go To Location...\tCtrl+G",
                      "Jump map view to a specific X,Z coordinate");
     // "Choose Terrain File" submenu: [default] + any terrainExt*.png packs found
@@ -1654,6 +1660,183 @@ void MinewaysFrame::OnLoadModPack(wxCommandEvent&)
         wxMessageBox(error, "Mod pack", wxOK | wxICON_ERROR, this);
     else
         SetStatusText("Loaded mod pack: " + dialog.GetPath(), 0);
+}
+
+static bool ResolveModpackInstance(const wxString& selected, wxString& game, wxString& saves)
+{
+    namespace fs = std::filesystem;
+    std::error_code error;
+    const fs::path root = fs::u8path(std::string(selected.utf8_str()));
+    for (const char* suffix : { "", ".minecraft", "minecraft" }) {
+        fs::path candidate = fs::canonical(root / suffix, error);
+        if (error || !fs::is_directory(candidate / "mods", error) ||
+            !fs::is_directory(candidate / "saves", error)) continue;
+        fs::path resolvedSaves = fs::canonical(candidate / "saves", error);
+        if (error) continue;
+        game = wxString::FromUTF8(candidate.u8string());
+        saves = wxString::FromUTF8(resolvedSaves.u8string());
+        return true;
+    }
+    return false;
+}
+
+static bool ModpackWorldInSaves(const wxString& selected, const wxString& saves, wxString& world)
+{
+    namespace fs = std::filesystem;
+    std::error_code error;
+    fs::path candidate = fs::canonical(fs::u8path(std::string(selected.utf8_str())), error);
+    if (error || !fs::is_directory(candidate, error) ||
+        !fs::is_regular_file(candidate / "level.dat", error)) return false;
+    fs::path parent = fs::canonical(fs::u8path(std::string(saves.utf8_str())), error);
+    if (error || candidate.parent_path() != parent) return false;
+    world = wxString::FromUTF8(candidate.u8string());
+    return true;
+}
+
+static bool ModpackWorldReadable(const wxString& world)
+{
+    wchar_t directory[MAX_PATH_AND_FILE], opened[MAX_PATH_AND_FILE];
+    if (!_mwUtf8ToWideBuffer(world.utf8_str(), directory, MAX_PATH_AND_FILE)) return false;
+    int version = 0;
+    return GetFileVersion(directory, &version, opened, MAX_PATH_AND_FILE) == 0;
+}
+
+static bool ReadPreparedModpack(const wxString& result, wxString& manifest, wxString& error)
+{
+    std::ifstream stream(std::filesystem::u8path(std::string(result.utf8_str())), std::ios::binary);
+    char buffer[4097];
+    stream.read(buffer, sizeof(buffer));
+    const std::string value(buffer, (size_t)stream.gcount());
+    if (value.empty() || value.size() > 4096 || value.find('\0') != std::string::npos ||
+        value.find('\n') != std::string::npos || value.find('\r') != std::string::npos) {
+        error = "The modpack helper returned an invalid result.";
+        return false;
+    }
+    manifest = wxString::FromUTF8(value);
+    if (manifest.empty() || std::string(manifest.utf8_str()) != value) {
+        error = "The modpack helper returned an invalid UTF-8 path.";
+        return false;
+    }
+    if (manifest == "VANILLA") return true;
+    std::error_code ec;
+    const auto path = std::filesystem::u8path(value);
+    if (!path.is_absolute() || !std::filesystem::is_regular_file(path, ec)) {
+        error = "The modpack helper did not return an existing absolute manifest path.";
+        return false;
+    }
+    return true;
+}
+
+class ModpackPrepareProcess : public wxProcess {
+public:
+    bool finished = false;
+    int status = -1;
+    void OnTerminate(int, int exitCode) override { status = exitCode; finished = true; }
+};
+
+static void ReadModpackDiagnostic(wxInputStream* stream, std::string& text)
+{
+    char buffer[4096];
+    while (stream && stream->CanRead()) {
+        stream->Read(buffer, sizeof(buffer));
+        const size_t count = stream->LastRead();
+        if (!count) break;
+        text.append(buffer, count);
+        // Keep the last diagnostic while draining all output, so a full pipe cannot stop the helper.
+        if (text.size() > 16384) text.erase(0, text.size() - 16384);
+    }
+}
+
+void MinewaysFrame::OnChooseModpackFolder(wxCommandEvent&)
+{
+    if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE) {
+        wxMessageBox("Open a world or the Block Test World before changing mod packs. Reload the schematic after the pack changes.",
+                     "Modpack", wxOK | wxICON_INFORMATION, this);
+        return;
+    }
+    wxDirDialog instanceDialog(this, "Choose a Prism or CurseForge modpack instance", "",
+                               wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+    if (instanceDialog.ShowModal() != wxID_OK) {
+        SetStatusText("Modpack selection canceled", 0);
+        return;
+    }
+    wxString game, saves;
+    if (!ResolveModpackInstance(instanceDialog.GetPath(), game, saves)) {
+        wxMessageBox("Choose an instance with mods and saves folders. You can also select its minecraft or .minecraft folder.",
+                     "Modpack folder", wxOK | wxICON_ERROR, this);
+        return;
+    }
+    wxDirDialog worldDialog(this, "Choose a world from this modpack's saves folder", saves,
+                            wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+    if (worldDialog.ShowModal() != wxID_OK) {
+        SetStatusText("Modpack world selection canceled", 0);
+        return;
+    }
+    wxString world;
+    if (!ModpackWorldInSaves(worldDialog.GetPath(), saves, world)) {
+        wxMessageBox("Choose a world directly inside this instance's saves folder. The folder must contain level.dat.",
+                     "Modpack world", wxOK | wxICON_ERROR, this);
+        return;
+    }
+    wxFileName package(wxStandardPaths::Get().GetExecutablePath());
+    if (package.GetDirs().Last() == "MacOS") {
+        package.RemoveLastDir();
+        package.RemoveLastDir();
+        package.RemoveLastDir();
+    }
+    const wxString helper = package.GetPathWithSep() + "tools/prepare_modpack.command";
+    if (!wxFileExists(helper)) {
+        wxMessageBox("This build does not include tools/prepare_modpack.command. Use the complete preview folder.",
+                     "Modpack preparation", wxOK | wxICON_ERROR, this);
+        return;
+    }
+    const wxString result = wxFileName::CreateTempFileName("mineways-modpack-");
+    if (result.empty()) {
+        wxMessageBox("Could not create a temporary result file.", "Modpack preparation", wxOK | wxICON_ERROR, this);
+        return;
+    }
+    wxON_BLOCK_EXIT1(wxRemoveFile, result);
+    ModpackPrepareProcess process;
+    process.Redirect();
+    const wchar_t* const argv[] = { helper.wc_str(), game.wc_str(), world.wc_str(), result.wc_str(), nullptr };
+    const long pid = wxExecute(argv, wxEXEC_ASYNC | wxEXEC_MAKE_GROUP_LEADER, &process);
+    if (pid == 0) {
+        wxMessageBox("Could not start the modpack preparation helper.", "Modpack preparation", wxOK | wxICON_ERROR, this);
+        return;
+    }
+    process.CloseOutput();
+    std::string output, diagnostic;
+    bool canceled = false;
+    {
+        wxProgressDialog progress("Preparing modpack", "Preparing models and textures. The first import can take several minutes.",
+                                  100, this, wxPD_APP_MODAL | wxPD_ELAPSED_TIME | wxPD_CAN_ABORT);
+        while (!process.finished) {
+            ReadModpackDiagnostic(process.GetInputStream(), output);
+            ReadModpackDiagnostic(process.GetErrorStream(), diagnostic);
+            if (!progress.Pulse() && !canceled) {
+                canceled = true;
+                wxProcess::Kill((int)pid, wxSIGKILL, wxKILL_CHILDREN);
+            }
+            wxTheApp->Yield(true);
+            wxMilliSleep(20);
+        }
+        ReadModpackDiagnostic(process.GetInputStream(), output);
+        ReadModpackDiagnostic(process.GetErrorStream(), diagnostic);
+    }
+    if (canceled) {
+        SetStatusText("Modpack preparation canceled. The current world is unchanged.", 0);
+        return;
+    }
+    wxString error, manifest;
+    if (process.status != 0) {
+        error = wxString::FromUTF8(diagnostic.empty() ? output : diagnostic);
+        if (error.empty()) error = wxString::Format("The preparation helper exited with status %d.", process.status);
+    } else if (ReadPreparedModpack(result, manifest, error)) {
+        if (!ModpackWorldReadable(world))
+            error = "The selected world's level.dat could not be read. The current world and modpack are unchanged.";
+        else if (SetModPack(manifest, manifest == "VANILLA", error)) error = LoadWorldFromDir(world);
+    }
+    if (!error.empty()) wxMessageBox(error, "Modpack preparation", wxOK | wxICON_ERROR, this);
 }
 
 void MinewaysFrame::OnClearModPack(wxCommandEvent&)

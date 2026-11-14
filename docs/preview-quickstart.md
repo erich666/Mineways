@@ -107,9 +107,27 @@ For a schematic test, open `demo/demo.schem` after the demo pack. Its local boun
 
 Use Sponge `.schem` for mod schematic exports. The legacy `.schematic` format cannot preserve mod block identities.
 
-## Try your own pack
+## Open an installed modpack
 
-Only custom pack compilation requires Python 3.9 or later. No extra Python packages are required. Keep the bundled `tools/mod_*.py` helpers beside `tools/import_mod_assets.py`.
+Use the complete preview folder. No manual Python installation or compilation command is required.
+
+1. Open Mineways from the extracted preview folder.
+2. Select **File > Choose Modpack Folder**.
+3. Select your Prism or CurseForge instance folder.
+4. Select a world from that instance's saves folder.
+5. Wait for Mineways to prepare the matching pack and open the world.
+
+For Prism, select the folder containing `mmc-pack.json`. For CurseForge, select the folder containing `minecraftinstance.json`. You can also select its `minecraft` or `.minecraft` folder.
+
+The helper reads the installed client, loader, mods, and enabled resource packs. It does not start Minecraft or modify the saves. The first use can download the pinned setup runtime. Later uses reuse a verified local cache.
+
+Keep the launcher installation available. A missing matching Minecraft client or Forge/NeoForge library produces an explicit error. Install or repair that instance through its launcher, then retry.
+
+A pack with only client-side changes can open without a mod catalog. Other packs can contain unsupported blocks or states. Review the importer report before exporting an important selection.
+
+## Compile a pack manually
+
+Manual pack compilation requires Python 3.9 or later. No extra Python packages are required. Keep the bundled `tools/mod_*.py` helpers beside `tools/import_mod_assets.py`.
 
 ```sh
 python3 tools/import_mod_assets.py \

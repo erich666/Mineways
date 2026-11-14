@@ -25,12 +25,12 @@ def digest(path):
     return value.hexdigest()
 
 
-def inventory(pack):
+def inventory(pack, receipt='showcase-setup.json'):
     files = {}
     for path in sorted(pack.rglob('*')):
         if path.is_symlink():
             raise ValueError('The generated showcase pack contains a symbolic link.')
-        if path.is_file() and path.name != 'showcase-setup.json':
+        if path.is_file() and path != pack / receipt:
             files[path.relative_to(pack).as_posix()] = digest(path)
     return files
 

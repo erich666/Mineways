@@ -84,7 +84,10 @@ jobs:
               metadata_files = [name for name in package.namelist() if name.endswith('/BUILD-METADATA.json')]
               if len(metadata_files) != 1:
                   raise SystemExit('Expected exactly one build metadata file')
-              print(json.dumps(json.loads(package.read(metadata_files[0])), indent=2))
+              metadata = json.loads(package.read(metadata_files[0]))
+              if metadata['source_revision'] != os.environ['GITHUB_SHA']:
+                  raise SystemExit('The package source revision differs from the workflow checkout')
+              print(json.dumps(metadata, indent=2))
           print('Exact release ZIP checksum verified:', archive.name)
           PY
       - name: Verify native macOS test runner
@@ -125,6 +128,11 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: tools/test_preview_windows_gui.ps1 -PackageRoot "preview-test/extracted preview with spaces/Mineways-preview-windows-x64" -Screenshot "preview-test/showcase-gui.png" -Atm10Showcase
+      - name: Test real Fabric and NeoForge packs through packaged launcher helpers
+        shell: bash
+        run: |
+          python tools/test_launcher_real_packs.py --self-test
+          python tools/test_launcher_real_packs.py "preview-test/extracted preview with spaces/Mineways-preview-${{ matrix.package }}" --output real-launcher-packs
       - name: Test exact package with full ATM10 catalog
         if: inputs.full_atm
         shell: bash
@@ -143,4 +151,7 @@ jobs:
             preview-test/windows-gui.png
             preview-test/showcase-gui.png
             showcase-test/validation.json
+            real-launcher-packs/validation.json
+            real-launcher-packs/**/installation.json
+            real-launcher-packs/**/*.log
           if-no-files-found: warn

@@ -39,6 +39,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 #include "XZip.h"
 #include "rwpng.h"
 #include "ModSupport.h"
+#include "ModpackFolder.h"
+#include <ShObjIdl.h>
 #include <assert.h>
 #include <ShlObj.h>
 #include <Shlwapi.h>
@@ -513,6 +515,8 @@ static bool switchToDimension(const wchar_t* id, WindowSet& ws);
 static const int IDM_DIMENSIONS = 49000;
 static const int IDM_LOAD_MOD_PACK = 49001;
 static const int IDM_CLEAR_MOD_PACK = 49002;
+static const int IDM_CHOOSE_MODPACK_FOLDER = 49003;
+static int chooseModpackFolder(HWND owner);
 static bool setModPack(const char* path, bool clear, std::string& error);
 static void updateStatus(int mx, int mz, int my, const char* blockLabel, int type, int dataVal, int biome, HWND hwndStatus);
 static void sendStatusMessage(HWND hwndStatus, wchar_t* buf);
@@ -1038,6 +1042,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         gMainHWnd = hWnd;
         DarkModeApplyToWindow(hWnd);
         AppendMenuW(GetSubMenu(GetMenu(hWnd), 1), MF_STRING, IDM_DIMENSIONS, L"Dimensions...");
+        InsertMenuW(GetSubMenu(GetMenu(hWnd), 0), IDM_CLOSE, MF_BYCOMMAND | MF_STRING, IDM_CHOOSE_MODPACK_FOLDER, L"Choose Modpack Folder...");
         InsertMenuW(GetSubMenu(GetMenu(hWnd), 0), IDM_CLOSE, MF_BYCOMMAND | MF_STRING, IDM_LOAD_MOD_PACK, L"Load Mod Pack...");
         InsertMenuW(GetSubMenu(GetMenu(hWnd), 0), IDM_CLOSE, MF_BYCOMMAND | MF_STRING, IDM_CLEAR_MOD_PACK, L"Clear Mod Pack");
         checkThemeMenu(GetMenu(hWnd));
@@ -2959,6 +2964,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     FilterMessageBox(NULL, _T("You need to load a world first. Use 'Open World' or 'Open...' and find your level.dat file in %appdata%/.minecraft/saves."), _T("Informational"), MB_OK | MB_ICONINFORMATION);
                 }
                 break;
+            case IDM_CHOOSE_MODPACK_FOLDER:
+            {
+                int retCode = chooseModpackFolder(hWnd);
+                if (retCode) {
+                    if (retCode == 2) gotoSurface(hWnd, hwndSlider, hwndLabel);
+                    setUIOnLoadWorld(hWnd, hwndSlider, hwndLabel, hwndInfoLabel, hwndBottomSlider, hwndBottomLabel);
+                    REDRAW_ALL;
+                }
+                break;
+            }
             case IDM_LOAD_MOD_PACK:
             case IDM_CLEAR_MOD_PACK:
             {
@@ -3872,6 +3887,184 @@ static void updateCursor(LPARAM lParam, BOOL hdragging)
     {
         // default point
         SetCursor(gArrowCursor);
+    }
+}
+
+static HRESULT chooseModpackDirectory(HWND owner, const wchar_t* title,
+    const std::filesystem::path& initial, std::filesystem::path& selected)
+{
+    HRESULT initialized = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    if (FAILED(initialized)) return initialized;
+    IFileOpenDialog* dialog = NULL;
+    HRESULT result = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog));
+    if (SUCCEEDED(result)) {
+        DWORD options = 0;
+        result = dialog->GetOptions(&options);
+        if (SUCCEEDED(result)) result = dialog->SetOptions(options | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST | FOS_NOCHANGEDIR | FOS_DONTADDTORECENT);
+        if (SUCCEEDED(result)) result = dialog->SetTitle(title);
+        if (SUCCEEDED(result) && !initial.empty()) {
+            IShellItem* folder = NULL;
+            result = SHCreateItemFromParsingName(initial.c_str(), NULL, IID_PPV_ARGS(&folder));
+            if (SUCCEEDED(result)) {
+                result = dialog->SetFolder(folder);
+                folder->Release();
+            }
+        }
+        if (SUCCEEDED(result)) result = dialog->Show(owner);
+        if (SUCCEEDED(result)) {
+            IShellItem* item = NULL;
+            result = dialog->GetResult(&item);
+            if (SUCCEEDED(result)) {
+                PWSTR path = NULL;
+                result = item->GetDisplayName(SIGDN_FILESYSPATH, &path);
+                if (SUCCEEDED(result)) selected = path;
+                CoTaskMemFree(path);
+                item->Release();
+            }
+        }
+        dialog->Release();
+    }
+    CoUninitialize();
+    return result;
+}
+
+static std::string readModpackHelperFile(const std::filesystem::path& file, size_t limit)
+{
+    std::ifstream input(file, std::ios::binary);
+    std::string text(limit + 1, '\0');
+    input.read(text.data(), static_cast<std::streamsize>(text.size()));
+    text.resize(static_cast<size_t>(input.gcount()));
+    if (text.size() > limit) throw std::runtime_error("The modpack preparation helper returned too much data.");
+    return text;
+}
+
+static std::string prepareChosenModpack(HWND owner, const std::filesystem::path& instance,
+    const std::filesystem::path& world)
+{
+    const auto helper = std::filesystem::path(gExeDirectory) / L"tools" / L"prepare_modpack_windows.ps1";
+    if (!std::filesystem::is_regular_file(helper))
+        throw std::runtime_error("The installed-modpack helper is missing. Extract the complete preview ZIP, including its tools folder, and try again.");
+    wchar_t system[MAX_PATH_AND_FILE] = {};
+    UINT systemLength = GetSystemDirectoryW(system, _countof(system));
+    if (!systemLength || systemLength >= _countof(system))
+        throw std::runtime_error("Could not locate Windows PowerShell. Check your Windows installation and try again.");
+    const auto powershell = std::filesystem::path(system) / L"WindowsPowerShell" / L"v1.0" / L"powershell.exe";
+    wchar_t temporary[MAX_PATH_AND_FILE] = {};
+    wchar_t resultPath[MAX_PATH_AND_FILE] = {};
+    DWORD temporaryLength = GetTempPathW(_countof(temporary), temporary);
+    if (!temporaryLength || temporaryLength >= _countof(temporary) || !GetTempFileNameW(temporary, L"MWP", 0, resultPath))
+        throw std::runtime_error("Could not create a temporary result file. Check that your temporary folder is writable.");
+    struct ResultFiles {
+        std::filesystem::path path;
+        ~ResultFiles() {
+            std::error_code ignored;
+            std::filesystem::remove(path, ignored);
+            std::filesystem::remove(path.wstring() + L".error.txt", ignored);
+        }
+    } files{resultPath};
+    using MinewaysModpack::quoteArgument;
+    std::wstring command = quoteArgument(powershell.wstring()) + L" -NoProfile -ExecutionPolicy Bypass -File " +
+        quoteArgument(helper.wstring()) + L" " + quoteArgument(instance.wstring()) + L" " +
+        quoteArgument(world.wstring()) + L" " + quoteArgument(resultPath);
+    STARTUPINFOW startup = {};
+    startup.cb = static_cast<DWORD>(sizeof(startup));
+    PROCESS_INFORMATION process = {};
+    if (!CreateProcessW(powershell.c_str(), command.data(), NULL, NULL, FALSE, CREATE_NEW_CONSOLE,
+        NULL, gExeDirectory, &startup, &process))
+        throw std::runtime_error("Windows could not start modpack preparation. Check that Windows PowerShell and the preview tools are available, then try again.");
+    CloseHandle(process.hThread);
+    BOOL enabled = IsWindowEnabled(owner);
+    EnableWindow(owner, FALSE);
+    bool quit = false;
+    int quitCode = 0;
+    DWORD wait = WAIT_FAILED;
+    while ((wait = MsgWaitForMultipleObjects(1, &process.hProcess, FALSE, INFINITE, QS_ALLINPUT)) == WAIT_OBJECT_0 + 1) {
+        MSG message;
+        while (PeekMessageW(&message, NULL, 0, 0, PM_REMOVE)) {
+            if (message.message == WM_QUIT) {
+                quit = true;
+                quitCode = static_cast<int>(message.wParam);
+                break;
+            }
+            TranslateMessage(&message);
+            DispatchMessageW(&message);
+        }
+        if (quit) break;
+    }
+    if (quit || wait == WAIT_FAILED) TerminateProcess(process.hProcess, ERROR_CANCELLED);
+    DWORD code = 1;
+    BOOL hasCode = GetExitCodeProcess(process.hProcess, &code);
+    CloseHandle(process.hProcess);
+    if (IsWindow(owner)) EnableWindow(owner, enabled);
+    if (quit) {
+        PostQuitMessage(quitCode);
+        return std::string();
+    }
+    if (wait == WAIT_FAILED || !hasCode)
+        throw std::runtime_error("Could not wait for modpack preparation. The current world has not changed. Close the preparation window and try again.");
+    if (code == ERROR_CANCELLED || code == 0xC000013A)
+        throw std::runtime_error("Modpack preparation was cancelled. The current world has not changed.");
+    if (code != 0) {
+        std::string diagnostic = readModpackHelperFile(files.path.wstring() + L".error.txt", 4096);
+        if (diagnostic.empty()) diagnostic = "Modpack preparation failed. Check that the instance and its mods are readable and that the preview folder is writable, then choose the folder again. The current world has not changed.";
+        throw std::runtime_error(diagnostic);
+    }
+    std::string manifest = readModpackHelperFile(files.path, 4 * MAX_PATH_AND_FILE);
+    if (manifest.empty() || manifest.find_first_of("\r\n") != std::string::npos || manifest.find('\0') != std::string::npos)
+        throw std::runtime_error("Modpack preparation did not return a valid manifest path. Extract a fresh preview and try again.");
+    if (manifest != "VANILLA") {
+        wchar_t wide[MAX_PATH_AND_FILE] = {};
+        if (!MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, manifest.c_str(), -1, wide, _countof(wide)) ||
+            !std::filesystem::path(wide).is_absolute() || !std::filesystem::is_regular_file(wide))
+            throw std::runtime_error("Modpack preparation returned a missing or invalid manifest. Choose the instance again to retry.");
+    }
+    return manifest;
+}
+
+static void preflightModpackWorld(const std::filesystem::path& world)
+{
+    int version = 0;
+    wchar_t opened[MAX_PATH_AND_FILE] = {};
+    if (GetFileVersion(world.c_str(), &version, opened, _countof(opened)) != 0 || version < 19133)
+        throw std::runtime_error("The selected level.dat is not a readable Java Anvil world. Open this save in Minecraft and close it before trying again. The current world has not changed.");
+}
+
+static int chooseModpackFolder(HWND owner)
+{
+    if (gWorldGuide.type == WORLD_SCHEMATIC_TYPE) {
+        FilterMessageBox(owner, L"Open a world or the Block Test World before choosing a modpack folder.", L"Choose Modpack Folder", MB_OK | MB_ICONINFORMATION);
+        return 0;
+    }
+    try {
+        std::filesystem::path selected;
+        HRESULT result = chooseModpackDirectory(owner, L"Choose Modpack Folder", std::filesystem::path(), selected);
+        if (result == HRESULT_FROM_WIN32(ERROR_CANCELLED)) return 0;
+        if (FAILED(result)) throw std::runtime_error("Could not open the Windows folder chooser. Check that the folder is accessible and try again.");
+        const auto instance = MinewaysModpack::instanceRoot(selected);
+        result = chooseModpackDirectory(owner, L"Choose a World in This Modpack's saves Folder", instance / L"saves", selected);
+        if (result == HRESULT_FROM_WIN32(ERROR_CANCELLED)) return 0;
+        if (FAILED(result)) throw std::runtime_error("Could not open this modpack's saves folder. Check its permissions and try again.");
+        const auto world = MinewaysModpack::worldFolder(instance, selected);
+        const std::wstring worldFile = (world / L"level.dat").wstring();
+        if (worldFile.size() >= MAX_PATH_AND_FILE)
+            throw std::runtime_error("The selected world path is too long. Move the instance to a shorter path and try again.");
+        preflightModpackWorld(world);
+        const std::string manifest = prepareChosenModpack(owner, instance, world);
+        if (manifest.empty()) return 0;
+        MinewaysModpack::worldFolder(instance, world);
+        preflightModpackWorld(world);
+        std::string error;
+        if (!setModPack(manifest == "VANILLA" ? "" : manifest.c_str(), manifest == "VANILLA", error))
+            throw std::runtime_error(error);
+        wchar_t filename[MAX_PATH_AND_FILE];
+        wcscpy_s(filename, worldFile.c_str());
+        return loadWorldFromFilename(filename, owner);
+    } catch (const std::exception& error) {
+        wchar_t message[4096];
+        if (!MultiByteToWideChar(CP_UTF8, 0, error.what(), -1, message, _countof(message)))
+            wcscpy_s(message, L"Could not access the selected modpack. Check its folders and permissions, then try again.");
+        FilterMessageBox(owner, message, L"Choose Modpack Folder", MB_OK | MB_ICONERROR);
+        return 0;
     }
 }
 

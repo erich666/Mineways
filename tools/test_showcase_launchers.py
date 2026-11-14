@@ -33,9 +33,17 @@ class LauncherTests(unittest.TestCase):
             outside.mkdir()
             (package / '.showcase-runtime').symlink_to(outside, target_is_directory=True)
             shutil.copy2(TOOLS / 'showcase_runtime_pins.json', package / 'tools/showcase_runtime_pins.json')
+            shutil.copy2(TOOLS / 'run_mod_helper.command', package / 'tools/run_mod_helper.command')
             launcher = package / 'Open ATM10 Showcase.command'
             shutil.copy2(TOOLS / launcher.name, launcher)
             result = subprocess.run(['/bin/bash', str(launcher), '--prepare-only'],
+                                    capture_output=True, text=True, timeout=10)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('must not be a symlink', result.stderr)
+            self.assertEqual(list(outside.iterdir()), [])
+            modpack = package / 'tools/prepare_modpack.command'
+            shutil.copy2(TOOLS / modpack.name, modpack)
+            result = subprocess.run(['/bin/bash', str(modpack), 'instance', 'world', 'result'],
                                     capture_output=True, text=True, timeout=10)
             self.assertNotEqual(result.returncode, 0)
             self.assertIn('must not be a symlink', result.stderr)

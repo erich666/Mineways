@@ -6,6 +6,10 @@ on:
       - 'Win/**'
       - 'Mac/**'
       - 'tools/*preview*'
+      - 'tools/*modpack*'
+      - 'tools/*mod_helper*'
+      - 'tools/*showcase*'
+      - 'tools/*Showcase*'
       - 'tools/import_mod_assets.py'
       - 'tools/mod_*.py'
       - 'docs/preview-quickstart.md'
@@ -64,6 +68,7 @@ jobs:
           python tools/test_atm10_showcase_generator.py
           python tools/test_prepare_atm10_showcase.py
           python tools/test_showcase_launchers.py
+          python tools/test_prepare_modpack.py
           python tools/test_atm10_showcase.py --self-test
           python tools/test_preview_package.py --self-test
           python tools/test_preview_universal.py

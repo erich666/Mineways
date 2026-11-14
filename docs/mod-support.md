@@ -2,7 +2,17 @@
 
 Mineways can load a compiled pack of mod block definitions, textures, and dimension metadata. The importer reads asset folders, JAR files, and ZIP files. It does not run or decompile Java code.
 
-## Create a pack
+## Use an installed launcher instance
+
+Select **File > Choose Modpack Folder** in the complete Windows or macOS preview. Select a Prism or CurseForge instance, then choose a world from its saves folder. Mineways prepares the matching assets and opens that world in the current window.
+
+The helper reads `mmc-pack.json` or `minecraftinstance.json` for the Minecraft and loader versions. It uses the matching installed Minecraft client and Forge/NeoForge universal library. It includes installed mod JARs and enabled resource packs from `options.txt`. Fabric uses the installed client and mod assets.
+
+The helper does not run mod code or modify saves. It stores verified compiled packs under the preview folder's `.modpack-cache/`. Missing client or loader assets produce an error rather than selecting a different Minecraft version. Client-only instances can return a vanilla result when they provide no mod block assets.
+
+The preview downloads its pinned Python runtime when necessary. No manual Python installation is required for this menu command. The commands below remain available for custom asset combinations.
+
+## Create a pack manually
 
 Use Python 3.9 or later. No Python packages are required. On Windows, use `python` or `py -3` instead of `python3`.
 

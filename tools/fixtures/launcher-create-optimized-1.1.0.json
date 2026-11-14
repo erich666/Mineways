@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "name": "Create optimized - 3",
+  "version": "1.1.0",
+  "modrinth_project_id": "pxc0cpUP",
+  "modrinth_version_id": "tHecdSTV",
+  "project_url": "https://modrinth.com/modpack/create_optimized",
+  "version_url": "https://modrinth.com/modpack/create_optimized/version/tHecdSTV",
+  "layout": "curseforge",
+  "mrpack": {
+    "url": "https://cdn.modrinth.com/data/pxc0cpUP/versions/tHecdSTV/Create%20optimized%201.1.0.mrpack",
+    "size": 4963098,
+    "sha1": "ade66677a68f9a261b62a84bf622df47f8d02055"
+  },
+  "minecraft_client": {
+    "sha1": "30c73b1c5da787909b2f73340419fdf13b9def88",
+    "size": 26836906,
+    "url": "https://piston-data.mojang.com/v1/objects/30c73b1c5da787909b2f73340419fdf13b9def88/client.jar"
+  },
+  "loader": {
+    "kind": "neoforge",
+    "version": "21.1.249",
+    "url": "https://maven.neoforged.net/releases/net/neoforged/neoforge/21.1.249/neoforge-21.1.249-universal.jar",
+    "size": 3551266,
+    "sha1": "6bb029ee4e7c4893495d75909208bbc3f6d97b55"
+  },
+  "samples": [
+    {
+      "state": "create:andesite_casing",
+      "texture": "create:block/andesite_casing"
+    },
+    {
+      "state": "create:copper_casing",
+      "texture": "create:block/copper_casing"
+    }
+  ],
+  "dependencies": {
+    "minecraft": "1.21.1",
+    "neoforge": "21.1.249"
+  },
+  "expected_mod_count": 177,
+  "expected_file_count": 184
+}

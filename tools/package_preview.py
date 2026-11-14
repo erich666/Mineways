@@ -82,18 +82,24 @@ def package(app, platform, output, revision, root=ROOT):
         tools = stage / 'tools'
         tools.mkdir()
         for source in [root / 'tools/import_mod_assets.py', root / 'tools/download_mod_assets.py',
-                       root / 'tools/prepare_atm10_showcase.py', root / 'tools/showcase_runtime_pins.json',
+                       root / 'tools/prepare_atm10_showcase.py', root / 'tools/prepare_modpack.py',
+                       root / 'tools/showcase_runtime_pins.json',
                        *sorted((root / 'tools').glob('mod_*.py'))]:
             shutil.copy2(source, tools / source.name)
         (tools / 'fixtures').mkdir()
         shutil.copy2(root / 'tools/fixtures/atm10-showcase-1.21.1.json', tools / 'fixtures')
         if platform == 'windows-x64':
             shutil.copy2(root / 'tools/Open ATM10 Showcase.cmd', stage)
-            shutil.copy2(root / 'tools/launch_atm10_windows.ps1', tools)
+            for name in ('launch_atm10_windows.ps1', 'run_mod_helper_windows.ps1', 'prepare_modpack_windows.ps1'):
+                shutil.copy2(root / 'tools' / name, tools)
         else:
             launcher = stage / 'Open ATM10 Showcase.command'
             shutil.copy2(root / 'tools/Open ATM10 Showcase.command', launcher)
             launcher.chmod(0o755)
+            for name in ('run_mod_helper.command', 'prepare_modpack.command'):
+                helper = tools / name
+                shutil.copy2(root / 'tools' / name, helper)
+                helper.chmod(0o755)
         shutil.copy2(root / 'docs/preview-quickstart.md', stage / 'QUICKSTART.md')
         shutil.copy2(root / 'docs/atm10-showcase.md', stage / 'ATM10-SHOWCASE.md')
         shutil.copy2(root / 'docs/mod-support.md', stage / 'mod-support.md')

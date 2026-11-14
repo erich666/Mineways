@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "name": "Delighted+ 1.21.x",
+  "version": "2.0",
+  "modrinth_project_id": "vPowEUy0",
+  "modrinth_version_id": "f3NfwqTk",
+  "project_url": "https://modrinth.com/modpack/delighted-plus",
+  "version_url": "https://modrinth.com/modpack/delighted-plus/version/f3NfwqTk",
+  "layout": "prism",
+  "mrpack": {
+    "url": "https://cdn.modrinth.com/data/vPowEUy0/versions/f3NfwqTk/Delighted%2B%201.21.1%20Overhaul%202.0.mrpack",
+    "size": 87811,
+    "sha1": "58c65be09911e8e4f994ea52ced87c634afddb3d"
+  },
+  "minecraft_client": {
+    "sha1": "30c73b1c5da787909b2f73340419fdf13b9def88",
+    "size": 26836906,
+    "url": "https://piston-data.mojang.com/v1/objects/30c73b1c5da787909b2f73340419fdf13b9def88/client.jar"
+  },
+  "loader": {
+    "kind": "fabric-loader",
+    "version": "0.17.2",
+    "url": "https://maven.fabricmc.net/net/fabricmc/fabric-loader/0.17.2/fabric-loader-0.17.2.jar",
+    "size": 1915305,
+    "sha1": "0647622ac4163aad5ed5f79ccb532e31225562aa"
+  },
+  "samples": [
+    {
+      "state": "farmersdelight:stove[facing=north,lit=true]",
+      "texture": "farmersdelight:block/stove_front_on"
+    },
+    {
+      "state": "farmersdelight:oak_cabinet[facing=north,open=false]",
+      "texture": "farmersdelight:block/oak_cabinet_front"
+    }
+  ],
+  "dependencies": {
+    "fabric-loader": "0.17.2",
+    "minecraft": "1.21.1"
+  },
+  "expected_mod_count": 80,
+  "expected_file_count": 84
+}

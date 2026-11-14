@@ -419,6 +419,14 @@ class ImportTests(unittest.TestCase):
         self.assertIn('state\tsample:device\t', text)
         self.assertTrue(any('Weighted' in w for w in report['warnings']))
 
+    def test_jar_with_root_license_label(self):
+        simple(self.source)
+        jar = self.root / 'addon.jar'
+        with zipfile.ZipFile(jar, 'w') as archive:
+            archive.writestr('LICENSE_Create: Addon Compatibility', 'license text')
+        _, report = self.compile(sources=[self.source, jar])
+        self.assertGreater(report['blocks'], 0)
+
     def test_rejects_unsafe_archives(self):
         for index, name in enumerate(('../escape.json', '/absolute.png', 'assets\\bad.png', 'C:/evil.png', 'assets/bad\0.png')):
             jar = self.root / f'bad{index}.zip'
