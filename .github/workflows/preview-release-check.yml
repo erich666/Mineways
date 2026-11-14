@@ -10,6 +10,11 @@ on:
         description: Preview release tag in this repository
         type: string
         required: true
+      platforms:
+        description: Release packages to validate
+        type: choice
+        options: [all, windows, macos]
+        default: all
       full_atm:
         description: Test the exact packages with the pinned full ATM10 catalog on every platform
         type: boolean
@@ -27,25 +32,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - runner: windows-2022
-            platform: windows-x64
-            package: windows-x64
-            executable: Mineways.exe
-          - runner: macos-26-intel
-            platform: macos-x86_64
-            package: macos-universal
-            executable: Mineways.app/Contents/MacOS/mineways
-            architecture: x86_64
-          - runner: macos-26
-            platform: macos-arm64
-            package: macos-universal
-            executable: Mineways.app/Contents/MacOS/mineways
-            architecture: arm64
-    runs-on: ${{ matrix.runner }}
+        platform: ${{ fromJSON(inputs.platforms == 'windows' && '["windows-x64"]' || inputs.platforms == 'macos' && '["macos-x86_64","macos-arm64"]' || '["windows-x64","macos-x86_64","macos-arm64"]') }}
+    runs-on: ${{ fromJSON('{"windows-x64":"windows-2022","macos-x86_64":"macos-26-intel","macos-arm64":"macos-26"}')[matrix.platform] }}
     timeout-minutes: 45
     env:
-      PREVIEW_ARCHIVE: Mineways-preview-${{ matrix.package }}.zip
+      PACKAGE: ${{ matrix.platform == 'windows-x64' && 'windows-x64' || 'macos-universal' }}
+      EXECUTABLE: ${{ matrix.platform == 'windows-x64' && 'Mineways.exe' || 'Mineways.app/Contents/MacOS/mineways' }}
+      ARCHITECTURE: ${{ matrix.platform == 'macos-arm64' && 'arm64' || 'x86_64' }}
+      PREVIEW_ARCHIVE: Mineways-preview-${{ matrix.platform == 'windows-x64' && 'windows-x64' || 'macos-universal' }}.zip
     steps:
       - uses: actions/checkout@v5
         with:
@@ -94,8 +88,8 @@ jobs:
       - name: Verify native macOS test runner
         if: runner.os == 'macOS'
         run: |
-          test "$(uname -m)" = "${{ matrix.architecture }}"
-          python -c 'import platform; assert platform.machine() == "${{ matrix.architecture }}"'
+          test "$(uname -m)" = "${{ env.ARCHITECTURE }}"
+          python -c 'import platform; assert platform.machine() == "${{ env.ARCHITECTURE }}"'
       - name: Test exact downloaded package
         shell: bash
         run: python tools/test_preview_package.py "downloaded/$PREVIEW_ARCHIVE" --output preview-test
@@ -124,7 +118,7 @@ jobs:
           HTTPS_PROXY=http://127.0.0.1:9 HTTP_PROXY=http://127.0.0.1:9 PATH=/usr/bin:/bin:/usr/sbin:/sbin "$launcher" --prepare-only
       - name: Test shipped ATM10 showcase exports and schematics
         shell: bash
-        run: python tools/test_atm10_showcase.py "preview-test/extracted preview with spaces/Mineways-preview-${{ matrix.package }}" --output showcase-test
+        run: python tools/test_atm10_showcase.py "preview-test/extracted preview with spaces/Mineways-preview-${{ env.PACKAGE }}" --output showcase-test
       - name: Test Windows folder selection and argument handling
         if: runner.os == 'Windows'
         shell: cmd
@@ -141,7 +135,7 @@ jobs:
         shell: bash
         run: |
           python tools/test_launcher_real_packs.py --self-test
-          python tools/test_launcher_real_packs.py "preview-test/extracted preview with spaces/Mineways-preview-${{ matrix.package }}" --output real-launcher-packs
+          python tools/test_launcher_real_packs.py "preview-test/extracted preview with spaces/Mineways-preview-${{ env.PACKAGE }}" --output real-launcher-packs
       - name: Test the normal Windows modpack picker with both real packs
         if: runner.os == 'Windows'
         shell: pwsh
@@ -152,10 +146,10 @@ jobs:
         if: inputs.full_atm
         shell: bash
         run: |
-          preview_package="preview-test/extracted preview with spaces/Mineways-preview-${{ matrix.package }}"
+          preview_package="preview-test/extracted preview with spaces/Mineways-preview-${{ env.PACKAGE }}"
           python tools/download_mod_assets.py tools/fixtures/atm10-1.21.1.json "$RUNNER_TEMP/atm10-assets"
           python -I "$preview_package/tools/import_mod_assets.py" --sources-file "$RUNNER_TEMP/atm10-assets/sources.txt" -o "$RUNNER_TEMP/atm10-pack"
-          python tools/test_mod_windows.py "$preview_package/${{ matrix.executable }}" --pack "$RUNNER_TEMP/atm10-pack/manifest.mwpack" --pack-only
+          python tools/test_mod_windows.py "$preview_package/${{ env.EXECUTABLE }}" --pack "$RUNNER_TEMP/atm10-pack/manifest.mwpack" --pack-only
       - name: Save release smoke evidence
         if: always()
         uses: actions/upload-artifact@v6
