@@ -1,23 +1,31 @@
 #!/bin/bash
 set -euo pipefail
-showcase_root=$(cd "$(dirname "$0")/.." && pwd)
+tools_dir=$(cd "$(dirname "$0")" && pwd)
+package_dir=$(dirname "$tools_dir")
+cache_dir="$package_dir"
 case "$1" in
     showcase) helper=prepare_atm10_showcase.py ;;
     modpack) helper=prepare_modpack.py ;;
     *) exit 2 ;;
 esac
 shift
+if [[ "$tools_dir" == *.app/Contents/Resources/tools && "$helper" == prepare_modpack.py ]]; then
+    cache_dir="$HOME/Library/Caches/Mineways"
+    [[ ! -L "$cache_dir" ]] || { echo 'Mineways cache must not be a symlink' >&2; exit 1; }
+    mkdir -p "$cache_dir"
+    set -- --cache-root "$cache_dir" "$@"
+fi
 if [[ $(/usr/bin/uname -m) == arm64 ]] || [[ $(/usr/sbin/sysctl -n hw.optional.arm64 2>/dev/null || true) == 1 ]]; then
     runtime_key=macos-arm64
 else
     runtime_key=macos-x86_64
 fi
-pins="$showcase_root/tools/showcase_runtime_pins.json"
+pins="$tools_dir/showcase_runtime_pins.json"
 runtime_url=$(/usr/bin/plutil -extract "runtimes.$runtime_key.url" raw -o - "$pins")
 runtime_sha=$(/usr/bin/plutil -extract "runtimes.$runtime_key.sha256" raw -o - "$pins")
 runtime_size=$(/usr/bin/plutil -extract "runtimes.$runtime_key.size" raw -o - "$pins")
 [[ "$runtime_url" == https://* && "$runtime_sha" =~ ^[0-9a-f]{64}$ ]] || { echo 'Invalid pinned Python runtime metadata' >&2; exit 1; }
-runtime_base="$showcase_root/.showcase-runtime"
+runtime_base="$cache_dir/.showcase-runtime"
 runtime="$runtime_base/$runtime_key-${runtime_sha:0:12}"
 python="$runtime/python/bin/python3"
 [[ ! -L "$runtime_base" && ! -L "$runtime" ]] || { echo 'Python runtime cache must not be a symlink' >&2; exit 1; }
@@ -40,6 +48,7 @@ if [[ ! -x "$python" ]]; then
     fi
     [[ -x "$python" ]] || { echo 'Python runtime cache is incomplete' >&2; exit 1; }
 fi
-cd "$showcase_root"
+cd "$cache_dir"
 export SSL_CERT_FILE=/etc/ssl/cert.pem
-"$python" -E -s "$showcase_root/tools/$helper" "$@"
+# -B keeps imported modules from creating bytecode inside the signed app.
+"$python" -B -E -s "$tools_dir/$helper" "$@"

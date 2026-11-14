@@ -18,6 +18,8 @@ import zipfile
 
 def extract_package(archive_path, destination):
     with zipfile.ZipFile(archive_path) as archive:
+        names = set(archive.namelist())
+        flat = 'BUILD-METADATA.json' in names and 'SHA256SUMS' in names
         roots = set()
         for member in archive.infolist():
             relative = PurePosixPath(member.filename)
@@ -31,7 +33,8 @@ def extract_package(archive_path, destination):
                 if PurePosixPath(link).is_absolute() or '\\' in link or ':' in link:
                     raise ValueError('Unsafe archive symlink: ' + member.filename)
                 resolved = (target.parent / link).resolve()
-                if not resolved.is_relative_to(destination.resolve() / relative.parts[0]):
+                boundary = destination.resolve() if flat else destination.resolve() / relative.parts[0]
+                if not resolved.is_relative_to(boundary):
                     raise ValueError('Symlink escapes package: ' + member.filename)
                 target.symlink_to(link)
             elif member.is_dir():
@@ -41,9 +44,9 @@ def extract_package(archive_path, destination):
                 mode = member.external_attr >> 16
                 if mode:
                     target.chmod(stat.S_IMODE(mode))
-    if len(roots) != 1:
+    if not flat and len(roots) != 1:
         raise ValueError('Expected one package root')
-    root = destination / roots.pop()
+    root = destination if flat else destination / roots.pop()
     expected = {}
     for line in (root / 'SHA256SUMS').read_text(encoding='utf-8').splitlines():
         checksum, name = line.split('  ', 1)

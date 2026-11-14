@@ -1779,14 +1779,17 @@ void MinewaysFrame::OnChooseModpackFolder(wxCommandEvent&)
         return;
     }
     wxFileName package(wxStandardPaths::Get().GetExecutablePath());
+    wxString helper;
     if (package.GetDirs().Last() == "MacOS") {
         package.RemoveLastDir();
+        helper = package.GetPathWithSep() + "Resources/tools/prepare_modpack.command";
         package.RemoveLastDir();
         package.RemoveLastDir();
     }
-    const wxString helper = package.GetPathWithSep() + "tools/prepare_modpack.command";
+    if (helper.empty() || !wxFileExists(helper))
+        helper = package.GetPathWithSep() + "tools/prepare_modpack.command";
     if (!wxFileExists(helper)) {
-        wxMessageBox("This build does not include tools/prepare_modpack.command. Use the complete preview folder.",
+        wxMessageBox("The modpack preparation tool is missing. Extract a fresh copy of the complete Mineways download and open the app again.",
                      "Modpack preparation", wxOK | wxICON_ERROR, this);
         return;
     }

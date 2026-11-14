@@ -22,8 +22,8 @@ def read_nbt(data):
         return stream.read(unpack('>H')).decode('utf-8')
 
     def payload(kind):
-        if kind in (1, 2, 3):
-            return unpack({1: '>b', 2: '>h', 3: '>i'}[kind])
+        if kind in (1, 2, 3, 4, 5, 6):
+            return unpack({1: '>b', 2: '>h', 3: '>i', 4: '>q', 5: '>f', 6: '>d'}[kind])
         if kind == 7:
             return stream.read(unpack('>i'))
         if kind == 8:
@@ -37,6 +37,8 @@ def read_nbt(data):
                 name = string()
                 result[name] = payload(child)
             return result
+        if kind == 11:
+            return [unpack('>i') for _ in range(unpack('>i'))]
         if kind == 12:
             return [unpack('>Q') for _ in range(unpack('>i'))]
         raise AssertionError('Unexpected NBT type: ' + str(kind))
@@ -49,6 +51,16 @@ def read_nbt(data):
 
 
 class PreviewDemoTests(unittest.TestCase):
+    def test_scalar_and_array_types(self):
+        from make_preview_demo import compound, tag
+        data = compound('', tag(4, 'long', struct.pack('>q', -7))
+                        + tag(5, 'float', struct.pack('>f', 1.5))
+                        + tag(6, 'double', struct.pack('>d', 2.5))
+                        + tag(11, 'offset', struct.pack('>4i', 3, -1, 0, 2))
+                        + tag(12, 'packed', struct.pack('>iQ', 1, 0x8000000000000000)))
+        self.assertEqual(read_nbt(data), {'long': -7, 'float': 1.5, 'double': 2.5,
+                                          'offset': [-1, 0, 2], 'packed': [0x8000000000000000]})
+
     def test_world_and_schematic_match(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / 'demo'

@@ -1,5 +1,6 @@
 """Check pinned bootstrap metadata and reject runtime caches outside the package."""
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -12,6 +13,33 @@ TOOLS = Path(__file__).resolve().parent
 
 
 class LauncherTests(unittest.TestCase):
+    @unittest.skipUnless(sys.platform == 'darwin', 'Uses the built-in macOS bootstrap tools')
+    def test_moved_app_reads_signed_tools_and_writes_user_cache(self):
+        with tempfile.TemporaryDirectory(prefix='Moved Mineways app ') as temporary:
+            root = Path(temporary).resolve()
+            tools = root / 'Applications/Mineways.app/Contents/Resources/tools'
+            tools.mkdir(parents=True)
+            for name in ('showcase_runtime_pins.json', 'prepare_modpack.command', 'run_mod_helper.command'):
+                shutil.copy2(TOOLS / name, tools)
+            home = root / 'user'
+            cache = home / 'Library/Caches/Mineways'
+            pins = json.loads((tools / 'showcase_runtime_pins.json').read_text())['runtimes']
+            for arch in ('macos-arm64', 'macos-x86_64'):
+                python = cache / '.showcase-runtime' / (arch + '-' + pins[arch]['sha256'][:12]) / 'python/bin/python3'
+                python.parent.mkdir(parents=True)
+                python.symlink_to(sys.executable)
+            (tools / 'local_module.py').write_text('ready = True\n')
+            (tools / 'prepare_modpack.py').write_text(
+                'import local_module, sys\nfrom pathlib import Path\n'
+                'assert local_module.ready and sys.argv[1:3] == ["--cache-root", str(Path.cwd())]\n'
+                'Path(sys.argv[3]).write_text(str(Path.cwd()))\n')
+            result = root / 'result'
+            subprocess.run([str(tools / 'prepare_modpack.command'), str(result)], check=True,
+                           env={**os.environ, 'HOME': str(home)}, timeout=10)
+            self.assertEqual(result.read_text(), str(cache))
+            self.assertFalse((tools / '__pycache__').exists())
+            self.assertFalse((tools.parent / '.showcase-runtime').exists())
+
     def test_runtime_pins(self):
         pins = json.loads((TOOLS / 'showcase_runtime_pins.json').read_text())
         self.assertEqual(pins['format'], 1)

@@ -1,4 +1,4 @@
-name: Mod Preview Packages
+name: Mineways Packages
 
 on:
   pull_request:
@@ -6,6 +6,11 @@ on:
       - 'Win/**'
       - 'Mac/**'
       - 'tools/*preview*'
+      - 'tools/build_preview_macos.sh'
+      - 'tools/test_launcher_real_packs.py'
+      - 'tools/test_release_package.py'
+      - 'tools/test_vanilla_merge.py'
+      - 'tools/fixtures/**'
       - 'tools/*modpack*'
       - 'tools/*mod_helper*'
       - 'tools/*showcase*'
@@ -17,8 +22,24 @@ on:
       - '.github/workflows/mod-preview.yml'
       - '.github/workflows/macos-build.yml'
       - 'CHANGELOG.md'
+  workflow_call:
+    inputs:
+      distribution:
+        type: string
+        default: release
+      release_tag:
+        type: string
+        default: ''
+      full_atm:
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
+      distribution:
+        description: Package layout (release produces regular candidate ZIPs without publishing)
+        type: choice
+        options: [preview, release]
+        default: preview
       full_atm:
         description: Test the packaged Windows executable with the pinned full ATM10 catalog
         type: boolean
@@ -26,6 +47,10 @@ on:
 
 permissions:
   contents: read
+
+env:
+  DISTRIBUTION: ${{ github.event_name == 'pull_request' && 'release' || inputs.distribution || 'preview' }}
+  RELEASE_TAG: ${{ inputs.release_tag || '' }}
 
 jobs:
   package:
@@ -35,19 +60,28 @@ jobs:
         include:
           - runner: windows-2022
             platform: windows-x64
+            release_archive: Mineways-Windows.zip
             timeout_minutes: 30
           - runner: macos-26-intel
             platform: macos-universal
+            release_archive: Mineways-macOS.zip
             timeout_minutes: 75
     runs-on: ${{ matrix.runner }}
     timeout-minutes: ${{ matrix.timeout_minutes }}
+    env:
+      ARCHIVE: ${{ (github.event_name == 'pull_request' || inputs.distribution == 'release') && matrix.release_archive || format('Mineways-preview-{0}.zip', matrix.platform) }}
     steps:
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
+      - name: Validate version tag and changelog before building
+        if: inputs.release_tag != ''
+        shell: bash
+        run: python tools/package_preview.py --check-release "$RELEASE_TAG"
       - name: Build Windows Release
         if: runner.os == 'Windows'
         shell: pwsh
@@ -55,12 +89,17 @@ jobs:
           $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products '*' -requires Microsoft.Component.MSBuild -property installationPath
           & "$vs\MSBuild\Current\Bin\MSBuild.exe" Win/Mineways.vcxproj -p:Configuration=Release -p:Platform=x64 -p:PlatformToolset=v143 -v:m -nologo
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python tools/package_preview.py --platform windows-x64 --app Win/x64/Release/Mineways.exe --output Mineways-preview-windows-x64.zip --source-revision "$(git rev-parse HEAD)"
+          $tagArguments = @()
+          if ($env:RELEASE_TAG) { $tagArguments = @('--release-tag', $env:RELEASE_TAG) }
+          python tools/package_preview.py --platform windows-x64 --app Win/x64/Release/Mineways.exe --output "$env:ARCHIVE" --source-revision "$(git rev-parse HEAD)" --distribution "$env:DISTRIBUTION" @tagArguments
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build and bundle macOS Release
         if: runner.os == 'macOS'
         run: |
           bash tools/build_preview_macos.sh
-          python tools/package_preview.py --platform ${{ matrix.platform }} --app Mac/Mineways.app --output Mineways-preview-${{ matrix.platform }}.zip --source-revision "$(git rev-parse HEAD)"
+          tag_arguments=()
+          if [[ -n "$RELEASE_TAG" ]]; then tag_arguments=(--release-tag "$RELEASE_TAG"); fi
+          python tools/package_preview.py --platform ${{ matrix.platform }} --app Mac/Mineways.app --output "$ARCHIVE" --source-revision "$(git rev-parse HEAD)" --distribution "$DISTRIBUTION" "${tag_arguments[@]}"
       - name: Test package tooling
         shell: bash
         run: |
@@ -72,10 +111,11 @@ jobs:
           python tools/test_atm10_showcase.py --self-test
           python tools/test_preview_package.py --self-test
           python tools/test_preview_universal.py
+          python tools/test_release_package.py
       - uses: actions/upload-artifact@v6
         with:
-          name: preview-${{ matrix.platform }}
-          path: Mineways-preview-${{ matrix.platform }}.zip
+          name: package-${{ matrix.platform }}
+          path: ${{ env.ARCHIVE }}
           if-no-files-found: error
 
   test-download:
@@ -87,26 +127,33 @@ jobs:
           - runner: windows-2022
             platform: windows-x64
             package: windows-x64
+            release_archive: Mineways-Windows.zip
           - runner: macos-26-intel
             platform: macos-x86_64
             package: macos-universal
+            release_archive: Mineways-macOS.zip
             architecture: x86_64
           - runner: macos-26
             platform: macos-arm64
             package: macos-universal
+            release_archive: Mineways-macOS.zip
             architecture: arm64
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
+    timeout-minutes: 45
+    env:
+      ARCHIVE: ${{ (github.event_name == 'pull_request' || inputs.distribution == 'release') && matrix.release_archive || format('Mineways-preview-{0}.zip', matrix.package) }}
+      PACKAGE_ROOT: ${{ (github.event_name == 'pull_request' || inputs.distribution == 'release') && 'preview-test/extracted preview with spaces' || format('preview-test/extracted preview with spaces/Mineways-preview-{0}', matrix.package) }}
     steps:
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
       - uses: actions/download-artifact@v8
         with:
-          name: preview-${{ matrix.package }}
+          name: package-${{ matrix.package }}
           path: downloaded
       - name: Verify native macOS test runner
         if: runner.os == 'macOS'
@@ -114,11 +161,38 @@ jobs:
           test "$(uname -m)" = "${{ matrix.architecture }}"
           python -c 'import platform; assert platform.machine() == "${{ matrix.architecture }}"'
       - name: Test downloaded package without build dependencies
-        run: python tools/test_preview_package.py downloaded/Mineways-preview-${{ matrix.package }}.zip --output preview-test
+        run: python tools/test_preview_package.py "downloaded/${{ env.ARCHIVE }}" --output preview-test
       - name: Test Windows GUI startup and map
         if: runner.os == 'Windows'
         shell: pwsh
-        run: tools/test_preview_windows_gui.ps1 -PackageRoot "preview-test/extracted preview with spaces/Mineways-preview-windows-x64" -Screenshot "preview-test/windows-gui.png"
+        run: tools/test_preview_windows_gui.ps1 -PackageRoot "${{ env.PACKAGE_ROOT }}" -Screenshot "preview-test/windows-gui.png"
+      - name: Test regular candidates with real Fabric and NeoForge packs
+        if: github.event_name == 'pull_request' || inputs.distribution == 'release'
+        shell: bash
+        run: |
+          python tools/test_launcher_real_packs.py --self-test
+          python tools/test_launcher_real_packs.py "$PACKAGE_ROOT" --output real-launcher-packs
+      - name: Test normal Windows modpack picker with both real packs
+        if: runner.os == 'Windows' && (github.event_name == 'pull_request' || inputs.distribution == 'release')
+        shell: pwsh
+        run: |
+          tools/test_modpack_picker_windows.ps1 -PackageRoot "$env:PACKAGE_ROOT" -Installations real-launcher-packs -Output native-modpack-picker
+          python tools/test_launcher_real_packs.py "$env:PACKAGE_ROOT" --output real-launcher-packs --gui-output native-modpack-picker
+      - name: Check out the fork baseline for the vanilla comparison
+        if: runner.os == 'Windows' && github.event_name == 'pull_request'
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: vanilla-baseline
+          persist-credentials: false
+      - name: Compare vanilla exports against the fork baseline
+        if: runner.os == 'Windows' && github.event_name == 'pull_request'
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products '*' -requires Microsoft.Component.MSBuild -property installationPath
+          & "$vs\MSBuild\Current\Bin\MSBuild.exe" vanilla-baseline/Win/Mineways.vcxproj -p:Configuration=Release -p:Platform=x64 -p:PlatformToolset=v143 -v:m -nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tools/test_vanilla_merge.py --baseline-executable vanilla-baseline/Win/x64/Release/Mineways.exe --candidate-executable "preview-test/extracted preview with spaces/Mineways.exe" --output vanilla-parity
       - name: Test packaged Windows with full ATM10 catalog
         if: runner.os == 'Windows' && inputs.full_atm
         shell: pwsh
@@ -127,7 +201,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python tools/import_mod_assets.py --sources-file "$env:RUNNER_TEMP/atm10-assets/sources.txt" -o "$env:RUNNER_TEMP/atm10-pack"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python tools/test_mod_windows.py "preview-test/extracted preview with spaces/Mineways-preview-windows-x64/Mineways.exe" --pack "$env:RUNNER_TEMP/atm10-pack/manifest.mwpack" --pack-only
+          python tools/test_mod_windows.py "${{ env.PACKAGE_ROOT }}/Mineways.exe" --pack "$env:RUNNER_TEMP/atm10-pack/manifest.mwpack" --pack-only
       - name: Save smoke evidence
         if: always()
         uses: actions/upload-artifact@v6
@@ -136,4 +210,56 @@ jobs:
           path: |
             preview-test/**/smoke output/**
             preview-test/windows-gui.png
+            vanilla-parity/validation.json
+            vanilla-parity/master/**
+            real-launcher-packs/validation.json
+            native-modpack-picker/*.json
+            native-modpack-picker/**/native-picker-map.png
           if-no-files-found: warn
+
+  publish:
+    needs: [package, test-download]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && inputs.distribution == 'release' && inputs.release_tag == github.ref_name
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: package-*
+          path: release-assets
+          merge-multiple: true
+      - name: Prepare guarded release notes and archive checksums
+        shell: bash
+        run: |
+          python tools/package_preview.py --check-release "$RELEASE_TAG" > release-notes.md
+          printf '\nWindows x64 and native Apple Silicon/Intel macOS 26+ packages include modpack tools and the original demo.\n' >> release-notes.md
+          cat >> release-notes.md <<'NOTES'
+
+          **macOS first launch:** the app is ad-hoc signed. Verify SHA256SUMS.txt, then follow QUICKSTART.md. If Gatekeeper blocks the app, remove quarantine only from the extracted folder with `xattr -cr "$HOME/Downloads/Mineways-macOS"` (adjust the path), then open Mineways.app again.
+          NOTES
+          python - <<'PYCODE'
+          import hashlib
+          from pathlib import Path
+          root = Path('release-assets')
+          files = sorted(root.glob('*.zip'))
+          if {path.name for path in files} != {'Mineways-Windows.zip', 'Mineways-macOS.zip'}:
+              raise SystemExit('Expected exactly the two tested regular release ZIPs')
+          (root / 'SHA256SUMS.txt').write_text(''.join(hashlib.sha256(path.read_bytes()).hexdigest() + '  ' + path.name + '\n' for path in files))
+          PYCODE
+      - name: Publish only after every native package check passes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo '::error::A release already exists for this tag; refusing to replace its assets.'
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$RELEASE_TAG" --notes-file release-notes.md release-assets/*.zip release-assets/SHA256SUMS.txt

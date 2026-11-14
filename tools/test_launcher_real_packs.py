@@ -145,7 +145,8 @@ def invoke_helper(package, instance, world, result, offline=False):
         command = [str(powershell), '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
                    str(package / 'tools/prepare_modpack_windows.ps1')]
     else:
-        command = [str(package / 'tools/prepare_modpack.command')]
+        bundled = package / 'Mineways.app/Contents/Resources/tools/prepare_modpack.command'
+        command = [str(bundled if bundled.is_file() else package / 'tools/prepare_modpack.command')]
     env = app_environment()
     if offline:
         env.update(HTTPS_PROXY='http://127.0.0.1:9', HTTP_PROXY='http://127.0.0.1:9',

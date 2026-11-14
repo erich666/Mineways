@@ -598,15 +598,14 @@ slice, not a universal binary).
 
 ### CI/CD and releases
 
-`.github/workflows/macos-build.yml`: every push/PR touching `Mac/` or
-`Win/*.cpp`/`.h` builds `Mineways.app` and uploads it as a workflow
-artifact. Pushing a tag matching the Windows/upstream version (for example,
-`v14.02` for Windows 14.02) additionally zips it and attaches it to a GitHub Release.
+The regular release workflow calls `.github/workflows/mod-preview.yml` to build
+Windows x64 and universal macOS 26+ ZIPs. Pull requests test the regular release
+layout. Master and manual builds produce artifacts. A matching version-tag push
+publishes the tested ZIPs after Windows and both native Mac checks pass.
 
-- Dependencies (wxWidgets dylibs) are bundled into `Contents/Frameworks`
-  via `dylibbundler` so the `.app` doesn't require Homebrew on the end
-  user's machine — verified by relocating a built app off this machine
-  and confirming `otool -L` shows no `/opt/homebrew` references.
+- The Intel macOS runner builds both CPU slices once with statically linked
+  wxWidgets. The regular Mac ZIP keeps `Mineways.app` at its root. The signed
+  bundle includes the modpack helper so the picker can run after moving the app.
 - Ships **unsigned** (ad-hoc `codesign --sign -` only, no paid Apple
   Developer account). A downloaded-and-quarantined unsigned app is
   rejected by Gatekeeper as "damaged" (not the older, clearer

@@ -228,11 +228,12 @@ def prepare(package, instance, world):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--cache-root', type=Path, default=Path(__file__).resolve().parents[1])
     for arg in ('instance', 'world', 'result'):
         parser.add_argument(arg, type=Path)
     args = parser.parse_args()
     try:
-        value = prepare(Path(__file__).resolve().parents[1], args.instance, args.world)
+        value = prepare(args.cache_root.resolve(strict=True), args.instance, args.world)
         args.result.write_text(value, encoding='utf-8')
     except (ValueError, OSError, RuntimeError, zipfile.BadZipFile) as error:
         if os.name == 'nt':

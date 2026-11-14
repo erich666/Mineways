@@ -262,6 +262,7 @@ try {
           'Set render type: Wavefront OBJ absolute indices', 'Center model: NO',
           'Export lesser blocks: YES', 'Individual blocks: YES',
           'File type: Export individual textures to directory individual-textures',
+          'Focus view: 8, 8', 'Zoom: 16',
           'Selection location min to max: 0, 64, 0 to 15, 67, 15',
           "Export for Rendering: $(Join-Path $destination 'individual.obj')",
           "Export Schematic: $(Join-Path $destination 'roundtrip.schem')") |

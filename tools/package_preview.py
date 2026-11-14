@@ -66,14 +66,46 @@ def check_architecture(app, platform):
                 raise ValueError('Universal preview must declare macOS 26.0 minimum')
 
 
-def package(app, platform, output, revision, root=ROOT):
+def source_version(root=ROOT):
+    source = (root / 'Win/stdafx.h').read_text(encoding='latin-1')
+    major = int(re.search(r'#define MINEWAYS_MAJOR_VERSION (\d+)', source).group(1))
+    minor = int(re.search(r'#define MINEWAYS_MINOR_VERSION (\d+)', source).group(1))
+    return f'{major}.{minor:02d}'
+
+
+def release_notes(tag, root=ROOT):
+    if tag != 'v' + source_version(root):
+        raise ValueError('Release tag must match the Windows/source version: v' + source_version(root))
+    changelog = (root / 'CHANGELOG.md').read_text(encoding='utf-8')
+    section = re.search(r'^## \[' + re.escape(tag) + r'\](?:[ \t]+-[^\n]*)?[ \t]*\n(.*?)(?=^## \[|\Z)',
+                        changelog, re.MULTILINE | re.DOTALL)
+    if section is None:
+        raise ValueError('Release requires a CHANGELOG.md section for ' + tag)
+    notes = section[1].strip()
+    if not any(line.strip() and not line.lstrip().startswith('#') for line in notes.splitlines()):
+        raise ValueError('Release changelog section is empty: ' + tag)
+    return notes + '\n'
+
+
+def package(app, platform, output, revision, root=ROOT, distribution='preview', release_tag=None):
+    if distribution not in ('preview', 'release'):
+        raise ValueError('Unknown distribution: ' + distribution)
+    if release_tag:
+        if distribution != 'release':
+            raise ValueError('A release tag requires the release distribution')
+        release_notes(release_tag, root)
+    version = source_version(root)
     check_architecture(app, platform)
+    if distribution == 'release' and platform.startswith('macos-'):
+        info = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
+        if any(info.get(key) != version for key in ('CFBundleVersion', 'CFBundleShortVersionString')):
+            raise ValueError('App bundle version differs from the Windows/source version')
     if output.exists():
         raise FileExistsError('Refusing to overwrite ' + str(output))
     from make_preview_demo import make_demo
     from make_atm10_showcase import make_showcase
     with tempfile.TemporaryDirectory(prefix='mineways-package-') as temporary:
-        stage = Path(temporary) / ('Mineways-preview-' + platform)
+        stage = Path(temporary) / ('Mineways-preview-' + platform if distribution == 'preview' else 'Mineways')
         stage.mkdir()
         if platform == 'windows-x64':
             shutil.copy2(app, stage / 'Mineways.exe')
@@ -100,18 +132,22 @@ def package(app, platform, output, revision, root=ROOT):
                 helper = tools / name
                 shutil.copy2(root / 'tools' / name, helper)
                 helper.chmod(0o755)
+        if distribution == 'release' and platform.startswith('macos-'):
+            bundled_tools = stage / 'Mineways.app/Contents/Resources/tools'
+            shutil.copytree(tools, bundled_tools)
+            subprocess.run(['codesign', '--force', '--sign', '-', str(stage / 'Mineways.app')], check=True)
+            subprocess.run(['codesign', '--verify', '--deep', '--strict', str(stage / 'Mineways.app')], check=True)
         shutil.copy2(root / 'docs/preview-quickstart.md', stage / 'QUICKSTART.md')
         shutil.copy2(root / 'docs/atm10-showcase.md', stage / 'ATM10-SHOWCASE.md')
         shutil.copy2(root / 'docs/mod-support.md', stage / 'mod-support.md')
         shutil.copy2(root / 'license.txt', stage / 'license.txt')
         make_demo(stage / 'demo')
         make_showcase(stage / 'atm10-showcase')
-        version_source = (root / 'Win/stdafx.h').read_text(encoding='latin-1')
-        major = int(re.search(r'#define MINEWAYS_MAJOR_VERSION (\d+)', version_source).group(1))
-        minor = int(re.search(r'#define MINEWAYS_MINOR_VERSION (\d+)', version_source).group(1))
         metadata = {'repository': 'wbreiler/Mineways', 'source_revision': revision,
-                    'upstream_version': f'{major}.{minor:02d}',
-                    'platform': platform, 'configuration': 'Release', 'preview': True}
+                    'upstream_version': version, 'version': version,
+                    'platform': platform, 'configuration': 'Release',
+                    'distribution': distribution, 'preview': distribution == 'preview',
+                    'release_tag': release_tag}
         if platform == 'macos-universal':
             metadata.update(architectures=['arm64', 'x86_64'], minimum_macos='26.0')
         (stage / 'BUILD-METADATA.json').write_text(json.dumps(metadata, indent=2) + '\n', encoding='utf-8')
@@ -122,7 +158,7 @@ def package(app, platform, output, revision, root=ROOT):
         output.parent.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(output, 'x', compression=zipfile.ZIP_DEFLATED) as archive:
             for path in paths:
-                name = path.relative_to(stage.parent).as_posix()
+                name = path.relative_to(stage.parent if distribution == 'preview' else stage).as_posix()
                 if path.is_symlink():
                     info = zipfile.ZipInfo(name)
                     info.create_system = 3
@@ -135,15 +171,24 @@ def package(app, platform, output, revision, root=ROOT):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--platform', choices=PLATFORMS, required=True)
-    parser.add_argument('--app', type=Path, required=True)
-    parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--platform', choices=PLATFORMS)
+    parser.add_argument('--app', type=Path)
+    parser.add_argument('--output', type=Path)
     parser.add_argument('--source-revision')
+    parser.add_argument('--distribution', choices=('preview', 'release'), default='preview')
+    parser.add_argument('--release-tag')
+    parser.add_argument('--check-release', metavar='TAG', help='validate the release tag/changelog and print its notes')
     args = parser.parse_args()
+    if args.check_release:
+        print(release_notes(args.check_release), end='')
+        return
+    if not all((args.platform, args.app, args.output)):
+        parser.error('--platform, --app, and --output are required to package a build')
     revision = args.source_revision or subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
     if len(revision) != 40 or any(c not in '0123456789abcdef' for c in revision):
         parser.error('source revision must be a full lowercase Git SHA')
-    print(package(args.app.resolve(), args.platform, args.output.resolve(), revision))
+    print(package(args.app.resolve(), args.platform, args.output.resolve(), revision,
+                  distribution=args.distribution, release_tag=args.release_tag))
 
 
 if __name__ == '__main__':

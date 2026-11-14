@@ -1,21 +1,23 @@
 # Mineways, a Minecraft mapper and exporter
 **Originally by Eric Haines, erich@acm.org — begun 11/14/2011**
 
-> This independent fork of [erich666/Mineways](https://github.com/erich666/Mineways) adds a native macOS port and experimental mod support. The mod support preview is not an upstream release. Start with the [preview quickstart](docs/preview-quickstart.md). See the [CHANGELOG](CHANGELOG.md) for release notes.
+> This independent fork of [erich666/Mineways](https://github.com/erich666/Mineways) adds a native macOS port and experimental mod support. This fork has its own releases. Start with the [mod support quickstart](docs/preview-quickstart.md). See the [CHANGELOG](CHANGELOG.md) for release notes.
 
 Mineways is an open-source GUI program that exports Minecraft maps into 3D models for use in 3D software, printing and rendering. Mineways supports most Minecraft: Java Edition versions and offers many settings and functionality to customize the map export to your needs.
 
 **Homepage is http://mineways.com which redirects to https://www.realtimerendering.com/erich/minecraft/public/mineways/**
 
-This repository contains the source for the independent fork. Use this fork's [Releases](https://github.com/wbreiler/Mineways/releases) page for its Windows and macOS preview downloads. The homepage above describes upstream Mineways.
+This repository contains the source for the independent fork. Use this fork's [Releases](https://github.com/wbreiler/Mineways/releases) page for its Windows and macOS downloads. The homepage above describes upstream Mineways.
 
 ![Simple example export rendered by spacebanana420](banner.jpg "Simple example export by spacebanana420")
 
 # Download
 
-For experimental mod support, select the mod support preview on this fork's [Releases](https://github.com/wbreiler/Mineways/releases) page. Download the ZIP for your platform. Follow the [preview quickstart](docs/preview-quickstart.md) for the included demo. The demo does not require Python.
+Regular builds produce `Mineways-Windows.zip` for Windows x64 and `Mineways-macOS.zip` for macOS 26 or later. Both packages include modpack tools and the original demo. The macOS app runs natively on Apple Silicon and Intel Macs. Rosetta is not required.
 
-Use `macos-universal` on macOS 26 or later. This single package runs natively on Apple Silicon and Intel Macs. Rosetta is not required.
+Existing mod support previews remain on this fork's [Releases](https://github.com/wbreiler/Mineways/releases) page. Their filenames contain `windows-x64` or `macos-universal`. Follow the [mod support quickstart](docs/preview-quickstart.md) for either package format. The included demo does not require Python.
+
+Master builds and manual regular builds upload tested candidate artifacts. A matching version-tag push publishes the regular ZIPs only after all native package checks pass.
 
 The older `v14.03` release predates mod support. Upstream Windows downloads also do not contain this fork's mod support. For upstream Windows releases, [visit the project homepage](https://www.realtimerendering.com/erich/minecraft/public/mineways/).
 

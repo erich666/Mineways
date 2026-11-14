@@ -1,12 +1,6 @@
-# Builds the wxWidgets macOS port (Mac/) into a self-contained Mineways.app.
-# - Master pushes touching Mac/ or Win/ build and upload the app as a workflow artifact.
-# - Pull requests use the Mod Preview Packages workflow for macOS builds and tests.
-# - A tag matching the Windows version, such as "v14.03", also publishes a GitHub Release.
-#
-# Ships unsigned (ad-hoc signed only, no Apple Developer account needed). Finder may
-# report the downloaded app as "damaged" due to the quarantine flag on unsigned code —
-# see the release body / README for the one-line `xattr -cr` fix.
-name: macOS Build
+# Regular Windows + universal macOS packages share the preview build/test pipeline.
+# Master/manual runs produce tested candidate artifacts. Only version-tag pushes publish.
+name: Release Packages
 
 on:
   push:
@@ -14,98 +8,20 @@ on:
     tags: ['v*']
     paths:
       - 'Mac/**'
-      - 'Win/*.cpp'
-      - 'Win/*.h'
-      - '.github/workflows/macos-build.yml'
-      - 'tools/import_mod_assets.py'
-      - 'tools/mod_*.py'
+      - 'Win/**'
+      - 'tools/**'
+      - 'docs/**'
       - 'CHANGELOG.md'
+      - '.github/workflows/macos-build.yml'
+      - '.github/workflows/mod-preview.yml'
   workflow_dispatch:
-    inputs:
-      runner:
-        description: 'Native Apple Silicon runner (Intel is an optional compatibility build)'
-        type: choice
-        default: macos-26
-        options:
-          - macos-15
-          - macos-26
-          - macos-15-intel
 
 permissions:
   contents: write
 
 jobs:
-  build:
-    runs-on: ${{ inputs.runner || 'macos-26' }}
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Install dependencies
-        run: brew install wxwidgets dylibbundler
-
-      - name: Build app bundle
-        run: |
-          make -C Mac test-version
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            make -C Mac MINEWAYS_VERSION="${GITHUB_REF#refs/tags/v}" app
-          else
-            make -C Mac app
-          fi
-
-      - name: Test dimensions and mod support
-        run: make -C Mac test test-mods test-mod-limits
-
-      - name: Bundle dependencies (make app self-contained)
-        run: |
-          dylibbundler -od -b \
-            -x Mac/Mineways.app/Contents/MacOS/mineways \
-            -d Mac/Mineways.app/Contents/Frameworks \
-            -p @executable_path/../Frameworks
-
-      - name: Ad-hoc sign whole bundle
-        run: codesign --force --deep --sign - Mac/Mineways.app
-
-      - name: Zip app
-        run: ditto -c -k --keepParent Mac/Mineways.app Mineways-macOS.zip
-
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v6
-        with:
-          name: Mineways-macOS
-          path: Mineways-macOS.zip
-
-      - name: Prepare Release Notes
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          echo "**First launch:** this build is unsigned (no paid Apple Developer account), so" > release_body.md
-          echo "after unzipping, macOS Gatekeeper may show \"Mineways.app is damaged and can't" >> release_body.md
-          echo "be opened\" — that's just the quarantine flag on an unsigned app, not a broken" >> release_body.md
-          echo "download or a broken zip. Fix it with one Terminal command, then open normally:" >> release_body.md
-          echo "" >> release_body.md
-          echo '```' >> release_body.md
-          echo "xattr -cr ~/Downloads/Mineways.app" >> release_body.md
-          echo '```' >> release_body.md
-          echo "" >> release_body.md
-          echo "(adjust the path if you moved the app first, e.g. to /Applications)" >> release_body.md
-          echo "" >> release_body.md
-          echo "---" >> release_body.md
-          echo "### Release Notes" >> release_body.md
-          echo "" >> release_body.md
-          release_tag="${GITHUB_REF#refs/tags/}"
-          notes=$(awk -v tag="$release_tag" '
-            /^## \[/ { if (found) exit; found = index($0, "## [" tag "]") == 1; next }
-            found { print }
-          ' CHANGELOG.md)
-          if [[ ! "$notes" =~ [^[:space:]] ]]; then
-            echo "::error::Missing release notes for $release_tag in CHANGELOG.md"
-            exit 1
-          fi
-          printf '%s\n' "$notes" >> release_body.md
-
-      - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v3
-        with:
-          name: ${{ github.ref_name }}
-          files: Mineways-macOS.zip
-          body_path: release_body.md
+  packages:
+    uses: ./.github/workflows/mod-preview.yml
+    with:
+      distribution: release
+      release_tag: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}

@@ -1,17 +1,21 @@
-# Mod support preview quickstart
+# Mod support quickstart
 
-This independent Mineways fork provides experimental mod support on Windows and macOS. This preview is not an upstream release.
+This independent Mineways fork provides experimental mod support on Windows and macOS. The same tools and demo are included in regular and preview packages.
 
 ## Download and open
 
-Use the mod support preview on the [fork releases page](https://github.com/wbreiler/Mineways/releases). The older `v14.03` release predates mod support.
+Use the [fork releases page](https://github.com/wbreiler/Mineways/releases). The older `v14.03` release predates mod support.
 
 Choose the ZIP for your platform. Extract the complete ZIP into a writable folder. Keep its files together.
 
-- `windows-x64`: Windows x64, with `Mineways.exe` at the package root.
-- `macos-universal`: macOS 26 or later, with `Mineways.app` at the package root.
+- `Mineways-Windows.zip`: Windows x64, with `Mineways.exe` at the package root.
+- `Mineways-macOS.zip`: macOS 26 or later, with `Mineways.app` at the package root.
+
+Preview ZIP filenames instead contain `windows-x64` or `macos-universal`. Their complete files stay inside a `Mineways-preview-*` folder.
 
 The single macOS package runs natively on Apple Silicon and Intel Macs. Rosetta is not required.
+
+The regular macOS app includes its modpack picker tools. You may move that app alone into Applications. The picker stores prepared files in `~/Library/Caches/Mineways`. Keep the complete extracted package for the demo and ATM10 showcase.
 
 Each macOS package uses an ad-hoc signature. It is not notarized. The release notes identify the tested architectures.
 
@@ -109,9 +113,9 @@ Use Sponge `.schem` for mod schematic exports. The legacy `.schematic` format ca
 
 ## Open an installed modpack
 
-Use the complete preview folder. No manual Python installation or compilation command is required.
+The picker prepares the pack automatically.
 
-1. Open Mineways from the extracted preview folder.
+1. Open Mineways.
 2. Select **File > Choose Modpack Folder**.
 3. Select your Prism or CurseForge instance folder.
 4. Select a world from that instance's saves folder.
@@ -160,7 +164,7 @@ The included original demo does not establish compatibility with every modpack. 
 Include this information in an issue on the [fork issue tracker](https://github.com/wbreiler/Mineways/issues):
 
 ```text
-Preview asset filename:
+Downloaded ZIP filename:
 Build source SHA (BUILD-METADATA.json):
 Operating system and CPU architecture:
 Minecraft version:
