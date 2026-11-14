@@ -27,6 +27,7 @@ public static class ModpackPickerWindow {
     [DllImport("user32.dll")] static extern bool EnumWindows(EnumWindowCallback callback, IntPtr parameter);
     [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
     [DllImport("user32.dll", CharSet=CharSet.Unicode)] static extern int GetClassName(IntPtr window, StringBuilder name, int count);
+    [DllImport("user32.dll")] public static extern IntPtr GetDlgItem(IntPtr dialog, int id);
     [DllImport("user32.dll")] public static extern IntPtr GetMenu(IntPtr window);
     [DllImport("user32.dll")] public static extern uint GetMenuState(IntPtr menu, uint id, uint flags);
     [DllImport("user32.dll")] public static extern IntPtr SendMessageTimeout(IntPtr window, uint message,
@@ -97,13 +98,41 @@ function Find-Dialog([string]$Title, [int]$Seconds = 45) {
 
 }
 function Invoke-Button($Dialog, [string]$Id) {
-    $button = $Dialog.FindFirst([Windows.Automation.TreeScope]::Descendants,
-        [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::AutomationIdProperty, $Id))
-    if ($null -eq $button) { throw "Native dialog button $Id was not found" }
-    $button.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke()
+    $title = $Dialog.Current.Name
+    $deadline = [DateTime]::UtcNow.AddSeconds(20)
+    do {
+        $handle = [IntPtr]$Dialog.Current.NativeWindowHandle
+        $native = [ModpackPickerWindow]::GetDlgItem($handle, [int]$Id)
+        if ($native -ne [IntPtr]::Zero -and [ModpackPickerWindow]::IsWindowEnabled($native)) {
+            if (-not [ModpackPickerWindow]::PostMessage($native, 0xF5, [IntPtr]::Zero, [IntPtr]::Zero)) {
+                throw "Cannot click native button $Id in $title"
+            }
+            Write-Host "Native dialog action: $title button $Id"
+            return
+        }
+        $button = $Dialog.FindFirst([Windows.Automation.TreeScope]::Descendants,
+            [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::AutomationIdProperty, $Id))
+        if ($null -ne $button -and $button.Current.IsEnabled) {
+            $invoke = $null
+            if ($button.TryGetCurrentPattern([Windows.Automation.InvokePattern]::Pattern, [ref]$invoke)) {
+                $invoke.Invoke()
+                Write-Host "Native dialog action: $title button $Id"
+                return
+            }
+        }
+        Start-Sleep -Milliseconds 250
+    } while ([DateTime]::UtcNow -lt $deadline)
+    if ($Id -eq '2' -and $handle -ne [IntPtr]::Zero) {
+        # Closing this process-scoped modal dialog is the normal picker cancellation route.
+        [void][ModpackPickerWindow]::PostMessage($handle, 0x10, [IntPtr]::Zero, [IntPtr]::Zero)
+        return
+    }
+    Save-WindowDiagnostics
+    throw "Native dialog button $Id was not found in $title"
 }
 function Select-Path([string]$Title, [string]$Path, [string]$FieldName = 'Folder') {
     $dialog = Find-Dialog $Title
+    Write-Host "Native picker selection: $Title => $Path"
     $deadline = [DateTime]::UtcNow.AddSeconds(30)
     do {
         # The world picker starts in saves. Select its visible world item directly.
